@@ -114,6 +114,8 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
+type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
+
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
@@ -1277,6 +1279,8 @@ type GetMatchingHostSerialsMarkedDeletedFunc func(ctx context.Context, serials [
 type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
+
+type MarkHostDEPAssignmentDeletedFunc func(ctx context.Context, hostID uint) error
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
 
@@ -2475,6 +2479,9 @@ type DataStore struct {
 
 	ListScheduledQueriesForAgentsFunc        ListScheduledQueriesForAgentsFunc
 	ListScheduledQueriesForAgentsFuncInvoked bool
+
+	HasLabelScopedScheduledQueriesFunc        HasLabelScopedScheduledQueriesFunc
+	HasLabelScopedScheduledQueriesFuncInvoked bool
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
@@ -4221,6 +4228,9 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	MarkHostDEPAssignmentDeletedFunc        MarkHostDEPAssignmentDeletedFunc
+	MarkHostDEPAssignmentDeletedFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
@@ -6131,6 +6141,13 @@ func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *u
 	s.ListScheduledQueriesForAgentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScheduledQueriesForAgentsFunc(ctx, teamID, hostID, queryReportsDisabled)
+}
+
+func (s *DataStore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+	s.mu.Lock()
+	s.HasLabelScopedScheduledQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasLabelScopedScheduledQueriesFunc(ctx, teamID, queryReportsDisabled)
 }
 
 func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
@@ -10205,6 +10222,13 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uin
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostDEPAssignmentsFunc(ctx, abmTokenID, serials)
+}
+
+func (s *DataStore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.MarkHostDEPAssignmentDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkHostDEPAssignmentDeletedFunc(ctx, hostID)
 }
 
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error {

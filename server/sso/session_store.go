@@ -11,6 +11,24 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
+// ErrSessionNotFound reports that an SSO session is no longer in the store.
+// Sessions are written with a TTL and deleted once fulfilled, so in practice
+// this means the user took longer to sign in than the configured window.
+var ErrSessionNotFound = errors.New("sso session not found")
+
+// sessionNotFoundError keeps the AuthRequiredError behaviour callers already
+// depend on -- the authz middleware matches on that type -- while letting the
+// SSO callbacks recognise an expired session with errors.Is.
+type sessionNotFoundError struct {
+	authRequired error
+}
+
+func (e *sessionNotFoundError) Error() string { return e.authRequired.Error() }
+
+func (e *sessionNotFoundError) Unwrap() []error {
+	return []error{e.authRequired, ErrSessionNotFound}
+}
+
 type SSORequestData struct {
 	HostUUID  string `json:"host_uuid,omitempty"`
 	Initiator string `json:"initiator,omitempty"`
@@ -81,7 +99,7 @@ func (s *store) get(sessionID string) (*Session, error) {
 	val, err := redigo.String(conn.Do("GET", sessionID))
 	if err != nil {
 		if err == redigo.ErrNil {
-			return nil, fleet.NewAuthRequiredError("session not found")
+			return nil, &sessionNotFoundError{authRequired: fleet.NewAuthRequiredError("session not found")}
 		}
 		return nil, err
 	}

@@ -4221,10 +4221,11 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 				COUNT(*) AS count_installer_labels,
 				COUNT(lm.label_id) AS count_host_labels,
 				SUM(CASE
+				-- only dynamic labels (membership type 0) need to wait for the host to report label
+				-- results; manual and host vitals membership is populated by the server, so it is
+				-- known as soon as the label exists.
 				WHEN
-					lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1
-				WHEN
-					lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+					lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at) THEN 1
 				ELSE
 					0
 				END) as count_host_updated_after_labels
@@ -4323,8 +4324,7 @@ FROM (
 			COUNT(lm.label_id) AS count_host_labels,
 			SUM(
 				CASE
-				WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = h.id) >= lbl.created_at THEN 1
-				WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+				WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR h.label_updated_at >= lbl.created_at) THEN 1
 				ELSE 0 END) AS count_host_updated_after_labels
 		FROM
 			%[1]s_labels sil
