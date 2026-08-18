@@ -27156,8 +27156,6 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	t := s.T()
 	ctx := t.Context()
 
-	const longCommandDuration = "315360000s"
-
 	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
@@ -27256,4 +27254,9 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	p, err := s.ds.GetMDMCommandPlatform(ctx, cmdUUID)
 	require.NoError(t, err)
 	assert.Equal(t, "android", p)
+
+	// Verify command_status filter is rejected for Android hosts.
+	res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", hostUUID), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
 }

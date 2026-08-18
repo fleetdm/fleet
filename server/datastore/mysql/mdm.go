@@ -333,7 +333,7 @@ WHERE ` + whereTeam
 		)
 	}
 
-	if dest[0].Platform == "windows" && len(listOpts.Filters.CommandStatuses) > 0 {
+	if (dest[0].Platform == "windows" || fleet.IsAndroidPlatform(dest[0].Platform)) && len(listOpts.Filters.CommandStatuses) > 0 {
 		return nil, nil, nil, &fleet.BadRequestError{
 			Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
 		}
