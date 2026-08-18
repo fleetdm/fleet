@@ -3422,6 +3422,12 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, ready, 1)
 		require.Equal(t, executionID, ready[0].ExecutionID)
+
+		// the batch generates its own execution IDs, so check each one really
+		// points at the script that was queued
+		queued, err := ds.GetHostScriptExecutionResult(ctx, executionID)
+		require.NoError(t, err)
+		require.Equal(t, "echo batch of two", queued.ScriptContents)
 	}
 
 	// host 3 already has one activated from above, so a second one queues behind

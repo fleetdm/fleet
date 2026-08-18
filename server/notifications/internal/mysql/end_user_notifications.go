@@ -225,12 +225,13 @@ WHERE displayed_at IS NULL
 	AND expires_at IS NOT NULL AND expires_at <= NOW(6)
 `
 
+	// MySQL writes updated_at, so the cutoff comes off the same clock
 	const stuckStmt = `
 UPDATE notifications_end_user
 SET status = ?
 WHERE displayed_at IS NULL
 	AND status = ?
-	AND updated_at <= ?
+	AND updated_at <= NOW(6) - INTERVAL ? SECOND
 `
 
 	// expiry runs first so a row that qualifies for both is only counted once
@@ -245,9 +246,9 @@ WHERE displayed_at IS NULL
 		return 0, ctxerr.Wrap(ctx, err, "count expired end user notifications")
 	}
 
-	stuckBefore := time.Now().UTC().Add(-api.EndUserNotificationStuckDispatchTimeout)
 	res, err = ds.primary.ExecContext(ctx, stuckStmt,
-		api.EndUserNotificationExpired, api.EndUserNotificationDispatched, stuckBefore,
+		api.EndUserNotificationExpired, api.EndUserNotificationDispatched,
+		int64(api.EndUserNotificationStuckDispatchTimeout.Seconds()),
 	)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "expire stuck end user notifications")
@@ -260,18 +261,18 @@ WHERE displayed_at IS NULL
 	return expired + stuck, nil
 }
 
-// VerifyEndUserNotification records the first time a notification reached its
-// end user. Calling it again doesn't move the timestamp.
-func (ds *Datastore) VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error {
-	// Only while the notification is still out: a result arriving after the end
-	// user delayed it belongs to a send that is already over.
-	const updateStmt = `
+// Only while the notification is still out: a result arriving after the end
+// user delayed it belongs to a send that is already over.
+const verifyEndUserNotificationStmt = `
 UPDATE notifications_end_user
 SET displayed_at = IF(displayed_at IS NULL, ?, displayed_at)
 WHERE uuid = ? AND status = ?
 `
 
-	if _, err := ds.primary.ExecContext(ctx, updateStmt,
+// VerifyEndUserNotification records the first time a notification reached its
+// end user. Calling it again doesn't move the timestamp.
+func (ds *Datastore) VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error {
+	if _, err := ds.primary.ExecContext(ctx, verifyEndUserNotificationStmt,
 		displayedAt, notificationUUID, api.EndUserNotificationDispatched,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "verify end user notification")
@@ -323,32 +324,42 @@ WHERE uuid = ?
 		reason = &outcome.Reason
 	}
 
-	if _, err := ds.primary.ExecContext(ctx, recordStmt, outcome.ExitCode, reason, notificationUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "record end user notification outcome")
-	}
+	// one transaction: recording the attempt without moving the notification on
+	// would leave it dispatched with nothing left to report, holding up every
+	// notification behind it until the stuck sweep gives up on it
+	return platform_mysql.WithTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, recordStmt, outcome.ExitCode, reason, notificationUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "record end user notification outcome")
+		}
 
-	if outcome.Displayed {
-		return ds.VerifyEndUserNotification(ctx, notificationUUID, time.Now().UTC())
-	}
+		if outcome.Displayed {
+			if _, err := tx.ExecContext(ctx, verifyEndUserNotificationStmt,
+				time.Now().UTC(), notificationUUID, api.EndUserNotificationDispatched,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "verify end user notification")
+			}
+			return nil
+		}
 
-	status := api.EndUserNotificationFailed
-	if nextAttemptAt != nil {
-		status = api.EndUserNotificationPending
-	}
+		status := api.EndUserNotificationFailed
+		if nextAttemptAt != nil {
+			status = api.EndUserNotificationPending
+		}
 
-	// Same window as VerifyEndUserNotification above: only a notification that is
-	// still out gets its schedule changed, so a late result can't revive an
-	// expired one or undo a delay the end user asked for.
-	const transitionStmt = `
+		// Same window as VerifyEndUserNotification: only a notification that is
+		// still out gets its schedule changed, so a late result can't revive an
+		// expired one or undo a delay the end user asked for.
+		const transitionStmt = `
 UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?
 WHERE uuid = ? AND status = ? AND (expires_at IS NULL OR expires_at > NOW(6))
 `
 
-	if _, err := ds.primary.ExecContext(ctx, transitionStmt,
-		status, nextAttemptAt, notificationUUID, api.EndUserNotificationDispatched,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "set end user notification status")
-	}
-	return nil
+		if _, err := tx.ExecContext(ctx, transitionStmt,
+			status, nextAttemptAt, notificationUUID, api.EndUserNotificationDispatched,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "set end user notification status")
+		}
+		return nil
+	}, ds.logger)
 }

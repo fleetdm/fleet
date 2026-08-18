@@ -2643,6 +2643,7 @@ CREATE TABLE `notifications_end_user` (
   KEY `idx_notifications_end_user_host` (`host_id`,`status`),
   KEY `idx_notifications_end_user_execution_id` (`execution_id`),
   KEY `idx_notifications_end_user_expires_at` (`expires_at`),
+  KEY `idx_notifications_end_user_stuck` (`status`,`updated_at`),
   CONSTRAINT `fk_notifications_end_user_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -340,9 +340,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 
 		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
 		require.NoError(t, err)
-		for _, n := range due {
-			assert.NotEqual(t, second, n.UUID, "it went out while the re-dispatched one was still in flight")
-		}
+		assert.Empty(t, due, "%s went out while the re-dispatched one was still in flight", second)
 	})
 
 	t.Run("does not resurrect an already-expired notification", func(t *testing.T) {
