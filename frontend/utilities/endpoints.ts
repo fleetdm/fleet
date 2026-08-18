@@ -152,6 +152,9 @@ export default {
 
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
 
+  // Microsoft Graph credential used to sync Windows Autopilot devices
+  MDM_MICROSOFT_GRAPH_CREDENTIALS: `/${API_VERSION}/fleet/microsoft_graph_credentials`,
+
   MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
   MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
   MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,

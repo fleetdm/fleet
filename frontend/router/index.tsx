@@ -74,6 +74,7 @@ import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Andro
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import Variables from "pages/ManageControlsPage/Variables/Variables";
 import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
+import MicrosoftGraphPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MicrosoftGraphPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
@@ -253,6 +254,10 @@ const routes = (
             <Route
               path="integrations/automatic-enrollment/windows"
               component={WindowsEnrollmentPage}
+            />
+            <Route
+              path="integrations/mdm/microsoft-graph"
+              component={MicrosoftGraphPage}
             />
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
