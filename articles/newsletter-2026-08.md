@@ -1,6 +1,6 @@
 # Fleet newsletter, August 2026
 
-An app updated itself and broke something. Now you can pin the version, or roll it back. That's Fleet 4.89.0, along with a fix for the stuck Windows setup screen and Google Workspace as a source of host vitals.
+Pin a Fleet-maintained app to the version you trust, or roll one back whenever you need to. Fleet 4.89.0 also adds Google Workspace as a source of IdP host vitals, and gives end users a clear path through Windows enrollment. Two more releases land this month.
 
 ## What shipped last month
 
