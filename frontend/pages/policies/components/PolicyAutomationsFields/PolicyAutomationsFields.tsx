@@ -206,8 +206,9 @@ const PolicyAutomationsFields = forwardRef<
     // Continuous automations is locked on for both "Patch when app is closed"
     // and "Notify before patching" — the backend forces it on for both, so an
     // editable checkbox would lie.
-    const continuousLocked = patchWhenClosed || notifyBeforePatching;
-    const getContinuousLockedTooltip = (): string | undefined => {
+    const isContinuousAutomationRequired =
+      patchWhenClosed || notifyBeforePatching;
+    const getContinuousAutomationRequiredTooltip = (): string | undefined => {
       if (patchWhenClosed) {
         return "Continuous automation can't be disabled when Patch when app is closed is selected.";
       }
@@ -217,11 +218,11 @@ const PolicyAutomationsFields = forwardRef<
       return undefined;
     };
     const getEffectiveContinuousEnabled = (): boolean => {
-      if (continuousLocked) return true;
+      if (isContinuousAutomationRequired) return true;
       if (patchOption === "manual") return false;
       return continuousEnabled;
     };
-    const continuousLockedTooltip = getContinuousLockedTooltip();
+    const continuousAutomationRequiredTooltip = getContinuousAutomationRequiredTooltip();
     const effectiveContinuousEnabled = getEffectiveContinuousEnabled();
 
     const [softwareTitleId, setSoftwareTitleId] = useState<number | null>(
@@ -679,9 +680,9 @@ const PolicyAutomationsFields = forwardRef<
                 <Checkbox
                   name="continuous-automations-enabled"
                   value={effectiveContinuousEnabled}
-                  disabled={disableChildren || continuousLocked}
+                  disabled={disableChildren || isContinuousAutomationRequired}
                   onChange={handleToggleContinuous}
-                  iconTooltipContent={continuousLockedTooltip}
+                  iconTooltipContent={continuousAutomationRequiredTooltip}
                   helpText="If the automations do not resolve the policy, this could cause a retry loop."
                 >
                   <TooltipWrapper
