@@ -622,8 +622,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 		return commandUUIDs, nil
 	}
 
-	// TODO Is there a better way to get a host by UUID? This is a somewhat "wide" search which feels unnecessary
-	host, err := a.Datastore.HostByIdentifier(ctx, hostUUID)
+	host, err := a.Datastore.HostByUUID(ctx, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving host by UUID")
 	}
