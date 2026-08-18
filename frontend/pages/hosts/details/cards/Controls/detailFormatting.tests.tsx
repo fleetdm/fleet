@@ -3,10 +3,14 @@ import { render, screen } from "@testing-library/react";
 
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
-import { getDetailGuidance, getDetailText } from "./detailFormatting";
+import {
+  getDetailGuidance,
+  getDetailText,
+  IDetailGuidance,
+} from "./detailFormatting";
 
-const renderGuidance = (guidance: React.ReactNode) => {
-  return render(<div>{guidance}</div>);
+const renderGuidance = (guidance: IDetailGuidance | null) => {
+  return render(<div>{guidance?.message}</div>);
 };
 
 describe("getDetailGuidance", () => {
@@ -48,6 +52,8 @@ describe("getDetailGuidance", () => {
 
     expect(screen.getByText(/Learn more/)).toBeInTheDocument();
     expect(screen.getByText(/Learn more/).tagName.toLowerCase()).toBe("a");
+    // The message quotes the detail, so the copyable block would repeat it.
+    expect(guidance?.supersedesDetail).toBe(true);
   });
 
   it("renders a learn more link for Android profile errors", () => {
@@ -62,6 +68,7 @@ describe("getDetailGuidance", () => {
     renderGuidance(guidance);
 
     expect(screen.getByText(/Learn more/)).toBeInTheDocument();
+    expect(guidance?.supersedesDetail).toBe(true);
   });
 
   it("formats a custom SCEP certificate error", () => {
@@ -80,6 +87,9 @@ describe("getDetailGuidance", () => {
     expect(
       screen.getByText(/add it and resend the configuration profile/)
     ).toBeInTheDocument();
+    // The rewrite drops the underlying error text, so the block still earns
+    // its place.
+    expect(guidance?.supersedesDetail).toBe(false);
   });
 
   it("formats a DigiCert profile ID error (410)", () => {

@@ -3,7 +3,12 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 
-import { generateWinDiskEncryptionSetting } from "pages/hosts/details/helpers";
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
+import {
+  generateRecoveryLockPasswordSetting,
+  generateWinDiskEncryptionSetting,
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+} from "pages/hosts/details/helpers";
 
 import ControlDetailsModal from "./ControlDetailsModal";
 
@@ -120,7 +125,49 @@ describe("ControlDetailsModal", () => {
       ).toBeInTheDocument();
     });
 
+    // A rewrite that drops the underlying error text (status codes, profile
+    // IDs) still needs the raw output alongside it.
     it("renders actionable guidance above the raw detail when the error is recognized", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "Wi-Fi",
+          platform: "darwin",
+          operation_type: "install",
+          status: "failed",
+          detail:
+            "Couldn't get certificate from DigiCert. The API token configured in DIGICERT_TEST certificate authority is invalid.",
+        }),
+      });
+
+      expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
+      expect(screen.getByText("Details:")).toBeInTheDocument();
+    });
+
+    // Per the "Failed, no details" frame: guidance carrying a Learn more link
+    // quotes the detail, so repeating it in the block below is noise.
+    it("drops the details block when the guidance already quotes the detail", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "android-bluetooth-disabled",
+          platform: "android",
+          operation_type: "install",
+          status: "failed",
+          detail:
+            '"bluetoothDisabled" setting couldn\'t apply to a host. Reason: MANAGEMENT_MODE. Other settings are applied.',
+        }),
+      });
+
+      expect(
+        screen.getByText(/setting couldn.t apply to a host/)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Learn more/)).toBeInTheDocument();
+      expect(screen.queryByText("Details:")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Copy details" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("drops the details block for an IdP email error", () => {
       renderModal({
         control: createMockHostMdmProfile({
           name: "Wi-Fi",
@@ -132,7 +179,7 @@ describe("ControlDetailsModal", () => {
       });
 
       expect(screen.getByText(/Learn more/)).toBeInTheDocument();
-      expect(screen.getByText("Details:")).toBeInTheDocument();
+      expect(screen.queryByText("Details:")).not.toBeInTheDocument();
     });
 
     it("shows a Resend action for a failed profile", () => {
@@ -193,13 +240,83 @@ describe("ControlDetailsModal", () => {
     });
   });
 
-  // Introduced with custom activations and Android certificate waits: the
-  // backend detail is more specific than the generic status copy.
-  describe("non-failed controls carrying a detail", () => {
-    const detail =
-      'Fleet verified, but predicate ("ASSET-002" == "ASSET-001") evaluated to false and settings were not applied to this host.';
+  // These row types weren't mocked up in the Figma; product asked for them to
+  // match the templated voice of the profile and disk-encryption copy.
+  describe("synthesized row types", () => {
+    it("names the host in the host name template message", () => {
+      renderModal({
+        control: {
+          ...createMockHostMdmProfile({
+            name: "Host name",
+            platform: "darwin",
+            operation_type: null,
+            detail: "",
+          }),
+          profile_uuid: HOST_NAME_SYNTHETIC_PROFILE_UUID,
+          status: "verified",
+        },
+      });
 
-    it("shows the detail in place of the generic status message", () => {
+      expect(
+        screen.getByText(/was renamed/, { selector: "span" })
+      ).toHaveTextContent(
+        "Anna's MacBook Pro was renamed to match this fleet's host name template. Fleet verified."
+      );
+    });
+
+    it("names the host in the recovery lock password message", () => {
+      renderModal({
+        control: generateRecoveryLockPasswordSetting("verified", ""),
+      });
+
+      expect(
+        screen.getByText(/recovery lock password/, { selector: "span" })
+      ).toHaveTextContent(
+        "Fleet set a recovery lock password for Anna's MacBook Pro."
+      );
+    });
+
+    it("names the host and certificate in the android certificate message", () => {
+      renderModal({
+        control: {
+          ...createMockHostMdmProfile({
+            name: "Wi-Fi cert",
+            platform: "android",
+            operation_type: "install",
+            detail: "",
+          }),
+          profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+          status: "verified",
+        },
+      });
+
+      expect(
+        screen.getByText(/applied/, { selector: "span" })
+      ).toHaveTextContent(
+        "Anna's MacBook Pro applied Wi-Fi cert. Fleet verified."
+      );
+    });
+
+    it("keeps the BitLocker PIN wording on windows disk encryption", () => {
+      renderModal({
+        control: generateWinDiskEncryptionSetting("action_required", ""),
+      });
+
+      expect(
+        screen.getByText(/BitLocker PIN/, { selector: "span" })
+      ).toHaveTextContent(
+        "Disk encryption is on, but the end user hasn't set a BitLocker PIN on Anna's MacBook Pro yet."
+      );
+    });
+  });
+
+  describe("non-failed controls carrying a detail", () => {
+    // A custom activation's predicate can exclude a host. Fleet delivered the
+    // profile, so the status is Verified, but "applied the setting" is untrue.
+    it("replaces the status message on a verified control", () => {
+      const detail =
+        'Fleet verified, but predicate ("ASSET-002" == "ASSET-001") evaluated to false and settings were not applied to this host.';
+
       renderModal({
         control: createMockHostMdmProfile({
           name: "Passcode",
@@ -214,8 +331,57 @@ describe("ControlDetailsModal", () => {
       expect(
         screen.queryByText(/applied Passcode\. Fleet verified\./)
       ).not.toBeInTheDocument();
-      // The copyable block is reserved for failures.
       expect(screen.queryByText("Details:")).not.toBeInTheDocument();
+    });
+
+    // Resending only nulls the status, so until the next cron run a Windows
+    // control reads Enforcing while still carrying the previous attempt's
+    // output. The state has to stay legible and the output copyable.
+    it("keeps the status message and shows the detail below on an enforcing control", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "DeviceLock",
+          platform: "windows",
+          operation_type: "install",
+          status: "pending",
+          detail:
+            "./Device/Vendor/MSFT/Policy/Config/DeviceLock/PreventLockScreenSlideShow: status 500, ./Device/Vendor/MSFT/Policy/Config/DeviceLock/PreventForestFires: status 200",
+        }),
+      });
+
+      expect(
+        screen.getByText(/is running the MDM command to apply/, {
+          selector: "span",
+        })
+      ).toHaveTextContent(
+        "Anna's MacBook Pro is running the MDM command to apply DeviceLock or will run it when the host comes online."
+      );
+      expect(screen.getByText("Details:")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Copy details" })
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the status message and shows the detail below on an android control waiting for a certificate", () => {
+      const detail =
+        'Waiting for certificate "WiFi-Cert" to be installed on the host before applying this profile.';
+
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "01-wifi-eap-tls.onc",
+          platform: "android",
+          operation_type: "install",
+          status: "pending",
+          detail,
+        }),
+      });
+
+      expect(
+        screen.getByText(/is running the MDM command to apply/, {
+          selector: "span",
+        })
+      ).toBeInTheDocument();
+      expect(screen.getByText(detail)).toBeInTheDocument();
     });
   });
 });

@@ -53,14 +53,18 @@ const ControlDetailsModal = ({
   const displayOption = getControlDisplayOption(control);
   const detailText = getDetailText(control);
   const guidance = getDetailGuidance(control);
-  const isFailed = control.status === "failed";
+
+  // On a verified control the detail contradicts the status copy rather than
+  // adding to it — a custom activation's predicate excluded this host, so
+  // "applied the setting" would be untrue — and it replaces the sentence. Every
+  // other status keeps its sentence, because the detail may describe a past
+  // attempt: resending only nulls the status, so a control reads Enforcing with
+  // the previous failure's output attached until the next cron run.
+  const detailReplacesMessage =
+    displayOption?.statusText === "Verified" && !!detailText;
 
   const renderMessage = () => {
-    // A backend-provided detail on a control that hasn't failed is more specific
-    // than the generic status copy — an Android profile waiting on its
-    // certificate, or a custom activation that deliberately excluded this host.
-    // Show it in place of the status sentence rather than alongside it.
-    if (!isFailed && detailText) {
+    if (detailReplacesMessage) {
       return detailText;
     }
 
@@ -81,6 +85,11 @@ const ControlDetailsModal = ({
 
   const message = renderMessage();
 
+  // Guidance that quotes the detail (the "Learn more" messages) makes the
+  // copyable block below it redundant.
+  const showDetailBlock =
+    !!detailText && !detailReplacesMessage && !guidance?.supersedesDetail;
+
   return (
     <Modal title="Details" onExit={onExit} className={baseClass}>
       <>
@@ -92,9 +101,9 @@ const ControlDetailsModal = ({
             </div>
           )}
           {guidance && (
-            <div className={`${baseClass}__guidance`}>{guidance}</div>
+            <div className={`${baseClass}__guidance`}>{guidance.message}</div>
           )}
-          {isFailed && detailText && (
+          {showDetailBlock && (
             <Textarea
               variant="code"
               className={`${baseClass}__details`}

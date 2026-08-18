@@ -114,6 +114,20 @@ const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
   return null;
 };
 
+export interface IDetailGuidance {
+  message: React.ReactNode;
+  /**
+   * True when the message already says everything the raw detail says, so the
+   * copyable block below it would only repeat itself.
+   *
+   * Today this lines up exactly with the messages carrying a "Learn more" link:
+   * those quote the detail and append a doc link, while the certificate
+   * rewrites drop diagnostic text (status codes, profile IDs) that's still
+   * worth having.
+   */
+  supersedesDetail: boolean;
+}
+
 /**
  * getDetailGuidance returns the rewritten, actionable version of an error the
  * raw detail can't convey on its own — a misconfigured certificate authority, a
@@ -123,14 +137,25 @@ const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
  */
 export const getDetailGuidance = (
   profile: IHostMdmProfileWithAddedStatus
-): React.ReactNode | null => {
+): IDetailGuidance | null => {
   if (profile.status !== "failed" || !profile.detail) return null;
 
-  return (
-    formatDetailIdpEmailError(profile.detail) ??
-    formatDetailCertificateError(profile.detail) ??
-    formatAndroidProfileNotAppliedError(profile.detail)
-  );
+  const idpEmailError = formatDetailIdpEmailError(profile.detail);
+  if (idpEmailError) {
+    return { message: idpEmailError, supersedesDetail: true };
+  }
+
+  const certificateError = formatDetailCertificateError(profile.detail);
+  if (certificateError) {
+    return { message: certificateError, supersedesDetail: false };
+  }
+
+  const androidError = formatAndroidProfileNotAppliedError(profile.detail);
+  if (androidError) {
+    return { message: androidError, supersedesDetail: true };
+  }
+
+  return null;
 };
 
 /**

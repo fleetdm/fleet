@@ -256,8 +256,14 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
   action_required: {
     statusText: "Action required",
     iconName: "pending-outline",
-    message:
-      "Disk encryption is on, but the user has not set a BitLocker PIN yet.",
+    // Windows-specific: the generic "follow the instructions on My device" copy
+    // doesn't apply, because the end user sets the PIN during encryption.
+    message: ({ hostDisplayName }) => (
+      <>
+        Disk encryption is on, but the end user hasn&apos;t set a BitLocker PIN
+        on <b>{hostDisplayName}</b> yet.
+      </>
+    ),
   },
   failed: {
     statusText: "Failed",
@@ -296,27 +302,42 @@ export const HOST_NAME_DISPLAY_CONFIG: Record<
   pending: {
     statusText: "Enforcing",
     iconName: "pending-outline",
-    message:
-      "Fleet is enforcing this fleet's host name template. The host will be renamed when it comes online.",
+    message: ({ hostDisplayName }) => (
+      <>
+        <b>{hostDisplayName}</b> will be renamed to match this fleet&apos;s host
+        name template when it comes online.
+      </>
+    ),
   },
   verifying: {
     statusText: "Verifying",
     iconName: "success-outline",
-    message:
-      "The host acknowledged the MDM command to rename it. Fleet is verifying.",
+    message: ({ hostDisplayName }) => (
+      <>
+        <b>{hostDisplayName}</b> acknowledged the MDM command to rename it.
+        Fleet is verifying.
+      </>
+    ),
   },
   verified: {
     statusText: "Verified",
     iconName: "success",
-    message:
-      "The host was renamed to match this fleet's host name template. Fleet verified.",
+    message: ({ hostDisplayName }) => (
+      <>
+        <b>{hostDisplayName}</b> was renamed to match this fleet&apos;s host
+        name template. Fleet verified.
+      </>
+    ),
   },
-  // failed has no static message so the modal falls back to the error detail
-  // (drift message or Apple error) via getDetailText.
   failed: {
     statusText: "Failed",
     iconName: "error",
-    message: null,
+    message: ({ hostDisplayName }) => (
+      <>
+        <b>{hostDisplayName}</b> failed to apply this fleet&apos;s host name
+        template.
+      </>
+    ),
   },
 };
 
@@ -327,22 +348,40 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
   verified: {
     statusText: "Verified",
     iconName: "success",
-    message: "Fleet set a recovery lock password for the host.",
+    message: ({ hostDisplayName }) => (
+      <>
+        Fleet set a recovery lock password for <b>{hostDisplayName}</b>.
+      </>
+    ),
   },
   pending: {
     statusText: "Enforcing",
     iconName: "pending-outline",
-    message: "Fleet is setting a recovery lock password for the host.",
+    message: ({ hostDisplayName }) => (
+      <>
+        Fleet is setting a recovery lock password for <b>{hostDisplayName}</b>.
+      </>
+    ),
   },
   removing_enforcement: {
     statusText: "Removing enforcement",
     iconName: "pending-outline",
-    message: "Fleet is unsetting the recovery lock password for the host.",
+    message: ({ hostDisplayName }) => (
+      <>
+        Fleet is unsetting the recovery lock password for{" "}
+        <b>{hostDisplayName}</b>.
+      </>
+    ),
   },
   failed: {
     statusText: "Failed",
     iconName: "error",
-    message: "Fleet failed to set a recovery lock password for the host.",
+    message: ({ hostDisplayName }) => (
+      <>
+        Fleet failed to set a recovery lock password for{" "}
+        <b>{hostDisplayName}</b>.
+      </>
+    ),
   },
 };
 
@@ -358,26 +397,45 @@ const getAndroidCertificateDisplayOption = (
         ? {
             statusText: "Enforcing",
             iconName: "pending-outline",
-            message:
-              "The host is running the command to apply settings or will run it when the host comes online.",
+            // Android certificates go out over the Android Management API, not
+            // an MDM command, so the copy stays on "the command".
+            message: ({ hostDisplayName, settingName }) => (
+              <>
+                <b>{hostDisplayName}</b> is running the command to apply{" "}
+                <b>{settingName}</b> or will run it when the host comes online.
+              </>
+            ),
           }
         : {
             statusText: "Removing enforcement",
             iconName: "pending-outline",
-            message:
-              "The host is running the command to remove settings or will run it when the host comes online.",
+            message: ({ hostDisplayName, settingName }) => (
+              <>
+                <b>{hostDisplayName}</b> is running the command to remove{" "}
+                <b>{settingName}</b> or will run it when the host comes online.
+              </>
+            ),
           };
     case "verified":
       return {
         statusText: "Verified",
         iconName: "success",
-        message: "The host applied the setting. Fleet verified",
+        message: ({ hostDisplayName, settingName }) => (
+          <>
+            <b>{hostDisplayName}</b> applied <b>{settingName}</b>. Fleet
+            verified.
+          </>
+        ),
       };
     case "failed":
       return {
         statusText: "Failed",
         iconName: "error",
-        message: null,
+        message: ({ hostDisplayName, settingName }) => (
+          <>
+            <b>{hostDisplayName}</b> failed to apply <b>{settingName}</b>.
+          </>
+        ),
       };
     default:
       return null;
