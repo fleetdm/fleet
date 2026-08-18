@@ -6,9 +6,9 @@
 
 - **"Everyone updated" is a guess unless you can count it.** Automatic update settings lapse, "Install tonight" gets dismissed, and a device that's been offline for a week doesn't know a patch exists. Fleet's OS version report gives you an actual headcount of who's still on the vulnerable build.
 - **This was Apple's third security release in three weeks, not an isolated patch.** iOS 26.6.1 and macOS Tahoe 26.6.2 landed shortly after iOS 26.6, and the pace itself is a signal: the gap between "patched" and "installed everywhere" is widening, not shrinking.
-- **The vulnerabilities list reads like a priority list, not trivia.** Three kernel bugs and a code execution flaw in image parsing are the kind of thing that turns "get to it this week" into "get to it today."
+- **This isn't a 'patch when you get a chance' list.** Three kernel bugs and a code execution flaw in image parsing are the kind of thing that turns "get to it this week" into "get to it today."
 - **Fleet already ties the CVEs to the hosts that carry them.** The OS version report doesn't just show you a build number, it shows you which CVEs that build is still exposed to, so you don't need a side-by-side with Apple's advisory to know what's at stake.
-- **On Fleet Premium, you can stop nudging and start enforcing.** A minimum version and a deadline in your GitOps config move devices off the vulnerable build automatically, no follow-up ticket required.
+- **With Fleet, you can stop nudging and start enforcing.** A minimum version and a deadline in your GitOps config move devices off the vulnerable build automatically, no follow-up ticket required.
 - **The same report covers macOS, iOS, and iPadOS together.** Apple shipped fixes across all three at once, and Fleet's inventory doesn't force you to check them one platform at a time.
 
 <a purpose="cta-button" href="https://fleetdm.com/guides/enforce-os-updates">See how OS update enforcement works</a>
