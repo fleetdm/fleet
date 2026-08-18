@@ -40,7 +40,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 		}
 
 		if !v.CanPerformActions() || v.User.GlobalRole == nil || *v.User.GlobalRole != fleet.RoleAdmin {
-			http.Error(w, "Unauthorized", http.StatusForbidden)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 
@@ -49,7 +49,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 		// non-empty api_endpoints list) must therefore be denied here, matching the least-privilege
 		// scoping that APIOnlyEndpointCheck enforces on the main API path.
 		if v.User.APIOnly && len(v.User.APIEndpoints) > 0 {
-			http.Error(w, "Unauthorized", http.StatusForbidden)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 
