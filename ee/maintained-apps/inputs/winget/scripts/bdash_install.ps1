@@ -12,11 +12,7 @@ try {
     }
 
     # NSIS installers require /S flag for silent installation.
-    #
-    # The NSIS self-extractor intermittently dies with 0xc0000005 (access
-    # violation, exit code -1073741819) before extracting anything. The same
-    # installer succeeds on the next run, so retry on that specific exit code
-    # only; every other exit code is reported as-is.
+
     $maxAttempts = 3
     $exitCode = 1
 
