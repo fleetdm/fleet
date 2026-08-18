@@ -72,6 +72,8 @@ When your devices stop responding to MDM commands, start by checking the APNs ce
 
 If a single device isn't checking in while others on the same network work fine, the device token may have become invalid. In many cases, re-enrolling the affected device resolves the issue. For additional MDM troubleshooting, see [this guide](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md) created by Fleet’s MDM software engineering team.
 
+When you refetch a macOS, iOS, or iPadOS host that is enrolled in Apple MDM, Fleet automatically sends an APNs ping along with the refetch. This sends a blank push notification that prompts the device to check in with the Fleet server and pick up any pending MDM commands or configuration profiles. You can also trigger an APNs ping on its own programmatically using the [Send APNs ping to host](https://fleetdm.com/docs/rest-api/rest-api#send-apns-ping-to-host) API endpoint.
+
 ## APNs certificate management in practice
 
 The certificate lifecycle and network requirements above apply regardless of which device management solution you use. Here’s how Fleet handles them.
