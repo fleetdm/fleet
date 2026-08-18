@@ -127,6 +127,12 @@ type Datastore interface {
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
+	// HasLabelScopedScheduledQueries returns true if any active scheduled queries
+	// for the given scope have label targeting (entries in query_labels).
+	// If teamID is non-nil, checks both global (team_id IS NULL) and the specified team's queries,
+	// since both appear in a team host's pack config.
+	// If teamID is nil, checks only global queries.
+	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
@@ -995,8 +1001,8 @@ type Datastore interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType PolicyAutomationType, platform string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType PolicyAutomationType, platform string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -1095,8 +1101,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string, platform string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType PolicyAutomationType, platform string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -2120,6 +2126,10 @@ type Datastore interface {
 	// DeleteHostDEPAssignments marks as deleted entries in
 	// host_dep_assignments for host with matching serials only if the entry is associated to the provided ABM token.
 	DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error
+
+	// MarkHostDEPAssignmentDeleted marks as deleted the host_dep_assignments entry for the provided host ID.
+	// Only use when we no longer have a host row, if we do use `DeleteHostDEPAssignments` instead.
+	MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error
 
 	// UpdateHostDEPAssignProfileResponses receives a profile UUID and threes lists of serials, each representing
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses. For each response, it also sets the ABM token id in the table to the provided value.
