@@ -502,6 +502,23 @@ This activity contains the following fields:
 }
 ```
 
+## scim_user_deprovision_skipped
+
+Generated when a SCIM user is deactivated or deleted but Fleet cannot determine which Fleet user to deprovision. This can indicate the SCIM user's identifiers were modified before deactivation; verify that no corresponding Fleet account remains active.
+
+This activity contains the following fields:
+- "scim_user_id": Unique ID of the SCIM user in Fleet.
+- "scim_user_name": The SCIM user's userName at the time of deprovisioning.
+
+#### Example
+
+```json
+{
+	"scim_user_id": 42,
+	"scim_user_name": "nondomain_user"
+}
+```
+
 ## deleted_host
 
 Generated when a host is deleted.
