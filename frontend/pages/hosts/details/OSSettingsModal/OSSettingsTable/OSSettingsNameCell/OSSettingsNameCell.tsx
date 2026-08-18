@@ -32,7 +32,7 @@ const OSSettingsNameCell = ({
             <>
               Scoped to local user account:
               <br />
-              <b>{managedAccount}</b>
+              <strong>{managedAccount}</strong>
             </>
           }
           position="top"

@@ -149,7 +149,8 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 	})
 
 	deps.register("failed to register upcoming_activities_maintenance schedule", func() (fleet.CronSchedule, error) {
-		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger,
+			deps.config.Server.VPPInstallReapTimeout, deps.config.Server.VPPVerifyTimeout, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register stats schedule", func() (fleet.CronSchedule, error) {
@@ -261,6 +262,18 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
 	deps.register("failed to register mdm_android_device_reconciler schedule", func() (fleet.CronSchedule, error) {
 		return newAndroidMDMDeviceReconcilerSchedule(
+			ctx,
+			deps.instanceID,
+			deps.ds,
+			deps.logger,
+			deps.config.License.Key,
+			deps.svc.NewActivity,
+		)
+	})
+
+	// Register Android MDM Command Reconciler schedule (recovers commands whose Pub/Sub notification was lost)
+	deps.register("failed to register mdm_android_command_reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAndroidMDMCommandReconcilerSchedule(
 			ctx,
 			deps.instanceID,
 			deps.ds,

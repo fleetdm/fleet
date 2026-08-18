@@ -9767,6 +9767,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, "bogus-update-id")
 	require.NoError(t, err)
 
+	// Insert into host_autopilot_devices table (no host FK, cleaned up via hostRefs).
+	err = ds.BatchUpsertHostAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{{
+		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
+	}})
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -14007,7 +14013,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 
 	// Pub/Sub COMMAND ack arrives.
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidLockUUID,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -14034,7 +14040,7 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.PendingActionWipe, andStatus.PendingAction())
 
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidWipeUUID,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -14090,7 +14096,7 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 	errCode := "UNSUPPORTED"
 	errMsg := "device does not support LOCK"
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
-		string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+		string(android.MDMAndroidCommandStatusError), &errCode, &errMsg, nil))
 
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -14123,7 +14129,7 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 
 	// After Pub/Sub ack: result populated, IsPendingClearPasscode = false, PendingAction = none.
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cpUUID,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 	cpStatus, err = ds.GetHostLockWipeStatus(ctx, cpHost)
 	require.NoError(t, err)
 	require.NotNil(t, cpStatus.ClearPasscodeMDMCommandResult)
@@ -14175,7 +14181,7 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}))
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockB,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	wipeC := uuid.NewString()
 	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, hostC, &android.MDMAndroidCommand{
@@ -14186,7 +14192,7 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}))
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, wipeC,
-		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 
 	statusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{hostA, hostB, hostC, hostD})
 	require.NoError(t, err)

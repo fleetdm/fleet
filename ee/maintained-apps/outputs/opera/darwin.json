@@ -4,12 +4,13 @@
       "version": "134.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '134.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '134.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.operasoftware.Opera');"
       },
-      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/134.0.5954.26/mac/Opera_134.0.5954.26_Setup.dmg",
+      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/134.0.5954.56/mac/Opera_134.0.5954.56_Setup.dmg",
       "install_script_ref": "f2f3d814",
       "uninstall_script_ref": "566d9846",
-      "sha256": "f9e359e3ff60761335c5684610290a5c12a0d5783762c50ef8328e7c007f5baa",
+      "sha256": "86cff817a54ba2cc03c500eb718f1fe3a66da7821fdec81f111262d785e2ccd1",
       "default_categories": [
         "Browsers"
       ]

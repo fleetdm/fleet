@@ -67,6 +67,7 @@ import (
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -7774,8 +7775,15 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
-	// Attempt to retrieve a host by identifier should succeed
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
+	// Attempt to retrieve a host by identifier should succeed, but return the host id
+	// and nothing else: GitOps is denied on every other host read endpoint, and only
+	// needs the id here to resolve an identifier for the Puppet module's
+	// profile pre-assignment. Asserting on the raw body since decoding into a
+	// response struct wouldn't catch extra fields.
+	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
@@ -7788,6 +7796,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		TeamID:  &t1.ID,
 		HostIDs: []uint{h1.ID},
 	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// The host is now on a team, but the identifier endpoint still returns the id only.
+	resp = s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
 
 	// Attempt to create a label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -8170,16 +8184,19 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete own query, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to edit query created by somebody else, should fail.
+	// Attempt to edit query created by somebody else, should fail. A team
+	// GitOps user can't read global queries either (unlike every other team
+	// role), so this reports not-found rather than forbidden: a forbidden
+	// would confirm the global query exists to a caller with no view of it.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  new("foo4"),
 			Query: new("SELECT * FROM system_info;"),
 		},
-	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
+	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
@@ -13001,6 +13018,71 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 				}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 			}
 		})
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestLabelSpecHostsAreTeamFiltered() {
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t, "debian", "darwin", "windows")
+	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "label spec team1"})
+	require.NoError(t, err)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "label spec team2"})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[0].ID})))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[1].ID})))
+
+	observer := fleet.UserPayload{
+		Name:                     new("label spec team1 observer"),
+		Email:                    new("labelspec-tm1observer@example.com"),
+		Password:                 new(test.GoodPassword),
+		AdminForcedPasswordReset: new(false),
+		Teams:                    &[]fleet.UserTeam{{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver}},
+	}
+	var createUser createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", observer, http.StatusOK, &createUser)
+
+	labelName := "labelspec-global-manual"
+	var createLbl fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
+		LabelPayload: fleet.LabelPayload{
+			Name:  labelName,
+			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID},
+		},
+	}, http.StatusOK, &createLbl)
+
+	var getSpec fleet.GetLabelSpecResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(labelName)), nil, http.StatusOK, &getSpec)
+	require.ElementsMatch(t,
+		[]string{fmt.Sprint(hosts[0].ID), fmt.Sprint(hosts[1].ID), fmt.Sprint(hosts[2].ID)},
+		[]string(getSpec.Spec.Hosts),
+	)
+
+	// the team observer must not learn about hosts outside their team
+	s.setTokenForTest(t, *observer.Email, *observer.Password)
+
+	getSpec = fleet.GetLabelSpecResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(labelName)), nil, http.StatusOK, &getSpec)
+	require.Equal(t, []string{fmt.Sprint(hosts[0].ID)}, []string(getSpec.Spec.Hosts))
+
+	var listSpecs fleet.GetLabelSpecsResponse
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listSpecs)
+	var found bool
+	for _, spec := range listSpecs.Specs {
+		if spec.Name == labelName {
+			found = true
+			require.Equal(t, []string{fmt.Sprint(hosts[0].ID)}, []string(spec.Hosts))
+		}
+	}
+	require.True(t, found, "global manual label spec should be listed for the team observer")
+
+	// the members left out of the spec are the ones the observer can't reach directly
+	for _, h := range []*fleet.Host{hosts[1], hosts[2]} {
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusForbidden, &getHostResponse{})
 	}
 }
 
@@ -22371,15 +22453,16 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	_, err = maintained_apps.Hydrate(ctx, dbAppRecord, "", nil, nil)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
-		ID:              dbAppRecord.ID,
-		Name:            dbAppRecord.Name,
-		Slug:            dbAppRecord.Slug,
-		Version:         dbAppRecord.Version,
-		Platform:        dbAppRecord.Platform,
-		InstallerURL:    dbAppRecord.InstallerURL,
-		InstallScript:   dbAppRecord.InstallScript,
-		UninstallScript: dbAppRecord.UninstallScript,
-		Categories:      []string{"Productivity"},
+		ID:                    dbAppRecord.ID,
+		Name:                  dbAppRecord.Name,
+		Slug:                  dbAppRecord.Slug,
+		Version:               dbAppRecord.Version,
+		Platform:              dbAppRecord.Platform,
+		InstallerURL:          dbAppRecord.InstallerURL,
+		InstallScript:         dbAppRecord.InstallScript,
+		UninstallScript:       dbAppRecord.UninstallScript,
+		AutomaticInstallQuery: dbAppRecord.AutomaticInstallQuery,
+		Categories:            []string{"Productivity"},
 	}
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallerURL)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
@@ -29401,6 +29484,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"active version should roll back to v1.0 (the version added via UI)")
 		require.Len(t, uiTitle.SoftwarePackage.FleetMaintainedVersions, 2,
 			"both versions should remain cached after rolling back")
+		// Pinning picks which cached version is active without rewriting which one is
+		// newest, so clearing the pin later still resolves Latest to v2.0.
+		require.Equal(t, "2.0", uiTitle.SoftwarePackage.FleetMaintainedVersions[0].Version,
+			"the pinned older version must not become the newest download")
 	})
 
 	// =========================================================================
@@ -29873,6 +29960,214 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,
 			"self_service should be true after the edit")
 	})
+
+	// =========================================================================
+	// Section 9: the manifest publishes a version lower than one already cached.
+	// This happens when a maintained app is withdrawn upstream, as iMazing did
+	// going from 3.5.5.0 back to 3.3.1.0. Fleet follows the manifest either way:
+	// whether the withdrawn version is rebuilt with new bytes or comes back byte
+	// for byte, it becomes active and is listed first.
+	// =========================================================================
+	cachedVersions := func(pkg *fleet.SoftwarePackageOrApp) []string {
+		got := make([]string, 0, len(pkg.FleetMaintainedVersions))
+		for _, v := range pkg.FleetMaintainedVersions {
+			got = append(got, v.Version)
+		}
+		return got
+	}
+
+	// The active row itself, so a test can check which row is active and what bytes it
+	// points at, not just that the version string reads correctly.
+	activeInstaller := func(teamID uint, titleID uint) *fleet.SoftwareInstaller {
+		meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, titleID, false)
+		require.NoError(t, err)
+		return meta
+	}
+
+	cronLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	runCron := func() {
+		require.NoError(t, eeservice.AutoUpdateFleetMaintainedApps(ctx, s.ds, s.softwareInstallStore, cronLogger))
+	}
+
+	t.Run("manifest_publishes_lower_version", func(t *testing.T) {
+		lowerTeam := newTeam("team_lower_" + t.Name())
+		applyManifest := func() []fleet.SoftwarePackageResponse {
+			return batchSet(lowerTeam, []*fleet.SoftwareInstallerPayload{
+				{Slug: new("cloudflare-warp/windows")},
+			})
+		}
+		resetFMAState(warpState, "1.0", []byte("lower-1-0"))
+		require.Len(t, applyManifest(), 1)
+		pkg := getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0"}, cachedVersions(pkg))
+
+		// 1.1 is published and cached alongside 1.0.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		// Every apply below updates one of these two rows, so their ids must not change.
+		v11ID := pkg.FleetMaintainedVersions[0].ID
+		v10ID := pkg.FleetMaintainedVersions[1].ID
+
+		// 1.1 is withdrawn and the manifest goes back to 1.0, rebuilt with new bytes.
+		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		title := getActiveTitleForTeam(lowerTeam.ID)
+		pkg = title.SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+		active := activeInstaller(lowerTeam.ID, title.ID)
+		require.Equal(t, v10ID, active.InstallerID, "the cached 1.0 row is the active one")
+		require.Equal(t, warpState.sha256, active.StorageID, "and carries the rebuilt bytes")
+
+		// 1.1 is published again with the bytes Fleet already has cached, so there is
+		// nothing to download.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1"))
+		require.Len(t, applyManifest(), 2)
+		title = getActiveTitleForTeam(lowerTeam.ID)
+		pkg = title.SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		active = activeInstaller(lowerTeam.ID, title.ID)
+		require.Equal(t, v11ID, active.InstallerID)
+		require.Equal(t, warpState.sha256, active.StorageID)
+
+		// 1.1 is withdrawn again and 1.0 comes back byte for byte. Nothing is
+		// downloaded, but the manifest points at 1.0, so it is active and newest.
+		resetFMAState(warpState, "1.0", []byte("lower-1-0-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+
+		// 1.1 is published a third time, rebuilt with bytes Fleet has never seen. The
+		// version is cached but its hash is not, so the row is updated rather than added.
+		resetFMAState(warpState, "1.1", []byte("lower-1-1-rebuilt"))
+		require.Len(t, applyManifest(), 2)
+		title = getActiveTitleForTeam(lowerTeam.ID)
+		pkg = title.SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+		active = activeInstaller(lowerTeam.ID, title.ID)
+		require.Equal(t, v11ID, active.InstallerID, "the same 1.1 row, updated in place")
+		require.Equal(t, warpState.sha256, active.StorageID, "now pointing at the rebuilt bytes")
+
+		// A repeated apply with no manifest change must not disturb the order.
+		require.Len(t, applyManifest(), 2)
+		pkg = getActiveTitleForTeam(lowerTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		require.Equal(t, v11ID, pkg.FleetMaintainedVersions[0].ID, "rows are updated in place, never re-inserted")
+		require.Equal(t, v10ID, pkg.FleetMaintainedVersions[1].ID)
+	})
+
+	// =========================================================================
+	// Section 10: the cron and a GitOps apply treat the manifest the same way, whether
+	// it goes back to a cached version or republishes one with different bytes.
+	// =========================================================================
+	t.Run("cron_matches_gitops_for_a_cached_version", func(t *testing.T) {
+		cronTeam := newTeam("team_cron_" + t.Name())
+		applyManifest := func() []fleet.SoftwarePackageResponse {
+			return batchSet(cronTeam, []*fleet.SoftwareInstallerPayload{
+				{Slug: new("cloudflare-warp/windows")},
+			})
+		}
+
+		resetFMAState(warpState, "1.0", []byte("cron-1-0"))
+		require.Len(t, applyManifest(), 1)
+		resetFMAState(warpState, "1.1", []byte("cron-1-1"))
+		require.Len(t, applyManifest(), 2)
+		title := getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.1", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(title.SoftwarePackage))
+
+		// 1.1 is withdrawn and the manifest serves 1.0 again, byte for byte. Nothing needs
+		// downloading, but 1.0 is what the manifest publishes now, so the cron marks it
+		// current and promotes to it.
+		resetFMAState(warpState, "1.0", []byte("cron-1-0"))
+		runCron()
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version, "the cron follows the manifest back down")
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		active := activeInstaller(cronTeam.ID, title.ID)
+		v10ID := title.SoftwarePackage.FleetMaintainedVersions[0].ID
+		require.Equal(t, v10ID, active.InstallerID,
+			"the row the cron promoted is the one the manifest publishes")
+		storageBeforeRebuild := active.StorageID
+		require.Equal(t, warpState.sha256, storageBeforeRebuild)
+
+		// A second pass with the same manifest changes nothing, so the version list keeps
+		// reporting when Fleet actually downloaded each version.
+		runCron()
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+
+		// 1.0 is rebuilt with bytes Fleet has never seen, so the cron downloads it again and
+		// refreshes the cached row in place instead of leaving stale bytes behind.
+		resetFMAState(warpState, "1.0", []byte("cron-1-0-rebuilt"))
+		runCron()
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		active = activeInstaller(cronTeam.ID, title.ID)
+		require.NotEqual(t, storageBeforeRebuild, active.StorageID, "the cron takes the rebuilt bytes")
+		require.Equal(t, warpState.sha256, active.StorageID)
+		require.Equal(t, v10ID, active.InstallerID, "refreshed in place, no new row")
+
+		// A GitOps apply of the same manifest is then a no-op, so the two agree.
+		require.Len(t, applyManifest(), 2)
+		title = getActiveTitleForTeam(cronTeam.ID)
+		require.Equal(t, "1.0", title.SoftwarePackage.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(title.SoftwarePackage))
+		gitopsActive := activeInstaller(cronTeam.ID, title.ID)
+		require.Equal(t, active.InstallerID, gitopsActive.InstallerID)
+		require.Equal(t, active.StorageID, gitopsActive.StorageID)
+	})
+
+	// =========================================================================
+	// Section 11: a caret pin still lets the manifest move between cached versions
+	// of that major, and the cron leaves a pinned team alone once the version is
+	// cached.
+	// =========================================================================
+	t.Run("caret_pin_with_an_already_cached_version", func(t *testing.T) {
+		pinTeam := newTeam("team_caretpin_" + t.Name())
+		applyManifest := func(pin string) []fleet.SoftwarePackageResponse {
+			sw := &fleet.SoftwareInstallerPayload{Slug: new("cloudflare-warp/windows")}
+			sw.RollbackVersion = pin
+			return batchSet(pinTeam, []*fleet.SoftwareInstallerPayload{sw})
+		}
+
+		resetFMAState(warpState, "1.0", []byte("pin-1-0"))
+		require.Len(t, applyManifest(""), 1)
+		resetFMAState(warpState, "1.1", []byte("pin-1-1"))
+		require.Len(t, applyManifest(""), 2)
+
+		// Pin the major both cached versions share: the newest download of that major wins.
+		require.Len(t, applyManifest("^1"), 2)
+		pkg := getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		require.Equal(t, "1.1", pkg.Version)
+		require.Equal(t, []string{"1.1", "1.0"}, cachedVersions(pkg))
+
+		// The manifest goes back to the other cached version of the same major while the
+		// caret pin is in force, so the pin allows it and 1.0 becomes newest and active.
+		resetFMAState(warpState, "1.0", []byte("pin-1-0"))
+		require.Len(t, applyManifest("^1"), 2)
+		pkg = getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+
+		// A cron pass with the pin in place and the version already cached changes nothing.
+		runCron()
+		pkg = getActiveTitleForTeam(pinTeam.ID).SoftwarePackage
+		require.Equal(t, "1.0", pkg.Version)
+		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
+	})
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
@@ -30894,6 +31189,45 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersLowercasesExtension() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	states := map[string]*fmaTestState{
+		"/zoom/windows.json": {
+			version:        "1.0",
+			installerBytes: []byte("xyz"),
+			installerPath:  "/ZOOM-SETUP.MSI",
+		},
+	}
+	startFMAServers(t, s.ds, states)
+
+	var resp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp,
+		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// The column collation is case insensitive, so read back with a binary
+	// collation to see the stored casing rather than a case-folded match.
+	var stored struct {
+		Filename  string `db:"filename"`
+		Extension string `db:"extension"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &stored,
+			`SELECT filename, extension COLLATE utf8mb4_bin AS extension FROM software_installers WHERE global_or_team_id = ?`,
+			team.ID)
+	})
+
+	require.Equal(t, "ZOOM-SETUP.MSI", stored.Filename, "filename keeps the original casing")
+	require.Equal(t, "msi", stored.Extension)
+}
+
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObsoletePatchPolicy() {
 	t := s.T()
 
@@ -31519,6 +31853,14 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 
+	// requireRestrictionDeniedBody asserts the 403 body carries the distinct
+	// endpoint-restriction message, distinguishing it from role-based denials.
+	requireRestrictionDeniedBody := func(t *testing.T, res *http.Response) {
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
+	}
+
 	// For api-only users with restrictions, requests to paths not in the API
 	// endpoint catalog are rejected by the middleware before reaching the
 	// service layer.
@@ -31526,7 +31868,8 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
 			{"method": "GET", "path": "/api/v1/fleet/version"},
 		})
-		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+		res := s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
 	})
 
 	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
@@ -31539,8 +31882,10 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 
 		// These are in the catalog but not in the user's allow list.
-		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
-		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+		res := s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
+		res = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+		requireRestrictionDeniedBody(t, res)
 	})
 
 	// Non-api-only users must not be affected by the middleware at all.
@@ -31851,6 +32196,92 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 		require.NoError(t, err)
 		_, ok := queries[fmt.Sprint(policy.ID)]
 		require.Equal(t, tc.match, ok, "host %s match expectation", tc.host.Hostname)
+	}
+}
+
+// A host authenticates with its node key and fully controls the fleet_policy_query_<id> keys it
+// sends to distributed/write, so results for policies outside its scope must never be persisted.
+func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesAreDiscarded() {
+	t := s.T()
+	ctx := t.Context()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// The victim host: darwin, no team, not a member of lbl.
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	inScope, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "in-scope-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Out of scope three different ways:
+	// 1. another fleet
+	otherFleet, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: "other-fleet-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	// 2. another platform
+	otherPlatform, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "other-platform-" + t.Name(), Query: "SELECT 1", Platform: "linux",
+	})
+	require.NoError(t, err)
+	// 3. label the host lacks
+	otherLabel, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "other-label-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name},
+	})
+	require.NoError(t, err)
+
+	// Only the in-scope policy is distributed to the host.
+	distributedQueries, err := s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(inScope.ID))
+	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
+		require.NotContains(t, distributedQueries, fmt.Sprint(p.ID))
+	}
+
+	// Forge the write: the payload keys are entirely host-controlled, so a node key plus a hand-rolled body is
+	// enough to claim a failing result for all four policies -- including the three never distributed above.
+	// The write is accepted (200) and the out-of-scope results are dropped during ingestion rather than
+	// rejecting the whole check-in, which would also discard the host's legitimate results.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		inScope.ID:       new(false),
+		otherFleet.ID:    new(false),
+		otherPlatform.ID: new(false),
+		otherLabel.ID:    new(false),
+	}), http.StatusOK, &distributedResp)
+
+	// Nothing was persisted for the out-of-scope policies. This asserts on policy_membership rather than
+	// ListPoliciesForHost because the latter re-applies the scope filter on read and would hide the rows.
+	var storedPolicyIDs []uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &storedPolicyIDs, `SELECT policy_id FROM policy_membership WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, []uint{inScope.ID}, storedPolicyIDs)
+
+	// The forged results do not surface the host in policy-filtered host listings either.
+	countFailingHosts := func(policyID uint) int {
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp,
+			"policy_id", fmt.Sprint(policyID), "policy_response", "failing")
+		return len(listResp.Hosts)
+	}
+	require.Equal(t, 1, countFailingHosts(inScope.ID))
+	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
+		require.Zero(t, countFailingHosts(p.ID), "policy %s", p.Name)
 	}
 }
 

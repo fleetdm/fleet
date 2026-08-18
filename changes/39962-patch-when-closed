@@ -1,0 +1,1 @@
+- Added a "Patch when closed" option for patch policies that only patches an app on a host if the app is not running.

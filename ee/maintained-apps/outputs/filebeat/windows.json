@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.5.0",
+      "version": "9.5.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Beats filebeat % (x86_64)' AND publisher = 'Elastic';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beats filebeat % (x86_64)' AND publisher = 'Elastic' AND version_compare(version, '9.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beats filebeat % (x86_64)' AND publisher = 'Elastic' AND version_compare(version, '9.5.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'filebeat.exe');"
       },
-      "installer_url": "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-9.5.0-windows-x86_64.msi",
+      "installer_url": "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-9.5.1-windows-x86_64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "87255486",
-      "sha256": "1d00414f2c7e1c6db38dc4a01d64d588c05545c8d514d175f25dd7fa79824f39",
+      "sha256": "7ba4892d921668d23cd3e6d1be0f2bd5c5f2c293199ea1ad392dad4592ee2977",
       "default_categories": [
         "Developer tools"
       ],

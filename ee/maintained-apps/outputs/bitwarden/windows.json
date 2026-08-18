@@ -4,7 +4,8 @@
       "version": "2026.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Bitwarden' AND publisher = 'Bitwarden Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bitwarden' AND publisher = 'Bitwarden Inc.' AND version_compare(version, '2026.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bitwarden' AND publisher = 'Bitwarden Inc.' AND version_compare(version, '2026.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bitwarden.exe');"
       },
       "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.7.0/Bitwarden-Installer-2026.7.0.exe",
       "install_script_ref": "234a3679",

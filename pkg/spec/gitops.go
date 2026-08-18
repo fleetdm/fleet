@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -187,9 +188,8 @@ type GitOpsControls struct {
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
-
-	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
-	AndroidSettings             any `json:"android_settings"`
+	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
+	AndroidSettings                any `json:"android_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
@@ -222,8 +222,11 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
-	RunScript       *PolicyRunScript                       `json:"run_script"`
-	InstallSoftware optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
+	// explicitly vs. omitted, which patch_when_closed validation needs.
+	ContinuousAutomations optjson.Bool                           `json:"continuous_automations_enabled"`
+	RunScript             *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware       optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -387,6 +390,11 @@ type GitOpsOrgSettings struct {
 	fleet.AppConfig
 	Secrets                any `json:"secrets"`
 	CertificateAuthorities any `json:"certificate_authorities"`
+	// MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when
+	// reading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here
+	// rather than under controls to match every other credential in GitOps: it is applied through its own endpoint,
+	// exactly like certificate_authorities above.
+	MicrosoftGraphCredentials any `json:"microsoft_graph_credentials"`
 }
 
 // GitOpsOrgInfo extends fleet.OrgInfo with gitops-only path keys for uploading
@@ -1978,9 +1986,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	// make an index of all FMAs by slug
-	fmasBySlug := make(map[string]struct{}, len(result.Software.FleetMaintainedApps))
+	fmasBySlug := make(map[string]*fleet.MaintainedAppSpec, len(result.Software.FleetMaintainedApps))
 	for _, s := range result.Software.FleetMaintainedApps {
-		fmasBySlug[s.Slug] = struct{}{}
+		fmasBySlug[s.Slug] = s
 	}
 	var errs []error
 	if policies, errs = expandBaseItems(policies, baseDir, "policy", GlobExpandOptions{
@@ -2052,6 +2060,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Name = norm.NFC.String(item.Name)
 		}
+		// Reconcile the shadow value into the embedded field the apply path reads.
+		if item.ContinuousAutomations.Valid {
+			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
+		}
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
@@ -2071,6 +2083,22 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
+			if item.PatchWhenClosed {
+				// Declarative: reject an explicit false instead of letting the datastore silently
+				// force it on; auto-set when omitted.
+				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+				} else {
+					item.ContinuousAutomationsEnabled = true
+				}
+				// Fleet manages the app-open query, so a user pre_install_query on the FMA is rejected.
+				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
+						item.Name, item.FleetMaintainedAppSlug))
+				}
 			}
 		} else if item.FleetMaintainedAppSlug != "" {
 			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
@@ -2137,7 +2165,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]struct{}) []error {
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
@@ -2384,7 +2412,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 
 		// Validate display_name length (matches database VARCHAR(255))
-		if len(item.DisplayName) > 255 {
+		if utf8.RuneCountInString(item.DisplayName) > 255 {
 			multiError = multierror.Append(multiError, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID))
 			continue
 		}
@@ -2407,6 +2435,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if count > 1 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+			continue
+		}
+
+		// Validate display_name length (matches database VARCHAR(255))
+		if utf8.RuneCountInString(maintainedAppSpec.DisplayName) > 255 {
+			multiError = multierror.Append(multiError, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -2605,7 +2639,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			// Validate display_name length (matches database VARCHAR(255))
-			if len(softwarePackageSpec.DisplayName) > 255 {
+			if utf8.RuneCountInString(softwarePackageSpec.DisplayName) > 255 {
 				multiError = multierror.Append(multiError, fmt.Errorf("software package %q display_name is too long (max 255 characters)", softwarePackageSpec.URL))
 				continue
 			}

@@ -4,7 +4,8 @@
       "version": "1.9.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.matthewpalmer.Rocket';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.matthewpalmer.Rocket' AND version_compare(bundle_short_version, '1.9.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.matthewpalmer.Rocket' AND version_compare(bundle_short_version, '1.9.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.matthewpalmer.Rocket');"
       },
       "installer_url": "https://macrelease.matthewpalmer.net/distribution/appcasts/Rocket-88.dmg",
       "install_script_ref": "90babca3",

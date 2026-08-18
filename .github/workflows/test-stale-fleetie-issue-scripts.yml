@@ -42,7 +42,7 @@ on:
 # we fall back to github.ref so successive pushes to the same branch share a group and
 # cancellation actually applies.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:

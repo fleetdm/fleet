@@ -328,8 +328,13 @@ Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 mi
 
 ## "Let's get you set up" calls
 
-"Let's get you set up" calls happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when he is unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
+"Let's get you set up" calls are open to all (with attendee limits) and happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) *([@ds0x](https://github.com/ds0x))* on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
 
+### Coverage for "Let's get you set up" calls
+
+When the point person is out of office or otherwise unable to attend, they will arrange coverage by posting in the [#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8) Slack channel and `@`-mentioning the Solutions Consultants. Preference is given to available Solutions Consultants during their working hours. 
+
+The Solutions Specialist side of the call coordinates its own coverage within the [Solutions Specialist team](https://fleetdm.com/handbook/company/go-to-market-operations#enterprise).
 
 ## Proof of value (POV)
 
@@ -577,7 +582,7 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 #### Quotes
 
-##### Change which fields are visable when editing selected quote line items
+##### Change which fields are visible when editing selected quote line items
 
 <img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
 
@@ -700,7 +705,7 @@ In every case, the website first calls `updateOrCreateContactAndAccount` to ensu
 | `Website_visit_reason__c` | Ad attribution string, if the user arrived via an ad within the last 30 minutes. |
 | `Related_campaign__c` | Related Salesforce campaign, if applicable. |
 
-> Historical event records are only created in the production environment. When deleting a contact's data (e.g. for a data deletion request), any related Historical event records associated with that contact are also automaticly deleted.
+> Historical event records are only created in the production environment. When deleting a contact's data (e.g. for a data deletion request), any related Historical event records associated with that contact are also automatically deleted.
 
 
 ##  Go-to-market attribution
@@ -1316,7 +1321,7 @@ Fleet uses an **opt-in** model for all marketing communications.
 - Contacts must explicitly consent before being added to the Marketing Contacts or Newsletter lists. Consent is captured at the point of form submission (newsletter sign-up, content downloads, event registration) or when a contact responds to an SDR or AE outreach.
 - Contacts collected at events (e.g., badge scans) are considered opted-in at the point of scanning and are added to Marketing Contacts with `ls: prospect`.
 - Contacts with Role = ⛄️ Non-prospect are tagged `ls: non-prospect` and excluded from marketing sends even if they are on a marketing list.
-- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The defualt value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
+- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The default value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
 - Unsubscribing removes a contact from the relevant list and halts all active automations tied to it. Unsubscribed contacts should not be re-subscribed without explicit re-consent.
 - Transactional and product emails (e.g., billing notifications, security alerts) are not managed in ActiveCampaign and are not subject to marketing list opt-in requirements.
 

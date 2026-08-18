@@ -1071,6 +1071,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
 	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
+	// ignore MDM.MicrosoftGraphCredentialInvalid because the server recomputes it from the credentials table
+	appConfig.MDM.MicrosoftGraphCredentialInvalid = oldAppConfig.MDM.MicrosoftGraphCredentialInvalid
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -1910,12 +1912,6 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 	return ok, nil
 }
 
-// windowsEntraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in
-// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison time
-// instead. We can't use the standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application
-// client IDs are both validated against this so the two checks cannot drift.
-var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
-
 // googleWorkspaceActivity returns the activity to record when the Google
 // Workspace IdP integration is added, edited, or removed, or nil when it is
 // unchanged. Only the (non-secret) domain is compared/recorded.
@@ -2319,12 +2315,12 @@ func (svc *Service) validateMDM(
 
 	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format.
 	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
-		if !windowsEntraGUIDRegex.MatchString(tenantID) {
+		if !fleet.IsValidEntraGUID(tenantID) {
 			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
 		}
 	}
 	for _, clientID := range mdm.WindowsEntraClientIDs.Value {
-		if !windowsEntraGUIDRegex.MatchString(clientID) {
+		if !fleet.IsValidEntraGUID(clientID) {
 			invalid.Append("mdm.windows_entra_client_ids", fmt.Sprintf("Invalid Entra client ID: %s", clientID))
 		}
 	}

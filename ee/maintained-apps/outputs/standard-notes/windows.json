@@ -4,7 +4,8 @@
       "version": "3.201.21",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Standard Notes %' AND publisher = 'Standard Notes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Standard Notes %' AND publisher = 'Standard Notes' AND version_compare(version, '3.201.21') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Standard Notes %' AND publisher = 'Standard Notes' AND version_compare(version, '3.201.21') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'standard notes.exe');"
       },
       "installer_url": "https://github.com/standardnotes/app/releases/download/@standardnotes/desktop@3.201.21/standard-notes-3.201.21-win-x64.exe",
       "install_script_ref": "45257f64",
