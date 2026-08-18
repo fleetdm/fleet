@@ -4,7 +4,8 @@
       "version": "2026.7.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.9806-1938-4586-6531.70';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.9806-1938-4586-6531.70' AND version_compare(bundle_short_version, '2026.7.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.9806-1938-4586-6531.70' AND version_compare(bundle_short_version, '2026.7.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.install4j.9806-1938-4586-6531.70');"
       },
       "installer_url": "https://portswigger-cdn.net/burp/releases/download?product=desktop&version=2026.7.3&type=MacOsArm64",
       "install_script_ref": "1cdedd7f",

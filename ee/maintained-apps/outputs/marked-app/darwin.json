@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1.18",
+      "version": "3.1.24",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brettterpstra.marked';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brettterpstra.marked' AND version_compare(bundle_short_version, '3.1.18') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brettterpstra.marked' AND version_compare(bundle_short_version, '3.1.24') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.brettterpstra.marked');"
       },
-      "installer_url": "https://updates.markedapp.com/updates/Marked%203.1.18-1201.zip",
+      "installer_url": "https://updates.markedapp.com/updates/Marked%203.1.24-1209.zip",
       "install_script_ref": "23ea6da3",
       "uninstall_script_ref": "57b4bcf2",
-      "sha256": "51bc55df375a9a19d4686c6dfbf452191e276cc956e7744901437ab7084359c1",
+      "sha256": "8b6492f5abdf51f98c41ecbec0a15a0ed1ef78def68124ed93a7a0f5af24f21d",
       "default_categories": [
         "Productivity"
       ]

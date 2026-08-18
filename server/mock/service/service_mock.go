@@ -503,6 +503,8 @@ type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bo
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
 
+type InstallInHouseAppForSetupExperienceFunc func(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error)
+
 type UninstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error)
@@ -541,7 +543,7 @@ type ListSoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) (
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -549,7 +551,7 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
@@ -992,6 +994,10 @@ type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error
 
 type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
+
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -1716,6 +1722,9 @@ type Service struct {
 
 	InstallVPPAppPostValidationFunc        InstallVPPAppPostValidationFunc
 	InstallVPPAppPostValidationFuncInvoked bool
+
+	InstallInHouseAppForSetupExperienceFunc        InstallInHouseAppForSetupExperienceFunc
+	InstallInHouseAppForSetupExperienceFuncInvoked bool
 
 	UninstallSoftwareTitleFunc        UninstallSoftwareTitleFunc
 	UninstallSoftwareTitleFuncInvoked bool
@@ -2451,6 +2460,12 @@ type Service struct {
 
 	ReleaseABDevicesFunc        ReleaseABDevicesFunc
 	ReleaseABDevicesFuncInvoked bool
+
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ApplyMicrosoftGraphCredentialsFunc        ApplyMicrosoftGraphCredentialsFunc
+	ApplyMicrosoftGraphCredentialsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4142,6 +4157,13 @@ func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.H
 	return s.InstallVPPAppPostValidationFunc(ctx, host, vppApp, token, opts)
 }
 
+func (s *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	s.mu.Lock()
+	s.InstallInHouseAppForSetupExperienceFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallInHouseAppForSetupExperienceFunc(ctx, host, inHouseAppID, softwareTitleID)
+}
+
 func (s *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	s.mu.Lock()
 	s.UninstallSoftwareTitleFuncInvoked = true
@@ -4275,7 +4297,7 @@ func (s *Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.NewTea
 	return s.NewTeamPolicyFunc(ctx, teamID, p)
 }
 
-func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
@@ -4303,7 +4325,7 @@ func (s *Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID u
 	return s.GetTeamPolicyByIDFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
@@ -5855,4 +5877,18 @@ func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*flee
 	s.ReleaseABDevicesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReleaseABDevicesFunc(ctx, hostIDs)
+}
+
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error {
+	s.mu.Lock()
+	s.ApplyMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyMicrosoftGraphCredentialsFunc(ctx, creds, dryRun)
 }

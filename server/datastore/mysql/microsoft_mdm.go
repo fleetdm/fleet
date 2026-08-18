@@ -79,6 +79,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		fleetd_sync_capable,
 		has_pending_commands,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -169,6 +170,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		credentials_hash,
 		credentials_acknowledged,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -212,6 +214,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 		credentials_hash,
 		credentials_acknowledged,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -292,6 +295,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 		credentials_hash,
 		credentials_acknowledged,
 		hardware_serial,
+		ztd_registration_id,
 		created_at,
 		updated_at,
 		host_uuid
@@ -498,9 +502,10 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			awaiting_configuration_at,
 			host_uuid,
 			credentials_hash,
-			credentials_acknowledged)
+			credentials_acknowledged,
+			ztd_registration_id)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -515,7 +520,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			awaiting_configuration_at = VALUES(awaiting_configuration_at),
 			host_uuid             = VALUES(host_uuid),
 			credentials_hash      = VALUES(credentials_hash),
-			credentials_acknowledged = VALUES(credentials_acknowledged)
+			credentials_acknowledged = VALUES(credentials_acknowledged),
+			-- A re-enrollment may not have ztd id, so don't overwrite.
+			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id))
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -534,7 +541,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.AwaitingConfigurationAt,
 		device.HostUUID,
 		device.CredentialsHash,
-		device.CredentialsAcknowledged)
+		device.CredentialsAcknowledged,
+		device.ZTDRegistrationID)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
@@ -3380,6 +3388,8 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 	})
 }
 
+// GetWindowsHostMDMCertificateProfile returns the certificate profile backing a SCEP proxy identifier. Only profiles being
+// installed are returned.
 func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, hostUUID string,
 	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
@@ -3399,9 +3409,10 @@ func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, ho
 	JOIN host_mdm_managed_certificates hmmc
 		ON hmwp.host_uuid = hmmc.host_uuid AND hmwp.profile_uuid = hmmc.profile_uuid
 	WHERE
-		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ?`
+		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ? AND hmwp.operation_type = ?`
 	var profile fleet.HostMDMCertificateProfile
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName,
+		fleet.MDMOperationTypeInstall); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}

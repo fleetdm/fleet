@@ -4,7 +4,8 @@
       "version": "4.5.6768",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Rtools %' AND publisher = 'The R Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Rtools %' AND publisher = 'The R Foundation' AND version_compare(version, '4.5.6768') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Rtools %' AND publisher = 'The R Foundation' AND version_compare(version, '4.5.6768') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rtools.exe');"
       },
       "installer_url": "https://cloud.r-project.org/bin/windows/Rtools/rtools45/files/rtools45-6768-6492.exe",
       "install_script_ref": "38f938a7",

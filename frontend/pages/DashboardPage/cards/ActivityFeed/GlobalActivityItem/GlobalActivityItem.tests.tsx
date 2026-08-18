@@ -1924,7 +1924,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("An end user")).toBeNull();
     expect(screen.queryByText("Test Admin")).toBeNull();
     expect(screen.getByText(/was installed on/)).toBeInTheDocument();
-    expect(screen.getByText(/\(self-service\)\./)).toBeInTheDocument();
+    expect(screen.getByText(/\(self service\)\./)).toBeInTheDocument();
   });
 
   it("renders the correct actor for a installed_app_store_app activity without self_service", () => {
@@ -1959,7 +1959,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("An end user")).toBeNull();
     expect(screen.queryByText("Test Admin")).toBeNull();
     expect(screen.getByText(/was installed on/)).toBeInTheDocument();
-    expect(screen.getByText(/\(self-service\)\./)).toBeInTheDocument();
+    expect(screen.getByText(/\(self service\)\./)).toBeInTheDocument();
   });
 
   it("renders script package ran status in InstalledSoftware activity", () => {
@@ -2027,7 +2027,7 @@ describe("Activity Feed", () => {
         host_display_name: "Work Mac",
         source: "apps",
         status: "failed_install",
-        install_skipped_when_app_open: true,
+        skipped_install: true,
       },
     });
 
@@ -2477,7 +2477,7 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("End user")).toBeInTheDocument();
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeInTheDocument();
     // The actor is dropped in favor of "End user".
     expect(screen.queryByText("Test User")).not.toBeInTheDocument();
@@ -2504,7 +2504,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeInTheDocument();
   });
 

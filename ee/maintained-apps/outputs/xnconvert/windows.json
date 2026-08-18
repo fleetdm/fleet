@@ -4,7 +4,8 @@
       "version": "1.115.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'XnConvert' AND publisher = 'Pierre-e Gougelet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnConvert' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.115.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'XnConvert' AND publisher = 'Pierre-e Gougelet' AND version_compare(version, '1.115.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'xnsoft xnconvert.exe');"
       },
       "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.115.0-win-x64.exe",
       "install_script_ref": "7eb6b47e",

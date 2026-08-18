@@ -4,7 +4,8 @@
       "version": "26.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version_compare(version, '26.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version_compare(version, '26.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe');"
       },
       "installer_url": "https://nodejs.org/dist/v26.7.0/node-v26.7.0-x64.msi",
       "install_script_ref": "22e48c46",

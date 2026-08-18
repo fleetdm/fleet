@@ -4,7 +4,8 @@
       "version": "4.15.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame' AND version_compare(version, '4.15.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame' AND version_compare(version, '4.15.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'airtame.exe');"
       },
       "installer_url": "https://airtame-app.b-cdn.net/app/latest/win/Airtame-4.15.1-setup.exe",
       "install_script_ref": "8a919fae",

@@ -4,7 +4,8 @@
       "version": "0.100.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.100.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys %' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.100.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'powertoys.exe');"
       },
       "installer_url": "https://github.com/microsoft/PowerToys/releases/download/v0.100.2/PowerToysSetup-0.100.2-x64.exe",
       "install_script_ref": "1a5ce2ca",

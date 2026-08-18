@@ -4,7 +4,8 @@
       "version": "4.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project' AND version_compare(version, '4.1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Transmission %' AND publisher = 'Transmission Project' AND version_compare(version, '4.1.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'transmission.exe');"
       },
       "installer_url": "https://github.com/transmission/transmission/releases/download/4.1.3/transmission-4.1.3-x64.msi",
       "install_script_ref": "22e48c46",

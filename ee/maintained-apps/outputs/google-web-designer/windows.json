@@ -4,7 +4,8 @@
       "version": "14.3.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Web Designer' AND publisher = 'Google LLC.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Web Designer' AND publisher = 'Google LLC.' AND version_compare(version, '14.3.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Web Designer' AND publisher = 'Google LLC.' AND version_compare(version, '14.3.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'google web designer.exe');"
       },
       "installer_url": "https://dl.google.com/release2/Webdesigner/acky5xyddb2r44okdi2iwoujpiwa_14.3.0.0/googlewebdesigner_win_x64_14.3.0.0.exe",
       "install_script_ref": "a7d586ca",

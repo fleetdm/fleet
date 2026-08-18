@@ -4,7 +4,8 @@
       "version": "3.11.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.gpodder.gpodder';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gpodder.gpodder' AND version_compare(bundle_short_version, '3.11.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gpodder.gpodder' AND version_compare(bundle_short_version, '3.11.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.gpodder.gpodder');"
       },
       "installer_url": "https://github.com/gpodder/gpodder/releases/download/3.11.5/macOS-gPodder-3.11.5.zip",
       "install_script_ref": "94cf1b81",

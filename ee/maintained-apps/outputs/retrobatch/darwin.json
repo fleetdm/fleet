@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.3.1",
+      "version": "2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Retrobatch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Retrobatch' AND version_compare(bundle_short_version, '2.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Retrobatch' AND version_compare(bundle_short_version, '2.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.flyingmeat.Retrobatch');"
       },
-      "installer_url": "https://flyingmeat.com/download/Retrobatch-2.3.1.zip",
+      "installer_url": "https://flyingmeat.com/download/Retrobatch-2.4.zip",
       "install_script_ref": "24543d98",
       "uninstall_script_ref": "355d274a",
-      "sha256": "732088dfde0d659bd4eabbdcd7ab587dfb57af9989c2cccd19788e86d1130dc6",
+      "sha256": "13a4688c142605bce32d118bf96cd7e133b5c24374b7668d70a942c82787d2ef",
       "default_categories": [
         "Productivity"
       ]

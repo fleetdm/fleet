@@ -4,7 +4,8 @@
       "version": "7.2.0.92",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Git Extensions %' AND publisher = 'Git Extensions Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git Extensions %' AND publisher = 'Git Extensions Team' AND version_compare(version, '7.2.0.92') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git Extensions %' AND publisher = 'Git Extensions Team' AND version_compare(version, '7.2.0.92') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'git extensions.exe');"
       },
       "installer_url": "https://github.com/gitextensions/gitextensions/releases/download/v7.2.0/GitExtensions-x64-7.2.0.92-501f831.msi",
       "install_script_ref": "22e48c46",

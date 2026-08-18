@@ -4,7 +4,8 @@
       "version": "1.4.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brettterpstra.Bunch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brettterpstra.Bunch' AND version_compare(bundle_short_version, '1.4.17') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brettterpstra.Bunch' AND version_compare(bundle_short_version, '1.4.17') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.brettterpstra.Bunch');"
       },
       "installer_url": "https://brettterpstra.com/updates/bunch/Bunch1.4.17180.dmg",
       "install_script_ref": "ce59ad91",

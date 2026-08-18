@@ -4,7 +4,8 @@
       "version": "3.8.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app' AND version_compare(bundle_short_version, '3.8.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.openvpn.client.app' AND version_compare(bundle_short_version, '3.8.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.openvpn.client.app');"
       },
       "installer_url": "https://swupdate.openvpn.net/downloads/connect/openvpn-connect-3.8.2.6009_signed.dmg",
       "install_script_ref": "2ebecc60",

@@ -70,6 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
+	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -970,6 +971,17 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, configurationType string) (*fleet.MDMAppleCustomActivation, error) {
 	if len(activation) == 0 {
 		return nil, nil
+	}
+
+	// Fleet can't validate a predicate -- the syntax is Apple's -- and an invalid
+	// one wedges the host's MDM subsystem past the point of remote recovery
+	// (Apple FB24193230). Until that's fixed, uploading an activation takes an
+	// explicit opt-in. Removing a stored activation deliberately doesn't reach
+	// here, so an operator can always undo one.
+	if !svc.config.MDM.AllowCustomActivations {
+		return nil, ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("activation", ActivationsDisabledErrorMsg),
+			"custom activations are not enabled")
 	}
 
 	// Management declarations are never activated.
@@ -3081,6 +3093,12 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 	if platform != "darwin" && !isSetMinVersion {
 		svc.logger.InfoContext(ctx, "checking os updates settings for non-macos platform, minimum version not set, skipping version check", logs...)
 		return false, nil
+	}
+
+	// Always check update if latest is configured for each platform.
+	if minVersion == fleet.AppleOSUpdateLatestVersion {
+		svc.logger.InfoContext(ctx, "checking os updates settings, minimum version set to latest, checking available apple updates", logs...)
+		return true, nil
 	}
 
 	if platform == "darwin" {
@@ -5310,7 +5328,22 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP install, so no activity generated
+					// Not a VPP install; it may be an in-house app (.ipa) install.
+					inHouseUser, inHouseAct, inHouseErr := svc.ds.GetPastActivityDataForInHouseAppInstall(r.Context, cmdResult)
+					if inHouseErr != nil {
+						if fleet.IsNotFound(inHouseErr) {
+							// Not an in-house install either, so no activity generated
+							return nil, nil
+						}
+						return nil, ctxerr.Wrap(r.Context, inHouseErr, "fetching data for installed in-house app activity")
+					}
+					if inHouseAct == nil {
+						return nil, nil
+					}
+					inHouseAct.FromSetupExperience = fromSetupExperience
+					if err := svc.newActivityFn(r.Context, inHouseUser, inHouseAct); err != nil {
+						return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed in-house app")
+					}
 					return nil, nil
 				}
 
@@ -5958,10 +5991,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
 	)
 
-	// 4. Filter out software that already has a pending installation.
+	// 4. Filter out software that already has a pending installation, either activated and
+	// awaiting verification, or still waiting in the host's upcoming activity queue.
+	//
+	// This needs no in-run tracking like the policy loop has, because ListSoftwareAutoUpdateSchedules
+	// filters on the source derived from the host's platform above. A team can hold the same adam_id
+	// as two titles, one per platform, so widening that filter would let one run reach an app twice.
 	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	adamIDsQueuedInstallForHost, err := svc.ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs queued installs for host")
 	}
 	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
 	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateScheduleNoRecentInstalls {
@@ -5975,6 +6017,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
 			logger.DebugContext(ctx, "skipping software, pending install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			logger.DebugContext(ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)

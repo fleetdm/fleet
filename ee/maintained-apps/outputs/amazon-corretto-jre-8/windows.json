@@ -4,7 +4,8 @@
       "version": "1.8.0.502",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Corretto JRE 8 (x64)' AND publisher = 'Amazon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto JRE 8 (x64)' AND publisher = 'Amazon' AND version_compare(version, '1.8.0.502') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Corretto JRE 8 (x64)' AND publisher = 'Amazon' AND version_compare(version, '1.8.0.502') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon corretto jre 8.exe');"
       },
       "installer_url": "https://corretto.aws/downloads/resources/8.502.07.1/amazon-corretto-8.502.07.1-windows-x64-jre.msi",
       "install_script_ref": "22e48c46",

@@ -4,7 +4,8 @@
       "version": "9.13.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'calibre %' AND publisher = 'Kovid Goyal';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'calibre %' AND publisher = 'Kovid Goyal' AND version_compare(version, '9.13.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'calibre %' AND publisher = 'Kovid Goyal' AND version_compare(version, '9.13.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'calibre.exe');"
       },
       "installer_url": "https://download.calibre-ebook.com/9.13.0/calibre-64bit-9.13.0.msi",
       "install_script_ref": "22e48c46",

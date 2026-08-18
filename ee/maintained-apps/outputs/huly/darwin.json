@@ -4,7 +4,8 @@
       "version": "0.7.426",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'hc.hcengineering.Huly';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'hc.hcengineering.Huly' AND version_compare(bundle_short_version, '0.7.426') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'hc.hcengineering.Huly' AND version_compare(bundle_short_version, '0.7.426') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'hc.hcengineering.Huly');"
       },
       "installer_url": "https://dist.huly.io/Huly-macos-0.7.426-arm64.zip",
       "install_script_ref": "dbf3095d",

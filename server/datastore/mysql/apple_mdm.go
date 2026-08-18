@@ -2423,7 +2423,7 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
 		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
-		       profile_uuid, assign_profile_response, response_updated_at
+		       profile_uuid, assign_profile_response, response_updated_at, hardware_serial
 		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2622,6 +2622,14 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		return deleteHosts(ctx, tx, pendingHostIDs)
 	})
+}
+
+func (ds *Datastore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_dep_assignments
+		SET deleted_at = NOW(), mdm_migration_deadline = NULL, mdm_migration_completed = NULL
+		WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+	return ctxerr.Wrap(ctx, err, "mark host dep assignment deleted")
 }
 
 func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
@@ -6991,6 +6999,21 @@ func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.Hos
 	return nil
 }
 
+func (ds *Datastore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error {
+	// A join and not `host_id = (SELECT id FROM hosts WHERE uuid = ?)`: hosts.uuid carries only a
+	// non-unique index, so cloned VMs and double-enrolled devices can share one, and a scalar
+	// subselect would raise ER_SUBQUERY_NO_1_ROW on exactly those hosts. Clearing the command for
+	// every host holding that UUID is right anyway, since the MDM enrollment is keyed by UUID.
+	const stmt = `
+		DELETE hmc FROM host_mdm_commands hmc
+		JOIN hosts h ON h.id = hmc.host_id
+		WHERE h.uuid = ? AND hmc.command_type = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, commandType); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands by host uuid")
+	}
+	return nil
+}
+
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
 	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
@@ -8354,6 +8377,14 @@ func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID s
 		}
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore builtin label memberships for mdm reset", "host_uuid", hostUUID)
+		}
+
+		// Reset label_updated_at to the "never" sentinel (2000-01-01 UTC) so the
+		// exclude-any dynamic-label guard treats the cleared memberships as
+		// not-yet-reported instead of trusting them until the next label report.
+		if _, err := tx.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id = ?`,
+			common_mysql.GetDefaultNonZeroTime(), host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset label_updated_at for mdm reset", "host_uuid", hostUUID)
 		}
 
 		// Clear the PSSO registration (keys cascade) so an ADE re-enrollment

@@ -4,7 +4,8 @@
       "version": "9.5.3.45464",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH' AND version_compare(version, '9.5.3.45464') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH' AND version_compare(version, '9.5.3.45464') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cyberduck.exe');"
       },
       "installer_url": "https://update.cyberduck.io//Cyberduck-Installer-9.5.3.45464.msi",
       "install_script_ref": "22e48c46",

@@ -4,10 +4,4 @@
   &__tab-header {
     @include tab-header;
   }
-
-  .empty-assets {
-    display: flex;
-    justify-content: center;
-    color: $ui-fleet-black-75;
-  }
 }

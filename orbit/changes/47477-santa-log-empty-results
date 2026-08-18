@@ -1,0 +1,5 @@
+* Fixed the `santa_allowed` and `santa_denied` tables returning no results on hosts where Santa is running, most often in monitor mode. A single log line longer than 64KB (Santa logs process arguments, which have no practical size limit), a log rotation landing mid-read, or an archive that could not be decompressed discarded every event read from the other Santa log files. Reads are now best effort: over-long lines are truncated, a file that cannot be read no longer discards the events read from the rest, and failures are logged instead of silently returning zero rows.
+
+* Fixed fleetd skipping rotated Santa logs that have not been compressed, so `santa_allowed` and `santa_denied` no longer miss events on hosts whose newsyslog configuration leaves archives uncompressed.
+
+* Improved Santa log scraping: `santa_allowed` and `santa_denied` now parse the Santa logs about 3x faster while allocating 5-7x less memory, and stop reading rotated logs once they have the most recent 10,000 events, so on a busy host the compressed archives are no longer decompressed on every query.

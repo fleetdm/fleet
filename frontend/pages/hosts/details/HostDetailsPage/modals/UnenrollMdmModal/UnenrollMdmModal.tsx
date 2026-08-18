@@ -6,6 +6,7 @@ import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   isAutomaticDeviceEnrollment,
@@ -22,6 +23,7 @@ interface IUnenrollMdmModalProps {
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -30,6 +32,7 @@ const UnenrollMdmModal = ({
   hostName,
   enrollmentStatus,
   onClose,
+  onSuccess,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
@@ -51,17 +54,27 @@ const UnenrollMdmModal = ({
           </>
         );
       notify.success(successMessage);
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
-      const errorMessage =
-        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
-          "Couldn't unenroll. Please try again."
-        ) : (
-          <>
-            Failed to turn off MDM for <b>{hostName}</b>. Please try again.
-          </>
-        );
-      notify.error(errorMessage, { response: unenrollMdmError });
+      // A 409 means MDM is already off for this host, so "please try again"
+      // would send the user in a loop. It also means this page was working from
+      // stale data, so refresh it to drop the action.
+      if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
+        notify.error(getErrorReason(unenrollMdmError));
+        onSuccess();
+        onClose();
+      } else {
+        const errorMessage =
+          isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+            "Couldn't unenroll. Please try again."
+          ) : (
+            <>
+              Failed to turn off MDM for <b>{hostName}</b>. Please try again.
+            </>
+          );
+        notify.error(errorMessage, { response: unenrollMdmError });
+      }
     }
     setRequestState(undefined);
   };

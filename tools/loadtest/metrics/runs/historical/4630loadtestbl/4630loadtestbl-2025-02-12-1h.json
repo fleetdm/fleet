@@ -1,0 +1,117 @@
+{
+  "metadata": {
+    "workspace": "4630loadtestbl",
+    "collected_at": "2025-02-12T00:00:00Z",
+    "interval": "1h",
+    "release": "4.63.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 6
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 75.0
+    },
+    "memory_utilization": {
+      "Average": 5.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 50.0
+    },
+    "memory_utilization": {
+      "Average": 6.0
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 23.0,
+      "Maximum": 27.0
+    },
+    "write_iops": {
+      "Average": 2635.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 9.0,
+      "maximum": 17.0
+    },
+    "iops_utilization": {
+      "utilization_pct": 13.0
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 61.5,
+        "Maximum": 73.0
+      },
+      "read_iops": {
+        "Average": 3.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 5.0,
+        "maximum": 14.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 1.75,
+        "Maximum": 2.0
+      },
+      "memory_utilization": {
+        "Average": 0.46,
+        "Maximum": 0.5
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Release/baseline",
+    "one_click": null,
+    "notes": "100K hosts, no mdm",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~75%",
+      "fleet_mem": "~5%",
+      "errors": "host reported software with empty name, <tok>, ingesting que\u2026",
+      "writer_top_sql": "INSERT INTO `host_seen_ti\u2026",
+      "writer_cpu": "19-27%",
+      "writer_sessions": "5-17 avg ~9",
+      "writer_iops": "2635 (~13%)",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "50-73%, peak was 73%",
+      "reader_sessions": "2-14 avg ~5",
+      "reader_iops": "3",
+      "redis_cpu": "1.5-2%",
+      "redis_mem": "0.42-0.5%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "50%",
+      "osquery_mem": "6%"
+    }
+  }
+}

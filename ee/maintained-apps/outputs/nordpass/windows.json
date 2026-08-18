@@ -4,7 +4,8 @@
       "version": "7.9.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'NordPass' AND publisher = 'NordPass Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordPass' AND publisher = 'NordPass Team' AND version_compare(version, '7.9.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordPass' AND publisher = 'NordPass Team' AND version_compare(version, '7.9.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nordpass.exe');"
       },
       "installer_url": "https://downloads.npass.app/windows/NordPassSetup.exe",
       "install_script_ref": "17ae065a",

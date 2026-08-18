@@ -4,7 +4,8 @@
       "version": "114.0.4-release.20250509.32955",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.descript.beachcube';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.descript.beachcube' AND version_compare(bundle_short_version, '114.0.4-release.20250509.32955') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.descript.beachcube' AND version_compare(bundle_short_version, '114.0.4-release.20250509.32955') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.descript.beachcube');"
       },
       "installer_url": "https://electron.descript.com/Descript-114.0.4-release.20250509.32955-arm64.dmg",
       "install_script_ref": "e065ab33",
