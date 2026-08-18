@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -594,28 +595,40 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 	return nil
 }
 
-// assertProfileTeamMatches verifies that the configuration profile exists and
-// belongs to the given team (0 for "No team").
+// assertProfileTeamMatches verifies that the configuration profile exists, belongs to the given
+// team (0 for "No team"), and is not one Fleet manages itself.
 func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, profileUUID string) error {
 	prof, err := fleet.ResolvePolicyResendProfile(&profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "resolving resend configuration profile")
 	}
 
-	var profileTeamID uint
+	var profile struct {
+		TeamID uint   `db:"team_id"`
+		Name   string `db:"name"`
+	}
 	// Lock the configuration profile row as well, to maintain the consistent lock
 	// ordering described above.
-	stmt := fmt.Sprintf("SELECT team_id FROM %s WHERE profile_uuid = ? FOR UPDATE", prof.Table)
-	if err := sqlx.GetContext(ctx, db, &profileTeamID, stmt, profileUUID); err != nil {
+	stmt := fmt.Sprintf("SELECT team_id, name FROM %s WHERE profile_uuid = ? FOR UPDATE", prof.Table)
+	if err := sqlx.GetContext(ctx, db, &profile, stmt, profileUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("Configuration profile with UUID %s does not exist", profileUUID),
 			})
 		}
 		return ctxerr.Wrap(ctx, err, "querying configuration profile for policy team matching")
-	} else if profileTeamID != teamID {
+	}
+	if profile.TeamID != teamID {
 		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Configuration profile with UUID %s does not belong to team ID %d", profileUUID, teamID),
+		})
+	}
+	// Fleet owns the contents and the lifecycle of its own profiles (disk encryption, Windows OS
+	// updates, the fleetd config and CA profiles): they are rewritten and removed as the settings
+	// that produce them change, so a policy must not pin one for resend.
+	if _, reserved := fleetmdm.FleetReservedProfileNames()[profile.Name]; reserved {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("Configuration profile %q is managed by Fleet and can't be resent by a policy", profile.Name),
 		})
 	}
 

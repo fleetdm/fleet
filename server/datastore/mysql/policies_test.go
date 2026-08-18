@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -81,6 +82,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TestPoliciesTeamPoliciesWithResendProfile", testTeamPoliciesWithResendProfile},
 		{"TestPoliciesApplyPolicySpecsWithResendProfile", testApplyPolicySpecsWithResendProfile},
+		{"TestPoliciesResendProfileRejectsFleetManaged", testPoliciesResendProfileRejectsFleetManaged},
 		{"TestPoliciesApplyPolicySpecsResendProfileChangeResetsStats", testApplyPolicySpecsResendProfileChangeResetsStats},
 		{"TestPoliciesSaveResendProfile", testSavePolicyResendProfile},
 		{"TestPoliciesResendProfileAutomationFilter", testResendProfileAutomationFilter},
@@ -5360,6 +5362,132 @@ func testTeamPoliciesWithResendProfile(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantWindows, got.ResendWindowsProfileUUID)
 		})
 	}
+}
+
+// testPoliciesResendProfileRejectsFleetManaged verifies that a policy cannot be pinned to one of
+// Fleet's own profiles. Fleet rewrites and removes those as the settings that produce them change
+// (disk encryption, Windows OS updates, the fleetd config and CA profiles), so a policy holding one
+// for resend would reference a profile whose lifecycle it does not control.
+func testPoliciesResendProfileRejectsFleetManaged(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Whiskey", "whiskey@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team fleet managed profiles"})
+	require.NoError(t, err)
+
+	// Fleet's own profiles are ordinary rows in the profile tables — created by
+	// MDMAppleEnableFileVaultAndEscrow, mdmWindowsEnableOSUpdates and friends — so nothing stops a
+	// caller from passing their UUIDs.
+	appleManaged, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         fleetmdm.FleetFileVaultProfileName,
+		Identifier:   "com.fleetdm.fleet.mdm.filevault",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	fleetdConfig, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         fleetmdm.FleetdConfigProfileName,
+		Identifier:   "com.fleetdm.fleetd.config",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	windowsManaged, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   fleetmdm.FleetWindowsOSUpdatesProfileName,
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	// A user-authored profile in the same team, to show only the managed ones are refused.
+	userProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "my-own-profile",
+		Identifier:   "com.example.my-own-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	managed := []struct {
+		name        string
+		profileUUID string
+		profileName string
+	}{
+		{"apple disk encryption", appleManaged.ProfileUUID, fleetmdm.FleetFileVaultProfileName},
+		{"fleetd configuration", fleetdConfig.ProfileUUID, fleetmdm.FleetdConfigProfileName},
+		{"windows OS updates", windowsManaged.ProfileUUID, fleetmdm.FleetWindowsOSUpdatesProfileName},
+	}
+
+	requireRejected := func(t *testing.T, err error, profileName string) {
+		t.Helper()
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, profileName)
+		require.Contains(t, bre.Message, "managed by Fleet")
+	}
+
+	// Every write path converges on assertProfileTeamMatches, so each is exercised here.
+	for i, c := range managed {
+		t.Run("create: "+c.name, func(t *testing.T) {
+			_, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+				Name:        fmt.Sprintf("managed create %d", i),
+				Query:       "SELECT 1;",
+				Platform:    "darwin,windows",
+				ProfileUUID: &c.profileUUID,
+			})
+			requireRejected(t, err, c.profileName)
+		})
+
+		t.Run("modify: "+c.name, func(t *testing.T) {
+			p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+				Name:        fmt.Sprintf("managed modify %d", i),
+				Query:       "SELECT 1;",
+				Platform:    "darwin,windows",
+				ProfileUUID: &userProf.ProfileUUID,
+			})
+			require.NoError(t, err)
+
+			require.NoError(t, p.SetResendProfileUUID(c.profileUUID))
+			requireRejected(t, ds.SavePolicy(ctx, p, false, false), c.profileName)
+
+			// The stored policy still points at the profile it had before the rejected change.
+			got, err := ds.Policy(ctx, p.ID)
+			require.NoError(t, err)
+			require.Equal(t, &userProf.ProfileUUID, got.ResendAppleProfileUUID)
+		})
+
+		t.Run("specs: "+c.name, func(t *testing.T) {
+			err := ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{{
+				Name:        fmt.Sprintf("managed spec %d", i),
+				Team:        team1.Name,
+				Query:       "SELECT 1;",
+				Platform:    "darwin,windows",
+				ProfileUUID: &c.profileUUID,
+			}})
+			requireRejected(t, err, c.profileName)
+		})
+	}
+
+	// A user-authored profile is still accepted on every path.
+	t.Run("user-authored profile is accepted", func(t *testing.T) {
+		p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+			Name:        "user profile policy",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: &userProf.ProfileUUID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, &userProf.ProfileUUID, p.ResendAppleProfileUUID)
+
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{{
+			Name:        "user profile spec",
+			Team:        team1.Name,
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: &userProf.ProfileUUID,
+		}}))
+	})
 }
 
 func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {
