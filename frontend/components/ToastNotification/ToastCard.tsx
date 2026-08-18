@@ -78,8 +78,13 @@ const ToastCard = ({
   let detailText = "";
   if (detail !== undefined) {
     try {
-      detailText = JSON.stringify(detail, null, 2);
-      detailHtml = syntaxHighlight(detail);
+      // Values with no JSON representation (functions, symbols) return
+      // undefined here rather than throwing, so treat them as empty and skip
+      // the highlighter, which assumes a string.
+      detailText = JSON.stringify(detail, null, 2) ?? "";
+      if (detailText !== "") {
+        detailHtml = syntaxHighlight(detail);
+      }
     } catch {
       // Circular refs / non-serializable values — fall back to safe text.
       detailText = String(detail);

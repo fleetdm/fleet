@@ -45,6 +45,10 @@ describe("ToastCard", () => {
     ["an empty array", []],
     ["null", null],
     ["an empty string", ""],
+    // These have no JSON representation, so JSON.stringify returns undefined
+    // rather than throwing.
+    ["a function", () => "noop"],
+    ["a symbol", Symbol("token")],
   ])("hides the details toggle for %s", (_label, detail) => {
     renderCard(detail);
 
