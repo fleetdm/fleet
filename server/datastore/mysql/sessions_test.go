@@ -14,6 +14,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// flipASCIICase swaps the case of ASCII letters, leaving other bytes intact.
+func flipASCIICase(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		switch {
+		case c >= 'a' && c <= 'z':
+			b[i] = c - ('a' - 'A')
+		case c >= 'A' && c <= 'Z':
+			b[i] = c + ('a' - 'A')
+		}
+	}
+	return string(b)
+}
+
 func TestSessions(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -161,6 +175,14 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	assert.Equal(t, session.ID, gotByKey.ID)
 	require.NotNil(t, gotByKey.APIOnly)
 	assert.False(t, *gotByKey.APIOnly)
+
+	// Session keys are case-sensitive: a case-mutated key must not match (the
+	// key column uses a byte-exact collation). Guards against a regression to a
+	// case-insensitive collation on this per-request auth lookup.
+	mutated := flipASCIICase(session.Key)
+	require.NotEqual(t, session.Key, mutated)
+	_, err = ds.SessionByKey(context.Background(), mutated)
+	require.Error(t, err)
 
 	newSession, err := ds.NewSession(context.Background(), user.ID, 8)
 	require.NoError(t, err)
