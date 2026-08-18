@@ -83,6 +83,31 @@ func TestRequestSecurityTokenResponseCollectionSoapResponse(t *testing.T) {
 	require.Contains(t, string(outXML), fmt.Sprintf("base64binary\">%s</BinarySecurityToken>", provisionedToken))
 }
 
+func TestCertStoreProvisioningROBOSupportDisabled(t *testing.T) {
+	certStore := NewCertStoreProvisioningData(
+		"Device",
+		"AAAAAAAAAAAAAAAAAAAAAAAAA",
+		[]byte("identity-cert"),
+		"BBBBBBBBBBBBBBBBBBBBBBBBB",
+		[]byte("signed-cert"),
+	)
+	appConfig := NewApplicationProvisioningData("https://example.com/mdm/management", "device-id", "password")
+	dmClient := NewDMClientProvisioningData()
+
+	provDoc := NewProvisioningDoc(certStore, appConfig, dmClient)
+	encoded, err := provDoc.GetEncodedB64Representation()
+	require.NoError(t, err)
+
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	require.NoError(t, err)
+
+	// Fleet does not implement WSTEP ROBO renewal. The provisioning doc
+	// must advertise ROBOSupport=false so Windows does not attempt renewal
+	// and set EnrollmentState=3 on the host. See #50611.
+	require.Contains(t, string(raw), `name="ROBOSupport" value="false"`)
+	require.NotContains(t, string(raw), `name="ROBOSupport" value="true"`)
+}
+
 func TestGetPoliciesResponseSoapResponse(t *testing.T) {
 	minKey := "2048"
 	getPoliciesMsg, err := NewGetPoliciesResponse(minKey, "10", "20")
