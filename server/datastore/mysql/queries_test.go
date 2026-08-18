@@ -40,6 +40,7 @@ func TestQueries(t *testing.T) {
 		{"IsSavedQuery", testIsSavedQuery},
 		{"SaveQueryLabels", testSaveQueryLabels},
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
+		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1532,4 +1533,132 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryNoLabel.Name})
+}
+
+func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-label-scoped"})
+	require.NoError(t, err)
+
+	// Create a label.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test-label-scoped", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// No queries at all -- should return false.
+	has, err := ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.False(t, has, "no queries exist, should be false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.False(t, has, "no queries exist for team, should be false")
+
+	// Create a global scheduled query WITHOUT labels.
+	q1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "global-no-labels",
+		Query:              "SELECT 1",
+		Saved:              true,
+		Interval:           60,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.False(t, has, "global query exists but has no labels")
+
+	// Add a label to the query.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q1.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.True(t, has, "global query with label should be true for global scope")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "global query with label should be true for team scope too")
+
+	// Create a team query with labels.
+	q2, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-with-labels",
+		Query:              "SELECT 2",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q2.ID, label.ID)
+	require.NoError(t, err)
+
+	// Remove label from the global query to isolate team test.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"DELETE FROM query_labels WHERE query_id = ?", q1.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.False(t, has, "only team query has label, global scope should be false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "team query with label should be true for that team")
+
+	// Test the automations filter: query with discard_data=true and automations_enabled=false
+	// should NOT count even if it has labels.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"DELETE FROM query_labels WHERE query_id = ?", q2.ID)
+	require.NoError(t, err)
+
+	q3, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-discarded",
+		Query:              "SELECT 3",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: false,
+		DiscardData:        true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q3.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.False(t, has, "query with discard_data=true and automations_enabled=false should not count")
+
+	// Test queryReportsDisabled toggle: a snapshot query with discard_data=false,
+	// automations_enabled=false, and labels should count when queryReportsDisabled=false
+	// but NOT when queryReportsDisabled=true (the NOT ? bind in the SQL).
+	q4, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-snapshot-report",
+		Query:              "SELECT 4",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: false,
+		DiscardData:        false,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q4.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "snapshot report with labels should count when queryReportsDisabled=false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, true)
+	require.NoError(t, err)
+	assert.False(t, has, "snapshot report with labels should NOT count when queryReportsDisabled=true")
 }

@@ -5328,7 +5328,22 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP install, so no activity generated
+					// Not a VPP install; it may be an in-house app (.ipa) install.
+					inHouseUser, inHouseAct, inHouseErr := svc.ds.GetPastActivityDataForInHouseAppInstall(r.Context, cmdResult)
+					if inHouseErr != nil {
+						if fleet.IsNotFound(inHouseErr) {
+							// Not an in-house install either, so no activity generated
+							return nil, nil
+						}
+						return nil, ctxerr.Wrap(r.Context, inHouseErr, "fetching data for installed in-house app activity")
+					}
+					if inHouseAct == nil {
+						return nil, nil
+					}
+					inHouseAct.FromSetupExperience = fromSetupExperience
+					if err := svc.newActivityFn(r.Context, inHouseUser, inHouseAct); err != nil {
+						return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed in-house app")
+					}
 					return nil, nil
 				}
 

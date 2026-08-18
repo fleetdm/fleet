@@ -2,7 +2,6 @@ package cron
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"time"
 
@@ -48,48 +47,39 @@ func cronMicrosoftAutopilotSync(ctx context.Context, ds fleet.Datastore, factory
 		return nil
 	}
 
-	var flagChanged bool
 	for _, cred := range creds {
-		changed, err := syncMicrosoftAutopilotTenant(ctx, ds, factory, cred, logger)
-		if changed {
-			flagChanged = true
-		}
-		if err != nil {
+		if err := syncMicrosoftAutopilotTenant(ctx, ds, factory, cred, logger); err != nil {
 			// Logged, not returned: the next tenant still gets its turn.
 			logger.ErrorContext(ctx, "microsoft autopilot sync failed for tenant", "tenant_id", cred.TenantID, "err", err)
 		}
 	}
 
-	// Update the app-wide stored aggregate, so it is only as fresh as its last recomputation.
-	if flagChanged {
-		// RequirePrimary to read the flag we just wrote.
-		if err := ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctxdb.RequirePrimary(ctx, true)); err != nil {
-			return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
-		}
+	// Recomputing every pass is self-healing and nearly free, because the datastore method returns without writing when the aggregate
+	// already matches. RequirePrimary to read the flags written just above.
+	if err := ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctxdb.RequirePrimary(ctx, true)); err != nil {
+		return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
 	}
 	return nil
 }
 
-// syncMicrosoftAutopilotTenant runs one tenant's sync and records its outcome. It reports whether credential_invalid changed.
+// syncMicrosoftAutopilotTenant runs one tenant's sync and records its outcome.
 func syncMicrosoftAutopilotTenant(
 	ctx context.Context,
 	ds fleet.Datastore,
 	factory msgraph.ClientFactory,
 	cred *fleet.MicrosoftGraphCredential,
 	logger *slog.Logger,
-) (flagChanged bool, err error) {
+) error {
 	syncErr := reconcileMicrosoftAutopilotTenant(ctx, ds, factory, cred, logger)
 
 	// Only an explicit credential rejection sets the flag. Throttling and server errors must never raise a credential
 	// alarm, or a Microsoft outage would flag every Fleet deployment at once.
-	invalid := isMicrosoftGraphCredentialRejected(syncErr)
+	invalid := msgraph.CredentialRejected(syncErr)
 	// Set on rejection, clear on success, and leave a transient failure alone.
 	if invalid || syncErr == nil {
-		changed, setErr := ds.SetMicrosoftGraphCredentialInvalid(ctx, cred.TenantID, invalid)
-		if setErr != nil {
+		if setErr := ds.SetMicrosoftGraphCredentialInvalid(ctx, cred.TenantID, invalid); setErr != nil {
 			logger.ErrorContext(ctx, "set microsoft graph credential invalid flag", "tenant_id", cred.TenantID, "err", setErr)
 		}
-		flagChanged = changed
 	}
 
 	var syncErrMsg *string
@@ -101,20 +91,7 @@ func syncMicrosoftAutopilotTenant(
 		logger.ErrorContext(ctx, "record microsoft graph sync result", "tenant_id", cred.TenantID, "err", recErr)
 	}
 
-	return flagChanged, syncErr
-}
-
-// isMicrosoftGraphCredentialRejected reports whether the failure means the credential itself needs an admin's
-// attention, as opposed to Microsoft being temporarily unavailable.
-func isMicrosoftGraphCredentialRejected(err error) bool {
-	if err == nil {
-		return false
-	}
-	graphErr, ok := errors.AsType[*msgraph.Error](err)
-	if !ok {
-		return false
-	}
-	return graphErr.IsAuthError() || graphErr.IsPermissionError()
+	return syncErr
 }
 
 // reconcileMicrosoftAutopilotTenant pulls one tenant's Autopilot registry and reconciles it into pending hosts.

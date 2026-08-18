@@ -805,6 +805,10 @@ type Service interface {
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 
+	// InstallInHouseAppForSetupExperience validates the in-house app's managed configuration for the
+	// host and enqueues its InstallApplication command during setup experience, returning the command UUID.
+	InstallInHouseAppForSetupExperience(ctx context.Context, host *Host, inHouseAppID uint, softwareTitleID uint) (string, error)
+
 	// UninstallSoftwareTitle uninstalls a software title in the given host.
 	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
@@ -891,11 +895,11 @@ type Service interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p NewTeamPolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool, automationType PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
-	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error)
+	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType PolicyAutomationType, platform string) (int, int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Geolocation

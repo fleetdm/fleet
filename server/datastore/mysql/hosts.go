@@ -2244,9 +2244,10 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			  COUNT(*) total,
 			  h.platform
 			FROM hosts h
-			WHERE %s
+			%s
+			WHERE %s AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')
 			GROUP BY h.platform
-		`, whereClause)
+		`, hostMdmJoin, whereClause)
 
 	var platforms []*fleet.HostSummaryPlatform
 	stmt, args, err = sqlx.In(sqlStatement, args...)
