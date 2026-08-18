@@ -1,9 +1,9 @@
 # Learn more about install scripts:
 # http://fleetdm.com/learn-more-about/install-scripts
 #
-# GeoGebra Classic's winget manifest declares Scope: user at the top level, but
-# its WiX MSI installer is machine-wide (installs to Program Files (x86)). We run
-# the MSI silently; ALLUSERS is set inside the package, so it lands per-machine.
+# GeoGebra Classic ships both a user-scoped EXE and a machine-wide WiX MSI. We
+# use the MSI, which installs to Program Files (x86). We run it silently;
+# ALLUSERS is set inside the package, so it lands per-machine.
 
 $logFile = "${env:TEMP}/fleet-install-software.log"
 
