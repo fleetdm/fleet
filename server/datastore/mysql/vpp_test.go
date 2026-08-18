@@ -62,6 +62,7 @@ func TestVPP(t *testing.T) {
 		{"BackfillVPPAppCountriesLowestIDWins", testBackfillVPPAppCountriesLowestIDWins},
 		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
 		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
+		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
 	}
 
 	for _, c := range cases {
@@ -4045,4 +4046,64 @@ VALUES (?, ?, ?)`, uaID, appID.AdamID, appID.Platform)
 	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, appID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Pending: 1}, *summary)
+}
+
+func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newNonMember, err := ds.NewAndroidHost(ctx, createAndroidHost("es-id-non-member"), false)
+	require.NoError(t, err)
+	nonMember := newNonMember.Host
+	newMember, err := ds.NewAndroidHost(ctx, createAndroidHost("es-id-member"), false)
+	require.NoError(t, err)
+	member := newMember.Host
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	require.NoError(t, err)
+
+	const adamID = "com.example.app"
+	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "android-app",
+		BundleIdentifier: adamID,
+		LatestVersion:    "1.0",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.AndroidPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	appTeamID := app.VPPAppTeam.AppTeamID
+
+	hostVitalsLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-hv", LabelMembershipType: fleet.LabelMembershipTypeHostVitals})
+	require.NoError(t, err)
+	dynamicLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-dyn", Query: "select 1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, member.ID, []uint{hostVitalsLabel.ID}))
+
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), appTeamID, excludeAnyLabelScope(hostVitalsLabel), softwareTypeVPP))
+
+	appIDs, err := ds.GetAndroidAppsInScopeForHost(ctx, nonMember.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{adamID}, appIDs)
+
+	appIDs, err = ds.GetAndroidAppsInScopeForHost(ctx, member.ID)
+	require.NoError(t, err)
+	require.Empty(t, appIDs)
+
+	inScope, err := ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
+	require.NoError(t, err)
+	require.Contains(t, inScope, nonMember.UUID)
+	require.NotContains(t, inScope, member.UUID)
+
+	// a dynamic exclude label the host has never reported on still withholds the app.
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), appTeamID, excludeAnyLabelScope(dynamicLabel), softwareTypeVPP))
+
+	appIDs, err = ds.GetAndroidAppsInScopeForHost(ctx, nonMember.ID)
+	require.NoError(t, err)
+	require.Empty(t, appIDs)
+
+	inScope, err = ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
+	require.NoError(t, err)
+	require.Empty(t, inScope)
 }

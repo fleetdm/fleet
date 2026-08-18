@@ -149,7 +149,8 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 	})
 
 	deps.register("failed to register upcoming_activities_maintenance schedule", func() (fleet.CronSchedule, error) {
-		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger,
+			deps.config.Server.VPPInstallReapTimeout, deps.config.Server.VPPVerifyTimeout, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register stats schedule", func() (fleet.CronSchedule, error) {
@@ -214,7 +215,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, deps.svc.NewActivity)
+		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, deps.svc, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register apple_mdm_dep_profile_assigner schedule", func() (fleet.CronSchedule, error) {

@@ -210,7 +210,9 @@ func TestMatchKnownPackageNames(t *testing.T) {
 	}{
 		{"OpenAI.ChatGPT-Desktop", true, "chatgpt"},
 		{"ElementLabs.LMStudio", true, "lm-studio"},
-		{"Perplexity.Comet", true, "perplexity"},
+		// The "." delimits a word, so the "comet" token sees the product segment
+		// and wins over the publisher-only "perplexity" match.
+		{"Perplexity.Comet", true, "comet"},
 
 		{"Microsoft.WindowsCalculator", false, ""},
 		{"Microsoft.VCLibs.140.00", false, ""},

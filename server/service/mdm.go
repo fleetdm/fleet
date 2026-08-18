@@ -488,7 +488,7 @@ func (svc *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Run Apple or Windows MDM Command
+// Run MDM Command (Apple, Windows, or Android)
 ////////////////////////////////////////////////////////////////////////////////
 
 type runMDMCommandRequest struct {
@@ -547,19 +547,22 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	for platform := range platforms {
 		commandPlatform = platform
 	}
-	if !fleet.ClassicMDMSupported(commandPlatform) {
-		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or Apple hosts.")
+	if !fleet.MDMTurnedOnSupported(commandPlatform) {
+		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows, Apple, or Android hosts.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
 	}
 
-	// check that the platform-specific MDM is enabled (not sure this check can
-	// ever happen, since we verify that the hosts are enrolled, but just to be
-	// safe)
+	// check that the platform-specific MDM is enabled
 	switch commandPlatform {
 	case "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 			err := fleet.NewInvalidArgumentError("host_uuids", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+	case "android":
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("host_uuids", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")
 		}
 	default:
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -569,16 +572,10 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	}
 
 	// We're supporting both padded and unpadded base64.
-	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
+	rawPayload, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
-	}
-
-	if commandPlatform == "darwin" {
-		if err := svc.validateAppleMDMCommand(ctx, rawXMLCmd, hosts); err != nil {
-			return nil, err
-		}
 	}
 
 	// Use UUIDs from the resolved hosts so the enqueue and activity creation
@@ -591,10 +588,15 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
 	switch commandPlatform {
+	case "android":
+		result, err = svc.enqueueAndroidMDMCommand(ctx, rawPayload, hosts)
 	case "windows":
-		result, err = svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, resolvedUUIDs)
+		result, err = svc.enqueueMicrosoftMDMCommand(ctx, rawPayload, resolvedUUIDs)
 	default:
-		result, err = svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, resolvedUUIDs)
+		if err := svc.validateAppleMDMCommand(ctx, rawPayload, hosts); err != nil {
+			return nil, err
+		}
+		result, err = svc.enqueueAppleMDMCommand(ctx, rawPayload, resolvedUUIDs)
 	}
 	if err != nil {
 		return nil, err
@@ -616,14 +618,65 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 			RequestType:     result.RequestType,
 			Platform:        commandPlatform,
 		}); err != nil {
-			// Activity logging is best-effort: the command was already enqueued
-			// successfully, so returning an error here could cause clients to retry
-			// and send duplicate MDM commands to devices.
 			svc.logger.ErrorContext(ctx, "failed to log activity for ran custom mdm command", "err", err, "host_uuid", h.UUID)
 		}
 	}
 
 	return result, nil
+}
+
+var androidMDMPremiumCommands = map[string]struct{}{
+	"LOCK":           {},
+	"RESET_PASSWORD": {},
+}
+
+// enqueueAndroidMDMCommand issues an AMAPI custom command for each targeted Android host.
+// rawJSON is the base64-decoded JSON bytes of the AMAPI Command object.
+// For now, only single-host targeting is supported.
+func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte, hosts []*fleet.Host) (*fleet.CommandEnqueueResult, error) {
+	if len(hosts) != 1 {
+		return nil, fleet.NewInvalidArgumentError("host_uuids",
+			"Android custom commands can only target a single host at a time.").WithStatus(http.StatusBadRequest)
+	}
+
+	// Parse the command type and sensitive fields for premium gating.
+	var cmdPayload struct {
+		Type        string `json:"type"`
+		NewPassword string `json:"newPassword"`
+	}
+	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
+		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
+	}
+
+	// Normalize to uppercase to match AMAPI convention and our premium map keys.
+	cmdType := strings.ToUpper(strings.TrimSpace(cmdPayload.Type))
+
+	// If type is omitted but newPassword is set, AMAPI infers RESET_PASSWORD.
+	if cmdType == "" && cmdPayload.NewPassword != "" {
+		cmdType = "RESET_PASSWORD"
+	}
+
+	if _, ok := androidMDMPremiumCommands[cmdType]; ok {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	host := hosts[0]
+	cmd, err := svc.androidSvc.IssueCustomCommand(ctx, host.ID, rawJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.CommandType,
+		Platform:    "android",
+	}, nil
 }
 
 // validateAppleMDMCommand validates an Apple MDM command before it is enqueued.

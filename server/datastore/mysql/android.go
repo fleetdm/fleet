@@ -1195,8 +1195,8 @@ func (ds *Datastore) GetMDMAndroidCommandByOperationName(ctx context.Context, op
 func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value string) (*android.MDMAndroidCommand, error) {
 	stmt := `
 		SELECT
-			command_uuid, host_uuid, operation_name, command_type, status,
-			error_code, error_message, created_at, updated_at
+			command_uuid, host_uuid, operation_name, command_type, raw_command, status,
+			error_code, error_message, raw_result, created_at, updated_at
 		FROM mdm_android_commands
 		WHERE ` + column + ` = ?
 	`
@@ -1229,6 +1229,23 @@ func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *f
 	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
 }
 
+// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
+// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
+func (ds *Datastore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	const stmt = `
+		INSERT INTO mdm_android_commands
+			(command_uuid, host_uuid, operation_name, command_type, raw_command, status)
+		VALUES
+			(?, ?, ?, ?, ?, ?)
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for custom command")
+	}
+	return nil
+}
+
 // ClearHostMDMActions deletes the host_mdm_actions row for the given host. Used by the Android
 // pub/sub re-enrollment path to drop stale lock/wipe/clear-passcode refs from a previous enrollment
 // cycle.
@@ -1244,12 +1261,12 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands
-				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
+				(command_uuid, host_uuid, operation_name, command_type, raw_command, status, error_code, error_message)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?)
+				(?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		if _, err := tx.ExecContext(ctx, insertCmdStmt,
-			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.Status,
+			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
 			cmd.ErrorCode, cmd.ErrorMessage,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for "+refColumn)
@@ -1270,19 +1287,19 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 // mdmAndroidCommandErrorMessageMaxRunes mirrors the VARCHAR(1024) limit on mdm_android_commands.error_message.
 const mdmAndroidCommandErrorMessageMaxRunes = 1024
 
-// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional error code / message).
+// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional error code / message / raw result).
 // NotFound is returned if no row matches command_uuid.
-func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 	if errorMessage != nil {
 		trimmed := truncateRunes(*errorMessage, mdmAndroidCommandErrorMessageMaxRunes)
 		errorMessage = &trimmed
 	}
 	const stmt = `
 		UPDATE mdm_android_commands
-		SET status = ?, error_code = ?, error_message = ?
+		SET status = ?, error_code = ?, error_message = ?, raw_result = ?
 		WHERE command_uuid = ?
 	`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorCode, errorMessage, commandUUID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorCode, errorMessage, rawResult, commandUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating mdm android command status")
 	}

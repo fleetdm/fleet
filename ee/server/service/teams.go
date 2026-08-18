@@ -2603,7 +2603,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
-			if sec.Installers != 0 || sec.VPP != 0 {
+			if sec.Installers != 0 || sec.VPP != 0 || sec.InHouseApps != 0 {
 				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {

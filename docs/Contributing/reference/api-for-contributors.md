@@ -1161,8 +1161,10 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 Example response cookie in the HTTP `Set-Cookie` header:
 ```
-Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=900; HttpOnly; Secure
 ```
+
+`Max-Age` matches `auth.sso_session_validity_period`, which defaults to 15 minutes.
 
 ### Complete SSO during DEP or Account Driven enrollment
 
@@ -1216,6 +1218,16 @@ enrollment flow:
 
  - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
    Enrollment endpoint to download an enrollment profile.
+
+If the credentials can't be validated, the server redirects the client to the Fleet UI with the
+following query parameters:
+
+- `error=true` is set for any failure.
+- `reason=session_expired` is added when the SSO session created by `POST /api/v1/fleet/mdm/sso` is
+  no longer available, so the Fleet UI can tell the end user their sign-in timed out rather than
+  showing a generic error. This happens when the user takes longer than
+  `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
+  or when the callback is replayed (the session is single use).
 
 ### Over the air enrollment
 
