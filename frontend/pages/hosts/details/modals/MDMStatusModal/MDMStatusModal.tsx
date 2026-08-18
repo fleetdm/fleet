@@ -160,7 +160,7 @@ const MDMStatusModal = ({
 }: IMDMStatusModal) => {
   const {
     data: depAssignmentData,
-    isLoading: isLoadingDepAssignment,
+    isFetching: isLoadingDepAssignment,
     isError: isDepAssignmentError,
   } = useQuery<IDepAssignmentHostResponse, AxiosError>(
     ["dep-assignment", hostId],
@@ -304,7 +304,10 @@ const MDMStatusModal = ({
   };
 
   const renderProfileAssignmentList = () => {
-    if (isLoadingDepAssignment) {
+    if (
+      isLoadingDepAssignment ||
+      (!depAssignmentData && !isDepAssignmentError)
+    ) {
       return <Spinner />;
     }
 
