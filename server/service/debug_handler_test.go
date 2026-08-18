@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -70,8 +69,8 @@ func TestDebugHandlerAuthenticationSessionInvalid(t *testing.T) {
 func TestDebugHandlerAuthenticationFailsDueToRole(t *testing.T) {
 	for test, user := range map[string]fleet.User{
 		"no role":                {},
-		"global observer role":   {GlobalRole: ptr.String(fleet.RoleObserver)},
-		"global maintainer role": {GlobalRole: ptr.String(fleet.RoleMaintainer)},
+		"global observer role":   {GlobalRole: new(fleet.RoleObserver)},
+		"global maintainer role": {GlobalRole: new(fleet.RoleMaintainer)},
 		"non-global role":        {Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1, Name: "foo"}, Role: fleet.RoleAdmin}}},
 	} {
 		t.Run(test, func(t *testing.T) {
@@ -113,7 +112,7 @@ func TestDebugHandlerAuthenticationFailsForRestrictedAPIOnlyUser(t *testing.T) {
 		mock.Anything,
 		uint(42),
 	).Return(&fleet.User{
-		GlobalRole:   ptr.String(fleet.RoleAdmin),
+		GlobalRole:   new(fleet.RoleAdmin),
 		APIOnly:      true,
 		APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
 	}, nil)
@@ -132,9 +131,9 @@ func TestDebugHandlerAuthenticationSucceeds(t *testing.T) {
 	// An unrestricted API-only admin (empty APIEndpoints) retains full access, matching the main
 	// API path where APIOnlyEndpointCheck is a no-op for tokens with no endpoint restrictions.
 	for test, user := range map[string]fleet.User{
-		"admin session":            {GlobalRole: ptr.String(fleet.RoleAdmin)},
-		"unrestricted api-only":    {GlobalRole: ptr.String(fleet.RoleAdmin), APIOnly: true},
-		"api-only empty allowlist": {GlobalRole: ptr.String(fleet.RoleAdmin), APIOnly: true, APIEndpoints: []fleet.APIEndpointRef{}},
+		"admin session":            {GlobalRole: new(fleet.RoleAdmin)},
+		"unrestricted api-only":    {GlobalRole: new(fleet.RoleAdmin), APIOnly: true},
+		"api-only empty allowlist": {GlobalRole: new(fleet.RoleAdmin), APIOnly: true, APIEndpoints: []fleet.APIEndpointRef{}},
 	} {
 		t.Run(test, func(t *testing.T) {
 			svc := &mockService{}
