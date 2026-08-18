@@ -99,9 +99,6 @@ const DeployModal = ({
   const onSave = async () => {
     setIsSaving(true);
     let savedAnyChange = false;
-    // Compute the flags once so the create / update / diff-comparison branches
-    // can't drift with different args (which is exactly the class of bug this
-    // file just fixed by adding `platform`).
     const patchFlags = getPatchPolicyFlags(
       patchOption,
       endUserExperience,

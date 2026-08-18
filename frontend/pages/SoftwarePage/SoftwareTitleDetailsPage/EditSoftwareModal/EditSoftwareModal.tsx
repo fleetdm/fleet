@@ -93,15 +93,11 @@ const EditSoftwareModal = ({
   const isGitOpsCompatible =
     gitOpsModeEnabled && (isFleetMaintainedApp || canActivateMultiplePackages);
 
-  // Patch-when-closed makes the pre-install query Fleet-managed: the backend
-  // rejects any pre_install_query on save (even unchanged) while it's on, so the
-  // field must be read-only and omitted from the request. Derive it from the
-  // installer's own patch policy so a caller can't forget to pass it (which
-  // otherwise blocks unrelated edits like toggling self-service); an explicit
-  // prop can still force it on. `notify_before_patching` reuses the same
-  // Fleet-managed app-open query, so it triggers the same read-only lock —
-  // gated on the software's platform being Mac to mirror the wire boundary
-  // in `getPatchPolicyFlags`.
+  // Backend rejects pre_install_query on save when patch_when_closed or
+  // notify_before_patching is on, so the field must be read-only and
+  // omitted. Derived from the installer's own patch policy so a caller
+  // can't forget; explicit prop can still force it. Notify branch is
+  // Mac-gated to mirror `getPatchPolicyFlags`.
   const derivedPlatform = getInstallablePlatform(source);
   const notifyLocksPreInstallQuery =
     "patch_policy" in softwareInstaller &&

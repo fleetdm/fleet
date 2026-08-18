@@ -207,20 +207,22 @@ const PolicyAutomationsFields = forwardRef<
     // and "Notify before patching" — the backend forces it on for both, so an
     // editable checkbox would lie.
     const continuousLocked = patchWhenClosed || notifyBeforePatching;
-    let continuousLockedTooltip: string | undefined;
-    if (patchWhenClosed) {
-      continuousLockedTooltip =
-        "Continuous automation can't be disabled when Patch when app is closed is selected.";
-    } else if (notifyBeforePatching) {
-      continuousLockedTooltip =
-        "Continuous automation can't be disabled when Notify before patching is selected.";
-    }
-    let effectiveContinuousEnabled = continuousEnabled;
-    if (continuousLocked) {
-      effectiveContinuousEnabled = true;
-    } else if (patchOption === "manual") {
-      effectiveContinuousEnabled = false;
-    }
+    const getContinuousLockedTooltip = (): string | undefined => {
+      if (patchWhenClosed) {
+        return "Continuous automation can't be disabled when Patch when app is closed is selected.";
+      }
+      if (notifyBeforePatching) {
+        return "Continuous automation can't be disabled when Notify before patching is selected.";
+      }
+      return undefined;
+    };
+    const getEffectiveContinuousEnabled = (): boolean => {
+      if (continuousLocked) return true;
+      if (patchOption === "manual") return false;
+      return continuousEnabled;
+    };
+    const continuousLockedTooltip = getContinuousLockedTooltip();
+    const effectiveContinuousEnabled = getEffectiveContinuousEnabled();
 
     const [softwareTitleId, setSoftwareTitleId] = useState<number | null>(
       policy.install_software?.software_title_id ?? null
@@ -397,13 +399,12 @@ const PolicyAutomationsFields = forwardRef<
           return { isValid: false, isDirty: false };
         }
 
-        // `notifyBeforePatching !== initialNotifyBeforePatching` covers the
-        // legacy-Windows auto-heal on its own: the derived value flips to
-        // false for a non-Mac policy that stored `notify_before_patching:
-        // true`, so the payload writes the corrected value. The Mac gate on
-        // the state init (see `initialIsMacNotify`) is what keeps
-        // `effectiveContinuousEnabled` at its stored value in that same
-        // case, so continuous isn't silently downgraded alongside notify.
+        // Legacy-Windows auto-heal: a policy that shouldn't have stored
+        // `notify_before_patching: true` still gets the derived value
+        // flipped back to false, so this dirty check writes the correction
+        // on save. `initialIsMacNotify` (state init) is what keeps the
+        // stored `continuous_automations_enabled` from being downgraded
+        // alongside it.
         const perPolicyDirty =
           !isGlobalPolicy &&
           (effectiveInstallSoftware !== initialInstallSoftware ||

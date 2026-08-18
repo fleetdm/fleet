@@ -2,6 +2,7 @@ import React from "react";
 import { SingleValue } from "react-select-5";
 
 import { isMacOS, isWindows } from "interfaces/platform";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
@@ -41,8 +42,7 @@ export const getPatchPolicyFlags = (
   };
 };
 
-const END_USER_EXPERIENCE_LINK =
-  "https://fleetdm.com/learn-more-about/patching-end-user-experience";
+const END_USER_EXPERIENCE_LINK = `${LEARN_MORE_ABOUT_BASE_LINK}/patching-end-user-experience`;
 
 const END_USER_EXPERIENCE_OPTIONS: CustomOptionType[] = [
   { label: "Patch immediately", value: "immediate" },
