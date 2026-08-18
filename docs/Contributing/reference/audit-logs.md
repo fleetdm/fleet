@@ -1703,6 +1703,37 @@ This activity contains the following fields:
 }
 ```
 
+## notified_end_user_before_patching
+
+Generated when Fleet shows an end user a notification before patching.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
+- "status": Whether notification is displayed or failed.
+- "software_titles": Names of the software titles included in the notification.
+- "policy_ids": IDs of the patch policies included in the notification.
+- "time_before": Either 1 hour or 5 minutes before patch is forced.
+- "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
+- "script_execution_id": Execution ID of the script run that displayed the notification to the end user.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
+  "software_titles": ["1Password", "Slack"],
+  "status": "success",
+  "policy_ids": [1337, 1338],
+  "time_before": 3600,
+  "install_at": "2026-08-06T14:00:00Z",
+  "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be"
+}
+```
+
 ## uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
