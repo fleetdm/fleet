@@ -50,8 +50,8 @@ Fleet's [OS updates guide](https://fleetdm.com/guides/enforce-os-updates) walks 
 About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fleet's VP of Security Solutions. Talk to [Fleet](https://fleetdm.com/device-management) today to find out how to solve your trickiest device management, data orchestration, and security problems.
 
 <meta name="articleTitle" value="What Apple's latest security update shows about patch lag across a fleet">
-<meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="karmine05">
+<meta name="authorFullName" value="Andrea Pepper">
+<meta name="authorGitHubUsername" value="lppepper2">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-08-18">
 <meta name="description" value="iOS 26.6.1 and macOS Tahoe 26.6.2 patched 29 CVEs. See how Fleet reports which devices took the update and enforces deadlines for the rest.">
