@@ -659,7 +659,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
 			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
 		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		svc.SetAgentCheckInNotifier(agentNotifier)
+		// Live query wake-ups are delayed by the live query store's in-memory
+		// active-queries cache TTL: notified agents read within milliseconds,
+		// and a read served from a cache snapshot loaded just before the
+		// campaign was stored would miss it — with no second notification
+		// (see pubsub.DelayedAgentNotifier).
+		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
+			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
 			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
 		})

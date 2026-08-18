@@ -230,9 +230,9 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 			}
 			return
 		}
+		log.Debug().Str("type", msg.Type).Str("reason", msg.Reason).Msg("check-now notification received")
 		switch msg.Type {
 		case fleet.AgentWSMessageTypeDistributedRead:
-			log.Debug().Str("reason", msg.Reason).Msg("check-now notification received")
 			m.trigger()
 		default:
 			// Unknown notification types are ignored for forward

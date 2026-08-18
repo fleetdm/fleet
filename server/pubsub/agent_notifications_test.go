@@ -68,6 +68,48 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 	t.Run("cluster", func(t *testing.T) { runTest(t, true) })
 }
 
+type captureNotifier struct {
+	mu         sync.Mutex
+	hostIDs    []uint
+	campaignID uint
+	notified   chan struct{}
+}
+
+func (c *captureNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+	c.mu.Lock()
+	c.hostIDs = hostIDs
+	c.campaignID = campaignID
+	c.mu.Unlock()
+	close(c.notified)
+	return nil
+}
+
+func TestDelayedAgentNotifier(t *testing.T) {
+	inner := &captureNotifier{notified: make(chan struct{})}
+	const delay = 100 * time.Millisecond
+	notifier := NewDelayedAgentNotifier(inner, delay, slog.New(slog.DiscardHandler))
+
+	// The call returns immediately; the publish happens after the delay, and
+	// survives the caller's context being canceled (the campaign-creation
+	// request ends right away).
+	ctx, cancel := context.WithCancel(t.Context())
+	start := time.Now()
+	require.NoError(t, notifier.NotifyAgentsForLiveQuery(ctx, []uint{1, 2}, 42))
+	require.Less(t, time.Since(start), delay)
+	cancel()
+
+	select {
+	case <-inner.notified:
+	case <-time.After(5 * time.Second):
+		t.Fatal("delayed notification never published")
+	}
+	require.GreaterOrEqual(t, time.Since(start), delay)
+	inner.mu.Lock()
+	defer inner.mu.Unlock()
+	assert.Equal(t, []uint{1, 2}, inner.hostIDs)
+	assert.Equal(t, uint(42), inner.campaignID)
+}
+
 func TestAgentNotificationsChunking(t *testing.T) {
 	pool := redistest.SetupRedis(t, agentNotificationsChannel, false, false, false)
 	notifier := NewRedisAgentNotifier(pool, slog.New(slog.DiscardHandler))

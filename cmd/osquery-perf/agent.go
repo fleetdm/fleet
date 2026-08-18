@@ -492,6 +492,15 @@ type agent struct {
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
 	winMDMWake chan struct{}
 
+	// ws simulates orbit's WebSocket notification transport (ADR-0011);
+	// non-nil only while the server's orbit-config directive has it enabled
+	// (see syncWSTransport). wsSupported gates which orbit agents follow the
+	// directive (-websocket_prob), simulating fleets with older fleetd
+	// versions that ignore it.
+	wsMu        sync.Mutex
+	ws          *wsTransport
+	wsSupported bool
+
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -723,6 +732,7 @@ func newAgent(
 	httpMessageSignatureP384Prob float64,
 	psso pssoParams,
 	mdmAPNSPushURL string,
+	websocketProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -816,6 +826,7 @@ func newAgent(
 		macMDMClient:   macMDMClient,
 		winMDMClient:   winMDMClient,
 		mdmUserProb:    mdmUserProb,
+		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
 
@@ -934,6 +945,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	_ = a.config()
 
+	// This startup read runs before runOrbitLoop starts, so it can never race
+	// with the WebSocket transport (which only starts from that loop's config
+	// checks) — keep this ordering if runLoop is ever refactored.
 	resp, err := a.DistributedRead()
 	if err == nil {
 		if len(resp.Queries) > 0 {
@@ -980,6 +994,14 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
+			// With the WebSocket transport running, the tick belongs to it:
+			// skipped while connected (notifications drive the reads), routed
+			// through its coalescing trigger as the polling fallback while
+			// disconnected — mirroring fleetd, where orbit replaces osquery's
+			// tls distributed plugin.
+			if a.wsPollTick() {
+				continue
+			}
 			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
 				_ = a.DistributedWrite(resp.Queries)
 			}
@@ -1164,8 +1186,10 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit does a config check when it starts
-	if _, err := orbitClient.GetConfig(); err != nil {
+	if cfg, err := orbitClient.GetConfig(); err != nil {
 		a.stats.IncrementOrbitErrors()
+	} else {
+		a.syncWSTransport(cfg.WebSocketTransport)
 	}
 
 	tokenRotationEnabled := false
@@ -1242,6 +1266,8 @@ func (a *agent) runOrbitLoop() {
 				a.stats.IncrementOrbitErrors()
 				continue
 			}
+			// Follow the server's WebSocket transport directive, like fleetd.
+			a.syncWSTransport(cfg.WebSocketTransport)
 			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 				// there are pending scripts to execute on this host, start a goroutine
 				// that will simulate executing them.
@@ -2986,7 +3012,7 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.distributedNodeKey()+`"}`)))
 	if err != nil {
 		return nil, err
 	}
@@ -3914,7 +3940,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Messages: make(map[string]string),
 		Stats:    make(map[string]*fleet.Stats),
 	}
-	r.NodeKey = a.nodeKey
+	r.NodeKey = a.distributedNodeKey()
 
 	cachedResults := cachedResults{}
 
@@ -4221,6 +4247,7 @@ func main() {
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		websocketProb       = flag.Float64("websocket_prob", 1.0, "Probability of an orbit agent supporting the WebSocket notification transport when the server's orbit config directive enables it (older fleetd versions ignore the directive)")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies only to Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
@@ -4626,6 +4653,7 @@ func main() {
 				keyProb:   *mdmPSSOKeyProb,
 			},
 			*mdmAPNSURL,
+			*websocketProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

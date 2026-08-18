@@ -154,6 +154,46 @@ func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(Age
 	}
 }
 
+// DelayedAgentNotifier decorates an AgentCheckInNotifier, delaying each
+// notification by a fixed duration before publishing it in the background.
+//
+// It exists because of the live query store's in-memory active-queries cache
+// (see live_query.NewRedisLiveQuery): an agent connected over the WebSocket
+// transport performs its distributed/read within milliseconds of a
+// notification, and a read served from a cache snapshot loaded just before
+// the campaign was stored does not include the campaign — and live query
+// notifications are one-shot, so the campaign would be missed entirely.
+// Delaying the notification by at least the cache TTL guarantees every
+// instance's cache snapshot predating the campaign has expired by the time a
+// notified agent reads.
+type DelayedAgentNotifier struct {
+	inner  fleet.AgentCheckInNotifier
+	delay  time.Duration
+	logger *slog.Logger
+}
+
+func NewDelayedAgentNotifier(inner fleet.AgentCheckInNotifier, delay time.Duration, logger *slog.Logger) *DelayedAgentNotifier {
+	return &DelayedAgentNotifier{inner: inner, delay: delay, logger: logger}
+}
+
+var _ fleet.AgentCheckInNotifier = (*DelayedAgentNotifier)(nil)
+
+// NotifyAgentsForLiveQuery schedules the notification to be published after
+// the configured delay and returns immediately; publish errors are logged
+// rather than returned.
+func (n *DelayedAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+	// The campaign-creation request context ends as soon as the campaign is
+	// created; detach so the delayed publish is not canceled with it.
+	ctx = context.WithoutCancel(ctx)
+	time.AfterFunc(n.delay, func() {
+		if err := n.inner.NotifyAgentsForLiveQuery(ctx, hostIDs, campaignID); err != nil {
+			n.logger.ErrorContext(ctx, "delayed notify agents for live query",
+				"campaign_id", campaignID, "err", err)
+		}
+	})
+	return nil
+}
+
 // HealthCheck verifies that the redis backend can be pinged.
 func (n *RedisAgentNotifier) HealthCheck() error {
 	conn := n.pool.Get()
