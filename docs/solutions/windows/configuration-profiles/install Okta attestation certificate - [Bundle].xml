@@ -1,9 +1,5 @@
 <Add>
   <!-- Okta needs this certificate deployed to the Users cert store. Using the ./Device LocURI will result in the device not being marked as managed -->
-  <!-- This profile is user scoped, so it only works on hosts that enrolled through Microsoft Entra ID, including hosts set up
-       with Windows Autopilot. Hosts that enroll by installing fleetd have no user attached to their enrollment, and Windows
-       rejects user-scoped settings on them. On hosts that enrolled through Entra ID, this profile stays Pending until the
-       first user signs in, then Fleet delivers it. -->
   <!-- SCEP node name - Fleet will replace with certificate ID -->
   <Item>
     <Target>
