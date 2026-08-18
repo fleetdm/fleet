@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.7.0",
+      "version": "1.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.FormaGrid.Airtable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.FormaGrid.Airtable' AND version_compare(bundle_short_version, '1.7.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.FormaGrid.Airtable' AND version_compare(bundle_short_version, '1.7.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.FormaGrid.Airtable');"
       },
-      "installer_url": "https://static.airtable.com/download/macos/Airtable-1.7.0.dmg",
+      "installer_url": "https://static.airtable.com/download/macos/Airtable-1.7.1.dmg",
       "install_script_ref": "63fb1973",
       "uninstall_script_ref": "7bd924a9",
-      "sha256": "948ddf85f9e62c5abe98a53e35201e4a59175c65640d29545ed81430dc13f726",
+      "sha256": "590a50f422f4f053861bdf55d83ba0d664b657b19f43f4b77da0f9e561512825",
       "default_categories": [
         "Developer tools"
       ]

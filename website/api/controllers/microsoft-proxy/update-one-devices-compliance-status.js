@@ -58,6 +58,7 @@ module.exports = {
     success: { description: 'A devices compliance status was successfully sent to an entra tenants instance'},
     missingUserPrincipalName: { description: 'A request to update a macOS device\'s complaince status was missing a userPrincipalName value.', responseType: 'badRequest'},
     unauthorized: { description: 'A request contained an invalid entraTenantId/fleetServerSecret combination.', responseType: 'unauthorized'},
+    userNotFound: {description: 'No user matching the provided userPrincipalName was found in the tenant\'s Microsoft Entra directory.', responseType: 'notFound'},
     microsoftApiRequestFailed: {description: 'An error occurred when sending a request to the Microsoft API.'},
     microsoftApiError: {description: 'The Microsoft API returned an unexpected response.'},
   },
@@ -130,7 +131,9 @@ module.exports = {
         headers: {
           'Authorization': `Bearer ${graphAccessToken}`
         }
-      }).intercept((err)=>{
+      })
+      .intercept({raw: {statusCode: 404}}, 'userNotFound')
+      .intercept((err)=>{
         return new Error(`An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a compliance status update. Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 

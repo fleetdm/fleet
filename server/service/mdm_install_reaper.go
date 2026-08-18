@@ -60,13 +60,13 @@ func ReapStuckMDMInstalls(ctx context.Context, ds fleet.Datastore, logger *slog.
 func recordReapedMDMInstall(ctx context.Context, ds fleet.Datastore, install fleet.ReapedMDMInstall,
 	newActivityFn fleet.NewActivityFunc,
 ) error {
+	// A reaped install can be a setup experience step — App Store apps on any Apple platform,
+	// in-house apps on iOS/iPadOS. Skipping the update would leave the step running for good
+	// and, on macOS, never cancel the rest of the setup experience.
 	var errs []error
 	var act fleet.ActivityDetails
 	switch {
 	case install.AppStoreActivity != nil:
-		// In-house apps cannot be part of the setup experience, so only App Store installs
-		// need this. Skipping it would leave the step running for good and, on macOS, never
-		// cancel the rest of the setup experience.
 		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
 			HostUUID:      install.HostUUID,
 			CommandUUID:   install.CommandUUID,
@@ -79,6 +79,15 @@ func recordReapedMDMInstall(ctx context.Context, ds fleet.Datastore, install fle
 		act = install.AppStoreActivity
 
 	case install.InHouseActivity != nil:
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, fleet.SetupExperienceVPPInstallResult{
+			HostUUID:      install.HostUUID,
+			CommandUUID:   install.CommandUUID,
+			CommandStatus: fleet.MDMAppleStatusError,
+		}, newActivityFn)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrap(ctx, err, "updating setup experience status from reaped in-house app install"))
+		}
+		install.InHouseActivity.FromSetupExperience = updated
 		act = install.InHouseActivity
 
 	default:

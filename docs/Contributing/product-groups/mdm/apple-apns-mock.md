@@ -57,10 +57,21 @@ To configure Fleet to use the mock APNs server, set `FLEET_DEV_MDM_APPLE_PUSH_SE
 
 This requires Fleet to be started with `--dev`, and does **not** work alongside `FLEET_DEV_MDM_APPLE_DISABLE_PUSH`.
 
-## osquery-perf changes (#31313)
+## Configuring osquery-perf to use custom APNs server
 
-To be written when the integration lands. Plan: agents connect a `pkg/mdm/apnsmock` client after MDM enrollment and check in on pings instead of the fixed `-mdm_check_in_interval` timer.
+To run osquery-perf with MDM enabled, it is required to set the `mdm_apns_url` flag. osquery-perf runs on a ping channel rather than interval tickers.
 
-## Terraform and load test (#31314)
+For macOS if user enrollments is enabled, it will start two sessions against the APNs server, one for the device channel and one for the user channel.
 
-To be written when the infrastructure lands.
+It should still keep us way below the 8GB limit on osquery-perf containers, even at 5k each.
+
+
+## Load testing with mock APNS server
+
+To spin up a mock APNs server alongside Fleet in a loadtest environment, you need to select `yes` for the "Deploy the mock Apple APNs push server and point Fleet's MDM pushes at it?" option.
+
+This will internally create a container and a sub-url that routes the traffic to it, and configure Fleet containers with `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL` pointing to it.
+
+osquery-perf loadtesting needs the regular MDM knobs, but also now the `--mdm_apns_url=...` set to the base url. With this it should auto initiate sessions and listen for pings to do MDM check-ins.
+
+

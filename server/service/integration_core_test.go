@@ -18054,3 +18054,164 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
 }
+
+// TestOsqueryConfigPackCacheLabelScopedQueries verifies that the per-team pack
+// config cache does not serve one host's label-scoped query set to other hosts
+// of the same team. Reproduces the bug described in #51033.
+func (s *integrationTestSuite) TestOsqueryConfigPackCacheLabelScopedQueries() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Two teams so each ordering gets its own (cold) cache key.
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-B"})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(uuid.New().String()),
+			NodeKey:         new(uuid.New().String()),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostA1 := newHost("a1", &teamA.ID) // label member
+	hostA2 := newHost("a2", &teamA.ID) // not a member
+	hostB1 := newHost("b1", &teamB.ID) // label member
+	hostB2 := newHost("b2", &teamB.ID) // not a member
+
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "-label",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	for _, h := range []*fleet.Host{hostA1, hostB1} {
+		err = s.ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	scoped := []fleet.LabelIdent{{LabelName: label.Name}}
+
+	unscopedA, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-unscoped-A", TeamID: &teamA.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+	})
+	require.NoError(t, err)
+	scopedA, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-scoped-A", TeamID: &teamA.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+		LabelsIncludeAny: scoped,
+	})
+	require.NoError(t, err)
+	unscopedB, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-unscoped-B", TeamID: &teamB.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+	})
+	require.NoError(t, err)
+	scopedB, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-scoped-B", TeamID: &teamB.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+		LabelsIncludeAny: scoped,
+	})
+	require.NoError(t, err)
+
+	teamQueries := func(host *fleet.Host, teamID uint) map[string]any {
+		req := getClientConfigRequest{NodeKey: *host.NodeKey}
+		var resp getClientConfigResponse
+		s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
+		packs, ok := resp.Config["packs"].(map[string]any)
+		require.True(t, ok, "expected a packs key in the osquery config")
+		teamPack, ok := packs[fmt.Sprintf("team-%d", teamID)].(map[string]any)
+		require.True(t, ok, "expected a team pack in the osquery config")
+		return teamPack["queries"].(map[string]any)
+	}
+
+	// Team A: the label member calls GetClientConfig first (populates the cache).
+	queries := teamQueries(hostA1, teamA.ID)
+	require.Contains(t, queries, unscopedA.Name)
+	require.Contains(t, queries, scopedA.Name)
+
+	// The non-member must NOT receive the label-scoped query.
+	queries = teamQueries(hostA2, teamA.ID)
+	require.Contains(t, queries, unscopedA.Name)
+	require.NotContains(t, queries, scopedA.Name,
+		"host that is not a member of the label received the label-scoped query")
+
+	// Team B: the non-member calls GetClientConfig first (populates the cache).
+	queries = teamQueries(hostB2, teamB.ID)
+	require.Contains(t, queries, unscopedB.Name)
+	require.NotContains(t, queries, scopedB.Name,
+		"host that is not a member of the label received the label-scoped query")
+
+	// The label member must still receive its label-scoped query.
+	queries = teamQueries(hostB1, teamB.ID)
+	require.Contains(t, queries, unscopedB.Name)
+	require.Contains(t, queries, scopedB.Name,
+		"label member did not receive its label-scoped query")
+}
+
+func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	profileUUID := fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()
+
+	// Create: rejected at decode, before the profile is ever looked up.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID),
+		&fleet.TeamPolicyRequest{
+			Name:        "premium resend",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: new(profileUUID),
+		}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// Modify: same decode-time gate.
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "premium resend patch",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, pol.ID),
+		json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, profileUUID)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// GitOps spec apply: explicit license check, so this one is a 402.
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:        "premium resend spec",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			Team:        team.Name,
+			ProfileUUID: new(profileUUID),
+		}},
+	}, http.StatusPaymentRequired)
+	require.Contains(t, extractServerErrorText(res.Body), "Requires Fleet Premium license")
+
+	// Without profile_uuid the same spec applies cleanly on a free license.
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:     "premium resend spec",
+			Query:    "SELECT 1;",
+			Platform: "darwin",
+			Team:     team.Name,
+		}},
+	}, http.StatusOK)
+}

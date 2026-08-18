@@ -232,33 +232,30 @@ module.exports = {
     //  ║  ║ ║║ ║╠╩╗║║╣
     //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
     let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
+
     if(marketingAttributionCookie) {
       attributionDetails = {};
       // Determine if this user is "Digital" or "Organic"
       let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
       let sourceFriendlyNameByCodeName = {
         // "Organic" sources:
-        // os: 'Organic search',
-        // dt: 'Direct traffic',
-        // wr: 'Web referral',
-        // soc: 'Organic social',
+        // os: 'Search (ORGSRC)',
+        // dt: 'Direct traffic (DIRTRF)',
+        // wr: 'Web referral (WEBREF)',
+        // soc: 'Social (ORGSOC)',
+        // ai: '  AI (ORGAI)'
         // "Digital" sources:
-        cpc: 'Paid search (PS)', //note: either cpc or ps both map to Paid Search
-        ps: 'Paid search (PS)',
-        so: 'Paid social (SO)',
-        pm: 'Paid media (PM)',
-        cs: 'Content syndication (CS)',
-        em: 'Email marketing (EM)',
+        cpc: 'Paid search (PAYSRC)', //note: either cpc or ps both map to Paid Search
+        ps: 'Paid search (PAYSRC)',
+        so: 'Paid social (PAYSOC)',
+        pm: 'Paid media (PAYMED)',
+        cs: 'Content syndication (CONSYD)',
+        em: 'Email marketing (EMLMRK)',
         // "Event" sources:
-        mc: 'Major conference (MC)',
-        rc: 'Regional conference (RC)',
-        le: 'Local event/meetup (LE)',
-        ec: 'Executive community (EC)',
-        fe: 'Field/sales event (FE)',
-        pe: 'Partner event (PE)',
-        se: 'Speaking engagement (SE)',
-        wh: 'Webinar hosted (WH)',
-        ws: 'Webinar sponsored (WS)',
+        mc: 'Conference (CONF)',
+        rc: 'Conference (CONF)',
+        pe: 'Partner event (PTREVT)',
+        wh: 'Webinar (WBINR)',
       };
 
       attributionDetails.gclid = marketingAttributionCookie.gclid;
@@ -283,8 +280,7 @@ module.exports = {
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
-          attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
-          attributionDetails.campaign = 'Default-DT-Direct';
+          attributionDetails.sourceChannelDetails = 'Direct traffic (DIRTRF)';
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
@@ -365,31 +361,20 @@ module.exports = {
 
           if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
             // If search engine » Organic search
-            attributionDetails.sourceChannelDetails = 'Organic search (OS)';
-            attributionDetails.campaign = 'Default-OS-Organic';
+            attributionDetails.sourceChannelDetails = 'Search (ORGSRC)';
           } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
             // If social media » Organic social
-            attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
-            attributionDetails.campaign = 'Default-SOC-Social';
+            attributionDetails.sourceChannelDetails = 'Social (ORGSOC)';
           } else if(REFERRER_DOMAINS_FOR_ORGANIC_AI.some((domain) => referrer.startsWith(domain))) {
             // If AI/LLM » Organic AI
-            attributionDetails.sourceChannelDetails = 'Organic AI (AI)';
-            // Determine specific campaign based on which AI platform referred the visitor
-            if(['https://chat.openai.com/', 'https://chatgpt.com/'].some((domain) => referrer.startsWith(domain))) {
-              attributionDetails.campaign = 'Default-AI-ChatGPT';
-            } else if(['https://claude.ai/', 'https://claude.com/'].some((domain) => referrer.startsWith(domain))) {
-              attributionDetails.campaign = 'Default-AI-Claude';
-            } else if(['https://gemini.google.com/', 'https://bard.google.com/'].some((domain) => referrer.startsWith(domain))) {
-              attributionDetails.campaign = 'Default-AI-Gemini';
-            } else {
-              attributionDetails.campaign = 'Default-AI-Other';
-            }
+            attributionDetails.sourceChannelDetails = 'AI (ORGAI)';
           } else {
             // If not either of those » Web referral
-            attributionDetails.sourceChannelDetails = 'Web referral (WR)';
-            attributionDetails.campaign = 'Default-WR-Referral';
+            attributionDetails.sourceChannelDetails = 'Web referral (WEBREF)';
           }
         }
+        // Build the campaign value using the sourceChannel and sourceChannelDetails values
+        attributionDetails.campaign = `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
       }
     }
 

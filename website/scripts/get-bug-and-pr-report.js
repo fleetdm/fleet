@@ -80,6 +80,10 @@ module.exports = {
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
+          // Exclude bugs that are also labeled "~3rd-party" (i.e. bugs waiting on an external vendor) from bug KPI calculations.
+          if (issue.labels.some(label => label.name === '~3rd-party')) {
+            continue;
+          }
           // Create a date object from the issue's created_at timestamp.
           let issueOpenedOn = new Date(issue.created_at);
           // Get the amount of time this issue has been open in milliseconds.
@@ -141,6 +145,10 @@ module.exports = {
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
+          // Exclude bugs that are also labeled "~3rd-party" (i.e. bugs waiting on an external vendor) from bug KPI calculations.
+          if (issue.labels.some(label => label.name === '~3rd-party')) {
+            continue;
+          }
           // Create a date object from the issue's closed_at timestamp.
           let issueClosedOn = new Date(issue.closed_at);
           // Get the amount of time this issue has been closed in milliseconds.
