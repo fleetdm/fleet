@@ -1,10 +1,15 @@
 import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
-import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import {
+  generateRecoveryLockPasswordSetting,
+  generateWinDiskEncryptionSetting,
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+} from "pages/hosts/details/helpers";
 
 import {
   countFailedControls,
   generateTableData,
+  getRowActionProps,
 } from "./OSSettingsTableConfig";
 
 const createMockHostMdmData = (
@@ -173,5 +178,38 @@ describe("countFailedControls", () => {
     );
 
     expect(countFailedControls(rows)).toBe(1);
+  });
+});
+
+describe("getRowActionProps", () => {
+  // The synthesized rows carry placeholder UUIDs that the profile resend
+  // endpoint rejects with a 404, so they must never offer Resend.
+  it.each(["verified", "failed"] as const)(
+    "does not offer resend on a %s windows disk encryption row",
+    (status) => {
+      const row = generateWinDiskEncryptionSetting(status, "");
+
+      expect(getRowActionProps(row, true).canResendProfiles).toBe(false);
+    }
+  );
+
+  it("does not offer resend on a recovery lock row, which rotates instead", () => {
+    const row = generateRecoveryLockPasswordSetting("failed", "");
+
+    expect(getRowActionProps(row, true, true)).toMatchObject({
+      canResendProfiles: false,
+      canRotateRecoveryLockPassword: true,
+    });
+  });
+
+  it("offers resend on a real windows profile", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: "w1234",
+      platform: "windows",
+      operation_type: "install",
+      status: "failed",
+    });
+
+    expect(getRowActionProps(row, true).canResendProfiles).toBe(true);
   });
 });

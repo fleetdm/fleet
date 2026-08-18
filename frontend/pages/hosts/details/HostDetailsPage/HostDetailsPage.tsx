@@ -1330,10 +1330,14 @@ const HostDetailsPage = ({
     isHostTeamAdmin ||
     isHostTeamMaintainer;
 
-  // Mirrors the route guard on /controls, so the empty state doesn't offer a
-  // link that bounces the user straight back.
+  // Technicians can open /controls but can't add anything once there — both
+  // configuration profiles and the script library hide their add actions for
+  // them — so the empty state's CTA would land them on a read-only page.
   const canAddControls =
-    canManagePolicies || isGlobalTechnician || isHostTeamTechnician;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
 
   const bootstrapPackageData = {
     status: host?.mdm.setup_experience?.bootstrap_package_status,

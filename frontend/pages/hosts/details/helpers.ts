@@ -34,6 +34,8 @@ const generateWindowsDiskEncryptionMessage = (
   return detail;
 };
 
+export const WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID = "0";
+
 /**
  * Manually generates a setting for the windows disk encryption status. We need
  * this as we don't have a windows disk encryption profile in the `profiles`
@@ -44,7 +46,7 @@ export const generateWinDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This is the only type of profile that can have this value
+    profile_uuid: WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
     platform: "windows",
     name: "Disk encryption",
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
@@ -54,6 +56,8 @@ export const generateWinDiskEncryptionSetting = (
     managed_local_account: null,
   };
 };
+
+export const LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID = "disk_enc_dummy";
 
 /**
  * Manually generates a setting for the linux disk encryption status. We need
@@ -66,7 +70,7 @@ export const generateLinuxDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "disk_enc_dummy",
+    profile_uuid: LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID,
     platform: "linux",
     name: "Disk encryption",
     status: diskEncryptionStatus,

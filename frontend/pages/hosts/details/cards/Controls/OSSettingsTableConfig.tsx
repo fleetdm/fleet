@@ -30,7 +30,9 @@ import {
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
+  LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
+  WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
 
 export interface IHostMdmProfileWithAddedStatus
@@ -73,6 +75,16 @@ const getStatusSortRank = (row: IHostMdmProfileWithAddedStatus) => {
   return rank === -1 ? STATUS_SORT_ORDER.length : rank;
 };
 
+/** Rows Fleet synthesizes from `os_settings` rather than reading out of
+ * `mdm.profiles`. No configuration profile stands behind them, so the profile
+ * resend endpoint rejects their placeholder UUIDs. */
+const SYNTHETIC_PROFILE_UUIDS: string[] = [
+  WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
+  LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+];
+
 /** Which of the three resend/rotate actions a given row is eligible for, given
  * what the current page and user allow. Shared by the table's action cell and
  * the details modal footer. */
@@ -94,6 +106,7 @@ export const getRowActionProps = (
   return {
     canResendProfiles:
       canResendProfiles &&
+      !SYNTHETIC_PROFILE_UUIDS.includes(profileUUID) &&
       (isWindowsProfile || isAppleMobileConfigProfile || isAndroidCertificate),
     canRotateRecoveryLockPassword:
       profileUUID === REC_LOCK_SYNTHETIC_PROFILE_UUID &&
