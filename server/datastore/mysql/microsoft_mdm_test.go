@@ -39,6 +39,7 @@ func TestMDMWindows(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
+		{"TestMDMWindowsEnrollmentZTDRegistrationID", testMDMWindowsEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
@@ -7450,6 +7451,7 @@ type windowsEnrollmentFixture struct {
 	hostUUID              string // optional, links the enrollment to a host row
 	awaitingConfiguration fleet.WindowsMDMAwaitingConfiguration
 	awaitingAt            *time.Time
+	ztdRegistrationID     string // optional, the Autopilot ZTDID the device supplied at enrollment
 }
 
 // insertWindowsEnrolledDevice inserts an MDM-enrollment row with sensible defaults for every field tests don't care
@@ -7476,6 +7478,7 @@ func insertWindowsEnrolledDevice(t *testing.T, ctx context.Context, ds *Datastor
 		HostUUID:                f.hostUUID,
 		AwaitingConfiguration:   f.awaitingConfiguration,
 		AwaitingConfigurationAt: f.awaitingAt,
+		ZTDRegistrationID:       f.ztdRegistrationID,
 	}))
 	return f.mdmDeviceID
 }
@@ -8186,4 +8189,68 @@ func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, teamID)
 	require.Empty(t, teamName)
+}
+
+// The ZTDID is the exact key that links an Autopilot pending host to its MDM enrollment.
+func testMDMWindowsEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const ztdID = "efdb13f9-44d6-4f99-a93f-08833fccef82"
+
+	hostUUID := uuid.NewString()
+	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+		deviceNameSuffix:  "ZTD",
+		hostUUID:          hostUUID,
+		ztdRegistrationID: ztdID,
+	})
+
+	unlinkedDeviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+		deviceNameSuffix:  "ZTD-UNLINKED",
+		ztdRegistrationID: ztdID,
+	})
+	const serial = "ZTD-SERIAL-1"
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, unlinkedDeviceID, serial))
+
+	cases := []struct {
+		name string
+		load func() (*fleet.MDMWindowsEnrolledDevice, error)
+	}{
+		{"by device id", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		}},
+		{"by host uuid", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, hostUUID)
+		}},
+		{"unlinked by device name", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "DESKTOP-ZTD-UNLINKED")
+		}},
+		{"unlinked by hardware serial", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, serial)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.load()
+			require.NoError(t, err)
+			require.Equal(t, ztdID, got.ZTDRegistrationID)
+		})
+	}
+
+	// A re-enrollment that carries no ZTDID must not erase the one already captured. Re-enrolling means upserting the
+	// same mdm_hardware_id, which is the table's unique key.
+	enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          enrolled.MDMHardwareID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-ZTD",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               hostUUID,
+	}))
+	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+	require.Equal(t, ztdID, got.ZTDRegistrationID, "a re-enrollment without a ZTDID keeps the stored one")
 }

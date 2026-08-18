@@ -66,6 +66,12 @@ For macOS if user enrollments is enabled, it will start two sessions against the
 It should still keep us way below the 8GB limit on osquery-perf containers, even at 5k each.
 
 
-## Terraform and load test (#31314)
+## Load testing with mock APNS server
 
-To be written when the infrastructure lands.
+To spin up a mock APNs server alongside Fleet in a loadtest environment, you need to select `yes` for the "Deploy the mock Apple APNs push server and point Fleet's MDM pushes at it?" option.
+
+This will internally create a container and a sub-url that routes the traffic to it, and configure Fleet containers with `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL` pointing to it.
+
+osquery-perf loadtesting needs the regular MDM knobs, but also now the `--mdm_apns_url=...` set to the base url. With this it should auto initiate sessions and listen for pings to do MDM check-ins.
+
+
