@@ -112,11 +112,18 @@ func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.Windo
 
 // WindowsUserContextStateFor is WindowsUserContextState over the two fields it actually needs.
 func WindowsUserContextStateFor(enrollUserID string, lastLoginStatus *fleet.WindowsMDMLoginStatus) fleet.WindowsUserContextState {
-	if !IsValidUPN(enrollUserID) {
-		return fleet.WindowsUserContextUnknown
-	}
 	if lastLoginStatus != nil && *lastLoginStatus == fleet.WindowsMDMLoginStatusUser {
+		// The device reported a usable user context.
 		return fleet.WindowsUserContextPresent
 	}
-	return fleet.WindowsUserContextCanArrive
+	if IsValidUPN(enrollUserID) {
+		// A user-bound enrollment holds until its enrolled user signs in: "others", "none", and never-observed alike.
+		return fleet.WindowsUserContextCanArrive
+	}
+	if lastLoginStatus != nil {
+		// A device-bound enrollment that positively reported no usable user context.
+		return fleet.WindowsUserContextCanArrive
+	}
+	// A device-bound enrollment that has never reported a login status.
+	return fleet.WindowsUserContextUnknown
 }

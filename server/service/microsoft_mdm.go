@@ -4100,7 +4100,8 @@ func applyWindowsUserScopeGate(
 			// No command is enqueued for this host, so the row must not point at one.
 			payload.CommandUUID = ""
 			payload.Status = nil
-			payload.Detail = fleet.WindowsUserScopeHoldDetail
+			payload.Detail = fleet.WindowsUserScopeHoldDetailFor(fleet.MDMOperationTypeInstall,
+				microsoft_mdm.IsValidUPN(userContexts[hostUUID].EnrollUserID))
 
 			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.
 			if heldRowUpToDate(currentProfileRow(currentByHost, hostUUID, profUUID), payload) {
@@ -4162,12 +4163,13 @@ func applyWindowsUserScopeGate(
 			// stays at a NULL status, which is how the reconciler re-derives a pending removal, so the hold retries itself
 			// every tick with no further bookkeeping.
 			heldRow := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
-				ProfileUUID:        profUUID,
-				HostUUID:           hostUUID,
-				ProfileName:        row.ProfileName,
-				OperationType:      fleet.MDMOperationTypeRemove,
-				Status:             nil,
-				Detail:             fleet.WindowsUserScopeRemoveHoldDetail,
+				ProfileUUID:   profUUID,
+				HostUUID:      hostUUID,
+				ProfileName:   row.ProfileName,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        nil,
+				Detail: fleet.WindowsUserScopeHoldDetailFor(fleet.MDMOperationTypeRemove,
+					microsoft_mdm.IsValidUPN(userContexts[hostUUID].EnrollUserID)),
 				Checksum:           row.Checksum,
 				CommandUUID:        "", // no command is enqueued for this host, so the row must not point at one
 				HeldForUserContext: true,
@@ -4252,7 +4254,7 @@ func windowsRemoveTargetsHeldInstall(row *fleet.MDMWindowsProfilePayload) bool {
 	return row.OperationType == fleet.MDMOperationTypeInstall &&
 		row.Status == nil &&
 		row.CommandUUID == "" &&
-		row.Detail == fleet.WindowsUserScopeHoldDetail
+		fleet.IsWindowsUserScopeInstallHoldDetail(row.Detail)
 }
 
 // currentProfileRow returns the host's existing row for the profile as of the reconcile snapshot, or nil when the host has no

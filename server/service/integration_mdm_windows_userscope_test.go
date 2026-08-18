@@ -362,13 +362,14 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 			"the row is dropped rather than held for removal")
 	})
 
-	t.Run("an enrollment with no bound user identity is not gated", func(t *testing.T) {
+	t.Run("a device-bound enrollment with no observation is not gated", func(t *testing.T) {
 		tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 		require.NoError(t, err)
 		setTeamProfiles(tm.ID, []fleet.MDMProfileBatchPayload{{Name: "user-scoped", Contents: userProfile}})
 
-		// A programmatic (fleetd) enrollment stores an orbit node key rather than a UPN, and reports no signed-in
-		// MDM user. Fleet cannot tell from the enrollment whether its user channel is writable, so it does not gate.
+		// A programmatic (fleetd) enrollment stores an orbit node key rather than a UPN, and this one has never run a
+		// management session, so no login status is on record. Fleet cannot tell whether the user channel is writable
+		// (it resolves to whoever is signed in), so it does not gate: delivery proceeds exactly as it did before.
 		host := createOrbitEnrolledHost(t, "windows", "userscope-fleetd", s.ds)
 		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 			TeamID: &tm.ID, HostIDs: []uint{host.ID},
@@ -382,7 +383,61 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 		cmds, err := d.StartManagementSession()
 		require.NoError(t, err)
 		assert.NotNil(t, findWindowsCmdForURI(cmds, fleet.CmdReplace, userScopeTestUserLocURI),
-			"a user-scoped profile on an enrollment with no user identity delivers exactly as it did before the gate")
+			"a user-scoped profile on an enrollment with no user identity and no observation delivers exactly as before")
 		ackWindowsCmds(t, d, cmds)
+	})
+
+	t.Run("a device-bound enrollment that reported nobody signed in holds until someone does", func(t *testing.T) {
+		tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		// The device reports "none" on its first session, BEFORE the profile is assigned, so the reconciler sees a
+		// positively observed empty console rather than a never-observed enrollment.
+		host := createOrbitEnrolledHost(t, "windows", "userscope-fleetd-hold", s.ds)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID: &tm.ID, HostIDs: []uint{host.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+		d := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey,
+			mdmtest.TestWindowsMDMClientWithLoginStatus(string(fleet.WindowsMDMLoginStatusNone)))
+		require.NoError(t, d.Enroll())
+		linkWindowsHostToMDMEnrollment(t, s.ds, s.server.URL, host, d)
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		ackWindowsCmds(t, d, cmds)
+
+		setTeamProfiles(tm.ID, []fleet.MDMProfileBatchPayload{{Name: "user-scoped", Contents: userProfile}})
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		assert.Nil(t, findWindowsCmdForURI(cmds, fleet.CmdReplace, userScopeTestUserLocURI),
+			"the profile must not be sent while the device says nobody is signed in")
+		ackWindowsCmds(t, d, cmds)
+
+		byName := windowsHostProfilesByName(t, s.ds, host.UUID)
+		require.Contains(t, byName, "user-scoped")
+		require.NotNil(t, byName["user-scoped"].Status)
+		assert.Equal(t, fleet.MDMDeliveryPending, *byName["user-scoped"].Status)
+		assert.Equal(t, fleet.WindowsUserScopeHoldDetailAnyUser, byName["user-scoped"].Detail,
+			"a device-bound hold waits for any user, so its detail must not mention Entra")
+
+		// Someone signs in: this enrollment is bound to no user, so any console user is a usable context.
+		d.SetLoginStatus(string(fleet.WindowsMDMLoginStatusUser))
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		ackWindowsCmds(t, d, cmds)
+
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = d.StartManagementSession()
+		require.NoError(t, err)
+		require.NotNil(t, findWindowsCmdForURI(cmds, fleet.CmdReplace, userScopeTestUserLocURI),
+			"the held profile must deliver once the device reports a signed-in user")
+		ackWindowsCmds(t, d, cmds)
+
+		byName = windowsHostProfilesByName(t, s.ds, host.UUID)
+		require.Contains(t, byName, "user-scoped")
+		require.NotNil(t, byName["user-scoped"].Status)
+		assert.Contains(t, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
+			*byName["user-scoped"].Status)
+		assert.Empty(t, byName["user-scoped"].Detail)
 	})
 }

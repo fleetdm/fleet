@@ -1861,14 +1861,17 @@ func isUserChannelLocURI(locURI string) bool {
 }
 
 // isWindowsUserContextRejection reports whether a SyncML status on a user-channel LocURI is one Windows returns when the
-// write cannot be applied for want of a user context. This is an allow-list.
+// operation cannot be applied for want of a user context. This is an allow-list.
 //
-// The two entries are the codes actually observed in testing: 500 on the SCEP root node of an enrollment with no bound user
-// identity, and 405 on a user-scope write during OOBE. The caller gates the retry exemption on the enrollment's user context
-// state and not on this alone.
+// The entries are the codes actually observed in testing: 500 on the SCEP root node of an enrollment with no bound user
+// identity, 405 on a user-scope write during OOBE, and 404 on a user-scope Replace on a device-bound enrollment with
+// nobody signed in. 404 is ambiguous: it also means the node is genuinely absent (a removal that already happened, or a
+// bad LocURI). The enrollment's user context state resolves the ambiguity, not this function: the caller holds only
+// while the enrollment is awaiting a user context, and once one is present the same 404 completes a removal as "already
+// gone" and fails an install through normal retry accounting.
 func isWindowsUserContextRejection(status string) bool {
 	switch status {
-	case syncml.CmdStatusCommandFailed, syncml.CmdStatusNotAllowed:
+	case syncml.CmdStatusCommandFailed, syncml.CmdStatusNotAllowed, syncml.CmdStatusNotFound:
 		return true
 	default:
 		return false
@@ -2075,18 +2078,41 @@ const WindowsUserScopeHoldDetail = "Waiting for an end user to sign in with a Mi
 const WindowsUserScopeRemoveHoldDetail = "Waiting for an end user to sign in with a Microsoft Entra ID account. " +
 	"Fleet will remove this profile automatically."
 
+// WindowsUserScopeHoldDetailAnyUser is the hold detail for a device-bound enrollment (no Entra user attached, e.g. a
+// fleetd enrollment). Its user channel resolves to whoever is signed in, so the wait is for any user, not an Entra one.
+const WindowsUserScopeHoldDetailAnyUser = "Waiting for an end user to sign in. " +
+	"Fleet will deliver this profile automatically."
+
+// WindowsUserScopeRemoveHoldDetailAnyUser is the removal counterpart of WindowsUserScopeHoldDetailAnyUser.
+const WindowsUserScopeRemoveHoldDetailAnyUser = "Waiting for an end user to sign in. " +
+	"Fleet will remove this profile automatically."
+
 // IsWindowsUserScopeHoldDetail reports whether a host profile row's detail is one the user-scope gate wrote while
 // waiting for a user context, which is what distinguishes a deliberately-held row from an ordinary pending one.
 func IsWindowsUserScopeHoldDetail(detail string) bool {
-	return detail == WindowsUserScopeHoldDetail || detail == WindowsUserScopeRemoveHoldDetail
+	return detail == WindowsUserScopeHoldDetail || detail == WindowsUserScopeRemoveHoldDetail ||
+		detail == WindowsUserScopeHoldDetailAnyUser || detail == WindowsUserScopeRemoveHoldDetailAnyUser
 }
 
-// WindowsUserScopeHoldDetailForOperation returns the hold detail matching the operation being held.
-func WindowsUserScopeHoldDetailForOperation(op MDMOperationType) string {
-	if op == MDMOperationTypeRemove {
+// IsWindowsUserScopeInstallHoldDetail reports whether a detail is one of the install-direction hold texts. A pending
+// removal whose install row still carries one of these never reached the device at all.
+func IsWindowsUserScopeInstallHoldDetail(detail string) bool {
+	return detail == WindowsUserScopeHoldDetail || detail == WindowsUserScopeHoldDetailAnyUser
+}
+
+// WindowsUserScopeHoldDetailFor returns the hold detail matching the operation being held and the kind of enrollment
+// doing the waiting: user-bound (Entra UPN) enrollments wait for their enrolled user, device-bound ones for any user.
+func WindowsUserScopeHoldDetailFor(op MDMOperationType, userBoundEnrollment bool) string {
+	switch {
+	case op == MDMOperationTypeRemove && userBoundEnrollment:
 		return WindowsUserScopeRemoveHoldDetail
+	case op == MDMOperationTypeRemove:
+		return WindowsUserScopeRemoveHoldDetailAnyUser
+	case userBoundEnrollment:
+		return WindowsUserScopeHoldDetail
+	default:
+		return WindowsUserScopeHoldDetailAnyUser
 	}
-	return WindowsUserScopeHoldDetail
 }
 
 // WindowsEnrollmentUserContext is the slice of an enrollment the user-scoped profile gate reads: who the enrollment is bound
@@ -2107,17 +2133,19 @@ const (
 	// WindowsUserContextPresent means the enrollment reported LoginStatus "user": the user channel is writable.
 	WindowsUserContextPresent WindowsUserContextState = "present"
 
-	// WindowsUserContextCanArrive means the enrollment binds a user identity but has not reported "user" yet. This covers
-	// "others", "none", and never-observed alike: the hold releases on a positive report, not on the absence of a
-	// contrary one.
+	// WindowsUserContextCanArrive means the enrollment has no usable user context now but can gain one at a sign-in.
+	// For a user-bound (UPN) enrollment this covers "others", "none", and never-observed alike: the hold releases on a
+	// positive "user" report, not on the absence of a contrary one. For a device-bound enrollment it means a positively
+	// observed non-"user" status: the device itself said nobody usable is signed in.
 	WindowsUserContextCanArrive WindowsUserContextState = "can_arrive"
 
-	// WindowsUserContextUnknown means the enrollment binds no user identity, so Fleet cannot tell from the enrollment row
-	// whether the user channel is writable. It may be: a fleetd-enrolled host that is Entra-joined has a resolvable
-	// user channel even though its enrollment stores an orbit node key rather than a UPN.
+	// WindowsUserContextUnknown means the enrollment binds no user identity AND has never reported a login status, so
+	// Fleet cannot tell whether the user channel is writable: on a device-bound enrollment it resolves to whoever is
+	// signed in, which the enrollment row alone cannot see.
 	//
 	// Fleet does not gate these enrollments. Delivery proceeds as it always has, and a genuine rejection surfaces through
-	// the normal failure path rather than being predicted from the enrollment type.
+	// the normal failure path rather than being predicted from the enrollment type. Once the device reports a login
+	// status the enrollment leaves this state for good: "user" delivers, anything else holds until a sign-in.
 	WindowsUserContextUnknown WindowsUserContextState = "unknown"
 )
 

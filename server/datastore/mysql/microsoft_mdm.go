@@ -1337,7 +1337,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 		}
 
 		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads,
-			microsoft_mdm.WindowsUserContextState(enrolledDevice)); err != nil {
+			microsoft_mdm.WindowsUserContextState(enrolledDevice),
+			enrolledDevice != nil && microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID)); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}
 
@@ -1450,6 +1451,9 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	tx sqlx.ExtContext,
 	payloads []*fleet.MDMWindowsProfilePayload,
 	userContextState fleet.WindowsUserContextState,
+	// userBoundEnrollment selects the hold detail wording: user-bound (Entra) enrollments wait for their enrolled user,
+	// device-bound ones for any user.
+	userBoundEnrollment bool,
 ) error {
 	if len(payloads) == 0 {
 		return nil
@@ -1543,7 +1547,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		// rejection is the narrow race where the user signed out in between.
 		if payload.UserChannelRejected && userContextState == fleet.WindowsUserContextCanArrive {
 			payload.Status = nil
-			payload.Detail = fleet.WindowsUserScopeHoldDetailForOperation(hp.OperationType)
+			payload.Detail = fleet.WindowsUserScopeHoldDetailFor(hp.OperationType, userBoundEnrollment)
 		}
 
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {

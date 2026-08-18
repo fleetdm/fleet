@@ -1064,6 +1064,13 @@ func programmaticContext(hostUUID string) fleet.WindowsEnrollmentUserContext {
 	return fleet.WindowsEnrollmentUserContext{HostUUID: hostUUID, EnrollUserID: "rn2rbwjgNQCWVw2lbBn2DxzJ4rs4wcCu"}
 }
 
+// deviceBoundContextWithStatus is a programmatic (device-bound) enrollment with an observed login status.
+func deviceBoundContextWithStatus(hostUUID string, status *fleet.WindowsMDMLoginStatus) fleet.WindowsEnrollmentUserContext {
+	uc := programmaticContext(hostUUID)
+	uc.LastLoginStatus = status
+	return uc
+}
+
 func TestReconcileWindowsProfilesHoldsUserScopedProfilesUntilUserSignsIn(t *testing.T) {
 	others := fleet.WindowsMDMLoginStatusOthers
 	none := fleet.WindowsMDMLoginStatusNone
@@ -1103,14 +1110,52 @@ func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnceUserPresent(t *te
 
 func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnEnrollmentsWithoutUserIdentity(t *testing.T) {
 	// A fleetd enrollment stores an orbit node key rather than a UPN, which says nothing about whether the device's user
-	// channel is writable: an Entra-joined host managed by fleetd has a perfectly resolvable one. Fleet must not predict
-	// failure from the enrollment type, or it would break the user-scoped SCEP profiles it ships as a solution.
+	// channel is writable: it resolves to whoever is signed in. Until the device reports a login status Fleet must not
+	// predict failure from the enrollment type, or it would freeze user-scoped profiles for every pre-existing fleetd
+	// enrollment at upgrade time and forever for a client that never sends the alert.
 	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
 		"host-a": programmaticContext("host-a"),
 	})
 
-	require.Equal(t, []string{"host-a"}, result.enqueuedHosts, "enrollments without a bound user identity are not gated")
+	require.Equal(t, []string{"host-a"}, result.enqueuedHosts, "enrollments with no bound user and no observation are not gated")
 	require.Nil(t, result.upsertFor("host-a"), "no hold row: the profile went out through the normal enqueue path")
+}
+
+func TestReconcileWindowsProfilesHoldsDeviceBoundEnrollmentsThatReportedNoUser(t *testing.T) {
+	user := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+	none := fleet.WindowsMDMLoginStatusNone
+
+	// A device-bound enrollment that positively reported no usable user context holds, with the wording that matches the
+	// enrollment kind: it waits for anyone to sign in, not for an Entra user.
+	for name, status := range map[string]*fleet.WindowsMDMLoginStatus{
+		"nobody signed in": &none,
+		"others":           &others,
+	} {
+		t.Run(name, func(t *testing.T) {
+			result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+				"host-a": deviceBoundContextWithStatus("host-a", status),
+			})
+
+			require.Empty(t, result.enqueuedHosts, "no command may go out while the device says nobody usable is signed in")
+			row := result.upsertFor("host-a")
+			require.NotNil(t, row, "the hold must be recorded on the host's profile row")
+			require.Nil(t, row.Status)
+			require.Equal(t, fleet.WindowsUserScopeHoldDetailAnyUser, row.Detail,
+				"a device-bound hold waits for any user, so it must not mention Entra")
+			require.Empty(t, row.CommandUUID)
+		})
+	}
+
+	t.Run("delivers once someone signs in", func(t *testing.T) {
+		result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+			"host-a": deviceBoundContextWithStatus("host-a", &user),
+		})
+
+		require.Equal(t, []string{"host-a"}, result.enqueuedHosts,
+			"a reported user releases the hold: the user channel resolves to whoever holds the console")
+		require.Nil(t, result.upsertFor("host-a"))
+	})
 }
 
 func TestReconcileWindowsProfilesDoesNotRewriteAnUnchangedHold(t *testing.T) {
@@ -1756,6 +1801,7 @@ func TestReconcileWindowsProfilesGatesUserScopedRemovals(t *testing.T) {
 	teamID := uint(1)
 	signedIn := fleet.WindowsMDMLoginStatusUser
 	others := fleet.WindowsMDMLoginStatusOthers
+	none := fleet.WindowsMDMLoginStatusNone
 
 	// delivered is the row of a profile already on the host, which is what makes its removal need a user context.
 	delivered := func() *fleet.MDMWindowsProfilePayload {
@@ -1776,10 +1822,20 @@ func TestReconcileWindowsProfilesGatesUserScopedRemovals(t *testing.T) {
 		row     *fleet.MDMWindowsProfilePayload
 		context *fleet.WindowsEnrollmentUserContext
 		want    removeGateOutcome
+		// wantDetail is the expected hold detail for a removeHeld outcome; empty means the user-bound (Entra) wording.
+		wantDetail string
 	}{
 		{
 			name: "delivered user-scoped profile, host awaiting first sign-in", syncML: userScoped, row: delivered(),
 			context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// A device-bound enrollment that positively reported an empty console holds the removal too, with the
+			// wording that matches: it waits for anyone to sign in, not for an Entra user.
+			name: "delivered user-scoped profile, device-bound enrollment reported nobody signed in", syncML: userScoped,
+			row:     delivered(),
+			context: new(deviceBoundContextWithStatus(hostUUID, &none)), want: removeHeld,
+			wantDetail: fleet.WindowsUserScopeRemoveHoldDetailAnyUser,
 		},
 		{
 			name: "delivered user-scoped profile, user signed in", syncML: userScoped, row: delivered(),
@@ -1874,7 +1930,11 @@ func TestReconcileWindowsProfilesGatesUserScopedRemovals(t *testing.T) {
 			require.NotNil(t, row, "the hold must be recorded so it is visible rather than silent")
 			require.Nil(t, row.Status, "a held removal stays pending (NULL status) so the reconciler revisits it")
 			require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
-			require.Equal(t, fleet.WindowsUserScopeRemoveHoldDetail, row.Detail)
+			wantDetail := tc.wantDetail
+			if wantDetail == "" {
+				wantDetail = fleet.WindowsUserScopeRemoveHoldDetail
+			}
+			require.Equal(t, wantDetail, row.Detail)
 			require.Empty(t, row.CommandUUID, "a held row must not point at a command that was never enqueued")
 		})
 	}

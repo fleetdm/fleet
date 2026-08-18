@@ -299,6 +299,44 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			},
 		},
 		{
+			// 404 observed live on a device-bound (fleetd) enrollment with nobody signed in: the "./User/..." node has no
+			// user to resolve to. On a failed install it counts as a user-context rejection.
+			name: "user-channel write rejected with 404",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/InternetExplorer/A</LocURI></Target></Item></Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"rep-1": {Data: new(syncml.CmdStatusNotFound), Cmd: new("Replace")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:            "host-uuid",
+				Status:              &MDMDeliveryFailed,
+				Detail:              "./User/Vendor/MSFT/Policy/Config/InternetExplorer/A: status 404",
+				CommandUUID:         "cmd-1",
+				UserChannelRejected: true,
+			},
+		},
+		{
+			// The same 404 on a device-channel target is an ordinary failure, not a user-context rejection.
+			name: "device-channel 404 is not a user-context rejection",
+			cmd: MDMWindowsCommand{
+				CommandUUID: "cmd-1",
+				RawCommand:  []byte(`<Replace><CmdID>rep-1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/InternetExplorer/A</LocURI></Target></Item></Replace>`),
+			},
+			statuses: map[string]SyncMLCmd{
+				"rep-1": {Data: new(syncml.CmdStatusNotFound), Cmd: new("Replace")},
+			},
+			hostUUID: "host-uuid",
+			expectedPayload: &MDMWindowsProfilePayload{
+				HostUUID:    "host-uuid",
+				Status:      &MDMDeliveryFailed,
+				Detail:      "./Device/Vendor/MSFT/Policy/Config/InternetExplorer/A: status 404",
+				CommandUUID: "cmd-1",
+			},
+		},
+		{
 			name: "user-channel write rejected with 405",
 			cmd: MDMWindowsCommand{
 				CommandUUID: "cmd-1",
@@ -889,12 +927,15 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponseRemoveOperation(t *testing.
 			wantRejected: true,
 		},
 		{
-			// 404 says the node is not there, so nothing is enforced and the removal is genuinely complete. Treating it as a
-			// rejection would strand every already-removed user-scoped profile on a host awaiting first sign-in.
-			name:       "user node not found is a real removal",
-			raw:        deleteCmd("del-1", userNode),
-			statuses:   map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotFound)}},
-			wantStatus: MDMDeliveryVerified,
+			// 404 on a user node is ambiguous: genuinely gone, or unreachable because nobody is signed in (observed live
+			// on a device-bound enrollment). The payload flags it and the enrollment's user context state decides: held
+			// while a user context is still awaited (the sign-out race; the gate never sends removals in that state
+			// otherwise), completed as a real removal the rest of the time.
+			name:         "user node not found flags the ambiguity for the state check",
+			raw:          deleteCmd("del-1", userNode),
+			statuses:     map[string]SyncMLCmd{"del-1": {Data: new(syncml.CmdStatusNotFound)}},
+			wantStatus:   MDMDeliveryVerified,
+			wantRejected: true,
 		},
 		{
 			name:       "user node deleted cleanly",
