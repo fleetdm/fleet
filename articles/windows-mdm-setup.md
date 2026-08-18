@@ -231,9 +231,9 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 By default, Windows makes the first person who signs in to a new device a local administrator. A standard user account limits what someone can install, change, or disable, which reduces the blast radius of a compromised account.
 
-Fleet can't change this after the fact. Windows sets the first account's privilege level during the out-of-box experience (OOBE), before the device enrolls in any MDM. Autopilot runs at that point, so the Autopilot deployment profile is where you set it.
+For Autopilot enrollments, Windows sets the first account's privilege level during the out-of-box experience (OOBE), before the device enrolls in any MDM.
 
-Autopilot and MDM enrollment are separate steps. The device contacts the Windows Autopilot deployment service during OOBE and receives its deployment profile, which controls the account type. Only then does it join Microsoft Entra ID and enroll in the MDM you configured under **Mobility (MDM and MAM)**. Autopilot is a Microsoft Entra ID feature, not an Intune feature. Intune is the console where you author the profile. The account type is applied before Fleet is involved, so it works the same whether the device enrolls in Fleet or another MDM.
+Autopilot and MDM enrollment are separate steps: the device contacts the Windows Autopilot deployment service during OOBE and gets its deployment profile (which sets account type), then joins Microsoft Entra ID and enrolls in whichever MDM you configured. Autopilot is an Entra ID feature. Intune is just the console for authoring the profile.
 
 #### Set the user account type
 
