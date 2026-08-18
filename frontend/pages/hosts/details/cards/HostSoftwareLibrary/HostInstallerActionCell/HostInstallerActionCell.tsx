@@ -183,6 +183,7 @@ export const HostInstallerActionButton = ({
   <div className={`${baseClass}__item-action`}>
     <TooltipWrapper
       tipContent={tooltip}
+      disableTooltip={!tooltip}
       underline={false}
       showArrow
       position="top"
