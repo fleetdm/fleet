@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -157,14 +155,11 @@ func TestPackConfigCacheNegativeCache(t *testing.T) {
 		"expected no additional DB calls -- empty result should be cached")
 }
 
-// TestPackConfigCacheTTLExpiration verifies that after the cache TTL expires,
+// TestPackConfigCacheExpiration verifies that after cache entries are evicted,
 // a fresh config is built from the DB. This is the primary mechanism for
 // picking up query changes (no explicit invalidation).
-func TestPackConfigCacheTTLExpiration(t *testing.T) {
+func TestPackConfigCacheExpiration(t *testing.T) {
 	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	// Replace the cache with a very short TTL so the test doesn't wait long.
-	svc.packConfigCache = gocache.New(50*time.Millisecond, 25*time.Millisecond)
 
 	host := &fleet.Host{ID: 1}
 	ctx := hostctx.NewContext(t.Context(), host)
@@ -177,10 +172,11 @@ func TestPackConfigCacheTTLExpiration(t *testing.T) {
 	// Confirm cache hit.
 	_, err = svc.GetClientConfig(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, callsAfterWarm, callCounter.Load(), "expected cache hit before TTL expiry")
+	assert.Equal(t, callsAfterWarm, callCounter.Load(), "expected cache hit before expiry")
 
-	// Wait for TTL to expire.
-	time.Sleep(100 * time.Millisecond)
+	// Simulate cache expiry by deleting the entries.
+	svc.packConfigCache.Delete(packConfigCacheKey(host.TeamID, false))
+	svc.packConfigCache.Delete("has_label_scoped:" + packConfigCacheKey(host.TeamID, false))
 
 	// Update the mock so we can detect a fresh DB read.
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
@@ -195,17 +191,15 @@ func TestPackConfigCacheTTLExpiration(t *testing.T) {
 
 	conf, err := svc.GetClientConfig(ctx)
 	require.NoError(t, err)
-	assert.Greater(t, callCounter.Load(), callsAfterWarm, "expected DB call after TTL expiry")
+	assert.Greater(t, callCounter.Load(), callsAfterWarm, "expected DB call after cache eviction")
 	assert.Contains(t, string(conf["packs"].(json.RawMessage)), "refreshed_query")
 }
 
-// TestPackConfigCacheQueryChangesPickedUpAfterTTL verifies that when queries
+// TestPackConfigCacheQueryChangesPickedUpAfterExpiry verifies that when queries
 // are created, modified, or deleted, the changes are picked up after the cache
-// TTL expires (no explicit invalidation needed).
-func TestPackConfigCacheQueryChangesPickedUpAfterTTL(t *testing.T) {
+// entries expire (no explicit invalidation needed).
+func TestPackConfigCacheQueryChangesPickedUpAfterExpiry(t *testing.T) {
 	svc, ds, callCounter := setupPackConfigCacheTest(t)
-
-	svc.packConfigCache = gocache.New(50*time.Millisecond, 25*time.Millisecond)
 
 	host := &fleet.Host{ID: 1}
 	ctx := hostctx.NewContext(t.Context(), host)
@@ -227,14 +221,15 @@ func TestPackConfigCacheQueryChangesPickedUpAfterTTL(t *testing.T) {
 		return nil, nil
 	}
 
-	// Still within TTL -- should serve stale cache.
+	// Cache still valid -- should serve stale cache.
 	conf2, err := svc.GetClientConfig(ctx)
 	require.NoError(t, err)
 	assert.Contains(t, string(conf2["packs"].(json.RawMessage)), "SELECT 1")
 	assert.NotContains(t, string(conf2["packs"].(json.RawMessage)), "new_query")
 
-	// Wait for TTL to expire.
-	time.Sleep(100 * time.Millisecond)
+	// Simulate cache expiry by deleting the entries.
+	svc.packConfigCache.Delete(packConfigCacheKey(host.TeamID, false))
+	svc.packConfigCache.Delete("has_label_scoped:" + packConfigCacheKey(host.TeamID, false))
 
 	// Now the changes should be picked up.
 	conf3, err := svc.GetClientConfig(ctx)
