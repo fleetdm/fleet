@@ -1610,8 +1610,8 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
 - "profile_name": The name of the configuration profile.
-- "policy_id": The ID of the policy whose failure triggered the resend. Null if no associated policy.
-- "policy_name": The name of the policy whose failure triggered the resend. Null if no associated policy.
+- "policy_id": The ID of the policy whose failure triggered the resend. `null` if no associated policy.
+- "policy_name": The name of the policy whose failure triggered the resend. `null` if no associated policy.
 
 #### Example
 
