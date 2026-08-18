@@ -6727,7 +6727,7 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 }
 
 func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	setLabelUpdatedAt := func(t *testing.T, host *fleet.Host, ts time.Time) {
