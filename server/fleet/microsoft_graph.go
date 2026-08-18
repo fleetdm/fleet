@@ -55,6 +55,10 @@ type HostAutopilotDevice struct {
 	GroupTag          string `db:"group_tag" json:"group_tag"`
 	HardwareSerial    string `db:"hardware_serial" json:"hardware_serial"`
 	TenantID          string `db:"tenant_id" json:"tenant_id"`
+	// HardwareModel and HardwareVendor seed the host row when a pending host is created and are deliberately not
+	// columns on host_autopilot_devices.
+	HardwareModel  string `db:"-" json:"-"`
+	HardwareVendor string `db:"-" json:"-"`
 }
 
 // ParseMicrosoftGraphCredentials decodes the raw GitOps `org_settings.microsoft_graph_credentials` value into a typed list.

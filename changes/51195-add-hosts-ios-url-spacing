@@ -1,0 +1,1 @@
+* Fixed inconsistent spacing around the enrollment URL on the iOS & iPadOS tab of the **Add hosts** modal, so it now matches the macOS and Android tabs.

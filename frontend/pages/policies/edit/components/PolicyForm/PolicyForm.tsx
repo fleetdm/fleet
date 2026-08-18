@@ -813,15 +813,7 @@ const PolicyForm = ({
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <TooltipWrapper
-                  tipContent={
-                    <>
-                      Select the platforms this
-                      <br />
-                      policy will be checked on
-                      <br />
-                      to save or run the policy.
-                    </>
-                  }
+                  tipContent="Select the platforms this policy will be checked on to save or run the policy."
                   tooltipClass={`${baseClass}__button-wrap--tooltip`}
                   position="top"
                   disableTooltip={!isEditMode || isAnyPlatformSelected}
@@ -843,15 +835,11 @@ const PolicyForm = ({
             <TooltipWrapper
               tipContent={
                 disabledLiveQuery ? (
-                  <>
-                    Live reports are disabled <br />
-                    in organization settings.
-                  </>
+                  <>Live reports are disabled in organization settings.</>
                 ) : (
                   <>
-                    Select the platforms this <br />
-                    policy will be checked on <br />
-                    to save or run the policy.
+                    Select the platforms this policy will be checked on to save
+                    or run the policy.
                   </>
                 )
               }

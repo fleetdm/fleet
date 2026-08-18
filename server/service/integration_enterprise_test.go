@@ -8184,16 +8184,19 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete own query, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to edit query created by somebody else, should fail.
+	// Attempt to edit query created by somebody else, should fail. A team
+	// GitOps user can't read global queries either (unlike every other team
+	// role), so this reports not-found rather than forbidden: a forbidden
+	// would confirm the global query exists to a caller with no view of it.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  new("foo4"),
 			Query: new("SELECT * FROM system_info;"),
 		},
-	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
+	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusNotFound, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
@@ -30164,7 +30167,6 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Equal(t, "1.0", pkg.Version)
 		require.Equal(t, []string{"1.0", "1.1"}, cachedVersions(pkg))
 	})
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
@@ -32193,6 +32195,92 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 		require.NoError(t, err)
 		_, ok := queries[fmt.Sprint(policy.ID)]
 		require.Equal(t, tc.match, ok, "host %s match expectation", tc.host.Hostname)
+	}
+}
+
+// A host authenticates with its node key and fully controls the fleet_policy_query_<id> keys it
+// sends to distributed/write, so results for policies outside its scope must never be persisted.
+func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesAreDiscarded() {
+	t := s.T()
+	ctx := t.Context()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// The victim host: darwin, no team, not a member of lbl.
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	inScope, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "in-scope-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Out of scope three different ways:
+	// 1. another fleet
+	otherFleet, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: "other-fleet-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	// 2. another platform
+	otherPlatform, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "other-platform-" + t.Name(), Query: "SELECT 1", Platform: "linux",
+	})
+	require.NoError(t, err)
+	// 3. label the host lacks
+	otherLabel, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "other-label-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name},
+	})
+	require.NoError(t, err)
+
+	// Only the in-scope policy is distributed to the host.
+	distributedQueries, err := s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(inScope.ID))
+	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
+		require.NotContains(t, distributedQueries, fmt.Sprint(p.ID))
+	}
+
+	// Forge the write: the payload keys are entirely host-controlled, so a node key plus a hand-rolled body is
+	// enough to claim a failing result for all four policies -- including the three never distributed above.
+	// The write is accepted (200) and the out-of-scope results are dropped during ingestion rather than
+	// rejecting the whole check-in, which would also discard the host's legitimate results.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		inScope.ID:       new(false),
+		otherFleet.ID:    new(false),
+		otherPlatform.ID: new(false),
+		otherLabel.ID:    new(false),
+	}), http.StatusOK, &distributedResp)
+
+	// Nothing was persisted for the out-of-scope policies. This asserts on policy_membership rather than
+	// ListPoliciesForHost because the latter re-applies the scope filter on read and would hide the rows.
+	var storedPolicyIDs []uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &storedPolicyIDs, `SELECT policy_id FROM policy_membership WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, []uint{inScope.ID}, storedPolicyIDs)
+
+	// The forged results do not surface the host in policy-filtered host listings either.
+	countFailingHosts := func(policyID uint) int {
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp,
+			"policy_id", fmt.Sprint(policyID), "policy_response", "failing")
+		return len(listResp.Hosts)
+	}
+	require.Equal(t, 1, countFailingHosts(inScope.ID))
+	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
+		require.Zero(t, countFailingHosts(p.ID), "policy %s", p.Name)
 	}
 }
 
@@ -35585,8 +35673,10 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 		})
 
 		var runResp fleet.RunScriptResponse
-		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID,
-			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"}, http.StatusAccepted, &runResp)
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+			HostID:         host2.ID,
+			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT",
+		}, http.StatusAccepted, &runResp)
 
 		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
 		require.Nil(t, fetched.ExitCode)
@@ -35850,4 +35940,446 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 	require.Equal(t, "zoom-build-1.0-b.msi", metaB.Name)
 	require.Equal(t, rebuild.sha256, metaB.StorageID)
 	require.Equal(t, "install zoom-build-1.0-b.msi", metaB.InstallScript)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabel() {
+	t := s.T()
+	ctx := context.Background()
+
+	excludedHost := createOrbitEnrolledHost(t, "ubuntu", "hv-excluded", s.ds)
+	excludedToken := "hv_excluded_token" // #nosec G101 -- device auth token for a test host, not a credential
+	createDeviceTokenForHost(t, s.ds, excludedHost.ID, excludedToken)
+
+	allowedHost := createOrbitEnrolledHost(t, "ubuntu", "hv-allowed", s.ds)
+	allowedToken := "hv_allowed_token" // #nosec G101 -- device auth token for a test host, not a credential
+	createDeviceTokenForHost(t, s.ds, allowedHost.ID, allowedToken)
+
+	// Seed IdP data: both hosts have an end user, but only excludedHost's user is in the group the
+	// software excludes. Ids are assigned by the database and names are scoped to this test so the
+	// fixture can't collide with the other SCIM fixtures in this suite.
+	groupName := "hv-excluded-group-" + t.Name()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		excludedUserRes, err := db.ExecContext(ctx,
+			"INSERT INTO scim_users (user_name, department) VALUES (?, ?)",
+			"hv-excluded-user-"+t.Name(), "dept")
+		if err != nil {
+			return err
+		}
+		excludedUserID, err := excludedUserRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		allowedUserRes, err := db.ExecContext(ctx,
+			"INSERT INTO scim_users (user_name, department) VALUES (?, ?)",
+			"hv-allowed-user-"+t.Name(), "dept")
+		if err != nil {
+			return err
+		}
+		allowedUserID, err := allowedUserRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		groupRes, err := db.ExecContext(ctx,
+			"INSERT INTO scim_groups (display_name) VALUES (?)", groupName)
+		if err != nil {
+			return err
+		}
+		groupID, err := groupRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if _, err := db.ExecContext(ctx,
+			"INSERT INTO scim_user_group (scim_user_id, group_id) VALUES (?, ?)",
+			excludedUserID, groupID,
+		); err != nil {
+			return err
+		}
+		_, err = db.ExecContext(ctx,
+			"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?), (?, ?)",
+			excludedHost.ID, excludedUserID, allowedHost.ID, allowedUserID,
+		)
+		return err
+	})
+
+	// Create the host vitals label through the API, exactly as the UI/GitOps would.
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		Name: "hv-idp-group-" + t.Name(),
+		Criteria: &fleet.HostVitalCriteria{
+			Vital: new("end_user_idp_group"),
+			Value: new(groupName),
+		},
+	}}, http.StatusOK, &labelResp)
+	require.NotNil(t, labelResp.Label)
+	require.Equal(t, fleet.LabelMembershipTypeHostVitals, labelResp.Label.LabelMembershipType)
+
+	label, _, err := s.ds.Label(ctx, labelResp.Label.Label.ID, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	_, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	require.NoError(t, err)
+
+	hostsInLabel, err := s.ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hostsInLabel, 1)
+	require.Equal(t, excludedHost.ID, hostsInLabel[0].ID)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "install",
+		Filename:         "ruby.deb",
+		Title:            "ruby",
+		SelfService:      true,
+		LabelsExcludeAny: []string{label.Name},
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
+
+	selfServiceTitles := func(token string) []string {
+		var resp getDeviceSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software", token), nil, http.StatusOK,
+			&resp, "self_service", "true")
+		names := make([]string, 0, len(resp.Software))
+		for _, sw := range resp.Software {
+			names = append(names, sw.Name)
+		}
+		return names
+	}
+
+	// The host that is not in the IdP group sees the software in Self-service and can install it.
+	require.Contains(t, selfServiceTitles(allowedToken), payload.Title)
+	s.DoRawNoAuth("POST",
+		fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", allowedToken, titleID),
+		nil, http.StatusAccepted)
+
+	// The host that is in the group sees nothing and is refused the install.
+	require.NotContains(t, selfServiceTitles(excludedToken), payload.Title)
+	res := s.DoRawNoAuth("POST",
+		fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", excludedToken, titleID),
+		nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body),
+		"Couldn't install. Host isn't member of the labels defined for this software title.")
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
+	require.NoError(t, err)
+
+	newAppleProf := func(name string, teamID *uint) *fleet.MDMAppleConfigProfile {
+		prof, err := s.ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Name:         name,
+			Identifier:   "com.example." + name,
+			Mobileconfig: []byte("<plist></plist>"),
+			TeamID:       teamID,
+		}, nil)
+		require.NoError(t, err)
+		return prof
+	}
+	appleProf := newAppleProf("resend-apple", &team.ID)
+	otherAppleProf := newAppleProf("resend-other-team-apple", &otherTeam.ID)
+
+	winProf, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "resend-windows",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	policiesURL := fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID)
+
+	// resendProfileJSON pulls the raw resend_configuration_profile object out of a
+	// policy response body, so the assertions cover the wire-format keys rather than
+	// just the Go struct fields.
+	resendProfileJSON := func(body map[string]any) map[string]any {
+		policy, ok := body["policy"].(map[string]any)
+		require.True(t, ok, "response has no policy object: %v", body)
+		raw, ok := policy["resend_configuration_profile"]
+		if !ok {
+			return nil
+		}
+		obj, ok := raw.(map[string]any)
+		require.True(t, ok, "resend_configuration_profile is not an object: %v", raw)
+		return obj
+	}
+
+	requireProfileJSON := func(body map[string]any, wantUUID, wantName string) {
+		obj := resendProfileJSON(body)
+		require.NotNil(t, obj, "resend_configuration_profile missing from response")
+		// Exactly these two keys, with these names, per the documented shape.
+		assert.Equal(t, wantUUID, obj["profile_uuid"])
+		assert.Equal(t, wantName, obj["name"])
+		assert.Len(t, obj, 2, "unexpected keys in resend_configuration_profile: %v", obj)
+	}
+
+	// POST with an Apple profile: response carries the populated object.
+	var createApple map[string]any
+	s.DoJSON("POST", policiesURL, &fleet.TeamPolicyRequest{
+		Name:        "apple resend",
+		Query:       "SELECT 1;",
+		Platform:    "darwin",
+		ProfileUUID: new(appleProf.ProfileUUID),
+	}, http.StatusOK, &createApple)
+	requireProfileJSON(createApple, appleProf.ProfileUUID, appleProf.Name)
+	applePolicyID := uint(createApple["policy"].(map[string]any)["id"].(float64))
+
+	// The datastore column matches the prefix, and the other column stays NULL.
+	stored, err := s.ds.Policy(ctx, applePolicyID)
+	require.NoError(t, err)
+	require.Equal(t, new(appleProf.ProfileUUID), stored.ResendAppleProfileUUID)
+	require.Nil(t, stored.ResendWindowsProfileUUID)
+
+	// POST with a Windows profile.
+	var createWindows map[string]any
+	s.DoJSON("POST", policiesURL, &fleet.TeamPolicyRequest{
+		Name:        "windows resend",
+		Query:       "SELECT 2;",
+		Platform:    "windows",
+		ProfileUUID: new(winProf.ProfileUUID),
+	}, http.StatusOK, &createWindows)
+	requireProfileJSON(createWindows, winProf.ProfileUUID, winProf.Name)
+	winPolicyID := uint(createWindows["policy"].(map[string]any)["id"].(float64))
+
+	stored, err = s.ds.Policy(ctx, winPolicyID)
+	require.NoError(t, err)
+	require.Equal(t, new(winProf.ProfileUUID), stored.ResendWindowsProfileUUID)
+	require.Nil(t, stored.ResendAppleProfileUUID)
+
+	// POST without a profile: the key is omitted entirely (omitempty).
+	var createNone map[string]any
+	s.DoJSON("POST", policiesURL, &fleet.TeamPolicyRequest{
+		Name:     "no resend",
+		Query:    "SELECT 3;",
+		Platform: "darwin",
+	}, http.StatusOK, &createNone)
+	require.Nil(t, resendProfileJSON(createNone), "resend_configuration_profile should be omitted")
+
+	// GET single and list both populate the object.
+	var getResp map[string]any
+	s.DoJSON("GET", fmt.Sprintf("%s/%d", policiesURL, applePolicyID), nil, http.StatusOK, &getResp)
+	requireProfileJSON(getResp, appleProf.ProfileUUID, appleProf.Name)
+
+	listResp := &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", policiesURL, nil, http.StatusOK, listResp)
+	require.Len(t, listResp.Policies, 3)
+	for _, p := range listResp.Policies {
+		switch p.Name {
+		case "apple resend":
+			require.NotNil(t, p.ResendConfigurationProfile)
+			assert.Equal(t, appleProf.ProfileUUID, p.ResendConfigurationProfile.UUID)
+			assert.Equal(t, appleProf.Name, p.ResendConfigurationProfile.Name)
+		case "windows resend":
+			require.NotNil(t, p.ResendConfigurationProfile)
+			assert.Equal(t, winProf.ProfileUUID, p.ResendConfigurationProfile.UUID)
+		case "no resend":
+			assert.Nil(t, p.ResendConfigurationProfile)
+		default:
+			t.Fatalf("unexpected policy %q", p.Name)
+		}
+	}
+
+	// The profiles automation filter selects exactly the two profile-backed policies.
+	filtered := &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", policiesURL, nil, http.StatusOK, filtered, "automation_type", "profiles")
+	require.Len(t, filtered.Policies, 2)
+	names := []string{filtered.Policies[0].Name, filtered.Policies[1].Name}
+	assert.ElementsMatch(t, []string{"apple resend", "windows resend"}, names)
+
+	t.Run("patch switches platform and clears the other column", func(t *testing.T) {
+		var patched map[string]any
+		s.DoJSON("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
+			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, winProf.ProfileUUID)),
+			http.StatusOK, &patched)
+		requireProfileJSON(patched, winProf.ProfileUUID, winProf.Name)
+
+		stored, err := s.ds.Policy(ctx, applePolicyID)
+		require.NoError(t, err)
+		require.Equal(t, new(winProf.ProfileUUID), stored.ResendWindowsProfileUUID)
+		require.Nil(t, stored.ResendAppleProfileUUID)
+
+		// Put it back for the remaining subtests.
+		s.DoJSON("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
+			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, appleProf.ProfileUUID)),
+			http.StatusOK, &patched)
+		requireProfileJSON(patched, appleProf.ProfileUUID, appleProf.Name)
+	})
+
+	t.Run("patch without profile_uuid leaves the profile untouched", func(t *testing.T) {
+		var patched map[string]any
+		s.DoJSON("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
+			json.RawMessage(`{"description": "unrelated edit"}`), http.StatusOK, &patched)
+		requireProfileJSON(patched, appleProf.ProfileUUID, appleProf.Name)
+	})
+
+	t.Run("patch with empty string unsets", func(t *testing.T) {
+		var patched map[string]any
+		s.DoJSON("PATCH", fmt.Sprintf("%s/%d", policiesURL, winPolicyID),
+			json.RawMessage(`{"profile_uuid": ""}`), http.StatusOK, &patched)
+		require.Nil(t, resendProfileJSON(patched))
+
+		stored, err := s.ds.Policy(ctx, winPolicyID)
+		require.NoError(t, err)
+		require.Nil(t, stored.ResendAppleProfileUUID)
+		require.Nil(t, stored.ResendWindowsProfileUUID)
+	})
+
+	t.Run("patch with null unsets", func(t *testing.T) {
+		// Re-attach, then clear with an explicit null.
+		var patched map[string]any
+		s.DoJSON("PATCH", fmt.Sprintf("%s/%d", policiesURL, winPolicyID),
+			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, winProf.ProfileUUID)),
+			http.StatusOK, &patched)
+		requireProfileJSON(patched, winProf.ProfileUUID, winProf.Name)
+
+		s.DoJSON("PATCH", fmt.Sprintf("%s/%d", policiesURL, winPolicyID),
+			json.RawMessage(`{"profile_uuid": null}`), http.StatusOK, &patched)
+		require.Nil(t, resendProfileJSON(patched))
+	})
+
+	t.Run("rejected UUID prefixes", func(t *testing.T) {
+		cases := []struct {
+			name       string
+			uuid       string
+			wantErrMsg string
+		}{
+			{
+				name:       "apple declaration",
+				uuid:       fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString(),
+				wantErrMsg: fleet.CantResendAppleDeclarationProfilesMessage,
+			},
+			{
+				name:       "android profile",
+				uuid:       fleet.MDMAndroidProfileUUIDPrefix + uuid.NewString(),
+				wantErrMsg: "has an invalid prefix",
+			},
+			{
+				name:       "unknown prefix",
+				uuid:       "z" + uuid.NewString(),
+				wantErrMsg: "has an invalid prefix",
+			},
+		}
+
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				// On create.
+				res := s.Do("POST", policiesURL, &fleet.TeamPolicyRequest{
+					Name:        "rejected " + c.name,
+					Query:       "SELECT 1;",
+					Platform:    "darwin",
+					ProfileUUID: new(c.uuid),
+				}, http.StatusBadRequest)
+				require.Contains(t, extractServerErrorText(res.Body), c.wantErrMsg)
+
+				// And on modify.
+				res = s.Do("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
+					json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, c.uuid)), http.StatusBadRequest)
+				require.Contains(t, extractServerErrorText(res.Body), c.wantErrMsg)
+			})
+		}
+	})
+
+	t.Run("profile from another team is rejected", func(t *testing.T) {
+		res := s.Do("POST", policiesURL, &fleet.TeamPolicyRequest{
+			Name:        "cross team resend",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: new(otherAppleProf.ProfileUUID),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+
+		res = s.Do("PATCH", fmt.Sprintf("%s/%d", policiesURL, applePolicyID),
+			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, otherAppleProf.ProfileUUID)),
+			http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+	})
+
+	t.Run("nonexistent profile is rejected", func(t *testing.T) {
+		res := s.Do("POST", policiesURL, &fleet.TeamPolicyRequest{
+			Name:        "missing resend",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: new(fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "does not exist")
+	})
+
+	t.Run("all fleets policy rejects a resend profile", func(t *testing.T) {
+		globalPol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+			Name:  "global no resend",
+			Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+
+		res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPol.ID),
+			json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, appleProf.ProfileUUID)),
+			http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "cannot have profile_uuid set")
+	})
+
+	t.Run("gitops spec apply", func(t *testing.T) {
+		specURL := "/api/latest/fleet/spec/policies"
+
+		s.Do("POST", specURL, fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{{
+				Name:        "gitops resend",
+				Query:       "SELECT 9;",
+				Platform:    "darwin",
+				Team:        team.Name,
+				ProfileUUID: new(appleProf.ProfileUUID),
+			}},
+		}, http.StatusOK)
+
+		byName := func(name string) *fleet.Policy {
+			list := &fleet.ListTeamPoliciesResponse{}
+			s.DoJSON("GET", policiesURL, nil, http.StatusOK, list)
+			for _, p := range list.Policies {
+				if p.Name == name {
+					return p
+				}
+			}
+			t.Fatalf("policy %q not found", name)
+			return nil
+		}
+
+		applied := byName("gitops resend")
+		require.NotNil(t, applied.ResendConfigurationProfile)
+		require.Equal(t, appleProf.ProfileUUID, applied.ResendConfigurationProfile.UUID)
+
+		// Omitting profile_uuid on a later apply unsets it, per the declarative
+		// GitOps convention (unlike PATCH, where absent means "no change").
+		s.Do("POST", specURL, fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{{
+				Name:     "gitops resend",
+				Query:    "SELECT 9;",
+				Platform: "darwin",
+				Team:     team.Name,
+			}},
+		}, http.StatusOK)
+		require.Nil(t, byName("gitops resend").ResendConfigurationProfile)
+
+		// A spec with no team cannot carry a profile.
+		res := s.Do("POST", specURL, fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{{
+				Name:        "gitops global resend",
+				Query:       "SELECT 9;",
+				Platform:    "darwin",
+				ProfileUUID: new(appleProf.ProfileUUID),
+			}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "cannot have profile_uuid set")
+
+		// A profile owned by another team is rejected here too.
+		res = s.Do("POST", specURL, fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{{
+				Name:        "gitops cross team resend",
+				Query:       "SELECT 9;",
+				Platform:    "darwin",
+				Team:        team.Name,
+				ProfileUUID: new(otherAppleProf.ProfileUUID),
+			}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
+	})
 }

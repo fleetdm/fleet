@@ -65,6 +65,14 @@ on:
         type: string
         default: "redis7"
         required: false
+      mock_apns_server:
+        description: "Deploy the mock Apple APNs push server and point Fleet's MDM pushes at it? When no, pushes are disabled entirely."
+        type: choice
+        options:
+        - "no"
+        - "yes"
+        default: "no"
+        required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -100,6 +108,7 @@ env:
   TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"
   TF_VAR_redis_engine_version: "${{ inputs.fleet_redis_engine_version }}"
   TF_VAR_redis_parameter_group_family: "${{ inputs.fleet_redis_parameter_group_family }}"
+  TF_VAR_enable_apple_mdm: "${{ inputs.mock_apns_server == 'yes' }}"
 
 permissions:
   id-token: write

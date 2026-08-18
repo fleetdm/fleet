@@ -41,7 +41,7 @@ module.exports = {
   fn: async function ({ humanSpecification, purpose }) {
 
     return await ƒ.prompt.with({
-      baseModel: 'o4-mini-2025-04-16',
+      baseModel: 'claude-sonnet-5',
       prompt:
         'Generate code for a sails app '+
           (purpose === 'action' ?
