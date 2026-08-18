@@ -1205,8 +1205,9 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 //	exclude=1, require_all=0 -> exclude_any
 //	exclude=1, require_all=1 -> exclude_all
 //
-// The exclude branches also count a label whose membership the host cannot have computed yet: a dynamic label created after the
-// host's last label report has never run on it, so the absence of a label_membership row carries no signal. Without this,
+// The exclude branches also count a label whose membership the host cannot have computed yet: a dynamic label created at or after
+// the host's last label report has never run on it, so the absence of a label_membership row carries no signal. The comparison is
+// inclusive because both columns are second-granular, so a tie cannot tell us which came first. Without this,
 // exclusion fails open on a freshly enrolled host — enrollment sets label_updated_at to the "never" sentinel and makes labels and
 // policies come due on the same check-in — and the host runs, and reports failures that trigger automations for, a policy the
 // exclude label was meant to keep it out of. Inclusion already fails closed, since a non-member is simply not included; manual
@@ -1223,11 +1224,11 @@ const policyLabelScopeSubquery = `
 				-- count of include_all labels this host is a member of
 				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
 				-- 1 if this host is a member of at least one exclude_any label, or cannot be known not to be
-				MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND ? < l.created_at)) THEN 1 ELSE 0 END) AS host_in_exclude_any,
+				MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND ? <= l.created_at)) THEN 1 ELSE 0 END) AS host_in_exclude_any,
 				-- count of exclude_all labels on this policy
 				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS exclude_all_count,
 				-- count of exclude_all labels this host is a member of, or cannot be known not to be
-				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND ? < l.created_at)) THEN 1 ELSE 0 END) AS host_exclude_all_count
+				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND ? <= l.created_at)) THEN 1 ELSE 0 END) AS host_exclude_all_count
 			FROM policy_labels pl
 			LEFT JOIN labels l ON l.id = pl.label_id
 			LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?

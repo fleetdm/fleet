@@ -6810,8 +6810,28 @@ func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
 		}, policyNames(t, host))
 	})
 
+	// labels.created_at and hosts.label_updated_at are both second-granular, so pivot on the stored value: a wall-clock
+	// time.Now() here can land in the same second the labels were created, which is the ambiguous case, not the resolved one.
+	newestDynamicCreatedAt := func(t *testing.T) time.Time {
+		t.Helper()
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &ts,
+				`SELECT MAX(created_at) FROM labels WHERE id IN (?, ?)`, dynamicLabel.ID, dynamicLabel2.ID)
+		})
+		return ts
+	}
+
+	t.Run("membership stays unknown while the timestamps are tied", func(t *testing.T) {
+		setLabelUpdatedAt(t, host, newestDynamicCreatedAt(t))
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			excludeManual.Name,
+		}, policyNames(t, host))
+	})
+
 	t.Run("labels reported after the labels were created resolves the scope", func(t *testing.T) {
-		setLabelUpdatedAt(t, host, time.Now())
+		setLabelUpdatedAt(t, host, newestDynamicCreatedAt(t).Add(time.Second))
 		require.ElementsMatch(t, []string{
 			unscoped.Name,
 			excludeManual.Name,
