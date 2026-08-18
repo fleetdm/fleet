@@ -27148,3 +27148,112 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateTransferTeamToNoTeam() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 }
+
+// TestAndroidCustomCommandsListAndResults exercises the full API flow for Android custom commands:
+// send a command via POST /commands/run, verify it appears in GET /commands (list), deliver a
+// Pub/Sub ack, and verify GET /commands/results returns the stored result.
+func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
+	t := s.T()
+	ctx := t.Context()
+
+	const longCommandDuration = "315360000s"
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  android.Enterprise{ID: enterpriseID, EnterpriseID: "custom-cmd-fake"},
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	const pubsubToken = "test-android-custom-cmd-pubsub-token"
+	require.NoError(t, s.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+		Name:  fleet.MDMAssetAndroidPubSubToken,
+		Value: []byte(pubsubToken),
+	}))
+
+	var (
+		issueCallsMu sync.Mutex
+		issueCounter int
+	)
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, cmd *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		issueCallsMu.Lock()
+		defer issueCallsMu.Unlock()
+		issueCounter++
+		opName := fmt.Sprintf("%s/operations/custom-op-%d", deviceName, issueCounter)
+		return &androidmanagement.Operation{Name: opName}, nil
+	}
+
+	coboHostID := createAndroidHostForTest(t, s.ds, nil, true)
+
+	// Get the host UUID for API calls.
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", coboHostID), nil, http.StatusOK, &hostResp)
+	hostUUID := hostResp.Host.UUID
+
+	// Send a custom REBOOT command via the API.
+	rebootJSON := `{"type":"REBOOT"}`
+	encoded := base64.StdEncoding.EncodeToString([]byte(rebootJSON))
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   encoded,
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusOK, &runResp)
+
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, "REBOOT", runResp.RequestType)
+	require.Equal(t, "android", runResp.Platform)
+
+	cmdUUID := runResp.CommandUUID
+
+	// Verify the command appears in GET /commands?host_identifier=<uuid>.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s", hostUUID), nil, http.StatusOK, &listResp)
+	var found bool
+	for _, cmd := range listResp.Results {
+		if cmd.CommandUUID == cmdUUID {
+			found = true
+			assert.Equal(t, "REBOOT", cmd.RequestType)
+			assert.Equal(t, hostUUID, cmd.HostUUID)
+			break
+		}
+	}
+	require.True(t, found, "expected the Android command to appear in the commands list")
+
+	// Verify command results show pending (no Pub/Sub ack yet).
+	var resultsResp getMDMCommandResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.Equal(t, "pending", resultsResp.Results[0].Status)
+	assert.Equal(t, "REBOOT", resultsResp.Results[0].RequestType)
+
+	// Deliver a Pub/Sub COMMAND ack.
+	row, err := s.ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+
+	ackOp := androidmanagement.Operation{
+		Name: row.OperationName,
+		Done: true,
+	}
+	body, err := json.Marshal(ackOp)
+	require.NoError(t, err)
+	req := android_service.PubSubPushRequest{
+		PubSubMessage: android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+			Data:       base64.StdEncoding.EncodeToString(body),
+		},
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
+
+	// Verify command results now show acknowledged with raw_result.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.Equal(t, "acknowledged", resultsResp.Results[0].Status)
+	assert.NotEmpty(t, resultsResp.Results[0].Result, "raw_result should be populated after Pub/Sub ack")
+
+	// Verify GetMDMCommandPlatform returns "android".
+	p, err := s.ds.GetMDMCommandPlatform(ctx, cmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "android", p)
+}

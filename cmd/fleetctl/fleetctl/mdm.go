@@ -91,7 +91,7 @@ func mdmRunCommand() *cli.Command {
 			var (
 				hostUUIDs     []string
 				notFoundCount int
-				mdmPlatform   string // "darwin" or "windows"
+				mdmPlatform   string // "darwin", "windows", or "android"
 			)
 			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
@@ -112,8 +112,11 @@ func mdmRunCommand() *cli.Command {
 				}
 
 				mdmHostPlatform := fleet.ClassicMDMPlatform(host.Platform)
+				if mdmHostPlatform == "" && fleet.IsAndroidPlatform(host.Platform) {
+					mdmHostPlatform = "android"
+				}
 				if mdmHostPlatform != mdmPlatform && mdmPlatform != "" {
-					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS or all Windows hosts.`)
+					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS, all Windows, or all Android hosts.`)
 				}
 				mdmPlatform = mdmHostPlatform
 
@@ -131,8 +134,11 @@ func mdmRunCommand() *cli.Command {
 
 			result, err := client.RunMDMCommand(hostUUIDs, payload, mdmPlatform)
 			if err != nil {
-				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "windows" {
-					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
+				if errors.Is(err, service.ErrMissingLicense) {
+					if mdmPlatform == "windows" {
+						return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
+					}
+					return errors.New("This command requires a Fleet Premium license.")
 				}
 
 				var sce kithttp.StatusCoder

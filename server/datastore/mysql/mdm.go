@@ -37,7 +37,7 @@ func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID stri
 SELECT CASE
 	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'darwin'
 	WHEN EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?) THEN 'windows'
-	WHEN EXISTS (SELECT 1 FROM host_vpp_software_installs WHERE command_uuid = ? AND platform = 'android') THEN 'android'
+	WHEN EXISTS (SELECT 1 FROM mdm_android_commands WHERE command_uuid = ?) THEN 'android'
 	ELSE ''
 END AS platform
 `
@@ -53,7 +53,7 @@ END AS platform
 	return p, nil
 }
 
-// getMDMCommandsSubqueries returns the Apple and Windows command-list
+// getMDMCommandsSubqueries returns the Apple, Windows, and Android command-list
 // sub-statements separately. The caller is responsible for wrapping each
 // branch with the per-branch pagination (team filter, request_type filter,
 // cursor predicate, ORDER BY, inner LIMIT) before merging them with
@@ -62,7 +62,7 @@ END AS platform
 //
 // These subqueries are only used for the all-hosts listing; host-scoped
 // requests go through listMDMCommandsByHostIdentifier instead.
-func getMDMCommandsSubqueries() (appleStmt, windowsStmt string) {
+func getMDMCommandsSubqueries() (appleStmt, windowsStmt, androidStmt string) {
 	// Apple branch joins the underlying nano_* tables directly instead of
 	// going through the nano_view_queue VIEW. The view bakes
 	// "ORDER BY q.priority DESC, q.created_at" into its definition, which
@@ -134,7 +134,22 @@ WHERE NOT EXISTS (
 )
 `
 
-	return appleStmt, windowsStmt
+	androidStmt = `
+SELECT
+    c.host_uuid,
+    c.command_uuid,
+    c.status,
+    c.updated_at,
+    c.command_type AS request_type,
+    h.hostname,
+    h.team_id,
+    NULL AS name
+FROM mdm_android_commands c
+INNER JOIN hosts h ON h.uuid = c.host_uuid
+WHERE TRUE
+`
+
+	return appleStmt, windowsStmt, androidStmt
 }
 
 // mdmCommandsOrderAllowlist is the closed set of order_key values accepted
@@ -154,10 +169,10 @@ var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 // single-command lookups; the list-commands path builds its own form
 // (see getMDMCommandsSubqueries).
 func getCombinedMDMCommandsQuery() string {
-	appleStmt, windowsStmt := getMDMCommandsSubqueries()
+	appleStmt, windowsStmt, androidStmt := getMDMCommandsSubqueries()
 	return fmt.Sprintf(
-		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
-		appleStmt, windowsStmt,
+		`SELECT * FROM ((%s) UNION ALL (%s) UNION ALL (%s)) as combined_commands WHERE `,
+		appleStmt, windowsStmt, androidStmt,
 	)
 }
 
@@ -179,7 +194,7 @@ func (ds *Datastore) ListMDMCommands(
 		listOpts.OrderDirection = fleet.OrderDescending
 	}
 
-	appleStmt, windowsStmt := getMDMCommandsSubqueries()
+	appleStmt, windowsStmt, androidStmt := getMDMCommandsSubqueries()
 
 	// Per-branch pagination: without this, the UNION ALL would materialize every command on
 	// both sides before pagination, which times out at scale (#44170).
@@ -205,7 +220,7 @@ func (ds *Datastore) ListMDMCommands(
 
 	// Each branch needs its own params slice; sqlx.SelectContext binds
 	// placeholders left-to-right across the merged statement.
-	var appleParams, windowsParams []any
+	var appleParams, windowsParams, androidParams []any
 	var err error
 	if appleStmt, appleParams, err = paginateBranch(appleStmt, appleParams); err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate apple commands branch")
@@ -213,13 +228,17 @@ func (ds *Datastore) ListMDMCommands(
 	if windowsStmt, windowsParams, err = paginateBranch(windowsStmt, windowsParams); err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate windows commands branch")
 	}
+	if androidStmt, androidParams, err = paginateBranch(androidStmt, androidParams); err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate android commands branch")
+	}
 
 	mergedStmt := fmt.Sprintf(
-		"SELECT * FROM ((%s) UNION ALL (%s)) AS combined_commands",
-		appleStmt, windowsStmt,
+		"SELECT * FROM ((%s) UNION ALL (%s) UNION ALL (%s)) AS combined_commands",
+		appleStmt, windowsStmt, androidStmt,
 	)
 	mergedParams := append([]any{}, appleParams...)
 	mergedParams = append(mergedParams, windowsParams...)
+	mergedParams = append(mergedParams, androidParams...)
 
 	// Outer pagination: ORDER BY + LIMIT + OFFSET only. The cursor
 	// predicate is already applied inside each branch, so clear After
@@ -324,9 +343,9 @@ WHERE ` + whereTeam
 	// we can optimize the query by skipping the UNION ALL and using a single query targeted to the
 	// platform.
 
-	var appleStmt, winStmt string
-	var appleParams, winParams []any
-	var appleUUIDs, winUUIDs []string
+	var appleStmt, winStmt, androidStmt string
+	var appleParams, winParams, androidParams []any
+	var appleUUIDs, winUUIDs, androidUUIDs []string
 	byUUID := make(map[string]fleet.Host, len(dest)) // map UUID to host so that we can loop over command results to add hostname and team info and avoid joining hosts to commands in DB
 	for _, h := range dest {
 		if prev, ok := byUUID[h.UUID]; ok {
@@ -337,11 +356,13 @@ WHERE ` + whereTeam
 			)
 		}
 		byUUID[h.UUID] = h
-		switch fleet.ClassicMDMPlatform(h.Platform) {
-		case "darwin":
+		switch {
+		case fleet.ClassicMDMPlatform(h.Platform) == "darwin":
 			appleUUIDs = append(appleUUIDs, h.UUID)
-		case "windows":
+		case fleet.ClassicMDMPlatform(h.Platform) == "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
+		case fleet.IsAndroidPlatform(h.Platform):
+			androidUUIDs = append(androidUUIDs, h.UUID)
 		}
 	}
 
@@ -459,32 +480,63 @@ WHERE
 		}
 	}
 
-	var listStmt, countStmt string
-	var params []any
-	// Wrap in `SELECT * FROM (...) u WHERE TRUE` so the cursor and ORDER BY
+	if len(androidUUIDs) > 0 {
+		androidParams = []any{androidUUIDs}
+		androidStmt = `
+SELECT
+    c.host_uuid,
+    c.command_uuid,
+    c.updated_at,
+    c.status,
+    CASE c.status
+        WHEN 'pending' THEN 'pending'
+        WHEN 'acknowledged' THEN 'ran'
+        WHEN 'error' THEN 'failed'
+        ELSE 'pending'
+    END AS command_status,
+    c.command_type AS request_type,
+    NULL AS name,
+    h.hostname
+FROM mdm_android_commands c
+INNER JOIN hosts h ON h.uuid = c.host_uuid
+WHERE c.host_uuid IN (?)`
+
+		if listOpts.Filters.RequestType != "" {
+			androidStmt += " AND c.command_type = ?"
+			androidParams = append(androidParams, listOpts.Filters.RequestType)
+		}
+		androidStmt, androidParams, err = sqlx.In(androidStmt, androidParams...)
+		if err != nil {
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Android devices")
+		}
+	}
+
 	// predicates resolve against the unambiguous `u` projection — the inner
 	// branches join multiple tables that all expose `command_uuid` / `updated_at`.
 	// `WHERE TRUE` is required because the cursor helper picks AND vs WHERE by
 	// substring-matching "where", picks AND from the inner branches, and would
 	// otherwise emit a dangling `AND`. See https://github.com/fleetdm/fleet/issues/44422.
-	switch {
-	case len(appleUUIDs) > 0 && len(winUUIDs) > 0:
-		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u WHERE TRUE`,
-			appleStmt, winStmt)
-		countStmt = fmt.Sprintf(`SELECT COUNT(1) FROM ((%s) UNION ALL (%s)) u`, appleStmt, winStmt)
+	var branches []string
+	var params []any
+	if len(appleUUIDs) > 0 {
+		branches = append(branches, "("+appleStmt+")")
 		params = append(params, appleParams...)
+	}
+	if len(winUUIDs) > 0 {
+		branches = append(branches, "("+winStmt+")")
 		params = append(params, winParams...)
-	case len(appleUUIDs) > 0:
-		listStmt = `SELECT * FROM (` + appleStmt + `) u WHERE TRUE`
-		countStmt = `SELECT COUNT(1) FROM (` + appleStmt + `) u`
-		params = appleParams
-	case len(winUUIDs) > 0:
-		listStmt = `SELECT * FROM (` + winStmt + `) u WHERE TRUE`
-		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
-		params = winParams
-	default:
+	}
+	if len(androidUUIDs) > 0 {
+		branches = append(branches, "("+androidStmt+")")
+		params = append(params, androidParams...)
+	}
+	if len(branches) == 0 {
 		return []*fleet.MDMCommand{}, nil, nil, nil
 	}
+
+	unionAll := strings.Join(branches, " UNION ALL ")
+	listStmt := fmt.Sprintf(`SELECT * FROM (%s) u WHERE TRUE`, unionAll)
+	countStmt := fmt.Sprintf(`SELECT COUNT(1) FROM (%s) u`, unionAll)
 
 	// TODO: Maybe move this to the service method? What about pagination metadata?
 	if listOpts.OrderKey == "" {
