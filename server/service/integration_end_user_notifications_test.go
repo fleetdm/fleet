@@ -32,7 +32,8 @@ func newTestNotification(t *testing.T, ds *mysql.Datastore, hostID uint, kind st
 	notificationUUID := uuid.NewString()
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
-			`INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload) VALUES (?, ?, ?, ?, ?)`,
+			`INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+				VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL 1 HOUR)`,
 			notificationUUID, hostID, notifications_api.EndUserNotificationPending, kind, json.RawMessage(payload))
 		return err
 	})

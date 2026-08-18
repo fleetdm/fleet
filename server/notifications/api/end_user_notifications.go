@@ -47,13 +47,15 @@ const EndUserNotificationDelayInterval = time.Hour
 // How long Fleet waits before retrying. Needing an admin to install or upgrade
 // Fleet Desktop gets the longer one.
 const (
-	EndUserNotificationShortRetryInterval = 30 * time.Second
-	EndUserNotificationLongRetryInterval  = 30 * time.Minute
+	EndUserNotificationShortRetryInterval = time.Minute
+	EndUserNotificationLongRetryInterval  = time.Hour
 )
+
+const EndUserNotificationMaxLifetime = 24 * time.Hour
 
 // How long a dispatched notification waits for a result before Fleet gives up
 // on it. A host that never answers (wiped, fleetd removed) holds up every
-// notification behind it, so one is needed even where no expiry was set.
+// notification behind it.
 const EndUserNotificationStuckDispatchTimeout = 24 * time.Hour
 
 type EndUserNotification struct {

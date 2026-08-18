@@ -48,10 +48,26 @@ func testNewAndGetEndUserNotification(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	hostID := newDarwinHost(t, env, "new-and-get", true)
 
+	// a kind that doesn't say how long its notification is worth showing is a bug,
+	// not a request for the maximum
+	_, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
+		HostID: hostID, Kind: "test_kind", Payload: []byte(`{}`),
+	})
+	require.ErrorContains(t, err, "needs an expiry")
+
+	// and the column has no default, so a row inserted around that check can't
+	// end up immortal either
+	_, err = env.db.ExecContext(ctx,
+		`INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload) VALUES (?, ?, ?, ?, '{}')`,
+		"no-expiry-uuid", hostID, api.EndUserNotificationPending, "test_kind")
+	require.ErrorContains(t, err, "doesn't have a default value")
+
+	expiresAt := time.Now().UTC().Add(time.Hour)
 	created, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
-		HostID:  hostID,
-		Kind:    "test_kind",
-		Payload: []byte(`{"title": "hello world"}`),
+		HostID:    hostID,
+		Kind:      "test_kind",
+		Payload:   []byte(`{"title": "hello world"}`),
+		ExpiresAt: &expiresAt,
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, created.UUID)
@@ -61,6 +77,19 @@ func testNewAndGetEndUserNotification(t *testing.T, env *testEnv) {
 	assert.JSONEq(t, `{"title": "hello world"}`, string(created.Payload))
 	assert.Nil(t, created.ExecutionID)
 	assert.Nil(t, created.DisplayedAt)
+
+	// what the kind asked for is what it gets, up to the maximum
+	require.NotNil(t, created.ExpiresAt)
+	assert.WithinDuration(t, expiresAt, *created.ExpiresAt, time.Second)
+
+	// asking for longer than the platform keeps retrying gets the maximum
+	tooLate := time.Now().UTC().Add(30 * 24 * time.Hour)
+	clamped, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
+		HostID: hostID, Kind: "test_kind", Payload: []byte(`{}`), ExpiresAt: &tooLate,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, clamped.ExpiresAt)
+	assert.WithinDuration(t, time.Now().UTC().Add(api.EndUserNotificationMaxLifetime), *clamped.ExpiresAt, time.Minute)
 
 	got, err := env.ds.GetEndUserNotificationByUUID(ctx, created.UUID)
 	require.NoError(t, err)

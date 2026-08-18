@@ -72,7 +72,7 @@ func (env *testEnv) InsertNotification(t testing.TB, hostID uint, kind string, n
 	notificationUUID := uuid.NewString()
 	_, err := env.db.ExecContext(context.Background(), `
 		INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, next_attempt_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NOW(6) + INTERVAL 24 HOUR))`,
 		notificationUUID, hostID, api.EndUserNotificationPending, kind,
 		json.RawMessage(`{"title": "hello"}`), nextAttemptAt, expiresAt)
 	require.NoError(t, err)

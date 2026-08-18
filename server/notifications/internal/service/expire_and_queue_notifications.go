@@ -49,7 +49,11 @@ func (s *Service) ExpireAndQueueNotifications(ctx context.Context) error {
 		}
 
 		for _, notification := range notifications {
-			executionID := executionIDByHost[notification.HostID]
+			executionID, ok := executionIDByHost[notification.HostID]
+			if !ok {
+				return ctxerr.Errorf(ctx, "no script was queued for end user notification %s on host %d",
+					notification.UUID, notification.HostID)
+			}
 			notification.ExecutionID = &executionID
 		}
 

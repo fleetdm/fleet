@@ -4,6 +4,7 @@ package http
 
 import (
 	"encoding/json"
+	nethttp "net/http"
 
 	"github.com/fleetdm/fleet/v4/server/notifications/api"
 )
@@ -44,4 +45,4 @@ func (r NotificationActionResponse) Error() error { return r.Err }
 
 // Status is read by the response encoder; acting on a notification returns
 // no body.
-func (r NotificationActionResponse) Status() int { return 204 }
+func (r NotificationActionResponse) Status() int { return nethttp.StatusNoContent }

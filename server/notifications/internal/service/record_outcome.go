@@ -26,7 +26,7 @@ func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *tim
 	case 20:
 		return api.EndUserNotificationReasonBadConfiguration, nil
 
-	// Nobody was there to see it, or the page did not load. Both pass.
+	// Fleet Desktop couldn't display the notification.
 	case 30:
 		return api.EndUserNotificationReasonPageLoadFailed, &shortRetry
 	case 31:
@@ -40,19 +40,16 @@ func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *tim
 	case 70:
 		return api.EndUserNotificationReasonInternalError, &shortRetry
 
-	// Fleet's own side of the delivery, so nothing the host does fixes it in the
-	// next few seconds. -2 is fleetd refusing to run scripts at all, which only an
-	// admin can change. -5 is Fleet giving up on the notification's URL, mostly
-	// because the host hasn't sent a current device auth token, which it only
-	// does on check-in. Both mirror constants in server/fleet, which this context
-	// can't import.
+	// fleetd has its own scripts-disabled setting, which Fleet's bypass doesn't
+	// reach, and Fleet couldn't build the notification's URL. Neither clears up on
+	// its own. Values mirror server/fleet, which this context can't import.
 	case -2:
 		return api.EndUserNotificationReasonScriptsDisabled, &longRetry
 	case -5:
 		return api.EndUserNotificationReasonURLUnresolved, &longRetry
 
-	// An admin has to deploy or upgrade Fleet Desktop, which will not happen in
-	// the next half hour.
+	// Fleet Desktop can't display a notification. Wait the long duration so an
+	// admin or a patch policy has a chance to install a newer version.
 	case 100:
 		return api.EndUserNotificationReasonDesktopMissing, &longRetry
 	case 101:
@@ -85,6 +82,9 @@ func (s *Service) RecordOutcome(ctx context.Context, executionID string, exitCod
 		ExecutionID: executionID,
 	}
 
+	// Nothing caps how many attempts a notification gets. notification.AttemptCount
+	// is recorded and would be read here, but expires_at is what stops the retries
+	// today.
 	var nextAttemptAt *time.Time
 	if retryIn != nil {
 		nextAttempt := time.Now().UTC().Add(*retryIn)

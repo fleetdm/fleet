@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS notifications_end_user (
   execution_id    VARCHAR(255) COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   last_exit_code  INT NULL DEFAULT NULL,
   last_reason     VARCHAR(63) COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
-  expires_at      DATETIME(6) NULL DEFAULT NULL,
+  expires_at      DATETIME(6) NOT NULL,
   created_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (id),

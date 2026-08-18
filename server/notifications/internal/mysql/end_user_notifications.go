@@ -68,6 +68,14 @@ INSERT INTO notifications_end_user (
 		status = api.EndUserNotificationPending
 	}
 
+	if notification.ExpiresAt == nil {
+		return nil, ctxerr.New(ctx, "end user notification needs an expiry")
+	}
+	expiresAt := *notification.ExpiresAt
+	if latest := time.Now().UTC().Add(api.EndUserNotificationMaxLifetime); expiresAt.After(latest) {
+		expiresAt = latest
+	}
+
 	if _, err := ds.primary.ExecContext(ctx, insertStmt,
 		notificationUUID,
 		notification.HostID,
@@ -75,7 +83,7 @@ INSERT INTO notifications_end_user (
 		notification.Kind,
 		notification.Payload,
 		notification.NextAttemptAt,
-		notification.ExpiresAt,
+		expiresAt,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert end user notification")
 	}
@@ -131,7 +139,7 @@ FROM notifications_end_user eun
 	JOIN host_orbit_info hoi ON hoi.host_id = eun.host_id
 WHERE eun.status = ?
 	AND (eun.next_attempt_at IS NULL OR eun.next_attempt_at <= NOW(6))
-	AND (eun.expires_at IS NULL OR eun.expires_at > NOW(6))
+	AND eun.expires_at > NOW(6)
 	AND h.platform = 'darwin'
 	AND NOT EXISTS (
 		SELECT 1 FROM notifications_end_user dispatched
@@ -222,7 +230,7 @@ UPDATE notifications_end_user
 SET status = ?
 WHERE displayed_at IS NULL
 	AND status IN (?, ?)
-	AND expires_at IS NOT NULL AND expires_at <= NOW(6)
+	AND expires_at <= NOW(6)
 `
 
 	// MySQL writes updated_at, so the cutoff comes off the same clock
@@ -295,7 +303,7 @@ SET status = ?, next_attempt_at = ?, last_reason = ?, displayed_at = NULL,
 	payload = COALESCE(?, payload)
 WHERE uuid = ?
 	AND status NOT IN (?, ?)
-	AND (expires_at IS NULL OR expires_at > NOW(6))
+	AND expires_at > NOW(6)
 `
 
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
@@ -352,7 +360,7 @@ WHERE uuid = ?
 		const transitionStmt = `
 UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?
-WHERE uuid = ? AND status = ? AND (expires_at IS NULL OR expires_at > NOW(6))
+WHERE uuid = ? AND status = ? AND expires_at > NOW(6)
 `
 
 		if _, err := tx.ExecContext(ctx, transitionStmt,
