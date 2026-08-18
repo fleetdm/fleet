@@ -106,6 +106,7 @@ func TestHosts(t *testing.T) {
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
+		{"GenerateStatusStatisticsPlatformBreakdownExcludesPending", testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -3652,6 +3653,85 @@ func testHostsGenerateStatusStatisticsDeletedDEPAssignment(t *testing.T, ds *Dat
 	require.NoError(t, err)
 	assert.Equal(t, uint(3), summary.TotalsHostsCount)
 	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+}
+
+// testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending is a regression test for #48880:
+// the per-platform breakdown query did not exclude pending hosts, causing the "Enrolled hosts" chart
+// to include hosts that hadn't actually enrolled yet.
+func testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	platformSum := func(s *fleet.HostSummary) uint {
+		var total uint
+		for _, p := range s.Platforms {
+			total += p.HostsCount
+		}
+		return total
+	}
+
+	// Create one enrolled darwin host.
+	enrolledHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-enrolled-1"),
+		NodeKey:         new("plat-enrolled-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Mark it as enrolled via MDM (On (automatic)).
+	err = ds.SetOrUpdateMDMData(ctx, enrolledHost.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Create one pending darwin host.
+	pendingHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-pending-1"),
+		NodeKey:         new("plat-pending-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Mark it as pending (enrolled=false, installed_from_dep=true => Pending).
+	err = ds.SetOrUpdateMDMData(ctx, pendingHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Create one host with no MDM data (should always be counted).
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-nomdm-1"),
+		NodeKey:         new("plat-nomdm-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+
+	// Total count includes ALL hosts (including pending) -- this is intentional per product decision.
+	assert.Equal(t, uint(3), summary.TotalsHostsCount, "total should include pending hosts")
+
+	// Platform breakdown should EXCLUDE pending hosts.
+	// Expected: darwin=1 (only the enrolled host), windows=1 (no MDM data, counted).
+	assert.Equal(t, uint(2), platformSum(summary), "platform breakdown should exclude pending hosts")
+
+	// Verify individual platform counts.
+	platformCounts := make(map[string]uint)
+	for _, p := range summary.Platforms {
+		platformCounts[p.Platform] = p.HostsCount
+	}
+	assert.Equal(t, uint(1), platformCounts["darwin"], "darwin platform count should exclude pending host")
+	assert.Equal(t, uint(1), platformCounts["windows"], "windows platform count should include host with no MDM data")
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
