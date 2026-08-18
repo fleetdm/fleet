@@ -805,6 +805,10 @@ type Service interface {
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 
+	// InstallInHouseAppForSetupExperience validates the in-house app's managed configuration for the
+	// host and enqueues its InstallApplication command during setup experience, returning the command UUID.
+	InstallInHouseAppForSetupExperience(ctx context.Context, host *Host, inHouseAppID uint, softwareTitleID uint) (string, error)
+
 	// UninstallSoftwareTitle uninstalls a software title in the given host.
 	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 

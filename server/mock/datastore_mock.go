@@ -1280,6 +1280,8 @@ type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTok
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
+type MarkHostDEPAssignmentDeletedFunc func(ctx context.Context, hostID uint) error
+
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
 
 type UpdateHostDEPAssignProfileResponsesSameABMFunc func(ctx context.Context, resp *godep.ProfileResponse) error
@@ -2014,7 +2016,7 @@ type GetMDMAndroidCommandByUUIDFunc func(ctx context.Context, commandUUID string
 
 type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 
-type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
+type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error
 
 type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
 
@@ -2023,6 +2025,8 @@ type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
 type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type InsertMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
 type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
 
@@ -4219,6 +4223,9 @@ type DataStore struct {
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
 
+	MarkHostDEPAssignmentDeletedFunc        MarkHostDEPAssignmentDeletedFunc
+	MarkHostDEPAssignmentDeletedFuncInvoked bool
+
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
 
@@ -5334,6 +5341,9 @@ type DataStore struct {
 
 	ClearPasscodeHostViaAndroidMDMFunc        ClearPasscodeHostViaAndroidMDMFunc
 	ClearPasscodeHostViaAndroidMDMFuncInvoked bool
+
+	InsertMDMAndroidCommandFunc        InsertMDMAndroidCommandFunc
+	InsertMDMAndroidCommandFuncInvoked bool
 
 	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
 	ClearHostMDMActionsFuncInvoked bool
@@ -10199,6 +10209,13 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uin
 	return s.DeleteHostDEPAssignmentsFunc(ctx, abmTokenID, serials)
 }
 
+func (s *DataStore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.MarkHostDEPAssignmentDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkHostDEPAssignmentDeletedFunc(ctx, hostID)
+}
+
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error {
 	s.mu.Lock()
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
@@ -12768,11 +12785,11 @@ func (s *DataStore) GetMDMAndroidCommandByOperationName(ctx context.Context, ope
 	return s.GetMDMAndroidCommandByOperationNameFunc(ctx, operationName)
 }
 
-func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error {
+func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error {
 	s.mu.Lock()
 	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage, rawResult)
 }
 
 func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
@@ -12801,6 +12818,13 @@ func (s *DataStore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fl
 	s.ClearPasscodeHostViaAndroidMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearPasscodeHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.InsertMDMAndroidCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMAndroidCommandFunc(ctx, cmd)
 }
 
 func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
