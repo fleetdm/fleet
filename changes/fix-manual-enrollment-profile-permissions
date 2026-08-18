@@ -1,0 +1,1 @@
+- Restricted the manual MDM enrollment profile endpoint (`GET /api/v1/fleet/enrollment_profiles/manual`) to global and fleet-scoped admins and maintainers.

@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -187,9 +188,8 @@ type GitOpsControls struct {
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
-
-	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
-	AndroidSettings             any `json:"android_settings"`
+	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
+	AndroidSettings                any `json:"android_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
@@ -222,8 +222,11 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
-	RunScript       *PolicyRunScript                       `json:"run_script"`
-	InstallSoftware optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
+	// explicitly vs. omitted, which patch_when_closed validation needs.
+	ContinuousAutomations optjson.Bool                           `json:"continuous_automations_enabled"`
+	RunScript             *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware       optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -387,6 +390,11 @@ type GitOpsOrgSettings struct {
 	fleet.AppConfig
 	Secrets                any `json:"secrets"`
 	CertificateAuthorities any `json:"certificate_authorities"`
+	// MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when
+	// reading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here
+	// rather than under controls to match every other credential in GitOps: it is applied through its own endpoint,
+	// exactly like certificate_authorities above.
+	MicrosoftGraphCredentials any `json:"microsoft_graph_credentials"`
 }
 
 // GitOpsOrgInfo extends fleet.OrgInfo with gitops-only path keys for uploading
@@ -742,6 +750,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
+			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -880,6 +889,31 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 	return multiError
 }
 
+// normalizeMDMSSOConfig, normalizes the MDM SSO configuration by trimming whitespaces.
+func normalizeMDMSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	mdm, _ := orgSettings["mdm"].(map[string]any)
+	if mdm == nil {
+		return multiError
+	}
+	eua, _ := mdm["end_user_authentication"].(map[string]any)
+	if eua == nil {
+		return multiError
+	}
+	if v, ok := eua["idp_name"].(string); ok {
+		eua["idp_name"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["entity_id"].(string); ok {
+		eua["entity_id"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata"].(string); ok {
+		eua["metadata"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata_url"].(string); ok {
+		eua["metadata_url"] = strings.TrimSpace(v)
+	}
+	return multiError
+}
+
 // validateGitOpsConfig validates the `org_settings.gitops` block at parse time
 // to mirror the server-side checks in ModifyAppConfig. The `exceptions`
 // sub-block is not yet supported via YAML and is rejected here; the
@@ -999,6 +1033,16 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 			}
 		}
 
+		// Validate host_activities_webhook if present
+		if haw, hasHAW := webhookMap["host_activities_webhook"]; hasHAW && haw != nil {
+			hawMap, ok := haw.(map[string]any)
+			if !ok {
+				multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
+			} else if err := validateHostActivitiesWebhook(hawMap, "settings.webhook_settings.host_activities_webhook"); err != nil {
+				multiError = multierror.Append(multiError, err)
+			}
+		}
+
 		// Could add validation for other webhook types here in the future
 		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
 	}
@@ -1014,6 +1058,28 @@ func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error
 		_, isArray := policyIDs.([]any)
 		if !isArray {
 			return fmt.Errorf("'%s.policy_ids' must be an array, got %T", keyPath, policyIDs)
+		}
+	}
+	return nil
+}
+
+func validateHostActivitiesWebhook(hawMap map[string]any, keyPath string) error {
+	for key, value := range hawMap {
+		switch key {
+		case "enable_host_activities_webhook":
+			if value != nil {
+				if _, ok := value.(bool); !ok {
+					return fmt.Errorf("'%s.enable_host_activities_webhook' must be a boolean, got %T", keyPath, value)
+				}
+			}
+		case "destination_url":
+			if value != nil {
+				if _, ok := value.(string); !ok {
+					return fmt.Errorf("'%s.destination_url' must be a string, got %T", keyPath, value)
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported option '%s' in %s - only 'enable_host_activities_webhook' and 'destination_url' are allowed", key, keyPath)
 		}
 	}
 	return nil
@@ -1054,9 +1120,9 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				return multierror.Append(multiError, errors.New("'settings.webhook_settings' must be an object or null"))
 			}
 			for key := range webhookMap {
-				if key != "failing_policies_webhook" {
+				if key != "failing_policies_webhook" && key != "host_activities_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' is allowed", key, filepath.Base(filePath)))
+						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed", key, filepath.Base(filePath)))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
@@ -1067,6 +1133,16 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				} else {
 					// Validate failing_policies_webhook structure
 					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
+						multiError = multierror.Append(multiError, err)
+					}
+				}
+			}
+			if haw, ok := webhookMap["host_activities_webhook"]; ok && haw != nil {
+				hawMap, ok := haw.(map[string]any)
+				if !ok {
+					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
+				} else {
+					if err := validateHostActivitiesWebhook(hawMap, "settings.webhook_settings.host_activities_webhook"); err != nil {
 						multiError = multierror.Append(multiError, err)
 					}
 				}
@@ -1313,6 +1389,15 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
+		// An activation names exactly one declaration in its
+		// StandardConfigurations, so it can't be attached to a glob.
+		for _, cs := range macOSSettings.CustomSettings {
+			if cs.Activation != "" && cs.Paths != "" {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf(`profile %q cannot use "activation" with "paths"; use "path" for a single profile`, cs.Paths))
+			}
+		}
+
 		// Expand globs in profile paths.
 		var errs []error
 		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", GlobExpandOptions{
@@ -1324,6 +1409,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		for i := range macOSSettings.CustomSettings {
 
 			err := resolveAndUpdateProfilePath(&macOSSettings.CustomSettings[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+			// expandBaseItems only knows about path/paths, so the activation path
+			// is still relative to the controls file here.
+			err = resolveAndUpdateActivationPath(&macOSSettings.CustomSettings[i], controlsDir, result)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -1565,6 +1656,22 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	pathControls.Defined = true
 	result.Controls = pathControls
 	return errs
+}
+
+func resolveAndUpdateActivationPath(profile *fleet.MDMProfileSpec, baseDir string, result *GitOps) error {
+	if profile.Activation == "" {
+		return nil
+	}
+	resolved, err := filepath.Abs(resolveApplyRelativePath(baseDir, profile.Activation))
+	if err != nil {
+		return fmt.Errorf("failed to resolve activation path %s: %v", profile.Activation, err)
+	}
+	profile.Activation = resolved
+	fileBytes, err := os.ReadFile(resolved)
+	if err != nil {
+		return fmt.Errorf("failed to read activation file %s: %v", resolved, err)
+	}
+	return LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
 }
 
 func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
@@ -1879,9 +1986,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	// make an index of all FMAs by slug
-	fmasBySlug := make(map[string]struct{}, len(result.Software.FleetMaintainedApps))
+	fmasBySlug := make(map[string]*fleet.MaintainedAppSpec, len(result.Software.FleetMaintainedApps))
 	for _, s := range result.Software.FleetMaintainedApps {
-		fmasBySlug[s.Slug] = struct{}{}
+		fmasBySlug[s.Slug] = s
 	}
 	var errs []error
 	if policies, errs = expandBaseItems(policies, baseDir, "policy", GlobExpandOptions{
@@ -1953,6 +2060,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Name = norm.NFC.String(item.Name)
 		}
+		// Reconcile the shadow value into the embedded field the apply path reads.
+		if item.ContinuousAutomations.Valid {
+			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
+		}
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
@@ -1972,6 +2083,22 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
+			if item.PatchWhenClosed {
+				// Declarative: reject an explicit false instead of letting the datastore silently
+				// force it on; auto-set when omitted.
+				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+				} else {
+					item.ContinuousAutomationsEnabled = true
+				}
+				// Fleet manages the app-open query, so a user pre_install_query on the FMA is rejected.
+				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
+						item.Name, item.FleetMaintainedAppSlug))
+				}
 			}
 		} else if item.FleetMaintainedAppSlug != "" {
 			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
@@ -2038,7 +2165,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]struct{}) []error {
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
@@ -2285,7 +2412,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 
 		// Validate display_name length (matches database VARCHAR(255))
-		if len(item.DisplayName) > 255 {
+		if utf8.RuneCountInString(item.DisplayName) > 255 {
 			multiError = multierror.Append(multiError, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID))
 			continue
 		}
@@ -2308,6 +2435,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if count > 1 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+			continue
+		}
+
+		// Validate display_name length (matches database VARCHAR(255))
+		if utf8.RuneCountInString(maintainedAppSpec.DisplayName) > 255 {
+			multiError = multierror.Append(multiError, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -2506,7 +2639,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			// Validate display_name length (matches database VARCHAR(255))
-			if len(softwarePackageSpec.DisplayName) > 255 {
+			if utf8.RuneCountInString(softwarePackageSpec.DisplayName) > 255 {
 				multiError = multierror.Append(multiError, fmt.Errorf("software package %q display_name is too long (max 255 characters)", softwarePackageSpec.URL))
 				continue
 			}

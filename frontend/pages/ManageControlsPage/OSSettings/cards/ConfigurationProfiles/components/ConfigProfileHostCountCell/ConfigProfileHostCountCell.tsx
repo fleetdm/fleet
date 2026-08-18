@@ -1,13 +1,10 @@
 import React from "react";
 
-import PATHS from "router/paths";
-
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
 
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 const baseClass = "config-profile-host-count-cell";
 
@@ -26,20 +23,6 @@ const ConfigProfileHostCountCell = ({
   count,
   onClickResend,
 }: IConfigProfileHostCountCellProps) => {
-  const hostPath = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    fleet_id: teamId,
-    profile_uuid: uuid,
-    profile_status: status,
-  })}`;
-
-  const renderCount = () => {
-    if (count === 0) {
-      return <div>{DEFAULT_EMPTY_CELL_VALUE}</div>;
-    }
-
-    return <CustomLink url={hostPath} text={count.toString()} />;
-  };
-
   const renderResendButton = () => {
     // we check if the count is 0 or if the uuid starts with "d" which means it
     // is a DDM profile.
@@ -51,7 +34,8 @@ const ConfigProfileHostCountCell = ({
       <Button
         className={`${baseClass}__resend-button`}
         onClick={onClickResend}
-        variant="inverse"
+        variant="secondary"
+        size="small"
       >
         <Icon name="refresh" color="ui-fleet-black-75" size="small" />
         <span>Resend</span>
@@ -59,10 +43,25 @@ const ConfigProfileHostCountCell = ({
     );
   };
 
+  if (count === 0) {
+    return <div className={baseClass}>{DEFAULT_EMPTY_CELL_VALUE}</div>;
+  }
+
   return (
     <div className={baseClass}>
-      <>{renderCount()}</>
-      <>{renderResendButton()}</>
+      <div>{count}</div>
+      <div className={`${baseClass}__actions`}>
+        {renderResendButton()}
+        <ViewAllHostsLink
+          queryParams={{
+            fleet_id: teamId,
+            profile_uuid: uuid,
+            profile_status: status,
+          }}
+          condensed
+          rowHover
+        />
+      </div>
     </div>
   );
 };

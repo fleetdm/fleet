@@ -1,0 +1,1 @@
+- Fixed the SCIM last request telemetry so that authorization failures (403 Forbidden) from unauthorized users are no longer persisted, preventing them from overwriting the admin-visible SCIM status.

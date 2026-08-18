@@ -555,20 +555,11 @@ const DataTable = ({
             </div>
             {toggleAllPagesSelected && renderAreAllSelected()}
             {shouldRenderToggleAllPages && (
-              <Button
-                onClick={onToggleAllPagesClick}
-                variant="inverse"
-                className="light-text"
-                size="small"
-              >
+              <Button onClick={onToggleAllPagesClick} variant="link">
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button
-              onClick={onClearSelectionClick}
-              variant="inverse"
-              size="small"
-            >
+            <Button onClick={onClearSelectionClick} variant="link">
               Clear selection
             </Button>
           </div>
@@ -596,7 +587,11 @@ const DataTable = ({
           <Spinner />
         </div>
       )}
-      <div className="data-table data-table__wrapper">
+      <div
+        className={classnames("data-table", "data-table__wrapper", {
+          "data-table__wrapper--no-rows": !rows.length,
+        })}
+      >
         <table className={tableStyles}>
           {!suppressHeaderActions &&
             Object.keys(selectedRowIds).length !== 0 &&

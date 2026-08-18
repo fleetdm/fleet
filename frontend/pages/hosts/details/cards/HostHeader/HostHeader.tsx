@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
@@ -12,7 +11,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
-import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
+import {
+  ANDROID_NO_REFETCH_TOOLTIP_MESSAGE,
+  DEVICE_STATUS_TAGS,
+  REFETCH_TOOLTIP_MESSAGES,
+} from "./helpers";
 
 const baseClass = "host-header";
 
@@ -54,9 +57,9 @@ const RefetchButton = ({
             className={classNames}
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
-            variant="inverse"
+            variant="secondary"
+            icon="refresh"
           >
-            <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}
           </Button>
         </div>
@@ -97,7 +100,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";
@@ -210,7 +220,6 @@ const HostHeader = ({
 
           <div className={`${baseClass}__last-fetched`}>
             {"Last fetched"} {lastFetched}
-            &nbsp;
           </div>
         </div>
       </div>

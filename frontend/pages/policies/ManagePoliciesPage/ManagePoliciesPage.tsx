@@ -55,7 +55,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Spinner from "components/Spinner";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
@@ -730,9 +730,8 @@ const ManagePolicyPage = ({
           lastUpdatedAt={updatedAt}
           customTooltipText={
             <>
-              Counts are updated hourly. Click host
-              <br />
-              counts for the most up-to-date count.
+              Counts are updated hourly. Click host counts for the most
+              up-to-date count.
             </>
           }
         />
@@ -963,11 +962,11 @@ const ManagePolicyPage = ({
     if (isPremiumTier && !isPrimoMode) {
       if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
         return (
-          <TeamsDropdown
-            currentUserTeams={userTeams || []}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams || []}
+            selectedFleetId={currentTeamId}
             onChange={onTeamChange}
-            includeNoTeams
+            includeUnassigned
           />
         );
       }

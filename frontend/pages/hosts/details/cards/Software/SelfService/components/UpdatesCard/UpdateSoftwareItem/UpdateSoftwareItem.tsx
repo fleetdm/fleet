@@ -124,13 +124,13 @@ const InstallerStatus = ({
             <span data-testid={`${baseClass}__status--test`}>
               <Button
                 className={`${baseClass}__item-status-button`}
-                variant="inverse"
+                variant="subdued"
                 onClick={() => {
                   onShowInstallerDetails();
                 }}
                 size="small"
+                icon={displayConfig.iconName || "install"}
               >
-                <Icon name={displayConfig.iconName || "install"} />
                 {displayConfig.displayText}
               </Button>
             </span>

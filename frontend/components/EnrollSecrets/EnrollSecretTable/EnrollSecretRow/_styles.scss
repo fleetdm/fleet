@@ -2,8 +2,7 @@
   &__secret {
     display: flex;
     align-items: center;
-    // this is doubled to make an 8px space due to presence of width:0 relatively-positioned 2nd flex child
-    gap: 4px;
+    gap: $pad-small;
 
     .form-field {
       margin-bottom: 0;
@@ -21,10 +20,6 @@
 
   &__edit-delete-btns {
     display: flex;
-    gap: $pad-xsmall;
-
-    .button--icon__small {
-      @include bordered-icon-button;
-    }
+    gap: $pad-small;
   }
 }

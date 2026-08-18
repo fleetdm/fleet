@@ -18,6 +18,13 @@ import (
 // by uuid, along with the fields the batched reconciler needs to compute
 // desired state in memory.
 //
+// pageFull reports whether the underlying SQL page hit batchSize BEFORE the
+// Go-side dedupe below. Callers paginating with a cursor must use pageFull —
+// not len(hosts) — to decide whether more hosts may remain: duplicate-UUID
+// rows are collapsed after the LIMIT, so a full page can come back shorter
+// than batchSize, and treating that as the end of the host universe would
+// wrap the cursor early and starve every host later in the UUID ordering.
+//
 // Selection criteria mirror the host-side filters in the legacy desired-
 // state query (generateDesiredStateQuery): platform in (darwin, ios, ipados),
 // an enabled nano_enrollment of type Device or "User Enrollment (Device)",
@@ -27,7 +34,7 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 	tx common_mysql.DBReadTx,
 	afterHostUUID string,
 	batchSize int,
-) ([]*fleet.AppleHostReconcileInfo, error) {
+) (hosts []*fleet.AppleHostReconcileInfo, pageFull bool, err error) {
 	const stmt = `
 		SELECT
 			h.id              AS id,
@@ -46,13 +53,15 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		WHERE
 			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
 			AND h.uuid > ?
+			AND EXISTS (
+				SELECT 1 FROM host_mdm hmdm WHERE hmdm.enrolled = 1 AND hmdm.host_id = h.id
+			)
 		ORDER BY h.uuid, h.id DESC
 		LIMIT ?
 	`
 
-	var hosts []*fleet.AppleHostReconcileInfo
 	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, afterHostUUID, batchSize); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
+		return nil, false, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
 	}
 
 	// In the rare case multiple hosts rows share the same UUID (e.g. from past bugs
@@ -60,7 +69,7 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 	// We dedupe in Go, keeping the highest host ID. The ORDER BY h.id DESC ensures
 	// that if a duplicate UUID lands on a page boundary, the highest-ID row is the
 	// one that makes it into the page.
-	return dedupeHostsByUUID(hosts), nil
+	return dedupeHostsByUUID(hosts), len(hosts) >= batchSize, nil
 }
 
 // dedupeHostsByUUID collapses reconcile records that share a UUID down to one,
@@ -203,13 +212,14 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 	}
 
 	// Load label assignments, joining labels to get membership type and
-	// label creation time (needed by the exclude-any handler).
+	// label creation time (needed by the include-all and exclude-any
+	// handlers' unknown-membership rule).
 	//
 	// Do not COALESCE label_created_at to a string literal — MySQL would
 	// coerce the result column to VARCHAR and the driver returns []uint8,
-	// which sql.NullTime cannot scan. The exclude-any handler already
-	// treats a zero CreatedAt as "no timing check", which is the natural
-	// outcome of a NULL → invalid NullTime → zero time.Time.
+	// which sql.NullTime cannot scan. The handlers already treat a zero
+	// CreatedAt as "no timing check", which is the natural outcome of a
+	// NULL → invalid NullTime → zero time.Time.
 	//
 	// When teamID is set we restrict the label rows to the profile UUIDs
 	// we just loaded — the WHERE IN clause is on the same set so the
@@ -415,11 +425,12 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 	allProfiles []*fleet.AppleProfileForReconcile,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
+	pageFull bool,
 	err error,
 ) {
 	err = ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var inner error
-		hosts, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
+		hosts, pageFull, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
 		if inner != nil {
 			return inner
 		}
@@ -466,9 +477,9 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 		return inner
 	})
 	if err != nil {
-		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
+		return nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
 	}
-	return hosts, allProfiles, hostLabels, currentByHost, nil
+	return hosts, allProfiles, hostLabels, currentByHost, pageFull, nil
 }
 
 // GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used by
@@ -642,8 +653,20 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 		declUUIDs = append(declUUIDs, u)
 	}
 	if len(declUUIDs) > 0 {
-		const varsStmt = `SELECT DISTINCT apple_declaration_uuid FROM mdm_configuration_profile_variables WHERE apple_declaration_uuid IN (?)`
-		q, args, err := sqlx.In(varsStmt, declUUIDs)
+		// A variable may live only in the custom activation, which is recorded
+		// against apple_ddm_activation_uuid. Missing those leaves the owning
+		// declaration unstamped, so the host never re-fetches when the value
+		// changes.
+		const varsStmt = `
+SELECT DISTINCT apple_declaration_uuid AS declaration_uuid
+FROM mdm_configuration_profile_variables
+WHERE apple_declaration_uuid IN (?)
+UNION
+SELECT DISTINCT act.declaration_uuid
+FROM mdm_configuration_profile_variables v
+	JOIN mdm_apple_ddm_activations act ON act.activation_uuid = v.apple_ddm_activation_uuid
+WHERE act.declaration_uuid IN (?)`
+		q, args, err := sqlx.In(varsStmt, declUUIDs, declUUIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build apple declaration variables query")
 		}
@@ -680,6 +703,24 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 			}
 		}
 
+		// Same scan against custom activations: they're expanded at delivery like
+		// the declaration body, so a vital referenced only from the activation
+		// still has to stamp variables_updated_at on the owning declaration.
+		const actVitalsStmt = `SELECT declaration_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid IN (?) AND INSTR(raw_json, ?) > 0`
+		q, args, err = sqlx.In(actVitalsStmt, declUUIDs, fleet.CustomHostVitalPrefix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build activation custom host vitals query")
+		}
+		var actWithVitals []string
+		if err := sqlx.SelectContext(ctx, tx, &actWithVitals, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select activations with custom host vitals")
+		}
+		for _, u := range actWithVitals {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
+
 		// For declarations that reference DDM assets, load the most recent
 		// uploaded_at across their referenced assets. The reconciler stamps this
 		// onto host_mdm_apple_declarations.assets_updated_at so that editing an
@@ -708,6 +749,56 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 			if d, ok := byUUID[ar.DeclarationUUID]; ok && ar.AssetsUpdatedAt.Valid {
 				t := ar.AssetsUpdatedAt.Time
 				d.AssetsUpdatedAt = &t
+			}
+		}
+
+		// Same idea for a custom activation: editing it bumps its uploaded_at,
+		// which re-syncs the declaration it activates.
+		// GREATEST so a secret re-stamp counts as a change even when the
+		// activation itself wasn't re-uploaded. COALESCE because GREATEST
+		// returns NULL if any argument is NULL.
+		const activationsStmt = `
+			SELECT declaration_uuid,
+				GREATEST(uploaded_at, COALESCE(secrets_updated_at, uploaded_at)) AS activation_updated_at
+			FROM mdm_apple_ddm_activations
+			WHERE declaration_uuid IN (?)`
+		cq, cargs, err := sqlx.In(activationsStmt, declUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration activations query")
+		}
+		type activationRow struct {
+			DeclarationUUID     string       `db:"declaration_uuid"`
+			ActivationUpdatedAt sql.NullTime `db:"activation_updated_at"`
+		}
+		var activationRows []activationRow
+		if err := sqlx.SelectContext(ctx, tx, &activationRows, cq, cargs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with custom activations")
+		}
+		for _, cr := range activationRows {
+			if d, ok := byUUID[cr.DeclarationUUID]; ok && cr.ActivationUpdatedAt.Valid {
+				t := cr.ActivationUpdatedAt.Time
+				d.ActivationUpdatedAt = &t
+			}
+		}
+
+		// A declaration whose activation uses Fleet variables needs the same
+		// per-host token busting as one that uses them itself.
+		const actVarsStmt = `
+			SELECT DISTINCT a.declaration_uuid
+			FROM mdm_apple_ddm_activations a
+			JOIN mdm_configuration_profile_variables v ON v.apple_ddm_activation_uuid = a.activation_uuid
+			WHERE a.declaration_uuid IN (?)`
+		avq, avargs, err := sqlx.In(actVarsStmt, declUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple activation variables query")
+		}
+		var withActVars []string
+		if err := sqlx.SelectContext(ctx, tx, &withActVars, avq, avargs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple activations with fleet variables")
+		}
+		for _, u := range withActVars {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
 			}
 		}
 	}
@@ -748,6 +839,7 @@ func (ds *Datastore) bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(
 			secrets_updated_at,
 			variables_updated_at,
 			assets_updated_at,
+			activation_updated_at,
 			scope
 		FROM host_mdm_apple_declarations
 		WHERE host_uuid IN (?)
@@ -826,11 +918,12 @@ func (ds *Datastore) GetAppleDeclarationReconcileSnapshot(
 	allDecls []*fleet.AppleDeclarationForReconcile,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
+	pageFull bool,
 	err error,
 ) {
 	err = ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var inner error
-		hosts, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
+		hosts, pageFull, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
 		if inner != nil {
 			return inner
 		}
@@ -877,9 +970,9 @@ func (ds *Datastore) GetAppleDeclarationReconcileSnapshot(
 		return inner
 	})
 	if err != nil {
-		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "apple declaration reconcile snapshot")
+		return nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple declaration reconcile snapshot")
 	}
-	return hosts, allDecls, hostLabels, currentByHost, nil
+	return hosts, allDecls, hostLabels, currentByHost, pageFull, nil
 }
 
 // GetMDMAppleDeclarationReconcileCursor / SetMDMAppleDeclarationReconcileCursor
@@ -911,7 +1004,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 	const baseStmt = `
 		INSERT INTO host_mdm_apple_declarations
 		  (host_uuid, declaration_uuid, declaration_identifier, declaration_name,
-		   status, operation_type, token, secrets_updated_at, variables_updated_at, assets_updated_at, scope)
+		   status, operation_type, token, secrets_updated_at, variables_updated_at, assets_updated_at,
+		   activation_updated_at, scope)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  status = VALUES(status),
@@ -922,6 +1016,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		  secrets_updated_at = VALUES(secrets_updated_at),
 		  variables_updated_at = VALUES(variables_updated_at),
 		  assets_updated_at = VALUES(assets_updated_at),
+		  activation_updated_at = VALUES(activation_updated_at),
 		  scope = VALUES(scope)
 	`
 
@@ -931,7 +1026,9 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		batch := rows[i:end]
 
 		valueParts := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*10)
+		// Keep the per-row placeholder count under 60: MySQL caps a prepared
+		// statement at 65535 placeholders, and each batch binds batchSize rows.
+		args := make([]any, 0, len(batch)*12)
 		batchByKey := make(map[string]*fleet.MDMAppleHostDeclaration, len(batch))
 		for _, r := range batch {
 			// Scope defaults to System
@@ -939,10 +1036,11 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 			if scope == "" {
 				scope = fleet.PayloadScopeSystem
 			}
-			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
-				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt, scope,
+				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt,
+				r.ActivationUpdatedAt, scope,
 			)
 			batchByKey[fmt.Sprintf("%s\n%s", r.HostUUID, r.DeclarationUUID)] = r
 		}

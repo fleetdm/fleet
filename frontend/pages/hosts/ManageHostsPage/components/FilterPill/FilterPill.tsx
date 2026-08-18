@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
-import Button from "components/buttons/Button";
+import Tag from "components/Tag";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -26,9 +26,7 @@ const FilterPill = ({
   onClear,
 }: IFilterPillProps) => {
   const baseClasses = classnames(baseClass, className);
-  const labelClasses = classnames(`${baseClass}__label`, {
-    tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
-  });
+  const labelClasses = `${baseClass}__label`;
 
   const pillText = useRef(null);
   const isTruncated = useCheckTruncatedElement(pillText);
@@ -63,22 +61,15 @@ const FilterPill = ({
       role="status"
       aria-label={`hosts filtered by ${label}`}
     >
-      <>
-        <span>
-          <div className={labelClasses}>
-            {icon && <Icon name={icon} />}
-            {labelWithTooltip}
-            <Button
-              className={`${baseClass}__clear-filter`}
-              onClick={onClear}
-              variant="icon"
-              title={label}
-            >
-              <Icon name="close" color="core-fleet-black" size="small" />
-            </Button>
-          </div>
-        </span>
-      </>
+      <Tag
+        type="dismissible"
+        className={labelClasses}
+        onDismiss={onClear}
+        dismissLabel={`Remove ${label} filter`}
+      >
+        {icon && <Icon name={icon} />}
+        {labelWithTooltip}
+      </Tag>
     </div>
   );
 };

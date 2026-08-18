@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { INDESFormValidation, validateFormData } from "./helpers";
+import { validateFormData } from "./helpers";
 
 export interface INDESFormData {
   scepURL: string;
@@ -32,22 +32,16 @@ const NDESForm = ({
   onSubmit,
   onCancel,
 }: INDESFormProps) => {
-  const [formValidation, setFormValidation] = useState<INDESFormValidation>(
-    () => validateFormData(formData)
-  );
+  // derived from the formData prop (not kept in state) because the parent can
+  // change fields this form didn't touch, e.g. the edit modal clears an
+  // unchanged password when the SCEP URL, admin URL, or username changes
+  const formValidation = validateFormData(formData);
 
   const { scepURL, adminURL, username, password } = formData;
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     onSubmit();
-  };
-
-  const onInputChange = (update: { name: string; value: string }) => {
-    setFormValidation(
-      validateFormData({ ...formData, [update.name]: update.value })
-    );
-    onChange(update);
   };
 
   return (
@@ -57,7 +51,7 @@ const NDESForm = ({
         name="scepURL"
         value={scepURL}
         error={formValidation.scepURL?.message}
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         placeholder="https://example.com/certsrv/mscep/mscep.dll"
         helpText="The URL used by client devices to request and retrieve certificates."
@@ -67,7 +61,7 @@ const NDESForm = ({
         name="adminURL"
         value={adminURL}
         error={formValidation.adminURL?.message}
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         placeholder="https://example.com/certsrv/mscep_admin/"
         helpText={
@@ -82,7 +76,7 @@ const NDESForm = ({
         label="Username"
         name="username"
         value={username}
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         placeholder="username@example.microsoft.com"
         helpText="For NDES, this is the username in the down-level logon name
@@ -93,7 +87,7 @@ const NDESForm = ({
         name="password"
         value={password}
         type="password"
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         blockAutoComplete
         helpText={
@@ -120,7 +114,7 @@ const NDESForm = ({
             {submitBtnText}
           </Button>
         </TooltipWrapper>
-        <Button variant="inverse" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
       </div>

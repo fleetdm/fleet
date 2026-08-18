@@ -39,6 +39,7 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestListMDMCommandsByHostIdentifier", testListMDMCommandsByHostIdentifier},
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
 		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
@@ -3412,6 +3413,9 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	checkSummaryWindows := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		// GetMDMWindowsProfilesSummary reads the maintained host_mdm_windows_profiles_status rollup; this test seeds
+		// host_mdm_windows_profiles directly, so reconcile it first.
+		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
@@ -4018,6 +4022,56 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		linuxHost.UUID:                      false,
 		disconnectedWithoutCheckoutMac.UUID: false,
 		disconnectedWithoutCheckoutWin.UUID: false,
+	}, connectedMap)
+
+	// Android: enrolled host should be connected
+	connectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-connected",
+		OsqueryHostID: new("osquery-android-connected"),
+		NodeKey:       new("node-key-android-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", false)
+	require.NoError(t, err)
+
+	// Android: host without MDM enrollment should not be connected
+	notConnectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-not-connected",
+		OsqueryHostID: new("osquery-android-not-connected"),
+		NodeKey:       new("node-key-android-not-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	// Android: unenrolled host (enrolled=false) should not be connected
+	unenrolledAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-unenrolled",
+		OsqueryHostID: new("osquery-android-unenrolled"),
+		NodeKey:       new("node-key-android-unenrolled"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", false)
+	require.NoError(t, err)
+
+	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+		connectedMac,
+		connectedWin,
+		connectedAndroid,
+		notConnectedAndroid,
+		unenrolledAndroid,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		connectedMac.UUID:        true,
+		connectedWin.UUID:        true,
+		connectedAndroid.UUID:    true,
+		notConnectedAndroid.UUID: false,
+		unenrolledAndroid.UUID:   false,
 	}, connectedMap)
 }
 
@@ -5911,4 +5965,28 @@ func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, ndesProfileDetail)
 	require.Equal(t, fleet.CAConfigNDES, ndesProfileDetail.Type)
+}
+
+func testListMDMCommandsByHostIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("non-supported platforms return empty list", func(t *testing.T) {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "non-supported-platform-host",
+			OsqueryHostID: new("osquery-linux-unsupported"),
+			NodeKey:       new("node-key-linux-unsupported"),
+			UUID:          uuid.NewString(),
+			Platform:      "linux",
+		})
+		require.NoError(t, err)
+
+		commands, _, _, err := ds.listMDMCommandsByHostIdentifier(ctx, fleet.TeamFilter{
+			User:            test.UserAdmin,
+			IncludeObserver: true,
+		}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{
+			HostIdentifier: h.UUID,
+		}})
+		require.NoError(t, err)
+		require.Empty(t, commands)
+	})
 }

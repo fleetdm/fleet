@@ -3,8 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -152,6 +158,85 @@ spec:
 				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
 				assert.Equal(t, c.want, got)
 			}
+		})
+	}
+}
+
+func TestExtractMacOSAssetSpecs(t *testing.T) {
+	// GitOps decodes macos_settings into a fleet.MacOSSettings struct. Whenever
+	// the struct is present, assets must be reconciled (a nil/empty asset set
+	// clears existing assets), so the extractor returns a non-nil slice.
+	t.Run("gitops struct, no assets => non-nil empty (reconcile to empty)", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(fleet.MacOSSettings{CustomSettings: []fleet.MDMProfileSpec{{Path: "a"}}})
+		require.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+	t.Run("gitops struct with assets", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(fleet.MacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
+		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
+	})
+	t.Run("gitops struct pointer with assets", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(&fleet.MacOSSettings{Assets: []fleet.MDMProfileSpec{{Path: "x"}}})
+		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
+	})
+	// Legacy fleetctl apply passes a raw map; there the assets key drives
+	// behavior: absent means "leave untouched" (nil), present means reconcile.
+	t.Run("legacy map, no assets key => nil (leave untouched)", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(map[string]any{"custom_settings": []any{}})
+		assert.Nil(t, got)
+	})
+	t.Run("legacy map, empty assets => non-nil empty", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(map[string]any{"assets": []any{}})
+		require.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+	t.Run("legacy map with assets", func(t *testing.T) {
+		got := extractMacOSAssetSpecs(map[string]any{"assets": []any{map[string]any{"path": "x"}}})
+		assert.Equal(t, []fleet.MDMProfileSpec{{Path: "x"}}, got)
+	})
+	t.Run("unrelated type => nil", func(t *testing.T) {
+		assert.Nil(t, extractMacOSAssetSpecs("nope"))
+	})
+}
+
+func TestExtractTmSpecsMDMAssets(t *testing.T) {
+	cases := []struct {
+		desc string
+		spec string
+		// want is the expected value keyed by team name; nil means the team must
+		// be absent from the result map (assets left untouched).
+		want map[string][]fleet.MDMProfileSpec
+	}{
+		{
+			"macos_settings absent => untouched",
+			`{"name":"T1","mdm":{}}`,
+			nil,
+		},
+		{
+			"macos_settings present, no assets => reconcile to empty (clear)",
+			`{"name":"T1","mdm":{"macos_settings":{"custom_settings":[]}}}`,
+			map[string][]fleet.MDMProfileSpec{"T1": {}},
+		},
+		{
+			"macos_settings present, empty assets => reconcile to empty (clear)",
+			`{"name":"T1","mdm":{"macos_settings":{"assets":[]}}}`,
+			map[string][]fleet.MDMProfileSpec{"T1": {}},
+		},
+		{
+			"macos_settings present with assets",
+			`{"name":"T1","mdm":{"macos_settings":{"assets":[{"path":"x"}]}}}`,
+			map[string][]fleet.MDMProfileSpec{"T1": {{Path: "x"}}},
+		},
+		{
+			"empty team name => skipped",
+			`{"name":"","mdm":{"macos_settings":{"assets":[]}}}`,
+			nil,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got := extractTmSpecsMDMAssets([]json.RawMessage{json.RawMessage(c.spec)})
+			assert.Equal(t, c.want, got)
 		})
 	}
 }
@@ -1002,6 +1087,51 @@ func TestGetProfilesContents(t *testing.T) {
 	}
 }
 
+func TestGetProfilesContentsActivation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	activation := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.act","Payload":{"StandardConfigurations":["com.example.decl"]}}`)
+	activationPath := filepath.Join(tempDir, "activation.json")
+	require.NoError(t, os.WriteFile(activationPath, activation, 0o644))
+
+	declPath := filepath.Join(tempDir, "decl.json")
+	require.NoError(t, os.WriteFile(declPath,
+		[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.decl","Payload":{}}`), 0o644))
+
+	mobileconfigPath := filepath.Join(tempDir, "profile.mobileconfig")
+	require.NoError(t, os.WriteFile(mobileconfigPath, mobileconfigForTest("bar", "I"), 0o644))
+
+	t.Run("declaration carries the activation contents", func(t *testing.T) {
+		got, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath, Activation: activationPath}}, nil, nil, false)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, activation, got[0].Activation)
+	})
+
+	t.Run("no activation leaves the payload field empty", func(t *testing.T) {
+		got, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath}}, nil, nil, false)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Empty(t, got[0].Activation)
+	})
+
+	t.Run("mobileconfig with an activation is rejected", func(t *testing.T) {
+		_, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: mobileconfigPath, Activation: activationPath}}, nil, nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "activation is only supported for declaration (DDM) profiles")
+	})
+
+	t.Run("unreadable activation file reports the path", func(t *testing.T) {
+		_, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath, Activation: filepath.Join(tempDir, "missing.json")}}, nil, nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "reading activation")
+	})
+}
+
 func TestGitOpsErrors(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -1222,6 +1352,106 @@ func TestEnsureHistoricalDataDefaults(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantValue, tt.features["historical_data"])
+		})
+	}
+}
+
+func TestApplySoftwareInstallersProgress(t *testing.T) {
+	pkg := func(name string, status fleet.SoftwarePackageDownloadStatus) fleet.SoftwarePackageDownloadProgress {
+		return fleet.SoftwarePackageDownloadProgress{Name: name, Status: status}
+	}
+	poll := func(status string, progress ...fleet.SoftwarePackageDownloadProgress) batchSetSoftwareInstallersResultResponse {
+		return batchSetSoftwareInstallersResultResponse{Status: status, DownloadProgress: progress}
+	}
+	// Fakes the batch endpoints, handing out one scripted response per poll.
+	newClient := func(t *testing.T, polls []batchSetSoftwareInstallersResultResponse) *Client {
+		var mu sync.Mutex
+		var polled int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.Method == "POST" {
+				_ = json.NewEncoder(w).Encode(batchSetSoftwareInstallersResponse{RequestUUID: "test-uuid"})
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			_ = json.NewEncoder(w).Encode(polls[min(polled, len(polls)-1)])
+			polled++
+		}))
+		t.Cleanup(srv.Close)
+		client, err := NewClient(srv.URL, true, "", "")
+		require.NoError(t, err)
+		client.SetToken("test-token")
+		return client
+	}
+
+	processing, completed := fleet.BatchSetSoftwareInstallersStatusProcessing, fleet.BatchSetSoftwareInstallersStatusCompleted
+	downloading, downloaded := fleet.SoftwarePackageDownloadStarted, fleet.SoftwarePackageDownloadFinished
+
+	testCases := []struct {
+		name      string
+		polls     []batchSetSoftwareInstallersResultResponse
+		wantLines []string
+	}{
+		{
+			// A package keeps its entry for the rest of the batch, so a line that already
+			// printed must not print again on the next poll.
+			name: "prints each line once however often it polls",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("zoom.pkg", downloading)),
+				poll(processing, pkg("zoom.pkg", downloaded), pkg("slack.pkg", downloading)),
+				poll(completed, pkg("zoom.pkg", downloaded), pkg("slack.pkg", downloaded)),
+			},
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+				"[+] downloading software package - slack.pkg ...",
+				"[+] downloaded software package - slack.pkg",
+			},
+		},
+		{
+			// Fleet already has the bytes, so there is no download to report.
+			name:  "a package already in storage reports the skip and no download",
+			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", fleet.SoftwarePackageDownloadSkipped))},
+			wantLines: []string{
+				"[+] skipped downloading the software package (already in storage) - zoom.pkg",
+			},
+		},
+		{
+			// The same maintained app for two platforms carries one name.
+			name: "two packages sharing a name each report",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("OneDrive", downloaded), pkg("OneDrive", downloading)),
+				poll(completed, pkg("OneDrive", downloaded), pkg("OneDrive", downloaded)),
+			},
+			wantLines: []string{
+				"[+] downloading software package - OneDrive ...",
+				"[+] downloaded software package - OneDrive",
+				"[+] downloading software package - OneDrive ...",
+				"[+] downloaded software package - OneDrive",
+			},
+		},
+		{
+			name:  "packages the batch never downloads stay silent",
+			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, fleet.SoftwarePackageDownloadProgress{}, pkg("zoom.pkg", downloaded), fleet.SoftwarePackageDownloadProgress{})},
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			var lines []string
+			logFn := func(format string, args ...any) {
+				lines = append(lines, strings.TrimSuffix(fmt.Sprintf(format, args...), "\n"))
+			}
+
+			client := newClient(t, tt.polls)
+			_, _, _, err := client.applySoftwareInstallers(nil, url.Values{}, false, logFn)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantLines, lines)
 		})
 	}
 }

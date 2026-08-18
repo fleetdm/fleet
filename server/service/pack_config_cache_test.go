@@ -79,6 +79,11 @@ func setupPackConfigCacheTest(t *testing.T) (
 		}, nil
 	}
 
+	// No label-scoped queries by default (cache is safe to use).
+	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+		return false, nil
+	}
+
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
@@ -328,4 +333,59 @@ func TestPackConfigCacheLegacyPacksBypass(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, callCounter.Load(), callsAfterFirst,
 		"expected DB call even on second request when legacy packs are present")
+}
+
+// TestPackConfigCacheLabelScopedBypass verifies that when label-scoped scheduled
+// queries exist, the pack config cache is bypassed (every call hits the DB),
+// and when no label-scoped queries exist, the cache works normally.
+func TestPackConfigCacheLabelScopedBypass(t *testing.T) {
+	svc, ds, callCounter := setupPackConfigCacheTest(t)
+
+	// Override: label-scoped queries exist.
+	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+		return true, nil
+	}
+
+	host := &fleet.Host{ID: 1}
+	ctx := hostctx.NewContext(t.Context(), host)
+
+	// First call -- cache bypass due to label scoping, hits DB
+	// (ListScheduledQueriesForAgents is called for global + team queries).
+	_, err := svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	callsAfterFirst := callCounter.Load()
+	require.Positive(t, callsAfterFirst, "expected at least one ListScheduledQueriesForAgents call")
+	assert.True(t, ds.HasLabelScopedScheduledQueriesFuncInvoked,
+		"expected HasLabelScopedScheduledQueries to be called")
+	assert.True(t, ds.ListScheduledQueriesForAgentsFuncInvoked,
+		"expected ListScheduledQueriesForAgents to be called on cache bypass")
+
+	// Second call -- should still hit DB because label-scoped queries bypass cache.
+	_, err = svc.GetClientConfig(ctx)
+	require.NoError(t, err)
+	assert.Greater(t, callCounter.Load(), callsAfterFirst,
+		"expected ListScheduledQueriesForAgents call even on second request when label-scoped queries exist")
+
+	// Now switch to no label scoping -- cache should work again.
+	ds.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+		return false, nil
+	}
+
+	// Use a team host to get a different cache key (cold cache).
+	teamHost := &fleet.Host{ID: 10, TeamID: new(uint(99))}
+	ctxTeam := hostctx.NewContext(t.Context(), teamHost)
+
+	// First call with new cache key -- cache miss, hits DB.
+	callsBeforeTeam := callCounter.Load()
+	_, err = svc.GetClientConfig(ctxTeam)
+	require.NoError(t, err)
+	callsAfterTeamFirst := callCounter.Load()
+	assert.Greater(t, callsAfterTeamFirst, callsBeforeTeam,
+		"expected ListScheduledQueriesForAgents call on cache miss for new team")
+
+	// Second call -- should be a cache hit, no additional DB calls.
+	_, err = svc.GetClientConfig(ctxTeam)
+	require.NoError(t, err)
+	assert.Equal(t, callsAfterTeamFirst, callCounter.Load(),
+		"expected no additional DB calls when label-scoped queries do not exist (cache should work)")
 }

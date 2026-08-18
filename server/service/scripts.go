@@ -132,6 +132,10 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.NewInvalidArgumentError("script", err.Error())
 		}
+		if err := fleet.ValidateFleetVariablesInScript(request.ScriptContents, license.IsPremium(ctx)); err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, err
+		}
 	}
 
 	if request.ScriptName != "" {
@@ -414,6 +418,10 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
+	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+		return nil, err
+	}
+
 	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -617,6 +625,10 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
+	if err := fleet.ValidateFleetVariablesInScript(scriptContents, license.IsPremium(ctx)); err != nil {
+		return nil, err
+	}
+
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -750,6 +762,21 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		if err := script.ValidateNewScript(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
+		}
+
+		// unlike the embedded secrets validation below, this is a static check,
+		// so it runs before the post-loop dryRun return to surface errors on
+		// gitops dry runs (like the rest of this loop, it is skipped when a dry
+		// run targets a team that doesn't exist yet)
+		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+			// re-key validation errors on the indexed field, matching the rest
+			// of this loop, so callers can tell which script failed
+			var argErr *fleet.InvalidArgumentError
+			if errors.As(err, &argErr) && len(argErr.Invalid()) > 0 {
+				return nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), argErr.Invalid()[0]["reason"]))
+			}
+			return nil, ctxerr.Wrap(ctx, err, "validate fleet variables in script")
 		}
 
 		if byName[script.Name] {

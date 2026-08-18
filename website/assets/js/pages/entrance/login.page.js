@@ -95,7 +95,7 @@ parasails.registerPage('login', {
       }
     },
 
-    submittedSignupForm: async function(){
+    submittedSignupForm: async function(cloudResponse){
       this.syncing = true;
       // Track a "key event" in Google Analytics.
       // > Naming convention:  (like sails config)
@@ -108,6 +108,14 @@ parasails.registerPage('login', {
           'value': 1.0,
           'currency': 'USD'
         });
+        // Track a second key event depending the type of Fleet Premium trial they received.
+        if(cloudResponse.isIcpUser) {
+          // For users with a hosted Render trial
+          window.gtag('event','fleet_website__sign_up__icp');
+        } else {
+          // For users with a local Fleet Premium trial.
+          window.gtag('event','fleet_website__sign_up__non_icp');
+        }
       }
 
       // Track a "conversion" in LinkedIn Campaign Manager.

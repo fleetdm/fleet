@@ -143,7 +143,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 					WHERE (h.osquery_host_id = ? OR h.uuid = ?)
 					  AND h.platform = 'windows'
 					  AND h.computer_name <> ''
-					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid IS NULL OR mwe.host_uuid = '')
+					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid = '')
 					ORDER BY mwe.created_at DESC, mwe.id DESC
 					LIMIT 1
 					`
@@ -202,6 +202,7 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	NULL AS in_house_app_id,
 	-- policy_gated: true when the installer has at least one policy whose install-software automation points at it (a gating policy
 	-- used as a gate during setup experience). A policy's software_installer_id already uniquely identifies the installer (and its
 	-- team), so no team check is needed; only gate on Windows/Linux. The specific policy ids are derived from the installer at
@@ -267,6 +268,7 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	NULL AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
 	st.id AS software_title_id
@@ -303,6 +305,7 @@ SELECT
 	'pending' AS status,
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
+	NULL AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
 	st.id AS software_title_id
@@ -330,6 +333,43 @@ AND %s`
 		}
 	}
 
+	// In-house apps (.ipa) install during setup on iOS/iPadOS only. Deliberately
+	// no in_house_app_labels join: labels don't apply during setup (see the
+	// comment on the INSERT below), and a freshly-enrolled host has no computed
+	// label membership yet anyway.
+	if fleetPlatform == "ios" || fleetPlatform == "ipados" {
+		inHouseSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	NULL AS software_installer_id,
+	NULL AS vpp_app_team_id,
+	iha.id AS in_house_app_id,
+	FALSE AS policy_gated,
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
+FROM in_house_apps iha
+INNER JOIN software_titles st
+	ON iha.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
+WHERE iha.install_during_setup = true
+AND iha.global_or_team_id = ?
+AND iha.platform = ?
+AND %s`
+		if resetFailedSetupSteps {
+			inHouseSelect = fmt.Sprintf(inHouseSelect, "iha.id NOT IN (SELECT in_house_app_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND in_house_app_id IS NOT NULL)")
+		} else {
+			inHouseSelect = fmt.Sprintf(inHouseSelect, "TRUE")
+		}
+		softwareUnionParts = append(softwareUnionParts, inHouseSelect)
+		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform)
+		if resetFailedSetupSteps {
+			softwareArgs = append(softwareArgs, hostUUID)
+		}
+	}
+
 	var stmtSoftwareCombined string
 	if len(softwareUnionParts) > 0 {
 		// A title can now hold several packages, and more than one can be flagged for setup. Queue only
@@ -342,9 +382,10 @@ INSERT INTO setup_experience_status_results (
 	status,
 	software_installer_id,
 	vpp_app_team_id,
+	in_house_app_id,
 	policy_gated
 )
-SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, in_house_app_id, policy_gated FROM (
 	SELECT combined.*, ROW_NUMBER() OVER (
 		PARTITION BY software_title_id
 		ORDER BY (software_installer_id IS NULL), software_installer_id ASC
@@ -353,7 +394,7 @@ SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_g
 	) AS combined
 ) AS deduped
 WHERE software_installer_id IS NULL OR first_added_rank = 1
-ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
+ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, in_house_app_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
 	stmtSetupScripts := `
@@ -479,6 +520,23 @@ AND
 AND va.platform IN ('darwin', 'ios', 'ipados', 'android')
 `, titleIDQuestionMarks)
 
+	stmtSelectInHouseAppIDs := fmt.Sprintf(`
+SELECT
+	st.id AS title_id,
+	iha.id,
+	st.name,
+	iha.platform
+FROM
+	software_titles st
+INNER JOIN
+	in_house_apps iha
+	ON st.id = iha.title_id
+WHERE
+	iha.global_or_team_id = ?
+AND
+	st.id IN (%s)
+`, titleIDQuestionMarks)
+
 	stmtUnsetInstallers := `
 UPDATE software_installers
 SET install_during_setup = false
@@ -499,6 +557,16 @@ UPDATE vpp_apps_teams
 SET install_during_setup = true
 WHERE id IN (%s)`
 
+	stmtUnsetInHouseApps := `
+UPDATE in_house_apps
+SET install_during_setup = false
+WHERE platform = ? AND global_or_team_id = ?`
+
+	stmtSetInHouseApps := `
+UPDATE in_house_apps
+SET install_during_setup = true
+WHERE id IN (%s)`
+
 	// Cross-platform selections (e.g. linux .sh chosen for darwin) live in their own
 	// table so they don't share install_during_setup with the installer's native platform.
 	stmtUnsetCrossInstallers := `
@@ -516,6 +584,8 @@ VALUES %s`
 		var crossSoftwareIDs []any
 		var vppIDPlatforms []idPlatformTuple
 		var vppAppTeamIDs []any
+		var inHouseIDPlatforms []idPlatformTuple
+		var inHouseAppIDs []any
 		// List of title IDs that were sent but aren't in the
 		// database. We add everything and then remove them
 		// from the list when we validate them below
@@ -570,6 +640,26 @@ VALUES %s`
 					})
 				}
 				vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
+			}
+		}
+
+		// Select requested in-house apps; setup experience only supports them on iOS/iPadOS.
+		if platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+			if len(titleIDs) > 0 {
+				if err := sqlx.SelectContext(ctx, tx, &inHouseIDPlatforms, stmtSelectInHouseAppIDs, titleIDAndTeam...); err != nil {
+					return ctxerr.Wrap(ctx, err, "selecting in-house app IDs using title IDs")
+				}
+			}
+
+			// Validate in-house app platforms
+			for _, tuple := range inHouseIDPlatforms {
+				delete(missingTitleIDs, tuple.TitleID)
+				if tuple.Platform != platform {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("invalid platform for requested in-house app title: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
+					})
+				}
+				inHouseAppIDs = append(inHouseAppIDs, tuple.ID)
 			}
 		}
 
@@ -630,6 +720,19 @@ VALUES %s`
 			}
 		}
 
+		if platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+			if _, err := tx.ExecContext(ctx, stmtUnsetInHouseApps, platform, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unsetting in-house apps")
+			}
+
+			if len(inHouseAppIDs) > 0 {
+				stmtSetInHouseAppsLoop := fmt.Sprintf(stmtSetInHouseApps, questionMarks(len(inHouseAppIDs)))
+				if _, err := tx.ExecContext(ctx, stmtSetInHouseAppsLoop, inHouseAppIDs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house apps")
+				}
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting setup experience software")
@@ -664,7 +767,14 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 			SELECT COUNT(*)
 			FROM setup_experience_scripts
 			WHERE global_or_team_id = ?
-		) AS scripts`
+		) AS scripts,
+		(
+			SELECT COUNT(*)
+			FROM in_house_apps
+			WHERE global_or_team_id = ?
+			AND platform = ?
+			AND install_during_setup = 1
+		) AS in_house_apps`
 
 	var globalOrTeamID uint
 	if teamID != nil {
@@ -678,6 +788,7 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 		globalOrTeamID, platform,
 		globalOrTeamID, platform,
 		globalOrTeamID,
+		globalOrTeamID, platform,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting setup experience counts")
 	}
@@ -750,16 +861,18 @@ SELECT
 	sesr.host_software_installs_execution_id,
 	sesr.vpp_app_team_id,
 	sesr.nano_command_uuid,
+	sesr.in_house_app_id,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
 	sesr.policy_gated,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
-	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+	COALESCE(si.title_id, va.title_id, iha.title_id) AS software_title_id,
 	COALESCE(
 		(SELECT source FROM software_titles WHERE id = si.title_id),
-		(SELECT source FROM software_titles WHERE id = va.title_id)
+		(SELECT source FROM software_titles WHERE id = va.title_id),
+		(SELECT source FROM software_titles WHERE id = iha.title_id)
 	) AS source,
     CASE
         WHEN hsi.execution_status = 'failed_install' THEN
@@ -779,6 +892,7 @@ LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_in
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
 LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
+LEFT JOIN in_house_apps iha ON iha.id = sesr.in_house_app_id
 WHERE host_uuid = ?
 ORDER BY sesr.id
 	`
@@ -958,7 +1072,8 @@ WHERE
 	return &script, nil
 }
 
-func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) (bool, error) {
+	var changed bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
@@ -991,11 +1106,14 @@ func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet
 		}
 
 		// then create the script entity
-		_, err = insertSetupExperienceScript(ctx, tx, script, uint(id)) // nolint: gosec
-		return err
+		if _, err = insertSetupExperienceScript(ctx, tx, script, uint(id)); err != nil { // nolint: gosec
+			return err
+		}
+		changed = true
+		return nil
 	})
 
-	return err
+	return changed, err
 }
 
 func insertSetupExperienceScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {

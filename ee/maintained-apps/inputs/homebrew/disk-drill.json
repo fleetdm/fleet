@@ -6,5 +6,6 @@
   "slug": "disk-drill/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

@@ -1,6 +1,5 @@
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import React from "react";
 
 const baseClass = "cert-authority-list-header";
@@ -21,15 +20,12 @@ const CertAuthorityListHeader = ({
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
-              variant="inverse"
+              variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddCertAuthority}
-              iconStroke
+              icon="plus"
             >
-              <>
-                <Icon name="plus" />
-                Add CA
-              </>
+              Add CA
             </Button>
           )}
         />

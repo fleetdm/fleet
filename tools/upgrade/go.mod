@@ -1,19 +1,19 @@
 module github.com/fleetdm/fleet/v4/tools/upgrade
 
-go 1.26.5
+go 1.26.6
 
 // The parent fleet module is pinned to the local checkout so this
 // standalone upgrade test can import fleethttp and the service client.
-// Keeping it as its own module keeps the docker/docker dependency out of
+// Keeping it as its own module keeps the Docker client dependency out of
 // the main fleet module (it is only ever used by this test).
 replace github.com/fleetdm/fleet/v4 => ../..
 
 require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
-	github.com/docker/docker v28.0.0+incompatible
 	github.com/fleetdm/fleet/v4 v4.0.0-00010101000000-000000000000
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/moby/moby/client v0.5.1
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -26,7 +26,6 @@ require (
 	cloud.google.com/go/pubsub v1.50.1 // indirect
 	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
@@ -68,11 +67,13 @@ require (
 	github.com/cavaliergopher/rpm v1.2.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/crewjam/saml v0.5.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dunglas/httpsfv v1.0.2 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
@@ -98,7 +99,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomodule/oauth1 v0.2.0 // indirect
@@ -128,6 +128,7 @@ require (
 	github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87 // indirect
 	github.com/mna/redisc v1.3.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/moby/api v1.55.0 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/nats.go v1.49.0 // indirect
@@ -140,7 +141,6 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/oschwald/geoip2-golang v1.8.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -198,20 +198,20 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
-	golang.org/x/image v0.42.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/oauth2 v0.35.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/api v0.269.0 // indirect
 	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260203192932-546029d2fa20 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/grpc v1.82.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/guregu/null.v3 v3.5.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect

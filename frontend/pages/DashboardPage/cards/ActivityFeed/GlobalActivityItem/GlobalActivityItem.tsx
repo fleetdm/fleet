@@ -97,6 +97,30 @@ const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
   );
 };
 
+const getEditedProfileMessage = (
+  activity: IActivity,
+  isPremiumTier: boolean,
+  platform: "apple" | "windows" | "android"
+) => {
+  const profileName = activity.details?.profile_name;
+  const suffix = getProfileMessageSuffix(
+    isPremiumTier,
+    platform,
+    activity.details?.team_name
+  );
+  // profile_name is set only when a single profile was edited in place;
+  // fleetctl/GitOps batch edits omit it
+  if (profileName) {
+    return (
+      <>
+        {" "}
+        edited the configuration profile <b>{profileName}</b> for {suffix}.
+      </>
+    );
+  }
+  return <> edited configuration profiles for {suffix} via fleetctl.</>;
+};
+
 // Returns the display label for a historical-dataset config key. Known keys
 // resolve via DATASET_LABEL; unknown keys fall back to a sentence-cased
 // version of the raw key so future datasets render reasonably even before
@@ -238,6 +262,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  userMFARequested: (activity: IActivity) => {
+    const { email, public_ip } = activity.details || {};
+
+    const actor = email ? (
+      <>
+        Somebody using <b>{email}</b>
+      </>
+    ) : (
+      <>Somebody</>
+    );
+
+    return (
+      <>
+        {actor} submitted valid credentials for an MFA-enabled account and was
+        sent a verification email from public IP {public_ip}.
+      </>
+    );
+  },
   userCreated: (activity: IActivity) => {
     return activity.actor_id === activity.details?.user_id ? (
       <>activated their account.</>
@@ -265,8 +307,10 @@ const TAGGED_TEMPLATES = {
           <TooltipWrapper
             tipContent={
               <>
-                The host expiry window configured in <br />
-                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+                The host expiry window configured in{" "}
+                <strong>
+                  Settings &gt; Organization settings &gt; Advanced options
+                </strong>
               </>
             }
           >
@@ -479,6 +523,19 @@ const TAGGED_TEMPLATES = {
       <>unassigned</>
     );
 
+    // "latest" isn't a minimum -- the target floats with what Apple publishes --
+    // so the sentence drops "the minimum" rather than contradicting itself.
+    // There's no deadline to report either: it's derived from deadline_days,
+    // which the activity doesn't record.
+    if (activity.details?.minimum_version === "latest") {
+      return (
+        <>
+          {editedActivity} {applePlatform} version to <b>latest</b> on hosts
+          assigned to {teamSection}.
+        </>
+      );
+    }
+
     return (
       <>
         {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
@@ -573,31 +630,39 @@ const TAGGED_TEMPLATES = {
     );
   },
   enabledManagedLocalAccount: (activity: IActivity) => {
+    // activities created before the platform detail existed omit it, which means macOS
+    const platformDisplay =
+      PLATFORM_DISPLAY_NAMES[activity.details?.platform ?? "darwin"];
     return (
       <>
         {" "}
         enabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+            {platformDisplay} hosts assigned to the{" "}
+            <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "unassigned hosts."
+          `unassigned ${platformDisplay} hosts.`
         )}
       </>
     );
   },
   disabledManagedLocalAccount: (activity: IActivity) => {
+    // activities created before the platform detail existed omit it, which means macOS
+    const platformDisplay =
+      PLATFORM_DISPLAY_NAMES[activity.details?.platform ?? "darwin"];
     return (
       <>
         {" "}
         disabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+            {platformDisplay} hosts assigned to the{" "}
+            <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "unassigned hosts."
+          `unassigned ${platformDisplay} hosts.`
         )}
       </>
     );
@@ -685,18 +750,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited configuration profiles for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
-    );
+    return getEditedProfileMessage(activity, isPremiumTier, "apple");
   },
   createdAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
@@ -745,18 +799,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited configuration profiles for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "android",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
-    );
+    return getEditedProfileMessage(activity, isPremiumTier, "android");
   },
   editedAndroidCertificate: (activity: IActivity, isPremiumTier: boolean) => {
     return (
@@ -858,18 +901,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited configuration profiles for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "windows",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
-    );
+    return getEditedProfileMessage(activity, isPremiumTier, "windows");
   },
   enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
@@ -1077,6 +1109,15 @@ const TAGGED_TEMPLATES = {
   disabledGitOpsException: (activity: IActivity) => {
     const exception = activity.details?.exception ?? "";
     return `disabled the ${exception} exception for GitOps.`;
+  },
+  editedWindowsEnrollmentDefaultFleet: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited the default fleet for Windows hosts to{" "}
+        <b>{activity.details?.fleet_name || "Unassigned"}</b>.
+      </>
+    );
   },
   enabledWindowsMdmMigration: () => {
     return (
@@ -1376,19 +1417,24 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited declaration (DDM) profiles{" "}
-        <b>{activity.details?.profile_name}</b> for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
+    const profileName = activity.details?.profile_name;
+    const suffix = getProfileMessageSuffix(
+      isPremiumTier,
+      "apple",
+      activity.details?.team_name
     );
+    // profile_name is set only when a single declaration was edited in
+    // place; fleetctl/GitOps batch edits omit it
+    if (profileName) {
+      return (
+        <>
+          {" "}
+          edited the declaration (DDM) profile <b>{profileName}</b> for {suffix}
+          .
+        </>
+      );
+    }
+    return <> edited declaration (DDM) profiles for {suffix} via fleetctl.</>;
   },
 
   resentConfigProfile: (activity: IActivity) => {
@@ -1482,12 +1528,22 @@ const TAGGED_TEMPLATES = {
       source,
       self_service,
       from_setup_experience,
+      skipped_install,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+
+    if (skipped_install) {
+      return (
+        <>
+          {" "}
+          skipped install of <b>{title}</b> on <b>{hostName}</b>.
+        </>
+      );
+    }
 
     // Self-service actions: drop the actor and switch to passive voice so the
     // sentence reads "<title> was installed on <host> (self-service)." without
@@ -1503,8 +1559,8 @@ const TAGGED_TEMPLATES = {
             isScriptPackageSource
           )}{" "}
           on <b>{hostName}</b>
-          {from_setup_experience ? " during setup experience" : ""}{" "}
-          (self-service).
+          {from_setup_experience ? " during setup experience" : ""} (self
+          service).
         </>
       );
     }
@@ -1545,7 +1601,7 @@ const TAGGED_TEMPLATES = {
           <b>{title}</b>
           {showSoftwarePackage && ` (${details.software_package})`}{" "}
           {getInstallUninstallStatusPredicatePassive(status)} on{" "}
-          <b>{hostName}</b> (self-service).
+          <b>{hostName}</b> (self service).
         </>
       );
     }
@@ -1573,7 +1629,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        <b>End user</b> installed all the software in self-service.
+        <b>End user</b> installed all the software in self service.
       </>
     );
   },
@@ -1618,7 +1674,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -1637,7 +1694,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}on{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -1656,7 +1714,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}from{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -2109,6 +2168,40 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdSetupExperienceScript: (activity: IActivity) => {
+    const { script_name, fleet_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        added setup experience script <b>{script_name}</b> for{" "}
+        {fleet_name ? (
+          <>
+            the <b>{fleet_name}</b> fleet
+          </>
+        ) : (
+          `unassigned`
+        )}
+        .
+      </>
+    );
+  },
+  deletedSetupExperienceScript: (activity: IActivity) => {
+    const { script_name, fleet_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        deleted setup experience script <b>{script_name}</b> for{" "}
+        {fleet_name ? (
+          <>
+            the <b>{fleet_name}</b> fleet
+          </>
+        ) : (
+          `unassigned`
+        )}
+        .
+      </>
+    );
+  },
   editedHostIdpData: (activity: IActivity) => {
     const { host_display_name, host_idp_username } = activity.details || {};
     const removed = host_idp_username === "";
@@ -2208,6 +2301,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  releasedDeviceFromAB: (activity: IActivity) => {
+    return (
+      <>
+        released <b>{activity.details?.host_display_name}</b> from Apple
+        Business.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2241,6 +2342,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.UserFailedLogin: {
       return TAGGED_TEMPLATES.userFailedLogin(activity);
+    }
+    case ActivityType.UserMFARequested: {
+      return TAGGED_TEMPLATES.userMFARequested(activity);
     }
     case ActivityType.UserCreated: {
       return TAGGED_TEMPLATES.userCreated(activity);
@@ -2453,6 +2557,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
+    }
+    case ActivityType.EditedWindowsEnrollmentDefaultFleet: {
+      return TAGGED_TEMPLATES.editedWindowsEnrollmentDefaultFleet(activity);
     }
     case ActivityType.RanCustomMdmCommand: {
       return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
@@ -2677,6 +2784,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
     }
+    case ActivityType.CreatedSetupExperienceScript: {
+      return TAGGED_TEMPLATES.createdSetupExperienceScript(activity);
+    }
+    case ActivityType.DeletedSetupExperienceScript: {
+      return TAGGED_TEMPLATES.deletedSetupExperienceScript(activity);
+    }
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
     }
@@ -2706,6 +2819,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.FailedEnrollmentProfileRenewal: {
       return TAGGED_TEMPLATES.failedEnrollmentRenewalProfile(activity);
+    }
+    case ActivityType.ReleasedDeviceFromAB: {
+      return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -2753,6 +2869,10 @@ const GlobalActivityItem = ({
         return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.
+        return null;
+      case ActivityType.UserMFARequested:
+        // The template carries its own "Somebody"/"Somebody using <email>"
+        // subject, so no actor-name prefix should be rendered.
         return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the

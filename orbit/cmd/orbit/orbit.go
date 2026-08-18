@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/managedaccount"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -250,6 +251,11 @@ func main() {
 			Name:    "disable-setup-experience",
 			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
+		},
+		&cli.BoolFlag{
+			Name:    "bypass-end-user-auth",
+			Usage:   "Bypasses end-user authentication during fleetd enrollment on Linux and Windows",
+			EnvVars: []string{"ORBIT_BYPASS_END_USER_AUTH"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -1169,6 +1175,14 @@ func orbitAction(c *cli.Context) error {
 		)
 	}
 
+	// Bypass end-user authentication only when there is no EUA token to process. When the Windows MDM installer supplies
+	// an EUA token, the user already authenticated during MDM enrollment and the server links the host's IdP account
+	// from that token. Processing the token requires that orbit keep advertising the end-user auth capability, so a
+	// present token takes precedence over the bypass flag.
+	euaToken := c.String("eua-token")
+	hasEUAToken := euaToken != "" && euaToken != constant.UnusedFlagKeyword
+	bypassEndUserAuth := c.Bool("bypass-end-user-auth") && !hasEUAToken
+
 	orbitClient, err = fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
@@ -1187,6 +1201,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		signerWrapper,
 		hostIdentityCertificatePath,
+		bypassEndUserAuth,
 	)
 	if err != nil {
 		return fmt.Errorf("error new orbit client: %w", err)
@@ -1204,7 +1219,7 @@ func orbitAction(c *cli.Context) error {
 
 	// Set the EUA token from the MSI installer (Windows MDM enrollment).
 	// Must be set before any authenticated request triggers enrollment.
-	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != constant.UnusedFlagKeyword {
+	if hasEUAToken {
 		orbitClient.SetEUAToken(euaToken)
 	}
 
@@ -1221,6 +1236,9 @@ func orbitAction(c *cli.Context) error {
 		// windowsMDMSyncCommandFrequency throttles on-demand OMA-DM syncs: while a command stays queued the server keeps setting
 		// WindowsMDMSyncRequest on each config poll, and this bounds how often we act on it.
 		windowsMDMSyncCommandFrequency = time.Minute
+		// windowsManagedAccountRetryFrequency paces retries when the managed local account cannot be
+		// provisioned, for instance because the host's password policy rejects the generated password.
+		windowsManagedAccountRetryFrequency = time.Hour
 	)
 
 	scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
@@ -1300,6 +1318,7 @@ func orbitAction(c *cli.Context) error {
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
@@ -1448,6 +1467,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		nil,
 		"",
+		bypassEndUserAuth,
 	)
 	if err != nil {
 		return fmt.Errorf("new client for capabilities checker: %w", err)
