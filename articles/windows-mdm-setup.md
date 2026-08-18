@@ -92,7 +92,7 @@ During enrollment, end users are prompted to set up Windows Hello and add a PIN.
 
 After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Entra, your organization needs a Microsoft Enterprise Mobility + Security E3 subscription. You don't need to assign this license to your own admin account: Intune supports unlicensed admin access, so you can configure automatic enrollment and Autopilot from an admin account with no license assigned. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
+In order to connect Fleet to Entra, your organization needs a Microsoft Enterprise Mobility + Security E3 subscription. You don't need to assign this license to your own admin account: Intune supports unlicensed admin access, so you can configure automatic enrollment and Autopilot from an admin account with no license assigned. Each end user who automatically enrolls or manually turns on MDM needs at least a Microsoft Entra ID P1 license. Microsoft's [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing) list "Microsoft Entra ID P1 or P2 and Microsoft Intune subscription or an alternative MDM service" as a supported combination. If your end users already have an E3 or E5 license then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
@@ -246,22 +246,6 @@ Microsoft documents every setting on that page in [Configure Autopilot profiles]
 Use user-driven mode. Self-deploying mode and pre-provisioning enroll the device without a user signing in, which Fleet doesn't support.
 
 Edit your existing profile rather than creating a second one. Where a device group is assigned more than one profile, Autopilot applies the oldest profile, which is difficult to troubleshoot.
-
-#### Verify
-
-Reset the device, boot it into OOBE, and sign in as an end user. After setup finishes, open a command prompt and run:
-
-```
-net localgroup administrators
-```
-
-The signed-in user should not appear in the output.
-
-#### Licensing
-
-Each end user who signs in during Autopilot needs a Microsoft Entra ID P1 or P2 license, as described in Step 1 above. End users don't need a Microsoft Intune license. Microsoft's [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing) list Entra ID P1 or P2 plus an Intune subscription or an alternative MDM service as a supported combination. Fleet is the alternative MDM service.
-
-Autopilot deployment profiles are created in the Microsoft Intune admin center, so your organization needs an Intune subscription in the tenant. That subscription doesn't need to be assigned to anyone. Intune allows administrators to sign in and manage without an assigned license, and this is on by default for tenants created after July 2021. Tenants created before July 2021 turn it on under **Tenant administration > Roles > Administrator Licensing**. Microsoft covers the details and the limits in [Unlicensed administrator access](https://learn.microsoft.com/en-us/intune/fundamentals/licensing/unlicensed-admins). The setting can't be undone, so confirm with whoever owns your tenant before you change it.
 
 #### What this doesn't cover
 
