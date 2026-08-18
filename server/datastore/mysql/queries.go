@@ -1039,6 +1039,36 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	return results, nil
 }
 
+func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+	stmt := `
+		SELECT EXISTS(
+			SELECT 1 FROM query_labels ql
+			JOIN queries q ON q.id = ql.query_id
+			WHERE q.saved = true
+			AND q.schedule_interval > 0
+			AND (
+				q.automations_enabled
+				OR
+				(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
+			)
+			AND %s
+		)`
+
+	args := []any{queryReportsDisabled, fleet.LoggingSnapshot}
+	teamSQL := "q.team_id IS NULL"
+	if teamID != nil {
+		teamSQL = "(q.team_id IS NULL OR q.team_id = ?)"
+		args = append(args, *teamID)
+	}
+	stmt = fmt.Sprintf(stmt, teamSQL)
+
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check label-scoped scheduled queries")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error {
 	deleteStmt := "DELETE FROM query_results"
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
