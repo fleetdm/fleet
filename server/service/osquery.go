@@ -442,8 +442,6 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 		}
 	}
 
-	// TODO(lucas): Won't this break older agents and vanilla osquery hosts?
-	//
 	// When the WebSocket transport is enabled (ADR-0011), orbit points osquery
 	// at its own distributed plugin via the command line. Fleet's default agent
 	// options include `distributed_plugin: tls` as a config option, which
