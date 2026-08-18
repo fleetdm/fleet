@@ -1,11 +1,12 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { render as renderComponent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createCustomRenderer } from "test/test-utils";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
+import { AppContext, IAppContext } from "context/app";
 
 import PackageForm from "./PackageForm";
 
@@ -172,6 +173,32 @@ describe("PackageForm", () => {
       // GitOps mode hides the selector, so the user can't pick labels. A
       // preselected "Custom" would leave Save disabled with nothing on screen
       // to explain why.
+      expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    });
+
+    it("normalizes the target when config arrives after mount", async () => {
+      // `config` is fetched asynchronously and App renders its children before
+      // it resolves, so GitOps mode is often unknown on the first render and
+      // the form mounts holding the preselected "Custom". Rendering through
+      // AppContext directly is what lets the config value change afterwards.
+      const renderWithConfig = (config: Partial<IConfig> | null) => (
+        <AppContext.Provider
+          value={({ config, isPremiumTier: true } as unknown) as IAppContext}
+        >
+          <PackageForm
+            {...BASE_PROPS}
+            multiPackageContext
+            initialTargetType="Custom"
+          />
+        </AppContext.Provider>
+      );
+
+      const { container, rerender } = renderComponent(renderWithConfig(null));
+      rerender(renderWithConfig(gitOpsConfig));
+
+      await selectFileOfSize(container, 1024);
+
       expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
     });

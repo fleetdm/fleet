@@ -208,14 +208,7 @@ const PackageForm = ({
     postInstallScript: defaultPostInstallScript || "",
     uninstallScript: defaultUninstallScript || "",
     selfService: defaultSelfService || false,
-    // GitOps mode hides the target selector, so a preselected "Custom" would
-    // demand labels the user has no way to pick and the form could never
-    // validate — leaving Save permanently disabled with nothing on screen to
-    // explain it. Targeting comes from YAML in that mode, so fall back to the
-    // normal default.
-    targetType:
-      (gitOpsModeEnabled ? undefined : initialTargetType) ??
-      getTargetType(defaultSoftware),
+    targetType: initialTargetType ?? getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
     automaticInstall: false,
@@ -227,6 +220,28 @@ const PackageForm = ({
     isValid: false,
     software: { isValid: false },
   });
+
+  // GitOps mode hides the target selector, so a "Custom" target with no labels
+  // can never be satisfied: the picker that would fix it isn't rendered, and
+  // Save stays disabled with nothing on screen to explain why. Targeting comes
+  // from YAML in that mode, so normalize to the default instead.
+  //
+  // This runs as an effect rather than in the initial state because `config`
+  // loads asynchronously — GitOps mode often isn't known yet on first render.
+  // Rows that already carry labels (the edit flow) are left alone so their
+  // targeting isn't silently dropped.
+  useEffect(() => {
+    if (!gitOpsModeEnabled) {
+      return;
+    }
+    setFormData((prev) => {
+      const hasLabelTargets = Object.values(prev.labelTargets).some(Boolean);
+      if (prev.targetType !== "Custom" || hasLabelTargets) {
+        return prev;
+      }
+      return { ...prev, targetType: "All hosts" };
+    });
+  }, [gitOpsModeEnabled]);
 
   const notifyTooLarge = () => {
     const errorPrefix = isEditingSoftware
