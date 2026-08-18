@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -129,15 +130,12 @@ ON DUPLICATE KEY UPDATE
 }
 
 // SetMicrosoftGraphCredentialInvalid flips the per-tenant flag reporting that a credential needs an admin's attention.
-// It reports whether the flag actually changed, so the caller knows whether the app-config banner needs recomputing.
-func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (bool, error) {
+func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) error {
 	const stmt = `UPDATE mdm_microsoft_graph_credentials SET credential_invalid = ? WHERE tenant_id = ? AND credential_invalid != ?`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, tenantID, invalid)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "update mdm_microsoft_graph_credentials credential_invalid")
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, tenantID, invalid); err != nil {
+		return ctxerr.Wrap(ctx, err, "update mdm_microsoft_graph_credentials credential_invalid")
 	}
-	affected, _ := res.RowsAffected()
-	return affected > 0, nil
+	return nil
 }
 
 // RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass for a tenant. A nil syncErr records a success and
@@ -295,27 +293,54 @@ func (ds *Datastore) IngestWindowsAutopilotDevices(ctx context.Context, devices 
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}
 
+	builtinLabelIDs, err := windowsAutopilotBuiltinLabelIDsDB(ctx, ds.reader(ctx), ds.logger)
+	if err != nil {
+		return err
+	}
+
+	ingest := windowsAutopilotIngest{
+		serverURL:       serverURL,
+		mdmID:           mdmID,
+		defaultTeamID:   defaultTeamID,
+		builtinLabelIDs: builtinLabelIDs,
+		hostIDByZTD:     hostIDByZTD,
+		logger:          ds.logger,
+	}
+
 	// One transaction per chunk rather than one for the whole list.
 	return common_mysql.BatchProcessSimple(devices, hostAutopilotDeviceBatchSize, func(batch []*fleet.HostAutopilotDevice) error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			return ingestWindowsAutopilotDevicesDB(ctx, tx, serverURL, mdmID, defaultTeamID, batch, hostIDByZTD)
+			return ingestWindowsAutopilotDevicesDB(ctx, tx, ingest, batch)
 		})
 	})
 }
 
-// hostIDByZTD is resolved by the caller for the whole device list, not just this chunk.
+// windowsAutopilotIngest carries the values an ingest resolves once, up front, and every chunk then reuses. They are
+// deliberately read outside the per-chunk transaction: none of them can change during a sync.
+type windowsAutopilotIngest struct {
+	serverURL     string
+	mdmID         uint
+	defaultTeamID *uint
+	// builtinLabelIDs are the labels a pending Windows host joins. Empty when a builtin label has been deleted.
+	builtinLabelIDs []uint
+	// hostIDByZTD covers the whole device list, not just one chunk.
+	hostIDByZTD map[string]uint
+	logger      *slog.Logger
+}
+
 func ingestWindowsAutopilotDevicesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	serverURL string,
-	mdmID uint,
-	defaultTeamID *uint,
+	ingest windowsAutopilotIngest,
 	devices []*fleet.HostAutopilotDevice,
-	hostIDByZTD map[string]uint,
 ) error {
-	// Resolution is keyed on the Autopilot device ID. Windows serials are not unique.
+	// Resolution is keyed on the Autopilot device ID. Windows serials are not unique. Only devices that no Autopilot record already
+	// resolves need a serial lookup, so the rest are left out of the query.
 	serials := make([]string, 0, len(devices))
 	for _, dev := range devices {
+		if _, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
+			continue
+		}
 		serials = append(serials, dev.HardwareSerial)
 	}
 	// Hosts carrying this serial that no Autopilot record has claimed yet. Adopting one covers the machine that was
@@ -333,7 +358,7 @@ func ingestWindowsAutopilotDevicesDB(
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	for _, dev := range devices {
-		if hostID, ok := hostIDByZTD[dev.AutopilotDeviceID]; ok {
+		if hostID, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
 			copied := *dev
 			copied.HostID = hostID
 			claimed[hostID] = struct{}{}
@@ -355,7 +380,7 @@ func ingestWindowsAutopilotDevicesDB(
 		for _, dev := range toCreate {
 			createSerials = append(createSerials, dev.HardwareSerial)
 		}
-		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, defaultTeamID, toCreate); err != nil {
+		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, ingest.defaultTeamID, toCreate); err != nil {
 			return err
 		}
 		// This query returns the host ids of newly created hosts.
@@ -369,6 +394,9 @@ func ingestWindowsAutopilotDevicesDB(
 			hostID, ok := popUnclaimedHostID(created, dev.HardwareSerial, claimed)
 			if !ok {
 				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
+				ingest.logger.ErrorContext(ctx, "no host resolved for a just-created autopilot device, skipping it",
+					"autopilot_device_id", dev.AutopilotDeviceID, "hardware_serial", dev.HardwareSerial)
+				ctxerr.Handle(ctx, ctxerr.New(ctx, "no host resolved for a just-created autopilot device"))
 				continue
 			}
 			copied := *dev
@@ -381,10 +409,10 @@ func ingestWindowsAutopilotDevicesDB(
 				ID: hostID, HardwareSerial: copied.HardwareSerial, HardwareModel: copied.HardwareModel,
 			})
 		}
-		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, serverURL, mdmID, newHostIDs); err != nil {
+		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, ingest.serverURL, ingest.mdmID, newHostIDs); err != nil {
 			return err
 		}
-		if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, newHostIDs); err != nil {
+		if err := upsertWindowsAutopilotHostLabelsDB(ctx, tx, ingest.builtinLabelIDs, newHostIDs); err != nil {
 			return err
 		}
 		// Without a host_display_names row the host is invisible in the UI.
@@ -442,6 +470,11 @@ func hostIDsByAutopilotDeviceIDDB(ctx context.Context, q sqlx.QueryerContext, zt
 // unclaimedHostIDsBySerialDB returns, per serial, the Windows hosts that no live Autopilot record points at, in id
 // order. Scoped to Windows because a macOS host can carry a colliding serial and must never be claimed.
 func unclaimedHostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string][]uint, error) {
+	// Every device in the chunk may already be resolved by its Autopilot device ID, which leaves nothing to look up.
+	if len(serials) == 0 {
+		return map[string][]uint{}, nil
+	}
+
 	stmt, args, err := sqlx.In(`
 SELECT h.id, h.hardware_serial
 FROM hosts h
@@ -516,35 +549,39 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-// upsertWindowsAutopilotHostLabelsDB puts the pending hosts into the "All Hosts" and "MS Windows" builtin labels so
-// they show up in host lists before osquery ever runs on the device.
-func upsertWindowsAutopilotHostLabelsDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	var labels []struct {
-		ID   uint   `db:"id"`
-		Name string `db:"name"`
-	}
-	if err := sqlx.SelectContext(ctx, tx, &labels,
-		`SELECT id, name FROM labels WHERE label_type = ? AND name IN (?, ?)`,
+// windowsAutopilotBuiltinLabelIDsDB resolves the builtin labels a pending Windows host joins, "All Hosts" and
+// "MS Windows".
+func windowsAutopilotBuiltinLabelIDsDB(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger) ([]uint, error) {
+	var labelIDs []uint
+	if err := sqlx.SelectContext(ctx, q, &labelIDs,
+		`SELECT id FROM labels WHERE label_type = ? AND name IN (?, ?)`,
 		fleet.LabelTypeBuiltIn, fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameWindows); err != nil {
-		return ctxerr.Wrap(ctx, err, "get builtin labels for windows autopilot hosts")
+		return nil, ctxerr.Wrap(ctx, err, "get builtin labels for windows autopilot hosts")
 	}
-	if len(labels) != 2 {
-		// Builtin labels can be deleted. Skip rather than fail the whole sync over label membership.
+	if len(labelIDs) != 2 {
+		logger.ErrorContext(ctx, "expected 2 builtin labels for pending windows autopilot hosts, skipping label membership",
+			"found", len(labelIDs))
+		ctxerr.Handle(ctx, ctxerr.New(ctx, "expected 2 builtin labels for pending windows autopilot hosts"))
+		return nil, nil
+	}
+	return labelIDs, nil
+}
+
+// upsertWindowsAutopilotHostLabelsDB puts the pending hosts into the builtin labels resolved by
+// windowsAutopilotBuiltinLabelIDsDB so they show up in host lists before osquery ever runs on the device.
+func upsertWindowsAutopilotHostLabelsDB(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint, hostIDs []uint) error {
+	if len(hostIDs) == 0 || len(labelIDs) == 0 {
 		return nil
 	}
 
 	stmt := `INSERT INTO label_membership (host_id, label_id) VALUES %s ON DUPLICATE KEY UPDATE host_id = host_id`
-	args := make([]any, 0, len(hostIDs)*len(labels)*2)
+	args := make([]any, 0, len(hostIDs)*len(labelIDs)*2)
 	for _, hostID := range hostIDs {
-		for _, label := range labels {
-			args = append(args, hostID, label.ID)
+		for _, labelID := range labelIDs {
+			args = append(args, hostID, labelID)
 		}
 	}
-	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(hostIDs)*len(labels)), ",")
+	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(hostIDs)*len(labelIDs)), ",")
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert windows autopilot label membership")
 	}

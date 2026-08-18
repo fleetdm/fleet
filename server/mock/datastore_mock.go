@@ -1490,7 +1490,7 @@ type ListMicrosoftGraphCredentialMetadataFunc func(ctx context.Context) ([]*flee
 
 type ReplaceMicrosoftGraphCredentialsFunc func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error
 
-type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID string, invalid bool) error
 
 type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
 
@@ -10959,7 +10959,7 @@ func (s *DataStore) ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert
 	return s.ReplaceMicrosoftGraphCredentialsFunc(ctx, upsert, deleteTenantIDs)
 }
 
-func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error) {
+func (s *DataStore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) error {
 	s.mu.Lock()
 	s.SetMicrosoftGraphCredentialInvalidFuncInvoked = true
 	s.mu.Unlock()

@@ -238,8 +238,7 @@ func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	seedGraphCredential(t, ds, testTenantA)
-	_, err := ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
-	require.NoError(t, err)
+	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
 
 	meta, err := ds.ListMicrosoftGraphCredentialMetadata(ctx)
 	require.NoError(t, err)
@@ -257,14 +256,9 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedGraphCredential(t, ds, testTenantA)
 
-	// The first transition reports a change; a repeat does not, so a sync that keeps failing does not re-notify.
-	wasSet, err := ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
-	require.NoError(t, err)
-	assert.True(t, wasSet)
-
-	wasSet, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
-	require.NoError(t, err)
-	assert.False(t, wasSet)
+	// Setting the flag is idempotent, so a sync that keeps failing keeps calling this without rewriting the row.
+	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
+	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
 
 	got := storedGraphCredential(t, ds, testTenantA)
 	assert.True(t, got.CredentialInvalid)
@@ -275,9 +269,7 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 	assert.True(t, graphCredentialBanner(t, ds), "one unhealthy credential raises the banner")
 
 	// Clearing works the same way.
-	wasSet, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, false)
-	require.NoError(t, err)
-	assert.True(t, wasSet)
+	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, false))
 
 	got = storedGraphCredential(t, ds, testTenantA)
 	assert.False(t, got.CredentialInvalid)
@@ -291,9 +283,7 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 
 	// A credential deleted between listing and flagging is not an error: there is nothing left to flag, and the sync
 	// must not fail the whole pass over it.
-	wasSet, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, "8f1e0b1c-0000-0000-0000-000000000000", true)
-	require.NoError(t, err)
-	assert.False(t, wasSet)
+	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, "8f1e0b1c-0000-0000-0000-000000000000", true))
 
 	// A failed pass records the message alongside the timestamp.
 	syncErr := "AADSTS7000222: client secret expired"
@@ -311,8 +301,7 @@ func testGraphCredentialSyncState(t *testing.T, ds *Datastore) {
 
 	// Rotating the credential clears all of its sync state, which describes the credential being replaced.
 	require.NoError(t, ds.RecordMicrosoftGraphSyncResult(ctx, testTenantA, &syncErr))
-	_, err = ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true)
-	require.NoError(t, err)
+	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
 
 	require.NoError(t, upsertCred(ctx, ds, &fleet.MicrosoftGraphCredential{
 		TenantID: testTenantA, ClientID: "client-a", ClientSecret: "rotated-secret",
@@ -509,18 +498,6 @@ func autopilotDeviceWithID(deviceID, serial, tag string) *fleet.HostAutopilotDev
 	return dev
 }
 
-// newWindowsHostWithSerial creates a fully enrolled Windows host, the shape Fleet already knows about before a device
-// is registered in Autopilot.
-func newWindowsHostWithSerial(t *testing.T, ds *Datastore, suffix, serial string) *fleet.Host {
-	t.Helper()
-	host, err := ds.NewHost(t.Context(), &fleet.Host{
-		OsqueryHostID: new("osquery-" + suffix), NodeKey: new("nodekey-" + suffix), UUID: "uuid-" + suffix,
-		HardwareSerial: serial, Hostname: "DESKTOP-" + strings.ToUpper(suffix), Platform: "windows",
-	})
-	require.NoError(t, err)
-	return host
-}
-
 // hostIDsBySerial returns every host carrying a serial, lowest ID first. Read straight from the column because no
 // Datastore method returns more than one host for a serial, and more than one is exactly what these tests assert on.
 func hostIDsBySerial(t *testing.T, ds *Datastore, serial string) []uint {
@@ -714,7 +691,9 @@ func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 
 	t.Run("an existing host is adopted rather than duplicated", func(t *testing.T) {
 		const serial = "ADOPT-SERIAL"
-		existing := newWindowsHostWithSerial(t, ds, "adopt", serial)
+		// A fully enrolled Windows host, the shape Fleet already knows about before a device is registered in Autopilot.
+		existing := test.NewHost(t, ds, "DESKTOP-ADOPT", "10.10.10.20", "nodekey-adopt", "uuid-adopt", time.Now(),
+			test.WithPlatform("windows"), test.WithHardwareSerial(serial))
 
 		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx,
 			[]*fleet.HostAutopilotDevice{autopilotDeviceWithID("ap-adopt", serial, "Engineering")}))
@@ -733,7 +712,8 @@ func testIngestResolvesByAutopilotDeviceID(t *testing.T, ds *Datastore) {
 
 	t.Run("adopting and creating for one serial in a single batch", func(t *testing.T) {
 		const serial = "MIXED-SERIAL"
-		existing := newWindowsHostWithSerial(t, ds, "mixed", serial)
+		existing := test.NewHost(t, ds, "DESKTOP-MIXED", "10.10.10.21", "nodekey-mixed", "uuid-mixed", time.Now(),
+			test.WithPlatform("windows"), test.WithHardwareSerial(serial))
 
 		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
 			autopilotDeviceWithID("ap-mixed-1", serial, ""),

@@ -100,10 +100,9 @@ func newAutopilotSyncEnv(t *testing.T, creds ...*fleet.MicrosoftGraphCredential)
 		}
 		return nil
 	}
-	env.ds.SetMicrosoftGraphCredentialInvalidFunc = func(ctx context.Context, tenantID string, invalid bool) (bool, error) {
-		changed := env.invalid[tenantID] != invalid
+	env.ds.SetMicrosoftGraphCredentialInvalidFunc = func(ctx context.Context, tenantID string, invalid bool) error {
 		env.invalid[tenantID] = invalid
-		return changed, nil
+		return nil
 	}
 	env.ds.RecordMicrosoftGraphSyncResultFunc = func(ctx context.Context, tenantID string, syncErr *string) error {
 		env.syncResults[tenantID] = syncErr
@@ -312,20 +311,18 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 	t.Parallel()
 
-	// The banner is driven by a stored aggregate on the app config, so every flag change has to be followed by a
-	// recomputation. Without it the credentials endpoint reports the failure correctly and the banner never appears,
-	// with nothing else failing to indicate the problem.
+	// Only an explicit credential rejection may raise the alarm. A Microsoft outage must never flag a credential, or
+	// one bad hour at Microsoft would tell every Fleet admin to go re-enter their client secret.
 	for _, tc := range []struct {
-		name          string
-		err           error
-		wantInvalid   bool
-		wantRefreshed bool
+		name        string
+		err         error
+		wantInvalid bool
 	}{
-		{"graph 401 marks the credential invalid", &msgraph.Error{StatusCode: http.StatusUnauthorized}, true, true},
-		{"graph 403 marks the credential invalid", &msgraph.Error{StatusCode: http.StatusForbidden}, true, true},
-		{"graph 429 does not", &msgraph.Error{StatusCode: http.StatusTooManyRequests}, false, false},
-		{"graph 500 does not", &msgraph.Error{StatusCode: http.StatusInternalServerError}, false, false},
-		{"a non-graph error does not", errors.New("dial tcp: timeout"), false, false},
+		{"graph 401 marks the credential invalid", &msgraph.Error{StatusCode: http.StatusUnauthorized}, true},
+		{"graph 403 marks the credential invalid", &msgraph.Error{StatusCode: http.StatusForbidden}, true},
+		{"graph 429 does not", &msgraph.Error{StatusCode: http.StatusTooManyRequests}, false},
+		{"graph 500 does not", &msgraph.Error{StatusCode: http.StatusInternalServerError}, false},
+		{"a non-graph error does not", errors.New("dial tcp: timeout"), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			env := newAutopilotSyncEnv(t, testCred(tenantA))
@@ -333,11 +330,8 @@ func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 			env.sync(t)
 
 			assert.Equal(t, tc.wantInvalid, env.invalid[tenantA])
-			if tc.wantRefreshed {
-				assert.Equal(t, 1, env.aggregateRefreshed, "the banner aggregate must be recomputed when the flag changes")
-			} else {
-				assert.Zero(t, env.aggregateRefreshed, "a Microsoft outage must not raise a credential alarm")
-			}
+			// The banner is driven by a stored aggregate on the app config, recomputed once per pass.
+			assert.Equal(t, 1, env.aggregateRefreshed, "the banner aggregate is recomputed on every pass")
 		})
 	}
 
@@ -352,6 +346,26 @@ func TestMicrosoftAutopilotSyncCredentialFlag(t *testing.T) {
 
 		assert.False(t, env.invalid[tenantA])
 		assert.Equal(t, 2, env.aggregateRefreshed, "clearing the flag must refresh the banner too")
+	})
+
+	t.Run("a failed banner recomputation is retried on the next pass", func(t *testing.T) {
+		env := newAutopilotSyncEnv(t, testCred(tenantA))
+		aggregateErr := errors.New("could not save app config")
+		env.ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error {
+			env.aggregateRefreshed++
+			if env.aggregateRefreshed == 1 {
+				return aggregateErr
+			}
+			return nil
+		}
+
+		env.graphFails(tenantA, &msgraph.Error{StatusCode: http.StatusUnauthorized})
+		require.ErrorIs(t, cronMicrosoftAutopilotSync(t.Context(), env.ds, factoryFor(env.clients), discardLogger()), aggregateErr)
+		require.True(t, env.invalid[tenantA], "the per-tenant flag is stored even though the banner was not recomputed")
+
+		// Nothing flips on this pass: the credential is still rejected and the flag is already set.
+		env.sync(t)
+		assert.Equal(t, 2, env.aggregateRefreshed, "the banner recomputation must be retried until it succeeds")
 	})
 }
 

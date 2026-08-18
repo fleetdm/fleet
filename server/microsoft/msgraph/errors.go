@@ -2,6 +2,7 @@ package msgraph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -52,6 +53,23 @@ func (e *Error) IsPermissionError() bool {
 // a bad credential, or a Microsoft outage would raise a credential alarm on every Fleet deployment at once.
 func (e *Error) IsTransient() bool {
 	return e.StatusCode == http.StatusTooManyRequests || e.StatusCode >= http.StatusInternalServerError
+}
+
+// AsError extracts the Graph error from a possibly-wrapped error. Callers classify a failure by unwrapping it here
+// rather than type-asserting themselves, so the unwrap and the classification stay in one place.
+func AsError(err error) (*Error, bool) {
+	if err == nil {
+		return nil, false
+	}
+	return errors.AsType[*Error](err)
+}
+
+// CredentialRejected reports whether a failure means the credential itself needs an admin's attention, as opposed to
+// Microsoft being temporarily unavailable. A non-Graph failure is never a rejection: a DNS or dial error says nothing
+// about the credential.
+func CredentialRejected(err error) bool {
+	graphErr, ok := AsError(err)
+	return ok && (graphErr.IsAuthError() || graphErr.IsPermissionError())
 }
 
 // graphErrorBody is Graph's standard error envelope.

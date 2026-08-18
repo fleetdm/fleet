@@ -25,21 +25,23 @@ func Up_20260817202134(tx *sql.Tx) error {
 		}
 	}
 
-	// autopilot_device_id is looked up on every Autopilot Windows MDM enrollment and is unique per row.
+	// Adding index for tenant_id to future-proof and because switching to a different tenant may keep some rows in this table,
+	// so we can have multiple tenant_ids. deleted_at is part of the key because listing a tenant's devices always
+	// excludes tombstones, so InnoDB can skip them in index space instead of reading each row to check.
 	if !indexExistsTx(tx, "host_autopilot_devices", "idx_host_autopilot_tenant_id") {
 		if _, err := tx.Exec(`
 			ALTER TABLE host_autopilot_devices
-			ADD KEY idx_host_autopilot_tenant_id (tenant_id)`); err != nil {
+			ADD KEY idx_host_autopilot_tenant_id (tenant_id, deleted_at)`); err != nil {
 			return fmt.Errorf("add idx_host_autopilot_tenant_id to host_autopilot_devices: %w", err)
 		}
 	}
 
-	// Adding index for tenant_id to future-proof and because switching to a different tenant may keep some rows in this table,
-	// so we can have multiple tenant_ids.
+	// autopilot_device_id is looked up on every Autopilot Windows MDM enrollment and on every sync pass. deleted_at is
+	// part of the key so those lookups run entirely in index space.
 	if !indexExistsTx(tx, "host_autopilot_devices", "idx_host_autopilot_device_id") {
 		if _, err := tx.Exec(`
 			ALTER TABLE host_autopilot_devices
-			ADD KEY idx_host_autopilot_device_id (autopilot_device_id)`); err != nil {
+			ADD KEY idx_host_autopilot_device_id (autopilot_device_id, deleted_at)`); err != nil {
 			return fmt.Errorf("add idx_host_autopilot_device_id to host_autopilot_devices: %w", err)
 		}
 	}

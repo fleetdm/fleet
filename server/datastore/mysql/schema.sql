@@ -596,8 +596,8 @@ CREATE TABLE `host_autopilot_devices` (
   `deleted_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`host_id`),
   KEY `idx_host_autopilot_hardware_serial` (`hardware_serial`),
-  KEY `idx_host_autopilot_tenant_id` (`tenant_id`),
-  KEY `idx_host_autopilot_device_id` (`autopilot_device_id`)
+  KEY `idx_host_autopilot_tenant_id` (`tenant_id`,`deleted_at`),
+  KEY `idx_host_autopilot_device_id` (`autopilot_device_id`,`deleted_at`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
