@@ -343,11 +343,7 @@ func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet
 		return nil, ctxerr.Wrap(ctx, err, "get certificate template")
 	}
 
-	// Authorize again now that the template (and its team) is loaded. If the
-	// caller can't read this template, it's entirely outside their visibility:
-	// report the same not-found error as a missing template above, rather than
-	// a forbidden that would confirm the template exists on some other team.
-	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id), "get certificate template")
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id).WithFleetID(certificate.TeamID), "get certificate template")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead, notFoundErr); err != nil {
 		return nil, err
 	}
@@ -383,12 +379,7 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 		return ctxerr.Wrap(ctx, err, "get certificate template for delete")
 	}
 
-	// Authorize again now that the template (and its team) is loaded. If the
-	// caller can't even read this template, it's entirely outside their
-	// visibility: report the same not-found error as a missing template above,
-	// rather than a forbidden that would confirm the template exists on some
-	// other team.
-	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(certificateTemplateID), "get certificate template for delete")
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(certificateTemplateID).WithFleetID(certificate.TeamID), "get certificate template for delete")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
