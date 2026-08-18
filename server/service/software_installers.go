@@ -66,6 +66,9 @@ type updateSoftwareInstallerRequest struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. Omitted leaves it unchanged. FMA-only.
 	PatchWhenClosed *bool
+	// NotifyBeforePatching skips the install while the app is open and notifies the end user an hour
+	// before the patch is forced. Omitted leaves it unchanged. FMA-only.
+	NotifyBeforePatching *bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -182,6 +185,14 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.PatchWhenClosed = &parsed
 	}
 
+	if notifyBeforePatchingVal, ok := r.MultipartForm.Value["notify_before_patching"]; ok && len(notifyBeforePatchingVal) > 0 && notifyBeforePatchingVal[0] != "" {
+		parsed, err := strconv.ParseBool(notifyBeforePatchingVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode notify_before_patching bool in multipart form: %s", err.Error())}
+		}
+		decoded.NotifyBeforePatching = &parsed
+	}
+
 	val, ok = r.MultipartForm.Value["self_service"]
 	if ok && len(val) > 0 && val[0] != "" {
 		parsed, err := strconv.ParseBool(val[0])
@@ -284,23 +295,24 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	req := request.(*updateSoftwareInstallerRequest)
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:           req.TitleID,
-		InstallerID:       ptr.ValOrZero(req.InstallerID),
-		TeamID:            req.TeamID,
-		InstallScript:     req.InstallScript,
-		PreInstallQuery:   req.PreInstallQuery,
-		PostInstallScript: req.PostInstallScript,
-		UninstallScript:   req.UninstallScript,
-		SelfService:       req.SelfService,
-		LabelsIncludeAny:  req.LabelsIncludeAny,
-		LabelsExcludeAny:  req.LabelsExcludeAny,
-		LabelsIncludeAll:  req.LabelsIncludeAll,
-		Categories:        req.Categories,
-		DisplayName:       req.DisplayName,
-		Configuration:     req.Configuration,
-		PinnedVersion:     req.Version,
-		Patch:             req.Patch,
-		PatchWhenClosed:   req.PatchWhenClosed,
+		TitleID:              req.TitleID,
+		InstallerID:          ptr.ValOrZero(req.InstallerID),
+		TeamID:               req.TeamID,
+		InstallScript:        req.InstallScript,
+		PreInstallQuery:      req.PreInstallQuery,
+		PostInstallScript:    req.PostInstallScript,
+		UninstallScript:      req.UninstallScript,
+		SelfService:          req.SelfService,
+		LabelsIncludeAny:     req.LabelsIncludeAny,
+		LabelsExcludeAny:     req.LabelsExcludeAny,
+		LabelsIncludeAll:     req.LabelsIncludeAll,
+		Categories:           req.Categories,
+		DisplayName:          req.DisplayName,
+		Configuration:        req.Configuration,
+		PinnedVersion:        req.Version,
+		Patch:                req.Patch,
+		PatchWhenClosed:      req.PatchWhenClosed,
+		NotifyBeforePatching: req.NotifyBeforePatching,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()

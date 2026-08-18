@@ -190,6 +190,7 @@ type TeamPolicyRequest struct {
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
+	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
 }
 
 type TeamPolicyResponse struct {
