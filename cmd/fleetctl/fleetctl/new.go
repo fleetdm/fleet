@@ -56,8 +56,12 @@ func newCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "new",
-		Usage:     "Create a new Fleet GitOps repository structure",
+		Usage:     "Scaffold a blank GitOps repository from templates",
 		UsageText: "fleetctl new [options]",
+		Description: "Creates a starter GitOps repository structure (default.yml, workflow files, " +
+			"README.md, etc.) from embedded templates. Does not connect to a Fleet server.\n\n" +
+			"This is different from `fleetctl generate-gitops`, which connects to an existing Fleet " +
+			"server and exports its live configuration into GitOps YAML files.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "org-name",

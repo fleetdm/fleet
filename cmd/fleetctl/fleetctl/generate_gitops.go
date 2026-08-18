@@ -281,10 +281,15 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "generate-gitops",
-		Hidden:      true,
-		Usage:       "Generate GitOps configuration files for Fleet.",
-		Description: "This command generates GitOps configuration files for Fleet.",
+		Name:  "generate-gitops",
+		Usage: "Migrate an existing Fleet instance's configuration to GitOps YAML files",
+		Description: "Connects to a live Fleet server and exports its current configuration " +
+			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
+			"YAML files. Use this to migrate an existing Fleet instance to GitOps.\n\n" +
+			"This is different from `fleetctl new`, which scaffolds a blank GitOps repository " +
+			"from templates and does not connect to a Fleet server.\n\n" +
+			"Note: some settings omitted from the exported YAML won't reset to their default value " +
+			"the next time you run `fleetctl gitops` — review the exported files before applying them.",
 		Action:      createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
