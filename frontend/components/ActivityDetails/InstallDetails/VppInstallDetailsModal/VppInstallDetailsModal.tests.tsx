@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "react-query";
 import { http, HttpResponse } from "msw";
 import {
   createCustomRenderer,
@@ -666,5 +667,47 @@ describe("VPP Install Details Modal", () => {
         /If the install finishes later, Fleet will update the status when the host is refetched/i
       )
     ).toBeInTheDocument();
+  });
+
+  it("does not retry the command results request when the API returns 404", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), () => {
+        requestCount += 1;
+        return HttpResponse.json({ message: "Not Found" }, { status: 404 });
+      })
+    );
+
+    // The shared test renderer sets `retry: false` for every query, which would
+    // hide the behavior under test. Render against a client that retries, so
+    // it's the modal's own retry rule that decides.
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: 3, retryDelay: 0, cacheTime: 0 } },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus: "pending_install",
+            hostDisplayName: "Marko's MacBook Pro",
+            appName: "Keynote",
+            commandUuid: "missing-uuid",
+            platform: "darwin",
+          }}
+          onCancel={jest.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(requestCount).toBeGreaterThan(0);
+    });
+    // Leave room for retries to land if the rule isn't applied.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
+
+    expect(requestCount).toBe(1);
   });
 });
