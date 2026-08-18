@@ -447,6 +447,9 @@ func TestDeleteHostsSkipsHostsAppleCouldNotVerify(t *testing.T) {
 
 	require.ElementsMatch(t, []uint{releasedHost, assignedHost}, deleted,
 		"the rest of the batch must still be deleted")
+	// A caller must be able to tell a partial delete from one that removed nothing,
+	// so it knows whether retrying the whole request is safe.
+	require.Contains(t, err.Error(), "The other 2 host(s) were deleted.")
 	require.Equal(t, []string{serials[releasedHost]}, cleared,
 		"only the released host's assignment may be cleared")
 }
@@ -499,6 +502,7 @@ func TestDeleteHostsWhenNoHostCanBeVerified(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), serials[1])
 	require.Contains(t, err.Error(), serials[2])
+	require.NotContains(t, err.Error(), "were deleted", "nothing was deleted, so the message must not imply otherwise")
 	require.False(t, env.ds.DeleteHostsFuncInvoked, "nothing may be deleted when no host could be verified")
 
 	var gwErr *fleet.GatewayError

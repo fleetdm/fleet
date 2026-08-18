@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -33,6 +34,10 @@ const (
 	depDeleteUnverified
 )
 
+// errDEPLookupFailed is the cause recorded when Apple answered but reported that
+// it could not look the device up.
+var errDEPLookupFailed = errors.New("apple reported a failed device lookup")
+
 // depDeleteResult is what the check concluded for one host, plus the Apple-side
 // failure behind an unverified result so callers can surface it rather than
 // leaving it in the logs.
@@ -45,8 +50,11 @@ type depDeleteResult struct {
 // assigned to this Fleet instance, so a delete is not reported as successful
 // when the host is about to be restored from a stale assignment record.
 //
-// Apple-side failures are reported as depDeleteUnverified rather than returned
-// as errors; only problems reading Fleet's own state return an error.
+// Anything that leaves Fleet unable to get an answer about a host — Apple being
+// unreachable, Apple reporting a failed lookup, or its Apple Business token not
+// resolving — is reported as depDeleteUnverified for that host rather than failing
+// the whole call. Only failures to read the state this check is built on (app
+// config, the assignment rows) return an error.
 func (svc *Service) checkDEPAssignmentsForDelete(ctx context.Context, hosts []*fleet.Host) (map[uint]depDeleteResult, error) {
 	checks := make(map[uint]depDeleteResult, len(hosts))
 	for _, h := range hosts {
@@ -133,7 +141,13 @@ func (svc *Service) checkDEPAssignmentsForDelete(ctx context.Context, hosts []*f
 					svc.logger.WarnContext(ctx, "no DEP device details returned for serial",
 						"abm_token_id", tokenID, "host_id", e.hostID)
 				}
-				checks[e.hostID] = depDeleteResult{check: classifyDEPDeviceDetails(d)}
+				res := depDeleteResult{check: classifyDEPDeviceDetails(d)}
+				if res.check == depDeleteUnverified {
+					// Apple answered, so there is no transport error to carry — record
+					// why the host could not be verified rather than reporting no cause.
+					res.appleErr = errDEPLookupFailed
+				}
+				checks[e.hostID] = res
 			}
 		}
 	}
@@ -197,7 +211,11 @@ func (svc *Service) clearDisownedDEPAssignments(ctx context.Context, checks map[
 // unverifiedABMHostsError reports the hosts a bulk delete left in place because
 // Apple could not be asked about them, carrying one of the underlying Apple
 // failures so the cause is not lost.
-func unverifiedABMHostsError(checks map[uint]depDeleteResult, names []string) error {
+//
+// deleted is how many hosts the batch did remove, so a caller can tell a partial
+// delete from one that removed nothing and decide whether retrying the whole
+// request is safe.
+func unverifiedABMHostsError(checks map[uint]depDeleteResult, names []string, deleted int) error {
 	var appleErr error
 	for _, c := range checks {
 		if c.check == depDeleteUnverified && c.appleErr != nil {
@@ -205,8 +223,9 @@ func unverifiedABMHostsError(checks map[uint]depDeleteResult, names []string) er
 			break
 		}
 	}
-	return fleet.NewBadGatewayError(
-		fmt.Sprintf("%s Hosts: %s.", fleet.CantDeleteHostUnverifiedABMMessage, strings.Join(names, ", ")),
-		appleErr,
-	)
+	msg := fmt.Sprintf("%s Hosts: %s.", fleet.CantDeleteHostUnverifiedABMMessage, strings.Join(names, ", "))
+	if deleted > 0 {
+		msg = fmt.Sprintf("%s The other %d host(s) were deleted.", msg, deleted)
+	}
+	return fleet.NewBadGatewayError(msg, appleErr)
 }

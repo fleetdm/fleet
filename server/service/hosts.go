@@ -658,7 +658,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if len(hostIDs) == 0 {
-			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames), "deleting hosts")
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, 0), "deleting hosts")
 		}
 
 		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
@@ -711,7 +711,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		if len(skippedNames) > 0 {
-			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames), "deleting hosts")
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, len(hostIDs)), "deleting hosts")
 		}
 
 		return nil

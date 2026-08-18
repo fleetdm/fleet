@@ -1095,14 +1095,21 @@ func withDEPDeviceDetails(handler http.Handler) http.Handler {
 		var req struct {
 			Devices []string `json:"devices"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Fail loudly rather than answering an unreadable request, so a client
+			// regression shows up here instead of as a puzzling downstream result.
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		devices := make(map[string]any, len(req.Devices))
 		for _, serial := range req.Devices {
 			devices[serial] = map[string]any{"serial_number": serial, "response_status": "SUCCESS"}
 		}
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]any{"devices": devices})
+		if err := json.NewEncoder(w).Encode(map[string]any{"devices": devices}); err != nil {
+			panic(err)
+		}
 	})
 }
 
