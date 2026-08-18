@@ -3486,7 +3486,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
-  "failing_unhidden_policies_count": 1,
+  "failing_unhidden_policies_count": 1, // Available in Fleet Premium
   "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
@@ -3508,7 +3508,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 }
 ```
 
-`failing_policies_count` counts all failing policies, including those marked `hidden`. `failing_unhidden_policies_count` _(Available in Fleet Premium)_ counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
+`failing_policies_count` counts all failing policies, including those marked `hidden`. `failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
 
 In regards to the `notifications` key:
 

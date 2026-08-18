@@ -4629,7 +4629,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "conditional_access_bypassed": false,
     "issues": {
       "failing_policies_count": 2,
-      "failing_unhidden_policies_count": 1,
+      "failing_unhidden_policies_count": 1, // Available in Fleet Premium
       "total_issues_count": 2
     },
     "license": {
@@ -4761,7 +4761,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-`issues.failing_policies_count` counts all failing policies, including those marked `hidden`. `issues.failing_unhidden_policies_count` _(Available in Fleet Premium)_ counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
+`issues.failing_policies_count` counts all failing policies, including those marked `hidden`. `issues.failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden.
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
 
