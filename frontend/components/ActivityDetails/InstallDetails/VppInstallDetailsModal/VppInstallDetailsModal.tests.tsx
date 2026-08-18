@@ -700,12 +700,10 @@ describe("VPP Install Details Modal", () => {
       </QueryClientProvider>
     );
 
+    // Waiting on the settled UI rather than a timer: the query stays loading
+    // while retries are in flight, so this only resolves once they're done.
     await waitFor(() => {
-      expect(requestCount).toBeGreaterThan(0);
-    });
-    // Leave room for retries to land if the rule isn't applied.
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
+      expect(screen.getByText(/when it comes online/i)).toBeInTheDocument();
     });
 
     expect(requestCount).toBe(1);
