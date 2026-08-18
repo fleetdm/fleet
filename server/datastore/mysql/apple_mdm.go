@@ -2632,6 +2632,24 @@ func (ds *Datastore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID ui
 	return ctxerr.Wrap(ctx, err, "mark host dep assignment deleted")
 }
 
+func (ds *Datastore) MarkHostDEPAssignmentsDeleted(ctx context.Context, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+		UPDATE host_dep_assignments
+		SET deleted_at = NOW(), mdm_migration_deadline = NULL, mdm_migration_completed = NULL
+		WHERE host_id IN (?) AND deleted_at IS NULL`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for marking host dep assignments deleted")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host dep assignments deleted")
+	}
+	return nil
+}
+
 func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
