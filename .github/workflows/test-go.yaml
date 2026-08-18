@@ -21,6 +21,7 @@ on:
       - 'frontend/templates/enroll-ota.html'
       - 'frontend/templates/windowsTOS.html'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '**.go'
       - '**/testdata/**'
@@ -55,6 +56,7 @@ permissions:
 jobs:
   # ──────────────────────────────────────────────────────────────────────────────
   # Suites that do NOT need MySQL: run once with no database dimension.
+  # These always run, including on draft PRs.
   # ──────────────────────────────────────────────────────────────────────────────
   test-go-no-db:
     strategy:
@@ -69,13 +71,15 @@ jobs:
       SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Suites that need MySQL: always-run versions (every push/PR + cron).
+  # Suites that need MySQL: run on push + cron + non-draft PRs.
+  # Draft PRs run a fast tier only (fast, scripts, service); the full fan-out
+  # runs when the PR is marked ready for review.
   # make sure to update supported versions docs when MySQL versions change
   # ──────────────────────────────────────────────────────────────────────────
   test-go:
     strategy:
       matrix:
-        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
+        suite: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.draft) && '["service"]' || '["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]') }}
         mysql: ["mysql:8.0.44"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
@@ -250,7 +254,9 @@ jobs:
   upload-coverage:
     needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis, test-go-nanomdm]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
-    if: always()
+    # Skipped on draft PRs: only the fast tier runs there, so uploading would
+    # produce a misleading partial coverage report.
+    if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
