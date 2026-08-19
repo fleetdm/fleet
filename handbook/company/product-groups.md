@@ -39,7 +39,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet, reduce exposure to vulnerabilities, and ensure compliance across the device lifecycle. Measured by increase in number of software types supported (increase surface area of software inventory, including plugins, including mobile apps, surfaced -- with the goal of preventing supply chain compromises)                                            |
 | [Apple @ Work](#apple-work-group)         | Empower Apple users to fully leverage Fleet as an MDM. Measured by Apple devices enrolled with MDM turned on.                                                     |
 | [Auto Patching](#auto-patching-group)      | Reduce the amount of time before software is patched after vulnerabilities are discovered. Measured by number of policies with software automations enabled. |
-| [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled. |
+| [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
 | [BYOD](#byod-group)                        | The goal of BYOD product group is to increase enrollment of Android and iOS BYOD devices in Fleet. Measured by iOS and Android devices enrolled. |
 | [Website](#website-group)                  | Increase and exceed Fleet's product maturity goals for fleetdm.com. |
 
