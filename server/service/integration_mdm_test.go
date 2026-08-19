@@ -13462,6 +13462,31 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.Empty(t, listCmdResp.Results)
 }
 
+// assertHostMDMCertificates checks the certificates the host details API reports
+// against the templates the device answered CertificateList with. A refetch on
+// the device channel only ever sees the system keychain.
+func (s *integrationMDMTestSuite) assertHostMDMCertificates(t *testing.T, hostID uint, templates []*x509.Certificate) {
+	t.Helper()
+	var resp listHostCertificatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", hostID), nil, http.StatusOK, &resp)
+	require.Len(t, resp.Certificates, len(templates))
+	bySerial := make(map[string]*fleet.HostCertificatePayload, len(resp.Certificates))
+	for _, c := range resp.Certificates {
+		bySerial[c.Serial] = c
+	}
+	for _, tmpl := range templates {
+		serial := tmpl.SerialNumber.Text(16)
+		got, ok := bySerial[serial]
+		require.True(t, ok, "no certificate reported with serial %s", serial)
+		require.Equal(t, fleet.SystemHostCertificate, got.Source)
+		require.Empty(t, got.Username)
+		require.WithinDuration(t, tmpl.NotBefore, got.NotValidBefore, time.Second)
+		require.WithinDuration(t, tmpl.NotAfter, got.NotValidAfter, time.Second)
+		require.NotNil(t, got.Subject)
+		require.Equal(t, tmpl.Subject.Organization[0], got.Subject.Organization)
+	}
+}
+
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	t := s.T()
 
@@ -13554,7 +13579,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
+	s.assertHostMDMCertificates(t, host.ID, testCerts)
 
 	// Install the same app for iPadOS
 	hostIPad, mdmClientIPad := s.createAppleMobileHostThenEnrollMDM("ipados")
@@ -13606,7 +13631,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
+	s.assertHostMDMCertificates(t, hostIPad.ID, testCerts)
 
 	hostIPod, mdmClientIPod := s.createIpodHostThenEnrollMDM()
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hostIPod.ID, false, true, "https://foo.com", true, "", "", false))
