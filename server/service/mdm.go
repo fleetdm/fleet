@@ -1572,7 +1572,6 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 	if isAppleProfileUUID(req.ProfileUUID) { //nolint:gocritic // ignore ifElseChain
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else if isAppleDeclarationUUID(req.ProfileUUID) {
-		// TODO: we could potentially combined with the other service methods
 		err = svc.DeleteMDMAppleDeclaration(ctx, req.ProfileUUID)
 	} else if isAndroidProfileUUID(req.ProfileUUID) {
 		err = svc.DeleteMDMAndroidConfigProfile(ctx, req.ProfileUUID)
@@ -3713,9 +3712,14 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "authorizing profile team")
 	}
 
-	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	err = nil
+	// A user asked for this resend, so everything goes back to them, rejection or not.
+	onError := func(innerErr error, _ bool) {
+		err = innerErr
+	}
+	checkAndResendHostMDMProfile(ctx, svc, host, onError, profileUUID, profileName, nil)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "checking and resending host mdm profile")
 	}
 
 	return nil
@@ -3727,44 +3731,66 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 		return err
 	}
 
-	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	err = nil
+	// A user asked for this resend, so everything goes back to them, rejection or not.
+	onError := func(innerErr error, _ bool) {
+		err = innerErr
+	}
+	checkAndResendHostMDMProfile(ctx, svc, host, onError, profileUUID, profileName, nil)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "checking and resending host mdm profile")
 	}
 
 	return nil
 }
 
-func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, profileUUID string, profileName string) error {
+type checkAndResendPolicyArgs struct {
+	PolicyID   uint
+	PolicyName string
+}
+
+func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, onError func(err error, rejected bool), profileUUID string, profileName string, policyArgs *checkAndResendPolicyArgs) {
 	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Unable to match profile to host.").WithStatus(http.StatusNotFound), "getting host mdm profile status")
+			onError(fleet.NewInvalidArgumentError("HostMDMProfile", "Unable to match profile to host.").WithStatus(http.StatusNotFound), true)
+			return
 		}
-		return ctxerr.Wrap(ctx, err, "getting host mdm profile status")
+		onError(ctxerr.Wrap(ctx, err, "getting host mdm profile status"), false)
+		return
 	}
 	if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status")
+		onError(ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status"), true)
+		return
 	}
 	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
 		// this should never happen, but just in case
-		return ctxerr.Errorf(ctx, "unrecognized profile status %s", status)
+		onError(ctxerr.Errorf(ctx, "unrecognized profile status %s", status), false)
+		return
 	}
 
 	if err := svc.ds.ResendHostMDMProfile(ctx, host.UUID, profileUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
+		onError(ctxerr.Wrap(ctx, err, "resending host mdm profile"), false)
+		return
+	}
+
+	details := &fleet.ActivityTypeResentConfigurationProfile{
+		HostID:          &host.ID,
+		HostDisplayName: new(host.DisplayName()),
+		ProfileName:     profileName,
+		ProfileUUID:     profileUUID,
+	}
+
+	if policyArgs != nil {
+		details.PolicyID = &policyArgs.PolicyID
+		details.PolicyName = &policyArgs.PolicyName
 	}
 
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
-			HostID:          &host.ID,
-			HostDisplayName: ptr.String(host.DisplayName()),
-			ProfileName:     profileName,
-			ProfileUUID:     profileUUID,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
+		ctx, authz.UserFromContext(ctx), details); err != nil {
+		onError(ctxerr.Wrap(ctx, err, "logging activity for resend config profile"), false)
+		return
 	}
-	return nil
 }
 
 // getPRofileToResendDetails returns the team ID and name of the profile to be resent.
