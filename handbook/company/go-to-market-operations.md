@@ -516,7 +516,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 > 
 > DRI: @Sampfluger88 (`@`-mention the DRI in [#help-gtm-ops](https://fleetdm.slack.com/archives/C08BTMFTUCR))
 > - Does the Eventbrite page have an "order form" attached? If so, remove it! « This breaks the flow by adding another required form submission not tied to the `New Attendee Registered` action. Attendee name and email will be returned as "Info Requested".
-> - Does the SFDC campaign exists?
+> - Does the SFDC campaign exist?
 > - Is the `Event_key` populated correctly on the corresponding SFDC campaign?
 
 
