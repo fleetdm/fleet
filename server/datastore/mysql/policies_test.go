@@ -83,6 +83,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithResendProfile", testTeamPoliciesWithResendProfile},
 		{"TestPoliciesApplyPolicySpecsWithResendProfile", testApplyPolicySpecsWithResendProfile},
 		{"TestPoliciesResendProfileRejectsFleetManaged", testPoliciesResendProfileRejectsFleetManaged},
+		{"TestPoliciesGetPoliciesWithAssociatedProfile", testGetPoliciesWithAssociatedProfile},
 		{"TestPoliciesApplyPolicySpecsResendProfileChangeResetsStats", testApplyPolicySpecsResendProfileChangeResetsStats},
 		{"TestPoliciesSaveResendProfile", testSavePolicyResendProfile},
 		{"TestPoliciesResendProfileAutomationFilter", testResendProfileAutomationFilter},
@@ -5488,6 +5489,125 @@ func testPoliciesResendProfileRejectsFleetManaged(t *testing.T, ds *Datastore) {
 			ProfileUUID: &userProf.ProfileUUID,
 		}}))
 	})
+}
+
+func testGetPoliciesWithAssociatedProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Oscar", "oscar@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team get policies with profile"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "other team get policies with profile"})
+	require.NoError(t, err)
+
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "get-apple-profile",
+		Identifier:   "com.example.get-apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	winProf, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "get-windows-profile",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	noTeamProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "get-no-team-profile",
+		Identifier:   "com.example.get-no-team-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+	}, nil)
+	require.NoError(t, err)
+
+	newPolicy := func(teamID uint, name string, profileUUID *string) *fleet.Policy {
+		p, err := ds.NewTeamPolicy(ctx, teamID, &user1.ID, fleet.PolicyPayload{
+			Name:        name,
+			Query:       "SELECT 1;",
+			ProfileUUID: profileUUID,
+		})
+		require.NoError(t, err)
+		return p
+	}
+
+	appleResendPolicy := newPolicy(team1.ID, "apple resend policy", &appleProf.ProfileUUID)
+	winResendPolicy := newPolicy(team1.ID, "windows resend policy", &winProf.ProfileUUID)
+	noResendPolicy := newPolicy(team1.ID, "no resend policy", nil)
+	noTeamResendPolicy := newPolicy(fleet.PolicyNoTeamID, "no team resend policy", &noTeamProf.ProfileUUID)
+
+	// No policy IDs requested: no query, no results.
+	got, err := ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, nil)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// An Apple resend policy returns the policy and profile names alongside the UUID; those
+	// are what the resend activity records.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{appleResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, fleet.PolicyProfileData{
+		PolicyID:    appleResendPolicy.ID,
+		PolicyName:  "apple resend policy",
+		ProfileUUID: appleProf.ProfileUUID,
+		ProfileName: appleProf.Name,
+	}, got[0])
+
+	// A Windows resend policy resolves its name from the Windows profile table.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{winResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, fleet.PolicyProfileData{
+		PolicyID:    winResendPolicy.ID,
+		PolicyName:  "windows resend policy",
+		ProfileUUID: winProf.ProfileUUID,
+		ProfileName: winProf.Name,
+	}, got[0])
+
+	// A policy without an associated profile is filtered out, even when asked for alongside
+	// policies that have one.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{noResendPolicy.ID})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{appleResendPolicy.ID, winResendPolicy.ID, noResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	byID := make(map[uint]fleet.PolicyProfileData, len(got))
+	for _, p := range got {
+		byID[p.PolicyID] = p
+	}
+	require.Equal(t, appleProf.ProfileUUID, byID[appleResendPolicy.ID].ProfileUUID)
+	require.Equal(t, winProf.ProfileUUID, byID[winResendPolicy.ID].ProfileUUID)
+
+	// The team ID scopes the lookup: a policy from another team is not returned even when its
+	// ID is requested, so a host can't have another team's profile resent.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team2.ID, []uint{appleResendPolicy.ID, winResendPolicy.ID})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// "No team" policies live under PolicyNoTeamID and are not returned for a real team.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, fleet.PolicyNoTeamID, []uint{noTeamResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, noTeamProf.ProfileUUID, got[0].ProfileUUID)
+	require.Equal(t, noTeamProf.Name, got[0].ProfileName)
+
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{noTeamResendPolicy.ID})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// Renaming the profile or the policy is reflected on the next lookup, since both names are
+	// read through rather than copied onto the policy.
+	appleProf.Name = "get-apple-profile-renamed"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET name = ? WHERE profile_uuid = ?`,
+			appleProf.Name, appleProf.ProfileUUID)
+		return err
+	})
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{appleResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, appleProf.Name, got[0].ProfileName)
 }
 
 func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {

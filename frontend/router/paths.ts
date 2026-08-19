@@ -166,6 +166,9 @@ export default {
   HOST_SCRIPTS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
+  HOST_CONTROLS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/controls`;
+  },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
@@ -188,6 +191,9 @@ export default {
   },
   DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
+  },
+  DEVICE_USER_DETAILS_CONTROLS: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/controls`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;
