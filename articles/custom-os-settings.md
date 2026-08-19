@@ -294,6 +294,15 @@ If a backup is migrated to a new host using [Apple’s Migration Assistant](http
 
 To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
 
+## Stuck user-channel profiles
+
+Configuration profiles scoped to the user channel only deliver to the host's enrolled managed local account. If that account is deleted, the user channel has no account to deliver to. In Fleet, the profile can show as **Pending** or **Enforcing** even though no MDM command was ever queued or sent.
+
+To check which account a profile is scoped to, go to a host's **Host details > OS settings** and hover over the user icon next to the profile's name.
+
+To resolve this, run `sudo profiles renew -type enrollment` on the host. This re-enrolls the user channel under the account that's currently logged in.
+
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
