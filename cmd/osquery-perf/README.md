@@ -104,10 +104,10 @@ ulimit -n 64000
 
 Set up MDM on your server. To extract the SCEP challenge, you can use the [MDM asset extractor](https://github.com/fleetdm/fleet/tree/main/tools/mdm/assets).
 
-For your server, disable Apple push notifications since we will be using devices with fake UUIDs:
+For your server, configure a custom Apple push notifications URL since we will be using devices with fake UUIDs:
 
 ```
-export FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1
+export FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL=http://localhost:8378
 ```
 
 Example of running the agent with MDM. Note that `enroll_secret` is not needed for iPhone/iPad devices:
@@ -121,6 +121,8 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 `mdm_user_prob` determines the probability of MDM user enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM user enrollment. This probability stacks with `mdm_prob`. So this probability is based on the hosts who end up MDM enrolling.
 
 `mdm_ios_byod_prob` determines the probability that a simulated iOS/iPadOS device (`iphone_14.6`, `ipad_13.18`, `iphone_17` templates) reports as a personal (BYOD) enrollment, which omits the newer device vitals fields from its `DeviceInformation` ack, matching what Fleet's server asks a real BYOD device for. The default is 0 (all simulated iOS/iPadOS devices report the full vitals set).
+
+`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob`.
 
 ### Apple Platform SSO (PSSO)
 

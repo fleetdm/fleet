@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 // Certificate template name validation constants
@@ -333,13 +334,17 @@ func getCertificateTemplateEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
-	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead); err != nil {
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get certificate template")
+	}
+
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id), "get certificate template")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -365,13 +370,18 @@ func deleteCertificateTemplateEndpoint(ctx context.Context, request interface{},
 }
 
 func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTemplateID uint) error {
-	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting certificate template")
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{}, fleet.ActionList); err != nil {
+		return err
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err, "authorizing user for certificate template deletion")
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get certificate template for delete")
+	}
+
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(certificateTemplateID), "get certificate template for delete")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
+		return err
 	}
 
 	if err := svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID); err != nil {
@@ -581,7 +591,8 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
 		}
 	}
@@ -664,7 +675,8 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
 			TeamID:   tmID,
 			TeamName: tmName,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
 	}
 

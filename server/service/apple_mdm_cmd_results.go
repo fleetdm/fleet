@@ -228,8 +228,15 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetInHouseAppInstallAsVerified,
 				ds.SetInHouseAppInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
-					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
+				// fromAutoUpdate is ignored: in-house apps have no auto-update flow
+				// and ActivityTypeInstalledSoftware has no field for it.
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+					user, act, err := ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
+					if err != nil {
+						return nil, nil, err
+					}
+					act.FromSetupExperience = fromSetupExp
+					return user, act, nil
 				},
 			}
 			if err := setStatusForExpectedInstall(expectedInstall, setter); err != nil {
