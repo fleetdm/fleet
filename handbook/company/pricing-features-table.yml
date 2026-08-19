@@ -323,6 +323,16 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+- industryName: Managed Apple ID restriction
+  description: Restrict iCloud sign-in with Managed Apple IDs to only devices enrolled in Fleet, preventing unauthorized devices from accessing organizational data.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/45829
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+
 #  
 #  ╦ ╦╔═╗╔═╗╦═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
 #  ║ ║╚═╗║╣ ╠╦╝  ╠═╣║  ║  ║ ║║ ║║║║ ║   ╚═╗╚╦╝║║║║  
