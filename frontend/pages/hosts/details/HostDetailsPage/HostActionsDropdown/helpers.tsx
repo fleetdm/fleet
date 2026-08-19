@@ -630,7 +630,7 @@ const modifyOptions = (
           <>
             Failed to retrieve Recovery Lock password.
             <br />
-            Head to OS settings to see the error and retry.
+            Head to Controls to see the error and retry.
           </>
         );
       } else {
