@@ -1043,6 +1043,7 @@ Both live in [`frontend/test/test-utils.tsx`](../test/test-utils.tsx).
 - User-visible behavior for each meaningful prop branch — empty / loading / error states, disabled variants, `isPremiumTier` on/off, permission gating.
 - Forms: submit disabled on invalid, exact error copy (matches the field-error [copy rules](#data-validation)), submit handler called with the expected payload.
 - Split `it(...)` blocks by behavior — one giant "renders and works" hides which assertion failed.
+- Don't assert on React Query internals (query cache state, `isFetching`, `refetch` counts). Assert on the rendered UI once data resolves.
 
 ## Security considerations
 

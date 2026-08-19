@@ -156,22 +156,16 @@ If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new
 
 ## Test coverage
 
-Ship tests with:
-- **New reusable components, hooks, or utilities** — co-located `ComponentName.tests.tsx`.
-- **Bug fixes** — one `it("...")` named for the regression so an issue-number grep finds it. Must fail without the fix.
-- **New user-visible logic in an app widget or page** — submit flow, validation, filter/sort, empty/loading/error, tier/permission gating.
+Ship tests with new reusable components/hooks/utilities (co-located `*.tests.tsx`), bug fixes (one `it("...")` named for the regression, fails without the fix), and new user-visible logic in a widget or page (submit, validation, filter/sort, empty/loading/error, tier/permission). Skip copy-only, styling-only, and presentational refactors.
 
-Skip tests for copy-only edits, styling-only tweaks, and presentational refactors that don't change user-visible behavior.
-
-**Function coverage:** Codecov reports per-flag frontend coverage on every PR (informational, not gating — see `codecov.yml`). New reusable code (components, hooks, utilities) should not lower the frontend function-coverage delta on the PR. Legacy files without tests are grandfathered — don't retrofit unless you're already touching them.
+New reusable code shouldn't lower the frontend function-coverage delta on the PR (Codecov `frontend` flag, informational — see `codecov.yml`). Legacy files without tests are grandfathered; don't retrofit unless you're already touching them.
 
 **Do not:**
 - Snapshot-test as a substitute for behavior assertions.
 - Assert on class names, internal state, or private handlers.
-- Delete a failing test to unblock CI — update the assertion if behavior legitimately changed; otherwise the test caught a regression.
-- Test React Query internals — assert on rendered UI once data resolves.
+- Delete a failing test to unblock CI — update the assertion if behavior changed; otherwise the test just caught a regression.
 
-Mechanics (`renderWithSetup` vs `createCustomRenderer`, MSW handler setup, entity mocks, semantic queries, `userEvent`) live in [frontend/docs/patterns.md#testing](../../frontend/docs/patterns.md#testing).
+Mechanics (`renderWithSetup` vs `createCustomRenderer`, MSW handlers, entity mocks, semantic queries, `userEvent`, React Query assertion style) live in [frontend/docs/patterns.md#testing](../../frontend/docs/patterns.md#testing).
 
 ## Linting & Formatting
 - ESLint: extends airbnb + typescript-eslint + prettier
