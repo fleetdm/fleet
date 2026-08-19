@@ -538,6 +538,56 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
     ).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("keeps the stored selection while the platform checkboxes are still hydrating", () => {
+    mockedUseProfiles.mockReturnValue(({
+      data: {
+        meta: { has_next_results: false, has_previous_results: false },
+        profiles: [
+          {
+            profile_uuid: "abc-123",
+            name: "Safari home page",
+            platform: "darwin",
+          },
+        ],
+      },
+    } as unknown) as ReturnType<typeof useProfiles>);
+
+    // PolicyForm's platform checkboxes mount unchecked and are filled in by an
+    // effect, so the first render sees an empty selection (#51272).
+    const { rerender } = renderWithHandle(
+      {
+        resend_configuration_profile: {
+          profile_uuid: "abc-123",
+          name: "Safari home page",
+        },
+      },
+      undefined,
+      { selectedPlatform: [] }
+    );
+
+    rerender(
+      <PolicyAutomationsFields
+        policy={createMockPolicy({
+          resend_configuration_profile: {
+            profile_uuid: "abc-123",
+            name: "Safari home page",
+          },
+        })}
+        isGlobalPolicy={false}
+        teamIdForApi={1}
+        automationsConfig={undefined}
+        globalConfig={undefined}
+        fleetName="Test Fleet"
+        selectedPlatform={["darwin"]}
+      />
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+    ).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Safari home page")).toBeInTheDocument();
+  });
+
   it("blocks the save when the row is checked but no profile is selected", async () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
