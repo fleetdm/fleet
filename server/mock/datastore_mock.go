@@ -118,6 +118,8 @@ type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, 
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
+type QueriesPerHostFunc func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
+
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
 type CleanupGlobalDiscardQueryResultsFunc func(ctx context.Context) error
@@ -2489,6 +2491,9 @@ type DataStore struct {
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
+
+	QueriesPerHostFunc        QueriesPerHostFunc
+	QueriesPerHostFuncInvoked bool
 
 	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
 	ObserverCanRunQueryFuncInvoked bool
@@ -6165,6 +6170,13 @@ func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) 
 	s.QueryByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryByNameFunc(ctx, teamID, name)
+}
+
+func (s *DataStore) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+	s.mu.Lock()
+	s.QueriesPerHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueriesPerHostFunc(ctx, hostID, teamID)
 }
 
 func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {

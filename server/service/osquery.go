@@ -3287,7 +3287,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 //     `osqueryResults` item could not be unmarshaled.
 //   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
 //
-// If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
+// Results are resolved to their DB query regardless of queryReportsDisabled, because the caller
+// needs the query IDs to check them against the host's schedule either way. queryReportsDisabled
+// only suppresses injecting `query_id` into the raw logs, to keep the payload reaching the logging
+// destination unchanged for deployments that disable reports.
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
 	osqueryResults []json.RawMessage,
@@ -3322,10 +3325,6 @@ func (svc *Service) preProcessOsqueryResults(
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
 
-	if queryReportsDisabled {
-		return unmarshaledResults, nil
-	}
-
 	queriesDBData = make(map[string]*fleet.Query)
 	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
@@ -3352,6 +3351,10 @@ func (svc *Service) preProcessOsqueryResults(
 			}
 			queriesDBData[queryResult.QueryName] = query
 			existingQuery = query
+		}
+
+		if queryReportsDisabled {
+			continue
 		}
 
 		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
@@ -3410,14 +3413,23 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "getting app config", "err", err)
-		// If we fail to load the app config we assume the flag to be disabled
-		// to not perform extra processing in that scenario.
+		// If we fail to load the app config we assume the flag to be disabled so that
+		// results are not stored as reports in that scenario. The schedule check below
+		// still runs, since it does not depend on the app config.
 		queryReportsDisabled = true
 	} else {
 		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
+
+	// A host is the only source of its own results, so Fleet cannot tell truthful rows
+	// from forged ones. What it can require is that it asked this host for them, which
+	// happens here so that results for queries missing from the host's schedule reach
+	// neither a report nor a log destination. Query reports being disabled removes the
+	// report destination but not the log one, so the check applies either way.
+	svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
+
 	if !queryReportsDisabled {
 		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
@@ -3426,12 +3438,14 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	var filteredLogs []json.RawMessage
 	for i, unmarshaledResult := range unmarshaledResults {
 		if unmarshaledResult == nil {
-			// Ignore results that could not be unmarshaled.
+			// Ignore results that could not be unmarshaled, and those dropped above for not
+			// being on the host's schedule.
 			continue
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without any extra processing.
+			// If query_reports_disabled=true we write the logs to the logging destination without
+			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule
@@ -3476,6 +3490,60 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		return osqueryErr
 	}
 	return nil
+}
+
+// dropResultsNotScheduledForHost sets to nil the results whose query Fleet knows but did
+// not put on the submitting host's schedule. Entries are nilled in place rather than
+// removed because the caller pairs them positionally with the raw logs.
+func (svc *Service) dropResultsNotScheduledForHost(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+) {
+	if len(queriesDBData) == 0 {
+		return
+	}
+
+	// Neither failure below stops the loop: they leave the schedule empty, which makes it
+	// drop every result that resolved to a Fleet query. With no host or no schedule, no
+	// result can be shown to have been asked for.
+	var hostID uint
+	var scheduledQueryIDs []uint
+	// ok is true for a nil host, so check both.
+	if host, ok := hostctx.FromContext(ctx); !ok || host == nil {
+		svc.logger.ErrorContext(ctx, "getting host from context")
+	} else {
+		hostID = host.ID
+		var err error
+		if scheduledQueryIDs, err = svc.ds.QueriesPerHost(ctx, host.ID, host.TeamID); err != nil {
+			svc.logger.ErrorContext(ctx, "getting queries scheduled for host", "err", err, "host_id", host.ID)
+		}
+	}
+
+	scheduled := make(map[uint]struct{}, len(scheduledQueryIDs))
+	for _, queryID := range scheduledQueryIDs {
+		scheduled[queryID] = struct{}{}
+	}
+
+	for i, result := range unmarshaledResults {
+		if result == nil {
+			continue
+		}
+		dbQuery, ok := queriesDBData[result.QueryName]
+		if !ok {
+			// Fleet doesn't know this query, so it has no schedule to check it against. Those
+			// results are passed through to support osquery nodes configured outside of Fleet.
+			continue
+		}
+		if _, ok := scheduled[dbQuery.ID]; !ok {
+			// The query is not on the host's schedule (no interval, another team, or scoped to
+			// labels the host is not a member of), so the results are either forged or stale
+			// from before a scoping change.
+			svc.logger.DebugContext(ctx, "ignoring results for query not scheduled for host",
+				"query_id", dbQuery.ID, "host_id", hostID)
+			unmarshaledResults[i] = nil
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
