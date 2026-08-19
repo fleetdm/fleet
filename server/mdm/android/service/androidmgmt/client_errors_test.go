@@ -21,7 +21,8 @@ func TestIsNotFoundError(t *testing.T) {
 		{"nil error", nil, false},
 		{"non-google error", errors.New("something"), false},
 		{"google 404", &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}, true},
-		{"google 500 with entity not found", &googleapi.Error{Code: http.StatusInternalServerError, Message: "Requested entity was not found"}, true},
+		{"google 500 with entity not found in message", &googleapi.Error{Code: http.StatusInternalServerError, Message: "Requested entity was not found"}, true},
+		{"google 500 with entity not found in body only", &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found"}, true},
 		{"google 500 generic", &googleapi.Error{Code: http.StatusInternalServerError, Message: "internal error"}, false},
 		{"google 400", &googleapi.Error{Code: http.StatusBadRequest, Message: "bad request"}, false},
 		{"wrapped google 404", fmt.Errorf("outer: %w", &googleapi.Error{Code: http.StatusNotFound}), true},
@@ -68,8 +69,15 @@ func TestFleetErrFromAMAPI(t *testing.T) {
 			},
 		},
 		{
-			name: "500 with entity not found (AMAPI quirk)",
+			name: "500 with entity not found in message (AMAPI quirk)",
 			err:  &googleapi.Error{Code: http.StatusInternalServerError, Message: "Requested entity was not found"},
+			checkFunc: func(t *testing.T, err error) {
+				require.True(t, fleet.IsNotFound(err))
+			},
+		},
+		{
+			name: "500 with entity not found in body only (AMAPI quirk)",
+			err:  &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found"},
 			checkFunc: func(t *testing.T, err error) {
 				require.True(t, fleet.IsNotFound(err))
 			},
@@ -110,9 +118,9 @@ func TestFleetErrFromAMAPI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FleetErrFromAMAPI(tt.err)
 			if tt.wantNil {
-				assert.Nil(t, result)
+				assert.NoError(t, result)
 			} else {
-				require.NotNil(t, result)
+				require.Error(t, result)
 				tt.checkFunc(t, result)
 			}
 		})

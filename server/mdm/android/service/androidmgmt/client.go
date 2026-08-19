@@ -137,7 +137,7 @@ func IsBadRequestError(err error) bool {
 func IsNotFoundError(err error) bool {
 	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
 		return ae.Code == http.StatusNotFound ||
-			(ae.Code == http.StatusInternalServerError && strings.Contains(ae.Message, "Requested entity was not found"))
+			(ae.Code == http.StatusInternalServerError && strings.Contains(ae.Error(), "Requested entity was not found"))
 	}
 	return false
 }
