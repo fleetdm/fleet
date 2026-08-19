@@ -7150,7 +7150,7 @@ Update an existing configuration profile. Use this endpoint to change which host
 | Name                      | Type    | In   | Description                                                                                                   |
 | ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
-| profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
+| profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, `.admx`, or `.xml`). See requirements below. |
 | labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
@@ -7212,7 +7212,7 @@ Update a configuration profile to target hosts with specific labels.
 
 ### Resend configuration profile
 
-Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.admx/.xml) configuration profiles.
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -7479,7 +7479,7 @@ Deletes an Apple asset declaration.
 
 ### Resend configuration profile by Fleet Desktop token
 
-Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.admx/.xml) configuration profiles.
 
 `POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
 
