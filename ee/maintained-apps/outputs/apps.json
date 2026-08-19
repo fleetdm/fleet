@@ -6512,6 +6512,13 @@
       "description": "Pearcleaner is a utility to uninstall apps and remove leftover files from old/uninstalled apps."
     },
     {
+      "name": "Perimeter 81",
+      "slug": "perimeter81/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.safervpn.osx.smb",
+      "description": ""
+    },
+    {
       "name": "pgAdmin 4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",

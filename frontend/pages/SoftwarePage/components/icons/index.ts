@@ -471,6 +471,7 @@ import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
 import Hammerspoon from "./Hammerspoon";
 import HandbrakeApp from "./HandbrakeApp";
+import HarmonySase from "./HarmonySase";
 import Hazel from "./Hazel";
 import Hazeover from "./Hazeover";
 import Heidisql from "./Heidisql";
@@ -1633,6 +1634,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
+  "harmony sase": HarmonySase,
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
