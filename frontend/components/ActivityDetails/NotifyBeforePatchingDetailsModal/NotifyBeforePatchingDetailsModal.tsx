@@ -141,24 +141,21 @@ const NotifyBeforePatchingDetailsModal = ({
           </Textarea>
         )}
         {showDetails && outputBlock && (
-          <Textarea
-            label={
-              <>
-                The{" "}
-                <TooltipWrapper
-                  tipContent="Fleet records the last 10,000 characters to prevent downtime."
-                  tooltipClass={`${baseClass}__output-tooltip`}
-                  delayInMs={500}
-                >
-                  output recorded
-                </TooltipWrapper>{" "}
-                when ran the script above:
-              </>
-            }
-            variant="code"
-          >
-            {outputBlock}
-          </Textarea>
+          <div className={`${baseClass}__output-section`}>
+            <p className={`${baseClass}__output-label`}>
+              The{" "}
+              <TooltipWrapper
+                tipContent="Fleet records the last 10,000 characters to prevent downtime."
+                tooltipClass={`${baseClass}__output-tooltip`}
+                delayInMs={500}
+                position="bottom-start"
+              >
+                output recorded
+              </TooltipWrapper>{" "}
+              when ran the script above:
+            </p>
+            <Textarea variant="code">{outputBlock}</Textarea>
+          </div>
         )}
       </div>
     );

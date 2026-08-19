@@ -11,4 +11,18 @@
   &__caveat {
     margin: 0;
   }
+
+  &__output-section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__output-label {
+    margin: 0;
+  }
+
+  &__output-tooltip {
+    width: 300px;
+  }
 }
