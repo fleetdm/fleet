@@ -83,10 +83,10 @@ describe("getAutomationRunDisplayName", () => {
           },
         })
       )
-    ).toBe("Patch skipped (1Password)");
+    ).toBe("Install skipped (1Password)");
   });
 
-  it("labels a successful notify as 'End user notified' and a failure as 'Failed to notify'", () => {
+  it("labels a successful notify as 'Notified end user' and a failure as 'Failed to notify'", () => {
     expect(
       getAutomationRunDisplayName(
         mockActivity({
@@ -95,7 +95,7 @@ describe("getAutomationRunDisplayName", () => {
           details: { policy_id: 123, software_title: "1Password" },
         })
       )
-    ).toBe("End user notified (1Password)");
+    ).toBe("Notified end user (1Password)");
     expect(
       getAutomationRunDisplayName(
         mockActivity({
@@ -119,7 +119,7 @@ describe("getAutomationRunDisplayName", () => {
           },
         })
       )
-    ).toBe("End user notified (1Password)");
+    ).toBe("Notified end user (1Password)");
   });
 
   it("treats App Store (VPP) apps as software", () => {

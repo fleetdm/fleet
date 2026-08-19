@@ -36,7 +36,7 @@ export const getAutomationRunDisplayName = (
       // deferred because the app was open — not a failure. Label it distinctly,
       // matching the activity feed and install-details treatment.
       if (details?.skipped_install) {
-        return withName("Patch skipped", details?.software_title);
+        return withName("Install skipped", details?.software_title);
       }
       return withName(
         failed ? "Software failed" : "Software installed",
@@ -44,7 +44,7 @@ export const getAutomationRunDisplayName = (
       );
     case ActivityType.NotifiedEndUserBeforePatching:
       return withName(
-        failed ? "Failed to notify" : "End user notified",
+        failed ? "Failed to notify" : "Notified end user",
         getNotifySoftwareName(details)
       );
     case ActivityType.RanScript:

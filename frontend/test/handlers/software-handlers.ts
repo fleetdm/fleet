@@ -123,7 +123,7 @@ export const getSoftwareInstallHandlerAppOpen = http.get(
         output: "",
         post_install_script_output: "",
         pre_install_query_output:
-          "Query didn't return result\nThe app was open.",
+          "Query didn't return result or failed\nThe app was open.",
       }),
     });
   }
@@ -139,7 +139,7 @@ export const getSoftwareInstallHandlerNotifyBeforePatchingSkip = http.get(
         output: "",
         post_install_script_output: "",
         pre_install_query_output:
-          "Query didn't return result\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
+          "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
       }),
     });
   }

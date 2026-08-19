@@ -1,52 +1,33 @@
-import React from "react";
+import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
 import { IActivityDetails } from "interfaces/activity";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { pluralize } from "utilities/strings/stringUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import DataError from "components/DataError";
 import DataSet from "components/DataSet";
+import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+
+import CustomLink from "components/CustomLink";
+
+import {
+  getCaveatSentence,
+  EXIT_CODES_NEEDING_EUE_LINK,
+  PATCHING_END_USER_EXPERIENCE_URL,
+} from "./helpers";
 
 const baseClass = "notify-before-patching-details-modal";
-
-// TODO(#50915): Marko will publish a "another notification is displayed" exit
-// code — waiting on the number. Meanwhile the "no script_execution_id" branch
-// covers the dispatcher-caught case (see spec: absence of execution_id is
-// unambiguous because the patch kind sets no `expires_at`).
-const DEFERRED_EXIT_CODE_TBC = -1;
-
-const FAILURE_COPY_BY_EXIT_CODE: Record<number, string> = {
-  0: "If the host is offline when the patch is forced, Fleet skips the patch. When the host comes back online Fleet notifies the end user again and the patch is forced 1 hour later.",
-  30: "The notification couldn't load. Fleet will try again on the next policy run.",
-  31: "The notification couldn't load. Fleet will try again on the next policy run.",
-  41: "The screen was locked so the end user couldn't see the notification. Fleet will try again on the next policy run.",
-  100: "The Fleet Desktop app is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
-  101: "The Fleet Desktop app v1.5.0 is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
-  [DEFERRED_EXIT_CODE_TBC]:
-    "Another notification was displayed. Fleet will try again on the next policy run.",
-};
-
-const DEFERRED_SENTENCE =
-  "Another notification was displayed. Fleet will try again on the next policy run.";
-
-const getFailureSentence = (
-  scriptExecutionId?: string,
-  exitCode?: number | null
-): string | null => {
-  // A server-side deferral emits an activity with no script run — absence of
-  // script_execution_id is the unambiguous signal.
-  if (!scriptExecutionId) return DEFERRED_SENTENCE;
-  if (exitCode === null || exitCode === undefined) return null;
-  return FAILURE_COPY_BY_EXIT_CODE[exitCode] ?? null;
-};
 
 interface INotifyBeforePatchingDetailsModalProps {
   details: IActivityDetails;
@@ -68,6 +49,8 @@ const NotifyBeforePatchingDetailsModal = ({
   const timeLabel = timeBefore === 300 ? "5 minutes" : "1 hour";
   const failed = status === "failed";
 
+  const [showDetails, setShowDetails] = useState(false);
+
   const { data: scriptResult, isLoading, isError } = useQuery<
     IScriptResultResponse,
     AxiosError
@@ -84,9 +67,10 @@ const NotifyBeforePatchingDetailsModal = ({
     }
   );
 
-  const failureSentence = failed
-    ? getFailureSentence(scriptExecutionId, scriptResult?.exit_code)
-    : null;
+  const caveatSentence = getCaveatSentence(
+    scriptExecutionId,
+    scriptResult?.exit_code
+  );
 
   const renderContent = () => {
     if (scriptExecutionId && isLoading) {
@@ -97,26 +81,113 @@ const NotifyBeforePatchingDetailsModal = ({
     }
 
     const verb = failed ? "failed to notify" : "notified";
+    // Nothing to reveal for a dispatcher-caught deferral (no script ran).
+    const hasRevealable =
+      !!scriptResult?.script_contents || scriptResult?.exit_code != null;
+    const outputBlock =
+      scriptResult?.exit_code != null
+        ? `Exit code: ${scriptResult.exit_code}\n${scriptResult.output ?? ""}`
+        : null;
+
+    // Bold each title, Oxford comma, truncate past three with a "and N more
+    // apps" tail. Full list moves to the Apps row when truncated.
+    const bold = (name: string) => <b>{getDisplayedSoftwareName(name)}</b>;
+    const overflow = titles.length - 3;
+    let titleList: React.ReactNode = null;
+    if (titles.length === 1) {
+      titleList = bold(titles[0]);
+    } else if (titles.length === 2) {
+      titleList = (
+        <>
+          {bold(titles[0])} and {bold(titles[1])}
+        </>
+      );
+    } else if (titles.length === 3) {
+      titleList = (
+        <>
+          {bold(titles[0])}, {bold(titles[1])}, and {bold(titles[2])}
+        </>
+      );
+    } else if (titles.length > 3) {
+      titleList = (
+        <>
+          {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and{" "}
+          {overflow} more {pluralize(overflow, "app")}
+        </>
+      );
+    }
+
+    // Intro sentence covers 1–3 apps in full; the Apps row only adds signal
+    // when the intro truncated.
+    const showAppsRow = titles.length > 3;
+
     return (
       <div className={`${baseClass}__content`}>
-        <p className={`${baseClass}__status`}>
-          Fleet {verb} end user {timeLabel} before patching on{" "}
-          <b>{hostName || "this host"}</b>.
-        </p>
-        {failureSentence && (
-          <p className={`${baseClass}__failure`}>{failureSentence}</p>
-        )}
-        <DataSet
-          title="Apps"
-          value={
-            titles.length
-              ? titles.map((t) => getDisplayedSoftwareName(t)).join(", ")
-              : "—"
+        <IconStatusMessage
+          className={`${baseClass}__status-message`}
+          iconName={failed ? "error-outline" : "success-outline"}
+          message={
+            <span>
+              Fleet {verb} end user {timeLabel} before patching
+              {titleList && <> {titleList}</>} on{" "}
+              <b>{hostName || "this host"}</b>.
+            </span>
           }
         />
-        {scriptResult?.output && (
-          <Textarea label="Notification script output:" variant="code">
-            {scriptResult.output}
+        {caveatSentence && (
+          <p className={`${baseClass}__caveat`}>
+            {caveatSentence}
+            {scriptResult?.exit_code != null &&
+              EXIT_CODES_NEEDING_EUE_LINK.has(scriptResult.exit_code) && (
+                <>
+                  {" "}
+                  <CustomLink
+                    url={PATCHING_END_USER_EXPERIENCE_URL}
+                    text="End user experience"
+                    newTab
+                  />
+                </>
+              )}
+          </p>
+        )}
+        {showAppsRow && (
+          <DataSet
+            title="Apps"
+            value={titles.map((t) => getDisplayedSoftwareName(t)).join(", ")}
+          />
+        )}
+        {hasRevealable && (
+          <RevealButton
+            isShowing={showDetails}
+            showText="Details"
+            hideText="Details"
+            caretPosition="after"
+            onClick={() => setShowDetails((s) => !s)}
+          />
+        )}
+        {showDetails && scriptResult?.script_contents && (
+          <Textarea label="Notification script:" variant="code">
+            {scriptResult.script_contents}
+          </Textarea>
+        )}
+        {showDetails && outputBlock && (
+          <Textarea
+            label={
+              <>
+                The{" "}
+                <TooltipWrapper
+                  tipContent="Fleet records the last 10,000 characters to prevent downtime."
+                  tooltipClass={`${baseClass}__output-tooltip`}
+                  delayInMs={500}
+                >
+                  output recorded
+                </TooltipWrapper>{" "}
+                when ran the script above:
+              </>
+            }
+            variant="code"
+          >
+            {outputBlock}
           </Textarea>
         )}
       </div>
@@ -126,7 +197,7 @@ const NotifyBeforePatchingDetailsModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Notification details"
+      title="Details"
       onExit={onCancel}
       onEnter={onCancel}
     >

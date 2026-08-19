@@ -1,0 +1,15 @@
+.notify-before-patching-details-modal {
+  &__content {
+    @include vertical-modal-layout;
+
+    // The vertical-modal-layout flex column stretches children full-width by
+    // default; the reveal button should hug its content.
+    .reveal-button {
+      align-self: flex-start;
+    }
+  }
+
+  &__caveat {
+    margin: 0;
+  }
+}
