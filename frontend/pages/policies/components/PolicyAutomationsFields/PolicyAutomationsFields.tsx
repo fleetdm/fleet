@@ -224,21 +224,22 @@ const PolicyAutomationsFields = forwardRef<
     const [profileUUID, setProfileUUID] = useState<string | null>(
       policy.resend_configuration_profile?.profile_uuid ?? null
     );
-    const [resendProfileDisabled, setResendProfileDisabled] = useState<boolean>(
-      selectedPlatform.some((p) => p === "darwin" || p === "windows")
+    const hasProfilePlatform = selectedPlatform.some(
+      (p) => p === "darwin" || p === "windows"
     );
+    const resendProfileDisabled = !hasProfilePlatform;
 
+    // An empty selection means the platform checkboxes haven't hydrated yet
+    // (they mount unchecked and are filled in by an effect), so it can't be
+    // read as "no profile platform" without wiping a stored selection.
+    const hasPlatformSelection = selectedPlatform.length > 0;
     useEffect(() => {
-      const hasProfilePlatform = selectedPlatform.some(
-        (p) => p === "darwin" || p === "windows"
-      );
-      setResendProfileDisabled(!hasProfilePlatform);
-      if (!hasProfilePlatform) {
+      if (hasPlatformSelection && !hasProfilePlatform) {
         setProfileUUID(null);
         setResendConfigProfile(false);
         clearError("resend_configuration_profile");
       }
-    }, [selectedPlatform]);
+    }, [hasPlatformSelection, hasProfilePlatform]);
 
     const [errors, setErrors] = useState<IAutomationsErrors>({});
 
