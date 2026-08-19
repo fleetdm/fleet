@@ -3,6 +3,7 @@ package homebrew
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -221,9 +222,9 @@ func shellSingleQuote(s string) string {
 
 // dqEscaper backslash-escapes the only four characters that keep a special
 // meaning inside a double-quoted shell string: backslash, dollar, backtick, and
-// double quote. Backslash is listed first so an escape we introduce isn't
-// re-escaped (strings.Replacer scans left to right in a single pass and never
-// reconsiders inserted text).
+// double quote. strings.Replacer makes a single pass and never rescans the
+// replacement text it inserts, so the escapes it introduces are not themselves
+// re-escaped (regardless of pair order).
 var dqEscaper = strings.NewReplacer(
 	`\`, `\\`,
 	`$`, `\$`,
@@ -242,6 +243,51 @@ var dqEscaper = strings.NewReplacer(
 // auto-update path) don't churn.
 func shellDoubleQuoteEscape(s string) string {
 	return dqEscaper.Replace(s)
+}
+
+// escapeCaskPath escapes a cask-supplied path for use inside a double-quoted
+// shell string while preserving a leading "$APPDIR" — the one cask variable the
+// generated scripts define and legitimately expand at runtime (every real
+// binary-artifact source is "$APPDIR/Foo.app/..."). Everything after the prefix
+// is data and gets escaped; paths without metacharacters come back unchanged.
+func escapeCaskPath(s string) string {
+	if s == "$APPDIR" {
+		return s
+	}
+	if rest, ok := strings.CutPrefix(s, "$APPDIR/"); ok {
+		return "$APPDIR/" + shellDoubleQuoteEscape(rest)
+	}
+	return shellDoubleQuoteEscape(s)
+}
+
+var inertBareword = regexp.MustCompile(`^[A-Za-z0-9_./+][A-Za-z0-9_./+-]*$`)
+
+// inertShellWord reports whether s is safe to emit as a single unquoted shell
+// word: an optional "$APPDIR" prefix followed only by filename-safe bytes, with
+// no leading dash that a command would parse as an option. Inert values keep
+// the generator's historical unquoted form: the auto-update job treats any byte
+// difference between a stored script and the manifest script as an admin
+// customization and pins the stored script (which names the old installer
+// file), so format churn would break auto-updates for every affected app.
+func inertShellWord(s string) bool {
+	if s == "$APPDIR" {
+		return true
+	}
+	if rest, ok := strings.CutPrefix(s, "$APPDIR/"); ok {
+		return inertBareword.MatchString(rest)
+	}
+	return inertBareword.MatchString(s)
+}
+
+// heredocInert reports whether s is pure data in an unquoted << EOF heredoc
+// body: nothing the shell expands there ($, backtick, backslash) and no line
+// equal to the delimiter, which would terminate the heredoc early and run the
+// remainder as commands.
+func heredocInert(s string) bool {
+	if strings.ContainsAny(s, "$`\\") {
+		return false
+	}
+	return !slices.Contains(strings.Split(s, "\n"), "EOF")
 }
 
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
@@ -458,33 +504,52 @@ func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error
 	}
 
 	// The choice XML embeds cask-controlled strings (choiceIdentifier /
-	// choiceAttribute). Write it with a single-quoted printf argument rather than a
-	// heredoc: an unquoted heredoc shell-expands $(...) in the body, and even a
-	// quoted delimiter ('EOF') would still let a newline in the metadata smuggle in
-	// a line equal to the delimiter and end the heredoc early, running the rest as
-	// commands. Single-quoting the whole payload neutralizes both.
-	s.Writef(`
+	// choiceAttribute). An unquoted heredoc shell-expands $/backtick/backslash in
+	// its body, and a body line equal to the delimiter ends it early, running the
+	// remainder as commands. Keep the historical heredoc when the XML is inert on
+	// all those counts — every real cask today, so stored scripts don't churn (see
+	// inertShellWord) — and otherwise write the XML as a single-quoted printf
+	// literal, which the shell can't interpret.
+	if xml := string(choiceXML); heredocInert(xml) {
+		s.Writef(`
+CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
+
+cat << EOF > "$CHOICE_XML"
+%s
+EOF
+
+sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
+`, xml, pkg)
+	} else {
+		s.Writef(`
 CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
 
 printf '%%s\n' %s > "$CHOICE_XML"
 
 sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
-`, shellSingleQuote(string(choiceXML)), pkg)
+`, shellSingleQuote(xml), pkg)
+	}
 
 	return nil
 }
 
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
-	// source/target are cask-controlled. Quote and escape them: the previous
-	// `mkdir -p %s` was unquoted (also broken for paths with spaces) and the ln
-	// arguments, though double-quoted, still allowed $(...) command substitution.
+	// source/target are cask-controlled: the ln arguments, though double-quoted,
+	// allowed $(...) command substitution, and the mkdir argument was unquoted.
+	// Inert paths keep the historical unquoted mkdir form so stored scripts don't
+	// churn (see inertShellWord); `--` stops a leading dash in a hostile path from
+	// being parsed as an option.
 	pathname := filepath.Dir(target)
 	if _, ok := s.pathsCreated[pathname]; !ok {
-		s.Writef(`mkdir -p "%s"`, shellDoubleQuoteEscape(pathname))
+		if inertShellWord(pathname) {
+			s.Writef("mkdir -p %s", pathname)
+		} else {
+			s.Writef(`mkdir -p -- "%s"`, escapeCaskPath(pathname))
+		}
 		s.pathsCreated[pathname] = struct{}{}
 	}
-	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, shellDoubleQuoteEscape(source), shellDoubleQuoteEscape(target))
+	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, escapeCaskPath(source), escapeCaskPath(target))
 }
 
 // String generates the final script as a string.
