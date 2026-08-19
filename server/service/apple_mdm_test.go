@@ -4138,10 +4138,15 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 		enrollID *mdm.EnrollID
 		// reportShortName off mirrors a device that omits UserShortName.
 		reportShortName bool
-		wantSource      fleet.HostCertificateSource
-		wantUsername    string
-		wantCleanupID   string
-		wantNanoLookup  bool
+		// nanoShortName / nanoUserID are what nano has on record for the host's
+		// first active user enrollment.
+		nanoShortName  string
+		nanoUserID     string
+		wantSource     fleet.HostCertificateSource
+		wantUsername   string
+		wantCleanupID  string
+		wantNanoLookup bool
+		wantErr        bool
 	}{
 		{
 			name:          "device channel: system keychain",
@@ -4166,6 +4171,24 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 			wantNanoLookup: true,
 		},
 		{
+			name:           "user channel with nothing on record: error, no ingest",
+			enrollID:       userEnrollID,
+			nanoShortName:  "",
+			nanoUserID:     userID,
+			wantNanoLookup: true,
+			wantErr:        true,
+		},
+		{
+			name:     "user channel whose enrollment is no longer nano's first: error, no ingest",
+			enrollID: userEnrollID,
+			// A different user enrollment now sorts first, so its short name
+			// says nothing about who answered here.
+			nanoShortName:  "bob",
+			nanoUserID:     "OTHER-USER-UUID",
+			wantNanoLookup: true,
+			wantErr:        true,
+		},
+		{
 			name:          "no enrollment id: treated as device channel",
 			enrollID:      nil,
 			wantSource:    fleet.SystemHostCertificate,
@@ -4181,9 +4204,13 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, command.CommandType)
 				return nil
 			}
+			nanoShortName, nanoUserID := c.nanoShortName, c.nanoUserID
+			if nanoShortName == "" && nanoUserID == "" {
+				nanoShortName, nanoUserID = shortName, userID
+			}
 			ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, deviceID string) (string, string, error) {
 				require.Equal(t, hostUUID, deviceID)
-				return shortName, userID, nil
+				return nanoShortName, nanoUserID, nil
 			}
 			var gotScopes []fleet.HostCertificateScope
 			var gotCerts []*fleet.HostCertificateRecord
@@ -4213,6 +4240,12 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 				Status:      "Acknowledged",
 				Raw:         rawResponse(userChannel, c.reportShortName),
 			})
+			if c.wantErr {
+				require.Error(t, err)
+				require.Nil(t, gotCerts, "certificates must not be ingested under an unknown user")
+				require.Equal(t, c.wantNanoLookup, ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFuncInvoked)
+				return
+			}
 			require.NoError(t, err)
 
 			require.Len(t, gotCerts, 1)

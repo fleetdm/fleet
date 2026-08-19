@@ -6189,7 +6189,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 	if isUserChannel {
 		certSource = fleet.UserHostCertificate
 		var err error
-		username, err = svc.userChannelShortName(ctx, host.UUID, &listResp)
+		username, err = svc.userChannelShortName(ctx, host.UUID, enrollmentID, &listResp)
 		if err != nil {
 			return nil, err
 		}
@@ -6225,13 +6225,22 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // CertificateList describes, matching the scope osquery reports the same certs
 // under (it derives the username from the keychain path). Falls back to nano's
 // record for devices that omit UserShortName.
-func (svc *MDMAppleCheckinAndCommandService) userChannelShortName(ctx context.Context, hostUUID string, listResp *fleet.MDMAppleCertificateListResponse) (string, error) {
+//
+// An unknown user is an error rather than an empty username: certs recorded
+// under an empty user scope reconcile against nothing, so they would pile up
+// beside the real ones instead of replacing them.
+func (svc *MDMAppleCheckinAndCommandService) userChannelShortName(ctx context.Context, hostUUID, enrollmentID string, listResp *fleet.MDMAppleCertificateListResponse) (string, error) {
 	if listResp.UserShortName != "" {
 		return listResp.UserShortName, nil
 	}
-	shortName, _, err := svc.ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, hostUUID)
+	// nano's record only exposes the host's first active user enrollment, so it
+	// is only usable when that is the enrollment that answered.
+	shortName, userID, err := svc.ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, hostUUID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get user enrollment short name")
+	}
+	if shortName == "" || hostUUID+":"+userID != enrollmentID {
+		return "", ctxerr.Errorf(ctx, "no user short name on record for enrollment %s", enrollmentID)
 	}
 	return shortName, nil
 }

@@ -10705,8 +10705,11 @@ func (s *integrationMDMTestSuite) TestACMECertUserAndSystemScopedProfilesCoexist
 
 	cmd, err := mdmDevice.UserIdle()
 	require.NoError(t, err)
-	require.NotNil(t, cmd)
-	require.Equal(t, "CertificateList", cmd.Command.RequestType)
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
+		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "CertificateList must be delivered on user channel")
 	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID, []*x509.Certificate{acmeCertTemplate(userCN)})
 	require.NoError(t, err)
 	require.Equal(t, "user:"+mdmDevice.Username, s.hostCertificateScopes(t, host.ID)[userCN])
