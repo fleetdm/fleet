@@ -3,7 +3,7 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import { IHostMdmProfile } from "interfaces/mdm";
 
-import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
+import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
 const formatAndroidProfileNotAppliedError = (
   detail: IHostMdmProfile["detail"]
@@ -19,7 +19,6 @@ const formatAndroidProfileNotAppliedError = (
           text="Learn more"
           url="https://fleetdm.com/learn-more-about/android-profile-errors"
           newTab
-          variant="tooltip-link"
         />
       </>
     );
@@ -102,17 +101,12 @@ const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
   if (detail.includes("There is no IdP email for this host.")) {
     return (
       <>
-        There is no IdP email for this host.
-        <br />
-        Fleet couldn&apos;t populate
-        <br />
-        $FLEET_VAR_HOST_END_USER_EMAIL_IDP.
-        <br />
+        There is no IdP email for this host. Fleet couldn&apos;t populate
+        $FLEET_VAR_HOST_END_USER_EMAIL_IDP.{" "}
         <CustomLink
           text="Learn more"
           url="https://fleetdm.com/learn-more-about/idp-email"
           newTab
-          variant="tooltip-link"
         />
       </>
     );
@@ -120,17 +114,44 @@ const formatDetailIdpEmailError = (detail: IHostMdmProfile["detail"]) => {
   return null;
 };
 
-/**
- * generates the formatted tooltip for the error column.
- * the expected format of the error string is:
- * "key1: value1, key2: value2, key3: value3"
- */
-const formatDetailWindowsProfile = (detail: string) => {
-  const keyValuePairs = detail.split(/, */);
-  const formattedElements: JSX.Element[] = [];
+export interface IDetailGuidance {
+  message: React.ReactNode;
+  /** True when the message already says everything the raw detail says, so the
+   * copyable block would repeat it. Lines up with the "Learn more" messages,
+   * which quote the detail; the certificate rewrites drop diagnostic text. */
+  supersedesDetail: boolean;
+}
 
-  // Special case to handle bitlocker and certificate install error messages.
-  // They do not follow the expected string format so we will just render the error message as is.
+/** The rewritten, actionable version of a recognized error. Null when the
+ * detail matches no known pattern, leaving the raw detail to stand alone. */
+export const getDetailGuidance = (
+  profile: IHostMdmProfileWithAddedStatus
+): IDetailGuidance | null => {
+  if (profile.status !== "failed" || !profile.detail) return null;
+
+  const idpEmailError = formatDetailIdpEmailError(profile.detail);
+  if (idpEmailError) {
+    return { message: idpEmailError, supersedesDetail: true };
+  }
+
+  const certificateError = formatDetailCertificateError(profile.detail);
+  if (certificateError) {
+    return { message: certificateError, supersedesDetail: false };
+  }
+
+  const androidError = formatAndroidProfileNotAppliedError(profile.detail);
+  if (androidError) {
+    return { message: androidError, supersedesDetail: true };
+  }
+
+  return null;
+};
+
+/** Windows details arrive as one "key: value, key: value" line. A CSP profile
+ * can carry hundreds of URI paths, so split it one result per line. */
+const splitWindowsDetailLines = (detail: string) => {
+  // BitLocker and certificate install errors are prose, not key/value pairs,
+  // and splitting them on commas mangles the sentence.
   if (
     detail.includes("BitLocker") ||
     detail.includes("preparing volume for encryption") ||
@@ -139,59 +160,22 @@ const formatDetailWindowsProfile = (detail: string) => {
     return detail;
   }
 
-  keyValuePairs.forEach((pair, i) => {
-    const [key, value] = pair.split(/:(.*)/).map((str) => str.trim());
-    if (key && value) {
-      formattedElements.push(
-        <span key={key}>
-          <b>{key}:</b> {value}
-          {/* dont add the trailing comma for the last element */}
-          {i !== keyValuePairs.length - 1 && (
-            <>
-              ,<br />
-            </>
-          )}
-        </span>
-      );
-    }
-  });
+  const lines = detail
+    .split(/, */)
+    .filter((pair) => /^[^:]+:(.*)$/.test(pair.trim()));
 
-  return formattedElements.length ? <>{formattedElements}</> : detail;
+  return lines.length ? lines.join("\n") : detail;
 };
 
-/**
- * generates the error tooltip for the error column. This will be formatted or
- * unformatted.
- */
-const generateErrorTooltip = (
+/** The raw detail as plain text, for the output block and the clipboard. */
+export const getDetailText = (
   profile: IHostMdmProfileWithAddedStatus
-): React.ReactNode => {
-  if (profile.status !== "failed" || !profile.detail) return null;
-
-  // Special case to handle IdP email errors
-  const idpEmailError = formatDetailIdpEmailError(profile.detail);
-  if (idpEmailError) {
-    return idpEmailError;
-  }
-
-  // Special case to handle certificate profile errors
-  const certificateError = formatDetailCertificateError(profile.detail);
-  if (certificateError) {
-    return certificateError;
-  }
-
-  const androidProfileNotAppliedError = formatAndroidProfileNotAppliedError(
-    profile.detail
-  );
-  if (androidProfileNotAppliedError) {
-    return androidProfileNotAppliedError;
-  }
+): string => {
+  if (!profile.detail) return "";
 
   if (profile.platform === "windows") {
-    return formatDetailWindowsProfile(profile.detail);
+    return splitWindowsDetailLines(profile.detail);
   }
 
   return profile.detail;
 };
-
-export default generateErrorTooltip;

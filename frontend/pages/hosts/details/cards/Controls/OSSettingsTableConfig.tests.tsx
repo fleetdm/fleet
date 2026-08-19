@@ -1,7 +1,16 @@
 import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
-import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import {
+  generateRecoveryLockPasswordSetting,
+  generateWinDiskEncryptionSetting,
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+} from "pages/hosts/details/helpers";
 
-import { generateTableData } from "./OSSettingsTableConfig";
+import {
+  countFailedControls,
+  generateTableData,
+  getRowActionProps,
+} from "./OSSettingsTableConfig";
 
 const createMockHostMdmData = (
   overrides?: Partial<IHostMdmData>
@@ -127,5 +136,80 @@ describe("generateTableData - host name row", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.name)).toEqual(["Wi-Fi", "Host name"]);
+  });
+});
+
+describe("countFailedControls", () => {
+  it("counts nothing when there are no rows", () => {
+    expect(countFailedControls(null)).toBe(0);
+    expect(countFailedControls([])).toBe(0);
+  });
+
+  it("counts synthesized rows, not just profiles from the API", () => {
+    const rows = generateTableData(
+      createMockHostMdmData({
+        profiles: [
+          createMockHostMdmProfile({ profile_uuid: "a", status: "failed" }),
+          createMockHostMdmProfile({ profile_uuid: "b", status: "verified" }),
+        ],
+        os_settings: {
+          disk_encryption: { status: "failed", detail: "encryption failed" },
+          certificates: [],
+        },
+      }),
+      "windows"
+    );
+
+    // The failed profile plus the synthesized failed disk encryption row.
+    expect(countFailedControls(rows)).toBe(2);
+  });
+
+  it("counts the synthesized host name row", () => {
+    const rows = generateTableData(
+      createMockHostMdmData({
+        profiles: [],
+        os_settings: {
+          disk_encryption: { status: null, detail: "" },
+          certificates: [],
+          host_name: { status: "failed", detail: "drifted" },
+        },
+      }),
+      "darwin"
+    );
+
+    expect(countFailedControls(rows)).toBe(1);
+  });
+});
+
+describe("getRowActionProps", () => {
+  // The synthesized rows carry placeholder UUIDs that the profile resend
+  // endpoint rejects with a 404, so they must never offer Resend.
+  it.each(["verified", "failed"] as const)(
+    "does not offer resend on a %s windows disk encryption row",
+    (status) => {
+      const row = generateWinDiskEncryptionSetting(status, "");
+
+      expect(getRowActionProps(row, true).canResendProfiles).toBe(false);
+    }
+  );
+
+  it("does not offer resend on a recovery lock row, which rotates instead", () => {
+    const row = generateRecoveryLockPasswordSetting("failed", "");
+
+    expect(getRowActionProps(row, true, true)).toMatchObject({
+      canResendProfiles: false,
+      canRotateRecoveryLockPassword: true,
+    });
+  });
+
+  it("offers resend on a real windows profile", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: "w1234",
+      platform: "windows",
+      operation_type: "install",
+      status: "failed",
+    });
+
+    expect(getRowActionProps(row, true).canResendProfiles).toBe(true);
   });
 });
