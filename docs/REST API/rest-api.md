@@ -3507,6 +3507,8 @@ the `software` table.
 
 > Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
 
+> `group_tag` is the Windows Autopilot group tag, and is only returned for hosts synced from a tenant's Autopilot registry. See [Connect Fleet to Microsoft Graph](https://fleetdm.com/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph).
+
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
@@ -3600,6 +3602,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "updated_at": "2020-11-05T06:03:39Z",
       "id": 1,
       "detail_updated_at": "2020-11-05T05:09:45Z",
+      "group_tag": "Marketing-Laptops",
       "last_restarted_at": "2020-11-01T03:01:45Z",
       "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
@@ -4048,6 +4051,7 @@ Returns the information of the specified host.
     "updated_at": "2021-08-19T21:14:58Z",
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
+    "group_tag": "Marketing-Laptops",
     "last_restarted_at": "2020-11-01T03:01:45Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",

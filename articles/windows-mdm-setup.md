@@ -230,6 +230,88 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 2. After it's been wiped, open your workstation and follow the setup steps. On the screen in which you're asked to sign in, you should see the title "Welcome to [your organization]!" next to the logo you uploaded in step 4.
 
 
+## Connect Fleet to Microsoft Graph
+
+_Available in Fleet Premium_
+
+Fleet can read your tenant's Windows Autopilot registry and show every registered device as a **Pending** host before anyone unboxes it. Fleet also records each device's Autopilot group tag and returns it on the hosts API. Use it to build an automation that moves pending hosts into the right fleet before they enroll. When a device enrolls, Fleet reuses the pending host instead of creating a second one, and the host keeps the fleet you put it in.
+
+Fleet reads the registry through the Microsoft Graph API, which needs its own Entra app registration. This is not the same as the tenant IDs and client IDs from [automatic enrollment](#step-2-connect-fleet-to-microsoft-entra-id). Those authorize your Windows hosts to enroll into Fleet. This credential is what Fleet authenticates as when it calls Microsoft.
+
+> **Note:** Your tenant needs an Intune license. Without one, Microsoft Graph returns no Autopilot devices.
+
+### Step 1: Create an app registration
+
+The application you created for automatic enrollment already holds Microsoft Graph permissions, so it would work here. Create a separate one anyway. That application can read your devices, directory, groups, and users, so a leaked secret from it exposes far more than a list of Autopilot devices.
+
+1. Sign in to [Microsoft Entra](https://entra.microsoft.com/).
+
+2. At the top of the page, search "App registrations" and select **App registrations**.
+
+3. Select **+ New registration**.
+
+4. Enter "Fleet Autopilot sync" as the name, leave the default account type selected, and select **Register**.
+
+5. On the **Overview** page, copy the **Directory (tenant) ID** and the **Application (client) ID**.
+
+### Step 2: Grant the Microsoft Graph permission
+
+1. In the sidebar, select **API permissions**, then select **+ Add a permission**.
+
+2. Select **Microsoft Graph**, then select **Application permissions**.
+
+> **Warning:** Select **Application permissions**, not **Delegated permissions**. With a delegated permission, Fleet still gets a token. Microsoft Graph then rejects every request, so the failure looks unrelated to the permission you picked.
+
+3. Search "DeviceManagementServiceConfig", select **DeviceManagementServiceConfig.Read.All**, and select **Add permissions**.
+
+4. Select **Grant admin consent for [your tenant name]**, and confirm.
+
+Confirm that **DeviceManagementServiceConfig.Read.All** shows a green check under **Status**. Fleet needs no other permission.
+
+### Step 3: Create a client secret
+
+1. In the sidebar, select **Certificates & secrets**, then select **+ New client secret**.
+
+2. Enter a description, choose when it expires, and select **Add**.
+
+3. Copy the value in the **Value** column.
+
+> **Warning:** Copy the **Value** column, not the **Secret ID** column. Microsoft shows the **Value** once and you can't retrieve it after you leave the page. A **Secret ID** pasted into Fleet fails when Fleet asks Microsoft for a token. The error names the credential, not the column you copied.
+
+Client secrets expire. Microsoft's default is 180 days, and the longest you can choose is 24 months. Fleet learns that a secret expired when a sync fails, so set your own reminder to rotate it.
+
+### Step 4: Add the credential to Fleet
+
+1. In Fleet, navigate to **Settings** > **Integrations** > **MDM**.
+
+2. Under **Microsoft Entra**, find **Microsoft Graph** and select **Connect**.
+
+3. Paste your **Tenant ID**, **Client ID**, and **Client secret**, then select **Save**.
+
+Fleet checks the credential against Microsoft Graph before storing it. If a value is wrong or admin consent is missing, Fleet refuses to save and tells you which of the two it was.
+
+### Verify the connection
+
+1. In Fleet, navigate to **Hosts**.
+
+2. Filter by **Status** > **Pending**, or search for the serial number of a device you registered with Autopilot.
+
+Fleet syncs every 5 minutes, so give it a cycle before your devices appear. To check the connection itself, navigate to **Settings** > **Integrations** > **MDM** > **Microsoft Graph**. **Last synced** shows the last sync that succeeded, along with the error from the most recent attempt if it failed.
+
+New pending hosts land in the fleet set as **Default fleet** in **Settings** > **Integrations** > **MDM** > **Windows MDM**. If you haven't set one, they land in **No team**. Enrolling the device doesn't move it, so a fleet you assign now survives enrollment.
+
+### Troubleshoot
+
+**Your Autopilot devices don't appear as pending hosts.** Confirm your tenant has an Intune license. Then confirm the devices are listed in Intune under **Devices** > **Windows** > **Enrollment** > **Windows Autopilot** > **Devices**. Fleet shows what Intune reports.
+
+**"Microsoft Graph denied the request."** The app registration is missing **DeviceManagementServiceConfig.Read.All**, or nobody granted admin consent. Both are step 2.
+
+**"Microsoft Graph rejected the credential."** Your tenant ID, client ID, or client secret is wrong. Copying the **Secret ID** instead of the secret's **Value** produces this error.
+
+**A banner says your Microsoft Graph credential is invalid.** Fleet raises this when a sync is rejected, so it can appear up to 5 minutes after the credential stops working. Save a working credential to clear it.
+
+**Fleet says the credential has never synced after you rotated the secret.** Saving a credential clears its sync history, because that history described the secret you replaced. The next sync repopulates it.
+
 ## Automatic Windows MDM migration
 
 Fleet can automatically migrate your Windows hosts from another MDM solution to Fleet without end user interaction.
