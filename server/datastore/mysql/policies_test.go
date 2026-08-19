@@ -8393,6 +8393,7 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 		}}
 	}
 
+	// The rejected batch wrote nothing.
 	assertNothingWritten := func() {
 		var count int
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -8411,7 +8412,7 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 	require.ErrorContains(t, err, `pre_install_query can't be set on Fleet-maintained app "maintained2" when notify_before_patching is true`)
 	assertNothingWritten()
 
-	// The same spec applies with neither patch option set.
+	// The same spec applies without patch_when_closed or notify_before_patching.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, false)))
 }
 
@@ -8466,7 +8467,7 @@ func testApplyPolicySpecsNotifyBeforePatchingRejectsWindows(t *testing.T, ds *Da
 	})
 	require.Zero(t, count)
 
-	// The same Windows patch policy applies without the flag.
+	// The same Windows patch policy applies without notify_before_patching.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false)))
 }
 

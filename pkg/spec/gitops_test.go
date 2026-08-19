@@ -5676,7 +5676,7 @@ policies:
     continuous_automations_enabled: false
     patch_when_closed: true
 `,
-			wantErrs: []string{`"continuous_automations_enabled" must be true when "patch_when_closed" is true`},
+			wantErrs: []string{`If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`},
 		},
 		{
 			name:     "patch_when_closed rejects a pre_install_query on the referenced FMA",
@@ -5729,7 +5729,7 @@ policies:
     continuous_automations_enabled: false
     notify_before_patching: true
 `,
-			wantErrs: []string{`"continuous_automations_enabled" must be true when "notify_before_patching" is true`},
+			wantErrs: []string{`If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`},
 		},
 		{
 			name:     "notify_before_patching rejects a pre_install_query on the referenced FMA",

@@ -2093,7 +2093,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when %q is true.`, item.Name, patchOption))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}

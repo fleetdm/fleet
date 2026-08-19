@@ -3993,7 +3993,7 @@ reports:
     patch_when_closed: true`, slug))), 0o644))
 	fleetctltest.RunAppCheckErr(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
-	}, `"continuous_automations_enabled" must be true when "patch_when_closed" is true`)
+	}, `If "patch_when_closed" is true, "continuous_automations_enabled" can't be set to false.`)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
