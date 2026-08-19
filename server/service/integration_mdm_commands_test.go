@@ -546,7 +546,7 @@ func (s *integrationMDMTestSuite) TestWipeLinuxCancelsUpcomingActivities() {
 
 func (s *integrationMDMTestSuite) TestCancelHostMDMCommandMacOS() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 
 	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)

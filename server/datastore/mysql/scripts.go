@@ -2511,7 +2511,7 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 		// first and let the normal update below run as if the cancel never
 		// happened. An Error result means the command didn't run — no restore.
 		if succeeded && refCol != "unlock_ref" {
-			if err := restoreCanceledLockWipeRef(ctx, tx, hostUUID, cmdUUID, requestType); err != nil {
+			if err := ds.restoreCanceledLockWipeRef(ctx, tx, hostUUID, cmdUUID, requestType); err != nil {
 				return err
 			}
 		}
@@ -2533,7 +2533,7 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 // renewal sweeps) take this same path when the device acknowledged the
 // command anyway, which is deliberate — those today strand the host in a
 // state Fleet misreports.
-func restoreCanceledLockWipeRef(ctx context.Context, tx sqlx.ExtContext, hostUUID, cmdUUID, requestType string) error {
+func (ds *Datastore) restoreCanceledLockWipeRef(ctx context.Context, tx sqlx.ExtContext, hostUUID, cmdUUID, requestType string) error {
 	var active bool
 	err := sqlx.GetContext(ctx, tx, &active,
 		`SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID)
@@ -2552,7 +2552,10 @@ func restoreCanceledLockWipeRef(ctx context.Context, tx sqlx.ExtContext, hostUUI
 		ID       uint   `db:"id"`
 		Platform string `db:"platform"`
 	}
-	err = sqlx.GetContext(ctx, tx, &host, `SELECT id, platform FROM hosts WHERE uuid = ?`, hostUUID)
+	// hosts.uuid is not unique (cloned VMs, re-enrollment); the highest id is
+	// the live enrollment
+	err = sqlx.GetContext(ctx, tx, &host,
+		`SELECT id, platform FROM hosts WHERE uuid = ? ORDER BY id DESC LIMIT 1`, hostUUID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
@@ -2593,12 +2596,20 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 		if err := plist.Unmarshal(raw, &payload); err != nil {
-			return ctxerr.Wrap(ctx, err, "parse command plist for canceled lock restore")
+			// erroring would abort the ack processing and poison every
+			// re-delivery of the device's report, so skip the restore instead
+			ds.logger.WarnContext(ctx, "canceled lock restore: cannot parse stored command plist, skipping restore",
+				"command_uuid", cmdUUID, "err", err)
+			return nil
 		}
 		if payload.Command.PIN == "" {
-			// without a PIN a restored macOS lock could never be unlocked by
-			// the admin nor cleaned up by CleanAppleMDMLock
-			return ctxerr.New(ctx, "canceled DeviceLock command has no PIN in its stored plist")
+			// a raw DeviceLock sent via POST /commands/run may carry no PIN;
+			// restoring lock_ref without one would leave a lock the admin
+			// cannot unlock and CleanAppleMDMLock cannot clear, and erroring
+			// here would poison every re-delivery of the device's report —
+			// skip the restore, matching the no-bookkeeping behavior raw
+			// commands have always had (Fleet-issued locks always embed a PIN)
+			return nil
 		}
 		pin = payload.Command.PIN
 	}
