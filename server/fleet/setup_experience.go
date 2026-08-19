@@ -33,9 +33,10 @@ func (s SetupExperienceStatusResultStatus) IsTerminalStatus() bool {
 	}
 }
 
-// SetupExperienceStatusResult represents the status of a particular step in the macOS setup
+// SetupExperienceStatusResult represents the status of a particular step in the setup
 // experience process for a particular host. These steps can either be a software installer
-// installation, a VPP app installation, or a script execution.
+// installation, a VPP app installation, an in-house app (.ipa) installation, or a script
+// execution.
 type SetupExperienceStatusResult struct {
 	ID                              uint                              `db:"id" json:"-" `
 	HostUUID                        string                            `db:"host_uuid" json:"-" `
@@ -47,6 +48,7 @@ type SetupExperienceStatusResult struct {
 	VPPAppAdamID                    *string                           `db:"vpp_app_adam_id" json:"-"`
 	VPPAppPlatform                  *string                           `db:"vpp_app_platform" json:"-"`
 	NanoCommandUUID                 *string                           `db:"nano_command_uuid" json:"-" `
+	InHouseAppID                    *uint                             `db:"in_house_app_id" json:"-"`
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
 	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
@@ -82,6 +84,13 @@ func (s *SetupExperienceStatusResult) IsValid() error {
 		colsSet++
 		if s.HostSoftwareInstallsExecutionID != nil || s.ScriptExecutionID != nil {
 			return fmt.Errorf("invalid setup experience status row, vpp_app_team set with incorrect secondary value column: %d", s.ID)
+		}
+	}
+	if s.InHouseAppID != nil {
+		// like VPP apps, in-house apps pair with nano_command_uuid
+		colsSet++
+		if s.HostSoftwareInstallsExecutionID != nil || s.ScriptExecutionID != nil {
+			return fmt.Errorf("invalid setup experience status row, in_house_app_id set with incorrect secondary value column: %d", s.ID)
 		}
 	}
 	if s.SetupExperienceScriptID != nil {
@@ -120,10 +129,10 @@ func (s *SetupExperienceStatusResult) IsForScript() bool {
 	return s.SetupExperienceScriptID != nil
 }
 
-// IsForSoftware indicates if this result is for a setup experience software step: either a software
-// installer or a VPP app.
+// IsForSoftware indicates if this result is for a setup experience software step: a software
+// installer, a VPP app, or an in-house app.
 func (s *SetupExperienceStatusResult) IsForSoftware() bool {
-	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil
+	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil || s.InHouseAppID != nil
 }
 
 // IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
@@ -133,6 +142,11 @@ func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 
 func (s *SetupExperienceStatusResult) IsForVPPApp() bool {
 	return s.VPPAppTeamID != nil
+}
+
+// IsForInHouseApp indicates if this result is for a setup experience in-house app (.ipa) step.
+func (s *SetupExperienceStatusResult) IsForInHouseApp() bool {
+	return s.InHouseAppID != nil
 }
 
 func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {

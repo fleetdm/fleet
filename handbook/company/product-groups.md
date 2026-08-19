@@ -130,7 +130,7 @@ The Roles table covers day-to-day responsibilities. Use this section to determin
 - When to escalate a blocker outside the group, and to whom.
 
 **Product Designer**
-- Whether a story has enough definition to move to **Ready**.
+- Whether a story has enough definition to move to **Ready**, including reviewing any AI-generated content for accuracy and completeness.
 - Product scope of a story: what is in, what is out, and what is deferred.
 - When to escalate to the [Head of Product Design](https://fleetdm.com/handbook/product-design) on product or design ambiguity.
 - Whether a customer promise or activation blocker needs [t-shirt sizing](#t-shirt-sizing-capacity-planning) even when fast-drafted (shared with EM).
@@ -140,7 +140,7 @@ The Roles table covers day-to-day responsibilities. Use this section to determin
 - Technical feasibility of a proposed change and whether it should be split, deferred, or reshaped.
 - Review priority across open pull requests in the group.
 - When to escalate to the EM on technical risk or cross-group impact.
-- Whether a [sub-task](#sub-tasks) should be created versus folded into the parent story.
+- Whether a [sub-task](#sub-tasks) should be created versus folded into the parent story, including reviewing any AI-generated content for accuracy and completeness.
 
 **Software Engineer**
 - Implementation approach within a story, including libraries, patterns, and test coverage.

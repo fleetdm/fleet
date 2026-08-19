@@ -38,7 +38,9 @@ func TestMDMWindows(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestDeleteMDMWindowsConfigProfileWithPolicyAutomation", testDeleteMDMWindowsConfigProfileWithPolicyAutomation},
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
+		{"TestMDMWindowsEnrollmentZTDRegistrationID", testMDMWindowsEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
@@ -7450,6 +7452,7 @@ type windowsEnrollmentFixture struct {
 	hostUUID              string // optional, links the enrollment to a host row
 	awaitingConfiguration fleet.WindowsMDMAwaitingConfiguration
 	awaitingAt            *time.Time
+	ztdRegistrationID     string // optional, the Autopilot ZTDID the device supplied at enrollment
 }
 
 // insertWindowsEnrolledDevice inserts an MDM-enrollment row with sensible defaults for every field tests don't care
@@ -7476,6 +7479,7 @@ func insertWindowsEnrolledDevice(t *testing.T, ctx context.Context, ds *Datastor
 		HostUUID:                f.hostUUID,
 		AwaitingConfiguration:   f.awaitingConfiguration,
 		AwaitingConfigurationAt: f.awaitingAt,
+		ZTDRegistrationID:       f.ztdRegistrationID,
 	}))
 	return f.mdmDeviceID
 }
@@ -8186,4 +8190,137 @@ func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, teamID)
 	require.Empty(t, teamName)
+}
+
+// The ZTDID is the exact key that links an Autopilot pending host to its MDM enrollment.
+func testMDMWindowsEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const ztdID = "efdb13f9-44d6-4f99-a93f-08833fccef82"
+
+	hostUUID := uuid.NewString()
+	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+		deviceNameSuffix:  "ZTD",
+		hostUUID:          hostUUID,
+		ztdRegistrationID: ztdID,
+	})
+
+	unlinkedDeviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+		deviceNameSuffix:  "ZTD-UNLINKED",
+		ztdRegistrationID: ztdID,
+	})
+	const serial = "ZTD-SERIAL-1"
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, unlinkedDeviceID, serial))
+
+	cases := []struct {
+		name string
+		load func() (*fleet.MDMWindowsEnrolledDevice, error)
+	}{
+		{"by device id", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		}},
+		{"by host uuid", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, hostUUID)
+		}},
+		{"unlinked by device name", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "DESKTOP-ZTD-UNLINKED")
+		}},
+		{"unlinked by hardware serial", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, serial)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.load()
+			require.NoError(t, err)
+			require.Equal(t, ztdID, got.ZTDRegistrationID)
+		})
+	}
+
+	// A re-enrollment that carries no ZTDID must not erase the one already captured. Re-enrolling means upserting the
+	// same mdm_hardware_id, which is the table's unique key.
+	enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          enrolled.MDMHardwareID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-ZTD",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               hostUUID,
+	}))
+	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+	require.Equal(t, ztdID, got.ZTDRegistrationID, "a re-enrollment without a ZTDID keeps the stored one")
+}
+
+func testDeleteMDMWindowsConfigProfileWithPolicyAutomation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows-policy-automation"})
+	require.NoError(t, err)
+
+	newProfile := func(name, locURI string) *fleet.MDMWindowsConfigProfile {
+		p := windowsConfigProfileForTest(t, name, locURI)
+		p.TeamID = &tm.ID
+		return p
+	}
+
+	profA, err := ds.NewMDMWindowsConfigProfile(ctx, *newProfile("A", "./Device/A"), nil)
+	require.NoError(t, err)
+	profB, err := ds.NewMDMWindowsConfigProfile(ctx, *newProfile("B", "./Device/B"), nil)
+	require.NoError(t, err)
+
+	pol, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{
+		Name:        "resend A",
+		Query:       "SELECT 1;",
+		Platform:    "windows",
+		ProfileUUID: &profA.ProfileUUID,
+	})
+	require.NoError(t, err)
+
+	batchSet := func(profiles []*fleet.MDMWindowsConfigProfile) error {
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, _, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, &tm.ID, profiles, nil)
+			return err
+		})
+	}
+
+	requireConflict := func(err error, wantMsg string) {
+		var conflictErr *fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		require.ErrorContains(t, err, wantMsg)
+	}
+	const batchConflictMsg = "Couldn't delete. Policy automations use one or more of the profiles being deleted. " +
+		"Please disable policy automations for the profiles being deleted and try again."
+
+	// deleting the profile used by the policy automation returns a conflict with a
+	// user-friendly message instead of the raw foreign key error.
+	requireConflict(ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID),
+		"Couldn't delete. Policy automations use this profile. Please disable policy automations for this profile and try again.")
+
+	// batch-setting a new set of profiles that would delete the profile used by the
+	// policy automation returns a conflict mentioning the profiles being deleted.
+	requireConflict(batchSet([]*fleet.MDMWindowsConfigProfile{newProfile("B", "./Device/B")}), batchConflictMsg)
+
+	// the same applies when the batch deletes every profile of the team
+	requireConflict(batchSet(nil), batchConflictMsg)
+
+	// profiles are still there
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, profB.ProfileUUID)
+	require.NoError(t, err)
+
+	// once the policy automation is disabled, both deletes succeed
+	pol.ResendAppleProfileUUID = nil
+	pol.ResendWindowsProfileUUID = nil
+	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
+
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID))
+	require.NoError(t, batchSet(nil))
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, profB.ProfileUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

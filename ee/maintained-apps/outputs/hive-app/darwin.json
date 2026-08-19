@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.2.31",
+      "version": "1.2.34",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app' AND version_compare(bundle_short_version, '1.2.31') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app' AND version_compare(bundle_short_version, '1.2.34') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.hive.app');"
       },
-      "installer_url": "https://github.com/morapelker/hive/releases/download/v1.2.31/Hive-1.2.31-arm64.dmg",
+      "installer_url": "https://github.com/morapelker/hive/releases/download/v1.2.34/Hive-1.2.34-arm64.dmg",
       "install_script_ref": "3bd4ebe4",
       "uninstall_script_ref": "951b5587",
-      "sha256": "656b1a2e17c0b6539b1d39afa6b2a8f92511c6ba6d4ba5baa9c28c623d160bd4",
+      "sha256": "508baa5269b1e8874ed979156d8abc49a81a1606fe008eb1a79fd1744fda57b2",
       "default_categories": [
         "Productivity"
       ]

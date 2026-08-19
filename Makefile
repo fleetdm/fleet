@@ -531,9 +531,6 @@ clean-assets:
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
-bomutils-docker:
-	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
-
 wix-docker:
 	cd tools/wix-docker && docker build -t fleetdm/wix --platform=linux/amd64 -f Dockerfile .
 
@@ -1065,8 +1062,6 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
 	sh -c 'echo "## \`fleetdm/wix\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
-	sh -c 'echo "## \`fleetdm/bomutils\` docker image\n" >> security/status.md'
-	sh -c 'go run ./tools/vex-parser ./security/vex/bomutils >> security/status.md'
 
 # make update-go version=1.24.4
 UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile

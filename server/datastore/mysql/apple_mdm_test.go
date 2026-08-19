@@ -141,6 +141,7 @@ func TestMDMApple(t *testing.T) {
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"DeleteMDMAppleConfigProfileWithPolicyAutomation", testDeleteMDMAppleConfigProfileWithPolicyAutomation},
 		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
 		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
 		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
@@ -14850,4 +14851,56 @@ func testMDMAppleBatchCustomActivations(t *testing.T, ds *Datastore) {
 	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, []*fleet.MDMAppleDeclaration{}, nil, nil)
 	require.NoError(t, err)
 	require.Zero(t, countActivations())
+}
+
+func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "apple-policy-automation"})
+	require.NoError(t, err)
+
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("A", "A", tm.ID), nil)
+	require.NoError(t, err)
+	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("B", "B", tm.ID), nil)
+	require.NoError(t, err)
+
+	pol, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{
+		Name:        "resend A",
+		Query:       "SELECT 1;",
+		Platform:    "darwin",
+		ProfileUUID: &profA.ProfileUUID,
+	})
+	require.NoError(t, err)
+
+	requireConflict := func(err error, wantMsg string) {
+		var conflictErr *fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		require.ErrorContains(t, err, wantMsg)
+	}
+
+	// deleting the profile used by the policy automation returns a conflict with a
+	// user-friendly message instead of the raw foreign key error.
+	requireConflict(ds.DeleteMDMAppleConfigProfile(ctx, profA.ProfileUUID),
+		"Couldn't delete. Policy automations use this profile. Please disable policy automations for this profile and try again.")
+
+	// batch-setting a new set of profiles that would delete the profile used by the
+	// policy automation returns a conflict mentioning the profiles being deleted.
+	requireConflict(ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, []*fleet.MDMAppleConfigProfile{generateAppleCP("B", "B", tm.ID)}),
+		"Couldn't delete. Policy automations use one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again.")
+
+	// profiles are still there
+	_, err = ds.GetMDMAppleConfigProfile(ctx, profA.ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
+	require.NoError(t, err)
+
+	// once the policy automation is disabled, both deletes succeed
+	pol.ResendAppleProfileUUID = nil
+	pol.ResendWindowsProfileUUID = nil
+	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
+
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, profA.ProfileUUID))
+	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil))
+	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

@@ -44,6 +44,7 @@ func TestSetupExperience(t *testing.T) {
 		{"CrossPlatformPyScripts", testSetupExperienceCrossPlatformPyScripts},
 		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
 		{"InHouseApps", testSetupExperienceInHouseApps},
+		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
 	}
 
 	for _, c := range cases {
@@ -1371,6 +1372,95 @@ func testSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.DeleteInHouseApp(ctx, iosAppID)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testEnqueueSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// .ipa upload creates iOS and iPadOS rows; select only the iOS one
+	iosAppID, iosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "Acme",
+		Filename:         "acme.ipa",
+		BundleIdentifier: "com.acme.app",
+		StorageID:        "acme-storage",
+		Platform:         string(fleet.IOSPlatform),
+		Extension:        "ipa",
+		Version:          "1.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team.ID, []uint{iosTitleID})
+	require.NoError(t, err)
+
+	iphone, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "iphone-test",
+		OsqueryHostID:  new("osquery-iphone"),
+		NodeKey:        new("node-key-iphone"),
+		UUID:           "iphone-uuid",
+		Platform:       "ios",
+		HardwareSerial: "serial-iphone",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipad-test",
+		OsqueryHostID:  new("osquery-ipad"),
+		NodeKey:        new("node-key-ipad"),
+		UUID:           "ipad-uuid",
+		Platform:       "ipados",
+		HardwareSerial: "serial-ipad",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// give the app an include-any label the host does not match, so
+	// IsInHouseAppLabelScoped rejects the host; setup experience must still
+	// enqueue the app — labels don't apply during setup. This assertion fails
+	// if a label join is ever reintroduced in the enqueue query.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "no-members"})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, 0)`, iosAppID, label.ID)
+		return err
+	})
+	scoped, err := ds.IsInHouseAppLabelScoped(ctx, iosAppID, iphone.ID)
+	require.NoError(t, err)
+	require.False(t, scoped, "precondition: the host must be out of label scope for this test to be meaningful")
+
+	// enrolling iPhone gets exactly one item, the in-house app
+	enqueued, err := ds.EnqueueSetupExperienceItems(ctx, "ios", "ios", "iphone-uuid", team.ID)
+	require.NoError(t, err)
+	require.True(t, enqueued)
+	results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, "iphone-uuid", team.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0].InHouseAppID)
+	require.Equal(t, iosAppID, *results[0].InHouseAppID)
+	require.True(t, results[0].IsForInHouseApp())
+	require.True(t, results[0].IsForSoftware())
+	require.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
+	require.NotNil(t, results[0].SoftwareTitleID)
+	require.Equal(t, iosTitleID, *results[0].SoftwareTitleID)
+	require.NotNil(t, results[0].Source)
+	require.Equal(t, "ios_apps", *results[0].Source)
+	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, "iphone-uuid")
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
+
+	// enrolling iPad gets nothing: only the iOS sibling is selected
+	enqueued, err = ds.EnqueueSetupExperienceItems(ctx, "ipados", "ipados", "ipad-uuid", team.ID)
+	require.NoError(t, err)
+	require.False(t, enqueued)
+	results, err = ds.ListSetupExperienceResultsByHostUUID(ctx, "ipad-uuid", team.ID)
+	require.NoError(t, err)
+	require.Empty(t, results)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
