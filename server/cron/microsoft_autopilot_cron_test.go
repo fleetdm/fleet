@@ -304,8 +304,7 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 		assert.Empty(t, env.removed)
 		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
 		require.NotNil(t, env.syncResults[tenantA])
-		// A failure Graph did not report has no admin-facing remedy, so the stored message stays generic and the
-		// developer-phrased cause is left to the logs rather than rendered in the UI.
+		// A failure Graph did not report has no admin-facing remedy, so the stored message stays generic.
 		assert.Equal(t, "Couldn't sync Windows Autopilot devices from Microsoft Graph.", *env.syncResults[tenantA])
 	})
 

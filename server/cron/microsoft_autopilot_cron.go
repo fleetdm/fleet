@@ -82,8 +82,7 @@ func syncMicrosoftAutopilotTenant(
 		}
 	}
 
-	// The stored message is displayed verbatim in the UI, so record the classified sentence rather than syncErr.Error(),
-	// which carries the whole ctxerr wrap chain. The caller logs the raw error, trace IDs and all.
+	// The stored message is displayed verbatim in the UI.
 	var syncErrMsg *string
 	if syncErr != nil {
 		msg := msgraph.UserFacingMessage(syncErr)
