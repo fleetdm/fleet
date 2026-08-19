@@ -834,7 +834,7 @@ const modifyOptions = (
           <>
             Failed to retrieve Recovery Lock password.
             <br />
-            Head to Controls to see the error and retry.
+            Head to <b>Controls</b> to see the error and retry.
           </>
         );
       } else {
