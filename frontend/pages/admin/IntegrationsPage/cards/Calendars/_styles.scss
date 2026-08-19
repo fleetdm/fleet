@@ -36,6 +36,15 @@
   &__oauth-scopes {
     @include vertical-form-layout;
     padding-bottom: $pad-large;
+    position: relative;
+
+    .input-field__input-container.copy-enabled {
+      padding-top: 4px;
+    }
+
+    .copy-button__button {
+      border: 1px solid $ui-fleet-black-25;
+    }
   }
 
   #oauth-scopes {
