@@ -1750,10 +1750,6 @@ SELECT
 	hmap.profile_uuid     AS profile_uuid,
 	hmap.has_acme_payload AS has_acme_payload,
 	hmap.scope            AS scope,
-	-- Resolved here to keep the command-result path to one roundtrip; the CASE
-	-- keeps the subquery out of the common System scope. First active user
-	-- enrollment only, matching how user-scoped profiles get installed
-	-- (see ExecuteReconcileBatch).
 	CASE WHEN hmap.scope = ? THEN COALESCE((
 		SELECT ne.id
 		FROM nano_enrollments ne
