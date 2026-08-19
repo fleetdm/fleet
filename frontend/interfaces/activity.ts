@@ -333,7 +333,6 @@ export interface IActivityDetails {
   policy_id?: number;
   policy_ids?: number[];
   policy_name?: string;
-  /** BE-supplied; text differs between patch_when_closed and notify_before_patching skips. */
   pre_install_query_output?: string;
   profile_identifier?: string;
   profile_name?: string;

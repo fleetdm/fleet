@@ -5,7 +5,6 @@ import { useQuery } from "react-query";
 import { IActivityDetails } from "interfaces/activity";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { pluralize } from "utilities/strings/stringUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Button from "components/buttons/Button";
@@ -25,6 +24,7 @@ import {
   getCaveatSentence,
   EXIT_CODES_NEEDING_EUE_LINK,
   PATCHING_END_USER_EXPERIENCE_URL,
+  renderNotifyTitleList,
 } from "./helpers";
 
 const baseClass = "notify-before-patching-details-modal";
@@ -80,40 +80,14 @@ const NotifyBeforePatchingDetailsModal = ({
 
     const verb = failed ? "failed to notify" : "notified";
     // Nothing to reveal for a dispatcher-caught deferral (no script ran).
-    const hasRevealable =
+    const hasScriptDetails =
       !!scriptResult?.script_contents || scriptResult?.exit_code != null;
     const outputBlock =
       scriptResult?.exit_code != null
         ? `Exit code: ${scriptResult.exit_code}\n${scriptResult.output ?? ""}`
         : null;
 
-    // Bold titles, Oxford comma, ", and N more app(s)" past three.
-    const bold = (name: string) => <b>{getDisplayedSoftwareName(name)}</b>;
-    const overflow = titles.length - 3;
-    let titleList: React.ReactNode = null;
-    if (titles.length === 1) {
-      titleList = bold(titles[0]);
-    } else if (titles.length === 2) {
-      titleList = (
-        <>
-          {bold(titles[0])} and {bold(titles[1])}
-        </>
-      );
-    } else if (titles.length === 3) {
-      titleList = (
-        <>
-          {bold(titles[0])}, {bold(titles[1])}, and {bold(titles[2])}
-        </>
-      );
-    } else if (titles.length > 3) {
-      titleList = (
-        <>
-          {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and{" "}
-          {overflow} more {pluralize(overflow, "app")}
-        </>
-      );
-    }
-
+    const titleList = renderNotifyTitleList(titles);
     // Apps row is redundant when the intro already lists everything (≤3 apps).
     const showAppsRow = titles.length > 3;
 
@@ -126,7 +100,7 @@ const NotifyBeforePatchingDetailsModal = ({
             <span>
               Fleet {verb} end user {timeLabel} before patching
               {titleList && <> {titleList}</>} on{" "}
-              <b>{hostName || "this host"}</b>.
+              <strong>{hostName || "this host"}</strong>.
             </span>
           }
         />
@@ -152,7 +126,7 @@ const NotifyBeforePatchingDetailsModal = ({
             value={titles.map((t) => getDisplayedSoftwareName(t)).join(", ")}
           />
         )}
-        {hasRevealable && (
+        {hasScriptDetails && (
           <RevealButton
             isShowing={showDetails}
             showText="Details"

@@ -21,6 +21,7 @@ import {
 import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import { pluralize } from "utilities/strings/stringUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { renderNotifyTitleList } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -2327,38 +2328,13 @@ const TAGGED_TEMPLATES = {
     const failed = status === "failed";
     const verb = failed ? "failed to notify" : "notified";
 
-    // Bold titles, Oxford comma, ", and N more app(s)" past three.
-    const bold = (name: string) => <b>{getDisplayedSoftwareName(name)}</b>;
-    const overflow = titles.length - 3;
-    let titleList: React.ReactNode = null;
-    if (titles.length === 1) {
-      titleList = bold(titles[0]);
-    } else if (titles.length === 2) {
-      titleList = (
-        <>
-          {bold(titles[0])} and {bold(titles[1])}
-        </>
-      );
-    } else if (titles.length === 3) {
-      titleList = (
-        <>
-          {bold(titles[0])}, {bold(titles[1])}, and {bold(titles[2])}
-        </>
-      );
-    } else if (titles.length > 3) {
-      titleList = (
-        <>
-          {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and{" "}
-          {overflow} more {pluralize(overflow, "app")}
-        </>
-      );
-    }
+    const titleList = renderNotifyTitleList(titles);
 
     return (
       <>
         {" "}
         {verb} end user {timeLabel} before patching {titleList} on{" "}
-        <b>{hostName}</b>.
+        <strong>{hostName}</strong>.
       </>
     );
   },

@@ -1,3 +1,8 @@
+import React from "react";
+
+import { pluralize } from "utilities/strings/stringUtils";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 // TODO: swap in the "another notification displayed" exit code once published.
 // The no-script_execution_id branch already handles the dispatcher deferral.
 export const DEFERRED_EXIT_CODE_TBC = -1;
@@ -53,3 +58,35 @@ const NOTIFY_SKIP_MARKER = "Fleet notifies the end user";
 export const isNotifyBeforePatchingSkip = (
   preInstallOutput?: string | null
 ): boolean => !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER);
+
+// Bold titles, Oxford comma, ", and N more app(s)" past three.
+export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
+  const bold = (name: string) => (
+    <strong>{getDisplayedSoftwareName(name)}</strong>
+  );
+  const overflow = titles.length - 3;
+  if (titles.length === 1) return bold(titles[0]);
+  if (titles.length === 2) {
+    return (
+      <>
+        {bold(titles[0])} and {bold(titles[1])}
+      </>
+    );
+  }
+  if (titles.length === 3) {
+    return (
+      <>
+        {bold(titles[0])}, {bold(titles[1])}, and {bold(titles[2])}
+      </>
+    );
+  }
+  if (titles.length > 3) {
+    return (
+      <>
+        {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and {overflow}{" "}
+        more {pluralize(overflow, "app")}
+      </>
+    );
+  }
+  return null;
+};

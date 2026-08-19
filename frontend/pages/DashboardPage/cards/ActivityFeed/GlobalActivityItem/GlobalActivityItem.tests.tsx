@@ -2592,7 +2592,7 @@ describe("Activity Feed", () => {
         "notified end user 1 hour before patching 1Password on John's MacBook Pro."
       );
       // Bold: software title + host name.
-      const bolds = Array.from(container.querySelectorAll("b")).map(
+      const bolds = Array.from(container.querySelectorAll("strong")).map(
         (el) => el.textContent
       );
       expect(bolds).toEqual(
