@@ -99,7 +99,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
-		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedLogGenerate),
 		table.NewPlugin(
 			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
