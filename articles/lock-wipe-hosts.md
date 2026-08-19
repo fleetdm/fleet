@@ -165,8 +165,6 @@ For Linux hosts, running `fleetctl mdm wipe` triggers the same script-based wipe
 
 **For Linux hosts, the wipe action also runs a script. The wipe script can be found in GitHub for [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_wipe.sh).
 
-** Fleet is currently tracking a [known Apple bug](https://github.com/fleetdm/fleet/issues/34208), which results in Lost mode being cleared after reboot on iOS/iPadOS 26.
-
 <meta name="articleTitle" value="Lock and wipe hosts">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
