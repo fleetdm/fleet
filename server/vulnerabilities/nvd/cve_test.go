@@ -1,12 +1,14 @@
 package nvd
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -1386,4 +1388,170 @@ func TestExpandCPEAliases(t *testing.T) {
 			require.Equal(t, tc.expectedAliases, aliases)
 		})
 	}
+}
+
+// writeTestNVDFeedFile writes a minimal gzipped NVD 1.1 feed file with one item
+// per given CVE ID, each affecting testvendor:testprod versions below 2.0.
+func writeTestNVDFeedFile(t *testing.T, dir, name string, cveIDs ...string) {
+	t.Helper()
+	var items []string
+	for _, cveID := range cveIDs {
+		items = append(items, fmt.Sprintf(`{
+			"cve": {
+				"CVE_data_meta": {"ID": %q},
+				"description": {"description_data": [{"lang": "en", "value": "test vulnerability"}]}
+			},
+			"configurations": {
+				"CVE_data_version": "4.0",
+				"nodes": [{
+					"operator": "OR",
+					"cpe_match": [{
+						"vulnerable": true,
+						"cpe23Uri": "cpe:2.3:a:testvendor:testprod:*:*:*:*:*:*:*:*",
+						"versionEndExcluding": "2.0"
+					}]
+				}]
+			},
+			"impact": {},
+			"publishedDate": "2023-01-01T00:00Z",
+			"lastModifiedDate": "2023-01-01T00:00Z"
+		}`, cveID))
+	}
+	feed := fmt.Sprintf(`{
+		"CVE_data_type": "CVE",
+		"CVE_data_format": "MITRE",
+		"CVE_data_version": "4.0",
+		"CVE_Items": [%s]
+	}`, strings.Join(items, ","))
+
+	f, err := os.Create(filepath.Join(dir, name))
+	require.NoError(t, err)
+	gz := gzip.NewWriter(f)
+	_, err = gz.Write([]byte(feed))
+	require.NoError(t, err)
+	require.NoError(t, gz.Close())
+	require.NoError(t, f.Close())
+}
+
+func TestTranslateCPEToCVEFlushesMatchesInChunks(t *testing.T) {
+	// Not parallel: overrides the package-level flush threshold.
+	orig := matchFlushSize
+	matchFlushSize = 2
+	t.Cleanup(func() { matchFlushSize = orig })
+
+	ctx := t.Context()
+
+	vulnPath := t.TempDir()
+	writeTestNVDFeedFile(t, vulnPath, "nvdcve-1.1-2023.json.gz",
+		"CVE-2023-1111", "CVE-2023-2222", "CVE-2023-3333", "CVE-2023-4444", "CVE-2023-5555")
+	writeTestNVDFeedFile(t, vulnPath, "nvdcve-1.1-2024.json.gz", "CVE-2024-6666")
+
+	ds := new(mock.Store)
+	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+		return []fleet.SoftwareCPE{
+			{ID: 1, SoftwareID: 10, CPE: "cpe:2.3:a:testvendor:testprod:1.0:*:*:*:*:*:*:*"},
+		}, nil
+	}
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return nil, nil
+	}
+
+	var insertCalls int
+	var inserted []fleet.SoftwareVulnerability
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		insertCalls++
+		inserted = append(inserted, vulns...)
+		return vulns, nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return int64(len(vulns)), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+
+	collected, err := TranslateCPEToCVE(ctx, ds, vulnPath, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
+	require.NoError(t, err)
+
+	allCVEs := []string{
+		"CVE-2023-1111", "CVE-2023-2222", "CVE-2023-3333", "CVE-2023-4444", "CVE-2023-5555",
+		"CVE-2024-6666",
+	}
+
+	// Sanity: all CVEs from both feed files match the seeded CPE.
+	var cves []string
+	for _, v := range inserted {
+		require.Equal(t, uint(10), v.SoftwareID)
+		cves = append(cves, v.CVE)
+	}
+	require.ElementsMatch(t, allCVEs, cves)
+
+	// Matches must be flushed to the datastore in bounded chunks rather than
+	// accumulated for the whole corpus: holding every matched (software, CVE)
+	// pair in memory is what drove multi-GB peaks on large fleets. With a
+	// threshold of 2 and 6 matches, the sink flushes exactly 3 times.
+	require.Equal(t, 3, insertCalls)
+
+	// collectVulns keeps returning the newly inserted vulnerabilities.
+	var collectedCVEs []string
+	for _, v := range collected {
+		collectedCVEs = append(collectedCVEs, v.CVE)
+	}
+	require.ElementsMatch(t, allCVEs, collectedCVEs)
+
+	require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
+	require.True(t, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
+}
+
+func TestTranslateCPEToCVEContinuesPastCorruptFeedFile(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	vulnPath := t.TempDir()
+	writeTestNVDFeedFile(t, vulnPath, "nvdcve-1.1-2023.json.gz", "CVE-2023-1111")
+	require.NoError(t, os.WriteFile(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"), []byte("not a gzip"), 0o644))
+	writeTestNVDFeedFile(t, vulnPath, "nvdcve-1.1-2025.json.gz", "CVE-2025-2222")
+
+	ds := new(mock.Store)
+	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+		return []fleet.SoftwareCPE{
+			{ID: 1, SoftwareID: 10, CPE: "cpe:2.3:a:testvendor:testprod:1.0:*:*:*:*:*:*:*"},
+		}, nil
+	}
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return nil, nil
+	}
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		return vulns, nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return int64(len(vulns)), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+
+	collected, err := TranslateCPEToCVE(ctx, ds, vulnPath, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
+
+	// The corrupted file is reported, but the scan continues: matches from the
+	// healthy files are still inserted and collected. Aborting instead would
+	// suppress their automations forever — earlier chunks are already
+	// committed, so the next run would classify them as already known.
+	require.Error(t, err)
+	var collectedCVEs []string
+	for _, v := range collected {
+		collectedCVEs = append(collectedCVEs, v.CVE)
+	}
+	require.ElementsMatch(t, []string{"CVE-2023-1111", "CVE-2025-2222"}, collectedCVEs)
+
+	// Stale-row deletes are skipped: with part of the corpus unread, rows not
+	// re-matched this run can't be assumed stale.
+	require.False(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
+	require.False(t, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
 }
