@@ -1,0 +1,10 @@
+{
+  "name": "ClipGrab",
+  "unique_identifier": "de.clipgrab.ClipGrab",
+  "token": "clipgrab",
+  "installer_format": "dmg",
+  "slug": "clipgrab/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

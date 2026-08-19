@@ -64,8 +64,7 @@ const PerformanceImpactCell = ({
         disableTooltip={disableTooltip}
         underline={false}
         showArrow
-        // Pills require more gap from text to tooltip
-        tipOffset={indicatorValue === "Undetermined" ? 8 : 12}
+        tipOffset={8}
       >
         <span className={pillClassName}>{indicatorValue}</span>
       </TooltipWrapper>

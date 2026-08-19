@@ -2,8 +2,10 @@ package microsoft_mdm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -20,6 +22,16 @@ import (
 func PreprocessWindowsProfileContentsForDeployment(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) (string, error) {
 	return preprocessWindowsProfileContents(deps, params, profileContents)
 }
+
+// windowsSCEPChallengeRegexp matches challenges made up entirely of characters valid in an ASN.1 PrintableString: letters,
+// digits, space, and ' ( ) + , - . / : = ?. Windows encodes the SCEP challenge password as a PrintableString, so a challenge with
+// any other character (most commonly "_") makes enrollment fail on-device with "The string contains a non-printable character."
+// The space is allowed anywhere, including leading and trailing, and was verified to enroll fine on Windows 11.
+var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`)
+
+// scepChallengeInvalidCharsDetail is the host profile failure detail shown on the Host details page when a custom SCEP proxy
+// challenge contains characters Windows can't encode as a PrintableString.
+const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The "%s" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
 
 // MicrosoftProfileProcessingError is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
 // It should not break the entire deployment flow, but rather be handled gracefully at the profile level, setting it to failed and detail = Error()
@@ -78,9 +90,10 @@ type ProfilePreprocessParams struct {
 // implementation and to the interface if it's required for both verification and deployment. For new dependencies that
 // vary profile-to-profile, add them to ProfilePreprocessParams.
 func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) (string, error) {
-	// Check if Fleet variables are present
+	// Check if Fleet variables or custom host vitals are present.
 	fleetVars := variables.Find(profileContents)
-	if len(fleetVars) == 0 {
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(profileContents)) > 0
+	if len(fleetVars) == 0 && !hasHostVitals {
 		// No variables to replace, return original content
 		return profileContents, nil
 	}
@@ -121,8 +134,10 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		switch {
 		case fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, params.ProfileUUID)
-		case fleetVar == string(fleet.FleetVarSCEPRenewalID):
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
+		case fleetVar == string(fleet.FleetVarSCEPRenewalID), fleetVar == string(fleet.FleetVarCertificateRenewalID):
+			// Both legacy SCEP_RENEWAL_ID and the preferred CERTIFICATE_RENEWAL_ID
+			// substitute to the same value.
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
 			err := profiles.IsCustomSCEPConfigured(deps.Context, deps.CustomSCEPCAs, caName, fleetVar, func(errMsg string) error {
@@ -130,6 +145,11 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			})
 			if err != nil {
 				return profileContents, err
+			}
+			if ca := deps.CustomSCEPCAs[caName]; ca != nil && !windowsSCEPChallengeRegexp.MatchString(ca.Challenge) {
+				return profileContents, &MicrosoftProfileProcessingError{
+					message: fmt.Sprintf(scepChallengeInvalidCharsDetail, caName),
+				}
 			}
 			replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(deps.Context, deps.Logger, fleetVar, deps.CustomSCEPCAs, result)
 			if err != nil {
@@ -182,6 +202,27 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 			result = profiles.ReplaceNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID, result)
 		}
+	}
+
+	// Expand per-host custom host vitals. On a missing/empty value the datastore
+	// returns a MissingCustomHostVitalValueError, which we surface as a
+	// MicrosoftProfileProcessingError so the caller marks the profile failed with
+	// this detail rather than shipping a blank substitution.
+	if hasHostVitals {
+		hostLite, _, err := profiles.HydrateHost(deps.Context, deps.DataStore, fleet.Host{UUID: params.HostUUID}, func(hostCount int) error {
+			return &MicrosoftProfileProcessingError{message: fmt.Sprintf("Found %d hosts with UUID %s. Custom host vital substitution requires exactly one host.", hostCount, params.HostUUID)}
+		})
+		if err != nil {
+			return profileContents, err
+		}
+		expanded, err := deps.DataStore.ExpandCustomHostVitals(deps.Context, hostLite.ID, result)
+		if err != nil {
+			if missing, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
+				return profileContents, &MicrosoftProfileProcessingError{message: missing.Error()}
+			}
+			return profileContents, err
+		}
+		result = expanded
 	}
 
 	return result, nil

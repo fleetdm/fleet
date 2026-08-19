@@ -29,6 +29,32 @@ func TestUrlGeneration(t *testing.T) {
 		require.Equal(t, "https://test.com/prefix/test/path", bc.URL("test/path", "").String())
 		require.Equal(t, "https://test.com/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
 	})
+
+	t.Run("with subpath in base URL", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll", bc.URL("/api/fleet/orbit/enroll", "").String())
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll?raw=query", bc.URL("/api/fleet/orbit/enroll", "raw=query").String())
+	})
+
+	t.Run("with subpath and trailing slash in base URL", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath/", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll", bc.URL("/api/fleet/orbit/enroll", "").String())
+	})
+
+	t.Run("with subpath and path without leading slash", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/test/path", bc.URL("test/path", "").String())
+	})
+
+	t.Run("with subpath in base URL and a prefix", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/prefix/test/path", bc.URL("test/path", "").String())
+		require.Equal(t, "https://test.com/subpath/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
 }
 
 func TestParseResponseKnownErrors(t *testing.T) {
@@ -207,6 +233,75 @@ func TestServerCapabilities(t *testing.T) {
 	}, bc.ServerCapabilities)
 	require.True(t, bc.GetServerCapabilities().Has(testCapability))
 	require.True(t, bc.GetServerCapabilities().Has(fleet.Capability("test_capability")))
+}
+
+func TestFileResponseHandlePathTraversal(t *testing.T) {
+	t.Run("unix path traversal is stripped to base filename", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename="../../../etc/cron.d/backdoor"`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "backdoor", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	t.Run("normal filename is unchanged", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename="installer.pkg"`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	t.Run("dot filename falls back to DestFile", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir, DestFile: "fallback.txt"}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename="."`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "fallback.txt", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	t.Run("dotdot filename falls back to UUID", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename=".."`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
 }
 
 func TestClientCertificateAuth(t *testing.T) {

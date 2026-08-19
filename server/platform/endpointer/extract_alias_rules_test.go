@@ -53,6 +53,18 @@ func (s *extractAliasRulesSuite) TestSingleRenametoTag() {
 	require.Equal(s.T(), []AliasRule{{OldKey: "team_id", NewKey: "group_id"}}, rules)
 }
 
+func (s *extractAliasRulesSuite) TestRenametoInlineOption() {
+	type inlineAlias struct {
+		Tokens []string `json:"abm_tokens" renameto:"ab_tokens,inline"`
+		TeamID uint     `json:"team_id" renameto:"fleet_id"`
+	}
+	rules := ExtractAliasRules(inlineAlias{})
+	s.Require().Equal([]AliasRule{
+		{OldKey: "abm_tokens", NewKey: "ab_tokens", Inline: true},
+		{OldKey: "team_id", NewKey: "fleet_id"},
+	}, rules)
+}
+
 func (s *extractAliasRulesSuite) TestMultipleRenametoTags() {
 	type multiAlias struct {
 		TeamID   uint   `json:"team_id" renameto:"group_id"`

@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,7 +60,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(slogLogger.With("component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
-	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
+	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,
 		Logger:      slogLogger,

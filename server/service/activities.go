@@ -6,8 +6,10 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 )
 
 func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
@@ -16,6 +18,27 @@ func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Act
 		return fleet.ActivitiesWebhookSettings{}, ctxerr.Wrap(ctx, err, "get app config for activities webhook")
 	}
 	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+// GetHostActivitiesWebhookSettings returns the enabled host-activities webhook
+// settings of the fleets the given hosts belong to, deduplicated by fleet and
+// destination URL. Like GetActivitiesWebhookSettings, it reads settings
+// without an authz check because it is an internal provider hook for the
+// activity bounded context, not an endpoint.
+//
+// Perf note: this runs for every host-linked activity on Premium, enabled or
+// not. DefaultTeamConfig is served from the datastore cache but TeamLite is
+// not, so named-fleet hosts cost one lite host read plus one team read per
+// activity.
+func (svc *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
+	if !license.IsPremium(ctx) {
+		return nil, nil
+	}
+	settings, err := fleet.ResolveHostActivitiesWebhooks(ctx, svc.ds, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve host activities webhooks")
+	}
+	return settings, nil
 }
 
 func (svc *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
@@ -151,15 +174,97 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		}
 	}
 
+	// Capture VPP release info BEFORE ds.CancelHostUpcomingActivity runs. For
+	// VPP installs that haven't yet been activated, the reservation info lives
+	// in upcoming_activities.payload + vpp_app_upcoming_activities, and the
+	// cancel transaction unconditionally deletes the upcoming row — so a
+	// post-cancel lookup would return notFound and we'd silently leak the seat.
+	// Best-effort: any lookup failure here is logged when the release path
+	// runs and doesn't block the cancel response.
+	releaseInfo, releaseLookupErr := svc.ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, executionID)
+
 	pastAct, err := svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
 	if err != nil {
 		return err
 	}
 
 	if pastAct != nil {
+		// If a VPP install was canceled, release the reserved license seat
+		// (if any). Best-effort: failures shouldn't block the cancel response.
+		if _, isVPPCancel := pastAct.(fleet.ActivityTypeCanceledInstallAppStoreApp); isVPPCancel {
+			if rErr := svc.releaseVPPSeat(ctx, host, releaseInfo, releaseLookupErr); rErr != nil {
+				svc.logger.ErrorContext(ctx, "failed to release reserved VPP license on cancel",
+					"err", rErr, "host_id", host.ID, "execution_id", executionID)
+			}
+		}
 		if err := svc.NewActivity(ctx, vc.User, pastAct); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for cancelation")
 		}
+	}
+	return nil
+}
+
+// releaseVPPSeat disassociates the VPP license seat reserved by the canceled
+// install, when applicable. The release info is captured by the caller before
+// ds.CancelHostUpcomingActivity runs (the pre-activation case relies on data
+// the cancel transaction deletes). The seat is released only when the canceled
+// install was the one that originally reserved it (associated_event_id is
+// non-empty) AND no other still-active install for the same (host, adam_id)
+// needs the seat. Personal-enrollment hosts are disassociated by clientUserId
+// (matching how they were assigned); device-enrolled hosts by serial number.
+func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *fleet.VPPInstallReleaseInfo, lookupErr error) error {
+	if lookupErr != nil {
+		if fleet.IsNotFound(lookupErr) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, lookupErr, "get vpp install release info")
+	}
+	if info == nil || info.AssociatedEventID == "" || info.HasOtherActiveInstall {
+		return nil
+	}
+
+	tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get vpp token for seat release")
+	}
+
+	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get host mdm for seat release")
+	}
+	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	// PricingParam: STDQ is the standard tier used by Fleet's install path.
+	// If a customer uses PLUS we'd need to look up the asset here — defer until
+	// observed in the wild.
+	req := &vpp.DisassociateAssetsRequest{
+		Assets: []vpp.Asset{{AdamID: info.AdamID, PricingParam: "STDQ"}},
+	}
+	if isPersonal {
+		managedAppleID, err := svc.ds.GetHostManagedAppleID(ctx, host.ID)
+		if err != nil || managedAppleID == "" {
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "get managed apple id for seat release")
+			}
+			return nil
+		}
+		clientUser, err := svc.ds.GetVPPClientUser(ctx, tokenDB.ID, managedAppleID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "get vpp client user for seat release")
+		}
+		req.ClientUserIds = []string{clientUser.ClientUserID}
+	} else {
+		req.SerialNumbers = []string{host.HardwareSerial}
+	}
+
+	if _, err := vpp.DisassociateAssets(tokenDB.Token, req); err != nil {
+		return ctxerr.Wrap(ctx, err, "disassociate vpp assets on cancel")
 	}
 	return nil
 }

@@ -9,11 +9,11 @@ const CheckboxIndeterminate = ({
   color = "core-fleet-green",
 }: ICheckboxIndeterminateProps) => {
   return (
-    <svg width="16" height="17" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect
         className="checkbox-state"
         x="1"
-        y="1.5"
+        y="1"
         width="14"
         height="14"
         rx="3"
@@ -21,7 +21,7 @@ const CheckboxIndeterminate = ({
         stroke={COLORS[color]}
         strokeWidth="2"
       />
-      <rect x="3" y="7.5" width="10" height="2" rx="1" fill="#fff" />
+      <rect x="3" y="7" width="10" height="2" rx="1" fill="#fff" />
     </svg>
   );
 };

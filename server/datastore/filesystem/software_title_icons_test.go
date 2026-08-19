@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -94,4 +95,80 @@ func TestSoftwareTitleIconStore(t *testing.T) {
 	_, err = store.Sign(ctx, id0, fleet.SoftwareTitleIconSignedURLExpiry)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "signing not supported for software title icons in filesystem store")
+}
+
+func TestSoftwareTitleIconStoreExistsRejectsCorruption(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	store, err := NewSoftwareTitleIconStore(dir)
+	require.NoError(t, err)
+
+	bytesIn, id := createIconAndHash(t)
+	path := filepath.Join(dir, softwareTitleIconsPrefix, id)
+
+	require.NoError(t, os.WriteFile(path, nil, 0o644))
+	exists, err := store.Exists(ctx, id)
+	require.NoError(t, err)
+	require.False(t, exists, "zero-byte file should be treated as not present")
+
+	require.NoError(t, os.WriteFile(path, []byte("not the real icon"), 0o644))
+	exists, err = store.Exists(ctx, id)
+	require.NoError(t, err)
+	require.False(t, exists, "hash-mismatched file should be treated as not present")
+
+	require.NoError(t, os.WriteFile(path, bytesIn, 0o644))
+	exists, err = store.Exists(ctx, id)
+	require.NoError(t, err)
+	require.True(t, exists, "intact file with matching hash should be present")
+}
+
+// errReader returns err after returning the buffered bytes once.
+type errReader struct {
+	good []byte
+	pos  int
+	err  error
+}
+
+func (r *errReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.good) {
+		return 0, r.err
+	}
+	n := copy(p, r.good[r.pos:])
+	r.pos += n
+	return n, nil
+}
+
+func (r *errReader) Seek(offset int64, whence int) (int64, error) {
+	if whence == io.SeekStart && offset == 0 {
+		r.pos = 0
+		return 0, nil
+	}
+	return 0, errors.New("unsupported seek")
+}
+
+func TestSoftwareTitleIconStorePutAtomic(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	store, err := NewSoftwareTitleIconStore(dir)
+	require.NoError(t, err)
+
+	bytesIn, id := createIconAndHash(t)
+	finalPath := filepath.Join(dir, softwareTitleIconsPrefix, id)
+	sentinel := errors.New("simulated mid-write failure")
+
+	half := len(bytesIn) / 2
+	reader := &errReader{good: bytesIn[:half], err: sentinel}
+	err = store.Put(ctx, id, reader)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sentinel)
+
+	// A truncated final file would be worse than no file at all: callers
+	// would trust it as the icon for id.
+	_, err = os.Stat(finalPath)
+	require.True(t, os.IsNotExist(err), "final icon path must not exist after failed Put: %v", err)
+
+	require.NoError(t, store.Put(ctx, id, bytes.NewReader(bytesIn)))
+	got, err := os.ReadFile(finalPath)
+	require.NoError(t, err)
+	require.Equal(t, bytesIn, got)
 }

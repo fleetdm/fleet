@@ -13,6 +13,9 @@
     flex-direction: column;
     align-items: center;
     gap: $pad-small;
+    b {
+      font-size: $small;
+    }
     p {
       margin: 0;
     }

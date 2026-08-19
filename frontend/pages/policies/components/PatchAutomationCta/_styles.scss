@@ -1,0 +1,16 @@
+.patch-automation-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
+  padding: $pad-medium;
+  background-color: $ui-fleet-black-5;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: 8px;
+
+  &__label {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+}

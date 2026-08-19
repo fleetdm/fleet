@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -42,28 +42,31 @@ const EmptyFleetAppsTable = () => (
   />
 );
 
-/** Used to convert FleetMaintainedApp API response which has separate entries
- * for Windows FMA and macOS FMA into table friendly format that combines
- * entries for the same app for different platforms */
-const combineAppsByPlatform = (
+/** Converts the FleetMaintainedApp API response, which has separate macOS and
+ * Windows entries, into a table-friendly format that combines an app's entries
+ * for different platforms into one row. Apps are keyed by their slug token (the
+ * prefix before "/"), not by name, so two distinct apps that share a display
+ * name stay as separate rows. */
+export const combineAppsByPlatform = (
   fmaList: IFleetMaintainedApp[]
 ): ICombinedFMA[] => {
-  const combinedApps: { [name: string]: ICombinedFMA } = {};
+  const combinedApps: { [appToken: string]: ICombinedFMA } = {};
 
   fmaList.forEach((app: IFleetMaintainedApp) => {
     const { name, platform, ...rest } = app;
+    const appToken = app.slug.split("/")[0];
 
-    if (!combinedApps[name]) {
-      combinedApps[name] = { name, macos: null, windows: null };
+    if (!combinedApps[appToken]) {
+      combinedApps[appToken] = { name, macos: null, windows: null };
     }
 
     if (platform === "darwin") {
-      combinedApps[name].macos = {
+      combinedApps[appToken].macos = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
     } else if (platform === "windows") {
-      combinedApps[name].windows = {
+      combinedApps[appToken].windows = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
@@ -104,10 +107,11 @@ const FleetMaintainedAppsTable = ({
   orderKey,
   currentPage,
 }: IFleetMaintainedAppsTableProps) => {
-  const [status, setStatus] = useState<FmaStatusValue>(statusParam || "all");
-  const [platform, setPlatform] = useState<FmaPlatformValue>(
-    platformParam || "all"
-  );
+  // Filter values are driven by the URL, which is also the source of truth for
+  // the server-side query. Derive them from props rather than local state so
+  // the controls stay in sync on back/forward navigation.
+  const status: FmaStatusValue = statusParam || "all";
+  const platform: FmaPlatformValue = platformParam || "all";
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -196,43 +200,20 @@ const FleetMaintainedAppsTable = ({
     return generateTableConfig(router, teamId);
   }, [data, router, teamId]);
 
-  // Note: Serverside filtering will be buggy with pagination if > 20 apps
-  // API will need to be refactored to combine macOS/windows apps
-  // for correct pagination, sort, and counts when we go over 20 apps
+  // Pagination, platform/"hide added apps" filtering, sort, and counts are all
+  // handled server-side. The API returns every platform row for the apps on the
+  // current page, so combining macOS and Windows entries here always yields
+  // complete rows (an app is never split across a page boundary).
   const combinedAppsByPlatform =
     (data && combineAppsByPlatform(data.fleet_maintained_apps ?? [])) ?? [];
 
-  const filteredApps = combinedAppsByPlatform.filter((app) => {
-    const macAvailable = !!app.macos && !app.macos.software_title_id;
-    const winAvailable = !!app.windows && !app.windows.software_title_id;
-
-    // platform filter
-    if (platform === "macos" && !app.macos) return false;
-    if (platform === "windows" && !app.windows) return false;
-
-    // status filter
-    if (status === "all") {
-      return true;
-    }
-
-    if (status === "available") {
-      if (platform === "macos") return macAvailable;
-      if (platform === "windows") return winAvailable;
-      return macAvailable || winAvailable;
-    }
-
-    return true;
-  });
-
   const renderCount = () => {
-    if (!filteredApps) return null;
+    if (!data) return null;
 
-    return <TableCount name="items" count={filteredApps.length} />;
+    return <TableCount name="items" count={data.count} />;
   };
 
   const handleFmaStatusDropdownChange = (newStatus: FmaStatusValue) => {
-    setStatus(newStatus);
-
     const newRoute = getNextLocationPath({
       pathPrefix: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
       routeTemplate: "",
@@ -254,8 +235,6 @@ const FleetMaintainedAppsTable = ({
   };
 
   const handleFmaPlatformDropdownChange = (newPlatform: FmaPlatformValue) => {
-    setPlatform(newPlatform);
-
     const newRoute = getNextLocationPath({
       pathPrefix: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
       routeTemplate: "",
@@ -295,7 +274,7 @@ const FleetMaintainedAppsTable = ({
     <TableContainer<IRowProps>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
-      data={filteredApps}
+      data={combinedAppsByPlatform}
       isLoading={isLoading}
       resultsTitle="items"
       emptyComponent={EmptyFleetAppsTable}

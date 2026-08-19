@@ -25,6 +25,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pem"
   | "file-vpp"
   | "file-png"
+  | "fleet-logo"
 >;
 
 interface IFileUploaderProps {
@@ -53,7 +54,7 @@ interface IFileUploaderProps {
    * a link.
    * @default "button"
    */
-  buttonType?: "button" | "brand-inverse-icon";
+  buttonType?: "button" | "secondary";
   /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
    * this tooltip will not be rendered if gitops mode is enabled. */
   buttonTooltip?: React.ReactNode;
@@ -62,6 +63,10 @@ interface IFileUploaderProps {
   canEdit?: boolean;
   /** renders a custom editor for the current file replacing the edit pencil button */
   customEditor?: () => React.ReactNode;
+  /** if provided, replaces the default file-type Graphic shown next to the
+   * file details (e.g. to display a preview thumbnail of the picked image
+   * instead of a generic file icon). */
+  customPreview?: React.ReactNode;
   /** renders the current file with the delete trash button */
   onDeleteFile?: () => void;
   /** if provided, will be called when the button is clicked
@@ -101,6 +106,7 @@ export const FileUploader = ({
   onFileUpload,
   canEdit = false,
   customEditor,
+  customPreview,
   onDeleteFile,
   fileDetails,
   gitopsCompatible = false,
@@ -113,8 +119,7 @@ export const FileUploader = ({
     [`${baseClass}__file-preview`]: isFileSelected,
     [`${baseClass}__error`]: !!internalError,
   });
-  const buttonVariant =
-    buttonType === "button" ? "default" : "brand-inverse-icon";
+  const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -162,9 +167,7 @@ export const FileUploader = ({
     let buttonMarkup = (
       <>
         {buttonMessage}
-        {buttonType === "brand-inverse-icon" && (
-          <Icon color="core-fleet-green" name="upload" />
-        )}
+        {buttonType === "secondary" && <Icon name="upload" />}
       </>
     );
     // If we want to actual do file uploading, wrap in a label that
@@ -283,6 +286,7 @@ export const FileUploader = ({
             fileDetails={fileDetails}
             canEdit={canEdit}
             customEditor={customEditor}
+            customPreview={customPreview}
             onDeleteFile={onDeleteFile}
             onFileSelect={onFileSelect}
             accept={accept}

@@ -17,6 +17,7 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
+import Button from "components/buttons/Button";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
@@ -42,6 +43,8 @@ interface IHostSoftwareLibraryTableProps {
   pagePath: string;
   selfService: boolean;
   teamId?: number;
+  canAddSoftware?: boolean;
+  onAddSoftware?: () => void;
 }
 
 const HostSoftwareLibraryTable = ({
@@ -58,6 +61,8 @@ const HostSoftwareLibraryTable = ({
   page,
   pagePath,
   teamId,
+  canAddSoftware,
+  onAddSoftware,
 }: IHostSoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -143,18 +148,34 @@ const HostSoftwareLibraryTable = ({
 
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
+  const isTrulyEmpty = isSoftwareNotDetected && !selfService;
 
   const memoizedSoftwareCount = useCallback(() => {
-    if (isSoftwareNotDetected) {
-      return null;
-    }
-
     return <TableCount name="items" count={count} />;
-  }, [count, isSoftwareNotDetected]);
+  }, [count]);
 
   const memoizedEmptyComponent = useCallback(() => {
+    if (isTrulyEmpty) {
+      return (
+        <EmptyState
+          header="No software found"
+          info={
+            canAddSoftware
+              ? "Add software to install on this host."
+              : "No software has been added for this host."
+          }
+          primaryButton={
+            canAddSoftware ? (
+              <Button onClick={onAddSoftware} type="button">
+                Add software
+              </Button>
+            ) : undefined
+          }
+        />
+      );
+    }
     return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
-  }, [searchQuery]);
+  }, [searchQuery, isTrulyEmpty, canAddSoftware, onAddSoftware]);
 
   if (isAndroid(platform)) {
     return (
@@ -172,21 +193,34 @@ const HostSoftwareLibraryTable = ({
 
   const renderCustomControls = () => {
     return (
-      <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="host-library-filter"
-          value={selfService ? "selfService" : "available"}
-          className={`${baseClass}__host-library-filter`}
-          options={DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as IHostSWLibraryDropdownFilterVal
-            )
-          }
-          variant="table-filter"
-        />
-      </div>
+      <>
+        <div className={`${baseClass}__filter-controls`}>
+          <DropdownWrapper
+            name="host-library-filter"
+            value={selfService ? "selfService" : "available"}
+            className={`${baseClass}__host-library-filter`}
+            options={DROPDOWN_OPTIONS}
+            onChange={(newValue: SingleValue<CustomOptionType>) =>
+              newValue &&
+              handleCustomFilterDropdownChange(
+                newValue.value as IHostSWLibraryDropdownFilterVal
+              )
+            }
+            variant="table-filter"
+            isDisabled={isTrulyEmpty}
+          />
+        </div>
+        {canAddSoftware && !isTrulyEmpty && (
+          <Button
+            className={`${baseClass}__add-software-button`}
+            variant="secondary"
+            onClick={onAddSoftware}
+            icon="plus"
+          >
+            <span>Add software</span>
+          </Button>
+        )}
+      </>
     );
   };
 
@@ -211,6 +245,7 @@ const HostSoftwareLibraryTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable
+        disableSearch={isTrulyEmpty}
         manualSortBy
       />
     </div>

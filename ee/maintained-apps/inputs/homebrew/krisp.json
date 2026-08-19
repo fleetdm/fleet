@@ -1,0 +1,10 @@
+{
+  "name": "Krisp",
+  "unique_identifier": "ai.krisp.krispMac",
+  "token": "krisp",
+  "installer_format": "pkg",
+  "slug": "krisp/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -170,10 +171,26 @@ type MDMAppleABMAssignmentInfo struct {
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
-// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
-// between a VPP token (via location) and the team associations.
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
+	if m.MacOSTeam == removedTeamName {
+		m.MacOSTeam = ""
+	}
+	if m.IOSTeam == removedTeamName {
+		m.IOSTeam = ""
+	}
+	if m.IpadOSTeam == removedTeamName {
+		m.IpadOSTeam = ""
+	}
+	if m.BYODTeam == removedTeamName {
+		m.BYODTeam = ""
+	}
+}
+
+// MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
+// between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
@@ -187,12 +204,13 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+	// Deprecated: use AppleBusinessManager instead
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
 
-	// AppleBusinessManager defines the associations between ABM tokens
-	// and the teams used to assign hosts when they're ingested from ABM.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
+	// AppleBusinessManager defines the associations between AB tokens
+	// and the fleets used to assign hosts when they're ingested from Apple
+	// Business.
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -244,6 +262,18 @@ type MDM struct {
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
+	// WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for
+	// Windows automatic enrollment.
+	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
+
+	// MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by
+	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent.
+	MicrosoftGraphCredentialInvalid bool `json:"microsoft_graph_credential_invalid"`
+
+	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
+	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
+	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -251,6 +281,8 @@ type MDM struct {
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	HostNameTemplate optjson.String `json:"name_template"`
 
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
@@ -263,6 +295,11 @@ type MDM struct {
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
 	AndroidSettings             AndroidSettings `json:"android_settings"`
+
+	// AppleAccountProvisioning holds the macOS local account provisioning /
+	// Platform SSO password sync configuration. The IdP client secret is stored
+	// in mdm_config_assets, not in this JSON; only the masked value is returned.
+	AppleAccountProvisioning AppleAccountProvisioning `json:"apple_account_provisioning"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -365,15 +402,56 @@ type AppleOSUpdateSettings struct {
 	// Deadline the required installation date for Nudge to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
+	// DeadlineDays is the number of days after an OS version's release date
+	// before the update is enforced. It is only valid when MinimumVersion is
+	// "latest", where the deadline is relative to each version's release rather
+	// than a fixed calendar date.
+	DeadlineDays optjson.Int `json:"deadline_days"`
+}
+
+// AppleOSUpdateLatestVersion is the sentinel MinimumVersion value meaning
+// "enforce the newest version Apple offers for each host's hardware". The
+// target version is resolved per host, and the deadline is derived from that
+// version's release date plus DeadlineDays rather than being a fixed date.
+const AppleOSUpdateLatestVersion = "latest"
+
+// EnforcesLatestVersion returns whether these settings enforce the latest
+// available OS version rather than a specific one.
+func (m AppleOSUpdateSettings) EnforcesLatestVersion() bool {
+	return m.MinimumVersion.Value == AppleOSUpdateLatestVersion
 }
 
 // Configured returns a boolean indicating if updates are configured
 func (m AppleOSUpdateSettings) Configured() bool {
+	if m.EnforcesLatestVersion() {
+		// In "latest" mode the deadline is relative to each version's release
+		// date, so DeadlineDays stands in for Deadline.
+		return m.DeadlineDays.Valid && m.DeadlineDays.Value > 0
+	}
 	return m.Deadline.Value != "" &&
 		m.MinimumVersion.Value != ""
 }
 
 func (m AppleOSUpdateSettings) Validate() error {
+	if m.EnforcesLatestVersion() {
+		if m.Deadline.Value != "" {
+			return errors.New(`deadline cannot be set when minimum_version is set to "latest". Use deadline_days instead`)
+		}
+		if !m.DeadlineDays.Valid {
+			return errors.New(`deadline_days is required when minimum_version is set to "latest"`)
+		}
+		if m.DeadlineDays.Value < 1 {
+			return errors.New("deadline_days must be greater than 0")
+		}
+		return nil
+	}
+
+	// DeadlineDays is meaningless without a version to resolve it against, so
+	// reject it for a specific version and when no version is provided at all.
+	if m.DeadlineDays.Valid {
+		return errors.New(`deadline_days can only be set when minimum_version is set to "latest". Use deadline instead`)
+	}
+
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
 		// if one is set and empty, the other must be set and empty too, otherwise
@@ -425,6 +503,10 @@ func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
 	return true
 }
 
+func (w WindowsUpdates) Configured() bool {
+	return w.DeadlineDays.Valid && w.GracePeriodDays.Valid
+}
+
 func (w WindowsUpdates) Validate() error {
 	const (
 		minDeadline    = 0
@@ -466,6 +548,14 @@ type MacOSSettings struct {
 	CustomSettings                 []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
 	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
 
+	// Assets is a slice of Apple DDM asset (com.apple.asset) declaration file
+	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
+	// spec: this field is only populated while parsing a GitOps file so the
+	// assets can be applied via their own batch endpoint. It is intentionally
+	// omitted from FromMap; ToMap includes it only so the key passes the team
+	// spec's strict key validation (see applyTeamSpecsRequest.DecodeBody).
+	Assets []MDMProfileSpec `json:"assets,omitempty"`
+
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
@@ -477,6 +567,7 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
+		"assets":                 s.Assets,
 	}
 }
 
@@ -574,6 +665,8 @@ type MacOSSetup struct {
 	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
+// Validate checks the payload is in a valid state.
+// If needed to compare against old values (for partial patches) use ValidateAgainst instead.
 func (mos *MacOSSetup) Validate() error {
 	if mos == nil {
 		return nil
@@ -583,8 +676,41 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
-	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
-		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
+	}
+
+	return nil
+}
+
+// ValidateAgainst checks the payload is in a valid state, comparing against old values if needed for partial patches.
+func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
+	if mos == nil {
+		return nil
+	}
+
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	accountType := mos.EndUserLocalAccountType
+	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
+		accountType = old.EndUserLocalAccountType
+	}
+	enableManagedLocalAccount := mos.EnableManagedLocalAccount
+	if !enableManagedLocalAccount.Set {
+		enableManagedLocalAccount = old.EnableManagedLocalAccount
+	}
+	if PrimaryAccountType(accountType.Value).RequiresLocalAdminAccount() && (!enableManagedLocalAccount.Valid || !enableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, accountType.Value))
 	}
 
 	return nil
@@ -755,6 +881,16 @@ func (c *AppConfig) Obfuscate() {
 	for _, gcIntegration := range c.Integrations.GoogleCalendar {
 		gcIntegration.ApiKey.SetMasked()
 	}
+	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
+		gwIntegration.ApiKey.SetMasked()
+	}
+	// The Apple account provisioning IdP client secret lives in
+	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
+	// whenever the feature is configured (token URL present implies a stored
+	// secret), so the API never leaks it but still signals it's set.
+	if c.MDM.AppleAccountProvisioning.Configured() || c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value != "" {
+		c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.SetString(MaskedPassword)
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -804,6 +940,7 @@ func (c *AppConfig) Copy() *AppConfig {
 			clone.Features.DetailQueryOverrides[k] = s
 		}
 	}
+	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
 		copy(ao, *c.AgentOptions)
@@ -844,6 +981,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			if len(g.ApiKey.Values) > 0 {
 				clone.Integrations.GoogleCalendar[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
 				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
+			}
+		}
+	}
+	if len(c.Integrations.GoogleWorkspace) > 0 {
+		clone.Integrations.GoogleWorkspace = make([]*GoogleWorkspaceIntegration, len(c.Integrations.GoogleWorkspace))
+		for i, g := range c.Integrations.GoogleWorkspace {
+			gWorkspace := *g
+			clone.Integrations.GoogleWorkspace[i] = &gWorkspace
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleWorkspace[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
 	}
@@ -937,6 +1085,11 @@ func (c *AppConfig) Copy() *AppConfig {
 		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
 	}
 
+	if c.MDM.WindowsEntraClientIDs.Set {
+		clone.MDM.WindowsEntraClientIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraClientIDs.Value)))
+		copy(clone.MDM.WindowsEntraClientIDs.Value, c.MDM.WindowsEntraClientIDs.Value)
+	}
+
 	return &clone
 }
 
@@ -950,11 +1103,12 @@ type EnrichedAppConfig struct {
 
 // enrichedAppConfigFields are grouped separately to aid with JSON unmarshaling
 type enrichedAppConfigFields struct {
-	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
-	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
-	License         *LicenseInfo           `json:"license,omitempty"`
-	Logging         *Logging               `json:"logging,omitempty"`
-	Email           *EmailConfig           `json:"email,omitempty"`
+	UpdateInterval         *UpdateIntervalConfig  `json:"update_interval,omitempty"`
+	Vulnerabilities        *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
+	License                *LicenseInfo           `json:"license,omitempty"`
+	Logging                *Logging               `json:"logging,omitempty"`
+	Email                  *EmailConfig           `json:"email,omitempty"`
+	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -1214,12 +1368,92 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName                   string `json:"org_name"`
-	OrgLogoURL                string `json:"org_logo_url"`
+	OrgName string `json:"org_name"`
+	// Deprecated: use OrgLogoURLDarkMode.
+	OrgLogoURL string `json:"org_logo_url"`
+	// Deprecated: use OrgLogoURLLightMode.
 	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
+	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
+}
+
+// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
+// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
+func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+
+	switch {
+	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
+		invalid.Append("org_logo_url",
+			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
+	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
+		o.OrgLogoURL = o.OrgLogoURLDarkMode
+	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
+		o.OrgLogoURLDarkMode = o.OrgLogoURL
+	}
+
+	switch {
+	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
+		invalid.Append("org_logo_url_light_background",
+			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
+	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
+		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
+	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
+		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+// orgLogoServingPathPrefix is the relative path Fleet writes into the
+// OrgLogo*URL fields after a successful logo upload (see
+// orgLogoServingURL in server/service/org_logo.go). AbsolutizeLogoURLs
+// uses this to recognize Fleet-hosted logos that need the current
+// ServerURL prepended on read.
+const orgLogoServingPathPrefix = "/api/latest/fleet/logo"
+
+// AbsolutizeLogoURL rewrites a Fleet-hosted relative logo URL into a
+// fully-qualified URL using the supplied serverURL. URLs that don't
+// match the Fleet-hosted serving path (i.e. external URLs set by
+// customers) and empty strings are returned unchanged. Use this when
+// you only need to absolutize one field — see AbsolutizeLogoURLs for
+// the OrgInfo-wide variant.
+func AbsolutizeLogoURL(u, serverURL string) string {
+	if serverURL == "" || !strings.HasPrefix(u, orgLogoServingPathPrefix) {
+		return u
+	}
+	return strings.TrimRight(serverURL, "/") + u
+}
+
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
+// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
+	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
+	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
+	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
+	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
+}
+
+// IsFleetHostedLogoURL reports whether the given URL points at the Fleet logo
+// serving endpoint. Handles both the persisted relative form
+// ("/api/latest/fleet/logo?mode=...") and the absolutized form returned by
+// AbsolutizeLogoURLs. Match must be on the parsed Path so a sibling endpoint
+// like "/api/latest/fleet/logo-proxy" doesn't get falsely identified.
+func IsFleetHostedLogoURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Path == orgLogoServingPathPrefix
 }
 
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
@@ -1265,15 +1499,76 @@ type ActivityExpirySettings struct {
 }
 
 type Features struct {
-	EnableHostUsers         bool               `json:"enable_host_users"`
-	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+	EnableHostUsers         bool                   `json:"enable_host_users"`
+	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
+	HistoricalData          HistoricalDataSettings `json:"historical_data"`
+
+	// VulnerabilityExposureHistoricalReporting holds the GitOps-managed default
+	// filter state for the Vulnerability exposure dashboard chart. It is a
+	// display-only concern: it seeds the chart's filter controls on load and
+	// does NOT affect what vulnerability data is collected. Premium-only.
+	//
+	// All fields are pointers so the config has sparse/PATCH semantics: a field
+	// present in YAML is persisted and respected by the frontend, while an
+	// omitted field stays nil and the frontend falls back to its own built-in
+	// default for that control.
+	VulnerabilityExposureHistoricalReporting *VulnExposureFilterSettings `json:"vulnerability_exposure_historical_reporting,omitempty"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// VulnExposureFilterSettings is the persisted default filter state for the
+// Vulnerability exposure (CVE) dashboard chart. Field names/units mirror what
+// the frontend consumes when seeding its filter controls: software categories
+// use the canonical keys (os/browsers/office/adobe), EPSS bounds are expressed
+// as 0–100 (the frontend converts to 0–1 only when calling the chart API).
+//
+// Every field is optional (nil = "not set, use the frontend default"). A
+// present SoftwareFilters slice must list at least one category: a
+// present-but-empty slice is rejected by Validate, because on the chart read
+// path an empty selection collapses to "all categories" and so can never
+// produce the empty chart it implies.
+type VulnExposureFilterSettings struct {
+	SoftwareFilters        *[]string `json:"software_filters,omitempty"`
+	CVSSMin                *float64  `json:"cvss_min,omitempty"`
+	CVSSMax                *float64  `json:"cvss_max,omitempty"`
+	EPSSMin                *float64  `json:"epss_min,omitempty"`
+	EPSSMax                *float64  `json:"epss_max,omitempty"`
+	HasKnownExploit        *bool     `json:"has_known_exploit,omitempty"`
+	ExcludeVulnerabilities *[]string `json:"exclude_vulnerabilities,omitempty"`
+}
+
+// HistoricalDataSettings controls per-dataset collection of the time-series
+// rollups that drive the dashboard charts. Each sub-key corresponds to a
+// chart dataset; `true` means collect, `false` means skip.
+//
+// Sub-key names are the public config keys (used in YAML and audit
+// activities). Internal dataset names (the values returned by Dataset.Name())
+// are translated to sub-keys via the Enabled method.
+type HistoricalDataSettings struct {
+	Uptime          bool `json:"uptime"`
+	Vulnerabilities bool `json:"vulnerabilities"`
+}
+
+// Enabled returns whether collection is enabled for the given internal
+// dataset name. The mapping is the single canonical translation between
+// internal dataset names (e.g. "cve") and config sub-keys (e.g.
+// "vulnerabilities"). Callers SHOULD use this method rather than reading
+// fields directly.
+func (h HistoricalDataSettings) Enabled(dataset string) (bool, error) {
+	switch dataset {
+	case "uptime":
+		return h.Uptime, nil
+	case "cve":
+		return h.Vulnerabilities, nil
+	default:
+		return false, fmt.Errorf("unknown dataset %q", dataset)
+	}
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -1286,6 +1581,8 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+	f.HistoricalData.Uptime = true
+	f.HistoricalData.Vulnerabilities = true
 }
 
 // Clone implements cloner for Features.
@@ -1320,7 +1617,115 @@ func (f *Features) Copy() *Features {
 		}
 	}
 
+	clone.VulnerabilityExposureHistoricalReporting = f.VulnerabilityExposureHistoricalReporting.Copy()
+
 	return &clone
+}
+
+// Copy returns a deep copy of the settings, or nil if the receiver is nil.
+func (v *VulnExposureFilterSettings) Copy() *VulnExposureFilterSettings {
+	if v == nil {
+		return nil
+	}
+
+	var clone VulnExposureFilterSettings
+
+	if v.CVSSMin != nil {
+		clone.CVSSMin = new(*v.CVSSMin)
+	}
+	if v.CVSSMax != nil {
+		clone.CVSSMax = new(*v.CVSSMax)
+	}
+	if v.EPSSMin != nil {
+		clone.EPSSMin = new(*v.EPSSMin)
+	}
+	if v.EPSSMax != nil {
+		clone.EPSSMax = new(*v.EPSSMax)
+	}
+	if v.HasKnownExploit != nil {
+		clone.HasKnownExploit = new(*v.HasKnownExploit)
+	}
+	if v.SoftwareFilters != nil {
+		sf := make([]string, len(*v.SoftwareFilters))
+		copy(sf, *v.SoftwareFilters)
+		clone.SoftwareFilters = &sf
+	}
+	if v.ExcludeVulnerabilities != nil {
+		ev := make([]string, len(*v.ExcludeVulnerabilities))
+		copy(ev, *v.ExcludeVulnerabilities)
+		clone.ExcludeVulnerabilities = &ev
+	}
+
+	return &clone
+}
+
+// vulnExposureSoftwareCategories is the set of valid software_filters values.
+// It mirrors the canonical CVE category keys defined in server/chart/api
+// (CVECategoryOS/Browsers/Office/Adobe); kept as a local set here to avoid the
+// base fleet package depending on the chart bounded context.
+var vulnExposureSoftwareCategories = map[string]struct{}{
+	"os":       {},
+	"browsers": {},
+	"office":   {},
+	"adobe":    {},
+}
+
+// vulnExposureCVERegex matches a CVE identifier, mirroring the pattern used in
+// server/service (cveRegex).
+var vulnExposureCVERegex = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4}\d*$`)
+
+// Validate checks only the fields that are present (non-nil). It is meant to be
+// run against the incoming GitOps/PATCH payload, not against persisted state.
+// Errors are appended to the provided invalid accumulator under keys prefixed
+// with the supplied path (e.g. "org_settings.features" or
+// "<fleet>.settings.features").
+func (v *VulnExposureFilterSettings) Validate(prefix string, invalid *InvalidArgumentError) {
+	if v == nil {
+		return
+	}
+	key := func(field string) string {
+		return prefix + ".vulnerability_exposure_historical_reporting." + field
+	}
+
+	if v.SoftwareFilters != nil {
+		// An empty list is rejected rather than treated as "no categories":
+		// on the chart read path an empty selection is indistinguishable from
+		// "no filter" and resolves to all categories, so it can never produce
+		// the empty chart it implies. Require at least one category instead.
+		if len(*v.SoftwareFilters) == 0 {
+			invalid.Append(key("software_filters"), "must include at least one software category (valid values: os, browsers, office, adobe)")
+		}
+		for _, c := range *v.SoftwareFilters {
+			if _, ok := vulnExposureSoftwareCategories[c]; !ok {
+				invalid.Append(key("software_filters"), fmt.Sprintf("invalid software category %q (valid values: os, browsers, office, adobe)", c))
+			}
+		}
+	}
+
+	validateBounds(invalid, key("cvss_min"), key("cvss_max"), v.CVSSMin, v.CVSSMax, 0, 10, "cvss")
+	validateBounds(invalid, key("epss_min"), key("epss_max"), v.EPSSMin, v.EPSSMax, 0, 100, "epss")
+
+	if v.ExcludeVulnerabilities != nil {
+		for _, cve := range *v.ExcludeVulnerabilities {
+			if !vulnExposureCVERegex.MatchString(cve) {
+				invalid.Append(key("exclude_vulnerabilities"), fmt.Sprintf("invalid CVE identifier %q", cve))
+			}
+		}
+	}
+}
+
+// validateBounds checks an optional [min, max] score range: each present bound
+// must fall within [lo, hi], and when both are present min must be <= max.
+func validateBounds(invalid *InvalidArgumentError, minKey, maxKey string, minVal, maxVal *float64, lo, hi float64, label string) {
+	if minVal != nil && (*minVal < lo || *minVal > hi) {
+		invalid.Append(minKey, fmt.Sprintf("%s_min must be between %g and %g", label, lo, hi))
+	}
+	if maxVal != nil && (*maxVal < lo || *maxVal > hi) {
+		invalid.Append(maxKey, fmt.Sprintf("%s_max must be between %g and %g", label, lo, hi))
+	}
+	if minVal != nil && maxVal != nil && *minVal > *maxVal {
+		invalid.Append(minKey, fmt.Sprintf("%s_min must be less than or equal to %s_max", label, label))
+	}
 }
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
@@ -1432,6 +1837,9 @@ type ListHostReportsOptions struct {
 	// false (default): only queries with discard_data=0 AND logging_type='snapshot' are returned.
 	// true: all queries are returned, including ones that don't store results.
 	IncludeReportsDontStoreResults bool
+	// ExcludeIncludeAllQueries hides queries that have any include_all
+	// (require_all=1) labels.
+	ExcludeIncludeAllQueries bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1576,9 +1984,6 @@ type LicenseInfo struct {
 	Note string `json:"note,omitempty"`
 	// AllowDisableTelemetry allows specific customers to not send analytics
 	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
-	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
-	// Currently only used to display UI features only present on cloud instances.
-	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -1637,8 +2042,9 @@ type EmailConfig struct {
 }
 
 type SESConfig struct {
-	Region    string `json:"region"`
-	SourceARN string `json:"source_arn"`
+	Region       string `json:"region"`
+	SourceARN    string `json:"source_arn"`
+	SenderDomain string `json:"sender_domain"`
 }
 
 type UpdateIntervalConfig struct {
@@ -1720,6 +2126,14 @@ type NatsConfig struct {
 	AuditSubject  string `json:"audit_subject"`
 }
 
+// SplunkConfig shadows config.SplunkConfig only exposing a subset of fields
+type SplunkConfig struct {
+	URL        string `json:"url"`
+	Index      string `json:"index"`
+	Source     string `json:"source"`
+	SourceType string `json:"source_type"`
+}
+
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
@@ -1752,10 +2166,42 @@ func (v *Version) AuthzType() string {
 	return "version"
 }
 
+// ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.
+// Future fields (username, password policy) land here.
+type ManagedLocalAccountSettings struct {
+	Enabled optjson.Bool `json:"enabled"`
+}
+
+// MarshalJSON defaults the enabled flag to false when it was never set, so every serialization
+// path (API responses, stored config JSON, spec exports, GitOps payloads) emits a boolean
+// rather than null. Request payloads are unaffected: clients send raw JSON, not this struct.
+func (m ManagedLocalAccountSettings) MarshalJSON() ([]byte, error) {
+	if !m.Enabled.Valid {
+		m.Enabled = optjson.SetBool(false)
+	}
+	// the alias type has no methods, so marshaling it avoids infinite recursion into this MarshalJSON
+	type alias ManagedLocalAccountSettings
+	return json.Marshal(alias(m))
+}
+
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+
+	// ManagedLocalAccountSettings configures the hidden managed local admin account created by
+	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+}
+
+// WindowsEnrollment are settings for new user-driven Windows MDM enrollments.
+type WindowsEnrollment struct {
+	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
+	// Empty means no default: new hosts stay Unassigned.
+	//
+	// Do NOT read this field for logic: it is the transport/display shape only, and the copy stored in app_config_json can be stale
+	// after a fleet rename or deletion. The source of truth is via Datastore.GetWindowsEnrollmentDefaultFleet
+	DefaultFleet string `json:"default_fleet"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
@@ -1787,6 +2233,7 @@ type CertificateTemplateSpec struct {
 	Name                     string `json:"name"`
 	CertificateAuthorityName string `json:"certificate_authority_name"`
 	SubjectName              string `json:"subject_name"`
+	SubjectAlternativeName   string `json:"subject_alternative_name,omitempty"`
 }
 
 func (c CertificateTemplateSpec) NameValid() bool {

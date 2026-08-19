@@ -3,6 +3,7 @@ package winoffice
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -221,6 +222,20 @@ func Analyze(
 
 	if bulletin == nil {
 		return nil, nil
+	}
+
+	// Refuse to proceed if the loaded bulletin contains no version data or no security updates.
+	// An empty bulletin would cause every existing WinOffice vulnerability for matching software
+	// to be marked as remediated. This usually indicates the bulletin file is corrupted.
+	hasSecurityUpdates := false
+	for _, vb := range bulletin.Versions {
+		if vb != nil && len(vb.SecurityUpdates) > 0 {
+			hasSecurityUpdates = true
+			break
+		}
+	}
+	if !hasSecurityUpdates {
+		return nil, errors.New("WinOffice bulletin contains no security updates (possible corrupted feed)")
 	}
 
 	// Query for Windows Office software from "programs" source.

@@ -1,15 +1,14 @@
 cask "fleet-desktop" do
-  version "1.1.0"
-  sha256 "4f3537c37a094f333046072262b1f37729f73074bf935f09f05799bc341fef58"
+  version "1.4.0"
+  sha256 "c920b983524df5296c10e4b15c5789df2dacacddd5b1423562b57bb1cc6d9d71"
 
-  url "https://github.com/allenhouchins/fleet-desktop/releases/download/v#{version}/fleet_desktop-v#{version}.pkg"
+  url "https://download.fleetdm.com/fleet-desktop-macos/v#{version}/fleet_desktop-v#{version}.pkg"
   name "Fleet Desktop"
   desc "End-user client for Fleet device management"
-  homepage "https://github.com/allenhouchins/fleet-desktop"
+  homepage "https://github.com/fleetdm/fleet/tree/main/apps/fleet-desktop-macos"
 
   livecheck do
-    url :url
-    strategy :github_latest
+    skip "Manually versioned upon release"
   end
 
   depends_on macos: ">= :ventura"

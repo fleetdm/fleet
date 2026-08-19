@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import FileSaver from "file-saver";
-import { get } from "lodash";
 import { PolicyContext } from "context/policy";
 
 import {
@@ -15,7 +14,6 @@ import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon/Icon";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import InfoBanner from "components/InfoBanner";
@@ -114,23 +112,22 @@ const PolicyResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="inverse"
+          variant="secondary"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={
             tableType === "errors" ? onExportErrorsResults : onExportResults
           }
-          variant="inverse"
+          variant="secondary"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export {tableType}
-            <Icon name="download" color="ui-fleet-black-75" />
-          </>
+          Export {tableType}
         </Button>
       </div>
     );
@@ -166,12 +163,21 @@ const PolicyResults = ({
     }
 
     if (finishedWithNoResults) {
+      const hostVerb = targetsTotalCount === 1 ? "host is" : "hosts are";
+      const errorsMessage = errors?.length ? (
+        <>
+          {" "}
+          or review the <strong>Errors</strong> tab for details
+        </>
+      ) : null;
       return (
         <EmptyState
-          header="Your live report returned no results"
-          info={`Expecting to see results? Check to see if the host${
-            targetsTotalCount > 1 ? "s" : ""
-          } you targeted reported "Online" or check out the "Errors" table.`}
+          header="No results returned"
+          info={
+            <>
+              Check whether the {hostVerb} online{errorsMessage}.
+            </>
+          }
         />
       );
     }
@@ -230,7 +236,11 @@ const PolicyResults = ({
   });
 
   return (
-    <div className={baseClass}>
+    // `notranslate`: Chrome's auto-translate wraps text nodes in <font> elements,
+    // detaching nodes React holds refs to. As live results stream in and cells
+    // unmount, React's removeChild throws NotFoundError and error-boundaries the
+    // page (#48277). Excluding this streaming subtree from translation avoids it.
+    <div className={`${baseClass} notranslate`}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
         numHostsResponded={uiHostCounts.total}

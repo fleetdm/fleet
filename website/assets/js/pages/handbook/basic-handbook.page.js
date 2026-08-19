@@ -143,7 +143,7 @@ parasails.registerPage('basic-handbook', {
       let pagesInFolder = (()=>{
         let relatedPages = [];
         let thisPagesFolderInTheHandbookFolder = this.thisPage.sectionRelativeRepoPath.split('/')[0];
-        let pagesInThisFolder = _.filter(this.markdownPages, (page)=>{ return _.startsWith(page.sectionRelativeRepoPath, thisPagesFolderInTheHandbookFolder);});
+        let pagesInThisFolder = _.filter(this.markdownPages, (page)=>{ return _.startsWith(page.sectionRelativeRepoPath, thisPagesFolderInTheHandbookFolder) && _.startsWith(page.url, '/handbook');});
         relatedPages = pagesInThisFolder.map((page)=>{
           if(!_.startsWith(page.url, '/handbook/company/open-positions') && !_.startsWith(page.url, '/handbook/company/legal') ){
             return {

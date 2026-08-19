@@ -1,0 +1,15 @@
+.install-all-in-category-button {
+  display: flex;
+  align-items: center;
+  gap: $pad-small;
+
+  .children-wrapper {
+    white-space: nowrap;
+  }
+}
+
+.install-all-in-category-modal {
+  .modal-cta-wrap {
+    margin-top: $pad-large;
+  }
+}

@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -164,5 +165,21 @@ class CertificateEnrollmentHandlerTest {
         // Verify defaults were used
         assertEquals(2048, mockScepClient.capturedConfig?.keyLength)
         assertEquals("SHA256withRSA", mockScepClient.capturedConfig?.signatureAlgorithm)
+    }
+
+    @Test
+    fun `handler forwards subjectAlternativeName to SCEP client`() = runTest {
+        val san = "DNS=host.example.com, UPN=marko@corp.example.com"
+        val template = TestCertificateTemplateFactory.create(subjectAlternativeName = san)
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+        assertEquals(san, mockScepClient.capturedConfig?.subjectAlternativeName)
+    }
+
+    @Test
+    fun `handler forwards null subjectAlternativeName when absent`() = runTest {
+        val template = TestCertificateTemplateFactory.create()
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+        assertNotNull(mockScepClient.capturedConfig)
+        assertNull(mockScepClient.capturedConfig?.subjectAlternativeName)
     }
 }

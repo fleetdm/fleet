@@ -195,6 +195,7 @@ const Smtp = ({
           onBlur={onInputBlur}
           error={formErrors.user_name}
           blockAutoComplete
+          ignore1password={false}
         />
         <InputField
           label="SMTP password"
@@ -206,6 +207,7 @@ const Smtp = ({
           onBlur={onInputBlur}
           error={formErrors.password}
           blockAutoComplete
+          ignore1password={false}
         />
         <Dropdown
           label="Auth method"
@@ -297,6 +299,13 @@ const Smtp = ({
             name="smtpEnableSSLTLS"
             value={smtpEnableSSLTLS}
             parseTarget
+            labelTooltipContent={
+              <>
+                To disable this setting, STARTTLS must first be disabled in{" "}
+                <strong>Organization settings</strong> &gt;{" "}
+                <strong>Advanced options</strong>.
+              </>
+            }
           >
             Use SSL/TLS to connect (recommended)
           </Checkbox>

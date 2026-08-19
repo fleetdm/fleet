@@ -18,6 +18,25 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                    "l.id",
+	"created_at":            "l.created_at",
+	"updated_at":            "l.updated_at",
+	"name":                  "l.name",
+	"description":           "l.description",
+	"query":                 "l.query",
+	"platform":              "l.platform",
+	"label_type":            "l.label_type",
+	"label_membership_type": "l.label_membership_type",
+	"author_id":             "l.author_id",
+	"criteria":              "l.criteria",
+	"team_id":               "l.team_id",
+
+	// dependent on include_host_counts being set on request
+	// (checked on transport layer).
+	"host_count": "host_count",
+}
+
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
 }
@@ -148,10 +167,11 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	}
 
 	type existingLabel struct {
-		ID       uint   `db:"id"`
-		Name     string `db:"name"`
-		Platform string `db:"platform"`
-		TeamID   *uint  `db:"team_id"`
+		ID        uint            `db:"id"`
+		Name      string          `db:"name"`
+		Platform  string          `db:"platform"`
+		TeamID    *uint           `db:"team_id"`
+		LabelType fleet.LabelType `db:"label_type"`
 	}
 	existingLabels := make(map[string]existingLabel, len(specs))
 
@@ -160,13 +180,13 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	// should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: do we want to allow on duplicate updating label_type or
-		// label_membership_type or should those always be immutable?
-		// are we ok depending solely on the caller to ensure that these fields
-		// are not changed?
+		// TODO: do we want to allow on duplicate updating label_membership_type
+		// or should that always be immutable?
+		// are we ok depending solely on the caller to ensure that field
+		// is not changed?
 
 		if len(labelNames) > 0 {
-			stmt := `SELECT id, name, platform, team_id FROM labels WHERE name IN (?)`
+			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?)`
 			stmt, args, err := sqlx.In(stmt, labelNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build existing labels query")
@@ -182,10 +202,22 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, spec := range specs {
-				if existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]; ok &&
-					(existingLabel.TeamID != nil && spec.TeamID == nil ||
-						existingLabel.TeamID == nil && spec.TeamID != nil ||
-						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
+				if spec.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
+				}
+				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
+				if !ok {
+					continue
+				}
+				// The lookup above and the unique index the upsert keys on both inherit
+				// the case-insensitive collation of labels.name, so even a spec merely
+				// named as a case variant of a built-in resolves to that built-in row.
+				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
+				}
+				if existingLabel.TeamID != nil && spec.TeamID == nil ||
+					existingLabel.TeamID == nil && spec.TeamID != nil ||
+					(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID) {
 					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}
@@ -393,56 +425,7 @@ func batchHostnames(hostnames []string) [][]string {
 
 func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// delete all label membership
-		sql := `
-	DELETE FROM label_membership WHERE label_id = ?
-	`
-		_, err := tx.ExecContext(ctx, sql, label.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "clear membership for ID")
-		}
-
-		if len(hostIds) == 0 {
-			return nil
-		}
-
-		// Split hostIds into batches to avoid parameter limit in MySQL.
-		for _, hostIDsBatch := range batchHostIds(hostIds) {
-			if label.TeamID != nil {
-				// Team labels can only be applied to hosts on that team.
-				if err := checkHostIdentifiersInTeam(ctx, tx,
-					*label.TeamID,
-					`id IN (?)`,
-					[]any{hostIDsBatch},
-				); err != nil {
-					return ctxerr.Wrap(ctx, err, "check host IDs in team")
-				}
-			}
-
-			// Use ignore because duplicate host IDs could appear in
-			// different batches and would result in duplicate key errors.
-			var values []any
-			var placeholders []string
-
-			for _, hostID := range hostIDsBatch {
-				values = append(values, label.ID, hostID)
-				placeholders = append(placeholders, "(?, ?)")
-			}
-
-			// Build the final SQL query with the dynamically generated placeholders
-			sql := `
-INSERT IGNORE INTO label_membership (label_id, host_id)
-VALUES ` + strings.Join(placeholders, ", ")
-			sql, args, err := sqlx.In(sql, values...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build membership IN statement")
-			}
-			_, err = tx.ExecContext(ctx, sql, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "execute membership INSERT")
-			}
-		}
-		return nil
+		return replaceLabelMembershipTx(ctx, tx, label, hostIds)
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
@@ -454,6 +437,56 @@ VALUES ` + strings.Join(placeholders, ", ")
 	}
 
 	return updatedLabel.GetLabel(), hostIDs, err
+}
+
+// replaceLabelMembershipTx replaces the manual membership of the given label
+// with exactly hostIDs.
+func replaceLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, label fleet.Label, hostIDs []uint) error {
+	// delete all label membership
+	if _, err := tx.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, label.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear membership for ID")
+	}
+
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Split hostIDs into batches to avoid parameter limit in MySQL.
+	for _, hostIDsBatch := range batchHostIds(hostIDs) {
+		if label.TeamID != nil {
+			// Team labels can only be applied to hosts on that team.
+			if err := checkHostIdentifiersInTeam(ctx, tx,
+				*label.TeamID,
+				`id IN (?)`,
+				[]any{hostIDsBatch},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "check host IDs in team")
+			}
+		}
+
+		// Use ignore because duplicate host IDs could appear in
+		// different batches and would result in duplicate key errors.
+		var values []any
+		var placeholders []string
+
+		for _, hostID := range hostIDsBatch {
+			values = append(values, label.ID, hostID)
+			placeholders = append(placeholders, "(?, ?)")
+		}
+
+		// Build the final SQL query with the dynamically generated placeholders
+		sql := `
+INSERT IGNORE INTO label_membership (label_id, host_id)
+VALUES ` + strings.Join(placeholders, ", ")
+		sql, args, err := sqlx.In(sql, values...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build membership IN statement")
+		}
+		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "execute membership INSERT")
+		}
+	}
+	return nil
 }
 
 // Update label membership for a host vitals label.
@@ -547,7 +580,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 	for _, spec := range specs {
 		if spec.LabelType != fleet.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-			if err := ds.getLabelHostIDs(ctx, spec); err != nil {
+			if err := ds.getLabelHostIDs(ctx, spec, filter); err != nil {
 				return nil, err
 			}
 		}
@@ -559,7 +592,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 func (ds *Datastore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query, params, err := applyLabelTeamFilter(`
-SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.team_id
+SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.criteria, l.team_id
 FROM labels l
 WHERE l.name = ?`, filter, name)
 	if err != nil {
@@ -579,7 +612,7 @@ WHERE l.name = ?`, filter, name)
 	spec := specs[0]
 	if spec.LabelType != fleet.LabelTypeBuiltIn &&
 		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		err := ds.getLabelHostIDs(ctx, spec)
+		err := ds.getLabelHostIDs(ctx, spec, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -588,18 +621,24 @@ WHERE l.name = ?`, filter, name)
 	return spec, nil
 }
 
-func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec) error {
-	sql := `
-		SELECT id
-		FROM hosts
-		WHERE id IN
-		(
-			SELECT host_id
-			FROM label_membership
-			WHERE label_id = (SELECT id FROM labels WHERE name = ?)
+func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec, filter fleet.TeamFilter) error {
+	// Global roles (including gitops, which needs the full list to round-trip
+	// specs) see every member; team-scoped users must not learn about host IDs
+	// outside their teams. filter.TeamID scopes which labels are returned, not
+	// which hosts are visible, so it is left out of the host filter.
+	hostFilter := "TRUE"
+	if filter.User == nil || !filter.User.HasAnyGlobalRole() {
+		hostFilter = ds.whereFilterHostsByTeams(
+			fleet.TeamFilter{User: filter.User, IncludeObserver: filter.IncludeObserver}, "h",
 		)
-	`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.Name)
+	}
+	sql := fmt.Sprintf(`
+		SELECT h.id
+		FROM hosts h
+		JOIN label_membership lm ON lm.host_id = h.id
+		WHERE lm.label_id = ? AND %s
+	`, hostFilter)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hostnames for label")
 	}
@@ -646,21 +685,40 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	return label, nil
 }
 
-func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
-	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, query, label.Name, label.Description, label.ID)
+func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+	var (
+		saved        *fleet.LabelWithTeamName
+		savedHostIDs []uint
+	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE labels SET name = ?, description = ? WHERE id = ?`, label.Name, label.Description, label.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "saving label")
+		}
+
+		// Update the label name in mdm_configuration_profile_labels
+		if _, err := tx.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`, label.Name, label.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
+		}
+
+		// A nil hostIDs means the caller did not request a membership change.
+		if hostIDs != nil {
+			if err := replaceLabelMembershipTx(ctx, tx, *label, hostIDs); err != nil {
+				return err
+			}
+		}
+
+		var err error
+		saved, savedHostIDs, err = ds.labelDB(ctx, label.ID, teamFilter, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get label after save")
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
+		return nil, nil, err
 	}
 
-	// Update the label name in mdm_configuration_profile_labels
-	query = `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`
-	_, err = ds.writer(ctx).ExecContext(ctx, query, label.Name, label.ID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
-	}
-
-	return ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
+	return saved, savedHostIDs, nil
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -680,6 +738,19 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			}
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
+		var usedByProfile bool
+		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
+			SELECT EXISTS(
+				SELECT 1 FROM mdm_configuration_profile_labels WHERE label_id = ?
+				UNION ALL
+				SELECT 1 FROM mdm_declaration_labels WHERE label_id = ?
+			)`, labelID, labelID); err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if label is used by configuration profiles")
+		}
+		if usedByProfile {
+			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
+		}
+
 		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
@@ -741,6 +812,18 @@ func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamF
 	return ds.labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }
 
+// LabelMembershipHostIDs returns every host_id row in label_membership for the
+// given label ID. Unlike Label, it applies no team filter on the host side, so
+// it returns the true membership including hosts on teams the caller can't see.
+func (ds *Datastore) LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error) {
+	var hostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT host_id FROM label_membership WHERE label_id = ?`, labelID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting label membership host IDs")
+	}
+	return hostIDs, nil
+}
+
 func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.LabelWithTeamName, []uint, error) {
 	stmt := fmt.Sprintf(`
 		SELECT
@@ -786,14 +869,25 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
+		countFrom := "label_membership lm JOIN hosts h ON (lm.host_id = h.id)"
+		// When the team filter allows all hosts ("TRUE"),
+		// skip the join to the hosts table and count straight off the
+		// label_membership index.
+		teamFilter := ds.whereFilterHostsByTeams(filter, "h")
+		if teamFilter == "TRUE" {
+			countFrom = "label_membership lm"
+		}
 		query = fmt.Sprintf(`
-				SELECT l.*,
-					(SELECT COUNT(1)
-					 FROM label_membership lm
-					     JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s
-					 ) AS host_count
+				WITH label_host_counts AS (
+					SELECT lm.label_id, COUNT(1) AS host_count
+					FROM %s
+					WHERE %s
+					GROUP BY lm.label_id
+				)
+				SELECT l.*, COALESCE(lhc.host_count, 0) AS host_count
 				FROM labels l
-			`, ds.whereFilterHostsByTeams(filter, "h"),
+				LEFT JOIN label_host_counts lhc ON lhc.label_id = l.id
+			`, countFrom, teamFilter,
 		)
 	}
 
@@ -802,7 +896,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, err
 	}
 
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err = appendListOptionsWithCursorToSQLSecure(query, params, &opt, labelsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list labels")
+	}
 	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
@@ -857,25 +954,32 @@ func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams .
 	return maybeIn(query)
 }
 
-func platformForHost(host *fleet.Host) string {
-	if host.Platform != "rhel" {
-		return host.Platform
+// platformsForHost returns the label platform values that match the given
+// host. A host matches labels with its specific platform (with rhel hosts
+// running CentOS matching "centos"), and Linux hosts additionally match the
+// generic "linux" platform regardless of distribution.
+func platformsForHost(host *fleet.Host) []string {
+	specific := host.Platform
+	if host.Platform == "rhel" && strings.Contains(strings.ToLower(host.OSVersion), "centos") {
+		specific = "centos"
 	}
-	if strings.Contains(strings.ToLower(host.OSVersion), "centos") {
-		return "centos"
+	if fleet.IsLinux(specific) && specific != "linux" {
+		return []string{specific, "linux"}
 	}
-	return host.Platform
+	return []string{specific}
 }
 
 func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	var rows *sql.Rows
-	var err error
-	platform := platformForHost(host)
+	platforms := platformsForHost(host)
 	query := `SELECT id, query FROM labels WHERE
-		(platform = ? OR platform = '') AND
+		(platform IN (?) OR platform = '') AND
 		label_membership_type = ? AND
 		(team_id IS NULL OR team_id = ?)`
-	rows, err = ds.reader(ctx).QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic, host.TeamID)
+	query, args, err := sqlx.In(query, platforms, fleet.LabelMembershipTypeDynamic, host.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building label queries for host")
+	}
+	rows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}
@@ -912,11 +1016,16 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 	removes := []uint{}
 	for _, labelID := range orderedIDs {
 		matches := results[labelID]
-		if matches != nil && *matches {
+		switch {
+		case matches == nil:
+			// The query errored (e.g. extension socket unavailable), rather than
+			// returning a definitive 0 rows. Leave existing membership untouched.
+			continue
+		case *matches:
 			// Add/update row
 			bindvars = append(bindvars, "(?,?,?)")
 			vals = append(vals, updated, labelID, host.ID)
-		} else {
+		default:
 			// Delete row
 			removes = append(removes, labelID)
 		}
@@ -1213,6 +1322,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// prior to returning, params will be appended in the following order: joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
+	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
+	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	if opt.StatusFilter.IsValid() {
+		query += hostMDMSeenTimeJoin
+	}
+
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
@@ -1282,6 +1397,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
 		query += sqlJoinRecoveryLockStatus()
+		query += sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1651,32 +1767,38 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	return labelsSummary, nil
 }
 
-// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
-// If the labels do not exist, then the host is considered not a member of the provided labels.
-// A host will always be a member of an empty label set, so this method returns (true, nil)
-// if labelNames is empty.
-func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
-	if len(labelNames) == 0 {
-		return true, nil
-	}
-
+// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
+// Labels that do not exist are not included in the result. The returned map is keyed by the
+// requested label names (preserving the caller's casing), not the DB-stored names.
+func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	sqlStatement := `
-		SELECT COUNT(*) = ? FROM labels l
-		LEFT JOIN (SELECT label_id FROM label_membership WHERE host_id = ?) lm
-		ON l.id = lm.label_id
-		WHERE l.name IN (?) AND lm.label_id IS NOT NULL;
+		SELECT l.name FROM labels l
+		JOIN label_membership lm ON l.id = lm.label_id
+		WHERE lm.host_id = ? AND l.name IN (?)
 	`
-	sql, args, err := sqlx.In(sqlStatement, len(labelNames), hostID, labelNames)
+	sql, args, err := sqlx.In(sqlStatement, hostID, labelNames)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query for host label membership")
 	}
 
-	var ok bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ok, sql, args...); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get label IDs")
+	var dbNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dbNames, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label membership")
 	}
 
-	return ok, nil
+	// The DB may return names with different casing than requested (utf8mb4_unicode_ci),
+	// so map DB names back to the caller's requested names for case-sensitive Go map lookups.
+	dbNameSet := make(map[string]struct{}, len(dbNames))
+	for _, n := range dbNames {
+		dbNameSet[strings.ToLower(n)] = struct{}{}
+	}
+	result := make(map[string]struct{}, len(dbNames))
+	for _, req := range labelNames {
+		if _, ok := dbNameSet[strings.ToLower(req)]; ok {
+			result[req] = struct{}{}
+		}
+	}
+	return result, nil
 }
 
 // AddLabelsToHost skips auth as it's only used in tests, and where label teams have already been validated.

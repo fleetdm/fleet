@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -624,6 +625,65 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 }
 
+func TestMDMAppleCommanderSetAutoAdminPassword(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	guid := "AAAAAAAA-BBBB-CCCC-DDDD-000000000001"
+	cmdUUID := uuid.New().String()
+	hashPlist, err := GenerateSaltedSHA512PBKDF2Hash("test-password-1234")
+	require.NoError(t, err)
+	expectedB64 := base64.StdEncoding.EncodeToString(hashPlist)
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "SetAutoAdminPassword", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Contains(t, string(cmd.Raw), "<key>GUID</key>")
+		require.Contains(t, string(cmd.Raw), "<string>"+guid+"</string>")
+		require.Contains(t, string(cmd.Raw), "<key>passwordHash</key>")
+		require.Contains(t, string(cmd.Raw), "<data>"+expectedB64+"</data>")
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, []string{hostUUID}, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, u := range targetUUIDs {
+			pushes[u] = &mdm.Push{
+				PushMagic: "magic" + u,
+				Token:     []byte("token" + u),
+				Topic:     "topic" + u,
+			}
+		}
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	err = cmdr.SetAutoAdminPassword(ctx, hostUUID, guid, hashPlist, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+}
+
 func TestMDMAppleCommanderClearPasscode(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
@@ -672,6 +732,133 @@ func TestMDMAppleCommanderClearPasscode(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+}
+
+func TestMDMAppleCommanderDeviceNameSetting(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	// A name containing XML-unsafe characters that must be escaped.
+	deviceName := "Bob & Alice's <iPad>"
+
+	var gotRaw []byte
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "Settings", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		gotRaw = cmd.Raw
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, []string{hostUUID}, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{
+				PushMagic: "magic" + uuid,
+				Token:     []byte("token" + uuid),
+				Topic:     "topic" + uuid,
+			}
+		}
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	err := cmdr.DeviceNameSetting(ctx, hostUUID, cmdUUID, deviceName)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+
+	// The emitted plist must be well-formed and carry the expected Settings/DeviceName payload.
+	var parsed struct {
+		CommandUUID string
+		Command     struct {
+			RequestType string
+			Settings    []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(gotRaw, &parsed))
+	require.Equal(t, cmdUUID, parsed.CommandUUID)
+	require.Equal(t, "Settings", parsed.Command.RequestType)
+	require.Len(t, parsed.Command.Settings, 1)
+	require.Equal(t, "DeviceName", parsed.Command.Settings[0].Item)
+	// The name must round-trip through XML escaping intact.
+	require.Equal(t, deviceName, parsed.Command.Settings[0].DeviceName)
+
+	// The raw XML must contain escaped entities, not the literal unsafe characters.
+	require.Contains(t, string(gotRaw), "Bob &amp; Alice&#39;s &lt;iPad&gt;")
+	require.NotContains(t, string(gotRaw), "<iPad>")
+}
+
+func TestMDMAppleCommanderDeviceNameSettingWithoutNotifications(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	deviceName := "Bob & Alice's <iPad>"
+
+	var gotRaw []byte
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "Settings", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		gotRaw = cmd.Raw
+		return nil, nil
+	}
+
+	err := cmdr.DeviceNameSettingWithoutNotifications(ctx, hostUUID, cmdUUID, deviceName)
+	require.NoError(t, err)
+	// The command is enqueued but no push is sent: the caller batches the push.
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.False(t, mdmStorage.RetrievePushInfoFuncInvoked)
+
+	// The emitted plist is identical to the notifying variant's.
+	var parsed struct {
+		CommandUUID string
+		Command     struct {
+			RequestType string
+			Settings    []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(gotRaw, &parsed))
+	require.Equal(t, cmdUUID, parsed.CommandUUID)
+	require.Len(t, parsed.Command.Settings, 1)
+	require.Equal(t, "DeviceName", parsed.Command.Settings[0].Item)
+	require.Equal(t, deviceName, parsed.Command.Settings[0].DeviceName)
 }
 
 func TestAccountConfigurationWithAdminAccount(t *testing.T) {
@@ -764,6 +951,42 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
 			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
 			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("SSO + admin with none primary account", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.NotContains(t, raw, "PrimaryAccountFullName")
+			require.Contains(t, raw, "AutoSetupAdminAccounts")
+			require.Contains(t, raw, "SkipPrimarySetupAccountCreation")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true, PrimaryAccountType: fleet.PrimaryAccountTypeNone},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("SSO + admin with standard primary account", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "PrimaryAccountFullName")
+			require.Contains(t, raw, "AutoSetupAdminAccounts")
+			require.Contains(t, raw, "SetPrimarySetupAccountAsRegularUser")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true, PrimaryAccountType: fleet.PrimaryAccountTypeStandard},
 		)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
@@ -904,5 +1127,126 @@ func TestMDMAppleCommanderPassesCommandName(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 		require.Equal(t, "Secret Profile", gotName)
+	})
+}
+
+func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
+	ctx := t.Context()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUIDs := []string{"A"}
+	mdmStorage.RetrievePushInfoFunc = func(p0 context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{PushMagic: "magic" + uuid, Token: []byte("token" + uuid), Topic: "topic" + uuid}
+		}
+		return pushes, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	type gotCommandType struct {
+		Command struct {
+			Queries     []string `plist:"Queries"`
+			RequestType string   `plist:"RequestType"`
+		} `plist:"Command"`
+	}
+
+	t.Run("non-personal enrollment requests all fields", func(t *testing.T) {
+		var gotCommand gotCommandType
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
+			return nil, nil
+		}
+
+		cmdUUID := uuid.New().String()
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, false)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+
+		require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
+		// Compared against an explicit, independent list (not the package's own
+		// deviceInformationQueryKeys var) so an accidental edit to that var would
+		// actually be caught here.
+		require.Equal(t, []string{
+			"DeviceName",
+			"DeviceCapacity",
+			"AvailableDeviceCapacity",
+			"OSVersion",
+			"SupplementalOSVersionExtra",
+			"WiFiMAC",
+			"ProductName",
+			"IsMDMLostModeEnabled",
+			"TimeZone",
+			"AccessibilitySettings",
+			"AppAnalyticsEnabled",
+			"AwaitingConfiguration",
+			"BatteryLevel",
+			"BluetoothMAC",
+			"CellularTechnology",
+			"DataRoamingEnabled",
+			"DevicePropertiesAttestation",
+			"DiagnosticSubmissionEnabled",
+			"EASDeviceIdentifier",
+			"IsCloudBackupEnabled",
+			"IsDeviceLocatorServiceEnabled",
+			"IsDoNotDisturbInEffect",
+			"IsNetworkTethered",
+			"iTunesStoreAccountHash",
+			"iTunesStoreAccountIsActive",
+			"LastCloudBackupDate",
+			"MDMOptions",
+			"ModelNumber",
+			"ModemFirmwareVersion",
+			"OrganizationInfo",
+			"PersonalHotspotEnabled",
+			"PushToken",
+			"ServiceSubscriptions",
+			"SupplementalBuildVersion",
+			"UDID",
+		}, gotCommand.Command.Queries)
+	})
+
+	t.Run("personal (BYOD) enrollment only requests pre-#49984 fields", func(t *testing.T) {
+		var gotCommand gotCommandType
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		cmdUUID := uuid.New().String()
+		err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID, true)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+
+		require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
+		// None of the PII-bearing fields added by #49984 (battery level,
+		// service subscriptions/phone numbers, accessibility settings, etc.)
+		// must appear here.
+		require.Equal(t, []string{
+			"DeviceName",
+			"DeviceCapacity",
+			"AvailableDeviceCapacity",
+			"OSVersion",
+			"SupplementalOSVersionExtra",
+			"WiFiMAC",
+			"ProductName",
+			"IsMDMLostModeEnabled",
+			"TimeZone",
+		}, gotCommand.Command.Queries)
 	})
 }

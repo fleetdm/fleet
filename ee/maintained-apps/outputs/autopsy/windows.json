@@ -1,0 +1,24 @@
+{
+  "versions": [
+    {
+      "version": "4.23.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher = 'The Sleuth Kit';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher = 'The Sleuth Kit' AND version_compare(version, '4.23.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'autopsy.exe');"
+      },
+      "installer_url": "https://github.com/sleuthkit/autopsy/releases/download/autopsy-4.23.1/autopsy-4.23.1-64bit.msi",
+      "install_script_ref": "22e48c46",
+      "uninstall_script_ref": "868c149c",
+      "sha256": "f0f368e10cf615a805c85248356673a00c88a5e19c3b632859a1c98569ae03b6",
+      "default_categories": [
+        "Security"
+      ],
+      "upgrade_code": "{6AAD1A1D-40C1-4515-B4D6-EA5A167FFA77}"
+    }
+  ],
+  "refs": {
+    "22e48c46": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv `\"${logFile}`\" /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nif ($successCodes -contains $installProcess.ExitCode) {\n  Exit 0\n}\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "868c149c": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{6AAD1A1D-40C1-4515-B4D6-EA5A167FFA77}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

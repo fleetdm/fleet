@@ -1,0 +1,13 @@
+{
+  "name": "GoToMeeting",
+  "slug": "gotomeeting/windows",
+  "package_identifier": "GoTo.GoToMeeting",
+  "unique_identifier": "GoToMeeting",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'GoToMeeting %';",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/gotomeeting_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/gotomeeting_uninstall.ps1",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}

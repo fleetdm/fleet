@@ -36,6 +36,7 @@ const esModules = [
   "character-entities-legacy",
   "zwitch",
   "longest-streak",
+  "uuid",
 ].join("|");
 
 const config = {

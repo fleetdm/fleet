@@ -10,7 +10,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 // Script represents a saved script that can be executed on a host.
@@ -357,14 +359,50 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 	}
 
 	switch *hsr.ExitCode {
-	case -1:
+	case ExitCodeScriptTimeout:
 		return HostScriptTimeoutMessage(hostTimeoutValue)
-	case -2:
+	case ExitCodeScriptsDisabled:
 		return RunScriptDisabledErrMsg
+	case ExitCodeFleetVarResolutionFailed:
+		return RunScriptFleetVarsFailedErrMsg
 	default:
 		return ""
 	}
 }
+
+// Sentinel exit codes for script results (host_script_results.exit_code) and
+// software install results (host_software_installs.install_script_exit_code).
+// They are assigned by fleetd or the Fleet server, never by the script
+// itself, and share a single namespace so a value can't mean different things
+// on the two surfaces; each comment notes where the code applies. A real
+// process can exit with a status that collides with these values; that
+// ambiguity is accepted.
+const (
+	// ExitCodeScriptTimeout is reported when a process did not exit cleanly:
+	// either it never started (e.g. exec failed) or it was stopped before
+	// finishing (e.g. fleetd killed it at the execution timeout). Go reports
+	// -1 in both cases, so the two cannot be distinguished from the exit code
+	// alone. For script results, this renders the timeout message; for
+	// software installs, it renders the "couldn't run the install script"
+	// message.
+	ExitCodeScriptTimeout = -1
+	// ExitCodeScriptsDisabled is reported by fleetd when a script or software
+	// install can't run because scripts are disabled on the host.
+	ExitCodeScriptsDisabled = -2
+	// ExitCodeInstallerDownloadFailed is reported by fleetd when it failed to
+	// download the installer. Software install results only.
+	ExitCodeInstallerDownloadFailed = -3
+	// ExitCodeInstallerNotFound is reported by fleetd when it has been unable
+	// to fetch installer details from the server for longer than the retry
+	// window (e.g. because the installer was deleted/replaced while a
+	// setup-experience install was in flight). Software install results only.
+	ExitCodeInstallerNotFound = -4
+	// ExitCodeFleetVarResolutionFailed is recorded by the server when it
+	// can't resolve one or more Fleet variables in a script or in a software
+	// installer's scripts for the target host; the result's output holds the
+	// reasons.
+	ExitCodeFleetVarResolutionFailed = -5
+)
 
 func HostScriptTimeoutMessage(seconds *int) string {
 	var timeout int
@@ -600,25 +638,29 @@ type SoftwareInstallerPayload struct {
 	// the path field, this uses "script://filename" to pass the filename; in that
 	// case InstallScript contains the script content directly.
 	URL             string `json:"url"`
-	PreInstallQuery string `json:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
-	InstallScript      string   `json:"install_script"`
-	UninstallScript    string   `json:"uninstall_script"`
-	PostInstallScript  string   `json:"post_install_script"`
-	SelfService        bool     `json:"self_service"`
-	FleetMaintained    bool     `json:"-"`
-	Filename           string   `json:"-"`
-	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
-	LabelsIncludeAny   []string `json:"labels_include_any"`
-	LabelsExcludeAny   []string `json:"labels_exclude_any"`
-	LabelsIncludeAll   []string `json:"labels_include_all"`
+	InstallScript      string `json:"install_script"`
+	UninstallScript    string `json:"uninstall_script"`
+	PostInstallScript  string `json:"post_install_script"`
+	SelfService        bool   `json:"self_service"`
+	FleetMaintained    bool   `json:"-"`
+	Filename           string `json:"-"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
+	// SetupExperiencePlatforms carries non-native cross-platform setup
+	// experience selections. Nil means "no change"; an empty slice clears
+	// all cross-platform selections for this installer.
+	SetupExperiencePlatforms *[]string `json:"setup_experience_platforms,omitempty"`
+	LabelsIncludeAny         []string  `json:"labels_include_any"`
+	LabelsExcludeAny         []string  `json:"labels_exclude_any"`
+	LabelsIncludeAll         []string  `json:"labels_include_all"`
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string   `json:"sha256"`
-	Categories      []string `json:"categories"`
-	DisplayName     string   `json:"display_name"`
+	SHA256          string                `json:"sha256"`
+	Categories      optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName     string                `json:"display_name"`
 	// This is to support FMAs
 	Slug            *string        `json:"slug"`
 	MaintainedApp   *MaintainedApp `json:"-"`
@@ -628,6 +670,8 @@ type SoftwareInstallerPayload struct {
 	IconHash string `json:"-"`
 	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
 	AlwaysDownload bool `json:"always_download"`
+	// Configuration is the managed app configuration as raw XML bytes (iOS / iPadOS in-house apps only).
+	Configuration []byte `json:"configuration,omitempty"`
 }
 
 type HostLockWipeStatus struct {
@@ -660,6 +704,12 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+
+	// Android tracks Clear passcode (RESET_PASSWORD) as a pending state via mdm_android_commands.
+	// Apple's ClearPasscode lives in nano_commands and is not surfaced as a device-level pending
+	// state, so these fields are Android-only today.
+	ClearPasscodeMDMCommand       *MDMCommand
+	ClearPasscodeMDMCommandResult *MDMCommandResult
 
 	LocationPending bool
 }
@@ -697,11 +747,12 @@ func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 type PendingDeviceAction string
 
 const (
-	PendingActionLock     PendingDeviceAction = "lock"
-	PendingActionUnlock   PendingDeviceAction = "unlock"
-	PendingActionWipe     PendingDeviceAction = "wipe"
-	PendingActionLocation PendingDeviceAction = "location"
-	PendingActionNone     PendingDeviceAction = ""
+	PendingActionLock          PendingDeviceAction = "lock"
+	PendingActionUnlock        PendingDeviceAction = "unlock"
+	PendingActionWipe          PendingDeviceAction = "wipe"
+	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
+	PendingActionLocation      PendingDeviceAction = "location"
+	PendingActionNone          PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
@@ -714,13 +765,15 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 		return PendingActionUnlock
 	case s.IsPendingWipe():
 		return PendingActionWipe
+	case s.IsPendingClearPasscode():
+		return PendingActionClearPasscode
 	default:
 		return PendingActionNone
 	}
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" || s.HostFleetPlatform == "android" {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
@@ -748,8 +801,17 @@ func (s HostLockWipeStatus) IsPendingWipe() bool {
 		// pending wipe if script execution request is queued but no result yet and not canceled
 		return s.WipeScript != nil && s.WipeScript.ExitCode == nil && !s.WipeScript.Canceled
 	}
-	// pending wipe if an MDM command is queued but no result received yet
+	// pending wipe if an MDM command is queued but no result received yet (Apple, Windows, Android)
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
+}
+
+// IsPendingClearPasscode reports whether a Clear Passcode is in flight.
+// Support for Apple coming in #46286
+func (s HostLockWipeStatus) IsPendingClearPasscode() bool {
+	if s.HostFleetPlatform != "android" {
+		return false
+	}
+	return s.ClearPasscodeMDMCommand != nil && s.ClearPasscodeMDMCommandResult == nil
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {
@@ -765,6 +827,12 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
+	if s.HostFleetPlatform == "android" {
+		// Android device unlock happens locally via the user's PIN; AMAPI does not deliver a "device unlocked" notification, and Fleet
+		// has no UNLOCK command.
+		return false
 	}
 
 	// locked if a script was sent and succeeded
@@ -792,6 +860,10 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	case "android":
+		// wiped if Pub/Sub COMMAND notification reported an Android-side ack.
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged)
 	default:
 		return false
 	}
@@ -801,6 +873,7 @@ var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 	BatchExecuteInvalidHost          = "invalid-host"
+	BatchExecuteIncompatibleTeam     = "incompatible-team"
 )
 
 type BatchExecutionStatusFilter struct {

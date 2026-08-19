@@ -4,7 +4,7 @@ controls:
       - path: ./lib/windows-screenlock.xml
         labels_include_all:
           - B
-        labels_exclude_any:
+        labels_include_any:
           - C
   scripts:
   enable_disk_encryption: false

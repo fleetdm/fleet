@@ -9,6 +9,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
@@ -82,7 +83,20 @@ const generateTableConfig = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
+      id: "version",
+      Header: () => (
+        <TooltipWrapper
+          tipContent={
+            <>
+              For custom packages, the first
+              <br />
+              added version will be installed.
+            </>
+          }
+        >
+          Version
+        </TooltipWrapper>
+      ),
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
         if (platform === "android") {

@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import "../frontend/index.scss";
+import "./preview.scss";
 
 export const globalTypes = {
   theme: {

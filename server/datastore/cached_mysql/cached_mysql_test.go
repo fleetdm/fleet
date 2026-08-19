@@ -243,6 +243,56 @@ func TestBypassAppConfig(t *testing.T) {
 	require.False(t, mockedDS.AppConfigFuncInvoked)
 }
 
+func TestCachedWindowsEnrollmentDefaultFleet(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS)
+	ctx := t.Context()
+
+	storedFleetID := new(uint(7))
+	mockedDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		if storedFleetID == nil {
+			return nil, "", nil
+		}
+		return new(*storedFleetID), "Workstations", nil
+	}
+	mockedDS.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, fleetID *uint) error {
+		storedFleetID = fleetID
+		return nil
+	}
+
+	// first read hits the DB and populates the cache
+	fleetID, fleetName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, fleetID)
+	require.Equal(t, uint(7), *fleetID)
+	require.Equal(t, "Workstations", fleetName)
+	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+	mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked = false
+
+	// mutating the returned pointer must not poison the cache (clone semantics)
+	*fleetID = 99
+
+	// second read is served from the cache
+	fleetID, fleetName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, fleetID)
+	require.Equal(t, uint(7), *fleetID)
+	require.Equal(t, "Workstations", fleetName)
+	require.False(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	// writing through the cached store invalidates the cached entry
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
+	require.True(t, mockedDS.SetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	fleetID, fleetName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.Nil(t, fleetID)
+	require.Empty(t, fleetName)
+	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+}
+
 func TestCachedPacksforHost(t *testing.T) {
 	t.Parallel()
 

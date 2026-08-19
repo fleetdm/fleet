@@ -1,7 +1,7 @@
 package fleetdm_client
 
-// This file gives us a nice API to use to call FleetDM's API. It's focused
-// only on teams.
+// This file gives us a nice API to use to call Fleet's API. It's focused
+// only on fleets (formerly "teams").
 
 import (
 	"bytes"

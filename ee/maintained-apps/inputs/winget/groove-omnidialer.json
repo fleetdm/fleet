@@ -1,0 +1,13 @@
+{
+  "name": "Groove OmniDialer",
+  "slug": "groove-omnidialer/windows",
+  "package_identifier": "GrooveLabs.OmniDialer",
+  "unique_identifier": "Groove OmniDialer",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Groove OmniDialer %' AND name NOT LIKE 'Groove OmniDialer Enterprise%' AND publisher = 'Groove Labs, Inc.';",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/groove_omnidialer_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/groove_omnidialer_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

@@ -1,25 +1,27 @@
 .custom-link {
   @include link;
-  @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
 
-  .external-link-icon__outline {
-    transition: fill 0.2s;
-  }
-  .external-link-icon__arrow {
-    transition: stroke 0.2s;
-  }
+  font-weight: $regular;
+  text-decoration: underline;
+  text-decoration-color: $ui-fleet-black-75;
+  text-underline-offset: 3px;
 
-  // Inverse hover over effect
   &:hover {
+    text-decoration-color: $core-fleet-black;
+  }
+
+  &:hover,
+  &:focus-visible {
     .external-link-icon__outline {
-      fill: $ui-fleet-black-75-over;
+      fill: $core-fleet-black;
+      stroke: $core-fleet-black;
     }
     .external-link-icon__arrow {
       stroke: $core-fleet-white;
     }
   }
 
-  // Changing display will break multiline links
+  // Non-multiline links lay out the icon next to the text on a single line.
   &:not(.custom-link--multiline) {
     display: inline-flex;
     align-items: center;
@@ -28,8 +30,32 @@
 
   &__no-wrap {
     white-space: nowrap;
-    .icon {
-      padding-left: 6px;
+    display: inline-flex;
+    gap: $pad-xsmall;
+  }
+
+  &__last-word {
+    text-decoration: underline;
+    line-height: normal;
+  }
+
+  &:focus-visible &__last-word {
+    text-decoration: none;
+  }
+
+  &--emphasized {
+    color: $core-fleet-green;
+    text-decoration-color: $core-fleet-green;
+
+    &:hover {
+      color: $core-fleet-green-over;
+      text-decoration-color: $core-fleet-green-over;
+    }
+
+    &:focus-visible {
+      color: $core-fleet-green-over;
+      text-decoration-color: $core-fleet-green-over;
+      text-decoration-line: none;
     }
   }
 
@@ -42,10 +68,13 @@
 
   &--tooltip-link,
   &--flash-message-link {
-    font-size: inherit; // Overrides link default font size with parent tooltip font size
+    font-size: inherit; // Overrides link default font size with parent tooltip/flash font size
+  }
+
+  &--tooltip-link {
     // Use static (non-themed) colors so the underline and icon stay light on
-    // the always-dark tooltip/flash background regardless of light/dark mode.
-    @include animated-bottom-border($static-white, rgba($static-white, 0.4));
+    // the always-dark tooltip background regardless of light/dark mode.
+    text-decoration-color: $static-white;
 
     .external-link-icon__outline {
       stroke: $static-white;
@@ -56,24 +85,51 @@
     }
 
     // Inverse hover over effect
-    &:hover {
+    &:hover,
+    &:focus-visible {
       color: rgba($static-white, 0.7);
+      text-decoration-color: rgba($static-white, 0.7);
+
+      // Dim the whole icon as one composited unit instead of applying alpha
+      // to fill/stroke separately — the stroke overlaps the fill's edge, so
+      // per-property alpha double-blends there and mismatches the interior.
+      .external-link-icon {
+        opacity: 0.7;
+      }
 
       .external-link-icon__outline {
-        fill: rgba($static-white, 0.7);
+        fill: $static-white;
+        stroke: $static-white;
       }
 
       .external-link-icon__arrow {
         stroke: $tooltip-bg;
       }
     }
+
+    &:focus-visible {
+      text-decoration: none;
+      outline-color: rgba($static-white, 0.7);
+    }
   }
 
   &--flash-message-link {
-    &:hover {
-      .external-link-icon__arrow {
-        stroke: $core-vibrant-red;
+    // Override the default hover colors (white arrow stroke, dark outline fill)
+    // which assume a dark background — flash messages use a light background.
+    &:hover,
+    &:focus-visible {
+      .external-link-icon__outline {
+        fill: $core-fleet-black;
+        stroke: $core-fleet-black;
       }
+
+      .external-link-icon__arrow {
+        stroke: $core-fleet-white;
+      }
+    }
+
+    &:focus-visible {
+      text-decoration: none;
     }
   }
 }

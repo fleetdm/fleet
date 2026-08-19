@@ -1,0 +1,8 @@
+{
+  "name": "SF Symbols",
+  "slug": "sf-symbols/darwin",
+  "unique_identifier": "com.apple.SFSymbols",
+  "token": "sf-symbols",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

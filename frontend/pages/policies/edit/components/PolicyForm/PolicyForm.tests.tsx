@@ -11,6 +11,8 @@ import createMockConfig from "__mocks__/configMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 
 import { ILabelSummary } from "interfaces/label";
+import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI from "services/entities/teams";
 import PolicyForm from "./PolicyForm";
 
 const baseUrl = (path: string) => {
@@ -41,6 +43,8 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 });
 
 describe("PolicyForm - component", () => {
+  afterEach(() => jest.restoreAllMocks());
+
   const defaultProps = {
     router: createMockRouter(),
     teamIdForApi: 3,
@@ -62,7 +66,6 @@ describe("PolicyForm - component", () => {
     isFetchingAutofillDescription: false,
     isFetchingAutofillResolution: false,
     resetAiAutofillData: jest.fn(),
-    currentAutomatedPolicies: [],
   };
 
   it("should not show the target selector in the free tier", async () => {
@@ -86,6 +89,50 @@ describe("PolicyForm - component", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
+  it("caps the policy name input at 255 characters in edit mode", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<PolicyForm {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
+  it("hides patch options in the free tier", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(
+      <PolicyForm
+        {...defaultProps}
+        storedPolicy={createMockPolicy({
+          type: "patch",
+          patch_software: { name: "Firefox", software_title_id: 42 },
+        })}
+      />
+    );
+
+    expect(
+      screen.queryByRole("radiogroup", { name: "Patch options" })
+    ).not.toBeInTheDocument();
+  });
+
   describe("in premium tier", () => {
     beforeEach(() => {
       mockServer.use(labelSummariesHandler);
@@ -105,6 +152,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -149,7 +197,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -174,6 +221,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -218,7 +266,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -256,6 +303,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -300,7 +348,6 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -334,6 +381,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: undefined, // missing policy platforms
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -378,12 +426,11 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
       await user.hover(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
@@ -407,6 +454,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: undefined, // missing policy platforms
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -456,15 +504,14 @@ describe("PolicyForm - component", () => {
           isFetchingAutofillDescription={false}
           isFetchingAutofillResolution={false}
           resetAiAutofillData={jest.fn()}
-          currentAutomatedPolicies={[]}
         />
       );
 
-      expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
 
       await waitFor(() => {
         waitFor(() => {
-          user.hover(screen.getByRole("button", { name: "Run" }));
+          user.hover(screen.getByRole("button", { name: "Run policy" }));
         });
 
         expect(
@@ -498,6 +545,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: "linux",
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             setLastEditedQueryName: jest.fn(),
             setLastEditedQueryDescription: jest.fn(),
@@ -516,6 +564,55 @@ describe("PolicyForm - component", () => {
           expect(screen.getByLabelText("Custom")).toBeInTheDocument();
           expect(screen.getByLabelText("All hosts")).toBeChecked();
         });
+      });
+
+      it("preloads Custom + the Exclude tab when the policy already excludes labels", async () => {
+        const renderWithExcludeLabels = createCustomRenderer({
+          withBackendMock: true,
+          context: {
+            app: {
+              currentUser: createMockUser(),
+              currentTeam: createMockTeamSummary(),
+              isGlobalAdmin: true,
+              isOnGlobalTeam: true,
+              isPremiumTier: true,
+              config: createMockConfig(),
+            },
+            policy: {
+              policyTeamId: undefined,
+              lastEditedQueryId: mockPolicy.id,
+              lastEditedQueryName: "sumthin sumthin",
+              lastEditedQueryDescription: mockPolicy.description,
+              lastEditedQueryBody: mockPolicy.query,
+              lastEditedQueryResolution: mockPolicy.resolution,
+              lastEditedQueryCritical: mockPolicy.critical,
+              lastEditedQueryPlatform: "linux",
+              lastEditedQueryLabelsIncludeAny: [],
+              lastEditedQueryLabelsIncludeAll: [],
+              lastEditedQueryLabelsExcludeAny: [{ id: 2, name: "Fresh" }],
+              lastEditedQueryLabelsExcludeAll: [],
+              setLastEditedQueryName: jest.fn(),
+              setLastEditedQueryDescription: jest.fn(),
+              setLastEditedQueryBody: jest.fn(),
+              setLastEditedQueryResolution: jest.fn(),
+              setLastEditedQueryCritical: jest.fn(),
+              setLastEditedQueryPlatform: jest.fn(),
+            },
+          },
+        });
+
+        renderWithExcludeLabels(<PolicyForm {...defaultProps} />);
+
+        // Custom target is preselected because the policy has an exclude label.
+        await waitFor(() => {
+          expect(screen.getByLabelText("Custom")).toBeChecked();
+        });
+
+        // The excluded label round-trips into the Exclude tab as checked.
+        await userEvent.click(screen.getByText("Exclude"));
+        expect(
+          await screen.findByRole("checkbox", { name: "Fresh" })
+        ).toBeChecked();
       });
 
       it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
@@ -574,28 +671,14 @@ describe("PolicyForm - component", () => {
           expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         });
 
-        // Set a label.
+        // Switch to the Exclude tab and select a label there.
         await userEvent.click(screen.getByLabelText("Custom"));
+        await userEvent.click(screen.getByText("Exclude"));
         await userEvent.click(
           await screen.findByRole("checkbox", {
             name: "Fun",
           })
         );
-
-        // Click "Include any" to open the dropdown.
-        const includeAnyOption = screen.getByRole("option", {
-          name: "Include any",
-        });
-        await userEvent.click(includeAnyOption);
-
-        // Click "Exclude any" to select it.
-        let excludeAnyOption: unknown;
-        await waitFor(() => {
-          excludeAnyOption = screen.getByRole("option", {
-            name: "Exclude any",
-          });
-        });
-        await userEvent.click(excludeAnyOption as Element);
 
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
@@ -603,6 +686,59 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual(["Fun"]);
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
+      });
+
+      it("should set labels_include_all when the include mode is All", async () => {
+        const onUpdate = jest.fn();
+        const props = { ...defaultProps, onUpdate };
+        render(<PolicyForm {...props} />);
+        await waitFor(() => {
+          expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        });
+
+        await userEvent.click(screen.getByLabelText("Custom"));
+        // Include tab is the default; switch its mode to "All".
+        await userEvent.click(screen.getByLabelText("All"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", {
+            name: "Fun",
+          })
+        );
+
+        const saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeEnabled();
+        await userEvent.click(saveButton);
+
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual(["Fun"]);
+        expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
+      });
+
+      it("should send both include and exclude labels when both tabs have selections", async () => {
+        const onUpdate = jest.fn();
+        const props = { ...defaultProps, onUpdate };
+        render(<PolicyForm {...props} />);
+        await waitFor(() => {
+          expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        });
+
+        await userEvent.click(screen.getByLabelText("Custom"));
+        // Include tab (default): select "Fun".
+        await userEvent.click(
+          await screen.findByRole("checkbox", { name: "Fun" })
+        );
+        // Exclude tab: select "Fresh".
+        await userEvent.click(screen.getByText("Exclude"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", { name: "Fresh" })
+        );
+
+        await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+        const payload = onUpdate.mock.calls[0][0];
+        expect(payload.labels_include_any).toEqual(["Fun"]);
+        expect(payload.labels_exclude_any).toEqual(["Fresh"]);
       });
 
       it("should clear labels when saving a new query in All hosts target mode", async () => {
@@ -629,6 +765,7 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
       });
     });
 
@@ -668,6 +805,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: patchPolicy.critical,
             lastEditedQueryPlatform: patchPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -693,6 +831,138 @@ describe("PolicyForm - component", () => {
         expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
       });
 
+      it("selects Patch when app is closed from the stored policy flags", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              patch_when_closed: true,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Patch when app is closed" })
+        ).toBeChecked();
+      });
+
+      it("selects Force patch from the stored policy flags", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: {
+                name: "Firefox",
+                software_title_id: 42,
+              },
+              patch_when_closed: false,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Force patch" })
+        ).toBeChecked();
+      });
+
+      it("selects Force patch for a migrated attached policy without continuous automation", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: {
+                name: "Firefox",
+                software_title_id: 42,
+              },
+              patch_when_closed: false,
+              continuous_automations_enabled: false,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Force patch" })
+        ).toBeChecked();
+      });
+
+      it("selects manual when continuous automation is on without install software", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: undefined,
+              patch_when_closed: false,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "End user initiated (manual)" })
+        ).toBeChecked();
+      });
+
+      it("saves the selected patch option before automation configuration loads", async () => {
+        jest
+          .spyOn(teamsAPI, "load")
+          .mockReturnValue(new Promise(() => undefined));
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          team_id: 1,
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            team_id: 1,
+            software_title_id: 42,
+            patch_when_closed: false,
+            continuous_automations_enabled: false,
+          })
+        );
+        expect(onUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it("selects End user initiated when both stored policy flags are false", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              patch_when_closed: false,
+              continuous_automations_enabled: false,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", {
+            name: "End user initiated (manual)",
+          })
+        ).toBeChecked();
+      });
+
       it("submits only editable fields on save", async () => {
         const onUpdate = jest.fn();
         renderPatchPolicy(
@@ -713,14 +983,17 @@ describe("PolicyForm - component", () => {
         expect(payload).not.toHaveProperty("labels_include_any");
       });
 
-      it("shows 'Add automation' CTA when patch policy has no install_software", async () => {
+      it("hides the legacy Add automation CTA because the Patch radios own install automation", async () => {
         renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
         await waitFor(() => {
           expect(
-            screen.getByText(/Automatically patch Firefox/)
+            screen.getByRole("radio", { name: "End user initiated (manual)" })
           ).toBeInTheDocument();
-          expect(screen.getByText(/Add automation/)).toBeInTheDocument();
         });
+        expect(
+          screen.queryByText(/Automatically patch Firefox/)
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/Add automation/)).not.toBeInTheDocument();
       });
 
       it("hides 'Add automation' CTA when automation already exists", async () => {
@@ -775,6 +1048,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -819,6 +1093,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -831,12 +1106,78 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      render(<PolicyForm {...defaultProps} />);
+      render(
+        <PolicyForm
+          {...defaultProps}
+          storedPolicy={createMockPolicy({
+            name: "Foo",
+            team_id: createMockTeamSummary().id,
+          })}
+        />
+      );
 
       expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
       expect(
         screen.getByText(createMockTeamSummary().name)
       ).toBeInTheDocument();
+    });
+
+    it("shows 'Editing policy for All fleets' when editing an inherited (global) policy from a team's view", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            // currentTeam reflects the URL (the team whose policy list the
+            // user came from), not the policy's true Fleet.
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      // The stored policy is global (team_id === null) — the form must show
+      // "All fleets", not the URL team's name.
+      render(
+        <PolicyForm
+          {...defaultProps}
+          storedPolicy={createMockPolicy({ name: "Foo", team_id: null })}
+        />
+      );
+
+      expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
+      expect(screen.getByText("All fleets")).toBeInTheDocument();
+      expect(
+        screen.queryByText(createMockTeamSummary().name)
+      ).not.toBeInTheDocument();
     });
 
     it("shows 'Creating a new policy' when there is no existing policy", () => {
@@ -866,6 +1207,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: false,
             lastEditedQueryPlatform: undefined,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),

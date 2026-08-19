@@ -1,4 +1,4 @@
-// Package main is used to test applying several profiles and scripts on several teams.
+// Package main is used to test applying several profiles and scripts on several fleets (formerly "teams").
 // It allows setting secret variables on the Apple configuration and declaration profiles and in the scripts.
 package main
 

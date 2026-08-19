@@ -6,7 +6,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +53,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.False(t, enrollment.IsValid())
 
 	// existing and not-valid-after in the future
-	enrollFuture := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollFuture := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	env.InsertACMEEnrollment(t, enrollFuture)
 	enrollment, err = env.ds.GetACMEEnrollment(t.Context(), enrollFuture.PathIdentifier)
 	require.NoError(t, err)
@@ -62,7 +61,7 @@ func testGetACMEEnrollment(t *testing.T, env *testEnv) {
 	require.True(t, enrollment.IsValid())
 
 	// existing and not-valid-after in the past
-	enrollPast := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollPast := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	env.InsertACMEEnrollment(t, enrollPast)
 	enrollment, err = env.ds.GetACMEEnrollment(t.Context(), enrollPast.PathIdentifier)
 	require.NoError(t, err)

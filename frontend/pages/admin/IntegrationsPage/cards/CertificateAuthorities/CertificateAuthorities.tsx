@@ -13,8 +13,11 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
-import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
@@ -117,7 +120,23 @@ const CertificateAuthorities = () => {
       return (
         <>
           {pageDescription}
-          <AddCertAuthorityCard onAddCertAuthority={onAddCertAuthority} />
+          <EmptyState
+            variant="header-list"
+            header="No certificate authorities"
+            info="Add a certificate authority (CA) to help end users connect to Wi-Fi or VPNs."
+            primaryButton={
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={onAddCertAuthority}
+                  >
+                    Add certificate authority
+                  </Button>
+                )}
+              />
+            }
+          />
         </>
       );
     }

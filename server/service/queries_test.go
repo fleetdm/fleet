@@ -8,7 +8,7 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -140,6 +140,29 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 			},
 			true,
 		},
+		{
+			"Nil name",
+			fleet.QueryPayload{
+				Query:   ptr.String("select 1"),
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
+		{
+			"Nil query",
+			fleet.QueryPayload{
+				Name:    ptr.String("test query"),
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
+		{
+			"Nil name and query",
+			fleet.QueryPayload{
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
 	}
 
 	testAdmin := fleet.User{
@@ -163,7 +186,7 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 	}
 }
 
-func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
+func TestModifyQueryLabelsScopeRequiresPremium(t *testing.T) {
 	ds := new(mock.Store)
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{ID: id, Name: "test query", Query: "select 1"}, nil
@@ -198,9 +221,9 @@ func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 			},
 		},
 		{
-			name: "with empty slice",
+			name: "with include_all label",
 			payload: fleet.QueryPayload{
-				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{"some-label"},
 			},
 		},
 	}
@@ -211,6 +234,30 @@ func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 			require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		})
 	}
+}
+
+func TestModifyQueryEmptyLabelSlicesNotPremium(t *testing.T) {
+	ds := new(mock.Store)
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{ID: id, Name: "test query", Query: "select 1"}, nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+		return nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+
+	_, err := svc.ModifyQuery(viewerCtx, 1, fleet.QueryPayload{
+		LabelsIncludeAny: []string{},
+		LabelsIncludeAll: []string{},
+	})
+	require.NoError(t, err)
 }
 
 func TestApplyQuerySpecsLabelsIncludeAnyRequiresPremium(t *testing.T) {
@@ -238,10 +285,16 @@ func TestApplyQuerySpecsLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 }
 
-func TestApplyQuerySpecsEmptyLabelsIncludeAnyRequiresPremium(t *testing.T) {
+func TestApplyQuerySpecsEmptyLabelsNotPremium(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, newNotFoundError()
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+		return nil
 	}
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -259,7 +312,7 @@ func TestApplyQuerySpecsEmptyLabelsIncludeAnyRequiresPremium(t *testing.T) {
 			LabelsIncludeAny: []string{}, // explicit empty slice, not nil
 		},
 	})
-	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	require.NoError(t, err)
 }
 
 // similar for modify
@@ -386,6 +439,22 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 			}
 		})
 	}
+}
+
+// checkQueryWriteAuthErr asserts the result of a query-mutation authorization
+// check. A caller with no read visibility into the query at all must see a
+// NotFound (masking existence), not a Forbidden that would confirm the query
+// exists on some other team; a caller who CAN read the query (e.g. same-team
+// observer) still gets the normal Forbidden, since no new information is
+// disclosed by it.
+func checkQueryWriteAuthErr(t *testing.T, shouldFailWrite, shouldFailRead bool, err error) {
+	t.Helper()
+	if shouldFailWrite && shouldFailRead {
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err), "expected a not-found error, got: %v", err)
+		return
+	}
+	checkAuthErr(t, shouldFailWrite, err)
 }
 
 func TestQueryAuth(t *testing.T) {
@@ -755,16 +824,16 @@ func TestQueryAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailNew, err)
 
 			_, err = svc.ModifyQuery(ctx, tt.qid, fleet.QueryPayload{})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			err = svc.DeleteQuery(ctx, query.TeamID, query.Name)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			err = svc.DeleteQueryByID(ctx, tt.qid)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			_, err = svc.DeleteQueries(ctx, []uint{tt.qid})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
@@ -796,6 +865,70 @@ func TestQueryAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
+}
+
+func TestQueryResponsesFilterUnauthorizedPacks(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamID := uint(1)
+	// Simulates a pack scoped to another team that got associated to this
+	// query via the name-based join in loadPacksForQueries.
+	otherTeamPack := fleet.Pack{ID: 123, Name: "other team pack", Description: "secret"}
+	teamQuery := fleet.Query{
+		ID:     88,
+		Name:   "shared name",
+		TeamID: &teamID,
+	}
+
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		q := teamQuery
+		q.Packs = []fleet.Pack{otherTeamPack}
+		return &q, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		q := teamQuery
+		q.Packs = []fleet.Pack{otherTeamPack}
+		return []*fleet.Query{&q}, 1, 0, nil, nil
+	}
+
+	// A team observer can read the team query but is not authorized to read
+	// packs, so pack metadata must be filtered out of the response.
+	teamObserver := &fleet.User{
+		ID: 44,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: teamID},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	observerCtx := viewer.NewContext(ctx, viewer.Viewer{User: teamObserver})
+
+	query, err := svc.GetQuery(observerCtx, teamQuery.ID)
+	require.NoError(t, err)
+	require.Empty(t, query.Packs)
+
+	queries, _, _, _, err := svc.ListQueries(observerCtx, fleet.ListOptions{}, &teamID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	require.Empty(t, queries[0].Packs)
+
+	// A global admin is authorized to read packs, so pack metadata is kept.
+	globalAdmin := &fleet.User{
+		ID:         1,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: globalAdmin})
+
+	query, err = svc.GetQuery(adminCtx, teamQuery.ID)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.Pack{otherTeamPack}, query.Packs)
+
+	queries, _, _, _, err = svc.ListQueries(adminCtx, fleet.ListOptions{}, &teamID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	require.Equal(t, []fleet.Pack{otherTeamPack}, queries[0].Packs)
 }
 
 func TestQueryReportIsClipped(t *testing.T) {
@@ -857,7 +990,7 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 }
 
 func TestInheritedQueryReportTeamPermissions(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)

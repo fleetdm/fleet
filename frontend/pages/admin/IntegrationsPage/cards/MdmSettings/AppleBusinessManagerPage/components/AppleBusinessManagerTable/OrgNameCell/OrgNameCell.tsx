@@ -17,13 +17,7 @@ const OrgNameCell = ({ orgName, termsExpired }: IOrgNameCellProps) => {
       showArrow
       underline={false}
       position="top"
-      tipContent={
-        <>
-          The ABM terms have changed.
-          <br />
-          To accept terms, go to ABM.
-        </>
-      }
+      tipContent="The AB terms have changed. To accept terms, go to AB."
       className={`${baseClass}__tooltip-wrapper`}
     >
       <span>{orgName}</span> <Icon name="warning" />

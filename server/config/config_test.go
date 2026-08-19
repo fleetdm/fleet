@@ -331,6 +331,58 @@ osquery:
 	}
 }
 
+func TestConfigSESSenderDomain(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    string
+	}{
+		{
+			desc: "default empty",
+			want: "",
+		},
+		{
+			desc: "yaml configured",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			want: "notifications.example.com",
+		},
+		{
+			desc: "env var overrides yaml",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			envVars: []string{"FLEET_SES_SENDER_DOMAIN=mailer.example.com"},
+			want:    "mailer.example.com",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			if c.yaml != "" {
+				man.viper.SetConfigType("yaml")
+				require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+			}
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			loadedCfg := man.LoadConfig()
+			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
+		})
+	}
+}
+
 func TestToTLSConfig(t *testing.T) {
 	dir := t.TempDir()
 	caFile, certFile, keyFile, garbageFile := filepath.Join(dir, "ca"),
@@ -723,6 +775,50 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	}
 }
 
+func TestValidateSoftwareInstallersSignedURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		enabled    bool
+		endpoint   string
+		accessKey  string
+		secret     string
+		gcsIAMAuth bool
+		wantFatal  bool
+	}{
+		{"disabled skips validation", false, "https://s3.amazonaws.com", "", "", false, false},
+		{"gcs host with hmac creds", true, "https://storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"gcs bucket virtual host", true, "https://my-bucket.storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"scheme-less endpoint rejected", true, "storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"http scheme rejected", true, "http://storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"look-alike host rejected", true, "https://storage.googleapis.com.evil.com", "GOOG-key", "secret", false, true},
+		{"substring in path rejected", true, "https://evil.com/storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"non-gcs host rejected", true, "https://s3.amazonaws.com", "GOOG-key", "secret", false, true},
+		{"missing access key rejected", true, "https://storage.googleapis.com", "", "secret", false, true},
+		{"missing secret rejected", true, "https://storage.googleapis.com", "GOOG-key", "", false, true},
+		{"iam auth skips hmac cred check", true, "https://storage.googleapis.com", "", "", true, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersSignedURL:       c.enabled,
+				SoftwareInstallersEndpointURL:     c.endpoint,
+				SoftwareInstallersAccessKeyID:     c.accessKey,
+				SoftwareInstallersSecretAccessKey: c.secret,
+				SoftwareInstallersGCSIAMAuth:      c.gcsIAMAuth,
+			}
+			var gotFatal bool
+			initFatal := func(err error, msg string) {
+				gotFatal = true
+				require.Error(t, err)
+			}
+			s3.ValidateSoftwareInstallersSignedURL(initFatal)
+			require.Equal(t, c.wantFatal, gotFatal)
+		})
+	}
+}
+
 func TestAndroidAgentConfigValidate(t *testing.T) {
 	t.Parallel()
 
@@ -749,6 +845,123 @@ func TestAndroidAgentConfigValidate(t *testing.T) {
 		cfg.Validate(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+}
+
+func TestAndroidBatchSizeValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when positive", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: 1000}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("valid when zero", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: 0}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid when negative", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: -1}
+		called := false
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestGoogleWorkspaceConfig(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    GoogleWorkspaceConfig
+	}{
+		{
+			desc: "defaults",
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            DefaultGoogleWorkspaceMaxUsers,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+		{
+			desc: "yaml overrides",
+			yaml: `
+google_workspace:
+  max_users: 10
+  max_groups: 20
+  max_group_members: 30
+  max_group_memberships: 40`,
+			want: GoogleWorkspaceConfig{MaxUsers: 10, MaxGroups: 20, MaxGroupMembers: 30, MaxGroupMemberships: 40},
+		},
+		{
+			desc: "env overrides",
+			envVars: []string{
+				"FLEET_GOOGLE_WORKSPACE_MAX_USERS=1",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUPS=2",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERS=3",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERSHIPS=4",
+			},
+			want: GoogleWorkspaceConfig{MaxUsers: 1, MaxGroups: 2, MaxGroupMembers: 3, MaxGroupMemberships: 4},
+		},
+		{
+			desc:    "zero disables a limit",
+			envVars: []string{"FLEET_GOOGLE_WORKSPACE_MAX_USERS=0"},
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            0,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			require.Equal(t, c.want, man.LoadConfig().GoogleWorkspace)
+		})
+	}
+}
+
+func TestGoogleWorkspaceConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when zero or positive", func(t *testing.T) {
+		cfg := GoogleWorkspaceConfig{MaxUsers: 0, MaxGroups: 1, MaxGroupMembers: 2, MaxGroupMemberships: 3}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	// A negative value would silently disable the limit, so it must be rejected at
+	// startup rather than removing a safety rail.
+	for _, tc := range []struct {
+		name string
+		cfg  GoogleWorkspaceConfig
+	}{
+		{"negative max users", GoogleWorkspaceConfig{MaxUsers: -1}},
+		{"negative max groups", GoogleWorkspaceConfig{MaxGroups: -1}},
+		{"negative max group members", GoogleWorkspaceConfig{MaxGroupMembers: -1}},
+		{"negative max group memberships", GoogleWorkspaceConfig{MaxGroupMemberships: -1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			tc.cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
 }
 
 func TestServerConfigWithH2C(t *testing.T) {
@@ -867,4 +1080,150 @@ func TestConditionalAccessConfigValidate(t *testing.T) {
 			require.Equal(t, tt.expectErr, called)
 		})
 	}
+}
+
+func TestLoggingConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("OTEL logs with tracing is valid", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: true}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("OTEL logs without tracing is rejected", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: false}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestOsqueryConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uuid is allowed", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "uuid"}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("unknown value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "serial"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("empty value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("direct key only is valid", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("private_key and private_key_arn both set is rejected", func(t *testing.T) {
+		cfg := ServerConfig{
+			PrivateKey:          strings.Repeat("x", 32),
+			PrivateKeySecretArn: "test-secret-arn-placeholder",
+		}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidatePrivateKeyLength(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty key passes (no key configured)", func(t *testing.T) {
+		cfg := ServerConfig{}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("32-byte key passes", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("under-32-byte key is rejected", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 16)}
+		called := false
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigURLPrefix(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty prefix is normalized to empty and passes validation", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: ""}
+		cfg.NormalizeURLPrefix()
+		require.Empty(t, cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("missing leading slash is normalized and passes", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "fleet"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("trailing slash is normalized away", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid character is rejected after normalization", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet space"}
+		cfg.NormalizeURLPrefix()
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("bare slash is rejected (preserved through normalization)", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/", cfg.URLPrefix)
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
+	t.Parallel()
+
+	t.Run("both APNs and SCEP set is valid", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert", AppleSCEPCert: "scep.cert"}
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) {
+			t.Fatalf("unexpected error: %v", err)
+		})
+	})
+
+	t.Run("SCEP set without APNs is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleSCEPCert: "scep.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("APNs set without SCEP is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
 }

@@ -1,0 +1,10 @@
+{
+  "name": "Funter",
+  "unique_identifier": "com.nektony.Funter-SIII",
+  "token": "funter",
+  "installer_format": "dmg",
+  "slug": "funter/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

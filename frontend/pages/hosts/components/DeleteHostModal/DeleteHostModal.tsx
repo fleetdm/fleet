@@ -34,9 +34,13 @@ const DeleteHostModal = ({
 }: IDeleteHostModalProps): JSX.Element => {
   const hostText = () => {
     if (selectedHostIds) {
-      return `${selectedHostIds.length}${
-        isAllMatchingHostsSelected ? "+" : ""
-      } ${strUtils.pluralize(selectedHostIds.length, "host")}`;
+      const count =
+        isAllMatchingHostsSelected && hostsCount !== undefined
+          ? hostsCount
+          : selectedHostIds.length;
+      const suffix =
+        isAllMatchingHostsSelected && hostsCount === undefined ? "+" : "";
+      return `${count}${suffix} ${strUtils.pluralize(count, "host")}`;
     }
     return hostName;
   };
@@ -85,7 +89,7 @@ const DeleteHostModal = ({
         >
           Delete
         </Button>
-        <Button onClick={onCancel} variant="inverse-alert">
+        <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
       </div>

@@ -37,6 +37,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -83,18 +84,11 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
-	// for tests set to override the default batch size.
-	testSelectMDMProfilesBatchSize int
-
-	// testWindowsEagerHook, when non-nil, is called by
-	// BulkSetPendingMDMHostProfiles after the Apple/Android transaction
-	// commits. It returns whether any host_mdm_windows_profiles rows
-	// changed; that bool is surfaced as updates.WindowsConfigProfile,
-	// matching Apple's semantics (idempotent second calls return false).
-	//
-	// Production binaries never set this. Tests opt in by calling
-	// Datastore.EnableTestWindowsEagerHook.
-	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
+	// for tests, set to override the default page size of ReconcileWindowsProfilesStatus.
+	testWindowsProfilesStatusReconcileBatchSize int
+	// for tests, run dispatchWindowsProfilesStatusRollupRefresh synchronously so tests can assert
+	// rollup state immediately after bulk operations.
+	testSynchronousWindowsRollupDispatch bool
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
@@ -105,7 +99,55 @@ type Datastore struct {
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
+
+	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
+	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
+	// preventing lock convoys on the unique index when many hosts report the same software catalog.
+	// The cache evicts an arbitrary half of entries once it reaches a fixed size cap to avoid
+	// unbounded growth on long-lived servers without forcing a full cold start.
+	knownSoftwareTitleKeys map[string]struct{}
+	// knownSoftwareTitleKeysMu serializes cache writes and clears; reads use RLock.
+	knownSoftwareTitleKeysMu sync.RWMutex
+
+	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
+	// same title key. Only one goroutine per title actually executes the INSERT; others wait
+	// and share the result. This prevents lock convoys on cold-start (#48719).
+	titleInsertSF singleflight.Group
+
+	// windowsFMAMatches caches the Windows Fleet-maintained apps that software ingestion
+	// matches reported program names against. The lookup joins software_installers and
+	// software_titles, and ingestion runs on every host software update, so it is held
+	// briefly rather than issued per check-in.
+	//
+	// Deliberately TTL-only, with no invalidation on installer or catalog changes. Fleet
+	// runs multiple server instances, so in-process invalidation would only clear the node
+	// that handled the change and the TTL would remain the real bound anyway; hooking the
+	// several direct and indirect mutation points would add staleness hazards to the flow
+	// this cache serves without removing the window.
+	//
+	// The window is bounded on both sides: adding an app merges existing titles straight
+	// away, and ReconcileWindowsMaintainedAppSoftwareTitles reads uncached, so anything a
+	// host reported while the entry was stale is repaired on its next run.
+	//
+	// The cached slice is replaced, never mutated, so a reader may keep using the value it
+	// received after a refresh. Callers must not mutate it.
+	windowsFMAMatches       []fleet.MaintainedApp
+	windowsFMAMatchesExpiry time.Time
+	windowsFMAMatchesMu     sync.RWMutex
+	// windowsFMAMatchesSF collapses a cache-miss stampede into one query per node, which is
+	// what a fleet-wide rollout of a maintained app produces: many hosts report the new
+	// program at once, and every one of them misses.
+	windowsFMAMatchesSF singleflight.Group
 }
+
+// maxKnownSoftwareTitleKeys caps the in-process software title cache at roughly 100k entries so
+// long-lived servers do not retain every title they have ever seen.
+const maxKnownSoftwareTitleKeys = 100_000
+
+// evictKnownSoftwareTitleKeys removes half the cache when the cap is hit. Keeping the other half
+// preserves most steady-state hits while avoiding a full cold start that would reintroduce a burst
+// of INSERT IGNORE statements.
+const evictKnownSoftwareTitleKeys = maxKnownSoftwareTitleKeys / 2
 
 // WithPusher sets an APNs pusher for the datastore, used when activating
 // next activities that require MDM commands.
@@ -291,17 +333,18 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 // Use this when you need to share database connections with other bounded context datastores.
 func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             conns.Primary,
-		replica:             conns.Replica,
-		logger:              conns.Options.Logger,
-		clock:               c,
-		config:              cfg,
-		readReplicaConfig:   conns.Options.ReplicaConfig,
-		writeCh:             make(chan itemToWrite),
-		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
-		serverPrivateKey:    conns.Options.PrivateKey,
-		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
+		primary:                conns.Primary,
+		replica:                conns.Replica,
+		logger:                 conns.Options.Logger,
+		clock:                  c,
+		config:                 cfg,
+		readReplicaConfig:      conns.Options.ReplicaConfig,
+		writeCh:                make(chan itemToWrite),
+		stmtCache:              make(map[string]*sqlx.Stmt),
+		minLastOpenedAtDiff:    conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:       conns.Options.PrivateKey,
+		knownSoftwareTitleKeys: make(map[string]struct{}),
+		Datastore:              NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
@@ -853,30 +896,12 @@ func sanitizeColumn(col string) string {
 	return common_mysql.SanitizeColumn(col)
 }
 
-// appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
-//
-// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
-	return appendListOptionsWithCursorToSQL(sql, nil, opts)
-}
-
 // appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
 // The allowlist parameter maps user-facing order key names to actual SQL column expressions.
 // This prevents SQL injection and information disclosure via arbitrary column sorting.
 // See common_mysql.OrderKeyAllowlist for details.
 func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
 	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
-}
-
-// appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
-// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
-//
-// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
-func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
-	if opts.PerPage == 0 {
-		opts.PerPage = fleet.DefaultPerPage
-	}
-	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
 }
 
 // appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
@@ -1108,17 +1133,6 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
-}
-
-func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
-	if identifier == "" {
-		return stmt, params
-	}
-
-	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
-	params = append(params, identifier)
-
-	return stmt, params
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-Create n new teams, where n is the integer first argument passed to the script.
+Create n new fleets (formerly "teams"), where n is the integer first argument passed to the script.
 
 Each team's name takes the form "Team {teamname_suffix}", where `teamname_suffix` is either 5 pseudo-randomly chosen ascii
 lowercase characters (default), or if any truthy string (including '0' and 'False') is passed as an optional second argument to

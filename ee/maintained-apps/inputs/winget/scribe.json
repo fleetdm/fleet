@@ -1,0 +1,11 @@
+{
+  "name": "Scribe",
+  "slug": "scribe/windows",
+  "package_identifier": "ColonyLabs.ScribeDesktopCapture",
+  "unique_identifier": "Scribe",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/scribe_install.ps1",
+  "default_categories": ["Productivity"]
+}

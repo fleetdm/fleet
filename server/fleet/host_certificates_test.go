@@ -173,6 +173,121 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 	}
 }
 
+func TestExtractWindowsCertificateNameDetails(t *testing.T) {
+	cases := []struct {
+		name        string
+		input       string
+		expected    *HostCertificateNameDetails
+		errContains string // if set, parsing must return an error containing this substring
+	}{
+		{
+			name:  "basic",
+			input: "CN=Example, O=Example Inc, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Example",
+				Organization: "Example Inc",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "with organizational unit",
+			input: "CN=device.example.com, OU=Engineering, O=Example Inc, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:         "device.example.com",
+				OrganizationalUnit: "Engineering",
+				Organization:       "Example Inc",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "quoted value containing a comma",
+			input: `CN=Issuing CA, O="Example, Inc.", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Issuing CA",
+				Organization: "Example, Inc.",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "multiple organizational units",
+			input: "OU=Engineering, OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67, CN=Multi OU, C=US",
+			expected: &HostCertificateNameDetails{
+				OrganizationalUnit: "Engineering+OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67",
+				CommonName:         "Multi OU",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "multi-valued RDN joined by plus",
+			input: "CN=Name + OU=A + OU=B, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:         "Name",
+				OrganizationalUnit: "A+OU=B",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "plus inside a quoted value is not a multi-valued RDN separator",
+			input: `CN=Name, O="A + B", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Name",
+				Organization: "A + B",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "doubled quotes inside a quoted value",
+			input: `CN="A ""quoted"" name", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName: `A "quoted" name`,
+				Country:    "US",
+			},
+		},
+		{
+			name:  "unmapped attributes are ignored",
+			input: "CN=Name, S=California, L=San Francisco, 2.5.4.5=ABC123, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "Name",
+				Country:    "US",
+			},
+		},
+		{
+			name:     "empty input returns empty details without error",
+			input:    "",
+			expected: &HostCertificateNameDetails{},
+		},
+		{
+			name:  "empty fragment between separators is skipped silently",
+			input: "CN=X,,C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "X",
+				Country:    "US",
+			},
+		},
+		{
+			name:  "malformed fragment is skipped but reported, details still parsed",
+			input: "CN=Good Cert, garbage-no-equals, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "Good Cert",
+				Country:    "US",
+			},
+			errContains: "garbage-no-equals",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := ExtractDetailsFromOsqueryDistinguishedName("windows", tc.input)
+			if tc.errContains != "" {
+				require.ErrorContains(t, err, tc.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+			// details are always best-effort, even when a malformed fragment is reported
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
 func TestExtractHostCertificateFromMDMAppleCertificateList(t *testing.T) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)

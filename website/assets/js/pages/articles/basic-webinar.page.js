@@ -52,6 +52,9 @@ parasails.registerPage('basic-webinar', {
         });
         qualified('showFormExperience', 'experience-1772126772950');
       }
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'fleet_website__webinar_registration');
+      }
       this.syncing = true;
       this.goto(this.thisPage.url+'/watch');
     },

@@ -16,6 +16,8 @@ const (
 	OSVFilePrefix = "osv-ubuntu-"
 	// OSVRHELFilePrefix is the prefix for RHEL OSV artifact files
 	OSVRHELFilePrefix = "osv-rhel-"
+	// OSVAndroidFilePrefix is the prefix for Android OSV artifact files
+	OSVAndroidFilePrefix = "osv-android-"
 )
 
 // Refresh checks all local OSV artifacts contained in 'vulnPath', deleting outdated artifacts and downloading the latest required ones.
@@ -141,6 +143,124 @@ func rhelOSVFilename(rhelVersion string, date time.Time) string {
 		OSVRHELFilePrefix, rhelVersion, date.Year(), date.Month(), date.Day())
 }
 
+// RefreshAll downloads every Ubuntu and RHEL OSV artifact present in the latest
+// release, without filtering by host inventory. It is intended for use by tools
+// that pre-seed a vulnerability directory without DB access (e.g.
+// `fleetctl vulnerability-data-stream`). Unlike Refresh / RefreshRHEL, it does
+// not delete older artifacts — that responsibility stays with the server's
+// vulnerability cron once the directory is in use.
+func RefreshAll(ctx context.Context, vulnPath string) ([]string, error) {
+	release, err := getLatestRelease(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting latest release: %w", err)
+	}
+
+	releaseDate, ok := releaseDateFromAssets(release)
+	if !ok {
+		return nil, fmt.Errorf("no OSV artifacts found in latest release %q", release.TagName)
+	}
+
+	ubuntuVers, rhelVers, androidVers := versionsFromRelease(release)
+
+	var downloaded []string
+	if len(ubuntuVers) > 0 {
+		result, err := SyncOSV(ctx, vulnPath, ubuntuVers, releaseDate, release)
+		if err != nil {
+			return downloaded, fmt.Errorf("syncing Ubuntu OSV artifacts: %w", err)
+		}
+		downloaded = append(downloaded, result.Downloaded...)
+		if len(result.Failed) > 0 {
+			return downloaded, fmt.Errorf("failed to download OSV for Ubuntu versions: %v", result.Failed)
+		}
+	}
+
+	if len(rhelVers) > 0 {
+		result, err := syncRHELOSV(ctx, vulnPath, rhelVers, releaseDate, release)
+		if err != nil {
+			return downloaded, fmt.Errorf("syncing RHEL OSV artifacts: %w", err)
+		}
+		downloaded = append(downloaded, result.Downloaded...)
+		if len(result.Failed) > 0 {
+			return downloaded, fmt.Errorf("failed to download OSV for RHEL versions: %v", result.Failed)
+		}
+	}
+
+	if len(androidVers) > 0 {
+		result, err := syncAndroidOSV(ctx, vulnPath, androidVers, releaseDate, release)
+		if err != nil {
+			return downloaded, fmt.Errorf("syncing Android OSV artifacts: %w", err)
+		}
+		downloaded = append(downloaded, result.Downloaded...)
+		if len(result.Failed) > 0 {
+			return downloaded, fmt.Errorf("failed to download OSV for Android versions: %v", result.Failed)
+		}
+	}
+
+	return downloaded, nil
+}
+
+// versionsFromRelease returns the Ubuntu, RHEL, and Android versions present in a
+// release's OSV assets. Asset names look like `osv-ubuntu-2204-2026-04-27.json.gz`,
+// `osv-rhel-9-2026-04-27.json.gz`, or `osv-android-16-2026-07-14.json.gz`.
+func versionsFromRelease(release *ReleaseInfo) (ubuntu []string, rhel []string, android []string) {
+	for assetName := range release.Assets {
+		switch {
+		case strings.HasPrefix(assetName, OSVFilePrefix):
+			if v := versionFromAssetName(assetName, OSVFilePrefix); v != "" {
+				ubuntu = append(ubuntu, v)
+			}
+		case strings.HasPrefix(assetName, OSVRHELFilePrefix):
+			if v := versionFromAssetName(assetName, OSVRHELFilePrefix); v != "" {
+				rhel = append(rhel, v)
+			}
+		case strings.HasPrefix(assetName, OSVAndroidFilePrefix):
+			if v := versionFromAssetName(assetName, OSVAndroidFilePrefix); v != "" {
+				android = append(android, v)
+			}
+		}
+	}
+	return ubuntu, rhel, android
+}
+
+// versionFromAssetName extracts the version segment from an OSV asset filename.
+// e.g. ("osv-ubuntu-2204-2026-04-27.json.gz", "osv-ubuntu-") -> "2204".
+func versionFromAssetName(name, prefix string) string {
+	if !strings.HasPrefix(name, prefix) {
+		return ""
+	}
+	rest := name[len(prefix):]
+	idx := strings.Index(rest, "-")
+	if idx <= 0 {
+		return ""
+	}
+	return rest[:idx]
+}
+
+// releaseDateFromAssets returns the date encoded in any OSV asset filename in
+// the release. All assets in a given release share the same date.
+func releaseDateFromAssets(release *ReleaseInfo) (time.Time, bool) {
+	for name := range release.Assets {
+		if d, ok := dateFromAssetName(name); ok {
+			return d, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// dateFromAssetName extracts the YYYY-MM-DD date suffix from an OSV asset filename.
+func dateFromAssetName(name string) (time.Time, bool) {
+	const layout = "2006-01-02"
+	s := strings.TrimSuffix(name, ".json.gz")
+	if len(s) < len(layout) {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(layout, s[len(s)-len(layout):])
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
 // RefreshRHEL checks local RHEL OSV artifacts, deleting outdated ones and downloading the latest.
 func RefreshRHEL(
 	ctx context.Context,
@@ -212,6 +332,144 @@ func getNeededRHELVersions(osVers *fleet.OSVersions) []string {
 	}
 
 	return needed
+}
+
+// RefreshAndroid checks local Android OSV artifacts, deleting outdated ones and downloading the latest.
+func RefreshAndroid(
+	ctx context.Context,
+	oses []fleet.OperatingSystem,
+	vulnPath string,
+) ([]string, error) {
+	neededVersions := getNeededAndroidVersions(oses)
+	if len(neededVersions) == 0 {
+		return nil, nil
+	}
+
+	release, err := getLatestRelease(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting latest release: %w", err)
+	}
+
+	// Artifact filenames encode the release date (all assets in a release share
+	// it), so we derive the date from the release rather than the cron execution
+	// time. Using "now" would build filenames that don't match the release assets
+	// on any day the cron runs after the release was cut.
+	releaseDate, ok := releaseDateFromAssets(release)
+	if !ok {
+		return nil, fmt.Errorf("no OSV artifacts found in latest release %q", release.TagName)
+	}
+
+	syncResult, err := syncAndroidOSV(ctx, vulnPath, neededVersions, releaseDate, release)
+	if err != nil {
+		return nil, fmt.Errorf("syncing Android OSV artifacts: %w", err)
+	}
+
+	upToDateVersions := make([]string, 0, len(syncResult.Downloaded)+len(syncResult.Skipped))
+	upToDateVersions = append(upToDateVersions, syncResult.Downloaded...)
+	upToDateVersions = append(upToDateVersions, syncResult.Skipped...)
+	if err := removeOldAndroidOSVArtifacts(releaseDate, vulnPath, upToDateVersions); err != nil {
+		return syncResult.Downloaded, fmt.Errorf("warning: failed to clean up old Android OSV artifacts: %w", err)
+	}
+
+	return syncResult.Downloaded, nil
+}
+
+// syncAndroidOSV downloads Android OSV artifacts for the given versions.
+func syncAndroidOSV(
+	ctx context.Context,
+	dstDir string,
+	androidVersions []string,
+	date time.Time,
+	release *ReleaseInfo,
+) (*SyncResult, error) {
+	return syncOSVWithDownloader(ctx, dstDir, androidVersions, date, release, downloadOSVArtifact, androidOSVFilename)
+}
+
+func getNeededAndroidVersions(oses []fleet.OperatingSystem) []string {
+	seen := make(map[string]struct{})
+	var needed []string
+
+	for _, os := range oses {
+		if os.Platform != "android" {
+			continue
+		}
+
+		ver := extractAndroidMajorVersion(os.Version)
+		if ver == "" {
+			continue
+		}
+
+		if _, exists := seen[ver]; !exists {
+			seen[ver] = struct{}{}
+			needed = append(needed, ver)
+		}
+	}
+
+	return needed
+}
+
+func extractAndroidMajorVersion(version string) string {
+	if version == "" {
+		return ""
+	}
+	// "16 (2026-05-01)" -> "16"
+	// "16" -> "16"
+	if idx := strings.Index(version, " "); idx > 0 {
+		return version[:idx]
+	}
+	return version
+}
+
+func androidOSVFilename(androidVersion string, date time.Time) string {
+	return fmt.Sprintf("%s%s-%d-%02d-%02d.json.gz",
+		OSVAndroidFilePrefix, androidVersion, date.Year(), date.Month(), date.Day())
+}
+
+func removeOldAndroidOSVArtifacts(date time.Time, rootPath string, successfulVersions []string) error {
+	dateSuffix := fmt.Sprintf("-%d-%02d-%02d.json.gz", date.Year(), date.Month(), date.Day())
+
+	successfulSet := make(map[string]struct{}, len(successfulVersions))
+	for _, v := range successfulVersions {
+		successfulSet[v] = struct{}{}
+	}
+
+	entries, err := os.ReadDir(rootPath)
+	if err != nil {
+		return fmt.Errorf("reading directory %s: %w", rootPath, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			continue
+		}
+
+		baseName := entry.Name()
+
+		if !strings.HasPrefix(baseName, OSVAndroidFilePrefix) {
+			continue
+		}
+
+		if strings.HasSuffix(baseName, ".json.gz") {
+			if !strings.HasSuffix(baseName, dateSuffix) {
+				versionStart := len(OSVAndroidFilePrefix)
+				versionEnd := strings.Index(baseName[versionStart:], "-")
+				if versionEnd == -1 {
+					continue
+				}
+				androidVersion := baseName[versionStart : versionStart+versionEnd]
+
+				if _, ok := successfulSet[androidVersion]; ok {
+					filePath := filepath.Join(rootPath, baseName)
+					// #nosec G122 -- path is from ReadDir in Fleet-controlled vuln directory, checked IsRegular above
+					if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+						return fmt.Errorf("removing old Android OSV artifact %s: %w", baseName, err)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // removeOldRHELOSVArtifacts removes old RHEL OSV artifacts that don't match today's date.

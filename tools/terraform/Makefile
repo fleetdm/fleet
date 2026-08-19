@@ -1,8 +1,7 @@
 #! /usr/bin/env make
 #
 # While not very elegant as far as Makefiles go, this Makefile does
-# contain the basic commands to get you terraforming your FleetDM
-# teams. See the README for details.
+# contain the basic commands to get you terraforming your fleets (formerly "teams"). See the README for details.
 
 provider_code_spec.json: openapi.json
 	tfplugingen-openapi generate --config generator.yaml --output ./provider_code_spec.json ./openapi.json

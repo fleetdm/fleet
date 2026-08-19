@@ -17,9 +17,9 @@ import {
   sqlDataTypes,
   sqlKeyWords,
 } from "utilities/sql_tools";
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 
-import { stringToClipboard } from "utilities/copy_text";
-import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 
 import "./mode";
@@ -79,7 +79,6 @@ const SQLEditor = ({
   enableCopy = false,
 }: ISQLEditorProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
-  const [copied, setCopied] = React.useState(false);
 
   /** Keeps label actions clickable and removes all mouse/keyboard access/hover states of editor */
   const isReadonlyCopy = _readOnly && enableCopy && !disabled;
@@ -90,13 +89,6 @@ const SQLEditor = ({
     // This is for read only that has a copy button so we disallow selecting the text
     [`${baseClass}__wrapper--readonly-copy`]: !!isReadonlyCopy,
   });
-
-  const onClickCopy = () => {
-    stringToClipboard(value || "").then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
 
   const fixHotkeys = (editor: Ace.Editor) => {
     editor.commands.removeCommand("gotoline");
@@ -239,6 +231,9 @@ const SQLEditor = ({
       readOnly: true,
     });
 
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
     if (isReadonlyCopy) {
       // keep Ace read-only and remove any selection
       editor.setOption("readOnly", true);
@@ -294,26 +289,14 @@ const SQLEditor = ({
         <div className={`${baseClass}__label-actions`}>
           {labelActionComponent}
           {enableCopy && (
-            <div className={`${baseClass}__copy-wrapper`}>
-              {copied && (
-                <span className={`${baseClass}__copied-confirmation`}>
-                  Copied!
-                </span>
-              )}
-              <Button
-                variant="text-icon"
-                onClick={onClickCopy}
-                size="small"
-                iconStroke
-              >
-                Copy <Icon name="copy" />
-              </Button>
-            </div>
+            <CopyButton copyText={value || ""} variant="subdued" size="small">
+              Copy <Icon name="copy" />
+            </CopyButton>
           )}
         </div>
       </div>
     );
-  }, [error, label, labelActionComponent, enableCopy, copied]);
+  }, [error, label, labelActionComponent, enableCopy, value]);
 
   const renderHelpText = () => {
     if (helpText) {

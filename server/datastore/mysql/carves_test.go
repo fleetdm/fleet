@@ -26,6 +26,7 @@ func TestCarves(t *testing.T) {
 		{"Cleanup", testCarvesCleanup},
 		{"List", testCarvesList},
 		{"Update", testCarvesUpdate},
+		{"Expire", testCarvesExpire},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -241,6 +242,39 @@ func testCarvesList(t *testing.T, ds *Datastore) {
 	carves, err = ds.ListCarves(context.Background(), fleet.CarveListOptions{Expired: true})
 	require.NoError(t, err)
 	assert.Len(t, carves, 2)
+
+	for _, key := range []string{
+		"id",
+		"host_id",
+		"created_at",
+		"name",
+		"block_count",
+		"block_size",
+		"carve_size",
+		"carve_id",
+		"request_id",
+		"session_id",
+		"expired",
+		"max_block",
+		"error",
+	} {
+		t.Run("allowed order_"+key, func(t *testing.T) {
+			result, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
+				Expired:     true,
+				ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
+			Expired:     true,
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+		})
+		require.Error(t, err)
+	})
 }
 
 func testCarvesUpdate(t *testing.T, ds *Datastore) {
@@ -272,4 +306,56 @@ func testCarvesUpdate(t *testing.T, ds *Datastore) {
 	dbCarve, err := ds.Carve(context.Background(), carve.ID)
 	require.NoError(t, err)
 	assert.Equal(t, carve, dbCarve)
+}
+
+func testCarvesExpire(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h := test.NewHost(t, ds, "foo.local", "192.168.1.10", "1", "1", time.Now())
+
+	newCarve := func(session string) *fleet.CarveMetadata {
+		c, err := ds.NewCarve(ctx, &fleet.CarveMetadata{
+			HostId:     h.ID,
+			Name:       session,
+			BlockCount: 1,
+			BlockSize:  1,
+			CarveSize:  1,
+			CarveId:    session,
+			RequestId:  session,
+			SessionId:  session,
+			CreatedAt:  mockCreatedAt,
+		})
+		require.NoError(t, err)
+		return c
+	}
+	c1 := newCarve("s1")
+	c2 := newCarve("s2")
+	c3 := newCarve("s3")
+
+	// Empty ids is a no-op.
+	require.NoError(t, ds.ExpireCarves(ctx, nil))
+	for _, c := range []*fleet.CarveMetadata{c1, c2, c3} {
+		got, err := ds.Carve(ctx, c.ID)
+		require.NoError(t, err)
+		require.False(t, got.Expired)
+	}
+
+	// Expire c1 and c3, along with enough (nonexistent) ids to span more than one
+	// batch, exercising the chunked update loop.
+	ids := []int64{c1.ID, c3.ID}
+	for i := range int64(600) {
+		ids = append(ids, 1_000_000+i)
+	}
+	require.NoError(t, ds.ExpireCarves(ctx, ids))
+
+	got1, err := ds.Carve(ctx, c1.ID)
+	require.NoError(t, err)
+	require.True(t, got1.Expired, "carve in the id list must be expired")
+
+	got2, err := ds.Carve(ctx, c2.ID)
+	require.NoError(t, err)
+	require.False(t, got2.Expired, "carve not in the id list must stay non-expired")
+
+	got3, err := ds.Carve(ctx, c3.ID)
+	require.NoError(t, err)
+	require.True(t, got3.Expired, "carve in the id list must be expired")
 }

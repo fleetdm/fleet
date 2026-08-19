@@ -117,19 +117,19 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 	}
 
 	testCases := []struct {
-		loginRequest   contract.LoginRequest
+		loginRequest   fleet.LoginRequest
 		expectedStatus int
 		expectedLevel  slog.Level
 		expectedAttrs  []expectedAttr
 	}{
 		{
-			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			loginRequest:   fleet.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
 			expectedStatus: http.StatusOK,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs:  []expectedAttr{{"email", testUsers["admin1"].Email}},
 		},
 		{
-			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			loginRequest:   fleet.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs: []expectedAttr{
@@ -138,7 +138,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 		{
-			loginRequest:   contract.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			loginRequest:   fleet.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs: []expectedAttr{
@@ -147,7 +147,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 	}
-	var resp loginResponse
+	var resp fleet.LoginResponse
 	for _, tt := range testCases {
 		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
 

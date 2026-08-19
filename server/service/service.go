@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/WatchBeam/clock"
+	gocache "github.com/patrickmn/go-cache"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -77,6 +81,13 @@ type Service struct {
 
 	// acmeSvc is the ACME service module for write operations.
 	acmeSvc fleet.ACMEWriteService
+
+	// orgLogoStore stores the bytes of customer-uploaded org logos.
+	orgLogoStore fleet.OrgLogoStore
+
+	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
+	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	packConfigCache *gocache.Cache
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -151,6 +162,7 @@ func NewService(
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
+	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -190,6 +202,8 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
+		orgLogoStore:                    orgLogoStore,
+		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -219,4 +233,18 @@ type validationMiddleware struct {
 // getAssetURL simply returns the base url used for retrieving image assets from fleetdm.com.
 func getAssetURL() template.URL {
 	return template.URL("https://fleetdm.com/images/permanent")
+}
+
+// emailLinkBaseURL returns the base URL used to build links in transactional
+// emails. The server URL is the source of truth; the URL prefix is appended
+// only when the server URL does not already carry it. This keeps links correct
+// whether an operator configures the subpath in the server URL, in the URL
+// prefix, or both, instead of duplicating it (e.g. https://host/p/p/login).
+func emailLinkBaseURL(serverURL, urlPrefix string) template.URL {
+	if urlPrefix != "" && !strings.HasSuffix(strings.TrimSuffix(serverURL, "/"), urlPrefix) {
+		if joined, err := url.JoinPath(serverURL, urlPrefix); err == nil {
+			serverURL = joined
+		}
+	}
+	return template.URL(serverURL) //nolint:gosec // G203: operator-configured URL, not user input
 }

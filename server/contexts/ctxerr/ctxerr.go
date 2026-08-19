@@ -379,10 +379,10 @@ func Handle(ctx context.Context, err error) {
 				sentry.CaptureException(cause)
 			}
 		}
-	}
 
-	if eh := FromContext(ctx); eh != nil {
-		eh.Store(ferr)
+		if eh := FromContext(ctx); eh != nil {
+			eh.Store(ferr)
+		}
 	}
 }
 
@@ -410,6 +410,23 @@ func isClientError(err error) bool {
 	var clientErr platform_errors.ErrWithIsClientError
 	if errors.As(err, &clientErr) {
 		return clientErr.IsClientError()
+	}
+
+	// Mirror the 4xx mappings EncodeError uses at the transport layer so
+	// these errors are not telemetered as server errors.
+	var nfErr platform_errors.NotFoundError
+	if errors.As(err, &nfErr) && nfErr.IsNotFound() {
+		return true
+	}
+	type isExister interface{ IsExists() bool }
+	var existsErr isExister
+	if errors.As(err, &existsErr) && existsErr.IsExists() {
+		return true
+	}
+	type isConflicter interface{ IsConflict() bool }
+	var conflictErr isConflicter
+	if errors.As(err, &conflictErr) && conflictErr.IsConflict() {
+		return true
 	}
 
 	// Check for errors with an explicit HTTP status code in the 4xx range

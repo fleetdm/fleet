@@ -262,11 +262,43 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				}
 			}
 
+			// Ableton Live's version format includes a build identifier in parentheses
+			// (e.g., "12.4.1 (2026-05-20_fbe5fe99c9)") which doesn't match the installer
+			// version (e.g., "12.4.1"). Check if the version starts with the expected
+			// version to handle this case.
+			if uniqueAppIdentifier == "com.ableton.live" {
+				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
+					logger.InfoContext(ctx, "Ableton Live detected - version matches with build identifier")
+					return true, nil
+				}
+			}
+
 			// WhatsApp: Homebrew sometimes reports a newer version than what's actually available.
 			// If version doesn't match but app is installed, fall back to existence-only validation.
 			if uniqueAppIdentifier == "net.whatsapp.WhatsApp" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 					logger.InfoContext(ctx, "WhatsApp detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
+			}
+
+			// Logi Tune: the installer URL always serves the latest release, while the Homebrew
+			// cask version lags behind (its livecheck scrapes a Logitech support article that is
+			// updated less often than the download). The installed version is therefore newer
+			// than the manifest version. If version doesn't match but app is installed, fall
+			// back to existence-only validation.
+			if uniqueAppIdentifier == "com.logitech.logitune" {
+				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
+					logger.InfoContext(ctx, "Logi Tune detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
+			}
+
+			// The Developer Edition cask version is the full beta ("153.0b13") but
+			// the bundle reports only the base version ("153.0"); accept base+"b".
+			if uniqueAppIdentifier == "org.mozilla.firefoxdeveloperedition" {
+				if result.Version != "" && strings.HasPrefix(appVersion, result.Version+"b") {
+					logger.InfoContext(ctx, "Firefox Developer Edition detected - cask version matches bundle base version with beta suffix")
 					return true, nil
 				}
 			}

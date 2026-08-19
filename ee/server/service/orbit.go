@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
@@ -85,14 +86,12 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		})
 	}
 
-	profilesMissingInstallation, err := svc.ds.ListMDMAppleProfilesToInstall(ctx, host.UUID)
+	profilesMissingInstallation, _, err := apple_mdm.PendingProfilesForHost(ctx, svc.ds, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing apple config profiles to install")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if host.Platform != "darwin" {
-		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
-	}
+
 	if len(profilesMissingInstallation) > 0 {
 		for _, prof := range profilesMissingInstallation {
 			cfgProfResults = append(cfgProfResults, &fleet.SetupExperienceConfigurationProfileResult{
@@ -108,6 +107,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 	}
 	acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+		// PerPage 1: only acctCmds[0] is read below.
+		ListOptions: fleet.ListOptions{PerPage: 1},
 		Filters: fleet.MDMCommandFilters{
 			HostIdentifier: host.UUID,
 			RequestType:    "AccountConfiguration",
@@ -178,7 +179,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		ConfigurationProfiles: cfgProfResults,
 		AccountConfiguration:  acctCfgResult,
 		Software:              make([]*fleet.SetupExperienceStatusResult, 0),
-		OrgLogoURL:            appCfg.OrgInfo.OrgLogoURLLightBackground,
+		OrgLogoURL:            fleet.AbsolutizeLogoURL(appCfg.OrgInfo.OrgLogoURLLightBackground, appCfg.ServerSettings.ServerURL),
 		RequireAllSoftware:    requireAllSoftware,
 	}
 	for _, r := range res {
@@ -367,6 +368,28 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.PlatformLike, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check for software titles for setup experience")
+	}
+
+	if enabled {
+		// If any setup-experience item is policy-gated, request a refetch so the gating policies are (re-)sent on the host's next
+		// distributed-query checkin even if it re-enrolled within the policy update interval. A freshly enrolled host would get
+		// the policies anyway (its policy-reported timestamp is zero), but this makes the re-enrollment case prompt instead of
+		// waiting on the interval. The freshness of the result is enforced separately (recorded at or after last_enrolled_at).
+		gatedPolicyIDs, err := svc.ds.GetSetupExperiencePolicyIDsForHost(ctx, hostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check for policy-gated setup experience items")
+		}
+		if len(gatedPolicyIDs) > 0 {
+			// Clear any stale membership for the gating policies so the next report writes a fresh result and advances
+			// policy_membership.updated_at. policy_membership.updated_at tracks "last state change", not "last reported", so a
+			// re-enrolled host whose result is unchanged would otherwise look perpetually stale and hang setup.
+			if err := svc.ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, gatedPolicyIDs); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "clearing stale policy membership for setup experience gating")
+			}
+			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "requesting refetch for policy-gated setup experience")
+			}
+		}
 	}
 
 	return &fleet.SetupExperienceInitResult{

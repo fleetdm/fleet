@@ -1,0 +1,10 @@
+{
+  "name": "MonitorControl",
+  "unique_identifier": "me.guillaumeb.MonitorControl",
+  "token": "monitorcontrol",
+  "installer_format": "dmg",
+  "slug": "monitorcontrol/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

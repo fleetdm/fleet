@@ -1,0 +1,10 @@
+{
+  "name": "redis-pro",
+  "unique_identifier": "com.cmushroom.redis-pro",
+  "token": "redis-pro",
+  "installer_format": "dmg",
+  "slug": "redis-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

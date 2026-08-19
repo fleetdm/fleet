@@ -1,0 +1,10 @@
+{
+  "name": "Biscuit",
+  "unique_identifier": "com.eatbiscuit.biscuit",
+  "token": "biscuit",
+  "installer_format": "dmg",
+  "slug": "biscuit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

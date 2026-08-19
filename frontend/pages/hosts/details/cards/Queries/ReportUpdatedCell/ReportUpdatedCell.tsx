@@ -44,9 +44,8 @@ const ReportUpdatedCell = ({
               <TooltipWrapper
                 tipContent={
                   <>
-                    Results from this report are not reported in Fleet.
-                    <br />
-                    Data is being sent to your log destination.
+                    Results from this report are not reported in Fleet. Data is
+                    being sent to your log destination.
                   </>
                 }
                 position="top"
@@ -115,7 +114,7 @@ const ReportUpdatedCell = ({
       {should_link_to_hqr && hostId && queryId && (
         // parent row has same onClick functionality but link here is required for keyboard accessibility
         <Button
-          variant="inverse"
+          variant="subdued"
           className={`${baseClass}__view-report`}
           onClick={onClick}
           size="small"

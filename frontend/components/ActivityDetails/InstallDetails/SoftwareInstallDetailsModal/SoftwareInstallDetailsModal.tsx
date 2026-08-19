@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { AxiosError } from "axios";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -27,13 +27,17 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
+import DataSet from "components/DataSet";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -45,6 +49,7 @@ const baseClass = "software-install-details-modal";
 export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
+  skipped_install?: boolean;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -69,6 +74,7 @@ interface IInstallStatusMessage {
    - From Activity feed: never override (always show the failure).
    Parity with VPPInstallDetailsModal/SoftwareIpaInstallDetailsModal */
   canOverrideFailureWithInstalled?: boolean;
+  skippedInstall?: boolean;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -79,6 +85,7 @@ export const StatusMessage = ({
   isMyDevicePage,
   contactUrl,
   canOverrideFailureWithInstalled = false,
+  skippedInstall = false,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -133,11 +140,29 @@ export const StatusMessage = ({
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
     : "";
+
+  if (skippedInstall && status === "failed_install") {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
+        iconColor="ui-fleet-black-50"
+        message={
+          <span>
+            Fleet skipped install of <b>{software_title}</b> ({software_package}
+            ) on {formattedHost}
+            {displayTimeStamp}. The app was open. It will update once the user
+            closes it and policy runs again, or update via self service.
+          </span>
+        }
+      />
+    );
+  }
 
   const renderStatusCopy = () => {
     const prefix = (
@@ -213,7 +238,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -292,7 +317,9 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: swInstallResult?.pre_install_query_output,
+        value: detailsFromProps.skipped_install
+          ? "Query didn't return result or failed\nThe app was open"
+          : swInstallResult?.pre_install_query_output,
       },
       {
         label: "Install script output:",
@@ -308,7 +335,8 @@ export const SoftwareInstallDetailsModal = ({
     const showDetailsButton =
       (!!swInstallResult?.post_install_script_output ||
         !!swInstallResult?.output ||
-        !!swInstallResult?.pre_install_query_output) &&
+        !!swInstallResult?.pre_install_query_output ||
+        !!detailsFromProps.skipped_install) &&
       swInstallResult?.status !== "pending_install";
 
     return (
@@ -404,6 +432,17 @@ export const SoftwareInstallDetailsModal = ({
             <DataError description="Close this modal and try again." />
           );
         }
+
+        if (error?.status === 402) {
+          return deviceAuthToken ? (
+            <DeviceUserError />
+          ) : (
+            <>
+              <p>Couldn&apos;t get install details.</p>
+              <PremiumFeatureMessage />
+            </>
+          );
+        }
       }
 
       if (!swInstallResult) {
@@ -438,7 +477,33 @@ export const SoftwareInstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
+          skippedInstall={detailsFromProps.skipped_install}
         />
+
+        {/* Package SHA-256 hash — backend hydrates `hash_sha256` on the
+            install result. Guarded so the row stays out of the DOM for
+            older results and VPP/App-Store paths whose payload doesn't
+            carry a package hash. */}
+        {swInstallResult?.hash_sha256 && (
+          <div className={`${baseClass}__hash-row`}>
+            <DataSet
+              title="Package SHA-256 hash:"
+              value={
+                <>
+                  <TooltipTruncatedText
+                    className={`${baseClass}__hash`}
+                    value={swInstallResult.hash_sha256}
+                  />
+                  <CopyButton
+                    copyText={swInstallResult.hash_sha256}
+                    variant="subdued"
+                    ariaLabel="Copy hash to clipboard"
+                  />
+                </>
+              }
+            />
+          </div>
+        )}
 
         {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {isInstalledByFleet &&

@@ -1,0 +1,10 @@
+{
+  "name": "Typeface",
+  "unique_identifier": "com.criminalbird.typeface.standalone",
+  "token": "typeface",
+  "installer_format": "dmg",
+  "slug": "typeface/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

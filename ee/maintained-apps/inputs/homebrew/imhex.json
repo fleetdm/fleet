@@ -1,0 +1,10 @@
+{
+  "name": "ImHex",
+  "unique_identifier": "net.WerWolv.ImHex",
+  "token": "imhex",
+  "installer_format": "dmg",
+  "slug": "imhex/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

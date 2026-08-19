@@ -1,29 +1,59 @@
 .org-info {
-  &__logo-field {
-    margin-bottom: $pad-icon;
+  &__logo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $pad-large;
+    margin-bottom: $pad-large;
+
+    @media (max-width: #{$break-md - 1px}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__logo-card {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__logo-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-small;
+  }
+
+  &__logo-card-actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__hidden-file-input {
+    display: none;
   }
 
   &__icon-preview {
     border-radius: $border-radius;
-    max-height: 82px;
-    min-width: 82px;
+    height: 82px;
     border: 1px solid $ui-fleet-black-10;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
   }
 
   &__icon-img {
     max-width: 150px;
+    max-height: 64px;
     padding: $small;
     transform: initial;
   }
 
   &__dark-background {
-    background-color: $ui-fleet-black-75;
+    background-color: $logo-preview-dark;
   }
 
   &__light-background {
-    background-color: $ui-light-grey;
+    background-color: $logo-preview-light;
   }
 }

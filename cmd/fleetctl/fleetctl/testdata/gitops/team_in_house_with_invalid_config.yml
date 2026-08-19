@@ -1,0 +1,13 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "ABC"
+agent_options:
+controls:
+policies:
+queries:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ipa_test.ipa
+      configuration:
+        path: ./team_in_house_invalid_config.xml

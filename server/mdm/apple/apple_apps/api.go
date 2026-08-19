@@ -71,14 +71,30 @@ const appleHostAndScheme = "https://api.ent.apple.com"
 type authenticator func(forceRenew bool) (string, error)
 
 type Config struct {
-	baseURL       string
-	authenticator authenticator
+	// baseURLForRegion returns the VPP app metadata base URL for the given
+	// lowercase ISO 3166-1 alpha-2 region (e.g. "us", "de"). Allowing the
+	// region to be chosen per-call lets the caller anchor metadata fetches
+	// to the storefront associated with the originating VPP token.
+	baseURLForRegion func(region string) string
+	authenticator    authenticator
 }
 
 func StubbedConfig() Config {
 	return Config{
-		baseURL:       getBaseURL(false),
-		authenticator: func(forceRenew bool) (string, error) { return "", nil },
+		baseURLForRegion: func(region string) string { return getBaseURL(false, region) },
+		authenticator:    func(forceRenew bool) (string, error) { return "", nil },
+	}
+}
+
+// TestConfigWithBaseURLForRegion is a test-only constructor that lets external
+// packages build a Config with a custom region-aware base URL function and a
+// dummy authenticator. It is exported so refresh tests can drive
+// per-storefront fetches against a httptest server without the apple_apps
+// package's dev_mode plumbing.
+func TestConfigWithBaseURLForRegion(baseURLForRegion func(region string) string) Config {
+	return Config{
+		baseURLForRegion: baseURLForRegion,
+		authenticator:    func(forceRenew bool) (string, error) { return "test-bearer", nil },
 	}
 }
 
@@ -88,8 +104,17 @@ func StubbedConfig() Config {
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]Metadata, error) {
-	req, err := buildMetadataRequest(config.baseURL, adamIDs, vppToken)
+// GetMetadata fetches App Store metadata for the given adamIDs from the
+// storefront identified by region (lowercase ISO 3166-1 alpha-2 code, e.g.
+// "us", "de"). The token must be a VPP token that owns the requested apps in
+// that storefront. If region is empty it falls back to "us" for backwards
+// compatibility, but callers should pass an explicit anchored country.
+func GetMetadata(adamIDs []string, region, vppToken string, config Config) (map[string]Metadata, error) {
+	if region == "" {
+		region = "us"
+	}
+	baseURL := config.baseURLForRegion(region)
+	req, err := buildMetadataRequest(baseURL, adamIDs, vppToken)
 	if err != nil {
 		return nil, err
 	}
@@ -253,15 +278,20 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 	return platforms
 }
 
-func getBaseURL(bearerTokenSupplied bool) string {
-	region := "us"
-	if dev_mode.Env("FLEET_DEV_VPP_REGION") != "" {
-		region = dev_mode.Env("FLEET_DEV_VPP_REGION")
+// getBaseURL returns the VPP app metadata base URL for the given storefront
+// region. The FLEET_DEV_VPP_REGION dev override, when set, takes precedence
+// over the caller-supplied region. An empty region falls back to "us".
+func getBaseURL(bearerTokenSupplied bool, region string) string {
+	if region == "" {
+		region = "us"
+	}
+	if devRegion := dev_mode.Env("FLEET_DEV_VPP_REGION"); devRegion != "" {
+		region = devRegion
 	}
 
 	urlFromEnvVar := dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
 	if urlFromEnvVar != "" && urlFromEnvVar != "apple" {
-		return dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+		return urlFromEnvVar
 	}
 	// if a bearer token is supplied and we don't have an explicit further override, use Apple's endpoint directly
 	if urlFromEnvVar == "apple" || bearerTokenSupplied {
@@ -283,14 +313,14 @@ type DataStore interface {
 func Configure(ctx context.Context, ds DataStore, licenseKey string, token string) Config {
 	if token != "" {
 		return Config{
-			authenticator: func(forceRenew bool) (string, error) { return token, nil },
-			baseURL:       getBaseURL(true),
+			authenticator:    func(forceRenew bool) (string, error) { return token, nil },
+			baseURLForRegion: func(region string) string { return getBaseURL(true, region) },
 		}
 	}
 
 	return Config{
-		authenticator: getAuthenticator(ctx, ds, licenseKey),
-		baseURL:       getBaseURL(false),
+		authenticator:    getAuthenticator(ctx, ds, licenseKey),
+		baseURLForRegion: func(region string) string { return getBaseURL(false, region) },
 	}
 }
 

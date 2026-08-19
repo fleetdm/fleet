@@ -18,34 +18,36 @@ import {
 } from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
-export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
-  return HttpResponse.json({
-    host: createMockHost(),
-    license: createMockLicense(),
-    org_logo_url: "",
-    org_logo_url_light_background: "",
-    global_config: {
-      mdm: { enabled_and_configured: false },
+const createDefaultDeviceResponse = (): IDUPDetails => ({
+  host: { ...createMockHost(), dep_assigned_to_fleet: false },
+  license: createMockLicense(),
+  org_logo_url: "",
+  org_logo_url_light_background: "",
+  org_logo_url_dark_mode: "",
+  org_logo_url_light_mode: "",
+  org_contact_url: "",
+  self_service: false,
+  global_config: {
+    mdm: {
+      enabled_and_configured: false,
+      require_all_software_macos: false,
     },
-  });
+    features: {
+      enable_software_inventory: false,
+      enable_conditional_access: false,
+      enable_conditional_access_bypass: false,
+    },
+  },
 });
 
+export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () =>
+  HttpResponse.json(createDefaultDeviceResponse())
+);
+
 export const customDeviceHandler = (overrides?: Partial<IDUPDetails>) =>
-  http.get(baseUrl("/device/:token"), () => {
-    const response = Object.assign(
-      {
-        host: createMockHost(),
-        license: createMockLicense(),
-        org_logo_url: "",
-        org_logo_url_light_background: "",
-        global_config: {
-          mdm: { enabled_and_configured: false },
-        },
-      },
-      overrides
-    );
-    return HttpResponse.json(response);
-  });
+  http.get(baseUrl("/device/:token"), () =>
+    HttpResponse.json({ ...createDefaultDeviceResponse(), ...overrides })
+  );
 
 export const defaultMacAdminsHandler = http.get(
   baseUrl("/device/:token/macadmins"),

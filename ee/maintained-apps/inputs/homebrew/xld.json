@@ -1,0 +1,10 @@
+{
+  "name": "X Lossless Decoder",
+  "unique_identifier": "jp.tmkk.XLD",
+  "token": "xld",
+  "installer_format": "dmg",
+  "slug": "xld/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

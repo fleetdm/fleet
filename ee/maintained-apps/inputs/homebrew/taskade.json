@@ -1,0 +1,10 @@
+{
+  "name": "Taskade",
+  "unique_identifier": "com.taskade",
+  "token": "taskade",
+  "installer_format": "dmg",
+  "slug": "taskade/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

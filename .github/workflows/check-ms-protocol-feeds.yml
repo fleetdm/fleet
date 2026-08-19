@@ -1,7 +1,7 @@
 name: Check Microsoft MDM related protocol specification feeds for changes
 
 # This action will check Microsoft MDM related protocol specification feeds
-# for changes and create a Github issue for MDM engineers to review the changes
+# for changes and create a Github issue for P2PC engineers to review the changes
 
 on:
   schedule:
@@ -16,7 +16,7 @@ jobs:
       issues: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
       - name: Check MS-MDE2 feed
@@ -24,18 +24,18 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           feed: https://winprotocoldocs-bhdugrdyduf5h2e4.b02.azurefd.net/MS-MDE2/%5bMS-MDE2%5d.rss
-          prefix: "MDM: Review Microsoft MS-MDE2 Proto Change for new Request/Enrollment Versions: "
+          prefix: "Review Microsoft MS-MDE2 Proto Change for new Request/Enrollment Versions: "
           dry-run: false
           max-age: 36h
-          labels: "#g-mdm"
+          labels: "#g-power-to-pc"
           url-only: true
       - name: Check MS-MDM feed
         uses: git-for-windows/rss-to-issues@07a39c615e25aaf70dc0fd84df7345ca8941d85f # v0.0.12
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           feed: https://winprotocoldocs-bhdugrdyduf5h2e4.b02.azurefd.net/MS-MDM/%5bMS-MDM%5d.rss
-          prefix: "MDM: Review Microsoft MS-MDM Proto Change for compatibility: "
+          prefix: "Review Microsoft MS-MDM Proto Change for compatibility: "
           dry-run: false
           max-age: 36h
-          labels: "#g-mdm"
+          labels: "#g-power-to-pc"
           url-only: true

@@ -64,7 +64,6 @@ class YamlAce extends Component {
 
     const wrapperClass = classnames(wrapperClassName, "form-field", {
       [`${baseClass}__wrapper--error`]: error,
-      [`${baseClass}__wrapper--disabled`]: disabled,
     });
 
     return (
@@ -72,6 +71,7 @@ class YamlAce extends Component {
         {renderLabel()}
         <AceEditor
           readOnly={disabled}
+          showGutter={!disabled}
           className={baseClass}
           mode="yaml"
           theme="fleet"

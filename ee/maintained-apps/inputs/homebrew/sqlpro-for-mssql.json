@@ -1,0 +1,10 @@
+{
+  "name": "SQLPro for MSSQL",
+  "unique_identifier": "com.hankinsoft.osx.tinysqlstudio",
+  "token": "sqlpro-for-mssql",
+  "installer_format": "zip",
+  "slug": "sqlpro-for-mssql/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

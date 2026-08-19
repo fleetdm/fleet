@@ -406,8 +406,9 @@ func TestService_EmailConfig(t *testing.T) {
 			want: &fleet.EmailConfig{
 				Backend: "ses",
 				Config: fleet.SESConfig{
-					Region:    "us-east-1",
-					SourceARN: "qux",
+					Region:       "us-east-1",
+					SourceARN:    "qux",
+					SenderDomain: "email.example.com",
 				},
 			},
 			wantErr: assert.NoError,

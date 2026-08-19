@@ -9,6 +9,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -86,41 +88,132 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	return nil, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	opts fleet.ApplySpecOptions,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, logFn)
 }
 
-func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) applySoftwareInstallers(
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	query url.Values,
+	dryRun bool,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {
-		return nil, nil
+		return nil, nil, nil, nil
+	}
+
+	// Keyed by place in the batch, since two packages can share a name.
+	printedDownloading := make(map[int]struct{})
+	printedResult := make(map[int]struct{})
+
+	// Assumes the server downloads packages one by one, so each "downloading" line prints
+	// right before its own "downloaded" line. Concurrent downloads would break this.
+	logDownloadProgress := func(downloadProgress []fleet.SoftwarePackageDownloadProgress) {
+		for payloadIndex, packageProgress := range downloadProgress {
+			// A package the batch hasn't started downloading has no name yet.
+			if packageProgress.Name == "" {
+				continue
+			}
+
+			// A package Fleet doesn't download gets only this line, never a downloading one.
+			if packageProgress.Status == fleet.SoftwarePackageDownloadSkipped {
+				_, printedSkip := printedResult[payloadIndex]
+				if !printedSkip {
+					printedResult[payloadIndex] = struct{}{}
+					logFn("[+] skipped downloading the software package (already in storage) - %s\n", packageProgress.Name)
+				}
+				continue
+			}
+
+			// A package can still turn out to be skipped after this prints, when the download returns a 304.
+			_, printedStart := printedDownloading[payloadIndex]
+			if !printedStart {
+				printedDownloading[payloadIndex] = struct{}{}
+				logFn("[+] downloading software package - %s ...\n", packageProgress.Name)
+			}
+
+			_, printedFinish := printedResult[payloadIndex]
+			if printedFinish {
+				continue
+			}
+			switch packageProgress.Status {
+			case fleet.SoftwarePackageDownloadFailed:
+				printedResult[payloadIndex] = struct{}{}
+				logFn("Error: could not download software package %s\n", packageProgress.Name)
+			case fleet.SoftwarePackageDownloadFinished:
+				printedResult[payloadIndex] = struct{}{}
+				logFn("[+] downloaded software package - %s\n", packageProgress.Name)
+			}
+		}
 	}
 
 	requestUUID := resp.RequestUUID
 	for {
 		var resp batchSetSoftwareInstallersResultResponse
 		if err := c.authenticatedRequestWithQuery(nil, "GET", path+"/"+requestUUID, &resp, query.Encode()); err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
+		logDownloadProgress(resp.DownloadProgress)
+
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
-			return nil, errors.New(resp.Message)
+			return nil, nil, nil, errors.New(resp.Message)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusCompleted:
-			return matchPackageIcons(softwareInstallers, resp.Packages), nil
+			return matchPackageIcons(softwareInstallers, resp.Packages), resp.DeletedPackages, resp.Categories, nil
 		default:
-			return nil, fmt.Errorf("unknown status: %q", resp.Status)
+			return nil, nil, nil, fmt.Errorf("unknown status: %q", resp.Status)
 		}
 	}
+}
+
+func (c *Client) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	verb, path := "GET", "/api/latest/fleet/software/self_service_categories"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+	var responseBody getSelfServiceCategoriesResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategories, nil
+}
+
+func (c *Client) DeleteSelfServiceCategory(id uint) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", id)
+	var responseBody deleteSelfServiceCategoriesResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
+}
+
+// deleteUnusedSelfServiceCategories deletes the team's existing self-service categories that aren't
+// in keep. Categories are created server-side by the software/VPP batch endpoints; keep is the
+// union of categories those batches reported, so anything not in it is no longer needed
+func (c *Client) deleteUnusedSelfServiceCategories(teamID uint, keep []string) error {
+	existing, err := c.ListSelfServiceCategories(teamID)
+	if err != nil {
+		return fmt.Errorf("listing existing self-service categories: %w", err)
+	}
+	for _, cat := range existing {
+		if slices.ContainsFunc(keep, func(name string) bool { return strings.EqualFold(name, cat.Name) }) {
+			continue
+		}
+		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
+			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
+		}
+	}
+	return nil
 }
 
 // matchPackageIcons hydrates software responses with references to icons in the request payload, so we can track
@@ -206,6 +299,12 @@ func (c *Client) UpdateIcon(teamID uint, titleID uint, filename string, hash str
 	return c.putIcon(teamID, titleID, writer, buf)
 }
 
+// ErrIconBytesMissing is returned by UpdateIcon when the server has the
+// software_title_icons row but the underlying bytes for the requested storage
+// hash are missing or fail integrity. Callers can fall back to a full upload
+// to recover.
+var ErrIconBytesMissing = errors.New("icon bytes missing on server")
+
 func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, buf bytes.Buffer) error {
 	response, err := c.doContextWithBodyAndHeaders(
 		context.Background(),
@@ -224,11 +323,14 @@ func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, bu
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
+	switch response.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusConflict:
+		return ErrIconBytesMissing
+	default:
 		return fmt.Errorf("update icon: unexpected status code: %d", response.StatusCode)
 	}
-
-	return nil
 }
 
 func (c *Client) DeleteIcon(teamID uint, titleID uint) error {

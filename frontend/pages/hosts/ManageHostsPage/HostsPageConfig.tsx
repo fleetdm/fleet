@@ -1,4 +1,4 @@
-import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
+import { HOSTS_QUERY_PARAMS, ISortOption } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
@@ -16,12 +16,18 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "mdm_enrollment_status",
   "os_name",
   "os_version",
+  "os_version_id",
+  "vulnerability",
   "munki_issue_id",
   "low_disk_space",
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "macos_bootstrap_package",
   "bootstrap_package",
+  "profile_status",
+  "profile_uuid",
+  "dep_profile_error",
+  "dep_assign_profile_response",
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;
@@ -61,6 +67,25 @@ export const DEFAULT_SORT_HEADER = "display_name";
 export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
+
+// Columns rendered as "N days ago" durations. Sort direction is inverted at
+// the API boundary so arrow-down = biggest days-ago (oldest date) first —
+// matching the visible number rather than the underlying timestamp.
+export const TIME_AGO_SORT_HEADERS = new Set([
+  "seen_time",
+  "detail_updated_at",
+  "last_restarted_at",
+  "last_enrolled_at",
+]);
+
+export const toApiSortBy = (sortBy: ISortOption[]): ISortOption[] =>
+  sortBy.map((s) => {
+    if (!TIME_AGO_SORT_HEADERS.has(s.key)) return s;
+    return {
+      key: s.key,
+      direction: s.direction === "asc" ? "desc" : "asc",
+    };
+  });
 
 export const hostSelectStatuses = (isPremiumTier: boolean) => {
   const baseStatuses = [

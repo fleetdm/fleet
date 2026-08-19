@@ -1,0 +1,10 @@
+{
+  "name": "WindowKeys",
+  "unique_identifier": "com.apptorium.WindowKeys",
+  "token": "windowkeys",
+  "installer_format": "zip",
+  "slug": "windowkeys/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

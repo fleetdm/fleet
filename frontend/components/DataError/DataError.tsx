@@ -27,6 +27,8 @@ interface IDataErrorProps {
   useNew?: boolean;
   /** Overrides something gone wrong line with description text to condense error onto one line */
   singleCustomLine?: boolean;
+  /** Centers the component within its parent */
+  selfCenter?: boolean;
 }
 
 const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
@@ -39,8 +41,11 @@ const DataError = ({
   className,
   useNew = false,
   singleCustomLine = false,
+  selfCenter = false,
 }: IDataErrorProps): JSX.Element => {
-  const classes = classnames(baseClass, className);
+  const classes = classnames(baseClass, className, {
+    [`${baseClass}--self-center`]: selfCenter,
+  });
 
   if (singleCustomLine) {
     return (

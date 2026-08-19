@@ -101,6 +101,14 @@ func parseCustomTags(urlTagValue string, r *http.Request, field reflect.Value) (
 		}
 		field.Set(reflect.ValueOf(opts))
 		return true, nil
+
+	case "label_list_options":
+		opts, err := labelListOptionsFromRequest(r)
+		if err != nil {
+			return false, err
+		}
+		field.Set(reflect.ValueOf(opts))
+		return true, nil
 	}
 	return false, nil
 }

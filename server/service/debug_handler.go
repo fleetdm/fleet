@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
@@ -39,11 +40,22 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 		}
 
 		if !v.CanPerformActions() || v.User.GlobalRole == nil || *v.User.GlobalRole != fleet.RoleAdmin {
-			http.Error(w, "Unauthorized", http.StatusForbidden)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		// Debug routes are not part of the public API catalog, so they can never appear in an
+		// API-only user's endpoint allowlist. A restricted API-only token (api_only with a
+		// non-empty api_endpoints list) must therefore be denied here, matching the least-privilege
+		// scoping that APIOnlyEndpointCheck enforces on the main API path.
+		if v.User.APIOnly && len(v.User.APIEndpoints) > 0 {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// Attach the authenticated viewer to the request context so downstream debug handlers can record who triggered an
+		// action (e.g. updating trace sampler settings).
+		next.ServeHTTP(w, r.WithContext(viewer.NewContext(r.Context(), *v)))
 	})
 }
 
@@ -92,6 +104,10 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
 	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
 	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
+	r.HandleFunc("/debug/trace_sampler", jsonHandler(logger, func(ctx context.Context) (any, error) {
+		return ds.GetTraceSamplerSettings(ctx)
+	})).Methods(http.MethodGet)
+	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

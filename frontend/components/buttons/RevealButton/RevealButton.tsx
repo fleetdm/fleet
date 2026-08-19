@@ -14,9 +14,7 @@ export interface IRevealButtonProps {
   disabled?: boolean;
   tooltipContent?: React.ReactNode;
   disabledTooltipContent?: React.ReactNode;
-  onClick?:
-    | ((value?: any) => void)
-    | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+  onClick?: (evt: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 const baseClass = "reveal-button";
@@ -69,12 +67,11 @@ const RevealButton = ({
 
   const button = (
     <Button
-      variant="inverse"
+      variant="secondary"
       className={classNames}
       onClick={onClick}
       autofocus={autofocus}
       disabled={disabled}
-      iconStroke
     >
       {buttonContent()}
     </Button>

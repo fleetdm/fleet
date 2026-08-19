@@ -71,6 +71,12 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 							<string>{{.CertificateCN}}</string>
 						</array>
 					</array>
+					<array>
+						<array>
+							<string>OU</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+						</array>
+					</array>
 				</array>
 				<key>SubjectAltName</key>
 				<dict>
@@ -386,7 +392,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		CACertBase64:     caCertBase64,
 		SCEPURL:          scepURL,
 		Challenge:        challenge,
-		CertificateCN:    "Fleet conditional access for Okta",
+		CertificateCN:    fleet.ConditionalAccessOktaCertificateCN,
 		MTLSURL:          mtlsURL,
 		CACertUUID:       caCertUUID,
 		SCEPPayloadUUID:  scepPayloadUUID,

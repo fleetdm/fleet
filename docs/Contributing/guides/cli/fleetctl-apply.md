@@ -190,9 +190,9 @@ spec:
       setup_experience:
         macos_bootstrap_package: ""
         enable_end_user_authentication: true
-        enable_release_device_manually: false
+        apple_enable_release_device_manually: false
         apple_setup_assistant: ""
-        manual_agent_install: false
+        macos_manual_agent_install: false
         require_all_software_macos: false
         script: ""
         software: []
@@ -502,6 +502,9 @@ spec:
         - path: '/path/to/profile1.mobileconfig'
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
+        - path: '/path/to/declaration.json'
+      assets:
+        - path: '/path/to/asset.json'
       enable_disk_encryption: true
     windows_settings:
       configuration_profiles:

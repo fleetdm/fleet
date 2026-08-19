@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -26,6 +27,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
 )
+
+// matches IPv4 and IPv6 socket addresses
+var socketAddrPattern = regexp.MustCompile(`(?:\d{1,3}\.){3}\d{1,3}:\d+|\[[0-9a-fA-F:]+\]:\d+`)
+
+// replaces TCP/UDP socket addresses (if present) with a fixed placeholder
+func maybeReplaceSocketAddr(s string) string {
+	return socketAddrPattern.ReplaceAllString(s, "<addr>")
+}
+
+// statusCoder duck-types errors that expose an HTTP status code (matches
+// service.OsqueryError.Status). Used below to limit the socket-address
+// normalization to request-timeout errors only, without introducing a
+// service -> errorstore import cycle.
+type statusCoder interface {
+	Status() int
+}
 
 // Handler defines an error handler. Call Handler.Store to handle an error, and
 // Handler.Retrieve to retrieve all stored errors and optionally clear them
@@ -150,8 +167,17 @@ func hashError(err error) string {
 	ferr := ctxerr.FleetCause(err)
 
 	var sb strings.Builder
-	// hash the cause type and message (it might not be a FleetError)
-	fmt.Fprintf(&sb, "%T\n%s\n", cause, cause.Error())
+	// hash the cause type and message (it might not be a FleetError).
+	// For request-timeout errors only, all socket addresses in the
+	// message (both local and remote, IPs and ports) are normalized
+	// away so that occurrences differing only by those addresses
+	// collapse into a single dedup entry.
+	msg := cause.Error()
+	var sc statusCoder
+	if errors.As(err, &sc) && sc.Status() == http.StatusRequestTimeout {
+		msg = maybeReplaceSocketAddr(msg)
+	}
+	fmt.Fprintf(&sb, "%T\n%s\n", cause, msg)
 
 	// hash the stack trace of the root FleetError in the chain
 	if ferr != nil {

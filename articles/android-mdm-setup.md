@@ -12,7 +12,7 @@ When you select **Connect**, Fleet will open the Google signup page. The signup 
 
 ### Google Workspace
 
-> You must use a Google Workspace account with super administrator privileges. Privileges can be reduced after MDM is turned on.
+> You must use a Google Workspace account with super administrator privileges. Privileges can be reduced after MDM is turned on. The account is only used for the initial Enterprise binding to Fleet. Enterprise binding remains in place even if the account has reduced permissions afterwards.
 
 1. If your organization already uses Google Workspace, use your admin account to sign up for Android Enterprise. If you don't know your admin account credentials, ask your Google Workspace admin.
 2. Follow the steps in Google's signup flow.
@@ -49,7 +49,11 @@ Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.co
 
 ## Migration
 
-To migrate hosts from other MDM solution, you must first unenroll hosts from your old solution and share a link with your end users so they can enroll to Fleet. Learn how to find your enrollment link in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
+To migrate personal (BYOD) Android hosts from other MDM solution, first unenroll the host from your old solution. Then, share the enrollment page with your end users so they can enroll to Fleet. Unenrolling BYOD hosts will only remove/wipe the work profile (company data). Personal data won't be removed.
+
+To migrate company-owned (fully-managed) hosts, first wipe them and then, on another device, open the enrollment page. To enroll the Android host to Fleet, you'll scan a QR code on this page.
+
+Learn how to find your enrollment page in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
 ## Turn off
 

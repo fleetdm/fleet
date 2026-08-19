@@ -1,0 +1,10 @@
+{
+  "name": "MenuBar Stats",
+  "unique_identifier": "com.fabriceleyne.menubarstats",
+  "token": "menubar-stats",
+  "installer_format": "zip",
+  "slug": "menubar-stats/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

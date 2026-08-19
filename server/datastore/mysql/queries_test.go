@@ -40,6 +40,7 @@ func TestQueries(t *testing.T) {
 		{"IsSavedQuery", testIsSavedQuery},
 		{"SaveQueryLabels", testSaveQueryLabels},
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
+		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -325,15 +326,18 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 
 	// Add query stats
 	hostIDs := []uint{10, 20}
+	lastExecuted := time.Now().Add(-time.Hour).Round(time.Second)
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q1.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostIDs[0],
-				Executions: 1,
+				HostID:       hostIDs[0],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 			{
-				HostID:     hostIDs[1],
-				Executions: 1,
+				HostID:       hostIDs[1],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)
@@ -341,8 +345,9 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q3.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostIDs[0],
-				Executions: 1,
+				HostID:       hostIDs[0],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)
@@ -1357,6 +1362,26 @@ func testSaveQueryLabels(t *testing.T, ds *Datastore) {
 	err = ds.SaveQuery(ctx, query1, true, true)
 	require.NoError(t, err)
 	require.Len(t, query1.LabelsIncludeAny, 0)
+
+	// Switch scope to include_all.
+	query1.LabelsIncludeAny = nil
+	query1.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.NoError(t, err)
+	require.Empty(t, query1.LabelsIncludeAny)
+	require.Len(t, query1.LabelsIncludeAll, 2)
+
+	// Round-trip from DB.
+	reloaded, err := ds.Query(ctx, query1.ID)
+	require.NoError(t, err)
+	require.Empty(t, reloaded.LabelsIncludeAny)
+	require.Len(t, reloaded.LabelsIncludeAll, 2)
+
+	// Mutual exclusion is rejected at the datastore boundary.
+	query1.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	query1.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label2.Name}}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.Error(t, err)
 }
 
 func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
@@ -1461,28 +1486,179 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// No host specified, list all queries on team, regardless of tag
+	queryIncludeAllBoth, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "queryIncludeAllBoth",
+		Query:              "SELECT 1",
+		DiscardData:        false,
+		AutomationsEnabled: true,
+		AuthorID:           &user.ID,
+		Logging:            fleet.LoggingSnapshot,
+		Interval:           10,
+		Saved:              true,
+		LabelsIncludeAll: []fleet.LabelIdent{
+			{LabelName: label1.Name},
+			{LabelName: label2.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	// No host specified, list all queries on team, regardless of tag.
 	queries, err := ds.ListScheduledQueriesForAgents(ctx, nil, nil, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
+	requireQueries(t, queries, []string{
+		queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name,
+		queryIncludeAllBoth.Name,
+	})
 
-	// Label 1 queries
+	// Host with only label1: include_any{label1} matches; include_any{label2} doesn't;
+	// include_any{label1,label2} matches; include_all{label1,label2} doesn't (missing label2).
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
-	// Label 2 queries
+	// Host with only label2: same logic — include_all{both} doesn't match.
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel2.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
-	// Labels 1 and 2 queries
+	// Host with both label1 and label2: matches include_any (both), include_all{both}, no-label.
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1And2.ID, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
+	requireQueries(t, queries, []string{
+		queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name,
+		queryIncludeAllBoth.Name,
+	})
 
-	// No label queries
+	// Host with no labels: only the no-label query.
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryNoLabel.Name})
+}
+
+func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-label-scoped"})
+	require.NoError(t, err)
+
+	// Create a label.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test-label-scoped", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// No queries at all -- should return false.
+	has, err := ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.False(t, has, "no queries exist, should be false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.False(t, has, "no queries exist for team, should be false")
+
+	// Create a global scheduled query WITHOUT labels.
+	q1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "global-no-labels",
+		Query:              "SELECT 1",
+		Saved:              true,
+		Interval:           60,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.False(t, has, "global query exists but has no labels")
+
+	// Add a label to the query.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q1.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.True(t, has, "global query with label should be true for global scope")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "global query with label should be true for team scope too")
+
+	// Create a team query with labels.
+	q2, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-with-labels",
+		Query:              "SELECT 2",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q2.ID, label.ID)
+	require.NoError(t, err)
+
+	// Remove label from the global query to isolate team test.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"DELETE FROM query_labels WHERE query_id = ?", q1.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, nil, false)
+	require.NoError(t, err)
+	assert.False(t, has, "only team query has label, global scope should be false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "team query with label should be true for that team")
+
+	// Test the automations filter: query with discard_data=true and automations_enabled=false
+	// should NOT count even if it has labels.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"DELETE FROM query_labels WHERE query_id = ?", q2.ID)
+	require.NoError(t, err)
+
+	q3, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-discarded",
+		Query:              "SELECT 3",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: false,
+		DiscardData:        true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q3.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.False(t, has, "query with discard_data=true and automations_enabled=false should not count")
+
+	// Test queryReportsDisabled toggle: a snapshot query with discard_data=false,
+	// automations_enabled=false, and labels should count when queryReportsDisabled=false
+	// but NOT when queryReportsDisabled=true (the NOT ? bind in the SQL).
+	q4, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "team-snapshot-report",
+		Query:              "SELECT 4",
+		TeamID:             &team.ID,
+		Saved:              true,
+		Interval:           30,
+		AutomationsEnabled: false,
+		DiscardData:        false,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO query_labels (query_id, label_id, require_all) VALUES (?, ?, 0)", q4.ID, label.ID)
+	require.NoError(t, err)
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, false)
+	require.NoError(t, err)
+	assert.True(t, has, "snapshot report with labels should count when queryReportsDisabled=false")
+
+	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, true)
+	require.NoError(t, err)
+	assert.False(t, has, "snapshot report with labels should NOT count when queryReportsDisabled=true")
 }

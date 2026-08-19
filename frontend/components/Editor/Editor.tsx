@@ -1,17 +1,16 @@
-import React, { MouseEvent, ReactNode, useState, useCallback } from "react";
+import React, { ReactNode } from "react";
 
 import classnames from "classnames";
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
 import "ace-builds/src-noconflict/mode-python";
+import "ace-builds/src-noconflict/mode-xml";
 import { Ace } from "ace-builds";
 
-import { stringToClipboard } from "utilities/copy_text";
-
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 
 const baseClass = "editor";
 
@@ -52,8 +51,10 @@ interface IEditorProps {
   isFormField?: boolean;
   maxLines?: number;
   className?: string;
-  onChange?: (value: string, event?: any) => void;
+  onChange?: (value: string, event?: Ace.Delta) => void;
   onBlur?: () => void;
+  /** Called after the Ace editor mounts with the editor instance. */
+  onLoad?: (editor: Ace.Editor) => void;
 }
 
 /**
@@ -81,43 +82,17 @@ const Editor = ({
   className,
   onChange,
   onBlur,
+  onLoad: onLoadProp,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
   });
 
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
-
-  const onClickCopy = useCallback(
-    (e: MouseEvent) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        setShowCopiedMessage(true);
-        setTimeout(() => {
-          setShowCopiedMessage(false);
-        }, 2000);
-      });
-    },
-    [value]
-  );
-
   const renderCopyButton = () => {
-    const copyButtonValue = <Icon name="copy" />;
-    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
-
-    const copiedConfirmationClasses = classnames(
-      `${baseClass}__copied-confirmation`
-    );
-
     return (
-      <div className={wrapperClasses}>
-        {showCopiedMessage && (
-          <span className={copiedConfirmationClasses}>Copied!</span>
-        )}
-        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
-          {copyButtonValue}
-        </Button>
+      <div className={`${baseClass}__copy-wrapper`}>
+        <CopyButton copyText={value ?? ""} variant="subdued" />
       </div>
     );
   };
@@ -133,6 +108,11 @@ const Editor = ({
       },
       readOnly: true,
     });
+
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
+    onLoadProp?.(editor);
   };
 
   const renderLabel = () => {

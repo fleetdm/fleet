@@ -5,8 +5,12 @@ import { http, HttpResponse } from "msw";
 
 import { createCustomRenderer, baseUrl } from "test/test-utils";
 import mockServer from "test/mock-server";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 
-import ChartCard from "./ChartCard";
+import ChartCard, {
+  buildInitialChartFilters,
+  hostFilterLines,
+} from "./ChartCard";
 
 // Mock ResizeObserver for CheckerboardViz
 const MOCK_WIDTH = 600;
@@ -138,7 +142,169 @@ describe("ChartCard", () => {
     // Only one dataset is wired up today, so it renders as a heading rather
     // than a dropdown. Days selection is fixed at 30 and has no UI yet.
     await waitFor(() => {
-      expect(screen.getByText("Hosts active")).toBeInTheDocument();
+      expect(screen.getByText("Hosts online")).toBeInTheDocument();
     });
+  });
+
+  it("renders the empty state with a Turn on button for admins", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: true } },
+    });
+    render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Data collection is disabled/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Turn on/i })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the Turn on button and swaps copy for non-admins", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: false, isTeamAdmin: false } },
+    });
+    render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Data collection is disabled/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Ask an admin to turn on/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Turn on/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the chart normally when collection is enabled", async () => {
+    mockServer.use(chartHandler);
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: true, vulnerabilities: true }}
+      />
+    );
+
+    await waitFor(() => {
+      const rects = container.querySelectorAll("rect");
+      expect(rects.length).toBeGreaterThan(0);
+    });
+    expect(
+      screen.queryByText(/Data collection is disabled/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("includes mobile platforms by default and does not show the Filtered badge", async () => {
+    let requestedPlatforms: string | null = null;
+    mockServer.use(
+      http.get(baseUrl("/charts/:metric"), ({ params, request }) => {
+        requestedPlatforms = new URL(request.url).searchParams.get("platforms");
+        return HttpResponse.json(
+          generateMockChartResponse(params.metric as string, 30)
+        );
+      })
+    );
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<ChartCard />);
+
+    // No platform filter is active by default, so all platforms (including
+    // iOS/iPadOS/Android) are included and the "Filtered" badge is absent.
+    await waitFor(() => {
+      const rects = document.querySelectorAll("rect");
+      expect(rects.length).toBeGreaterThan(0);
+    });
+    expect(requestedPlatforms).toBeNull();
+    expect(screen.queryByText("Filtered")).not.toBeInTheDocument();
+  });
+});
+
+describe("buildInitialChartFilters", () => {
+  it("uses built-in defaults when no persisted defaults are provided", () => {
+    const filters = buildInitialChartFilters(undefined);
+    expect(filters.softwareFilters).toEqual([
+      ...ALL_CVE_SOFTWARE_CATEGORY_VALUES,
+    ]);
+    expect(filters.knownExploit).toBe(false);
+    expect(filters.epssMin).toBe("");
+    expect(filters.epssMax).toBe("");
+    expect(filters.excludeCVEs).toEqual([]);
+  });
+
+  it("seeds present fields and falls back per-field for absent ones", () => {
+    const filters = buildInitialChartFilters({
+      software_filters: ["browsers"],
+      has_known_exploit: true,
+    });
+    expect(filters.softwareFilters).toEqual(["browsers"]);
+    expect(filters.knownExploit).toBe(true);
+    expect(filters.epssMin).toBe("");
+    expect(filters.epssMax).toBe("");
+    expect(filters.excludeCVEs).toEqual([]);
+  });
+
+  it("converts numeric EPSS bounds (0-100) to strings", () => {
+    const filters = buildInitialChartFilters({ epss_min: 0, epss_max: 90 });
+    expect(filters.epssMin).toBe("0");
+    expect(filters.epssMax).toBe("90");
+  });
+
+  it("honors an explicit empty software_filters list as 'none'", () => {
+    const filters = buildInitialChartFilters({ software_filters: [] });
+    expect(filters.softwareFilters).toEqual([]);
+  });
+
+  it("seeds the exclude-CVE list", () => {
+    const filters = buildInitialChartFilters({
+      exclude_vulnerabilities: ["CVE-2025-50897"],
+    });
+    expect(filters.excludeCVEs).toEqual(["CVE-2025-50897"]);
+  });
+});
+
+describe("hostFilterLines", () => {
+  const filtersWithPlatforms = (platforms: string[]) => ({
+    ...buildInitialChartFilters(undefined),
+    platforms,
+  });
+
+  it("preserves branded platform casing (macOS, iOS, iPadOS)", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms(["darwin", "ios", "ipados"])
+    );
+    expect(line).toBe("macOS, iOS, and iPadOS");
+    // Guards the reported bug: no word-capitalized variants.
+    expect(line).not.toMatch(/MacOS|Ios|Ipados/);
+  });
+
+  it("renders a single platform without mangling its casing", () => {
+    expect(hostFilterLines(filtersWithPlatforms(["darwin"]))).toEqual([
+      "macOS",
+    ]);
+  });
+
+  it("maps every filterable platform to its correct display name", () => {
+    const [line] = hostFilterLines(
+      filtersWithPlatforms([
+        "darwin",
+        "windows",
+        "linux",
+        "chrome",
+        "ios",
+        "ipados",
+        "android",
+      ])
+    );
+    expect(line).toBe(
+      "macOS, Windows, Linux, ChromeOS, iOS, iPadOS, and Android"
+    );
   });
 });

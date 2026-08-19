@@ -1,0 +1,10 @@
+{
+  "name": "AlDente",
+  "unique_identifier": "com.apphousekitchen.aldente-pro",
+  "token": "aldente",
+  "installer_format": "dmg",
+  "slug": "aldente/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

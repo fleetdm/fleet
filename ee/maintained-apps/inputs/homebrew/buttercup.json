@@ -1,0 +1,10 @@
+{
+  "name": "Buttercup",
+  "unique_identifier": "pw.buttercup.desktop",
+  "token": "buttercup",
+  "installer_format": "dmg",
+  "slug": "buttercup/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

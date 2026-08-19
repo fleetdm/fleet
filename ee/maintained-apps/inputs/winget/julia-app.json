@@ -1,0 +1,15 @@
+{
+  "name": "Julia",
+  "slug": "julia-app/windows",
+  "package_identifier": "Julialang.Julia",
+  "unique_identifier": "Julia",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/julia-app_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/julia-app_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

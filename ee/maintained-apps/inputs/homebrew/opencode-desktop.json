@@ -1,0 +1,10 @@
+{
+  "name": "OpenCode",
+  "unique_identifier": "ai.opencode.desktop",
+  "token": "opencode-desktop",
+  "installer_format": "dmg",
+  "slug": "opencode-desktop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -17,7 +17,8 @@
   }
 
   &__mdm-urls-container,
-  &__tenants-container {
+  &__tenants-container,
+  &__client-ids-container {
     display: flex;
     flex-direction: column;
     gap: $pad-large;

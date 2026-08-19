@@ -12,8 +12,10 @@ import {
   MdmEnrollmentStatus,
   BootstrapPackageStatus,
   DiskEncryptionStatus,
+  HostNameSettingStatus,
 } from "./mdm";
 import { HostPlatform } from "./platform";
+import { IHostCustomVital } from "./custom_host_vitals";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -118,6 +120,11 @@ export type RecoveryLockPasswordStatus =
   | "pending"
   | "failed";
 
+export interface IHostMdmHostNameSetting {
+  status: HostNameSettingStatus;
+  detail: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
@@ -129,9 +136,13 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  host_name?: IHostMdmHostNameSetting;
   managed_local_account?: {
     status: string | null;
+    detail?: string;
     password_available: boolean;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
   };
   certificates: IHostAndroidCert[];
 }
@@ -149,7 +160,13 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
+export type HostMdmPendingAction =
+  | "unlock"
+  | "lock"
+  | "wipe"
+  | "clear_passcode"
+  | "location"
+  | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -171,6 +188,15 @@ export interface IHostMdmData {
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
+  /**
+   * wipe/lock/clear_passcode_allowed indicate whether the corresponding MDM
+   * commands are permitted for this host based on the AccessRights delivered
+   * in the host's manual (SCEP/ACME) enrollment profile. They are only
+   * populated for the host-details endpoint; absent on list-hosts payloads.
+   */
+  wipe_allowed?: boolean;
+  lock_allowed?: boolean;
+  clear_passcode_allowed?: boolean;
 }
 
 export interface IHostMaintenanceWindow {
@@ -236,8 +262,12 @@ export interface IHostResponse {
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
+  /** @deprecated use `org_logo_url_dark_mode` */
   org_logo_url: string;
+  /** @deprecated use `org_logo_url_light_mode` */
   org_logo_url_light_background: string;
+  org_logo_url_dark_mode?: string;
+  org_logo_url_light_mode?: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -268,6 +298,8 @@ export interface IHostManagedAccountPasswordResponse {
     username: string;
     password: string;
     updated_at: string;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
   };
 }
 
@@ -287,6 +319,63 @@ export interface IHostEndUser {
     email: string;
     source: string;
   }>;
+}
+
+/** Cellular radio technology an iOS/iPadOS device supports. Apple reports an
+ * integer code, which the API maps to these labels — `"unknown"` covers a code
+ * Apple has added that Fleet doesn't recognize yet (see
+ * fleet.MDMAppleCellularTechnology).
+ * https://developer.apple.com/documentation/devicemanagement/deviceinformationresponse/queryresponses-data.dictionary */
+export type HostMdmAppleCellularTechnology =
+  | "None"
+  | "GSM"
+  | "CDMA"
+  | "GSM and CDMA"
+  | "unknown";
+
+export interface IHostMdmAppleAccessibilitySettings {
+  bold_text_enabled?: boolean;
+  grayscale_enabled?: boolean;
+  increase_contrast_enabled?: boolean;
+  reduce_motion_enabled?: boolean;
+  reduce_transparency_enabled?: boolean;
+  text_size?: number;
+  touch_accommodations_enabled?: boolean;
+  voice_over_enabled?: boolean;
+  zoom_enabled?: boolean;
+}
+
+export interface IHostMdmAppleOrganizationInfo {
+  organization_name?: string;
+  organization_address?: string;
+  organization_phone?: string;
+  organization_email?: string;
+  organization_magic?: string;
+}
+
+export interface IHostMdmAppleDeviceVitalsMdmOptions {
+  activation_lock_allowed_while_supervised?: boolean;
+  bootstrap_token_allowed?: boolean;
+  prompt_user_to_allow_bootstrap_token_for_authentication?: boolean;
+}
+
+export interface IHostMdmAppleServiceSubscription {
+  slot: string;
+  carrier_settings_version?: string;
+  current_carrier_network?: string;
+  current_mcc?: string;
+  current_mnc?: string;
+  eid?: string;
+  iccid?: string;
+  imei?: string;
+  is_data_preferred?: boolean;
+  is_roaming?: boolean;
+  is_voice_preferred?: boolean;
+  label?: string;
+  label_id?: string;
+  meid?: string;
+  phone_number?: string;
+  subscriber_carrier_network?: string;
 }
 
 export interface IHost {
@@ -322,9 +411,11 @@ export interface IHost {
   cpu_logical_cores: number;
   hardware_vendor: string;
   hardware_model: string;
+  hardware_marketing_name: string;
   hardware_version: string;
   hardware_serial: string;
   computer_name: string;
+  timezone: string | null;
   public_ip: string;
   primary_ip: string;
   primary_mac: string;
@@ -363,8 +454,48 @@ export interface IHost {
   device_mapping: IDeviceUser[] | null;
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
+  custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
   mdm_enrollment_hardware_attested?: boolean;
+  dep_assigned_to_fleet: boolean;
+  /** The OS version this host is required to reach. Null when OS updates
+   * aren't configured for the host's fleet, and "Pending" while Fleet is still
+   * resolving the target for a "latest" requirement. */
+  os_update_minimum_version?: string | null;
+  /** The date by which os_update_minimum_version must be installed, in
+   * YYYY-MM-DD. Null and "Pending" follow os_update_minimum_version. */
+  os_update_deadline?: string | null;
+  // iOS/iPadOS-only vitals collected via the DeviceInformation MDM command.
+  // Omitted entirely (not just null) for every other platform.
+  udid?: string;
+  model_number?: string;
+  modem_firmware_version?: string;
+  supplemental_build_version?: string;
+  supplemental_os_version_extra?: string;
+  bluetooth_mac?: string;
+  wifi_mac?: string;
+  eas_device_identifier?: string;
+  itunes_store_account_hash?: string;
+  push_token?: string;
+  battery_level?: number;
+  cellular_technology?: HostMdmAppleCellularTechnology;
+  app_analytics_enabled?: boolean;
+  awaiting_configuration?: boolean;
+  data_roaming_enabled?: boolean;
+  diagnostic_submission_enabled?: boolean;
+  is_cloud_backup_enabled?: boolean;
+  is_device_locator_service_enabled?: boolean;
+  is_do_not_disturb_in_effect?: boolean;
+  is_mdm_lost_mode_enabled?: boolean;
+  is_network_tethered?: boolean;
+  itunes_store_account_is_active?: boolean;
+  personal_hotspot_enabled?: boolean;
+  last_cloud_backup_date?: string;
+  accessibility_settings?: IHostMdmAppleAccessibilitySettings;
+  organization_info?: IHostMdmAppleOrganizationInfo;
+  mdm_options?: IHostMdmAppleDeviceVitalsMdmOptions;
+  device_properties_attestation?: string[];
+  service_subscriptions?: IHostMdmAppleServiceSubscription[];
 }
 
 /*

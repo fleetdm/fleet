@@ -1,17 +1,18 @@
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import React, { useContext } from "react";
+import React from "react";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "script-list-item";
 
@@ -46,15 +47,15 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
     const filename = `${formatDate} ${script.name}`;
     const file = new File([content], filename);
     FileSaver.saveAs(file);
-  } catch {
-    renderFlash("error", "Couldn’t Download. Please try again.");
+  } catch (e) {
+    notify.error("Couldn’t Download. Please try again.", { response: e });
   }
 };
 
@@ -82,66 +83,75 @@ const ScriptListItem = ({
   onEdit,
   isTechnician,
 }: IScriptListItemProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
-  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickEdit = () => {
     onEdit(script);
   };
 
-  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
-    onDownload(script, renderFlash);
+  const onClickDownload = () => {
+    onDownload(script);
   };
 
-  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickDelete = () => {
     onDelete(script);
   };
 
   const actions = (
-    <>
+    <div
+      className={`${baseClass}__actions`}
+      onClick={(evt) => evt.stopPropagation()}
+    >
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
-            variant="icon"
-          >
-            <Icon name="pencil" />
-          </Button>
+            variant="secondary"
+            ariaLabel={`Edit ${script.name}`}
+            icon="pencil"
+          />
         )}
       />
       <Button
         className={`${baseClass}__action-button`}
-        variant="icon"
+        variant="secondary"
         onClick={onClickDownload}
-      >
-        <Icon name="download" />
-      </Button>
+        ariaLabel={`Download ${script.name}`}
+        icon="download"
+      />
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
-            variant="icon"
-          >
-            <Icon name="trash" />
-          </Button>
+            variant="secondary"
+            ariaLabel={`Delete ${script.name}`}
+            icon="trash"
+          />
         )}
       />
-    </>
+    </div>
   );
 
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="link">{script.name}</Button>}
+      title={
+        <TooltipWrapper
+          tipContent={`ID: ${script.id}`}
+          underline={false}
+          position="top"
+          showArrow
+        >
+          <Button variant="link" className={`${baseClass}__title-button`}>
+            <TooltipTruncatedText value={script.name} fixedPositionStrategy />
+          </Button>
+        </TooltipWrapper>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}

@@ -13,10 +13,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -89,6 +89,25 @@ type RedisConfig struct {
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
+	// HostCacheEnabled turns on the Redis-backed cache that fronts
+	// LoadHostByNodeKey and LoadHostByOrbitNodeKey on the osquery and orbit
+	// authentication paths. When false, every authenticated request resolves the
+	// host from MySQL; when true (default), successful lookups are cached in
+	// Redis and invalidated on write paths. Hidden from --help: this is a
+	// feature flag, not an operator-facing tunable. See
+	// server/datastore/mysqlredis/host_cache.go.
+	HostCacheEnabled bool `yaml:"host_cache_enabled"`
+	// HostCacheTTL is the base TTL for cached host lookup entries. Actual
+	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
+	// Only meaningful when HostCacheEnabled is true. Hidden from --help.
+	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
+	// LiveQuerySmallTargetThreshold is the maximum number of targeted hosts for a
+	// live query to use the per-host reverse index instead of a fleet-wide
+	// bitfield. Storing small-target queries as a per-host set means a host
+	// checkin no longer issues one GETBIT per such query. Set to 0 to disable the
+	// reverse index entirely (kill-switch) and use the bitfield for all live
+	// queries.
+	LiveQuerySmallTargetThreshold int `yaml:"live_query_small_target_threshold"`
 }
 
 const (
@@ -117,11 +136,14 @@ type ServerConfig struct {
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	VPPInstallReapTimeout            time.Duration `yaml:"vpp_install_reap_timeout"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
+	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
+	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -157,12 +179,70 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
+// allowedURLPrefixRegexp matches a non-empty slash-prefixed path made of
+// `/segment[/segment...]` where each segment is one or more URL-safe characters.
+var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
+
+// Validate checks server-side private key configuration: private_key and
+// private_key_arn cannot both be set. Called early so a misconfigured server
+// fails before paying for an external Secrets Manager lookup.
+func (s ServerConfig) Validate(initFatal func(err error, msg string)) {
+	if s.PrivateKey != "" && s.PrivateKeySecretArn != "" {
+		initFatal(errors.New("cannot specify both private_key and private_key_arn"),
+			"validate private key configuration")
+	}
+}
+
+// ValidatePrivateKeyLength enforces a 32-byte minimum on the (possibly
+// Secrets-Manager-resolved) private key. Called after Secrets Manager
+// retrieval so an SM-provided short key is also caught.
+func (s ServerConfig) ValidatePrivateKeyLength(initFatal func(err error, msg string)) {
+	if len(s.PrivateKey) > 0 && len(s.PrivateKey) < 32 {
+		initFatal(errors.New("private key must be at least 32 bytes long"),
+			"validate private key")
+	}
+}
+
+// NormalizeURLPrefix trims a trailing slash and ensures a leading slash on
+// the configured URL prefix. Mutates the receiver; safe to call when empty.
+// Call before ValidateURLPrefix.
+//
+// A user-supplied "/" trims down to "" and would otherwise be indistinguishable
+// from "no prefix configured" by ValidateURLPrefix. Restore it to "/" so the
+// regex check rejects it instead of silently accepting a misconfiguration.
+func (s *ServerConfig) NormalizeURLPrefix() {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	s.URLPrefix = strings.TrimSuffix(s.URLPrefix, "/")
+	if len(s.URLPrefix) == 0 {
+		s.URLPrefix = "/"
+		return
+	}
+	if !strings.HasPrefix(s.URLPrefix, "/") {
+		s.URLPrefix = "/" + s.URLPrefix
+	}
+}
+
+// ValidateURLPrefix checks the URL prefix against the allowed pattern.
+// Should be called after NormalizeURLPrefix; an empty prefix is allowed.
+func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	if !allowedURLPrefixRegexp.MatchString(s.URLPrefix) {
+		initFatal(fmt.Errorf("prefix must match regexp %q", allowedURLPrefixRegexp.String()),
+			"setting server URL prefix")
+	}
+}
+
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
 	BcryptCost                  int           `yaml:"bcrypt_cost"`
 	SaltKeySize                 int           `yaml:"salt_key_size"`
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -212,12 +292,42 @@ type OsqueryConfig struct {
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 
-	// MaxLogWriteBodySize overrides the default body size limit for the
-	// osquery/log endpoint. A value of 0 means use the built-in default.
+	// MaxLogWriteBodySize overrides the default request body size limit
+	// for the /api/osquery/log endpoint. A value of 0 means use the
+	// built-in default (DefaultMaxOsqueryLogWriteSize). This setting
+	// only takes effect when allow_body_auth_fallback is true (legacy
+	// body-auth mode). When allow_body_auth_fallback is false (header-
+	// auth mode) the route is not subject to any body size limit.
 	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
-	// MaxDistributedWriteBodySize overrides the default body size limit for the
-	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
+	// MaxDistributedWriteBodySize is the equivalent of MaxLogWriteBodySize
+	// for /api/osquery/distributed/write.
 	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
+
+	// AllowBodyAuthFallback selects which authentication scheme is in
+	// effect for host-authenticated osquery requests.
+	//
+	//   - true (default): the Authorization: NodeKey header is ignored
+	//     entirely. The node_key extracted from the JSON body
+	//     is the sole authenticator.
+	//   - false: the Authorization: NodeKey header is required and the
+	//     body's node_key field is ignored. Pre-auth rejects
+	//     absent/invalid headers BEFORE the body is read.
+	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
+}
+
+// Validate checks that osquery_host_identifier is one of the supported values.
+// The osquery agent uses this to determine which identifier is reported as the host UUID.
+func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
+	allowed := map[string]struct{}{
+		"provided": {},
+		"instance": {},
+		"uuid":     {},
+		"hostname": {},
+	}
+	if _, ok := allowed[o.HostIdentifier]; !ok {
+		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
+			"set host identifier")
+	}
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -288,6 +398,15 @@ type LoggingConfig struct {
 	DisableLogTopics string `yaml:"disable_topics"`
 }
 
+// Validate checks logging configuration consistency: OTEL log export requires
+// tracing to be enabled so log records carry trace IDs.
+func (l LoggingConfig) Validate(initFatal func(err error, msg string)) {
+	if l.OtelLogsEnabled && !l.TracingEnabled {
+		initFatal(errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
+			"OTEL logs require tracing for trace correlation")
+	}
+}
+
 // ActivityConfig defines configs related to activities.
 type ActivityConfig struct {
 	// EnableAuditLog enables logging for audit activities.
@@ -331,6 +450,7 @@ type SESConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
+	SenderDomain     string `yaml:"sender_domain"`
 }
 
 type EmailConfig struct {
@@ -362,16 +482,20 @@ type S3Config struct {
 	DisableSSL       bool   `yaml:"disable_ssl"`
 	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 
-	CarvesBucket           string `yaml:"carves_bucket"`
-	CarvesPrefix           string `yaml:"carves_prefix"`
-	CarvesRegion           string `yaml:"carves_region"`
-	CarvesEndpointURL      string `yaml:"carves_endpoint_url"`
-	CarvesAccessKeyID      string `yaml:"carves_access_key_id"`
-	CarvesSecretAccessKey  string `yaml:"carves_secret_access_key"`
-	CarvesStsAssumeRoleArn string `yaml:"carves_sts_assume_role_arn"`
-	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
-	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
-	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
+	CarvesBucket             string `yaml:"carves_bucket"`
+	CarvesPrefix             string `yaml:"carves_prefix"`
+	CarvesRegion             string `yaml:"carves_region"`
+	CarvesEndpointURL        string `yaml:"carves_endpoint_url"`
+	CarvesAccessKeyID        string `yaml:"carves_access_key_id"`
+	CarvesSecretAccessKey    string `yaml:"carves_secret_access_key"`
+	CarvesStsAssumeRoleArn   string `yaml:"carves_sts_assume_role_arn"`
+	CarvesStsExternalID      string `yaml:"carves_sts_external_id"`
+	CarvesDisableSSL         bool   `yaml:"carves_disable_ssl"`
+	CarvesForceS3PathStyle   bool   `yaml:"carves_force_s3_path_style"`
+	CarvesGCSIAMAuth         bool   `yaml:"carves_gcs_iam_auth"`
+	CarvesCleanupDisabled    bool   `yaml:"carves_cleanup_disabled"`
+	CarvesCleanupMaxPerRun   int    `yaml:"carves_cleanup_max_per_run"`
+	CarvesCleanupConcurrency int    `yaml:"carves_cleanup_concurrency"`
 
 	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
 	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
@@ -383,10 +507,17 @@ type S3Config struct {
 	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
 	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
 	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersGCSIAMAuth                      bool          `yaml:"software_installers_gcs_iam_auth"`
 	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads, so clients fetch directly from the
+	// object store. Only supported against a GCS (storage.googleapis.com)
+	// endpoint. This is the GCS counterpart to the CloudFront signing config.
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -418,6 +549,44 @@ func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
 	}
 }
 
+// ValidateSoftwareInstallersSignedURL validates the GCS presigned-URL download
+// option. Presigned downloads are only supported against a GCS endpoint, so we
+// fail fast on any other endpoint to avoid silently proxying large files.
+func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, msg string)) {
+	if !s.SoftwareInstallersSignedURL {
+		return
+	}
+	// Presigned URLs point clients straight at the object store, so require an
+	// https scheme (no plaintext, and newS3Store's resolver needs one) and match
+	// the parsed hostname, not a substring, so a look-alike host can't satisfy it.
+	u, err := url.Parse(s.SoftwareInstallersEndpointURL)
+	if err != nil {
+		initFatal(fmt.Errorf("invalid s3_software_installers_endpoint_url: %w", err),
+			"S3 software installers signed URL")
+		return
+	}
+	if u.Scheme != "https" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	// Presigning needs HMAC credentials. Without them it fails at request time and
+	// Fleet silently proxies every download, which is what this check prevents.
+	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
+	if !s.SoftwareInstallersGCSIAMAuth &&
+		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
+			"S3 software installers signed URL")
+		return
+	}
+}
+
 func (s S3Config) BucketsAndPrefixesMatch() bool {
 	cb := s.CarvesBucket
 	if cb == "" {
@@ -444,6 +613,8 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		StsExternalID:    s.SoftwareInstallersStsExternalID,
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
+		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
+		SignedURL:        s.SoftwareInstallersSignedURL,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -500,6 +671,7 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
+	internal.GCSIAMAuth = s.CarvesGCSIAMAuth
 
 	return internal
 }
@@ -516,7 +688,9 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
+	SignedURL        bool
 }
 
 type S3CloudFrontConfig struct {
@@ -561,6 +735,16 @@ type KafkaRESTConfig struct {
 	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
+// SplunkConfig defines configs for the Splunk HEC logging plugin.
+type SplunkConfig struct {
+	URL                string `json:"url" yaml:"url"`
+	Token              string `json:"token" yaml:"token"`
+	Index              string `json:"index" yaml:"index"`
+	Source             string `json:"source" yaml:"source"`
+	SourceType         string `json:"source_type" yaml:"source_type"`
+	InsecureSkipVerify bool   `json:"insecure_skip_verify" yaml:"insecure_skip_verify"`
+}
+
 // NatsConfig defines configs for the NATS logging plugin.
 type NatsConfig struct {
 	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
@@ -598,6 +782,13 @@ type VulnerabilitiesConfig struct {
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
 	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities" yaml:"osv_for_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
+}
+
+// IsDisabledByInstanceCheck reports whether vulnerability processing is disabled
+// on this instance via the current_instance_checks setting ("no", or the legacy
+// "0"). It does not consider DisableSchedule, which disables processing globally.
+func (v VulnerabilitiesConfig) IsDisabledByInstanceCheck() bool {
+	return v.CurrentInstanceChecks == "no" || v.CurrentInstanceChecks == "0"
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -666,6 +857,7 @@ type FleetConfig struct {
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
 	Nats                       NatsConfig
+	Splunk                     SplunkConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -674,6 +866,7 @@ type FleetConfig struct {
 	Prometheus                 PrometheusConfig
 	MDM                        MDMConfig
 	Calendar                   CalendarConfig
+	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
@@ -719,18 +912,9 @@ func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string))
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
-// Currently only set on Cloud environments.
 type MicrosoftCompliancePartnerConfig struct {
-	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
-	ProxyAPIKey string `yaml:"proxy_api_key"`
 	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
 	ProxyURI string `yaml:"proxy_uri"`
-}
-
-// IsSet returns if the compliance partner configuration is set.
-// Currently only set on Cloud environments.
-func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
-	return m.ProxyAPIKey != ""
 }
 
 type MDMConfig struct {
@@ -804,12 +988,43 @@ type MDMConfig struct {
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
 
-	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
-	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
+	SSORateLimitPerMinute    int `yaml:"sso_rate_limit_per_minute"`
+	CertificateProfilesLimit int `yaml:"certificate_profiles_limit"`
+	// Deprecated: Use EnableCustomFileVault instead, as Custom OS updates is now allowed by default, and has no effect.
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
-	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
+	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
+	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
+	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
+	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
+	// AllowCustomActivations opts in to custom DDM activations. Off by default
+	// because a predicate Fleet cannot validate can wedge a host's MDM
+	// subsystem beyond remote recovery -- see Apple FB24193230 and #50764.
+	AllowCustomActivations bool `yaml:"allow_custom_activations"`
 
-	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
+	// not complete end user authentication is allowed to enroll into a team that
+	// requires it. Defaults to true so that agents predating end user
+	// authentication (and installers built with `fleetctl package
+	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
+	// end user authentication for all Orbit enrollments.
+	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
+
+	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
+	AndroidBatchSize int                `yaml:"android_batch_size"`
+}
+
+// IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
+// (and deprecated) options enables the behavior.
+func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
+	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
+}
+
+// ValidateAndroidBatchSize checks that the configured batch size is non-negative.
+func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string)) {
+	if m.AndroidBatchSize < 0 {
+		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
+			"Android MDM configuration")
+	}
 }
 
 // AndroidAgentConfig holds configuration for the Fleet Android agent.
@@ -846,6 +1061,53 @@ func (c *CalendarConfig) AlwaysReloadEvent() bool {
 
 func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 	c.alwaysReloadEvent = value
+}
+
+// Defaults for the Google Workspace directory sync limits. They are safety rails
+// against runaway pagination and unbounded memory growth, sized above what any real
+// tenant is expected to have, not tuning knobs:
+//
+//   - Users: Google publishes no per-account cap; 500,000 (1,000 pages of 500) is
+//     far above the largest directory Fleet expects to sync.
+//   - Groups: also uncapped by Google. 100,000 also bounds the per-group member
+//     fan-out, since members are fetched one group at a time (it does not bound how
+//     long a pass takes: 100,000 sequential member listings is already a long sync).
+//   - Members per group: Google itself enforces a hard limit of 50,000 direct
+//     members per group, so 60,000 sits just above a ceiling Google won't exceed.
+//   - Total memberships: every group's members are held until the pull is
+//     reconciled, so the sum is the dominant memory term.
+const (
+	DefaultGoogleWorkspaceMaxUsers            = 500_000
+	DefaultGoogleWorkspaceMaxGroups           = 100_000
+	DefaultGoogleWorkspaceMaxGroupMembers     = 60_000
+	DefaultGoogleWorkspaceMaxGroupMemberships = 5_000_000
+)
+
+// GoogleWorkspaceConfig holds the limits applied to one directory sync pass. These
+// are hidden settings: they exist so an operator with a directory larger than the
+// defaults can be unblocked without waiting for a Fleet release. A value of 0
+// disables the corresponding limit.
+type GoogleWorkspaceConfig struct {
+	MaxUsers            int `yaml:"max_users"`
+	MaxGroups           int `yaml:"max_groups"`
+	MaxGroupMembers     int `yaml:"max_group_members"`
+	MaxGroupMemberships int `yaml:"max_group_memberships"`
+}
+
+// Validate checks that the sync limits are non-negative, so a typo can't silently
+// disable a safety rail.
+func (g GoogleWorkspaceConfig) Validate(initFatal func(err error, msg string)) {
+	for setting, value := range map[string]int{
+		"google_workspace.max_users":             g.MaxUsers,
+		"google_workspace.max_groups":            g.MaxGroups,
+		"google_workspace.max_group_members":     g.MaxGroupMembers,
+		"google_workspace.max_group_memberships": g.MaxGroupMemberships,
+	} {
+		if value < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no limit), got %d", setting, value),
+				"Google Workspace configuration")
+		}
+	}
 }
 
 type x509KeyPairConfig struct {
@@ -934,6 +1196,20 @@ func (m *MDMConfig) IsAppleBMSet() bool {
 	}
 	// the BM token options is not taken into account by pair.IsSet
 	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
+}
+
+// ValidateAppleAPNSAndSCEPPair enforces that Apple APNs and SCEP are
+// configured together — neither half of the pair is usable on its own.
+// Callers should gate this on a precondition that at least one side is set
+// (the outer Apple-MDM init flow handles that today).
+func (m *MDMConfig) ValidateAppleAPNSAndSCEPPair(initFatal func(err error, msg string)) {
+	if !m.IsAppleAPNsSet() {
+		initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
+			"validate Apple MDM")
+	} else if !m.IsAppleSCEPSet() {
+		initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
+			"validate Apple MDM")
+	}
 }
 
 // AppleAPNs returns the parsed TLS certificate for Apple APNs.
@@ -1197,6 +1473,17 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
 	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
+	man.addConfigBool("redis.host_cache_enabled", true,
+		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
+			"and serve every check-in from MySQL.")
+	man.addConfigDuration("redis.host_cache_ttl", 180*time.Second,
+		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
+			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
+			"redis.host_cache_enabled=false to disable the cache.")
+	man.addConfigInt("redis.live_query_small_target_threshold", 1000,
+		"Maximum number of targeted hosts for a live query to use the per-host reverse index instead of a "+
+			"fleet-wide bitfield, avoiding one GETBIT per query on every host check-in. Set to 0 to disable "+
+			"the reverse index and use the bitfield for all live queries.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1226,11 +1513,15 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
+	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1245,6 +1536,8 @@ func (man Manager) addConfigs() {
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
+	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
+		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1310,9 +1603,11 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
-		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
-		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.allow_body_auth_fallback", true,
+		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1351,6 +1646,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+	man.addConfigString("ses.sender_domain", "", "Optional domain to use in the From address for SES emails. If empty, Fleet uses the hostname from the Fleet Web Address (server_settings.server_url)")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1440,6 +1736,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.carves_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.carves_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
+	man.addConfigBool("s3.carves_cleanup_disabled", false, "Disable the periodic cleanup that marks carves whose S3 object no longer exists as expired")
+	man.addConfigInt("s3.carves_cleanup_max_per_run", 1000, "Maximum number of carves the S3 cleanup reconciles (and S3 HeadObject requests it makes) per run")
+	man.addConfigInt("s3.carves_cleanup_concurrency", 32, "Number of concurrent S3 HeadObject probes the carve cleanup performs")
 
 	// S3 for software installers
 	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
@@ -1452,9 +1752,11 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.software_installers_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1504,6 +1806,14 @@ func (man Manager) addConfigs() {
 	man.addConfigString("nats.compression", "", "NATS compression algorithm (gzip, snappy, zstd)")
 	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
 	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
+
+	// Splunk
+	man.addConfigString("splunk.url", "", "Splunk HEC URL (e.g. https://splunk.example.com:8088)")
+	man.addConfigString("splunk.token", "", "Splunk HEC authentication token")
+	man.addConfigString("splunk.index", "", "Splunk index to send events to")
+	man.addConfigString("splunk.source", "", "Splunk source value for events")
+	man.addConfigString("splunk.source_type", "", "Splunk sourcetype value for events")
+	man.addConfigBool("splunk.insecure_skip_verify", false, "Skip TLS certificate verification for Splunk HEC (for self-signed certs)")
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
@@ -1602,12 +1912,18 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
-	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
+	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
 	man.hideConfig("mdm.android_agent.signing_sha256")
+	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
+	man.hideConfig("mdm.android_batch_size")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1615,11 +1931,24 @@ func (man Manager) addConfigs() {
 		"How much time to wait between processing calendar integration.",
 	)
 
+	// Google Workspace directory sync limits (hidden; safety rails, not tuning knobs)
+	man.addConfigInt("google_workspace.max_users", DefaultGoogleWorkspaceMaxUsers,
+		"Maximum users pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.addConfigInt("google_workspace.max_groups", DefaultGoogleWorkspaceMaxGroups,
+		"Maximum groups pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.addConfigInt("google_workspace.max_group_members", DefaultGoogleWorkspaceMaxGroupMembers,
+		"Maximum members pulled for a single Google Workspace group (0 = no limit)")
+	man.addConfigInt("google_workspace.max_group_memberships", DefaultGoogleWorkspaceMaxGroupMemberships,
+		"Maximum total group memberships pulled from a Google Workspace directory in one sync (0 = no limit)")
+	man.hideConfig("google_workspace.max_users")
+	man.hideConfig("google_workspace.max_groups")
+	man.hideConfig("google_workspace.max_group_members")
+	man.hideConfig("google_workspace.max_group_memberships")
+
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 
 	// Microsoft Compliance Partner
-	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
@@ -1668,33 +1997,36 @@ func (man Manager) LoadConfig() FleetConfig {
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
-			Address:                   man.getConfigString("redis.address"),
-			Username:                  man.getConfigString("redis.username"),
-			Password:                  man.getConfigString("redis.password"),
-			Database:                  man.getConfigInt("redis.database"),
-			Region:                    man.getConfigString("redis.region"),
-			CacheName:                 man.getConfigString("redis.cache_name"),
-			UseTLS:                    man.getConfigBool("redis.use_tls"),
-			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
-			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
-			KeepAlive:                 man.getConfigDuration("redis.keep_alive"),
-			ConnectRetryAttempts:      man.getConfigInt("redis.connect_retry_attempts"),
-			ClusterFollowRedirections: man.getConfigBool("redis.cluster_follow_redirections"),
-			ClusterReadFromReplica:    man.getConfigBool("redis.cluster_read_from_replica"),
-			TLSCert:                   man.getConfigString("redis.tls_cert"),
-			TLSKey:                    man.getConfigString("redis.tls_key"),
-			TLSCA:                     man.getConfigString("redis.tls_ca"),
-			TLSServerName:             man.getConfigString("redis.tls_server_name"),
-			TLSHandshakeTimeout:       man.getConfigDuration("redis.tls_handshake_timeout"),
-			MaxIdleConns:              man.getConfigInt("redis.max_idle_conns"),
-			MaxOpenConns:              man.getConfigInt("redis.max_open_conns"),
-			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
-			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
-			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
-			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
-			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
-			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
-			StsExternalID:             man.getConfigString("redis.sts_external_id"),
+			Address:                       man.getConfigString("redis.address"),
+			Username:                      man.getConfigString("redis.username"),
+			Password:                      man.getConfigString("redis.password"),
+			Database:                      man.getConfigInt("redis.database"),
+			Region:                        man.getConfigString("redis.region"),
+			CacheName:                     man.getConfigString("redis.cache_name"),
+			UseTLS:                        man.getConfigBool("redis.use_tls"),
+			DuplicateResults:              man.getConfigBool("redis.duplicate_results"),
+			ConnectTimeout:                man.getConfigDuration("redis.connect_timeout"),
+			KeepAlive:                     man.getConfigDuration("redis.keep_alive"),
+			ConnectRetryAttempts:          man.getConfigInt("redis.connect_retry_attempts"),
+			ClusterFollowRedirections:     man.getConfigBool("redis.cluster_follow_redirections"),
+			ClusterReadFromReplica:        man.getConfigBool("redis.cluster_read_from_replica"),
+			TLSCert:                       man.getConfigString("redis.tls_cert"),
+			TLSKey:                        man.getConfigString("redis.tls_key"),
+			TLSCA:                         man.getConfigString("redis.tls_ca"),
+			TLSServerName:                 man.getConfigString("redis.tls_server_name"),
+			TLSHandshakeTimeout:           man.getConfigDuration("redis.tls_handshake_timeout"),
+			MaxIdleConns:                  man.getConfigInt("redis.max_idle_conns"),
+			MaxOpenConns:                  man.getConfigInt("redis.max_open_conns"),
+			ConnMaxLifetime:               man.getConfigDuration("redis.conn_max_lifetime"),
+			IdleTimeout:                   man.getConfigDuration("redis.idle_timeout"),
+			ConnWaitTimeout:               man.getConfigDuration("redis.conn_wait_timeout"),
+			WriteTimeout:                  man.getConfigDuration("redis.write_timeout"),
+			ReadTimeout:                   man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:              man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:                 man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:              man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:                  man.getConfigDuration("redis.host_cache_ttl"),
+			LiveQuerySmallTargetThreshold: man.getConfigInt("redis.live_query_small_target_threshold"),
 		},
 		Server: ServerConfig{
 			Address:                          man.getConfigString("server.address"),
@@ -1715,17 +2047,21 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			VPPInstallReapTimeout:            man.getConfigDuration("server.vpp_install_reap_timeout"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
+			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
+			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
 			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1764,6 +2100,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
+			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
@@ -1824,6 +2161,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
+			SenderDomain:     man.getConfigString("ses.sender_domain"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -1867,6 +2205,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			Compression:      man.getConfigString("nats.compression"),
 			JetStream:        man.getConfigBool("nats.jetstream"),
 			Timeout:          man.getConfigDuration("nats.timeout"),
+		},
+		Splunk: SplunkConfig{
+			URL:                man.getConfigString("splunk.url"),
+			Token:              man.getConfigString("splunk.token"),
+			Index:              man.getConfigString("splunk.index"),
+			Source:             man.getConfigString("splunk.source"),
+			SourceType:         man.getConfigString("splunk.source_type"),
+			InsecureSkipVerify: man.getConfigBool("splunk.insecure_skip_verify"),
 		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
@@ -1930,22 +2276,32 @@ func (man Manager) LoadConfig() FleetConfig {
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
+			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
+			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
+			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		GoogleWorkspace: GoogleWorkspaceConfig{
+			MaxUsers:            man.getConfigInt("google_workspace.max_users"),
+			MaxGroups:           man.getConfigInt("google_workspace.max_groups"),
+			MaxGroupMembers:     man.getConfigInt("google_workspace.max_group_members"),
+			MaxGroupMemberships: man.getConfigInt("google_workspace.max_group_memberships"),
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
-			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
-			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
@@ -1962,16 +2318,20 @@ func (man Manager) LoadConfig() FleetConfig {
 
 func (man Manager) loadS3Config() S3Config {
 	return S3Config{
-		CarvesBucket:           man.getConfigString("s3.carves_bucket"),
-		CarvesPrefix:           man.getConfigString("s3.carves_prefix"),
-		CarvesRegion:           man.getConfigString("s3.carves_region"),
-		CarvesEndpointURL:      man.getConfigString("s3.carves_endpoint_url"),
-		CarvesAccessKeyID:      man.getConfigString("s3.carves_access_key_id"),
-		CarvesSecretAccessKey:  man.getConfigString("s3.carves_secret_access_key"),
-		CarvesStsAssumeRoleArn: man.getConfigString("s3.carves_sts_assume_role_arn"),
-		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
-		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
-		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesBucket:             man.getConfigString("s3.carves_bucket"),
+		CarvesPrefix:             man.getConfigString("s3.carves_prefix"),
+		CarvesRegion:             man.getConfigString("s3.carves_region"),
+		CarvesEndpointURL:        man.getConfigString("s3.carves_endpoint_url"),
+		CarvesAccessKeyID:        man.getConfigString("s3.carves_access_key_id"),
+		CarvesSecretAccessKey:    man.getConfigString("s3.carves_secret_access_key"),
+		CarvesStsAssumeRoleArn:   man.getConfigString("s3.carves_sts_assume_role_arn"),
+		CarvesStsExternalID:      man.getConfigString("s3.carves_sts_external_id"),
+		CarvesDisableSSL:         man.getConfigBool("s3.carves_disable_ssl"),
+		CarvesForceS3PathStyle:   man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesGCSIAMAuth:         man.getConfigBool("s3.carves_gcs_iam_auth"),
+		CarvesCleanupDisabled:    man.getConfigBool("s3.carves_cleanup_disabled"),
+		CarvesCleanupMaxPerRun:   man.getConfigInt("s3.carves_cleanup_max_per_run"),
+		CarvesCleanupConcurrency: man.getConfigInt("s3.carves_cleanup_concurrency"),
 
 		Bucket:           man.getConfigString("s3.bucket"),
 		Prefix:           man.getConfigString("s3.prefix"),
@@ -1994,9 +2354,11 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
 		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
 		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersGCSIAMAuth:                      man.getConfigBool("s3.software_installers_gcs_iam_auth"),
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 
@@ -2310,15 +2672,16 @@ func TestConfig() FleetConfig {
 			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:          24,
-			HostIdentifier:       "instance",
-			EnrollCooldown:       42 * time.Minute,
-			StatusLogPlugin:      "filesystem",
-			ResultLogPlugin:      "filesystem",
-			LabelUpdateInterval:  1 * time.Hour,
-			PolicyUpdateInterval: 1 * time.Hour,
-			DetailUpdateInterval: 1 * time.Hour,
-			MaxJitterPercent:     0,
+			NodeKeySize:           24,
+			HostIdentifier:        "instance",
+			EnrollCooldown:        42 * time.Minute,
+			StatusLogPlugin:       "filesystem",
+			ResultLogPlugin:       "filesystem",
+			LabelUpdateInterval:   1 * time.Hour,
+			PolicyUpdateInterval:  1 * time.Hour,
+			DetailUpdateInterval:  1 * time.Hour,
+			MaxJitterPercent:      0,
+			AllowBodyAuthFallback: true,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,
@@ -2342,7 +2705,18 @@ func TestConfig() FleetConfig {
 		Vulnerabilities: VulnerabilitiesConfig{
 			OSVForVulnerabilities: true,
 		},
+		MDM: MDMConfig{
+			AllowOrbitEndUserAuthBypass: true,
+		},
 	}
+}
+
+// TestingT is the subset of *testing.T that SetTestMDMConfig needs.
+// *testing.T (and testing.TB) satisfy it without an explicit conversion, so
+// callers continue to pass `t` as-is. Defining this interface locally keeps
+// the "testing" package out of this package's production import graph.
+type TestingT interface {
+	Fatal(args ...any)
 }
 
 // SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
@@ -2350,7 +2724,7 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t TestingT, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 
 	if wstepCertAndKeyDir == "" {

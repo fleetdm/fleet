@@ -9,7 +9,7 @@ Fleetd will send stdout/stderr logs to the following directories:
 
 - macOS: `/var/log/orbit/orbit.std{out|err}.log`.
 - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
-- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
+- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora and Arch).
 
 If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
 - macOS: `/opt/orbit/osquery_log`
@@ -50,9 +50,28 @@ For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-
 pbpaste | base64 -d
 ```
 
+
 ## MDM troubleshooting
 
 Fleet's MDM software engineering team has created a resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
+
+If the device is enrolled in Fleet, you can grab `mdmclient` logs remotely with this query:
+
+```sql
+SELECT
+  timestamp,
+  datetime(timestamp, 'unixepoch') AS event_time,
+  process,
+  subsystem,
+  category,
+  level,
+  message
+FROM unified_log
+WHERE timestamp > (SELECT unix_time - 3600 FROM time)
+  AND process = 'mdmclient'
+  AND subsystem = 'com.apple.ManagedClient'
+```
+
 
 ## Server-side logs
 
@@ -68,3 +87,15 @@ fleetctl debug errors
 <meta name="publishedOn" value="2026-02-13">
 <meta name="articleTitle" value="Fleet troubleshooting for IT admins">
 <meta name="description" value="Basic troubleshooting steps for when things go wrong.">
+
+## iOS & iPadOS MDMClient logs
+
+You can obtain MDMClient related logs on iOS and iPadOS using sysdiagnose. This will assist with troubleshooting MDM command and profile delivery issues to those devices.
+
+- Hold down **Power** and **Volume Up + Down** buttons together for ~ 1 second
+- An iPhone will vibrate once, and trigger a screenshot (iPad will trigger a screenshot)
+- Wait a few minutes for the log archive to be generated
+- Go to **Settings > Privacy & Security > Analytics & Improvements > Analytics Data**
+- Search for `sysdiag` and share the `.tar.gz` file
+- Search the archive for `system_logs.logarchive` and open with **Console**
+- Filter for `mdmclient`

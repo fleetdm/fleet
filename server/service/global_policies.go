@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,7 +36,9 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Platform:         req.Platform,
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
+		LabelsExcludeAll: req.LabelsExcludeAll,
 		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
@@ -59,7 +62,21 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), vc.User); err != nil {
+	if p.QueryID != nil {
+		query, err := svc.ds.Query(ctx, *p.QueryID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get query for policy")
+		}
+		if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	}
+
+	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -91,51 +108,23 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ListGlobalPoliciesRequest)
-	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
+	resp, err := svc.ListGlobalPolicies(ctx, req.Opts, req.Platform)
 	if err != nil {
 		return fleet.ListGlobalPoliciesResponse{Err: err}, nil
 	}
 	return fleet.ListGlobalPoliciesResponse{Policies: resp}, nil
 }
 
-func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListGlobalPolicies(ctx, opts)
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-// Get by id
-/////////////////////////////////////////////////////////////////////////////////
-
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GetPolicyByIDRequest)
-	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
-	if err != nil {
-		return fleet.GetPolicyByIDResponse{Err: err}, nil
-	}
-	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
-}
-
-func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
-		return nil, err
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	policy, err := svc.ds.Policy(ctx, policyID)
-	if err != nil {
-		return nil, err
-	}
-	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-
-	return policy, nil
+	return svc.ds.ListGlobalPolicies(ctx, opts, platform)
 }
 
 // ///////////////////////////////////////////////////////////////////////////////
@@ -144,19 +133,23 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.CountGlobalPoliciesRequest)
-	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery)
+	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery, req.Platform)
 	if err != nil {
 		return fleet.CountGlobalPoliciesResponse{Err: err}, nil
 	}
 	return fleet.CountGlobalPoliciesResponse{Count: resp}, nil
 }
 
-func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
+func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "")
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return 0, ctxerr.Wrap(ctx, err)
+	}
+
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, fleet.PolicyAutomationTypeNone, platform)
 	if err != nil {
 		return 0, err
 	}
@@ -260,7 +253,12 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
 
-const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
+const (
+	errPolicyAllFleetsForConditionalAccess          = "\"All fleets\" policy cannot have conditional_access_enabled set"
+	errPolicyAllFleetsForContinuousAutomations      = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPolicyAllFleetsForProfiles                   = "\"All fleets\" policy cannot have profile_uuid set"
+	errPatchWhenClosedRequiresContinuousAutomations = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
+)
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ModifyGlobalPolicyRequest)
@@ -296,7 +294,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, "")
 		if err != nil {
 			return err
 		}
@@ -482,15 +480,44 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if policy.Team == "" && policy.ContinuousAutomationsEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForContinuousAutomations),
+			})
+		}
+
+		if policy.Team == "" && policy.ProfileUUID != nil && *policy.ProfileUUID != "" {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForProfiles),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
 		}
 
+		if (len(policy.LabelsIncludeAll) > 0 || len(policy.LabelsExcludeAll) > 0 || len(policy.LabelsIncludeAny) > 0 || len(policy.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// ContinuousAutomationsEnabled is premium-only.
+		if policy.ContinuousAutomationsEnabled && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// PatchWhenClosed is premium-only.
+		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		if policy.ProfileUUID != nil && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
 		// Make sure any applied labels exist.
-		labels := policy.LabelsIncludeAny
-		labels = append(labels, policy.LabelsExcludeAny...)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny, policy.LabelsExcludeAll)
 		if len(labels) > 0 {
 			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
 			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine

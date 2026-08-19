@@ -1,11 +1,12 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   isAutomaticDeviceEnrollment,
@@ -22,6 +23,7 @@ interface IUnenrollMdmModalProps {
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -30,12 +32,11 @@ const UnenrollMdmModal = ({
   hostName,
   enrollmentStatus,
   onClose,
+  onSuccess,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
   >(undefined);
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
@@ -52,18 +53,28 @@ const UnenrollMdmModal = ({
             checks in.
           </>
         );
-      renderFlash("success", successMessage);
+      notify.success(successMessage);
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
-      const errorMessage =
-        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
-          "Couldn't unenroll. Please try again."
-        ) : (
-          <>
-            Failed to turn off MDM for <b>{hostName}</b>. Please try again.
-          </>
-        );
-      renderFlash("error", errorMessage);
+      // A 409 means MDM is already off for this host, so "please try again"
+      // would send the user in a loop. It also means this page was working from
+      // stale data, so refresh it to drop the action.
+      if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
+        notify.error(getErrorReason(unenrollMdmError));
+        onSuccess();
+        onClose();
+      } else {
+        const errorMessage =
+          isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+            "Couldn't unenroll. Please try again."
+          ) : (
+            <>
+              Failed to turn off MDM for <b>{hostName}</b>. Please try again.
+            </>
+          );
+        notify.error(errorMessage, { response: unenrollMdmError });
+      }
     }
     setRequestState(undefined);
   };
@@ -90,9 +101,8 @@ const UnenrollMdmModal = ({
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
       return (
         <p>
-          To re-enroll, make sure that the host is still in Apple Business
-          Manager (ABM). The host will automatically enroll after it&apos;s
-          reset.
+          To re-enroll, make sure that the host is still in Apple Business (AB).
+          The host will automatically enroll after it&apos;s reset.
         </p>
       );
     }
@@ -154,7 +164,7 @@ const UnenrollMdmModal = ({
           >
             {buttonText}
           </Button>
-          <Button onClick={onClose} variant="inverse-alert">
+          <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
         </div>

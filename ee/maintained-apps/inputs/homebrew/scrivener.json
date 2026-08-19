@@ -1,0 +1,10 @@
+{
+  "name": "Scrivener",
+  "unique_identifier": "com.literatureandlatte.scrivener3",
+  "token": "scrivener",
+  "installer_format": "zip",
+  "slug": "scrivener/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

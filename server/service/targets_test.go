@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -50,6 +51,61 @@ func TestSearchTargets(t *testing.T) {
 	assert.Equal(t, hosts[0], results.Hosts[0])
 	assert.Equal(t, labels[0], results.Labels[0])
 	assert.Equal(t, teams[0], results.Teams[0])
+}
+
+func TestSearchTargetsStripsSecretsAndAgentOptions(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Use an observer role to mirror the vulnerable scenario.
+	user := &fleet.User{GlobalRole: new(fleet.RoleObserver)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	agentOpts := json.RawMessage(`{"config":{"options":{"aws_secret_access_key":"SECRET"}}}`)
+	teams := []*fleet.Team{
+		{
+			ID:   1,
+			Name: "team1",
+			Config: fleet.TeamConfig{
+				AgentOptions: &agentOpts,
+			},
+			Secrets: []*fleet.EnrollSecret{
+				{Secret: "super-secret-token", TeamID: new(uint(1))},
+			},
+		},
+		{
+			ID:   2,
+			Name: "team2",
+			Secrets: []*fleet.EnrollSecret{
+				{Secret: "another-secret", TeamID: new(uint(2))},
+			},
+		},
+	}
+
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+	ds.SearchLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+		return teams, nil
+	}
+
+	results, err := svc.SearchTargets(ctx, "", nil, fleet.HostTargets{})
+	require.NoError(t, err)
+	require.Len(t, results.Teams, 2)
+
+	for _, team := range results.Teams {
+		assert.Nil(t, team.Secrets, "secrets should be stripped from team %s", team.Name)
+		assert.Nil(t, team.Config.AgentOptions, "agent_options should be stripped from team %s", team.Name)
+	}
+
+	// Verify non-sensitive fields are preserved.
+	assert.Equal(t, uint(1), results.Teams[0].ID)
+	assert.Equal(t, "team1", results.Teams[0].Name)
+	assert.Equal(t, uint(2), results.Teams[1].ID)
+	assert.Equal(t, "team2", results.Teams[1].Name)
 }
 
 func TestSearchWithOmit(t *testing.T) {

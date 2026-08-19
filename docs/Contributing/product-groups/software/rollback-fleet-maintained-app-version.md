@@ -137,37 +137,104 @@ flowchart LR
     style S3_v1 fill:#CC1144
 ```
 
+### Scenario 4: `version` with caret (`^`) constraint - pin major version
+
+```mermaid
+flowchart LR
+    subgraph T1["Initial state"]
+        direction TB
+        S1_title["Fleet downloads 25.26.72 (latest)"]
+        subgraph S1["S3 contents"]
+            S1_v1["25.26.72 ✓<br/>(latest)"]
+        end
+    end
+
+    subgraph T2["25.27.73 released"]
+        direction TB
+        S2_title["Fleet downloads 25.27.73 (latest)"]
+        subgraph S2["S3 contents"]
+            S2_v2["25.27.73 ✓<br/>(latest)"]
+            S2_v1["25.26.72 ✓<br/>(kept)"]
+        end
+    end
+
+    subgraph T3["User specifies ^25 in YAML"]
+        direction TB
+        S3_title["No download"]
+        subgraph S3["S3 contents"]
+            S3_v2["25.27.73 ✓<br/>(within ^25 constraint)"]
+            S3_v1["25.26.72 ✓<br/>(within ^25 constraint)"]
+            S3_note["NO CHANGES"]
+        end
+    end
+
+    subgraph T4["25.36.31 released"]
+        direction TB
+        S4_title["Fleet downloads 25.36.31 (within ^25)"]
+        subgraph S4["S3 contents"]
+            S4_v3["25.36.31 ✓<br/>(latest, within ^25)"]
+            S4_v2["25.27.73 ✓<br/>(within ^25 constraint)"]
+            S4_v1["25.26.72 ✗<br/>(deleted)"]
+        end
+    end
+
+    subgraph T5["26.1.58 released"]
+        direction TB
+        S5_title["Fleet does NOT download (outside ^25)"]
+        subgraph S5["S3 contents"]
+            S5_v3["25.36.31 ✓<br/>(within ^25 constraint)"]
+            S5_v2["25.27.73 ✓<br/>(within ^25 constraint)"]
+            S5_note["NO CHANGES"]
+        end
+    end
+
+    T1 --> T2 --> T3 --> T4 --> T5
+
+    style S1_v1 fill:#319831
+    style S2_v2 fill:#319831
+    style S2_v1 fill:#319831
+    style S3_v2 fill:#0F93C9
+    style S3_v1 fill:#0F93C9
+    style S3_note fill:#D07D24
+    style S4_v3 fill:#0F93C9
+    style S4_v2 fill:#0F93C9
+    style S4_v1 fill:#CC1144
+    style S5_v3 fill:#0F93C9
+    style S5_v2 fill:#0F93C9
+    style S5_note fill:#D07D24
+```
+
 ### Version caching decision flowchart
 
 ```mermaid
-flowchart TD
-    A[New FMA version available?] -->|Yes| B{Is version<br/>specified in YAML?}
-    A -->|No| Z[No action needed]
-    
-    B -->|No| C[Download new version]
-    C --> D[Keep previous version n-1]
-    D --> E{More than 2<br/>versions cached?}
-    E -->|Yes| F[Delete oldest version n-2]
-    E -->|No| Z
+flowchart TB
+    A["New Fleet-maintained app version available in Fleet manifest"] -- Yes --> B["Is 'version'<br>specified for Fleet-maintained app?"]
+    B -- No --> C["Download new version"]
+    C --> D["Keep previous version in S3"]
+    D --> E{"More than 2<br>versions stored?"}
+    E -- Yes --> F["Delete oldest version"]
+    E -- No --> Z[/"End"/]
     F --> Z
-    
-    B -->|Yes| G{Is YAML specified version<br/>same as new?}
-    G -->|Yes| H[Download new YAML specified version]
-    H --> I[Keep previous YAML specified version]
+    B -- Yes --> BC["Does 'version' include caret (^) constraint?"]
+    BC -- Yes --> BCC{"Is new version below<br>next major version?"}
+    BCC -- Yes --> H["Download new version"]
+    BCC -- No --> J["No action"]
+    BC -- No --> G["Is specified 'version'<br>same as new?"]
+    G -- Yes --> H
+    H --> I["Keep previously specified version"]
     I --> Z
-    G -->|No| J[No action]
+    G -- No --> J
     J --> Z
+    K["Specified 'version' changed?"] -- Removed --> L["Download latest from manifest"]
+    L --> M["Keep previously specified version"]
+    M --> N["Resume automatic download of latest version"]
+    K -- Changed to new version --> H
 
-    K[YAML specified version changed?] -->|Removed| L[Download current latest]
-    L --> M[Keep previously specified YAML version]
-    M --> N[Resume track latest mode]
-    
-    K -->|Changed to new version| H
-
-    style C fill:#319831
-    style H fill:#0F93C9
-    style F fill:#CC1144
-    style J fill:#D07D24
+    style C fill:#00C853
+    style F fill:#FF6D00
+    style BCC fill:#BBDEFB
+    style H fill:#00C853
+    style J fill:#FFD600
 ```
 
 ### Install and uninstall scripts

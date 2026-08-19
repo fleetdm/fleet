@@ -46,7 +46,7 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
-export type DepAssignProfileResponse =
+export type DEPDeviceStatus =
   | "SUCCESS"
   | "FAILED"
   | "THROTTLED"
@@ -68,9 +68,11 @@ export interface IDepAssignmentHostResponse {
     profile_uuid: string;
     mdm_migration_deadline: string | null;
     serial_number: string;
-  };
+    response_status: DEPDeviceStatus;
+  } | null;
+  dep_device_error: string | null;
   host_dep_assignment: {
-    assign_profile_response: DepAssignProfileResponse;
+    assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
     added_at: string;
@@ -78,7 +80,7 @@ export interface IDepAssignmentHostResponse {
     abm_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
-  };
+  } | null;
 }
 
 export type IUnlockHostResponse =
@@ -139,7 +141,7 @@ export interface ILoadHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IExportHostsOptions {
@@ -177,7 +179,7 @@ export interface IExportHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IActionByFilter {
@@ -207,7 +209,7 @@ export interface IActionByFilter {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -244,6 +246,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   min_cvss_score?: number;
   max_cvss_score?: number;
   exploit?: boolean;
+  macos_applications?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -252,8 +255,13 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   softwareUpdatedAt?: string;
 }
 
-export interface IGetHostCertsRequestParams extends IListOptions {
+export interface IGetHostCertsApiParams extends IListOptions {
   host_id: number;
+}
+
+export interface IGetHostDeviceURLResponse {
+  host_id: number;
+  device_url: string;
 }
 
 export interface IGetHostCertificatesResponse {
@@ -671,9 +679,19 @@ export default {
     return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
   },
 
+  getDeviceURL: (id: number): Promise<IGetHostDeviceURLResponse> => {
+    const { HOST_DEVICE_URL } = endpoints;
+    return sendRequest("GET", HOST_DEVICE_URL(id));
+  },
+
   getManagedAccountPassword: (id: number) => {
     const { HOST_MANAGED_ACCOUNT_PASSWORD } = endpoints;
     return sendRequest("GET", HOST_MANAGED_ACCOUNT_PASSWORD(id));
+  },
+
+  rotateManagedLocalAccountPassword: (id: number): Promise<void> => {
+    const { HOST_MANAGED_LOCAL_ACCOUNT_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_MANAGED_LOCAL_ACCOUNT_ROTATE(id));
   },
 
   lockHost: (id: number) => {
@@ -714,6 +732,12 @@ export default {
     );
   },
 
+  resendNameTemplate: (hostId: number): Promise<void> => {
+    const { HOST_RESEND_NAME_TEMPLATE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_NAME_TEMPLATE(hostId));
+  },
+
   getHostSoftware: (
     params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {
@@ -747,7 +771,7 @@ export default {
     per_page,
     order_key,
     order_direction,
-  }: IGetHostCertsRequestParams): Promise<IGetHostCertificatesResponse> => {
+  }: IGetHostCertsApiParams): Promise<IGetHostCertificatesResponse> => {
     const { HOST_CERTIFICATES } = endpoints;
     const path = `${HOST_CERTIFICATES(host_id)}?${buildQueryStringFromParams({
       page,

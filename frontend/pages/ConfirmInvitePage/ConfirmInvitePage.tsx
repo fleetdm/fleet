@@ -3,11 +3,11 @@ import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { ICreateUserWithInvitationFormData } from "interfaces/user";
 import paths from "router/paths";
 import usersAPI from "services/entities/users";
-import inviteAPI, { IValidateInviteResp } from "services/entities/invites";
+import inviteAPI, { IValidateInviteResponse } from "services/entities/invites";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
@@ -28,7 +28,6 @@ const baseClass = "confirm-invite-page";
 
 const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
   const { currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const { invite_token } = params;
 
@@ -36,12 +35,12 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     data: validInvite,
     error: validateInviteError,
     isLoading: isVerifyingInvite,
-  } = useQuery<IValidateInviteResp, AxiosError, IInvite>(
+  } = useQuery<IValidateInviteResponse, AxiosError, IInvite>(
     "invite",
     () => inviteAPI.verify(invite_token),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (resp: IValidateInviteResp) => resp.invite,
+      select: (resp: IValidateInviteResponse) => resp.invite,
     }
   );
 
@@ -57,18 +56,17 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
 
       try {
         await usersAPI.create(dataForAPI);
-        router.push(paths.LOGIN);
-        renderFlash(
-          "success",
+        notify.success(
           "Registration successful! For security purposes, please log in."
         );
+        router.push(paths.LOGIN);
       } catch (error) {
         const reason = getErrorReason(error);
         console.error(reason);
-        renderFlash("error", reason);
+        notify.error(reason, { response: error });
       }
     },
-    [invite_token, renderFlash, router, validInvite?.email]
+    [invite_token, router, validInvite?.email]
   );
 
   if (currentUser) {

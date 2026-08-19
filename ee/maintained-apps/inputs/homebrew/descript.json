@@ -1,0 +1,10 @@
+{
+  "name": "Descript",
+  "unique_identifier": "com.descript.beachcube",
+  "token": "descript",
+  "installer_format": "dmg",
+  "slug": "descript/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

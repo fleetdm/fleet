@@ -1,15 +1,14 @@
-import React, { useContext, useState, useEffect } from "react";
-import { useQuery } from "react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "react-query";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
 import {
   IAppStoreApp,
   ISoftwarePackage,
-  isSoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import { NotificationContext } from "context/notification";
+import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -18,6 +17,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -44,38 +44,63 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
+  /** Per-installer id on a multi-package title. When set, the PATCH targets
+   * this specific package; otherwise the request edits the legacy
+   * single-package row. */
+  installerId?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: InstallerType;
-  openViewYamlModal: () => void;
   isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
   name: string;
   displayName: string;
   source?: string;
   iconUrl?: string | null;
+  /** When true, the modal title reads "Edit package" instead of "Edit
+   * software" — we're editing one specific installer on a title that has
+   * several, not the title's only package. */
+  canActivateMultiplePackages?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const EditSoftwareModal = ({
   softwareId,
   teamId,
+  installerId,
   softwareInstaller,
   onExit,
   refetchSoftwareTitle,
   installerType,
-  openViewYamlModal,
   isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
   name,
   displayName,
   source,
   iconUrl = undefined,
+  canActivateMultiplePackages = false,
+  patchWhenClosed = false,
 }: IEditSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
-  // Viewing an FMA in GitOps mode only allows viewing options, not editing
-  const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
+  // Everything visible-but-disabled in GitOps mode for both FMA and custom
+  // multi-package titles. Users edit these through YAML instead — the
+  // disabled Save button carries the standard GitOps tooltip that links to
+  // the repo.
+  const isGitOpsCompatible =
+    gitOpsModeEnabled && (isFleetMaintainedApp || canActivateMultiplePackages);
+
+  // Patch-when-closed makes the pre-install query Fleet-managed: the backend
+  // rejects any pre_install_query on save (even unchanged) while it's on, so the
+  // field must be read-only and omitted from the request. Derive it from the
+  // installer's own patch policy so a caller can't forget to pass it (which
+  // otherwise blocks unrelated edits like toggling self-service); an explicit
+  // prop can still force it on.
+  const effectivePatchWhenClosed =
+    patchWhenClosed ||
+    ("patch_policy" in softwareInstaller &&
+      !!softwareInstaller.patch_policy?.patch_when_closed);
 
   const formClassNames = classnames(`${baseClass}__package-form`, {
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
@@ -147,29 +172,21 @@ const EditSoftwareModal = ({
     isUpdatingSoftware,
   ]);
 
-  /* 1. Delays showing the file progress modal until isUpdatingSoftware
-   * has been true for 3 seconds to prevent flashing modal on quick uploads
-   * 2. Prevents page unload during the upload
-   * 3. Cleans both up when uploading stops or the component unmounts */
+  // Block tab close / hard navigation while the PATCH is in flight.
+  useBlockNavigation(isUpdatingSoftware);
+
+  /* Delays showing the file progress modal until isUpdatingSoftware has been
+   * true for 3 seconds to prevent flashing modal on quick uploads, and
+   * hides it when uploading stops. */
   useEffect(() => {
     // Timer for delayed modal
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // Next line with e.returnValue is included for legacy support
-      // e.g.Chrome / Edge < 119
-      e.returnValue = true;
-    };
 
     if (isUpdatingSoftware) {
       // only show modal if still uploading after 3 seconds
       timeoutId = setTimeout(() => {
         setShowFileProgressModal(true);
       }, 3000);
-
-      // Prevents user from leaving page while uploading
-      addEventListener("beforeunload", beforeUnloadHandler);
     } else {
       // upload finished: hide modal and reset
       setShowFileProgressModal(false);
@@ -180,7 +197,6 @@ const EditSoftwareModal = ({
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      removeEventListener("beforeunload", beforeUnloadHandler);
     };
   }, [isUpdatingSoftware]);
 
@@ -208,6 +224,7 @@ const EditSoftwareModal = ({
         data: formData,
         orignalPackage: softwareInstaller as ISoftwarePackage,
         softwareId,
+        installerId,
         teamId,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
@@ -215,38 +232,36 @@ const EditSoftwareModal = ({
           // progress bar at 97% until the server response is received
           setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
+        omitPreInstallQuery: effectivePatchWhenClosed,
       });
 
-      if (
-        isSoftwarePackage(softwareInstaller) &&
-        softwareInstaller.title_id &&
-        gitOpsModeEnabled
-      ) {
-        // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
-        openViewYamlModal();
-      } else {
-        renderFlash(
-          "success",
-          <>
-            Successfully edited <b>{formData.software?.name}</b>.
-            {formData.selfService
-              ? " The end user can install from Fleet Desktop."
-              : ""}
-          </>
-        );
-      }
+      notify.success(
+        <>
+          Successfully edited <b>{formData.software?.name}</b>.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
+      );
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      notify.error(getErrorMessage(e, softwareInstaller as IAppStoreApp), {
+        response: e,
+      });
     }
     setIsUpdatingSoftware(false);
   };
 
-  const isOnlySelfServiceUpdated = (updates: Record<string, any>) => {
+  const isOnlySelfServiceUpdated = (updates: Record<string, unknown>) => {
     return Object.keys(updates).length === 1 && "selfService" in updates;
   };
 
@@ -291,8 +306,7 @@ const EditSoftwareModal = ({
     try {
       await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           Successfully edited <b>{softwareInstaller.name}</b>.
           {formData.selfService
@@ -300,13 +314,20 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      notify.error(getErrorMessage(e, softwareInstaller as IAppStoreApp), {
+        response: e,
+      });
     }
     setIsUpdatingSoftware(false);
   };
@@ -359,6 +380,8 @@ const EditSoftwareModal = ({
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
+          teamId={teamId}
+          patchWhenClosed={effectivePatchWhenClosed}
         />
       );
     }
@@ -371,6 +394,7 @@ const EditSoftwareModal = ({
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
         onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
+        teamId={teamId}
       />
     );
   };
@@ -379,7 +403,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title="Edit software"
+        title={canActivateMultiplePackages ? "Edit package" : "Edit software"}
         onExit={onExit}
         width="large"
       >
@@ -401,6 +425,7 @@ const EditSoftwareModal = ({
           source={source}
           iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
+          teamId={teamId}
           isIosOrIpadosApp={isIosOrIpadosApp}
           mobileVersion={
             ("latest_version" in softwareInstaller &&

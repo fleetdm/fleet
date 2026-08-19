@@ -1,0 +1,10 @@
+{
+  "name": "UltiMaker Cura",
+  "unique_identifier": "nl.ultimaker.cura.dmg",
+  "token": "ultimaker-cura",
+  "installer_format": "dmg",
+  "slug": "ultimaker-cura/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

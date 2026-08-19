@@ -1,0 +1,8 @@
+{
+   "name": "RustDesk",
+   "slug": "rustdesk/darwin",
+   "unique_identifier": "com.carriez.rustdesk",
+   "token": "rustdesk",
+   "installer_format": "dmg",
+   "default_categories": ["Productivity"]
+}

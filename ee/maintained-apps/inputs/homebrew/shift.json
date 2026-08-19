@@ -1,0 +1,10 @@
+{
+  "name": "Shift",
+  "unique_identifier": "com.rdbrck.shift",
+  "token": "shift",
+  "installer_format": "dmg",
+  "slug": "shift/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

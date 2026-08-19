@@ -100,9 +100,74 @@ safe_rm() {
     rmdir "$_path" 2>/dev/null
 }
 
+# Delete all btrfs snapshots on local btrfs filesystems.
+# Must run before safe_rm: read-only snapshots resist rm -rf and need btrfs subvolume delete.
+wipe_btrfs_snapshots() {
+    [ -f /proc/mounts ] || return
+
+    # If snapper is available, use it as the primary deletion path. snapper delete
+    # handles read-only and important=yes snapshots correctly and removes the
+    # accompanying metadata (info.xml). --sync commits the btrfs transaction before
+    # returning, avoiding timing races when deleting multiple snapshots in sequence.
+    if command -v snapper >/dev/null 2>&1; then
+        snapper list-configs 2>/dev/null \
+            | awk 'NR > 2 {print $1}' \
+            | while read -r cfg; do
+                _nums=$(snapper -c "$cfg" list 2>/dev/null \
+                     | awk '$1 ~ /^[1-9][0-9]*$/ {print $1}')
+                [ -n "$_nums" ] || continue
+                echo "$_nums" | xargs snapper -c "$cfg" delete --sync 2>/dev/null \
+                    || echo "Warning: snapper delete failed for config $cfg"
+            done
+    fi
+
+    # Fallback: btrfs subvolume delete via subvolid=5 mount. Catches any snapshots
+    # not managed by snapper, or where snapper was unavailable or partially failed.
+    awk '$3 == "btrfs" {print $1}' /proc/mounts | sort -u | while read -r dev; do
+        # Skip devices where any btrfs mountpoint is on a network filesystem, consistent
+        # with how the rest of the script avoids touching network-backed data.
+        _net_mnt=$(awk -v dev="$dev" '$1 == dev && $3 == "btrfs" {print $2}' /proc/mounts \
+            | while read -r mnt_esc; do
+                mnt=$(printf '%b' "$mnt_esc")
+                is_network_mount "$mnt" && printf '%s\n' "$mnt" && break
+            done)
+        if [ -n "$_net_mnt" ]; then
+            echo "Skipping btrfs snapshots on $dev (network-mounted at $_net_mnt)"
+            continue
+        fi
+
+        _tmp=$(mktemp -d 2>/dev/null) || continue
+
+        # Mount the btrfs top-level (subvolid=5) for full subvolume visibility.
+        # Without this, btrfs subvolume list only sees subvols relative to the
+        # currently-mounted subvolume, missing sibling trees (e.g. @home when / is @).
+        if ! mount -t btrfs -o subvolid=5 "$dev" "$_tmp" 2>/dev/null; then
+            echo "Warning: could not mount btrfs top-level for $dev, skipping subvolume cleanup"
+            rmdir "$_tmp" 2>/dev/null
+            continue
+        fi
+
+        # Sort deepest first so children are deleted before parents.
+        btrfs subvolume list -s "$_tmp" 2>/dev/null \
+            | sed -n 's/.* path //p' \
+            | awk -F/ '{print NF, $0}' \
+            | sort -rn \
+            | while IFS=' ' read -r _ subvol; do
+                _sv_path="$_tmp/$subvol"
+                btrfs property set -t subvol "$_sv_path" ro false 2>/dev/null
+                echo "Deleting btrfs snapshot: $subvol"
+                btrfs subvolume delete "$_sv_path" 2>/dev/null \
+                    || echo "Warning: could not delete btrfs snapshot: $subvol"
+            done
+
+        umount "$_tmp" 2>/dev/null
+        rmdir "$_tmp" 2>/dev/null
+    done
+}
+
 # Function to wipe non-essential data
 wipe_non_essential_data() {
-    non_essential_paths="/home/* /tmp /var/tmp /var/log /home/*/.cache /var/cache /home/*/.local/share/Trash"
+    non_essential_paths="/home/* /tmp /var/tmp /var/log /home/*/.cache /var/cache /home/*/.local/share/Trash /.snapshots"
 
     for path in $non_essential_paths
     do
@@ -149,6 +214,7 @@ wipe_all_files() {
     sleep 10 # Give fleetd enough time to register the script as completed
     prepare_system_reset
     unmount_network_filesystems
+    wipe_btrfs_snapshots
     wipe_non_essential_data
     wipe_system_files
     system_reset

@@ -26,12 +26,23 @@ const (
 	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
 	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
 	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
+	CronMicrosoftAutopilotSync       CronScheduleName = "microsoft_autopilot_sync"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"
+	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
+	CronSoftwareChecksumMigration    CronScheduleName = "software_checksum_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
+	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
+	// name embeds the version onto the title owned by the Fleet-maintained app's
+	// installer.
+	CronWindowsMaintainedAppTitles CronScheduleName = "windows_maintained_app_titles"
+	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
+	// installer to the newest cached version its pin state allows. Premium only;
+	// runs every 1h.
+	CronMaintainedAppsAutoUpdate CronScheduleName = "maintained_apps_auto_update"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
 	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
@@ -52,8 +63,17 @@ const (
 	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
 	// Runs every 5 minutes.
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
-	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
-	CronChartDataCollection      CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	// CronSendManagedLocalAccountRotationCommands rotates managed local account passwords.
+	// Runs every 5 minutes; picks up rows whose auto_rotate_at has elapsed (set by view or
+	// by a manual rotation that was deferred because the account UUID wasn't yet known).
+	CronSendManagedLocalAccountRotationCommands CronScheduleName = "send_managed_local_account_rotation_commands"
+	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
+	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
+	CronAppleMDMOSUpdatesSchedule               CronScheduleName = "apple_mdm_os_updates"
+	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
+	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
+	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
 )
 
 type CronSchedulesService interface {

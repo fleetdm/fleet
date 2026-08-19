@@ -1,5 +1,5 @@
 {
-  "name": "pgAdmin4",
+  "name": "pgAdmin 4",
   "unique_identifier": "org.pgadmin.pgadmin4",
   "token": "pgadmin4",
   "installer_format": "dmg",

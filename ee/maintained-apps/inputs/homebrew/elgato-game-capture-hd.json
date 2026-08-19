@@ -1,0 +1,10 @@
+{
+  "name": "Elgato Game Capture HD",
+  "unique_identifier": "com.elgato.GameCaptureHD",
+  "token": "elgato-game-capture-hd",
+  "installer_format": "zip",
+  "slug": "elgato-game-capture-hd/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

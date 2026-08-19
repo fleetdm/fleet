@@ -1,0 +1,10 @@
+{
+  "name": "SmoothScroll",
+  "unique_identifier": "com.galambalazs.SmoothScroll",
+  "token": "smoothscroll",
+  "installer_format": "zip",
+  "slug": "smoothscroll/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

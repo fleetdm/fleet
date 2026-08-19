@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 
 import { PolicyContext } from "context/policy";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import campaignHelpers from "utilities/campaign_helpers";
@@ -32,8 +32,6 @@ const RunQuery = ({
   goToQueryEditor,
   targetsTotalCount,
 }: IRunQueryProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isQueryFinished, setIsQueryFinished] = useState(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
@@ -116,7 +114,7 @@ const RunQuery = ({
     websocket.onmessage = ({ data }: { data: string }) => {
       // string is easy to compare before converting to object
       if (data === previousSocketData.current) {
-        return false;
+        return;
       }
 
       previousSocketData.current = data;
@@ -139,11 +137,10 @@ const RunQuery = ({
 
   const onRunQuery = debounce(async () => {
     if (!lastEditedQueryBody) {
-      renderFlash(
-        "error",
+      notify.error(
         "Something went wrong running your report. Please try again."
       );
-      return false;
+      return;
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
@@ -162,24 +159,30 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
+    } catch (campaignError) {
       if (campaignError === "resource already created") {
-        renderFlash(
-          "error",
-          "A campaign with the provided query text has already been created"
+        notify.error(
+          "A campaign with the provided query text has already been created",
+          { response: campaignError }
         );
       }
 
-      if ("message" in campaignError) {
-        const { message } = campaignError;
+      if (
+        typeof campaignError === "object" &&
+        campaignError !== null &&
+        "message" in campaignError
+      ) {
+        const { message } = campaignError as { message: string };
 
         if (message === "forbidden") {
-          renderFlash(
-            "error",
-            "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
+          notify.error(
+            "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator.",
+            { response: campaignError }
           );
         } else {
-          renderFlash("error", "Something has gone wrong. Please try again.");
+          notify.error("Something has gone wrong. Please try again.", {
+            response: campaignError,
+          });
         }
       }
 

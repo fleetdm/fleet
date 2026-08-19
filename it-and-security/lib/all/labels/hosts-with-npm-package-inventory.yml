@@ -1,0 +1,6 @@
+- name: Hosts with npm package inventory
+  description: >-
+    macOS, Windows, and Linux hosts where osquery reports at least one row in npm_packages (Node/npm packages
+    visible to the agent inventory).
+  query: SELECT 1 FROM npm_packages LIMIT 1;
+  label_membership_type: dynamic

@@ -100,7 +100,7 @@ const getInstallIconType = (
   return isSelfService ? "selfService" : "manual";
 };
 
-const InstallIconWithTooltip = ({
+export const InstallIconWithTooltip = ({
   isSelfService,
   automaticInstallPoliciesCount,
   pageContext,
@@ -133,6 +133,7 @@ const InstallIconWithTooltip = ({
         underline={false}
         position="top"
         tipOffset={12}
+        fixedPositionStrategy
       >
         <Icon
           name={iconName}

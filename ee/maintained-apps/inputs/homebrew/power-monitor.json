@@ -1,0 +1,8 @@
+{
+  "name": "Power Monitor",
+  "unique_identifier": "corp.sap.PowerMonitor",
+  "token": "power-monitor",
+  "installer_format": "pkg",
+  "slug": "power-monitor/darwin",
+  "default_categories": ["Productivity"]
+}

@@ -29,7 +29,7 @@ describe("DeleteHostModal", () => {
     expect(screen.getByText("Host1")).toBeVisible();
   });
 
-  it("renders the number of hosts selected with '+' after when select all matching hosts is true", () => {
+  it("renders the total hosts count when select all matching hosts is true", () => {
     render(
       <DeleteHostModal
         selectedHostIds={[1, 2, 3]}
@@ -40,10 +40,10 @@ describe("DeleteHostModal", () => {
         isUpdating={false}
       />
     );
-    expect(screen.getByText("3+ hosts")).toBeVisible();
+    expect(screen.getByText("50 hosts")).toBeVisible();
   });
 
-  it("renders the host count with '+' and an additional warning when there are more than 500 hosts and select all matching hosts is true", () => {
+  it("renders the host count with an additional warning when there are more than 500 hosts and select all matching hosts is true", () => {
     render(
       <DeleteHostModal
         selectedHostIds={[1, 2, 3]}
@@ -54,7 +54,7 @@ describe("DeleteHostModal", () => {
         isUpdating={false}
       />
     );
-    expect(screen.getByText("3+ hosts")).toBeVisible();
+    expect(screen.getByText("500 hosts")).toBeVisible();
     expect(
       screen.getByText(
         "When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI."

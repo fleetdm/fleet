@@ -1,0 +1,10 @@
+{
+  "name": "Mattermost",
+  "slug": "mattermost/windows",
+  "package_identifier": "Mattermost.MattermostDesktop",
+  "unique_identifier": "Mattermost",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}

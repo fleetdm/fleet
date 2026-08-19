@@ -1,0 +1,10 @@
+{
+  "name": "Input Source Pro",
+  "unique_identifier": "com.runjuu.Input-Source-Pro",
+  "token": "input-source-pro",
+  "installer_format": "dmg",
+  "slug": "input-source-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

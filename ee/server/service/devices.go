@@ -15,8 +15,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-	return svc.ds.ListPoliciesForHost(ctx, host)
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list policies for host")
+	}
+	// return the device-safe representation of the policies, which excludes
+	// the policy author's identity and the raw SQL query.
+	return fleet.HostPoliciesToDevicePolicies(policies), nil
 }
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
@@ -196,6 +202,8 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
 	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
 	sum.Config.OrgInfo.OrgLogoURLLightBackground = appCfg.OrgInfo.OrgLogoURLLightBackground
+	sum.Config.OrgInfo.OrgLogoURLDarkMode = appCfg.OrgInfo.OrgLogoURLDarkMode
+	sum.Config.OrgInfo.OrgLogoURLLightMode = appCfg.OrgInfo.OrgLogoURLLightMode
 	sum.Config.OrgInfo.ContactURL = appCfg.OrgInfo.ContactURL
 
 	// mdm information

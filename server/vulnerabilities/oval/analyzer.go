@@ -149,6 +149,10 @@ func Analyze(
 }
 
 // loadDef returns the latest oval Definition for the given platform.
+// Returns an error if the loaded definition file contains no rules, since an empty
+// definition would cause every existing vulnerability for the platform to be deleted
+// (it would look like every host was suddenly patched). An empty file usually means
+// the artifact download from GitHub was corrupted or partially failed.
 func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	if !platform.IsSupported() {
 		return nil, fmt.Errorf("platform %q not supported", platform)
@@ -169,6 +173,9 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		if err := json.Unmarshal(payload, &result); err != nil {
 			return nil, err
 		}
+		if len(result.Definitions) == 0 {
+			return nil, fmt.Errorf("OVAL definition file %q contains no rules (possible corrupted feed)", latest)
+		}
 		return result, nil
 	}
 
@@ -176,6 +183,9 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		result := oval_parsed.RhelResult{}
 		if err := json.Unmarshal(payload, &result); err != nil {
 			return nil, err
+		}
+		if len(result.Definitions) == 0 {
+			return nil, fmt.Errorf("OVAL definition file %q contains no rules (possible corrupted feed)", latest)
 		}
 		return result, nil
 	}

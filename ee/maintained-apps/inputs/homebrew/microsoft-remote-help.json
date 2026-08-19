@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft Remote Help",
+  "slug": "microsoft-remote-help/darwin",
+  "unique_identifier": "com.microsoft.remotehelp",
+  "token": "microsoft-remote-help",
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}

@@ -2,8 +2,7 @@
   position: relative; // needed for copy button
 
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
+    @include form-label;
 
     &--error {
       color: $core-vibrant-red;
@@ -28,9 +27,5 @@
     z-index: 2; /* Ensure it's above the editor */
     display: flex;
     align-items: center;
-  }
-
-  &__copied-confirmation {
-    @include copy-message;
   }
 }

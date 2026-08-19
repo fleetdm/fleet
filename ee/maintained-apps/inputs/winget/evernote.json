@@ -1,0 +1,14 @@
+{
+  "name": "Evernote",
+  "slug": "evernote/windows",
+  "package_identifier": "Evernote.Evernote",
+  "unique_identifier": "Evernote",
+  "fuzzy_match_name": "Evernote%",
+  "program_publisher": "Evernote Corporation",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/evernote_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/evernote_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

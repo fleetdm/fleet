@@ -5,16 +5,18 @@
     "Fleet Desktop"
   ],
   "desc": "End-user client for Fleet device management",
-  "homepage": "https://github.com/allenhouchins/fleet-desktop",
-  "url": "https://github.com/allenhouchins/fleet-desktop/releases/download/v1.1.0/fleet_desktop-v1.1.0.pkg",
+  "homepage": "https://github.com/fleetdm/fleet/tree/main/apps/fleet-desktop-macos",
+  "url": "https://download.fleetdm.com/fleet-desktop-macos/v1.4.0/fleet_desktop-v1.4.0.pkg",
   "url_specs": {},
-  "version": "1.1.0",
+  "version": "1.4.0",
   "autobump": true,
   "no_autobump_message": null,
-  "skip_livecheck": false,
+  "skip_livecheck": true,
   "bundle_version": null,
   "bundle_short_version": null,
-  "sha256": "4f3537c37a094f333046072262b1f37729f73074bf935f09f05799bc341fef58",
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "c920b983524df5296c10e4b15c5789df2dacacddd5b1423562b57bb1cc6d9d71",
   "artifacts": [
     {
       "uninstall": [
@@ -26,7 +28,7 @@
     },
     {
       "pkg": [
-        "fleet_desktop-v1.1.0.pkg"
+        "fleet_desktop-v1.4.0.pkg"
       ]
     },
     {
@@ -72,6 +74,6 @@
   "languages": [],
   "ruby_source_path": "Casks/fleet-desktop.rb",
   "ruby_source_checksum": {
-    "sha256": "a348b5c812ce3ee1c1ee361c273ce39725feffb557d48bbda2f42648c1b2e6c5"
+    "sha256": "dadb142b95ccc234278fb75ca0aafcec5a0fdc9d7b4451321f0ac7d25d8d62a2"
   }
 }

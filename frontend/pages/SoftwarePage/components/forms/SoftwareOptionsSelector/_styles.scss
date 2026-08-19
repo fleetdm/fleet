@@ -5,6 +5,17 @@
     border-radius: $border-radius;
     border: 1px solid $ui-fleet-black-10;
     overflow-y: auto;
+    // 210px shows about 4.5 rows so the last row is half-visible, hinting
+    // there is more to scroll to
+    max-height: 210px;
+  }
+
+  &__categories-loading,
+  &__categories-empty {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    font-size: $x-small;
   }
 
   &__label {

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IEditCertAuthorityBody } from "services/entities/certificates";
+import { IEditCertAuthorityFormData } from "services/entities/certificates";
 import {
   ICertificateAuthority,
   ICertificatesCustomSCEP,
@@ -79,7 +79,7 @@ export const generateDefaultFormData = (
 export const generateEditCertAuthorityData = (
   certAuthority: ICertificateAuthority,
   formData: ICertFormData
-): IEditCertAuthorityBody => {
+): IEditCertAuthorityFormData => {
   const certAuthWithoutType = Object.assign({}, certAuthority);
   delete certAuthWithoutType.type;
   delete certAuthWithoutType.id;
@@ -253,7 +253,11 @@ export const updateFormData = (
     }
     case "ndes_scep_proxy": {
       const formData = prevFormData as INDESFormData;
-      if (update.name === "adminURL" || update.name === "username") {
+      if (
+        update.name === "scepURL" ||
+        update.name === "adminURL" ||
+        update.name === "username"
+      ) {
         return {
           ...newData,
           password:

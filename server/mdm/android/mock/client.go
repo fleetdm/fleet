@@ -25,6 +25,10 @@ type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*an
 
 type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
 
+type EnterprisesDevicesIssueCommandFunc func(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error)
+
+type EnterprisesDevicesOperationsGetFunc func(ctx context.Context, operationName string) (*androidmanagement.Operation, error)
+
 type EnterprisesDevicesListPartialFunc func(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error)
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
@@ -61,6 +65,12 @@ type Client struct {
 
 	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
 	EnterprisesDevicesDeleteFuncInvoked bool
+
+	EnterprisesDevicesIssueCommandFunc        EnterprisesDevicesIssueCommandFunc
+	EnterprisesDevicesIssueCommandFuncInvoked bool
+
+	EnterprisesDevicesOperationsGetFunc        EnterprisesDevicesOperationsGetFunc
+	EnterprisesDevicesOperationsGetFuncInvoked bool
 
 	EnterprisesDevicesListPartialFunc        EnterprisesDevicesListPartialFunc
 	EnterprisesDevicesListPartialFuncInvoked bool
@@ -132,6 +142,20 @@ func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string
 	p.EnterprisesDevicesDeleteFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesDevicesDeleteFunc(ctx, deviceName)
+}
+
+func (p *Client) EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesIssueCommandFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesIssueCommandFunc(ctx, deviceName, command)
+}
+
+func (p *Client) EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesOperationsGetFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesOperationsGetFunc(ctx, operationName)
 }
 
 func (p *Client) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {

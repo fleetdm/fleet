@@ -1,0 +1,10 @@
+{
+  "name": "Syncovery",
+  "unique_identifier": "com.company.Syncovery",
+  "token": "syncovery",
+  "installer_format": "dmg",
+  "slug": "syncovery/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "FreeFileSync",
+  "unique_identifier": "org.freefilesync.FreeFileSync",
+  "token": "freefilesync",
+  "installer_format": "zip",
+  "slug": "freefilesync/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

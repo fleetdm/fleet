@@ -1,0 +1,10 @@
+{
+  "name": "CodeRunner",
+  "unique_identifier": "com.krill.CodeRunner",
+  "token": "coderunner",
+  "installer_format": "zip",
+  "slug": "coderunner/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

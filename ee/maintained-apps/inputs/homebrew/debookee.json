@@ -1,0 +1,10 @@
+{
+  "name": "Debookee",
+  "unique_identifier": "com.iwaxx.Debookee",
+  "token": "debookee",
+  "installer_format": "zip",
+  "slug": "debookee/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

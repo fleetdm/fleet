@@ -1,11 +1,15 @@
 import React from "react";
 
-import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import {
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
+} from "pages/hosts/details/helpers";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+  HostNameSettingStatus,
   LinuxDiskEncryptionStatus,
   ProfileOperationType,
   ProfilePlatform,
@@ -20,6 +24,7 @@ import {
 import TooltipContent from "./components/Tooltip/TooltipContent";
 import generateErrorTooltip from "./errorTooltipHelpers";
 import {
+  HOST_NAME_DISPLAY_CONFIG,
   isDiskEncryptionProfile,
   LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG,
   PROFILE_DISPLAY_CONFIG,
@@ -58,6 +63,8 @@ const OSSettingStatusCell = ({
       RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG[
         status as RecoveryLockPasswordStatus
       ];
+  } else if (profileUUID === HOST_NAME_SYNTHETIC_PROFILE_UUID) {
+    displayOption = HOST_NAME_DISPLAY_CONFIG[status as HostNameSettingStatus];
   }
 
   // Android host certificate templates.
@@ -129,9 +136,24 @@ const OSSettingStatusCell = ({
 
     // For failed status, use the error detail as tooltip content
     const errorTooltip = profile ? generateErrorTooltip(profile) : null;
+    // Prefer a backend-provided detail message over the generic status text.
+    // Pending profiles use it for e.g. Android Wi-Fi profiles waiting on their
+    // certificate. Verified profiles use it when a custom activation's
+    // predicate excluded this host: Fleet delivered the profile correctly, but
+    // the settings were deliberately not applied, so the generic "the host
+    // applied the setting" would be untrue.
+    const detailTooltip =
+      (profile?.status === "pending" || profile?.status === "verified") &&
+      profile.detail
+        ? profile.detail
+        : null;
 
     let tipContent: React.ReactNode;
-    if (tooltip) {
+    if (detailTooltip) {
+      tipContent = (
+        <span className="tooltip__tooltip-text">{detailTooltip}</span>
+      );
+    } else if (tooltip) {
       if (status !== "action_required") {
         tipContent = (
           <span className="tooltip__tooltip-text">

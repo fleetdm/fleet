@@ -1,0 +1,10 @@
+{
+  "name": "Elgato Capture Device Utility",
+  "unique_identifier": "com.elgato.CaptureDeviceUtility",
+  "token": "elgato-capture-device-utility",
+  "installer_format": "zip",
+  "slug": "elgato-capture-device-utility/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

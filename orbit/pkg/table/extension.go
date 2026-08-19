@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filecontents"
@@ -172,6 +173,11 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		),
 
 		table.NewPlugin("yaml_to_json", yaml_to_json.Columns(), yaml_to_json.GenerateFunc),
+
+		// ai_tools: unified table of AI software (apps, IDE plugins, agents, MCP
+		// servers, sockets, instruction files, browser extensions) and their risk
+		// factors. Vendored from github.com/karmine05/agentic-detector.
+		table.NewPlugin("ai_tools", ai_tools.Columns(), ai_tools.Generate),
 	}
 	return plugins
 }

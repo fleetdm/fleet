@@ -2,6 +2,8 @@ package execuser
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -83,17 +85,114 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("open path %q: %w", path, err)
 	}
+	// Reap the child process in a background goroutine. Orbit runs as root and
+	// only calls Start here (it monitors the desktop process separately, so this
+	// function must return after starting it). Without a corresponding Wait, every
+	// `sudo`/`timeout` child that exits becomes a zombie. When the desktop fails to
+	// start and Orbit respawns it in a loop, these zombies accumulate by the
+	// thousands. See https://github.com/fleetdm/fleet/issues/41796.
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Debug().Err(err).Msg("run cmd wait")
+		}
+	}()
 	return "", nil
+}
+
+// bracketScript runs the command named by the first positional parameter, with its
+// stdout and exit status bracketed by markers.
+//
+// The command runs under the login user's shell (see getConfigForCommand), whose
+// startup files write to the same stdout (/etc/profile, /etc/profile.d/*,
+// ~/.profile, ~/.bash_logout). Without the markers that output is indistinguishable
+// from the command's own, and prepending it to a passphrase silently corrupts it.
+//
+// The status travels in the closing marker because the process status is the
+// shell's by then. The script goes over stdin because as an argument it is expanded
+// by the login shell on some sudo implementations, leaving the inner shell to run
+// that shell's argv[0] instead of the command.
+func bracketScript(nonce string) string {
+	return fmt.Sprintf(`echo "B-%s"; cmd=$1; shift; "$cmd" "$@"; echo "E-%s:$?"`, nonce, nonce)
+}
+
+// newOutputNonce returns a random tag for one invocation's markers, so that no
+// startup file can produce output that looks like them.
+func newOutputNonce() (string, error) {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", fmt.Errorf("generate output marker: %w", err)
+	}
+	return hex.EncodeToString(buf[:]), nil
+}
+
+// parseBracketedOutput returns the wrapped command's own stdout and exit status,
+// discarding whatever the login shell wrote around them.
+//
+// ok is false when the markers are absent or malformed, meaning the wrapper did not
+// run as expected; callers then fall back to the raw output and the process exit
+// code, which is no worse than not wrapping at all.
+func parseBracketedOutput(b []byte, nonce string) (output []byte, exitCode int, ok bool) {
+	// Redundant with the search below, which already fails on empty input, but
+	// nilaway needs it to see that the slice further down is guarded.
+	if len(b) == 0 {
+		return nil, 0, false
+	}
+
+	begin := []byte("B-" + nonce + "\n")
+	i := bytes.LastIndex(b, begin)
+	if i < 0 {
+		return nil, 0, false
+	}
+
+	out, after, found := bytes.Cut(b[i+len(begin):], []byte("E-"+nonce+":"))
+	if !found {
+		return nil, 0, false
+	}
+
+	// The status is the rest of the marker's line; anything past it was written
+	// after the command exited.
+	statusLine, _, _ := bytes.Cut(after, []byte("\n"))
+	status, err := strconv.Atoi(string(statusLine))
+	if err != nil {
+		return nil, 0, false
+	}
+
+	return out, status, true
 }
 
 // runWithOutput runs a command and return its output and exit code.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	cmd, err := baserun(path, opts)
+	nonce, err := newOutputNonce()
 	if err != nil {
 		return nil, -1, err
 	}
 
+	// The command and its arguments become the inner shell's positional parameters;
+	// the script itself arrives on stdin. See bracketScript.
+	opts.args = append([][2]string{
+		{"-s", ""},
+		{path, ""},
+	}, opts.args...)
+
+	// baserun logs the program it launches, which is the wrapping shell, so name
+	// the actual command here too.
+	log.Info().Str("program", path).Msg("running command through a shell wrapper")
+
+	cmd, err := baserun("sh", opts)
+	if err != nil {
+		return nil, -1, err
+	}
+	cmd.Stdin = strings.NewReader(bracketScript(nonce))
+
 	output, err = cmd.Output()
+	if bracketed, status, ok := parseBracketedOutput(output, nonce); ok {
+		if status != 0 {
+			return bracketed, status, fmt.Errorf("%q exited with code %d", path, status)
+		}
+		return bracketed, 0, nil
+	}
+	log.Debug().Str("path", path).Msg("output markers not found, using raw command output")
+
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
@@ -175,7 +274,22 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		Str("session_type", userDisplaySession.Type.String()).
 		Msg("running sudo")
 
-	args = []string{"-n", "-i", "-u", user, "-H"}
+	// On openSUSE Leap 16+ we drop -i (login shell). With -i, sudo runs the target
+	// user's shell as a login shell and passes the rest of the command via
+	// `bash --login -c`, which sources /etc/profile and /etc/profile.d/* and
+	// shell-escapes the inline command. On Leap 16 that environment indirection
+	// causes our `env KEY=val ... fleet-desktop` invocation to lose env vars, so
+	// fleet-desktop exits with "missing URL environment ..." and Orbit respawns it
+	// in a tight loop. -H sets HOME to the target user; sudo's default env_reset
+	// already sets USER/LOGNAME/SHELL.
+	//
+	// We keep -i on every other supported distribution to preserve the previously
+	// QA'd behavior.
+	if isOpenSUSELeap16Plus() {
+		args = []string{"-n", "-u", user, "-H"}
+	} else {
+		args = []string{"-n", "-i", "-u", user, "-H"}
+	}
 	env = make([]string, 0)
 
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
@@ -198,6 +312,42 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 	)
 
 	return args, env, nil
+}
+
+// isOpenSUSELeap16Plus reports whether the host is running openSUSE Leap 16 or
+// newer. We scope the no-login-shell sudo workaround to that distribution since
+// it is the one observed to break under sudo -i; other distributions retain the
+// previous (login-shell) launch path so we don't have to re-QA them.
+func isOpenSUSELeap16Plus() bool {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return false
+	}
+	var id, versionID string
+	for line := range strings.SplitSeq(string(data), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		// /etc/os-release values may be quoted.
+		value = strings.Trim(value, `"'`)
+		switch key {
+		case "ID":
+			id = value
+		case "VERSION_ID":
+			versionID = value
+		}
+	}
+	if id != "opensuse-leap" {
+		return false
+	}
+	// VERSION_ID is typically "16" or "16.0"; compare the major component.
+	major, _, _ := strings.Cut(versionID, ".")
+	n, err := strconv.Atoi(major)
+	if err != nil {
+		return false
+	}
+	return n >= 16
 }
 
 // getUserWaylandDisplay returns the value to set on WAYLAND_DISPLAY for the given user.

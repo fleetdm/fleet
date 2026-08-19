@@ -49,8 +49,9 @@ services:
   - name: fleet-mysql
     plan: standard
     type: pserv
-    runtime: docker
-    repo: https://github.com/render-examples/mysql
+    runtime: image
+    image:
+      url: 'docker.io/library/mysql:8.0.44'
     disk:
       name: mysql
       mountPath: /var/lib/mysql

@@ -1,5 +1,7 @@
 import React from "react";
 import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
@@ -112,6 +114,12 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
   },
+  clearing_passcode: {
+    title: "Clear passcode pending",
+    tagType: "warning",
+    generateTooltip: () =>
+      "Passcode will clear when the host comes online. If the host is online, it will clear the next time it checks in to Fleet.",
+  },
 };
 
 // We exclude "unlocked" as we dont display a tooltip for it.
@@ -155,4 +163,23 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
       You can&apos;t fetch data from <br /> a wiped host.
     </>
   ),
+  clearing_passcode: (
+    <>
+      You can&apos;t fetch data from <br /> a host that is clearing passcode.
+    </>
+  ),
 } as const;
+
+export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
+  <>
+    There&apos;s no manual <b>Refetch</b> button because Android hosts sync data
+    automatically when they change. If changes aren&apos;t appearing,{" "}
+    <CustomLink
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-manual-sync`}
+      text="learn how to sync manually"
+      newTab
+      variant="tooltip-link"
+    />
+    .
+  </>
+);

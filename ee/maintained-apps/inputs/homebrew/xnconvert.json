@@ -1,0 +1,10 @@
+{
+  "name": "XnSoft XnConvert",
+  "unique_identifier": "com.xnview.XnConvert",
+  "token": "xnconvert",
+  "installer_format": "dmg",
+  "slug": "xnconvert/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

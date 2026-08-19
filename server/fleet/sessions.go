@@ -124,14 +124,19 @@ const (
 //
 // For both attributes currently supported values are `admin`, `maintainer`, `observer`,
 // `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
-func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
-	ssoRolesInfo := SSORolesInfo{}
+// An empty or whitespace-only value (or an attribute with no value elements at all) is
+// also treated as `null` and ignored. The names of any such coerced attributes are
+// returned in `coercedAttrs`.
+func RolesFromSSOAttributes(attributes []SAMLAttribute) (ssoRolesInfo SSORolesInfo, coercedAttrs []string, err error) {
 	for _, attribute := range attributes {
 		switch {
 		case attribute.Name == globalUserRoleSSOAttrName:
-			role, err := parseRole(attribute.Values)
+			role, coerced, err := parseRole(attribute.Values)
 			if err != nil {
-				return SSORolesInfo{}, fmt.Errorf("parse global role: %w", err)
+				return SSORolesInfo{}, nil, fmt.Errorf("parse global role: %w", err)
+			}
+			if coerced {
+				coercedAttrs = append(coercedAttrs, attribute.Name)
 			}
 			if role == ssoAttrNullRoleValue {
 				// If the role is set to the null value then the attribute is ignored.
@@ -146,11 +151,14 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			// Parse the fleet ID from what's left.
 			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 32)
 			if err != nil {
-				return SSORolesInfo{}, fmt.Errorf("parse team ID: %w", err)
+				return SSORolesInfo{}, nil, fmt.Errorf("parse team ID: %w", err)
 			}
-			teamRole, err := parseRole(attribute.Values)
+			teamRole, coerced, err := parseRole(attribute.Values)
 			if err != nil {
-				return SSORolesInfo{}, fmt.Errorf("parse team role: %w", err)
+				return SSORolesInfo{}, nil, fmt.Errorf("parse team role: %w", err)
+			}
+			if coerced {
+				coercedAttrs = append(coercedAttrs, attribute.Name)
 			}
 			if teamRole == ssoAttrNullRoleValue {
 				// If the role is set to the null value then the attribute is ignored.
@@ -165,24 +173,31 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 		}
 	}
 	if err := ssoRolesInfo.verify(); err != nil {
-		return SSORolesInfo{}, err
+		return SSORolesInfo{}, nil, err
 	}
-	return ssoRolesInfo, nil
+	return ssoRolesInfo, coercedAttrs, nil
 }
 
-func parseRole(values []SAMLAttributeValue) (string, error) {
+// parseRole returns the role to apply for a SAML role attribute. The second
+// return value is true when the input was empty / missing / whitespace-only and
+// was therefore coerced to the `null` sentinel. Valid role values must match
+// exactly (no trimming) — e.g. " admin " is rejected as an invalid role.
+func parseRole(values []SAMLAttributeValue) (string, bool, error) {
 	if len(values) == 0 {
-		return "", errors.New("empty role")
+		return ssoAttrNullRoleValue, true, nil
 	}
 	// Using last value by default.
 	value := values[len(values)-1].Value
+	if strings.TrimSpace(value) == "" {
+		return ssoAttrNullRoleValue, true, nil
+	}
 	if value != RoleAdmin &&
 		value != RoleMaintainer &&
 		value != RoleObserver &&
 		value != RoleObserverPlus &&
 		value != RoleTechnician &&
 		value != ssoAttrNullRoleValue {
-		return "", fmt.Errorf("invalid role: %s", value)
+		return "", false, fmt.Errorf("invalid role: %s", value)
 	}
-	return value, nil
+	return value, false, nil
 }

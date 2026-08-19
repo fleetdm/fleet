@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -81,7 +81,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 				ID          uint `db:"id"`
 				OSVersionID uint `db:"os_version_id"`
 			}
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				return sqlx.GetContext(ctx, q, &osinfo,
 					`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
 					tt.os.Name, tt.os.Version, tt.os.Arch, tt.os.KernelVersion, tt.os.Platform)
@@ -296,7 +296,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 		// Test 4: Request with max_vulnerabilities=-1 should return error
 		res := s.Do("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=-1", nil, http.StatusUnprocessableEntity)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+		require.Contains(t, errMsg, "max_vulnerabilities cannot be negative")
 	})
 
 	t.Run("entity endpoint", func(t *testing.T) {
@@ -322,7 +322,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 		// Test 4: Request with max_vulnerabilities=-1 should return error
 		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=-1", osVersionID), nil, http.StatusUnprocessableEntity)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+		require.Contains(t, errMsg, "max_vulnerabilities cannot be negative")
 	})
 }
 
@@ -384,7 +384,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilitiesMultipl
 		Arch string `db:"arch"`
 	}
 	var osIDs []osIDResult
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &osIDs, `
 			SELECT id, arch
 			FROM operating_systems

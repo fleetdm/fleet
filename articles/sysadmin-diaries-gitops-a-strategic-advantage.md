@@ -48,7 +48,7 @@ Perhaps most importantly, you’ll see a morale boost. Your teams will engage in
 
 Some of you may already be well along your GitOps journey. If that’s the case, I encourage you to share your insights through conference presentations or by open-sourcing your solutions. By doing so, you can help others navigate similar challenges and showcase the real-world benefits of GitOps.
 
-For those yet to begin, [Fleet](https://fleetdm.com/) is a great place to start. Not only will you be setting up a system that provides comprehensive visibility and insights into all your devices, Fleet also provides an [easy-to-understand GitOps repository to help you get started](https://github.com/fleetdm/fleet-gitops).
+For those yet to begin, [Fleet's GitOps reference](https://fleetdm.com/docs/configuration/yaml-files) is a great place to start.
 
 I hope this discussion has piqued your interest and given you the confidence to explore GitOps further. It should be at the top of your decision-making criteria during purchasing and renewal cycles for any software or systems you manage. For IT professionals, imagine becoming the hero of work automation and enhancing the services you provide to your customers. For InfoSec and compliance teams, picture gaining faster and deeper visibility into how devices in your environment are configured, whether on-prem or in the cloud, and having one location to run queries and enforce policies. For executives and leadership, envision a more engaged, motivated, and productive team that consistently helps you meet operational goals while driving down costs.
 

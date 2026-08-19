@@ -1,0 +1,10 @@
+{
+  "name": "Pulsar",
+  "unique_identifier": "dev.pulsar-edit.pulsar",
+  "token": "pulsar",
+  "installer_format": "dmg",
+  "slug": "pulsar/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

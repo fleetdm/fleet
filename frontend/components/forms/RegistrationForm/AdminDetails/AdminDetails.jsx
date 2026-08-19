@@ -60,12 +60,14 @@ class AdminDetails extends Component {
           inputOptions={{
             maxLength: "80",
           }}
+          ignore1password={false}
         />
         <InputField
           {...fields.email}
           label="Email"
           tabIndex={tabIndex}
           type="email"
+          ignore1password={false}
         />
         <InputField
           {...fields.password}
@@ -73,12 +75,14 @@ class AdminDetails extends Component {
           type="password"
           tabIndex={tabIndex}
           helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+          ignore1password={false}
         />
         <InputField
           {...fields.password_confirmation}
           type="password"
           tabIndex={tabIndex}
           label="Confirm password"
+          ignore1password={false}
         />
         <div className="button-wrap--center">
           <Button

@@ -188,7 +188,7 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="inverse"
+        variant="secondary"
         type="button"
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
@@ -278,7 +278,12 @@ export const HostInstallerActionCell = ({
     !app_store_app &&
     !isIpaPackage &&
     !!software_package &&
-    (installedVersionsDetected || installedTgzPackageDetected);
+    // Show uninstall button even when the status is installed but the host's
+    // inventory has no matching title ID with the installer.
+    (installedVersionsDetected ||
+      installedTgzPackageDetected ||
+      ui_status === "installed" ||
+      ui_status === "recently_installed");
 
   // Instructions to open software available for macOS apps and Windows programs only
   const canViewOpenInstructions =
@@ -311,7 +316,12 @@ export const HostInstallerActionCell = ({
 
   const handleUninstallClick = () => {
     if (uninstallDisabled || isInstallUninstallPendingLocal) return;
-    setIsInstallUninstallPendingLocal(true);
+    // On My Device, uninstall opens a confirmation modal instead of calling the
+    // API directly. Skip the optimistic pending flag so cancelling the modal
+    // doesn't leave the row's buttons stuck disabled (#50856).
+    if (!isMyDevicePage) {
+      setIsInstallUninstallPendingLocal(true);
+    }
     onClickUninstallAction();
   };
 
@@ -373,7 +383,7 @@ export const HostInstallerActionCell = ({
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="small-button"
+            variant="secondary"
             disabled={moreDisabled}
           />
         </div>

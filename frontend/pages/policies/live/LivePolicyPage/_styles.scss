@@ -44,7 +44,7 @@
   &__empty-entity-search {
     margin-top: $pad-small;
     font-size: $x-small;
-    line-height: 21px; /* 150% */
+    line-height: $line-height;
   }
 
   &__targets-button-wrap {

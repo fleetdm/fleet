@@ -80,11 +80,11 @@ module.exports = {
         - Other hosts: ${inputs.otherHosts}
       `;
 
-      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
         lastName: this.req.me.lastName,
-        contactSource: 'Website - Contact forms',
+        contactSource: 'Website - Sign up',
         description: descriptionForContactUpdate,
         marketingAttributionCookie: attributionCookieOrUndefined,
         numberOfHostsDetails: inputs,
@@ -93,16 +93,18 @@ module.exports = {
       });
 
       // If the Contact record returned by the updateOrCreateContactAndAccount does not have a parent Account record, throw an error to stop the build helper.
-      if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      if(!recordDetails.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordDetails.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
       }
       // Create the new Fleet website page view record.
       await sails.helpers.salesforce.createHistoricalEvent.with({
-        salesforceAccountId: recordIds.salesforceAccountId,
-        salesforceContactId: recordIds.salesforceContactId,
+        salesforceAccountId: recordDetails.salesforceAccountId,
+        salesforceContactId: recordDetails.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Created a quote for a self-service Fleet Premium license',
         eventContent: descriptionForContactUpdate,
+        relatedCampaign: recordDetails.mostRecentCampaign,
+        eventSource: 'Website - Sign up',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

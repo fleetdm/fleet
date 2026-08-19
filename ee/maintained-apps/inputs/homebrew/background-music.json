@@ -1,0 +1,10 @@
+{
+  "name": "Background Music",
+  "unique_identifier": "com.bearisdriving.BGM.App",
+  "token": "background-music",
+  "installer_format": "pkg",
+  "slug": "background-music/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "HoudahSpot",
+  "unique_identifier": "com.houdah.HoudahSpot6",
+  "token": "houdahspot",
+  "installer_format": "dmg",
+  "slug": "houdahspot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

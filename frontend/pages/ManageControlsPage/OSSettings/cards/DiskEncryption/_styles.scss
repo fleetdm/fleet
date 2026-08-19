@@ -1,11 +1,6 @@
 .disk-encryption {
   @include vertical-card-layout;
 
-  .premium-feature-message-container {
-    justify-content: initial;
-    align-items: initial;
-  }
-
   > p {
     margin: 0;
   }
@@ -20,8 +15,6 @@
 
   .data-table {
     &__wrapper {
-      // Keeps table data within the table container at smaller screen sizes
-      overflow-x: auto;
       // Prevent border from causing .side-nav__card-container horizontal scroll
       box-sizing: border-box;
     }

@@ -86,7 +86,7 @@ func RunApp(args []string) (*bytes.Buffer, error) {
 	args = append([]string{""}, args...)
 
 	w := new(bytes.Buffer)
-	app := CreateApp(nil, w, os.Stderr, noopExitErrHandler)
+	app := CreateApp(nil, w, os.Stderr, func(_ *cli.Context, _ error) {})
 	StashRawArgs(app, args)
 	err := app.Run(args)
 	return w, err

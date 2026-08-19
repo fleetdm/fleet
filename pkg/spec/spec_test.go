@@ -163,17 +163,20 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "1"}, `$foo $FLEET_VAR_BAR ${FLEET_VAR_BAR}x ${foo}`, `1 $FLEET_VAR_BAR ${FLEET_VAR_BAR}x 1`, nil},
 		{map[string]string{"foo": ""}, `$foo`, ``, nil},
 		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
-		{map[string]string{}, `$foo`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
-		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors(t, "environment variable \"bar\" not set")},
+		{map[string]string{}, `$foo`, ``, checkMultiErrors(t, `environment variable "foo" not set; if you intended the literal string $foo then please escape it as \$foo.`)},
+		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors(t, `environment variable "bar" not set; if you intended the literal string $bar then please escape it as \$bar.`)},
 		{
 			map[string]string{"bar": "1"},
 			`$foo $bar $zoo`, ``,
-			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set"),
+			checkMultiErrors(t,
+				`environment variable "foo" not set; if you intended the literal string $foo then please escape it as \$foo.`,
+				`environment variable "zoo" not set; if you intended the literal string $zoo then please escape it as \$zoo.`,
+			),
 		},
 		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
 		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
-		{map[string]string{}, `$$`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
-		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
+		{map[string]string{}, `$$`, ``, checkMultiErrors(t, `environment variable "$" not set; if you intended the literal string $$ then please escape it as \$$.`)},
+		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors(t, `environment variable "$" not set; if you intended the literal string $$ then please escape it as \$$.`)},
 		{map[string]string{"foo": "1"}, `\$${foo}`, `$1`, nil},
 		{map[string]string{}, `\$foo`, `$foo`, nil},                     // escaped
 		{map[string]string{"foo": "1"}, `\\$foo`, `\\1`, nil},           // not escaped
@@ -185,7 +188,7 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "1"}, `\${foo}var`, `${foo}var`, nil}, // escaped
 		{map[string]string{"foo": ""}, `${foo}var`, `var`, nil},
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
-		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
+		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, `environment variable "foo" not set; if you intended the literal string ${foo} then please escape it as \${foo}.`)},
 		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
 		{
 			map[string]string{"foo": "BAR"},
@@ -459,4 +462,67 @@ func TestRewriteNewToOldKeys(t *testing.T) {
 		assert.Equal(t, "team", conflictErr.Old)
 		assert.Equal(t, "fleet", conflictErr.New)
 	})
+}
+
+func TestGroupFromBytesTeamKinds(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []byte
+	}{
+		{
+			"kind: team with team: key",
+			[]byte(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: macOS
+`),
+		},
+		{
+			"kind: fleet with fleet: key",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: macOS
+`),
+		},
+		{
+			"kind: fleet with team: key",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: macOS
+`),
+		},
+		{
+			"kind: team with fleet: key",
+			[]byte(`
+apiVersion: v1
+kind: team
+spec:
+  fleet:
+    name: macOS
+`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := GroupFromBytes(tt.in)
+			require.NoError(t, err)
+			require.Len(t, g.Teams, 1)
+			require.NotNil(t, g.Teams[0])
+
+			var team map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(g.Teams[0], &team))
+			name, ok := team["name"]
+			require.True(t, ok)
+			assert.Equal(t, `"macOS"`, string(name))
+		})
+	}
 }

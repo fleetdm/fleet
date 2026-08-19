@@ -20,6 +20,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// terminalStatusWriteTimeout bounds the detached write that records a run's
+// terminal status.
+const terminalStatusWriteTimeout = 30 * time.Second
+
 // ReloadInterval reloads and returns a new interval.
 type ReloadInterval func(ctx context.Context) (time.Duration, error)
 
@@ -522,11 +526,24 @@ func (s *Schedule) runWithStats(ctx context.Context, statsType fleet.CronStatsTy
 
 	s.runAllJobs(ctx)
 
-	if err := s.updateStats(ctx, statsID, fleet.CronStatsStatusCompleted); err != nil {
-		s.logger.ErrorContext(ctx, fmt.Sprintf("update cron stats %s", s.name), "err", err)
-		ctxerr.Handle(ctx, err)
+	status := fleet.CronStatsStatusCompleted
+	if ctx.Err() != nil && len(s.errors) > 0 {
+		status = fleet.CronStatsStatusCanceled
 	}
-	s.logger.InfoContext(ctx, "completed")
+
+	// Record the terminal status on a context detached from cancellation, with
+	// its own short timeout. Otherwise an interrupted run cannot persist its
+	// outcome (the write would fail on the cancelled context), leaving the row
+	// "pending" until CleanupCronStats reaps it to "expired" — which hides the
+	// fact that the run was actually cancelled and discards the captured job
+	// errors.
+	updateCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), terminalStatusWriteTimeout)
+	defer cancel()
+	if err := s.updateStats(updateCtx, statsID, status); err != nil {
+		s.logger.ErrorContext(updateCtx, fmt.Sprintf("update cron stats %s", s.name), "err", err)
+		ctxerr.Handle(updateCtx, err)
+	}
+	s.logger.InfoContext(updateCtx, "run finished", "status", string(status))
 }
 
 // runAllJobs runs all jobs in the schedule with tracing context.

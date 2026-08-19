@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/elimity-com/scim"
@@ -169,11 +170,53 @@ func RegisterSCIM(
 			SchemaExtensions: []scim.SchemaExtension{
 				{
 					Schema: schema.Schema{
+						// Fleet stores only `department`, but we declare the full RFC 7643
+						// §4.3 enterprise attribute set so the elimity SCIM library accepts
+						// (rather than 400s) PATCH payloads from IdPs that bundle these
+						// alongside `department`. The handler reads only what it needs and
+						// silently drops the rest — see the `default` branches in
+						// UserHandler.Patch.
 						Attributes: []schema.CoreAttribute{
 							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
 								Name:     "department",
 								Required: false,
 							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "employeeNumber",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "costCenter",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "organization",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "division",
+								Required: false,
+							})),
+							schema.ComplexCoreAttribute(schema.ComplexParams{
+								Name:        "manager",
+								Description: optional.NewString("The User's manager. A complex type that optionally allows service providers to represent organizational hierarchy by referencing the 'id' attribute of another User."),
+								SubAttributes: []schema.SimpleParams{
+									schema.SimpleStringParams(schema.StringParams{
+										Name: "value",
+									}),
+									schema.SimpleReferenceParams(schema.ReferenceParams{
+										Name:           "$ref",
+										ReferenceTypes: []schema.AttributeReferenceType{"User"},
+									}),
+									// `displayName` is ReadOnly per RFC 7643 §4.3. The elimity
+									// library silently strips ReadOnly sub-attrs from client
+									// input, so we don't need to tolerate it in the handler.
+									schema.SimpleStringParams(schema.StringParams{
+										Name:       "displayName",
+										Mutability: schema.AttributeMutabilityReadOnly(),
+									}),
+								},
+							}),
 						},
 						Description: optional.NewString("Enterprise User"),
 						ID:          "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
@@ -216,12 +259,19 @@ func RegisterSCIM(
 		return err
 	}
 
+	dumpPayloadsEnabled := debugSCIMPayloadsEnabled()
+
 	// Apply middleware including OTEL instrumentation
 	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
+		handler = debugPayloadDumpMiddleware(scimLogger, dumpPayloadsEnabled, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
+		// Placed before (outside) LastRequestMiddleware so that ignored SCIM
+		// requests don't overwrite the last-sync status owned by the Google
+		// Workspace sync.
+		handler = GoogleWorkspaceExclusionMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
@@ -309,6 +359,86 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 	})
 }
 
+// debugSCIMPayloadsEnabled reports whether the FLEET_DEBUG_SCIM_PAYLOADS environment
+// variable is set to a truthy value.
+func debugSCIMPayloadsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("FLEET_DEBUG_SCIM_PAYLOADS"))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
+// debugPayloadDumpMiddleware logs the raw SCIM request body to scimLogger when enabled
+// is true. The full body is read into memory, written to the log, and then restored
+// for the downstream handler via a fresh io.ReadCloser.
+func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Handler) http.Handler {
+	if !enabled {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if r.Body == nil || r.Body == http.NoBody {
+			logger.WarnContext(ctx, "scim payload dump",
+				"method", r.Method, "path", r.URL.Path, "size", 0, "body", "")
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		if err != nil {
+			// Fail the request explicitly rather than passing an empty body to the
+			// downstream handler — that would surface as a confusing JSON parse
+			// error and mask the real read failure.
+			logger.ErrorContext(ctx, "scim payload dump: failed to read body — failing request to surface error",
+				"method", r.Method, "path", r.URL.Path, "err", err)
+			http.Error(w, "internal error reading request body", http.StatusInternalServerError)
+			return
+		}
+
+		logger.WarnContext(ctx, "scim payload dump",
+			"method", r.Method, "path", r.URL.Path,
+			"size", len(body), "body", string(body))
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GoogleWorkspaceExclusionMiddleware short-circuits SCIM requests when a Google
+// Workspace integration is configured. Google Workspace and SCIM are mutually
+// exclusive sources for IdP host vitals: while Google Workspace is configured,
+// Fleet pulls the directory itself and must ignore SCIM pushes so they cannot
+// clobber the synced data. It is placed before LastRequestMiddleware so ignored
+// requests don't overwrite the last-sync status.
+func GoogleWorkspaceExclusionMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			// Fail open: if the (cached) config can't be read, fall back to normal
+			// SCIM handling rather than breaking provisioning on a transient error.
+			logger.ErrorContext(ctx, "scim: failed to load app config for google workspace exclusion", "err", err)
+			next.ServeHTTP(w, r)
+			return
+		}
+		if len(appConfig.Integrations.GoogleWorkspace) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		logger.WarnContext(ctx, "ignoring SCIM request because a Google Workspace integration is configured",
+			"method", r.Method, "path", r.URL.Path)
+		w.Header().Set("Content-Type", "application/scim+json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:Error"},
+			"detail":  "SCIM provisioning is disabled because a Google Workspace integration is configured in Fleet.",
+			"status":  fmt.Sprintf("%d", http.StatusConflict),
+		})
+	})
+}
+
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
 func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
@@ -320,9 +450,16 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 		switch {
 		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
 			status = "success"
-		case multi.statusCode == http.StatusUnauthorized:
-			// We do not save unauthenticated error details; we simply log them.
-			logger.InfoContext(r.Context(), "unauthenticated request",
+		case multi.statusCode == http.StatusUnauthorized || multi.statusCode == http.StatusForbidden:
+			// We do not save authentication (401) or authorization (403) failures; we
+			// simply log them. Otherwise an authenticated-but-unauthorized user (e.g. an
+			// observer) could overwrite the admin-visible last_request telemetry with
+			// their rejected attempts.
+			msg := "unauthenticated request"
+			if multi.statusCode == http.StatusForbidden {
+				msg = "unauthorized request"
+			}
+			logger.InfoContext(r.Context(), msg,
 				"origin", r.Header.Get("Origin"),
 				"ip", r.RemoteAddr,
 				"method", r.Method,

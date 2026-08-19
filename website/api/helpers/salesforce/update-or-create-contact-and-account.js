@@ -40,6 +40,9 @@ module.exports = {
       isIn: [
         'Attended a call with Fleet',
         'Event',
+        'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
         'GitHub - Contributed to fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Stared fleetdm/fleet',
@@ -52,14 +55,14 @@ module.exports = {
         'Prospecting - Specialist',
         'Website - Chat',
         'Website - Contact forms',
-        'Website - Contact forms - Demo - ICP',
         'Website - Contact forms - Demo',
-        'Website - GitOps',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
-        'Website - Gated document',
-        'Webinar',
+        'Website - Workshop request'
       ],
     },
     getStartedResponses: {
@@ -113,7 +116,8 @@ module.exports = {
     success: {
       outputType: {
         salesforceAccountId: 'string',
-        salesforceContactId: 'string'
+        salesforceContactId: 'string',
+        mostRecentCampaign: 'string'
       }
     },
 
@@ -130,7 +134,8 @@ module.exports = {
       sails.log.verbose('Skipping Salesforce integration...');
       return {
         salesforceAccountId: undefined,
-        salesforceContactId: undefined
+        salesforceContactId: undefined,
+        mostRecentCampaign: undefined
       };
     }
 
@@ -200,6 +205,18 @@ module.exports = {
 
     let accountValuesToSet = {};
 
+    let formBasedContactSources = [
+      'Website - Contact forms',
+      'Website - Contact forms - Demo - ICP',
+      'Website - Contact forms - Demo',
+      'Website - Workshop request',
+      'Website - Gated document',
+      'Website - Gated video',
+    ];
+    if(contactSource && formBasedContactSources.includes(contactSource)) {
+      contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase
+    }
+
     if(numberOfHostsDetails){
       accountValuesToSet.Total_macOS_hosts__c = numberOfHostsDetails.macosHosts;// eslint-disable-line camelcase
       accountValuesToSet.Total_Windows_hosts__c = numberOfHostsDetails.windowsHosts;// eslint-disable-line camelcase
@@ -215,33 +232,30 @@ module.exports = {
     //  ║  ║ ║║ ║╠╩╗║║╣
     //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
     let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
+
     if(marketingAttributionCookie) {
       attributionDetails = {};
       // Determine if this user is "Digital" or "Organic"
       let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
       let sourceFriendlyNameByCodeName = {
         // "Organic" sources:
-        // os: 'Organic search',
-        // dt: 'Direct traffic',
-        // wr: 'Web referral',
-        // soc: 'Organic social',
+        // os: 'Search (ORGSRC)',
+        // dt: 'Direct traffic (DIRTRF)',
+        // wr: 'Web referral (WEBREF)',
+        // soc: 'Social (ORGSOC)',
+        // ai: '  AI (ORGAI)'
         // "Digital" sources:
-        cpc: 'Paid search (PS)', //note: either cpc or ps both map to Paid Search
-        ps: 'Paid search (PS)',
-        so: 'Paid social (SO)',
-        pm: 'Paid media (PM)',
-        cs: 'Content syndication (CS)',
-        em: 'Email marketing (EM)',
+        cpc: 'Paid search (PAYSRC)', //note: either cpc or ps both map to Paid Search
+        ps: 'Paid search (PAYSRC)',
+        so: 'Paid social (PAYSOC)',
+        pm: 'Paid media (PAYMED)',
+        cs: 'Content syndication (CONSYD)',
+        em: 'Email marketing (EMLMRK)',
         // "Event" sources:
-        mc: 'Major conference (MC)',
-        rc: 'Regional conference (RC)',
-        le: 'Local event/meetup (LE)',
-        ec: 'Executive community (EC)',
-        fe: 'Field/sales event (FE)',
-        pe: 'Partner event (PE)',
-        se: 'Speaking engagement (SE)',
-        wh: 'Webinar hosted (WH)',
-        ws: 'Webinar sponsored (WS)',
+        mc: 'Conference (CONF)',
+        rc: 'Conference (CONF)',
+        pe: 'Partner event (PTREVT)',
+        wh: 'Webinar (WBINR)',
       };
 
       attributionDetails.gclid = marketingAttributionCookie.gclid;
@@ -249,6 +263,8 @@ module.exports = {
       attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
+
+      attributionDetails.referrer = marketingAttributionCookie.referrer;
 
       if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
@@ -264,49 +280,101 @@ module.exports = {
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
-          attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
-          attributionDetails.campaign = 'Default-DT-Direct';
+          attributionDetails.sourceChannelDetails = 'Direct traffic (DIRTRF)';
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
-            'https://www.google.com/',
-            'https://www.bing.com/',
+            'https://www.google.',      // covers all ~190 country variants (google.com, google.co.uk, google.de, etc.)
+            'https://www.bing.com/search',
             'https://search.yahoo.com/',
             'https://duckduckgo.com/',
             'https://www.baidu.com/',
             'https://www.ecosia.org/',
+            'https://www.startpage.com/',
+            'https://search.brave.com/',
+            'https://kagi.com/',
             'https://www.ask.com/',
             'https://www.aol.com/',
-            'https://www.startpage.com/',
+            'https://yandex.com/',
+            'https://yandex.ru/',
           ];
 
           let REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL = [
-            'https://www.facebook.com/',
-            'https://l.facebook.com/',
-            'https://www.instagram.com/',
-            'https://t.co/',
-            'https://x.com/',
             'https://www.linkedin.com/',
+            'https://linkedin.com/',
+            'https://lnkd.in/',
             'https://www.reddit.com/',
             'https://old.reddit.com/',
+            'https://news.ycombinator.com/',
+            'https://x.com/',
+            'https://twitter.com/',
+            'https://www.twitter.com/',
+            'https://t.co/',
+            'https://www.facebook.com/',
+            'https://l.facebook.com/',
+            'https://m.facebook.com/',
+            'https://www.instagram.com/',
+            'https://www.threads.net/',
+            'https://bsky.app/',
+            'https://mastodon.social/',
+            'https://fosstodon.org/',
+            'https://www.youtube.com/',
             'https://www.pinterest.com/',
             'https://www.quora.com/',
           ];
 
-          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
+          let REFERRER_DOMAINS_FOR_ORGANIC_AI = [
+            // === MAJOR GLOBAL AI CHATBOTS ===
+            'https://chat.openai.com/',
+            'https://chatgpt.com/',
+            'https://claude.ai/',
+            'https://claude.com/',
+            'https://gemini.google.com/',
+            'https://bard.google.com/',
+            'https://copilot.microsoft.com/',
+            'https://copilot.cloud.microsoft/',
+            'https://www.bing.com/chat',
+            // === QWEN / ALIBABA ECOSYSTEM ===
+            'https://chat.qwen.ai/',
+            'https://chat.qwenlm.ai/',
+            'https://qwen.ai/',
+            // === AI SEARCH ENGINES ===
+            'https://www.perplexity.ai/',
+            'https://perplexity.ai/',
+            // === META / X / SOCIAL AI ===
+            'https://www.meta.ai/',
+            'https://ai.meta.com/',
+            'https://grok.com/',
+            'https://grok.x.ai/',
+            'https://x.ai/',
+            // === AGGREGATORS & MULTI-MODEL PLATFORMS ===
+            'https://poe.com/',
+            'https://www.poe.com/',
+            'https://huggingface.co/chat/',
+            'https://together.ai/',
+            'https://platform.mistral.ai/chat',
+          ];
+
+          let referrer = typeof marketingAttributionCookie.referrer === 'string'
+            ? marketingAttributionCookie.referrer
+            : '';
+
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
             // If search engine » Organic search
-            attributionDetails.sourceChannelDetails = 'Organic search (OS)';
-            attributionDetails.campaign = 'Default-OS-Organic';
-          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
+            attributionDetails.sourceChannelDetails = 'Search (ORGSRC)';
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
             // If social media » Organic social
-            attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
-            attributionDetails.campaign = 'Default-SOC-Social';
+            attributionDetails.sourceChannelDetails = 'Social (ORGSOC)';
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_AI.some((domain) => referrer.startsWith(domain))) {
+            // If AI/LLM » Organic AI
+            attributionDetails.sourceChannelDetails = 'AI (ORGAI)';
           } else {
             // If not either of those » Web referral
-            attributionDetails.sourceChannelDetails = 'Web referral (WR)';
-            attributionDetails.campaign = 'Default-WR-Referral';
+            attributionDetails.sourceChannelDetails = 'Web referral (WEBREF)';
           }
         }
+        // Build the campaign value using the sourceChannel and sourceChannelDetails values
+        attributionDetails.campaign = `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
       }
     }
 
@@ -397,9 +465,9 @@ module.exports = {
         // If we didn't find an existing account by name or website, try to get the global domain of the user's organization and look for a matching account record.
         if(!existingAccountRecord) {
           let glboalDomainPrompt = `Given this domain "${enrichmentData.employer.emailDomain}", assuming we want a global customer account entry in our CRM, what might be the equivalent global domain? If the website is already the global domain, respond with that. (Respond only with the domain, as a JSON string.)`;
-          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'gpt-5-nano-2025-08-07', expectJson: true})
+          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'claude-haiku-4-5', expectJson: true})
           .tolerate((err)=>{
-            sails.log.warn(`When trying to ask ChatGPT about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+            sails.log.warn(`When trying to ask an LLM about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
             // If an error occurs getting the global domain, return the emailDomain from the get-enriched helper.
             return enrichmentData.employer.emailDomain;// Note: This will make the account search below
           });
@@ -471,6 +539,8 @@ module.exports = {
         contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         contactValuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
+        contactValuesToSet.Source_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
       }
 
 
@@ -600,6 +670,7 @@ module.exports = {
           contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
           contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         }
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
       }
 
 
@@ -644,7 +715,8 @@ module.exports = {
 
     return {
       salesforceAccountId,
-      salesforceContactId
+      salesforceContactId,
+      mostRecentCampaign: attributionDetails ? attributionDetails.campaign : undefined
     };
 
   }

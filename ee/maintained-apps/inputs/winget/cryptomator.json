@@ -1,0 +1,10 @@
+{
+  "name": "Cryptomator",
+  "slug": "cryptomator/windows",
+  "package_identifier": "Cryptomator.Cryptomator",
+  "unique_identifier": "Cryptomator",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Security"]
+}

@@ -1,4 +1,4 @@
-### Linux adoption is growing. Management hasn't kept up.
+### Linux is growing. Management isn't.
 
 * macOS and Windows have mature management ecosystems. Linux does not.
 * Compliance frameworks don't grant exemptions by operating system.
@@ -15,23 +15,23 @@ You'll learn about a maturity model for planning your adoption path, a clear fra
 
 ### Chapter list
 
-- **Why Linux devices are important**
+1. **Why Linux devices are important**
     * What's driving enterprise Linux adoption and why management is no longer optional.
-- **The business case for managing Linux devices**
+2. **The business case for managing Linux devices**
     * Cost, compliance, talent retention, and the price of inaction.
-- **Defining your Linux device management needs**
+3. **Defining your Linux device management needs**
     * Key questions to ask and a maturity model to map your goals.
-- **Automated provisioning for Linux desktop in the enterprise**
+4. **Automated provisioning for Linux desktop in the enterprise**
     * The provisioning gap, enrollment approaches, and what zero-touch looks like on Linux.
-- **Security baselines for Linux**
+5. **Security baselines for Linux**
     * Why baselines matter, what to enforce, and how to fight configuration drift.
-- **App and certificate management for Linux**
+6. **App and certificate management for Linux**
     * Software distribution challenges, the notarization gap, patching speed, and shrinking certificate lifetimes.
-- **Protecting the Linux device**
+7. **Protecting the Linux device**
     * USB and Bluetooth threats, the sudo problem, and remote lock and wipe.
-- **Controlling your software and your data**
+8. **Controlling your software and your data**
     * Software sovereignty, data sovereignty, and why your management tooling should reflect the values that made Linux worth adopting.
-- **Choosing the right solution**
+9. **Choosing the right solution**
     * Business and technical requirements, an evaluation criteria table, and a structured way to compare platforms.
 
 

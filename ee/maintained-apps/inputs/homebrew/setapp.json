@@ -1,0 +1,10 @@
+{
+  "name": "Setapp",
+  "unique_identifier": "com.setapp.DesktopClient.SetappAgent",
+  "token": "setapp",
+  "installer_format": "zip",
+  "slug": "setapp/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

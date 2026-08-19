@@ -1,0 +1,10 @@
+{
+  "name": "Zulip",
+  "slug": "zulip/windows",
+  "package_identifier": "Zulip.Zulip",
+  "unique_identifier": "Zulip",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}

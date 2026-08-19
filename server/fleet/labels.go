@@ -31,11 +31,14 @@ const (
 )
 
 type HostVitalCriteria struct {
-	Vital    *string             `json:"vital,omitempty"`
-	Value    *string             `json:"value,omitempty"`
-	Operator *HostVitalOperator  `json:"operator,omitempty"`
-	And      []HostVitalCriteria `json:"and,omitempty"`
-	Or       []HostVitalCriteria `json:"or,omitempty"`
+	Vital    *string            `json:"vital,omitempty"`
+	Value    *string            `json:"value,omitempty"`
+	Operator *HostVitalOperator `json:"operator,omitempty"`
+	// CustomHostVitalID is required when Vital is "custom_host_vital": that name
+	// alone doesn't identify which custom vital to match, so the id selects it.
+	CustomHostVitalID *uint               `json:"custom_host_vital_id,omitempty"`
+	And               []HostVitalCriteria `json:"and,omitempty"`
+	Or                []HostVitalCriteria `json:"or,omitempty"`
 }
 
 type LabelPayload struct {
@@ -143,8 +146,60 @@ var ValidLabelPlatformVariants = map[string]struct{}{
 	"":        {}, // empty platform is valid value
 	"darwin":  {},
 	"windows": {},
+	"linux":   {}, // matches hosts on any Linux distribution
 	"ubuntu":  {},
 	"centos":  {},
+}
+
+// ValidateLabelMembershipFields checks that the fields on a label spec are
+// consistent with its declared membership type. It returns an
+// InvalidArgumentError with field-specific entries, or nil if valid.
+func ValidateLabelMembershipFields(spec *LabelSpec) *InvalidArgumentError {
+	var invalid InvalidArgumentError
+	switch spec.LabelMembershipType {
+	case LabelMembershipTypeManual:
+		if spec.Query != "" {
+			invalid.Append("query", fmt.Sprintf("label %q is declared as manual but contains a query", spec.Name))
+		}
+		if spec.HostVitalsCriteria != nil {
+			invalid.Append("criteria", fmt.Sprintf("label %q is declared as manual but contains criteria", spec.Name))
+		}
+		if spec.Platform != "" {
+			invalid.Append("platform", fmt.Sprintf("label %q is declared as manual but contains a platform", spec.Name))
+		}
+	case LabelMembershipTypeDynamic:
+		if strings.TrimSpace(spec.Query) == "" {
+			invalid.Append("query", fmt.Sprintf("label %q is declared as dynamic but is missing a query", spec.Name))
+		}
+		if spec.HostVitalsCriteria != nil {
+			invalid.Append("criteria", fmt.Sprintf("label %q is declared as dynamic but contains criteria", spec.Name))
+		}
+		if len(spec.Hosts) > 0 {
+			invalid.Append("hosts", fmt.Sprintf("label %q is declared as dynamic but contains hosts", spec.Name))
+		}
+		if spec.Platform != "" {
+			if _, ok := ValidLabelPlatformVariants[spec.Platform]; !ok {
+				invalid.Append("platform", fmt.Sprintf("label %q has invalid platform: %q", spec.Name, spec.Platform))
+			}
+		}
+	case LabelMembershipTypeHostVitals:
+		if spec.HostVitalsCriteria == nil {
+			invalid.Append("criteria", fmt.Sprintf("label %q is declared as host_vitals but is missing criteria", spec.Name))
+		}
+		if spec.Query != "" {
+			invalid.Append("query", fmt.Sprintf("label %q is declared as host_vitals but contains a query", spec.Name))
+		}
+		if spec.Platform != "" {
+			invalid.Append("platform", fmt.Sprintf("label %q is declared as host_vitals but contains a platform", spec.Name))
+		}
+		if len(spec.Hosts) > 0 {
+			invalid.Append("hosts", fmt.Sprintf("label %q is declared as host_vitals but contains hosts", spec.Name))
+		}
+	}
+	if invalid.HasErrors() {
+		return &invalid
+	}
+	return nil
 }
 
 type Label struct {
@@ -277,6 +332,17 @@ func ReservedLabelNames() map[string]struct{} {
 	}
 }
 
+// IsReservedLabelName reports whether name refers to a built-in label, returning
+// the canonical built-in name. The comparison is case-insensitive.
+func IsReservedLabelName(name string) (string, bool) {
+	for reserved := range ReservedLabelNames() {
+		if strings.EqualFold(name, reserved) {
+			return reserved, true
+		}
+	}
+	return "", false
+}
+
 // DetectMissingLabels returns a list of labels present in the unvalidatedLabels list that could not be found in the validLabelMap.
 func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []string) []string {
 	missingLabels := make([]string, 0, len(unvalidatedLabels))
@@ -295,6 +361,49 @@ func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []stri
 type LabelIdent struct {
 	LabelID   uint   `json:"id"`
 	LabelName string `json:"name"`
+}
+
+// LabelNamesToIdents wraps each label name in a bare LabelIdent (with LabelID
+// left zero).
+func LabelNamesToIdents(names []string) []LabelIdent {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]LabelIdent, len(names))
+	for i, name := range names {
+		out[i] = LabelIdent{LabelName: name}
+	}
+	return out
+}
+
+// LabelIdentsToNames extracts the label names from a slice of LabelIdent.
+func LabelIdentsToNames(idents []LabelIdent) []string {
+	if len(idents) == 0 {
+		return nil
+	}
+	out := make([]string, len(idents))
+	for i, ident := range idents {
+		out[i] = ident.LabelName
+	}
+	return out
+}
+
+// LabelOverlap returns the first label name that appears in both the include
+// list and the exclude list, or an empty string if there is none.
+// `include` should be the union of all include scopes (e.g. labels_include_all and
+// labels_include_any).
+// `exclude` should be the union of all exclude scopes.
+func LabelOverlap(include, exclude []string) string {
+	seen := make(map[string]struct{}, len(include))
+	for _, n := range include {
+		seen[n] = struct{}{}
+	}
+	for _, n := range exclude {
+		if _, overlapExists := seen[n]; overlapExists {
+			return n
+		}
+	}
+	return ""
 }
 
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
@@ -403,13 +512,30 @@ func parseHostVitalCriteria(criteria *HostVitalCriteria, foreignVitalsGroups map
 	if !ok {
 		return "", fmt.Errorf("unknown vital %s", *criteria.Vital)
 	}
-	// If the vital is a foreign vitals group, add it to the list of foreign vitals groups.
-	if vital.VitalType == HostVitalTypeForeign {
+	switch vital.VitalType {
+	case HostVitalTypeForeign:
+		// If the vital is a foreign vitals group, add it to the list of foreign vitals groups.
 		foreignVitalsGroup, ok := hostForeignVitalGroups[*vital.ForeignVitalGroup]
 		if !ok {
 			return "", fmt.Errorf("unknown foreign vital group %s", *vital.ForeignVitalGroup)
 		}
 		foreignVitalsGroups[&foreignVitalsGroup] = struct{}{}
+	case HostVitalTypeCustom:
+		if criteria.CustomHostVitalID == nil {
+			return "", errors.New("custom_host_vital criteria must have a custom_host_vital_id")
+		}
+		// Join only this vital's per-host rows. The id is appended to values
+		// before the criterion value below because the join is concatenated
+		// ahead of the WHERE clause in CalculateHostVitalsQuery, so its
+		// placeholder must bind first. A fresh group per call is fine: only a
+		// single criterion is supported (And/Or are rejected above), so at most
+		// one parameterized join exists.
+		group := HostForeignVitalGroup{
+			Name:  "custom_host_vital",
+			Query: "JOIN host_custom_host_vitals ON (hosts.id = host_custom_host_vitals.host_id AND host_custom_host_vitals.custom_host_vital_id = ?)",
+		}
+		foreignVitalsGroups[&group] = struct{}{}
+		*values = append(*values, *criteria.CustomHostVitalID)
 	}
 	*values = append(*values, *criteria.Value)
 

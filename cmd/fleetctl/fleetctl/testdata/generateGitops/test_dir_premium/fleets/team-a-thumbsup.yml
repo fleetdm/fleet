@@ -22,6 +22,7 @@ controls:
     certificates:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
+      subject_alternative_name: DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   apple_settings:
     configuration_profiles:
@@ -30,16 +31,20 @@ controls:
   enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
+    deadline_days:
     minimum_version: "98.1"
     update_new_hosts:
   ipados_updates:
     deadline: "2022-12-31"
+    deadline_days:
     minimum_version: "98.2"
     update_new_hosts:
   macos_updates:
     deadline: "2020-12-31"
+    deadline_days:
     minimum_version: "95.1"
     update_new_hosts: true
+  name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
   windows_enabled_and_configured: true
@@ -52,6 +57,7 @@ name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -62,16 +68,19 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
+  patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
   install_software:
@@ -84,6 +93,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with FMA install automation
   install_software:
@@ -96,6 +106,7 @@ policies:
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with custom package install automation
   install_software:
@@ -122,6 +133,9 @@ settings:
   features:
     enable_host_users: true
     enable_software_inventory: true
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 1
@@ -137,6 +151,9 @@ settings:
       destination_url: https://some-team-failing_policies-webhook.com
       enable_failing_policies_webhook: false
       host_batch_size: 4
+    host_activities_webhook:
+      destination_url: https://some-team-host-activities-webhook.com
+      enable_host_activities_webhook: true
     host_status_webhook:
       days_count: 3
       destination_url: https://some-team-host-status-webhook.com
@@ -156,6 +173,8 @@ software:
     platform: darwin
     self_service: true
   - app_store_id: "55566677778"
+    configuration:
+      path: "../lib/team-a-👍/software/my-setup-experience-app-android-config.json"
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
     labels_include_all:
@@ -168,6 +187,8 @@ software:
     auto_update_enabled: true
     auto_update_window_end: "03:00"
     auto_update_window_start: "01:00"
+    configuration:
+      path: "../lib/team-a-👍/software/my-ios-auto-update-app-ios-config.xml"
     icon:
       path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
     labels_include_all:
@@ -183,7 +204,7 @@ software:
     - Label A
     - Label B
     post_install_script:
-      path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall"
+      path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall.sh"
     pre_install_query:
       path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
     self_service: true
@@ -196,8 +217,10 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+    version: "10.0"
   - self_service: true
     slug: fma3/windows
+    version: "^123"
   packages:
   - categories:
     - Browsers
@@ -205,16 +228,16 @@ software:
     icon:
       path: "../lib/team-a-👍/icons/my-software-package-darwin-icon.png"
     install_script:
-      path: "../lib/team-a-👍/scripts/my-software-package-darwin-install"
+      path: "../lib/team-a-👍/scripts/my-software-package-darwin-install.sh"
     labels_include_any:
     - Label A
     - Label B
     post_install_script:
-      path: "../lib/team-a-👍/scripts/my-software-package-darwin-postinstall"
+      path: "../lib/team-a-👍/scripts/my-software-package-darwin-postinstall.sh"
     pre_install_query:
       path: "../lib/team-a-👍/queries/my-software-package-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     uninstall_script:
-      path: "../lib/team-a-👍/scripts/my-software-package-darwin-uninstall"
+      path: "../lib/team-a-👍/scripts/my-software-package-darwin-uninstall.sh"
     url: https://example.com/download/my-software.pkg

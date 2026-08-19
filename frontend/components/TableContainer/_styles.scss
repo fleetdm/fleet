@@ -1,9 +1,9 @@
 .table-container {
   display: flex;
   flex-direction: column;
-  gap: $gap-table-elements;
+  gap: $gap-page-component-inner;
 
-  // Container is responsive design used when customFilters is rendered
+  // Container is responsive design used when customControl is rendered
   .container {
     display: grid;
     grid-template-columns: 1fr auto; /* First column takes all remaining space */
@@ -34,6 +34,10 @@
   .top-shift-header {
     grid-column: 1 / -1; /* Span across all columns */
     grid-row: 1; /* Place in the first row */
+
+    .table-container__search {
+      flex: 1; // Fill remaining width when stacked
+    }
 
     .Select-multi-value-wrapper {
       height: 36px; // Fixes height issues
@@ -78,6 +82,13 @@
     justify-content: space-between;
     align-items: center;
     gap: $gap-table-elements;
+
+    // Hide the header entirely when it has no visible content (no
+    // results count, no filter/action controls, and no search bar).
+    &:not(:has(.table-container__results-count)):not(:has(.controls
+          > *)):not(:has(.table-container__search)) {
+      display: none;
+    }
 
     &.stack-table-controls {
       align-items: start;
@@ -136,7 +147,7 @@
 
   &__results-count {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
@@ -145,8 +156,8 @@
     gap: $gap-table-elements;
 
     > span {
-      line-height: 36px; // Match other header components' height but still align text baseline
       min-width: fit-content;
+      line-height: 1; // Normalize line-height so different font sizes share a consistent center
     }
 
     .count-error {
@@ -200,6 +211,18 @@
     }
   }
 
+  // Tooltip wrapper around search input needs full width so the input can
+  // expand to fill the available space (applies to both stacked and non-stacked layouts).
+  &__search {
+    .component__tooltip-wrapper {
+      width: 100%;
+
+      &__element {
+        width: 100%;
+      }
+    }
+  }
+
   .table-container__search-input.wide-search {
     margin-left: 0;
     margin-bottom: $pad-small;
@@ -208,19 +231,6 @@
   #search-tooltip {
     width: 190px;
     text-align: center;
-  }
-
-  &__empty-page {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  // Hides the next button on this UI
-  &__previous-button {
-    button:last-child {
-      display: none;
-    }
   }
 
   .fleet-checkbox__tick {
@@ -248,13 +258,27 @@
   tr {
     .row-hover-button {
       opacity: 0;
+      // Suppress pointer events while hidden so the invisible button can't
+      // intercept clicks meant for the row. Tab navigation still works —
+      // pointer-events only gates mouse/touch, not keyboard focus.
+      pointer-events: none;
       transition: 250ms;
       text-overflow: none;
+
+      // Reveal on the button's own keyboard focus, not just row hover/focus —
+      // otherwise tabbing directly to a hidden row-hover button never shows it.
+      &:focus-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
 
       // React-select's dropdown opacity must be controlled at input level for keyboard nav
       // So must be controlled at input level here as well
       &.actions-dropdown {
         opacity: 1;
+        // React-select handles its own keyboard nav; keep it hit-testable
+        // so focus/blur bookkeeping continues to work even before row hover.
+        pointer-events: auto;
         .actions-dropdown-select__control {
           opacity: 0;
 
@@ -269,6 +293,7 @@
     &:focus-visible {
       .row-hover-button {
         opacity: 1;
+        pointer-events: auto;
       }
       .row-hover-button.actions-dropdown {
         .actions-dropdown-select__control {

@@ -1,0 +1,10 @@
+{
+  "name": "StarUML",
+  "unique_identifier": "io.staruml.staruml",
+  "token": "staruml",
+  "installer_format": "dmg",
+  "slug": "staruml/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

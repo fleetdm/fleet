@@ -13,6 +13,7 @@ import FilePkg from "./FilePkg";
 import FilePng from "./FilePng";
 import FileP7m from "./FileP7m";
 import FilePem from "./FilePem";
+import FileJson from "./FileJson";
 import FileVpp from "./FileVpp";
 import FileCertificate from "./FileCertificate";
 import AppStore from "./AppStore";
@@ -28,6 +29,7 @@ import DataError from "./DataError";
 import Calendar from "./Calendar";
 import Lock from "./Lock";
 import Settings from "./Settings";
+import FleetLogo from "./FleetLogo";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -54,6 +56,7 @@ export const GRAPHIC_MAP = {
   "file-png": FilePng,
   "file-p7m": FileP7m,
   "file-pem": FilePem,
+  "file-json": FileJson,
   "file-vpp": FileVpp,
   "file-certificate": FileCertificate,
   "app-store": AppStore, // Used in non-editable file uploader for vpp apps edit modal
@@ -63,6 +66,7 @@ export const GRAPHIC_MAP = {
   calendar: Calendar,
   lock: Lock,
   settings: Settings,
+  "fleet-logo": FleetLogo,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

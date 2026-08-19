@@ -1,0 +1,11 @@
+{
+  "name": "Bitwig Studio",
+  "slug": "bitwig-studio/windows",
+  "package_identifier": "bitwig.bitwig",
+  "unique_identifier": "Bitwig Studio",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "fuzzy_match_name": true,
+  "default_categories": ["Productivity"]
+}

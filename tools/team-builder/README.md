@@ -1,7 +1,14 @@
+> [!NOTE]
+> **Prefer [`dibble`](../dibble/README.md) for seeding teams.** The equivalent is:
+> ```bash
+> ./tools/dibble/dibble teams --count N
+> ```
+> This tool is kept for backwards compatibility (it also generates installer
+> packages, which dibble does not). We'll remove it once no one references it.
 
-# Fleet Team Builder
+# Fleet fleet builder
 
-Using a list of teams in a file as input, adds the listed teams to Fleet and generates installer processes. 
+Using a list of fleets (formerly "teams") in a file as input, adds the listed teams to Fleet and generates installer processes. 
 
 For each team, an enroll secret will be created, the team added to Fleet using the team yaml template, and `.msi`,`.deb`, `.pkg` and `.rpm` installer packages will be created. 
 

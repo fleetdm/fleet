@@ -1,0 +1,10 @@
+{
+  "name": "Cyberduck CLI",
+  "slug": "cyberduck-cli/windows",
+  "package_identifier": "Iterate.CyberduckCLI",
+  "unique_identifier": "Cyberduck CLI",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

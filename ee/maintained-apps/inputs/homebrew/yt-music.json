@@ -1,0 +1,10 @@
+{
+  "name": "YouTube Music",
+  "unique_identifier": "uk.co.wearecocoon.YT-Music",
+  "token": "yt-music",
+  "installer_format": "zip",
+  "slug": "yt-music/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

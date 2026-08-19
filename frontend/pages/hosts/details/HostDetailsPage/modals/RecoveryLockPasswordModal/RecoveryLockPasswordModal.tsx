@@ -1,20 +1,18 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { getErrorReason } from "interfaces/errors";
 import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
-import TooltipWrapper from "components/TooltipWrapper";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -34,7 +32,6 @@ const RecoveryLockPasswordModal = ({
   canRotatePassword,
   onCancel,
 }: IRecoveryLockPasswordModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isRotating, setIsRotating] = useState(false);
 
   const {
@@ -60,8 +57,7 @@ const RecoveryLockPasswordModal = ({
     setIsRotating(true);
     try {
       await hostAPI.rotateRecoveryLockPassword(hostId);
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate Recovery Lock password."
       );
       onCancel();
@@ -70,40 +66,26 @@ const RecoveryLockPasswordModal = ({
         ? "Recovery lock password rotation is already in progress for this host."
         : "Couldn't send request to rotate Recovery Lock password. Please try again.";
 
-      renderFlash("error", msg);
+      notify.error(msg, { response: e });
     }
     setIsRotating(false);
   };
 
   const renderRotateButton = () => {
-    if (canRotatePassword) {
-      return (
-        <Button
-          variant="inverse"
-          onClick={onRotatePassword}
-          disabled={isRotating}
-          className={`${baseClass}__rotate-button`}
-        >
-          <Icon name="refresh" />
-          {isRotating ? "Rotating..." : "Rotate password"}
-        </Button>
-      );
+    if (!canRotatePassword) {
+      return null;
     }
 
     return (
-      <span className={`${baseClass}__rotate-button--disabled`}>
-        <TooltipWrapper
-          underline={false}
-          showArrow
-          position="bottom"
-          tipContent="Only users with the maintainer role and above can rotate password."
-        >
-          <span className={`${baseClass}__rotate-button-content`}>
-            <Icon name="refresh" />
-            Rotate password
-          </span>
-        </TooltipWrapper>
-      </span>
+      <Button
+        variant="secondary"
+        onClick={onRotatePassword}
+        disabled={isRotating}
+        className={`${baseClass}__rotate-button`}
+        icon="refresh"
+      >
+        {isRotating ? "Rotating..." : "Rotate password"}
+      </Button>
     );
   };
 

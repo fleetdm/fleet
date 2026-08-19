@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -442,11 +443,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
+		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
 		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts %s GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
@@ -581,7 +583,14 @@ func ingestKubequeryInfo(ctx context.Context, logger *slog.Logger, host *fleet.H
 	return nil
 }
 
-const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+// usesMacOSDiskEncryptionQuery probes whether FileVault is enabled on a macOS host.
+// It deliberately does not filter on `user_uuid` — that column reports the SecureToken
+// holder and can be empty for a short period after ADE setup completes, even when
+// FileVault is on and the recovery key has been escrowed. Gating on user_uuid here
+// previously caused the host to appear unencrypted (and the recovery key to remain
+// un-escrowed) until the user logged out/in to settle SecureToken propagation. See
+// https://github.com/fleetdm/fleet/issues/45369.
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1`
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
@@ -856,15 +865,18 @@ var extraDetailQueries = map[string]DetailQuery{
 	"certificates_windows": {
 		Query: `
 	SELECT
-		ca, common_name, subject, issuer,
+		ca, common_name, subject2, issuer2,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, username,
+		serial, sha1, username, sid,
 		path
 	FROM
 		certificates
 	WHERE
 		store = 'Personal';`,
+		// subject2/issuer2 preserve the distinguished name attribute keys (CN, O, OU, C). They are only populated on
+		// Windows starting with osquery 5.23.1
+		Discovery:        `SELECT 1 FROM pragma_table_info('certificates') WHERE name = 'subject2'`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestHostCertificatesWindows,
 	},
@@ -939,6 +951,12 @@ var mdmQueries = map[string]DetailQuery{
 		Query:            `SELECT name, data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
+	},
+	"mdm_macos_software_update_id": {
+		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'bridge-model', 'board-id');`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMDMMacOSSoftwareUpdateID,
+		Discovery:        discoveryTable("ioreg"),
 	},
 }
 
@@ -1017,9 +1035,25 @@ var softwareMacOS = DetailQuery{
 	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
 	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
 	//
+	// Regarding `SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path ...`:
 	// Homebrew package casks are filtered to exclude those that have an associated .app bundle
 	// as these are already included in the apps table.  Apps table software includes bundle_identifier
 	// which is used in vulnerability scanning.
+	// The .app check uses bounded, non-recursive globs matching the standard Homebrew cask layout:
+	// homebrew_packages.path is the Caskroom token dir (e.g. /opt/homebrew/Caskroom/<token>) and the
+	// staged app lives at <token>/<version>/<Name>.app (depth 2) or, less commonly, one level deeper
+	// via an `app "subdir/Name.app"` stanza (depth 3).
+	// Data as of July 2026: 99.7% of casks stage their .app at depth ≤3 per the Homebrew cask API.
+	// It intentionally does NOT use a recursive `%%` match. A recursive match descends into every
+	// .app bundle's Contents/ and the cask's .metadata/ tree (following symlinks such as the
+	// `latest -> <version>` link) and materializes the entire subtree in memory before the LIMIT 1
+	// applies. That regressed memory usage badly after osquery PR #8704
+	// (see https://github.com/osquery/osquery/issues/8964): a single cask like gcloud-cli walks
+	// ~98k entries. Recursion is also less correct here -- `LIKE '%.app%'` is a substring match, so a
+	// recursive walk matches unrelated deep paths like ".../google.auth.app_engine.rst" and wrongly
+	// excludes casks that ship no .app (e.g. gcloud-cli) from inventory. A fleet-wide scan confirmed
+	// no installed cask nests a real .app deeper than the bounded globs reach, so recursion buys
+	// nothing. The bounded globs stop at the .app directory entry and never enter it.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
@@ -1034,6 +1068,7 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
+WHERE path NOT LIKE '%%.app/Contents/%%'
 UNION
 SELECT
   name AS name,
@@ -1108,7 +1143,7 @@ SELECT
   path AS installed_path
 FROM homebrew_packages
 WHERE type = 'cask'
-AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%%%') AND file.path LIKE '%%.app%%' LIMIT 1);
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%/%%.app%%') OR file.path LIKE CONCAT(homebrew_packages.path, '/%%/%%/%%.app%%') LIMIT 1);
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
@@ -1152,6 +1187,52 @@ SELECT
 FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("jetbrains_plugins"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+// softwareAdobePlugins collects Adobe plugins (CEP and UXP extensions) reported by
+// fleetd's adobe_plugins table. The table emits one row per plugin, including a user
+// column for per-user installs, so there's no need to join with cached_users.
+//
+// The default (standard) scan level is used, which covers CEP and UXP extensions. The
+// deep scan level additionally reports native plug-ins, which have no manifest and thus
+// no version.
+//
+// Neither bundle_identifier nor extension_for is stored, following vscode_extensions and
+// jetbrains_plugins: the plugin's bundle id goes in extension_id instead, which is not part of
+// a software title's identity.
+//
+// software_titles keys titles on (unique_identifier, source, extension_for) and on
+// (bundle_identifier, additional_identifier), where unique_identifier falls back to the name
+// and additional_identifier is 0 for every source except ios_apps and ipados_apps. Storing the
+// bundle id or the manifest's host applications therefore puts plugin titles on keys they can
+// collide with:
+//   - a plugin sharing a bundle id with a macOS app, which is keyed the same way;
+//   - a plugin whose extension directory name matches its own bundle id, on a host where the
+//     manifest can't be read and fleetd falls back to the directory name;
+//   - a plugin whose manifest changes which applications it supports, since host_application
+//     changes while the bundle id stays the same.
+//
+// Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
+// at all: invisible on the Software page, and an error logged on every check-in. Nothing
+// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// the host application.
+var softwareAdobePlugins = DetailQuery{
+	Query: `
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  bundle_id AS extension_id,
+  '' AS extension_for,
+  'adobe_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM adobe_plugins`,
+	Platforms: []string{"darwin", "windows"},
+	Discovery: discoveryTable("adobe_plugins"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -1939,8 +2020,34 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
 	name := rows[0]["name"]
-	if strings.HasPrefix(name, "Arch Linux") {
+	// forceRollingVersion is set for Arch-based distributions that report their
+	// own release number but must still be recorded as "rolling". See the
+	// Omarchy case below for why the version cannot be derived in that case.
+	var forceRollingVersion bool
+	switch {
+	case strings.HasPrefix(name, "Arch Linux"):
 		name = strings.TrimSuffix(name, " ARM")
+	case name == "CachyOS Linux":
+		// CachyOS is an Arch-based rolling-release distribution; aggregate it
+		// onto the "Arch Linux" operating system row in the OS inventory. It
+		// reports BUILD_ID=rolling, so parseOSVersion already derives "rolling".
+		name = "Arch Linux"
+	case name == "Omarchy":
+		// Omarchy is also an Arch-based rolling-release distribution, but unlike
+		// CachyOS it reports a real release number in both VERSION_ID and
+		// BUILD_ID (e.g. "4.0.0"). parseOSVersion would therefore derive
+		// "4.0.0" and produce an "Arch Linux 4.0.0" row, a version that does not
+		// exist upstream and that does not merge with the "Arch Linux rolling"
+		// row these hosts occupied before Omarchy started shipping its own
+		// os-release ID.
+		//
+		// Pin the version explicitly rather than rewriting the ingested build
+		// value, so parseOSVersion still sees exactly what the host reported.
+		// Note this only affects the OS inventory: the separate os_version
+		// detail query keeps recording the true build on the host, which
+		// continues to display as "Omarchy 4.0.0" on the host details page.
+		name = "Arch Linux"
+		forceRollingVersion = true
 	}
 	version := rows[0]["version"]
 	major := rows[0]["major"]
@@ -1954,6 +2061,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
+	if forceRollingVersion {
+		hostOS.Version = "rolling"
+	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -1973,6 +2083,8 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
 		osVersion = version
+	case strings.EqualFold(build, "rolling"):
+		osVersion = build
 	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
 	default:
@@ -2293,7 +2405,20 @@ var (
 	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
 	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
 	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
-	basicAppSanitizers   = []struct {
+	// pythonNameVersion extracts the marketing version from python.org Windows
+	// installer names like "Python 3.14.5 (64-bit)" -> "3.14.5". The registry
+	// DisplayVersion embeds the micro version in the third segment (e.g.
+	// "3.14.5150.0"), which neither matches the real version nor sorts correctly,
+	// so we recover the true version from the name instead.
+	//
+	// python.org's installer also registers the individual component MSIs as their
+	// own ARP entries ("Python 3.14.5 Core Interpreter (64-bit)", "...Standard
+	// Library (64-bit)", "...Executables (64-bit)", etc.), all sharing the same
+	// bogus DisplayVersion. The optional middle group lets those component names
+	// normalize to the same marketing version as the bundle, so a single install
+	// doesn't show up in inventory under two different versions.
+	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
+	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2437,6 +2562,23 @@ var (
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
 				s.Release = "" // Clear release to avoid issues with vulnerability matching
+			},
+		},
+		{
+			// python.org's Windows installer reports a registry DisplayVersion like
+			// "3.14.5150.0" (the micro version is encoded into the third segment),
+			// which doesn't match the real version "3.14.5" and breaks version
+			// ordering. Recover the marketing version from the product name, e.g.
+			// "Python 3.14.5 (64-bit)" -> "3.14.5".
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "python software foundation") &&
+					pythonNameVersion.MatchString(s.Name)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
+					s.Version = matches[1]
+				}
 			},
 		},
 		{
@@ -2653,10 +2795,16 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 		}
 	}
 
-	// isPersonalEnrollment is always false for macOS hosts as our current account driven user
-	// enrollment flow does not support macOS however we will need to detect it here if that ever
-	// changes.
-	isPersonalEnrollment := false
+	// Fleet bakes byod=1 into the enrollment profile's ServerURL for personal
+	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
+	// reports that ServerURL here, so we read the flag back the same way we read
+	// the enroll reference above. Without this, the detail-query ingest would
+	// overwrite the is_personal_enrollment set by the Apple Authenticate flow.
+	// Must be read before RawQuery is cleared below.
+	var isPersonalEnrollment bool
+	if mdmSolutionName == fleet.WellKnownMDMFleet {
+		isPersonalEnrollment = serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1"
+	}
 
 	// strip any query parameters from the URL
 	serverURL.RawQuery = ""
@@ -2738,6 +2886,15 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 			}
 		}
 	}
+	// A host the Autopilot sync created is an automatic enrollment by definition, whatever the enrollment's OOBE flag says.
+	if enrolled && !automatic {
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, host.ID)
+		if err != nil {
+			return err
+		}
+		automatic = isAutopilot
+	}
+
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
 	mdmSolutionName := deduceMDMNameWindows(data)
@@ -2869,6 +3026,22 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		return nil
 	}
 
+	// Only archive the key if the host is connected to Fleet's MDM. Without Fleet
+	// MDM, Fleet never installed the FileVault escrow profile, so a key found on
+	// disk (e.g. left over from a previous MDM) can't be decrypted or used.
+	// Escrowing it would record a misleading activity and store an unusable key.
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Fleet MDM connection before disk encryption key archival")
+	}
+	if !connected {
+		logger.DebugContext(ctx, "skipping key archival, host not connected to Fleet MDM",
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"host", host.Hostname)
+		return nil
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
@@ -2938,6 +3111,22 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 		return nil
 	}
 
+	// Only archive the key if the host is connected to Fleet's MDM. Without Fleet
+	// MDM, Fleet never installed the FileVault escrow profile, so a key found on
+	// disk (e.g. left over from a previous MDM) can't be decrypted or used.
+	// Escrowing it would record a misleading activity and store an unusable key.
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Fleet MDM connection before disk encryption key archival")
+	}
+	if !connected {
+		logger.DebugContext(ctx, "skipping key archival, host not connected to Fleet MDM",
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
+			"host", host.Hostname)
+		return nil
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
@@ -2980,6 +3169,28 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	return query, true
 }
 
+// parseMacOSProfileInstallDate parses the install_date reported by the
+// macos_profiles and macos_user_profiles tables. The value comes straight from
+// `/usr/bin/profiles -o stdout-xml`, which seemingly formats it using the host's
+// locale in certain cases which have been observed but unfortunately not reproduced.
+// Depending on region and macOS version the time portion can be 24-hour
+// (NSDate.description, the common case) or 12-hour with an AM/PM marker, and on
+// macOS 14+ (CLDR 42) the AM/PM marker is preceded by a narrow no-break space
+// (U+202F) instead of an ASCII space.
+func parseMacOSProfileInstallDate(installDate string) (time.Time, error) {
+	// Replace narrow and standard-no-break spaces with a common ' ' space
+	normalized := strings.NewReplacer("\u202f", " ", "\u00a0", " ").Replace(installDate)
+	for _, layout := range []string{
+		"2006-01-02 15:04:05 -0700",   // 24-hour
+		"2006-01-02 3:04:05 PM -0700", // 12-hour with AM/PM
+	} {
+		if t, err := time.Parse(layout, normalized); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported install_date format %q", installDate)
+}
+
 func directIngestMacOSProfiles(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -2998,9 +3209,9 @@ func directIngestMacOSProfiles(
 
 	installed := make(map[string]*fleet.HostMacOSProfile, len(rows))
 	for _, row := range rows {
-		installDate, err := time.Parse("2006-01-02 15:04:05 -0700", row["install_date"])
+		installDate, err := parseMacOSProfileInstallDate(row["install_date"])
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "directIngestMacOSProfiles parse install_date")
 		}
 		if installDate.IsZero() {
 			// this should never happen, but if it does, we should log it
@@ -3035,58 +3246,165 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
-	}
-	if updated {
-		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
-		}
-		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
-			// it taking two full refreshes to show this
-			if device.MDMNotInOOBE {
-				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
-				}
-			}
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"])
+	return err
+}
 
-			mapping := []*fleet.HostDeviceMapping{
-				{
-					HostID: host.ID,
-					Email:  device.MDMEnrollUserID,
-					Source: fleet.DeviceMappingMDMIdpAccounts,
-				},
-			}
-			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
-			}
-			// Check if the user is a valid SCIM user to manage the join table
-			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
-			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
-			}
-			if err == nil && scimUser != nil {
-				// User exists in SCIM, create/update the mapping for additional attributes
-				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
-					// Log the error but don't fail the request since the main IDP mapping succeeded
-					logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
-				}
-			} else {
-				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
-					// Log the error but don't fail the request
-					logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
-				}
+// LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
+// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes), it
+// also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
+// matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
+//
+// Returns true when UpdateMDMWindowsEnrollmentsHostUUID actually changed the row, false when it did not. The "no
+// change" case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to
+// this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
+// the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
+// rather than infer it from the boolean alone.
+func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if !updated {
+		return false, nil
+	}
+	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
+	if err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+	}
+	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+		return updated, nil
+	}
+	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
+	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
+		// Best-effort. In the unlikely event of a failure, the host remains in Unassigned fleet.
+		logger.ErrorContext(ctx, "failed to assign windows enrollment default fleet", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+	}
+	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
+	// reflect this state. A pending Autopilot host is the exception.
+	if device.MDMNotInOOBE {
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, hostID)
+		if err != nil {
+			return updated, err
+		}
+		if !isAutopilot {
+			if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
+				return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
 			}
 		}
 	}
+	mapping := []*fleet.HostDeviceMapping{
+		{
+			HostID: hostID,
+			Email:  device.MDMEnrollUserID,
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}
+	if err := ds.ReplaceHostDeviceMapping(ctx, hostID, mapping, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+	}
+	// Check if the user is a valid SCIM user to manage the join table.
+	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+	if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+		return updated, ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+	}
+	if err == nil && scimUser != nil {
+		// User exists in SCIM, create/update the mapping for additional attributes (idp_full_name, idp_groups, etc.).
+		if _, err := ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			// Log the error but don't fail the linkage since the main IDP mapping succeeded.
+			logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+		}
+	} else {
+		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host.
+		if _, err := ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+		}
+	}
+	return updated, nil
+}
+
+// maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked
+// enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
+// the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
+// fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
+// in Unassigned, matching macOS ABM re-enrollment behavior.
+func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	if teamID == nil {
+		return nil
+	}
+	// replica lag could permanently lose the assignment by a NotFound on a hosts row that orbit enroll inserted seconds ago.
+	ctxPrimary := ctxdb.RequirePrimary(ctx, true)
+	host, err := ds.HostLiteByID(ctxPrimary, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host for windows enrollment default fleet assignment")
+	}
+	if host.TeamID != nil {
+		return nil
+	}
+	if host.CreatedAt.Before(device.CreatedAt) {
+		// The host existed before this MDM enrollment: keep its fleet (Unassigned included).
+		return nil
+	}
+	if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{hostID})); err != nil {
+		return ctxerr.Wrap(ctx, err, "assign windows enrollment default fleet")
+	}
+	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately
+	if _, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hostID}, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
+	}
+	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
+		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
+}
+
+func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	// Use bridge-model (T2), board-id (Intel), or compatible (Apple Silicon) depending on what's present.
+	var boardID, bridgeModel, compatible string
+	for _, row := range rows {
+		if val, ok := row["key"]; ok && val == "board-id" {
+			// board-id identifies Intel-based Macs.
+			boardID = row["value"]
+		} else if val, ok := row["key"]; ok && val == "bridge-model" {
+			// bridge-model identifies Intel Macs with a T2 chip; takes priority over board-id.
+			bridgeModel = row["value"]
+		} else if val, ok := row["key"]; ok && val == "compatible" {
+			// compatible identifies Apple Silicon Macs. On Intel Macs it may also
+			// be present, but board-id or bridge-model will take precedence below.
+			v := row["value"]
+			compatible = strings.Split(v, "\x00")[0] // take the first element of the null-separated list. While queries checked does not return multiple, the HEX value does (indicating truncation happens indirectly elsewhere upstream.)
+		}
+	}
+
+	var deviceID string
+	if compatible != "" {
+		deviceID = compatible
+	}
+
+	// Always take boardID over compatible.
+	if boardID != "" {
+		deviceID = boardID
+	}
+
+	// Always take bridge-model over boardID
+	if bridgeModel != "" {
+		deviceID = bridgeModel
+	}
+
+	if deviceID == "" {
+		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID empty software update device ID")
+	}
+
+	return ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, deviceID)
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -3360,6 +3678,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
+		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {
@@ -3530,7 +3849,7 @@ func directIngestHostCertificatesDarwin(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil)
 }
 
 func directIngestHostCertificatesWindows(
@@ -3547,38 +3866,41 @@ func directIngestHostCertificatesWindows(
 	}
 
 	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
-	// on windows, the osquery certificates table returns duplicate
-	// entries for the same certificate if it is present in multiple
-	// certificate stores so we deduplicate them here based on the
-	// SHA1 sum + username
-	existsSha1User := make(map[string]bool, len(rows))
+	// On Windows, osquery enumerates the same certificate from multiple redundant registry hives (the LocalSystem
+	// account's CurrentUser/Services views, per-user `_Classes` sub-hives, etc.), so we deduplicate by SHA1 + scope +
+	// username.
+	seen := make(map[string]struct{}, len(rows))
 	for _, row := range rows {
 		// Unescape \xHH sequences in fields that may contain non-ASCII
 		// characters (e.g. Cyrillic) in the certificate's distinguished name.
 		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
-		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
-		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+		row["subject2"] = fleet.DecodeHexEscapes(row["subject2"])
+		row["issuer2"] = fleet.DecodeHexEscapes(row["issuer2"])
 
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
-		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject2"])
 		if err != nil {
-			logger.ErrorContext(ctx, "extracting subject details", "component", "service", "method", "directIngestHostCertificates", "err", err)
-			continue
+			logger.ErrorContext(ctx, "malformed certificate subject distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
-		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer2"])
 		if err != nil {
-			logger.ErrorContext(ctx, "extracting issuer details", "component", "service", "method", "directIngestHostCertificates", "err", err)
-			continue
+			logger.ErrorContext(ctx, "malformed certificate issuer distinguished name", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID, "err", err)
+			ctxerr.Handle(ctx, err)
 		}
 
-		username := row["username"]
-		source := fleet.UserHostCertificate
-		if username == "SYSTEM" {
-			source = fleet.SystemHostCertificate
+		// Classify scope from the registry hive security identifier (sid), not the owner name.
+		// S-1-5-21-... is local or AD account
+		// S-1-12-1-... is Entra ID account
+		source := fleet.SystemHostCertificate
+		username := ""
+		if sid := row["sid"]; strings.HasPrefix(sid, "S-1-5-21-") || strings.HasPrefix(sid, "S-1-12-1-") {
+			source = fleet.UserHostCertificate
+			username = row["username"]
 		}
 
 		cert := &fleet.HostCertificateRecord{
@@ -3605,21 +3927,20 @@ func directIngestHostCertificatesWindows(
 			Username:                  username,
 		}
 
-		// deduplicate by SHA1 + Username
-		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
-		if exists := existsSha1User[sha1UserKey]; exists {
-			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+user",
+		// Deduplicate by SHA1 + scope + username. System rows all collapse (username forced to ""), and a user's
+		// redundant hive views collapse into one entry per username.
+		key := fmt.Sprintf("%x|%s|%s", csum, source, username)
+		if _, ok := seen[key]; ok {
+			// Don't log user/cert identifiers here (PII).
+			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+scope+user",
 				"component", "service",
 				"method", "directIngestHostCertificates",
 				"host_id", host.ID,
-				"username", username,
-				"sha1", fmt.Sprintf("%x", csum),
-				"issuer", cert.IssuerCommonName,
-				"subject", cert.SubjectCommonName,
-				"path", row["path"])
+				"source", source,
+				"sha1", fmt.Sprintf("%x", csum))
 			continue
 		}
-		existsSha1User[sha1UserKey] = true
+		seen[key] = struct{}{}
 		certs = append(certs, cert)
 	}
 
@@ -3628,7 +3949,29 @@ func directIngestHostCertificatesWindows(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
+	// Tell the datastore which scopes we actually observed this run so it does not soft-delete a logged-off user's
+	// certificates.
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, windowsObservedCertScopes(certs))
+}
+
+// windowsObservedCertScopes returns the set of (source, username) scopes that osquery could authoritatively enumerate in
+// this report. System scope is always included because the LocalMachine store is always readable; each user that
+// reported at least one certificate is included as its own scope.
+func windowsObservedCertScopes(certs []*fleet.HostCertificateRecord) []fleet.HostCertificateScope {
+	scopes := []fleet.HostCertificateScope{{Source: fleet.SystemHostCertificate}}
+	seen := map[string]struct{}{string(fleet.SystemHostCertificate) + "|": {}}
+	for _, c := range certs {
+		if c.Source != fleet.UserHostCertificate {
+			continue
+		}
+		key := string(c.Source) + "|" + c.Username
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		scopes = append(scopes, fleet.HostCertificateScope{Source: c.Source, Username: c.Username})
+	}
+	return scopes
 }
 
 func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
@@ -3656,4 +3999,18 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
 
 	// Update the last restarted at time.
 	host.LastRestartedAt = newLastRestartedAt
+}
+
+// hostHasLiveAutopilotRecord reports whether the host was created by the Windows Autopilot sync and its device is still
+// registered, which is what distinguishes an Autopilot enrollment from an ordinary Windows one.
+func hostHasLiveAutopilotRecord(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {
+	_, err := ds.GetHostAutopilotDevice(ctx, hostID)
+	switch {
+	case err == nil:
+		return true, nil
+	case fleet.IsNotFound(err):
+		return false, nil
+	default:
+		return false, ctxerr.Wrap(ctx, err, "get host autopilot device")
+	}
 }

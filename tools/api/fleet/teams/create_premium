@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script creates 2 teams and 9 users with various roles.
+# This script creates 2 fleets (formerly "teams") and 9 users with various roles.
 # These users are seeded to Fleet Premium E2E tests
 
 source $FLEET_ENV_PATH

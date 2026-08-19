@@ -1,0 +1,10 @@
+{
+  "name": "Syntax Highlight",
+  "unique_identifier": "org.sbarex.SourceCodeSyntaxHighlight",
+  "token": "syntax-highlight",
+  "installer_format": "zip",
+  "slug": "syntax-highlight/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

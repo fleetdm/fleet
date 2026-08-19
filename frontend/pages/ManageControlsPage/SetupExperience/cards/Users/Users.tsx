@@ -1,42 +1,71 @@
 import React from "react";
-import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { IConfig, IMdmConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
+import { APP_CONTEXT_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
-import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PageDescription from "components/PageDescription";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import UsersForm from "./components/UsersForm/UsersForm";
-import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "setup-experience-users";
+
+type EnabledManagedLocalAccountConfig = {
+  managed_local_account: boolean;
+  local_account_type?: EndUserLocalAccountType;
+};
 
 const getEnabledManagedLocalAccount = (
   currentTeamId: number,
   globalConfig?: IConfig,
   teamConfig?: ITeamConfig
-) => {
+): EnabledManagedLocalAccountConfig => {
   if (globalConfig === undefined && teamConfig === undefined) {
-    return false;
+    return { managed_local_account: false };
   }
 
   if (currentTeamId === 0) {
-    return (
-      globalConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
-      false
-    );
+    return {
+      managed_local_account:
+        globalConfig?.mdm?.setup_experience
+          ?.enable_create_local_admin_account ?? false,
+      local_account_type:
+        globalConfig?.mdm?.setup_experience?.end_user_local_account_type,
+    };
   }
 
+  return {
+    managed_local_account:
+      teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+      false,
+    local_account_type:
+      teamConfig?.mdm?.setup_experience?.end_user_local_account_type,
+  };
+};
+
+const getEnabledManagedLocalAccountWindows = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+): boolean => {
+  if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+    return (
+      globalConfig?.mdm?.windows_settings?.managed_local_account_settings
+        ?.enabled ?? false
+    );
+  }
   return (
-    teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
-    false
+    teamConfig?.mdm?.windows_settings?.managed_local_account_settings
+      ?.enabled ?? false
   );
 };
 
@@ -87,7 +116,7 @@ const isIdPConfigured = ({
   );
 };
 
-const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
+const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
@@ -119,7 +148,13 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     teamConfig
   );
 
-  const defaultEnableManagedLocalAccount = getEnabledManagedLocalAccount(
+  const managedLocalAccountConfig = getEnabledManagedLocalAccount(
+    currentTeamId,
+    globalConfig,
+    teamConfig
+  );
+
+  const enableManagedLocalAccountWindows = getEnabledManagedLocalAccountWindows(
     currentTeamId,
     globalConfig,
     teamConfig
@@ -131,15 +166,19 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     }
     const mdmConfig = globalConfig.mdm;
     return (
-      <SetupExperienceContentContainer>
-        <UsersForm
-          currentTeamId={currentTeamId}
-          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-          defaultLockEndUserInfo={defaultLockEndUserInfo}
-          defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
-          isIdPConfigured={isIdPConfigured(mdmConfig)}
-        />
-      </SetupExperienceContentContainer>
+      <UsersForm
+        currentTeamId={currentTeamId}
+        defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+        defaultLockEndUserInfo={defaultLockEndUserInfo}
+        defaultEnableManagedLocalAccount={
+          managedLocalAccountConfig.managed_local_account
+        }
+        defaultLocalAccountType={managedLocalAccountConfig.local_account_type}
+        defaultEnableManagedLocalAccountWindows={
+          enableManagedLocalAccountWindows
+        }
+        isIdPConfigured={isIdPConfigured(mdmConfig)}
+      />
     );
   };
 
@@ -155,7 +194,24 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        className={`${baseClass}__page-description`}
+        content={
+          <>
+            Customize local user accounts. For advanced account configuration,
+            like creating local accounts with IdP credentials via Platform
+            Single Sign-On (PSSO), use a custom setup.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
+              text="Learn how"
+              newTab
+            />
+          </>
+        }
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
     </section>
   );
 };

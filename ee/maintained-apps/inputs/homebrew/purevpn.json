@@ -1,0 +1,10 @@
+{
+  "name": "PureVPN",
+  "unique_identifier": "com.purevpn.app.mac",
+  "token": "purevpn",
+  "installer_format": "pkg",
+  "slug": "purevpn/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

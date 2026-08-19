@@ -20,7 +20,9 @@
 
   &__checkboxes {
     display: flex;
-    max-height: 189px; // Fits 5 options before scrolling
+    // 210px shows about 4.5 rows so the last row is half-visible, hinting
+    // there is more to scroll to
+    max-height: 210px;
     flex-direction: column;
     border-radius: $border-radius;
     border: 1px solid $ui-fleet-black-10;
@@ -49,5 +51,96 @@
 
   &__label-name {
     padding-left: $pad-small;
+  }
+
+  // Tabbed include/exclude experience (TargetLabelSelector).
+  .react-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  // react-tabs unmounts inactive panels by default, so only the selected
+  // panel needs layout.
+  .react-tabs__tab-panel--selected {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+    margin-top: 0;
+  }
+
+  // Truncate long label names in the tabbed checkbox list.
+  .react-tabs__tab-panel .fleet-checkbox {
+    height: 20px;
+    display: flex;
+    align-items: center;
+
+    &__label {
+      max-width: 490px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__mode-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__selected-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-xsmall;
+  }
+
+  &__selected-badge {
+    display: flex;
+    align-items: center;
+    gap: $pad-xxsmall;
+    padding: $pad-xxsmall $pad-small;
+    background-color: $ui-fleet-black-5;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    font-size: $xx-small;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+
+    &:hover {
+      background-color: $ui-fleet-black-10;
+      border-color: $ui-fleet-black-25;
+    }
+  }
+
+  &__empty-state {
+    display: flex;
+    height: 187px;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+
+    span {
+      color: $ui-fleet-black-75;
+    }
+
+    &--title {
+      font-size: $small;
+      font-weight: $bold;
+      color: $core-fleet-black !important;
+    }
+
+    &--description {
+      font-size: $xx-small;
+      margin-top: -$pad-xsmall;
+    }
+
+    .button {
+      margin-top: $pad-small;
+    }
   }
 }

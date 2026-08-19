@@ -343,10 +343,11 @@ type SSOAccountConfig struct {
 // AdminAccountConfig holds the parameters for an AutoSetupAdminAccounts entry
 // in an AccountConfiguration MDM command.
 type AdminAccountConfig struct {
-	ShortName    string // e.g. "_fleetadmin"
-	FullName     string // e.g. "Fleet Admin"
-	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
-	Hidden       bool   // true → hidden from login window
+	ShortName          string                   // e.g. "_fleetadmin"
+	FullName           string                   // e.g. "Fleet Admin"
+	PasswordHash       []byte                   // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
+	Hidden             bool                     // true → hidden from login window
+	PrimaryAccountType fleet.PrimaryAccountType // admin, standard, or none
 }
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
@@ -356,7 +357,8 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 ) error {
 	var payload string
 
-	if ssoAccount != nil {
+	// Send primary account info if we have an SSO account, and no adminAccount config or the primary account type is not "none"
+	if ssoAccount != nil && (adminAccount == nil || adminAccount.PrimaryAccountType != fleet.PrimaryAccountTypeNone) {
 		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
@@ -368,6 +370,21 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 	}
 
 	if adminAccount != nil {
+		switch adminAccount.PrimaryAccountType {
+		case fleet.PrimaryAccountTypeStandard:
+			payload += `
+      <key>SetPrimarySetupAccountAsRegularUser</key>
+      <true />
+		`
+		case fleet.PrimaryAccountTypeNone:
+			payload += `
+      <key>SkipPrimarySetupAccountCreation</key>
+      <true />
+		`
+		default:
+			// no-op for admin account type as that is default
+		}
+
 		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
 		payload += fmt.Sprintf(`
       <key>AutoSetupAdminAccounts</key>
@@ -443,7 +460,72 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
 }
 
-func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+var byodDeviceInformationQueryKeys = []string{
+	"DeviceName",
+	"DeviceCapacity",
+	"AvailableDeviceCapacity",
+	"OSVersion",
+	"SupplementalOSVersionExtra",
+	"WiFiMAC",
+	"ProductName",
+	"IsMDMLostModeEnabled",
+	"TimeZone",
+}
+
+// deviceInformationQueryKeys are the Apple query keys requested in a
+// DeviceInformation command's <Queries> array for non-personal
+// (company-owned) hosts, in request order.
+var deviceInformationQueryKeys = []string{
+	"DeviceName",
+	"DeviceCapacity",
+	"AvailableDeviceCapacity",
+	"OSVersion",
+	"SupplementalOSVersionExtra",
+	"WiFiMAC",
+	"ProductName",
+	"IsMDMLostModeEnabled",
+	"TimeZone",
+	"AccessibilitySettings",
+	"AppAnalyticsEnabled",
+	"AwaitingConfiguration",
+	"BatteryLevel",
+	"BluetoothMAC",
+	"CellularTechnology",
+	"DataRoamingEnabled",
+	"DevicePropertiesAttestation",
+	"DiagnosticSubmissionEnabled",
+	"EASDeviceIdentifier",
+	"IsCloudBackupEnabled",
+	"IsDeviceLocatorServiceEnabled",
+	"IsDoNotDisturbInEffect",
+	"IsNetworkTethered",
+	"iTunesStoreAccountHash",
+	"iTunesStoreAccountIsActive",
+	"LastCloudBackupDate",
+	"MDMOptions",
+	"ModelNumber",
+	"ModemFirmwareVersion",
+	"OrganizationInfo",
+	"PersonalHotspotEnabled",
+	"PushToken",
+	"ServiceSubscriptions",
+	"SupplementalBuildVersion",
+	"UDID",
+}
+
+func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string, isPersonalEnrollment bool) error {
+	keys := deviceInformationQueryKeys
+	if isPersonalEnrollment {
+		keys = byodDeviceInformationQueryKeys
+	}
+
+	var queries strings.Builder
+	for _, key := range keys {
+		queries.WriteString("            <string>")
+		queries.WriteString(key)
+		queries.WriteString("</string>\n")
+	}
+
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -452,24 +534,78 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
     <dict>
         <key>Queries</key>
         <array>
-            <string>DeviceName</string>
-            <string>DeviceCapacity</string>
-            <string>AvailableDeviceCapacity</string>
-            <string>OSVersion</string>
-            <string>WiFiMAC</string>
-            <string>ProductName</string>
-			<string>IsMDMLostModeEnabled</string>
-			<string>TimeZone</string>
-        </array>
+%s        </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>
     </dict>
     <key>CommandUUID</key>
     <string>%s</string>
 </dict>
-</plist>`, cmdUUID)
+</plist>`, queries.String(), cmdUUID)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+// deviceNameSettingCommand builds the raw Settings/DeviceName command used to
+// rename a device.
+func deviceNameSettingCommand(deviceName, cmdUUID string) (string, error) {
+	escaped, err := mobileconfig.XMLEscapeString(deviceName)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>Settings</string>
+		<key>Settings</key>
+		<array>
+			<dict>
+				<key>Item</key>
+				<string>DeviceName</string>
+				<key>DeviceName</key>
+				<string>%s</string>
+			</dict>
+		</array>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, escaped, cmdUUID), nil
+}
+
+// DeviceNameSetting sends the Settings command with a DeviceName item to rename the device.
+// Requires supervision on iOS/iPadOS.
+func (svc *MDMAppleCommander) DeviceNameSetting(ctx context.Context, hostUUID, cmdUUID, deviceName string) error {
+	raw, err := deviceNameSettingCommand(deviceName, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping device name for XML")
+	}
+	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
+}
+
+// DeviceNameSettingWithoutNotifications is like DeviceNameSetting but only
+// enqueues the command; it does not send an APNs push. The caller must invoke
+// SendNotifications afterwards. This lets a bulk sender enqueue one command per
+// host and then wake every device with a single batched push instead of one
+// APNs request per host.
+func (svc *MDMAppleCommander) DeviceNameSettingWithoutNotifications(ctx context.Context, hostUUID, cmdUUID, deviceName string) error {
+	raw, err := deviceNameSettingCommand(deviceName, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping device name for XML")
+	}
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+	if _, err := svc.storage.EnqueueCommand(ctx, []string{hostUUID},
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone}); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceName")
+	}
+	return nil
 }
 
 func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, hostUUIDs []string, cmdUUID string, managedOnly bool) error {
@@ -692,6 +828,42 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 		return ctxerr.Wrap(ctx, err, "enqueuing ClearRecoveryLock command")
 	}
 
+	return nil
+}
+
+// SetAutoAdminPassword sends the SetAutoAdminPassword command to rotate the password
+// of a managed local administrator account previously provisioned by an
+// AutoSetupAdminAccounts entry in an AccountConfiguration command.
+//
+// guid is the account UUID captured from osquery on this host (NOT the host UUID).
+// passwordHashPlist is the SALTED-SHA512-PBKDF2 plist returned by
+// GenerateSaltedSHA512PBKDF2Hash; we base64-encode it into the <data> field of the
+// outer command plist, matching how AccountConfiguration carries its passwordHash.
+//
+// See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
+func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>RequestType</key>
+      <string>SetAutoAdminPassword</string>
+      <key>GUID</key>
+      <string>%s</string>
+      <key>passwordHash</key>
+      <data>%s</data>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+  </dict>
+</plist>`, guid, passwordHashEncoded, cmdUUID)
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
+	}
 	return nil
 }
 

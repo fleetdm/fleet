@@ -12,7 +12,7 @@ export const validateYaml = (yamlText) => {
   }
 
   try {
-    yaml.safeLoad(yamlText);
+    yaml.load(yamlText);
 
     return validYamlResponse;
   } catch (error) {

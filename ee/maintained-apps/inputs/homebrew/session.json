@@ -1,0 +1,10 @@
+{
+  "name": "Session",
+  "unique_identifier": "com.loki-project.messenger-desktop",
+  "token": "session",
+  "installer_format": "dmg",
+  "slug": "session/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

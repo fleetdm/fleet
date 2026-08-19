@@ -158,7 +158,7 @@ module Puppet::Util
       when :post
         request = Net::HTTP::Post.new(uri.request_uri)
       else
-        throw "HTTP method #{method} not implemented"
+        raise ArgumentError, "HTTP method #{method} not implemented"
       end
 
       headers['Authorization'] = "Bearer #{token}"

@@ -16,15 +16,6 @@
     .card-header__header {
       font-size: initial;
     }
-
-    .categories-menu {
-      top: 0;
-      width: 200px;
-    }
-
-    .data-table__table {
-      width: 325px;
-    }
   }
 
   &__preview-img-container--mobile {
@@ -33,9 +24,38 @@
     }
   }
 
-  &__table {
+  &__filter-row {
     display: flex;
-    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+    // Intentionally extend past the inner card's right edge. The outer
+    // .__preview-card has overflow: hidden, so the SearchField clips at the
+    // outer card boundary — matching the visual on the real self-service page
+    // where the search bar is wider than the dropdown row.
+    margin-right: -70px;
+
+    .input-field-search {
+      width: 280px;
+      flex-shrink: 0;
+    }
+  }
+
+  // Visual-only mimic of CategoryFilter's trigger; not interactive because the
+  // entire preview sits under .__disabled-overlay.
+  &__static-dropdown {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+    padding: 4px 0;
+    flex-shrink: 0;
+  }
+
+  &__static-dropdown-label {
+    color: $core-fleet-black;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 24px;
   }
 
   &__disabled-overlay {

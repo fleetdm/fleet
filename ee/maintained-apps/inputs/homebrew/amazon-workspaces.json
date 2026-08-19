@@ -1,0 +1,8 @@
+{
+  "name": "Amazon WorkSpaces",
+  "unique_identifier": "com.amazon.workspaces",
+  "token": "amazon-workspaces",
+  "installer_format": "zip",
+  "slug": "amazon-workspaces/darwin",
+  "default_categories": ["Productivity"]
+}

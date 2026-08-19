@@ -1,0 +1,10 @@
+{
+  "name": "Lapce",
+  "slug": "lapce/windows",
+  "package_identifier": "Lapce.Lapce",
+  "unique_identifier": "Lapce",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -25,6 +25,7 @@ interface IHostActionsDropdownProps {
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   hostCpuType?: string;
+  isDEPAssignedToFleet?: boolean;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
@@ -33,6 +34,16 @@ interface IHostActionsDropdownProps {
   recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
+  managedAccountDetail?: string;
+  managedAccountPasswordAvailable?: boolean;
+  /**
+   * BYOD permission gates from the host MDM payload. Undefined when the host's
+   * stored AccessRights are not known (non-Apple-MDM or pre-#23242 hosts);
+   * treat undefined as "allowed" so the dropdown matches today's behavior.
+   */
+  wipeAllowed?: boolean;
+  lockAllowed?: boolean;
+  clearPasscodeAllowed?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -42,6 +53,7 @@ const HostActionsDropdown = ({
   hostMdmDeviceStatus,
   doesStoreEncryptionKey,
   isConnectedToFleetMdm,
+  isDEPAssignedToFleet = false,
   hostPlatform = "",
   hostCpuType = "",
   hostScriptsEnabled = false,
@@ -52,6 +64,11 @@ const HostActionsDropdown = ({
   recoveryLockPasswordStatus,
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
+  managedAccountDetail,
+  managedAccountPasswordAvailable = false,
+  wipeAllowed,
+  lockAllowed,
+  clearPasscodeAllowed,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -94,13 +111,17 @@ const HostActionsDropdown = ({
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
     isConnectedToFleetMdm,
+    isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
+    isAppleBusinessEnabledAndConfigured:
+      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
+    scriptsGloballyDisabled:
+      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,
@@ -109,6 +130,11 @@ const HostActionsDropdown = ({
     recoveryLockPasswordStatus,
     isManagedLocalAccountEnabled,
     managedAccountStatus,
+    managedAccountDetail,
+    managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
+    clearPasscodeAllowed,
   });
 
   // No options to render. Exit early
@@ -122,7 +148,7 @@ const HostActionsDropdown = ({
         placeholder="Actions"
         options={options}
         menuAlign="right"
-        variant="brand-button"
+        variant="primary"
       />
     </div>
   );

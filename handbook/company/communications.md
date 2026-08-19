@@ -35,7 +35,7 @@ The ambition of Fleet's product roadmap is to reach [product maturity](http://fl
 
 ## Security 
 
-Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [use Okta Verify with FastPass](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
 
 
 ### Trust
@@ -44,6 +44,9 @@ Fleet is successful because of our customers and community, and those relationsh
 
 > **Compliance**
 > Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
+
+> **Export control**
+> Fleet conforms to the export-control restrictions applicable to ECCN 5D992.c classification. Accordingly, Fleet does not currently do business in Cuba, Iran, Syria, North Korea, Russia, or Belarus, or in the Crimea, Donetsk, and Luhansk regions of Ukraine.
 
 
 ## Directly responsible individuals (DRIs)
@@ -89,9 +92,9 @@ Fleet is successful because of our customers and community, and those relationsh
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
-| Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
-
-
+| Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| [Usage statistics](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618)                     | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 
 ## Meetings
 
@@ -193,7 +196,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 
-Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+Team calendars are the primary source for release rituals; they facilitate the execution of each release cycle. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/people#contact-us) and the appropriate DRI will reply with feedback.
 
 ### 1:1 meetings 
@@ -214,7 +217,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 
 > **Are you scheduling time with the CEO?**
 >
-> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 
 ## Shadowing meetings
@@ -240,7 +243,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
-- **"¶":** _(E-group - Direct reports the the CEO)_
+- **"¶":** _(E-group - Direct reports to the CEO)_
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
@@ -258,9 +261,10 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- Fleet doesn't use third-party polling apps. To run a poll, post the question in the channel with each option on its own line prefixed by an emoji, then add those same emoji as reactions to your own message so teammates can vote in one click (e.g. "Do you like this?" / "👍 Yes" / "👎 No"). For recurring polls, use a Slack reminder or scheduled message to post it on a schedule.
 - To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
-> **Need an app that you don't see in Fleet Slack?** [Create a IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** Fleet keeps third-party Slack apps to a minimum, and requesting an app install from within Slack is turned off. First check whether Slack's built-in features (emoji-reaction polls, scheduled messages, reminders, workflows, canvases) already cover the need. If they don't, [create an IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) describing the use case. The Head of IT & Enablement is the DRI for approving new Slack apps.
 
 
 ### Key Slack channels
@@ -380,6 +384,8 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 
 The [Product Design](https://fleetdm.com/handbook/product-design#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
+> Temporary landing pages follow a different process. See [temporary landing pages](https://fleetdm.com/handbook/company/writing#temporary-landing-pages).
+
 
 ## Design at Fleet
 
@@ -426,7 +432,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -469,7 +475,7 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 
 ## Contributing to the handbook and docs
 
-> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in Slack.
+> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask the Head of People in Slack.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
@@ -502,7 +508,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during sprint demo recording (they're added later if needed).
+- Don't enable closed captions during release demo recording (they're added later if needed).
 
 
 ## Feedback
@@ -710,6 +716,13 @@ Either way, it's up to you to make sure that your responsibilities are covered a
 In this section, you can find information about Fleet's benefit strategies and decisions.
 
 
+### Health coverage
+
+**US-based team members:** Fleet offers premium US benefits that includes health, dental, and life insurance, with 66%+ coverage for dependents.
+
+**International team members:** Fleet provides premium health benefits for international employees via our employer of record [Remote](https://remote.com).
+
+
 ### Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
@@ -731,7 +744,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months and should fit within one of the following categories: physical health, mental health, or lifestyle/self-care. Gift vouchers are not an approved wellness expense. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
@@ -914,5 +927,5 @@ Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fle
 Please see 📖[handbook/company/communications#tools-and-equipment](https://fleetdm.com/handbook/company/communications#tools-and-equipment).
 
 
-<meta name="maintainedBy" value="sampfluger88">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🛰️ Communications">

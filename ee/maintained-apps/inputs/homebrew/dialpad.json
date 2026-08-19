@@ -2,7 +2,7 @@
   "name": "Dialpad",
   "unique_identifier": "com.electron.dialpad",
   "token": "dialpad",
-  "installer_format": "zip",
+  "installer_format": "pkg",
   "slug": "dialpad/darwin",
   "default_categories": ["Communication"]
 }

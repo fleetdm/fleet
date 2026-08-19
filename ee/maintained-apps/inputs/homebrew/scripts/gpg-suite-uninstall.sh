@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # variables
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
@@ -34,7 +34,9 @@ quit_application() {
   local timeout_duration=10
 
   # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
     return
   fi
 

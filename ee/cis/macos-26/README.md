@@ -1,13 +1,26 @@
 # macOS 26 Tahoe — CIS benchmark
 
-Fleet policies for the **CIS Apple macOS 26 Tahoe Benchmark, v1.0.0**.
+Fleet policies for the **CIS Apple macOS 26 Tahoe Benchmark, v1.1.0**.
 
 ## Status
 
 **Generation complete.** All automated recommendations across
-§1–§6 of the CIS Apple macOS 26 Tahoe Benchmark v1.0.0 are
+§1–§6 of the CIS Apple macOS 26 Tahoe Benchmark v1.1.0 are
 covered. §7 (Supplemental) is skipped per Fleet convention.
 Manual-only recommendations are documented in **Limitations**.
+
+### v1.1.0 update
+
+Updated from v1.0.0 to v1.1.0 (CIS "Jun 1, 2026" release). Changes:
+
+- **2.3.5 Device Management** — new informational sub-section only (no recommendation), so no policy.
+- **2.7.1** rescoped to the *current user* only and moved to Level 1; the query now checks the current console user's Dock hot corners.
+- **3.4** retitled "…Retained for 30 Days"; requirement relaxed to `expire-after:` ≥ 30 days (no size requirement).
+- **3.5** — only the CIS *remediation* changed (`chmod 700`), but its *audit* still checks 440, so Fleet's query is unchanged (it accepts 440/400).
+- **5.1.6** — CIS added `2>/dev/null`; `find_cmd` already handles that, so the query is unchanged.
+- **5.1.7** — query now excludes the non-accessible `/Library/AppStore` folder.
+- **5.3.1** — CIS split disk encryption into internal (5.3.1) and external (5.3.2) and moved the internal APFS check to **Automated**; a new 5.3.1 policy was added (previously Manual/limitation). 5.3.2 (external) and 5.3.3 (FAT32/ExFAT) remain in **Limitations**.
+- **5.6** — audit now detects a lingering root *secure token*; the existing `AuthenticationAuthority` query already covers it, so only the resolution and pass script changed (`fdesetup remove -user root`).
 
 ## Sections covered
 
@@ -17,7 +30,7 @@ Manual-only recommendations are documented in **Limitations**.
 | 2 | System Settings | complete (all automated — §2.1–§2.18) |
 | 3 | Logging and Auditing | complete (5/5 automated) |
 | 4 | Network Configurations | complete (3/3 automated) |
-| 5 | System Access, Authentication and Authorization | complete (19/19 automated) |
+| 5 | System Access, Authentication and Authorization | complete (20/20 automated — incl. 5.3.1 added in v1.1.0) |
 | 6 | Applications | complete (7/7 automated) |
 | 7 | Supplemental | skipped (per convention) |
 
@@ -89,13 +102,18 @@ perform out-of-band checks.
   Character (Level 2, Manual).
 - **5.2.6** Ensure Complex Password Must Contain Uppercase and
   Lowercase Characters (Level 2, Manual).
-- **5.3.1** Ensure all user storage APFS volumes are encrypted
-  (Level 1, Manual). CIS Marks as Manual because the evaluation
-  requires judgment on which volumes are "user storage" vs
-  "Preboot/Recovery/VM role" disks.
-- **5.3.2** Ensure all user storage CoreStorage volumes are
-  encrypted (Level 1, Manual). CoreStorage has been deprecated;
-  evaluation requires judgment about retained legacy volumes.
+- **5.3.2** Ensure all APFS and HFS+ external user storage volumes
+  are encrypted (Level 1, Automated). The fleetd `apfs_volumes`
+  table does not expose an internal/external indicator, so
+  "external" volumes cannot be reliably identified as a policy
+  query. Internal APFS volumes are covered by the automated 5.3.1
+  policy. (In v1.0.0 the single APFS/CoreStorage check was Manual;
+  v1.1.0 split it into internal 5.3.1 (now Automated — shipped) and
+  external 5.3.2 (this limitation).)
+- **5.3.3** Audit Connected FAT32 and ExFAT Drives (Level 2,
+  Manual). CIS ships this as a Manual audit — an organizational
+  review of connected removable drives, not a mechanically
+  checkable condition.
 - **6.1.1** Audit Show All Filename Extensions (Level 2, Manual).
   Per-user Finder preference.
 - **6.2.1** Ensure Protect Mail Activity in Mail Is Enabled
@@ -256,7 +274,18 @@ perform out-of-band checks.
   `/Library` for world-writable directories. 5.1.6 uses the
   fleetd `find_cmd` table (faster than walking the `file` table);
   5.1.7 uses the core `file` table with sticky-bit filter and
-  `extended_attributes.com.apple.rootless` exclusion.
+  `extended_attributes.com.apple.rootless` exclusion. As of v1.1.0
+  the 5.1.7 query also excludes the non-accessible `/Library/AppStore`
+  folder per the updated CIS audit.
+- **5.3.1** (internal APFS volumes encrypted) — added in v1.1.0
+  (Automated; it was Manual in v1.0.0). Query uses the fleetd
+  `apfs_volumes` table, requiring `filevault=1` on every volume
+  that has no reserved role (VM/Update/Recovery/Preboot/xART/
+  Hardware). The table does not distinguish internal from external
+  disks, so it evaluates all non-role volumes; external volumes
+  (CIS 5.3.2) and FAT32/ExFAT (5.3.3) are documented in
+  Limitations. Encryption cannot be applied by a script, so no
+  test scripts ship (MANUAL).
 - **5.2.1–5.2.2, 5.2.7–5.2.8** all use the fleetd `pwd_policy`
   or `password_policy` table. Scripts use `pwpolicy
   -setglobalpolicy` despite the CIS note that the command is
@@ -327,17 +356,19 @@ perform out-of-band checks.
   is absent. Both conditions must hold. The scripts use `awk` to
   target only the install.log file line (leaving other ASL rules
   untouched).
-- **3.4** parses the `expire-after:Nd OR NG` line in
-  `/etc/security/audit_control` with `regex_match` and requires
-  days≥60 AND size≥5. The Tahoe PDF allows day-only or size-only
-  syntax too, but the benchmark's default guidance uses both
-  together — matches macos-14 precedent.
+- **3.4** parses the `expire-after:` line in
+  `/etc/security/audit_control` with `regex_match` and requires a
+  day value ≥ 30. As of v1.1.0 CIS retains logs for 30 days with no
+  maximum, so the query no longer requires a size clause (a size
+  clause such as `OR 5G` is still accepted).
 - **3.5** verifies root:wheel ownership and mode 440 (or 400)
   on three scopes: the `/etc/security/audit_control` file itself,
   the `dir:` target inside it, and the default `/var/audit`.
   Accepts either 440 or 400 since Apple's default and CIS's
-  remediation have varied. Scripts normalize to 440 per the
-  Tahoe PDF.
+  remediation have varied. Note: v1.1.0 changed only the CIS
+  *remediation* to `chmod 700`, which contradicts its own audit
+  (still `-r--r-----`/440); the Fleet query follows the audit and
+  is unchanged.
 
 ### Section 2.1 notes
 
@@ -348,13 +379,17 @@ perform out-of-band checks.
 
 ### Section 2.7 notes
 
-- **2.7.1** (Screen Saver Corners) — query reads
-  `/Users/*/Library/Preferences/com.apple.dock.plist` which
-  requires FDA (flagged `(FDA Required)`). Uses the absence-passes
-  pattern: any user with a hot corner set to 6 (Disable Screen
-  Saver) fails. Scripts iterate console users to toggle a corner.
-  Per-user state persists until a reboot/login — the test runner
-  should re-evaluate after script execution.
+- **2.7.1** (Screen Saver Hot Corners) — as of v1.1.0 CIS rescoped
+  this to the *current user* only (Level 1). The query reads only
+  the current console user's
+  `/Users/<current user>/Library/Preferences/com.apple.dock.plist`
+  (via `logged_in_users` with `tty = 'console'`), which requires
+  FDA (flagged `(FDA Required)`). Any hot corner set to 6 (Disable
+  Screen Saver) for that user fails. Because it depends on a
+  console user, a non-root user must be logged in when the policy
+  is evaluated (see the console-user caveat in
+  `ee/cis/CIS-BENCHMARKS.md`); the `_pass`/`_fail` scripts toggle
+  corners for the console user.
 
 ### Section 2.9 notes
 

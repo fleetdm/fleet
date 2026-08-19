@@ -9,7 +9,7 @@ const generateDuplicateMessage = (msg: string) => {
   return (
     <>
       Couldn&apos;t add. There&apos;s already a VPP connection for the{" "}
-      <b>{orgName}</b> location.
+      <b>{orgName}</b> organization unit.
     </>
   );
 };

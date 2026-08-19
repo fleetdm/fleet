@@ -1,10 +1,12 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
+import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   ProfileOperationType,
 } from "interfaces/mdm";
+import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 
 describe("OS setting status cell", () => {
@@ -138,6 +140,41 @@ describe("OS setting status cell", () => {
       ).toBeInTheDocument();
     });
   });
+  it("Shows the profile detail in the tooltip when a pending Android profile is waiting for a certificate", async () => {
+    const customRender = createCustomRenderer();
+
+    const detailMessage =
+      'Waiting for certificate "WiFi-Cert" to be installed on the host before applying this profile.';
+
+    const profile = createMockHostMdmProfile({
+      profile_uuid: "gf6dc58e8-d4c7-4d4b-8fa1-47de2bcb162c",
+      name: "01-wifi-eap-tls-WiFi-Cert.onc",
+      platform: "android",
+      operation_type: "install",
+      status: "pending",
+      detail: detailMessage,
+    });
+
+    const { user } = customRender(
+      <OSSettingStatusCell
+        profileName={profile.name}
+        status="pending"
+        operationType="install"
+        hostPlatform="android"
+        profileUUID={profile.profile_uuid}
+        profile={profile}
+      />
+    );
+
+    const statusText = screen.getByText("Enforcing");
+    expect(statusText).toBeInTheDocument();
+
+    await user.hover(statusText);
+    await waitFor(() => {
+      expect(screen.getByText(detailMessage)).toBeInTheDocument();
+    });
+  });
+
   it("Displays Pending UI for 'delivered' status with optype 'remove'", async () => {
     const customRender = createCustomRenderer();
 
@@ -159,6 +196,164 @@ describe("OS setting status cell", () => {
       expect(
         screen.getByText(/The host is running the command/)
       ).toBeInTheDocument();
+    });
+  });
+
+  // Host name template synthetic row
+  describe("host name template row", () => {
+    it("displays 'Enforcing' for pending status", async () => {
+      const customRender = createCustomRenderer();
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="pending"
+          operationType={null}
+          hostPlatform="darwin"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+        />
+      );
+
+      const statusText = screen.getByText("Enforcing");
+      expect(statusText).toBeInTheDocument();
+
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Fleet is enforcing this fleet's host name template/)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("displays 'Verifying' for verifying status", () => {
+      render(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="verifying"
+          operationType={null}
+          hostPlatform="ios"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+        />
+      );
+
+      expect(screen.getByText("Verifying")).toBeInTheDocument();
+    });
+
+    it("displays 'Verified' for verified status", () => {
+      render(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="verified"
+          operationType={null}
+          hostPlatform="ipados"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+        />
+      );
+
+      expect(screen.getByText("Verified")).toBeInTheDocument();
+    });
+
+    it("displays 'Failed' and shows the profile detail in the tooltip", async () => {
+      const customRender = createCustomRenderer();
+
+      const detail =
+        "Host was renamed on the device and no longer matches the fleet's naming template.";
+      const profile = createMockHostMdmProfile({
+        profile_uuid: HOST_NAME_SYNTHETIC_PROFILE_UUID,
+        name: "Host name",
+        platform: "darwin",
+        operation_type: null,
+        status: "failed",
+        detail,
+      });
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="failed"
+          operationType={null}
+          hostPlatform="darwin"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+          profile={profile}
+        />
+      );
+
+      const statusText = screen.getByText("Failed");
+      expect(statusText).toBeInTheDocument();
+
+      // With a null failed tooltip config, the cell falls through to the
+      // detail-based error tooltip (generateErrorTooltip).
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(screen.getByText(detail)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("verified profiles with a detail", () => {
+    // A custom activation's predicate can exclude a host. Fleet delivered the
+    // profile correctly so the status is Verified, but the settings were not
+    // applied, and the generic tooltip claims the opposite.
+    it("shows the detail instead of the generic verified text", async () => {
+      const customRender = createCustomRenderer();
+
+      const detail =
+        'Fleet verified, but predicate ("ASSET-002" == "ASSET-001") evaluated to false and settings were not applied to this host.';
+      const profile = createMockHostMdmProfile({
+        name: "Passcode",
+        platform: "darwin",
+        operation_type: "install",
+        status: "verified",
+        detail,
+      });
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Passcode"
+          status="verified"
+          operationType="install"
+          hostPlatform="darwin"
+          profile={profile}
+        />
+      );
+
+      await user.hover(screen.getByText("Verified"));
+
+      await waitFor(() => {
+        expect(screen.getByText(detail)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText("The host applied the setting. Fleet verified.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps the generic verified tooltip when there is no detail", async () => {
+      const customRender = createCustomRenderer();
+
+      const profile = createMockHostMdmProfile({
+        name: "Passcode",
+        platform: "darwin",
+        operation_type: "install",
+        status: "verified",
+        detail: "",
+      });
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Passcode"
+          status="verified"
+          operationType="install"
+          hostPlatform="darwin"
+          profile={profile}
+        />
+      );
+
+      await user.hover(screen.getByText("Verified"));
+      await waitFor(() => {
+        expect(
+          screen.getByText("The host applied the setting. Fleet verified.")
+        ).toBeInTheDocument();
+      });
     });
   });
 });

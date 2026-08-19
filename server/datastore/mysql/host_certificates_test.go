@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1" // nolint:gosec // test-only unique sha1 generator
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,10 +32,20 @@ func TestHostCertificates(t *testing.T) {
 	}{
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
+		{"Insert host_mdm_managed_certificates from non-proxied ingestion", testInsertingHostMDMManagedCertificatesFromIngestion},
+		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
+		{"Windows scope-aware reconciliation", testUpdateHostCertificatesWindowsScopeReconciliation},
+		{"Re-ingest after soft delete attaches sources to live row", testUpdateHostCertificatesReingestAfterSoftDelete},
+		{"Self-heals duplicate cert rows and converges", testUpdateHostCertificatesSelfHealsDuplicates},
+		{"Precise source writes preserve unchanged rows", testUpdateHostCertificatesPreciseSourceWrites},
+		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
+		{"Origin downgrade on osquery rediscovery", testUpdateHostCertificatesOriginDowngrade},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 		{"Count matches main query", testListHostCertificatesCountMatches},
+		{"Sweep mdm certs for unenrolled hosts", testSoftDeleteMDMHostCertificatesForUnenrolledHosts},
+		{"Windows proxied SCEP profile verification", testWindowsSCEPProfileVerification},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -40,6 +53,309 @@ func TestHostCertificates(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	mkHost := func(t *testing.T, suffix string) *fleet.Host {
+		t.Helper()
+		osqueryID := "wscep-osquery-" + suffix
+		nodeKey := "wscep-node-" + suffix
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   &osqueryID,
+			NodeKey:         &nodeKey,
+			UUID:            "wscep-host-" + suffix,
+			Hostname:        "wscep-hostname-" + suffix,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	upsertWinProfile := func(t *testing.T, h *fleet.Host, profileUUID, cmdUUID string, status fleet.MDMDeliveryStatus, retries int) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+			ProfileUUID:   profileUUID,
+			ProfileName:   "p-" + profileUUID,
+			HostUUID:      h.UUID,
+			CommandUUID:   cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &status,
+			Checksum:      []byte{1},
+		}}))
+		if retries > 0 {
+			_, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_mdm_windows_profiles SET retries = ? WHERE host_uuid = ? AND profile_uuid = ?`, retries, h.UUID, profileUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	upsertHMMC := func(t *testing.T, h *fleet.Host, profileUUID string, caType fleet.CAConfigAssetType, nvb, nva *time.Time) {
+		t.Helper()
+		hmmc := &fleet.MDMManagedCertificate{HostUUID: h.UUID, ProfileUUID: profileUUID, Type: caType, CAName: "ca-" + profileUUID}
+		if nva != nil {
+			hmmc.NotValidBefore = nvb
+			hmmc.NotValidAfter = nva
+			serial := "serial-" + profileUUID
+			hmmc.Serial = &serial
+		}
+		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
+	}
+
+	getProfile := func(t *testing.T, h *fleet.Host, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
+		t.Helper()
+		var row struct {
+			Status  fleet.MDMDeliveryStatus `db:"status"`
+			Detail  string                  `db:"detail"`
+			Retries int                     `db:"retries"`
+		}
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
+			`SELECT status, detail, retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, profileUUID))
+		return row.Status, row.Detail, row.Retries
+	}
+
+	// certWithRenewalID builds an ingestable host cert whose OU carries the profile's renewal-ID marker.
+	certWithRenewalID := func(t *testing.T, h *fleet.Host, renewalProfileUUID string, serial int64) *fleet.HostCertificateRecord {
+		t.Helper()
+		tmpl := &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:         "device " + renewalProfileUUID,
+				Organization:       []string{"Org"},
+				OrganizationalUnit: []string{"fleet-" + renewalProfileUUID},
+			},
+			Issuer:                pkix.Name{CommonName: "issuer.test.example.com", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(serial),
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		return generateTestHostCertificateRecord(t, h.ID, tmpl)
+	}
+
+	ingest := func(t *testing.T, h *fleet.Host, recs ...*fleet.HostCertificateRecord) {
+		t.Helper()
+		require.NoError(t, ds.UpdateHostCertificates(ctx, h.ID, h.UUID, recs, fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	ackVerified := func(t *testing.T, h *fleet.Host, cmdUUID string) {
+		t.Helper()
+		verified := fleet.MDMDeliveryVerified
+		require.NoError(t, updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
+			[]*fleet.MDMWindowsProfilePayload{{HostUUID: h.UUID, CommandUUID: cmdUUID, Status: &verified}}))
+	}
+
+	// insertConfigProfile creates the team config profile row whose SyncML scope (./Device vs ./User) the backstop
+	// inspects when only the system store was observed.
+	insertConfigProfile := func(t *testing.T, profileUUID, name string, userScoped bool) {
+		t.Helper()
+		locURI := "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP"
+		if userScoped {
+			locURI = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP"
+		}
+		syncml := fmt.Sprintf(`<Replace><Item><Target><LocURI>%s/%s/Install/Enroll</LocURI></Target></Item></Replace>`, locURI, profileUUID)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at) VALUES (?, 0, ?, ?, NOW())`,
+			profileUUID, name, syncml)
+		require.NoError(t, err)
+	}
+
+	backdateProfile := func(t *testing.T, h *fleet.Host, profileUUID string, ago time.Duration) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND) WHERE host_uuid = ? AND profile_uuid = ?`,
+			int(ago.Seconds()), h.UUID, profileUUID)
+		require.NoError(t, err)
+	}
+
+	// plainCert builds an ingestable host cert that does NOT carry any profile's renewal-ID marker.
+	plainCert := func(t *testing.T, h *fleet.Host, cn string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
+		t.Helper()
+		sum := make([]byte, 20)
+		copy(sum, cn)
+		return &fleet.HostCertificateRecord{
+			HostID:            h.ID,
+			CommonName:        cn,
+			SubjectCommonName: cn,
+			SHA1Sum:           sum,
+			NotValidBefore:    time.Now().Add(-time.Hour),
+			NotValidAfter:     time.Now().Add(365 * 24 * time.Hour),
+			Source:            source,
+			Username:          username,
+		}
+	}
+
+	// ACK status mapping: a proxied SCEP profile moves to "verifying" on the device's 2xx ACK
+	for i, tc := range []struct {
+		name   string
+		caType fleet.CAConfigAssetType // "" means no managed-certificate row
+		want   fleet.MDMDeliveryStatus
+	}{
+		{"proxied SCEP moves to verifying", fleet.CAConfigCustomSCEPProxy, fleet.MDMDeliveryVerifying},
+		{"non-certificate profile stays verified", "", fleet.MDMDeliveryVerified},
+		{"DigiCert profile stays verified", fleet.CAConfigDigiCert, fleet.MDMDeliveryVerified},
+	} {
+		t.Run("ACK: "+tc.name, func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("ack-%d", i))
+			p, cmd := "w-ack", "cmd-ack"
+			upsertWinProfile(t, h, p, cmd, fleet.MDMDeliveryPending, 0)
+			if tc.caType != "" {
+				upsertHMMC(t, h, p, tc.caType, nil, nil)
+			}
+			ackVerified(t, h, cmd)
+			status, _, _ := getProfile(t, h, p)
+			require.Equal(t, tc.want, status)
+		})
+	}
+
+	t.Run("cert observation flips verifying to verified", func(t *testing.T) {
+		h := mkHost(t, "flip")
+		p := "w-scep-flip"
+		upsertWinProfile(t, h, p, "cmd-flip", fleet.MDMDeliveryVerifying, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+		ingest(t, h, certWithRenewalID(t, h, p, 7001))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
+	t.Run("cert observation self-heals failed to verified and clears detail", func(t *testing.T) {
+		h := mkHost(t, "heal")
+		p := "w-scep-heal"
+		upsertWinProfile(t, h, p, "cmd-heal", fleet.MDMDeliveryFailed, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			"SCEP PKIOperation failed: HTTP 500", h.UUID, p)
+		require.NoError(t, err)
+
+		ingest(t, h, certWithRenewalID(t, h, p, 7002))
+
+		status, detail, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+		require.Empty(t, detail)
+	})
+
+	t.Run("no matching cert keeps profile verifying", func(t *testing.T) {
+		h := mkHost(t, "nomatch")
+		p := "w-scep-nomatch"
+		upsertWinProfile(t, h, p, "cmd-nomatch", fleet.MDMDeliveryVerifying, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+		// A cert for an unrelated profile: exercises the ingest path but matches nothing here.
+		ingest(t, h, certWithRenewalID(t, h, "w-unrelated-profile", 7003))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status)
+	})
+
+	t.Run("DigiCert profile not flipped even with observed cert dates", func(t *testing.T) {
+		h := mkHost(t, "digicert-flip")
+		p := "w-digicert-flip"
+		upsertWinProfile(t, h, p, "cmd-digicert-flip", fleet.MDMDeliveryVerifying, 0)
+		nvb := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		nva := time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC()
+		upsertHMMC(t, h, p, fleet.CAConfigDigiCert, &nvb, &nva)
+
+		ingest(t, h, certWithRenewalID(t, h, "w-trigger-only", 7004))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status)
+	})
+
+	t.Run("SetMDMWindowsHostProfileFailed marks failed and preserves retries", func(t *testing.T) {
+		h := mkHost(t, "setfailed")
+		p := "w-fail"
+		upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, 1)
+
+		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500"))
+
+		status, detail, retries := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryFailed, status)
+		require.Equal(t, "SCEP PKIOperation failed: HTTP 500", detail)
+		require.Equal(t, 1, retries)
+	})
+
+	t.Run("SetMDMWindowsHostProfileFailed does not clobber verified", func(t *testing.T) {
+		h := mkHost(t, "setfailed-verified")
+		p := "w-fail-verified"
+		upsertWinProfile(t, h, p, "cmd-fail-verified", fleet.MDMDeliveryVerified, 0)
+
+		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP GetCACert failed: timeout"))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
+	t.Run("SetMDMWindowsHostProfileFailed no-ops for a removed profile", func(t *testing.T) {
+		h := mkHost(t, "setfailed-missing")
+		// No profile row exists for this (host, profile): must not error and must not resurrect a row.
+		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, "w-missing", "SCEP PKIOperation failed: HTTP 403"))
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, "w-missing"))
+		require.Equal(t, 0, count)
+	})
+
+	// Verification backstop: once the grace period elapses and a report proves the certificate's store was readable
+	// but the cert is absent, the profile fails. Device-scoped relies on the always-readable system store; user-scoped
+	// needs a user cert in the report (single-user assumption).
+	for i, tc := range []struct {
+		name       string
+		userScoped bool
+		backdate   time.Duration // 0 = still within the grace window
+		certSource fleet.HostCertificateSource
+		username   string
+		retries    int
+		wantStatus fleet.MDMDeliveryStatus
+		wantDetail string
+	}{
+		{"device-scoped fails past grace when cert absent", false, 2 * time.Hour, fleet.SystemHostCertificate, "", 2, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+		{"device-scoped stays verifying within grace", false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
+		{"user-scoped stays verifying when no user cert observed", true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
+		{"user-scoped fails past grace once a user cert is observed", true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+	} {
+		t.Run("backstop: "+tc.name, func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("backstop-%d", i))
+			p := fmt.Sprintf("w-backstop-%d", i)
+			upsertWinProfile(t, h, p, "cmd-backstop", fleet.MDMDeliveryVerifying, tc.retries)
+			insertConfigProfile(t, p, fmt.Sprintf("backstop-%d", i), tc.userScoped)
+			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+			if tc.backdate > 0 {
+				backdateProfile(t, h, p, tc.backdate)
+			}
+			// The ingested cert never carries this profile's renewal-ID marker; only its source (system vs user)
+			// varies, which decides whether the user store is proven readable.
+			ingest(t, h, plainCert(t, h, "some-cert", tc.certSource, tc.username))
+
+			status, detail, retries := getProfile(t, h, p)
+			require.Equal(t, tc.wantStatus, status)
+			require.Equal(t, tc.wantDetail, detail)
+			require.Equal(t, tc.retries, retries)
+		})
+	}
+
+	t.Run("observed cert wins over the backstop even past grace", func(t *testing.T) {
+		h := mkHost(t, "backstop-flipwins")
+		p := "w-backstop-flipwins"
+		upsertWinProfile(t, h, p, "cmd-bs-flipwins", fleet.MDMDeliveryVerifying, 0)
+		insertConfigProfile(t, p, "bs-flipwins", false)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		backdateProfile(t, h, p, 2*time.Hour)
+
+		// The matching cert is present, so the verified-flip must win and the backstop must not fire.
+		ingest(t, h, certWithRenewalID(t, h, p, 7101))
+
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
 }
 
 func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
@@ -77,7 +393,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 		generateTestHostCertificateRecord(t, 1, &expected2),
 	}
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload, fleet.HostCertificateOriginOsquery, nil))
 
 	// verify that we saved the records correctly
 	certs, meta, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name", IncludeMetadata: true})
@@ -101,7 +417,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs[1].SubjectCommonName)
 
 	// simulate removal of a certificate
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}, fleet.HostCertificateOriginOsquery, nil))
 	certs, _, err = ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 1)
@@ -111,7 +427,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	// re-add first certificate but as a "user" source
 	payload[0].Source = fleet.UserHostCertificate
 	payload[0].Username = "A"
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}, fleet.HostCertificateOriginOsquery, nil))
 	certs, _, err = ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
@@ -155,7 +471,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		t.Log(c.desc)
 
-		err := ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", c.ingest)
+		err := ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", c.ingest, fleet.HostCertificateOriginOsquery, nil)
 		require.NoError(t, err)
 		certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name", TestSecondaryOrderKey: "username"})
 		require.NoError(t, err)
@@ -301,7 +617,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 		generateTestHostCertificateRecord(t, host.ID, &expected3),
 	}
 
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, host.UUID, payload))
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, host.UUID, payload, fleet.HostCertificateOriginOsquery, nil))
 
 	// verify that we saved the records correctly
 	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
@@ -348,7 +664,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "step-ca", profile2.CAName)
 
 	// simulate removal of a certificate
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1], payload[2]}))
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1], payload[2]}, fleet.HostCertificateOriginOsquery, nil))
 	certs3, _, err := ds.ListHostCertificates(context.Background(), host.ID, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs3, 2)
@@ -372,6 +688,761 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profile.NotValidAfter)
 	assert.Equal(t, expected1.NotAfter, *profile.NotValidAfter)
 	assert.Equal(t, "custom-ca", profile.CAName)
+}
+
+// checksumForTest returns a 16-byte value suitable for the BINARY(16) checksum
+// column on host_mdm_*_profiles tables. Truncates a sha1 hash of the input.
+func checksumForTest(s string) []byte {
+	sum := sha1.Sum([]byte(s)) // nolint:gosec // test-only checksum, not security-sensitive
+	return sum[:16]
+}
+
+func testMatcherRecoversStuckHMMCRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("matcher-osquery-id"),
+		NodeKey:         ptr.String("matcher-node-key"),
+		UUID:            "matcher-host-uuid",
+		Hostname:        "matcher-host",
+	})
+	require.NoError(t, err)
+
+	renewalCertTemplate := func(profileUUID, suffix string, notBefore, notAfter time.Time, serial int64) *x509.Certificate {
+		return &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:   "ABC123 WIFI fleet-" + profileUUID + suffix,
+				Organization: []string{"Org"},
+			},
+			Issuer: pkix.Name{
+				CommonName:   "issuer.test.example.com",
+				Organization: []string{"Issuer"},
+			},
+			SerialNumber:          big.NewInt(serial),
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             notBefore,
+			NotAfter:              notAfter,
+			BasicConstraintsValid: true,
+		}
+	}
+	unrelatedCertTemplate := func(name string, notAfter time.Duration, serial int64) *x509.Certificate {
+		return &x509.Certificate{
+			Subject:               pkix.Name{CommonName: name, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer.test.example.com", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(serial),
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(notAfter).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+	}
+
+	backdateHMMC := func(t *testing.T, profileUUID string, ago time.Duration) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_managed_certificates
+			SET updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND)
+			WHERE host_uuid = ? AND profile_uuid = ?
+		`, int(ago.Seconds()), host.UUID, profileUUID)
+		require.NoError(t, err)
+	}
+
+	getApple := func(t *testing.T, profileUUID, caName string) *fleet.HostMDMCertificateProfile {
+		t.Helper()
+		profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, profileUUID, caName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		return profile
+	}
+
+	type seedOpts struct {
+		profileUUID string
+		certType    fleet.CAConfigAssetType
+		caName      string
+		// Zero means hmmc is created with NULL validity columns.
+		populatedNotBefore time.Time
+		populatedNotAfter  time.Time
+		populatedSerial    string
+	}
+
+	seedAppleProfile := func(t *testing.T, opts seedOpts, status fleet.MDMDeliveryStatus) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   opts.profileUUID,
+			HostUUID:      host.UUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   "cmd-" + opts.profileUUID,
+			Checksum:      checksumForTest(opts.profileUUID),
+			Scope:         fleet.PayloadScopeSystem,
+		}}))
+		hmmc := &fleet.MDMManagedCertificate{
+			HostUUID:    host.UUID,
+			ProfileUUID: opts.profileUUID,
+			Type:        opts.certType,
+			CAName:      opts.caName,
+		}
+		if !opts.populatedNotAfter.IsZero() {
+			hmmc.NotValidBefore = &opts.populatedNotBefore
+			hmmc.NotValidAfter = &opts.populatedNotAfter
+			hmmc.Serial = ptr.String(opts.populatedSerial)
+		}
+		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
+	}
+
+	// Returns the generated records so callers re-pass them through triggerMatcher.
+	// generateTestHostCertificateRecord produces a fresh SHA1 each call, so a
+	// re-generation from the same template would land in toInsert.
+	seedHostCertificates := func(t *testing.T, certs []*x509.Certificate) []*fleet.HostCertificateRecord {
+		t.Helper()
+		payload := make([]*fleet.HostCertificateRecord, 0, len(certs))
+		for _, c := range certs {
+			payload = append(payload, generateTestHostCertificateRecord(t, host.ID, c))
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginOsquery, nil))
+		return payload
+	}
+
+	// Adds an unrelated cert to populate toInsert (the matcher's gate).
+	triggerMatcher := func(t *testing.T, existingRecs []*fleet.HostCertificateRecord, unrelatedSerial int64) {
+		t.Helper()
+		payload := make([]*fleet.HostCertificateRecord, 0, len(existingRecs)+1)
+		payload = append(payload, existingRecs...)
+		unrelated := unrelatedCertTemplate(fmt.Sprintf("unrelated-%d", unrelatedSerial), 24*time.Hour, unrelatedSerial)
+		payload = append(payload, generateTestHostCertificateRecord(t, host.ID, unrelated))
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	t.Run("MissedIngestRecovered", func(t *testing.T) {
+		profileUUID := "missed-ingest"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4001)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-missed"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4002)
+
+		got := getApple(t, profileUUID, "ca-missed")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshCert.NotAfter.Equal(*got.NotValidAfter), "stuck hmmc should have been backfilled with the renewal cert's not_valid_after")
+		require.NotNil(t, got.Serial)
+		assert.Equal(t, fmt.Sprintf("%040s", freshCert.SerialNumber.Text(16)), *got.Serial)
+	})
+
+	t.Run("GraceBoundary", func(t *testing.T) {
+		profileUUID := "grace-boundary"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4101)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-grace"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 3*time.Hour) // within grace
+
+		triggerMatcher(t, recs, 4102)
+
+		got := getApple(t, profileUUID, "ca-grace")
+		assert.Nil(t, got.NotValidAfter, "row updated within grace must NOT be touched")
+	})
+
+	t.Run("DigiCertNotClobbered", func(t *testing.T) {
+		profileUUID := "digicert-row"
+		seededNotBefore := time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC()
+		seededNotAfter := time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC()
+		seededSerial := fmt.Sprintf("%040s", "deadbeef")
+		conflicting := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4201)
+		recs := seedHostCertificates(t, []*x509.Certificate{conflicting})
+		seedAppleProfile(t, seedOpts{
+			profileUUID:        profileUUID,
+			certType:           fleet.CAConfigDigiCert,
+			caName:             "ca-digicert",
+			populatedNotBefore: seededNotBefore,
+			populatedNotAfter:  seededNotAfter,
+			populatedSerial:    seededSerial,
+		}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4202)
+
+		got := getApple(t, profileUUID, "ca-digicert")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, seededNotAfter.Equal(*got.NotValidAfter), "DigiCert row must NOT be touched by matcher")
+		require.NotNil(t, got.Serial)
+		assert.Equal(t, seededSerial, *got.Serial)
+	})
+
+	t.Run("PendingProfileSkipped", func(t *testing.T) {
+		profileUUID := "pending-profile"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4301)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-pending"}, fleet.MDMDeliveryPending)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4302)
+
+		got := getApple(t, profileUUID, "ca-pending")
+		assert.Nil(t, got.NotValidAfter, "in-flight (pending) profile must NOT be backfilled, even when stuck")
+	})
+
+	t.Run("FailedProfileSkipped", func(t *testing.T) {
+		// SCEP delivery failure is terminal across the platform (admin must
+		// resend). Recovering here from the OLD cert in inventory would
+		// re-arm the renewal cron into a push loop. See design §8.
+		profileUUID := "failed-profile"
+		oldCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-30*24*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(60*24*time.Hour).Truncate(time.Second).UTC(), 4351)
+		recs := seedHostCertificates(t, []*x509.Certificate{oldCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-failed"}, fleet.MDMDeliveryFailed)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4352)
+
+		got := getApple(t, profileUUID, "ca-failed")
+		assert.Nil(t, got.NotValidAfter, "failed (terminal) profile must NOT be backfilled, even when stuck")
+	})
+
+	t.Run("TieBreaker", func(t *testing.T) {
+		profileUUID := "tie-breaker"
+		olderCert := renewalCertTemplate(profileUUID, "-old", time.Now().Add(-48*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(180*24*time.Hour).Truncate(time.Second).UTC(), 4401)
+		newerCert := renewalCertTemplate(profileUUID, "-new", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4402)
+		// older first so result isn't iteration-order-dependent
+		recs := seedHostCertificates(t, []*x509.Certificate{olderCert, newerCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-tb"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4403)
+
+		got := getApple(t, profileUUID, "ca-tb")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, newerCert.NotAfter.Equal(*got.NotValidAfter), "matcher should pick the cert with latest not_valid_before")
+	})
+
+	t.Run("StableCertListRecovers", func(t *testing.T) {
+		// Reviewer requirement: recovery must fire even when the host's cert
+		// inventory hasn't changed this call (toInsert empty).
+		profileUUID := "stable-list"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4601)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-stable"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		// Re-pass the same records — toInsert will be empty, but recovery still runs.
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, recs, fleet.HostCertificateOriginOsquery, nil))
+
+		got := getApple(t, profileUUID, "ca-stable")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshCert.NotAfter.Equal(*got.NotValidAfter), "stuck row must recover even when toInsert is empty")
+	})
+
+	t.Run("MonotonicForward", func(t *testing.T) {
+		profileUUID := "monotonic-forward"
+		freshNotBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		freshNotAfter := time.Now().Add(400 * 24 * time.Hour).Truncate(time.Second).UTC()
+		seedAppleProfile(t, seedOpts{
+			profileUUID:        profileUUID,
+			certType:           fleet.CAConfigCustomSCEPProxy,
+			caName:             "ca-mono",
+			populatedNotBefore: freshNotBefore,
+			populatedNotAfter:  freshNotAfter,
+			populatedSerial:    fmt.Sprintf("%040s", "fresh"),
+		}, fleet.MDMDeliveryVerified)
+		// older cert lands in toInsert; monotonic-forward must reject it.
+		olderCert := renewalCertTemplate(profileUUID, "-old", time.Now().Add(-48*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(48*time.Hour).Truncate(time.Second).UTC(), 4501)
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{
+			generateTestHostCertificateRecord(t, host.ID, olderCert),
+		}, fleet.HostCertificateOriginOsquery, nil))
+
+		got := getApple(t, profileUUID, "ca-mono")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshNotAfter.Equal(*got.NotValidAfter), "monotonic-forward must prevent regression")
+	})
+}
+
+// testInsertingHostMDMManagedCertificatesFromIngestion exercises the
+// non-proxied insert path: when a profile is installed on a host without an
+// existing host_mdm_managed_certificates row, an ingested cert whose Subject
+// carries the `fleet-<profile_uuid>` marker creates the row. Also validates
+// that the matcher's SupportsRenewalID() guard does NOT skip empty/NULL
+// Type rows on subsequent ingestion (Decision 2.2 knock-on).
+func testInsertingHostMDMManagedCertificatesFromIngestion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Three profiles installed on the host:
+	//   nonProxied — no existing hmmc row; ingestion will create one (NULL Type).
+	//   proxied    — existing hmmc row (custom_scep_proxy); matcher updates it.
+	//   noMatch    — no existing hmmc row; no incoming cert carries its marker.
+	cps := storeDummyConfigProfilesForTest(t, ds, 3)
+	nonProxiedProfileUUID := cps[0].ProfileUUID
+	proxiedProfileUUID := cps[1].ProfileUUID
+	noMatchProfileUUID := cps[2].ProfileUUID
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ingest-host-osq"),
+		NodeKey:         ptr.String("ingest-host-nk"),
+		UUID:            "ingest-host-uuid",
+		Hostname:        "ingest-host",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:       nonProxiedProfileUUID,
+			ProfileIdentifier: cps[0].Identifier,
+			ProfileName:       cps[0].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-non-proxied",
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       proxiedProfileUUID,
+			ProfileIdentifier: cps[1].Identifier,
+			ProfileName:       cps[1].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-proxied",
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       noMatchProfileUUID,
+			ProfileIdentifier: cps[2].Identifier,
+			ProfileName:       cps[2].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-no-match",
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}))
+
+	// Pre-existing proxied hmmc row for proxiedProfileUUID.
+	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+		{
+			HostUUID:    host.UUID,
+			ProfileUUID: proxiedProfileUUID,
+			Type:        fleet.CAConfigCustomSCEPProxy,
+			CAName:      "custom-ca",
+		},
+	}))
+
+	// Build incoming certs:
+	//   certNonProxied — Subject CN carries marker for nonProxiedProfileUUID,
+	//                    issued by a parent so IssuerCommonName is preserved
+	//   certProxied    — Subject OU carries marker for proxiedProfileUUID
+	//   certUnrelated  — no Fleet marker
+	notBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+	notAfter := time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC()
+	customerCAParent := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "Customer Hydrant ACME",
+			Country:      []string{"US"},
+			Organization: []string{"Customer"},
+		},
+		SerialNumber:          big.NewInt(9000),
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		NotBefore:             notBefore.Add(-time.Hour),
+		NotAfter:              notAfter.Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	certNonProxied := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "MAC-SERIAL fleet-" + nonProxiedProfileUUID,
+			Country:      []string{"US"},
+			Organization: []string{"Org Non-Proxied"},
+		},
+		SerialNumber:          big.NewInt(7001),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+	}
+	certProxied := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:         "MAC-SERIAL Proxied",
+			Country:            []string{"US"},
+			Organization:       []string{"Org Proxied"},
+			OrganizationalUnit: []string{"fleet-" + proxiedProfileUUID},
+		},
+		Issuer: pkix.Name{
+			CommonName:   "Custom SCEP Issuer",
+			Country:      []string{"US"},
+			Organization: []string{"Custom"},
+		},
+		SerialNumber:          big.NewInt(7002),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+	}
+	certUnrelated := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "Some Other Cert",
+			Country:      []string{"US"},
+			Organization: []string{"Unrelated"},
+		},
+		Issuer: pkix.Name{
+			CommonName:   "Other Issuer",
+			Country:      []string{"US"},
+			Organization: []string{"Other"},
+		},
+		SerialNumber:          big.NewInt(7003),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+	}
+	payload := []*fleet.HostCertificateRecord{
+		generateTestHostCertificateRecordWithParent(t, host.ID, &certNonProxied, &customerCAParent),
+		generateTestHostCertificateRecord(t, host.ID, &certProxied),
+		generateTestHostCertificateRecord(t, host.ID, &certUnrelated),
+	}
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginOsquery, nil))
+
+	// nonProxiedProfileUUID — row was inserted with NULL Type, matching cert's metadata.
+	all, err := ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err)
+	var nonProxiedRow, proxiedRow *fleet.MDMManagedCertificate
+	for _, r := range all {
+		switch r.ProfileUUID {
+		case nonProxiedProfileUUID:
+			nonProxiedRow = r
+		case proxiedProfileUUID:
+			proxiedRow = r
+		case noMatchProfileUUID:
+			t.Fatalf("noMatchProfileUUID should not have an hmmc row but does: %+v", r)
+		}
+	}
+	require.NotNil(t, nonProxiedRow, "non-proxied profile should have a created hmmc row")
+	assert.Equal(t, fleet.CAConfigAssetType(""), nonProxiedRow.Type, "Type should be NULL/empty for non-proxied row")
+	assert.Equal(t, "non_proxied", nonProxiedRow.CAName, "CAName should be the fixed non-proxied sentinel, not derived from the cert")
+	require.NotNil(t, nonProxiedRow.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", certNonProxied.SerialNumber.Text(16)), *nonProxiedRow.Serial)
+	require.NotNil(t, nonProxiedRow.NotValidAfter)
+	assert.Equal(t, notAfter, *nonProxiedRow.NotValidAfter)
+
+	// proxiedProfileUUID — existing row updated with cert's serial / dates by the matcher.
+	require.NotNil(t, proxiedRow)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, proxiedRow.Type, "Existing proxied Type preserved")
+	require.NotNil(t, proxiedRow.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", certProxied.SerialNumber.Text(16)), *proxiedRow.Serial)
+
+	// Subsequent ingestion of a renewed cert for the non-proxied profile must
+	// advance not_valid_after — validates the matcher guard fix (Decision 2.2):
+	// without it, the SupportsRenewalID() skip silently excludes NULL-Type rows.
+	notAfter2 := notAfter.Add(48 * time.Hour)
+	certRenewed := certNonProxied
+	certRenewed.SerialNumber = big.NewInt(7011)
+	// NotBefore must remain in the past (matcher filters out future-valid certs)
+	// but later than the original so best-match-wins picks the renewed cert.
+	certRenewed.NotBefore = notBefore.Add(30 * time.Minute)
+	certRenewed.NotAfter = notAfter2
+	renewedPayload := []*fleet.HostCertificateRecord{
+		generateTestHostCertificateRecordWithParent(t, host.ID, &certRenewed, &customerCAParent),
+		generateTestHostCertificateRecord(t, host.ID, &certProxied),
+		generateTestHostCertificateRecord(t, host.ID, &certUnrelated),
+	}
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, renewedPayload, fleet.HostCertificateOriginOsquery, nil))
+
+	all2, err := ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err)
+	var nonProxiedRow2 *fleet.MDMManagedCertificate
+	for _, r := range all2 {
+		if r.ProfileUUID == nonProxiedProfileUUID {
+			nonProxiedRow2 = r
+		}
+	}
+	require.NotNil(t, nonProxiedRow2)
+	require.NotNil(t, nonProxiedRow2.NotValidAfter)
+	assert.Equal(t, notAfter2, *nonProxiedRow2.NotValidAfter, "matcher must advance not_valid_after on NULL-Type rows")
+	require.NotNil(t, nonProxiedRow2.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", certRenewed.SerialNumber.Text(16)), *nonProxiedRow2.Serial)
+	assert.Equal(t, fleet.CAConfigAssetType(""), nonProxiedRow2.Type, "Type should still be NULL/empty after update")
+}
+
+// testUpdateHostCertificatesReingestAfterSoftDelete covers the soft-delete-then-re-report cycle
+func testUpdateHostCertificatesReingestAfterSoftDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(77)
+		hostUUID = "windows-reingest-host-uuid"
+	)
+
+	cert := mkTestCertRecord(t, hostID, "reingest.example.com", fleet.UserHostCertificate, "alice")
+	sha1Hex := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+	scopes := []fleet.HostCertificateScope{{Source: fleet.UserHostCertificate, Username: "alice"}}
+
+	ingest := func() {
+		reported := *cert // fresh copy each report; UpdateHostCertificates mutates the record
+		require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+			[]*fleet.HostCertificateRecord{&reported}, fleet.HostCertificateOriginOsquery, scopes))
+	}
+	softDeleteAll := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ?`, hostID)
+			return err
+		})
+	}
+
+	ingest()
+	// Soft-delete the row, then re-report
+	softDeleteAll()
+	ingest()
+
+	// Also clone the live row as a soft-deleted duplicate with a HIGHER id.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_certificates
+				(host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin, deleted_at)
+			SELECT host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin, NOW(6)
+			FROM host_certificates WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+		return err
+	})
+
+	var rowStates []struct {
+		ID      uint `db:"id"`
+		Deleted bool `db:"deleted"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rowStates,
+			`SELECT id, deleted_at IS NOT NULL AS deleted FROM host_certificates WHERE host_id = ? ORDER BY id`, hostID)
+	})
+	require.Len(t, rowStates, 3)
+	require.True(t, rowStates[0].Deleted, "expected the original row to be the soft-deleted one")
+	require.False(t, rowStates[1].Deleted, "expected the re-ingested row to be live")
+	require.True(t, rowStates[2].Deleted, "expected the cloned row to be soft-deleted")
+	liveID := rowStates[1].ID
+
+	// The sha1 -> id lookup used to attach sources must resolve to the live row only.
+	got, err := loadHostCertIDsForSHA1DB(ctx, ds.reader(ctx), hostID, []string{sha1Hex})
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint{sha1Hex: liveID}, got)
+
+	// End to end: the certificate lists with its user source intact.
+	listed, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, fleet.UserHostCertificate, listed[0].Source)
+	require.Equal(t, "alice", listed[0].Username)
+
+	// With every row soft-deleted, the lookup returns nothing.
+	softDeleteAll()
+	got, err = loadHostCertIDsForSHA1DB(ctx, ds.reader(ctx), hostID, []string{sha1Hex})
+	require.NoError(t, err)
+	require.Empty(t, got)
+}
+
+// testUpdateHostCertificatesSelfHealsDuplicates reproduces the bad host state behind issue: host_certificates has no unique index
+// on (host_id, sha1_sum), so concurrent re-ingestion of the same report (osquery resends results after a timed-out write, or a
+// stale replica read) can leave duplicate active rows per certificate. The fix must soft-delete the duplicates on the next report
+// (self-heal) and produce zero source-row writes on subsequent identical reports (convergence).
+func testUpdateHostCertificatesSelfHealsDuplicates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(88)
+		hostUUID = "dup-rows-host-uuid"
+	)
+
+	certSys := mkTestCertRecord(t, hostID, "dup-sys.example.com", fleet.SystemHostCertificate, "")
+	certPairSys := mkTestCertRecord(t, hostID, "dup-pair.example.com", fleet.SystemHostCertificate, "")
+	// The same certificate observed in a user scope too (two source rows, one cert row).
+	pairUserCopy := *certPairSys
+	pairUserCopy.Source = fleet.UserHostCertificate
+	pairUserCopy.Username = "alice"
+	certPairUser := &pairUserCopy
+
+	ingest := func() {
+		sysCopy := *certSys
+		pairSysCopy := *certPairSys
+		pairUserCopyLocal := *certPairUser
+		require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+			[]*fleet.HostCertificateRecord{&sysCopy, &pairSysCopy, &pairUserCopyLocal},
+			fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	ingest()
+
+	// Simulate the concurrent double-ingest: duplicate every active cert row and its source rows under new ids.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_certificates
+				(host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin)
+			SELECT host_id, sha1_sum, not_valid_after, not_valid_before, certificate_authority, common_name,
+				key_algorithm, key_strength, key_usage, serial, signing_algorithm, subject_country, subject_org,
+				subject_org_unit, subject_common_name, issuer_country, issuer_org, issuer_org_unit,
+				issuer_common_name, origin
+			FROM host_certificates WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_certificate_sources (host_certificate_id, source, username)
+			SELECT hcDup.id, hcs.source, hcs.username
+			FROM host_certificate_sources hcs
+			JOIN host_certificates hcOrig ON hcOrig.id = hcs.host_certificate_id
+			JOIN host_certificates hcDup
+				ON hcDup.host_id = hcOrig.host_id AND hcDup.sha1_sum = hcOrig.sha1_sum AND hcDup.id > hcOrig.id
+			WHERE hcOrig.host_id = ?`, hostID)
+		return err
+	})
+
+	countActiveCerts := func() int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM host_certificates WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+		})
+		return n
+	}
+	sourceRowIDs := func() []uint {
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `
+				SELECT hcs.id FROM host_certificate_sources hcs
+				JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
+				WHERE hc.host_id = ? ORDER BY hcs.id`, hostID)
+		})
+		return ids
+	}
+
+	require.Equal(t, 4, countActiveCerts(), "setup: expected duplicated active cert rows")
+	require.Len(t, sourceRowIDs(), 6, "setup: expected duplicated source rows")
+
+	// One identical report self-heals: duplicates soft-deleted, their source rows removed.
+	ingest()
+	require.Equal(t, 2, countActiveCerts(), "expected duplicates to be soft-deleted")
+	healedSourceIDs := sourceRowIDs()
+	require.Len(t, healedSourceIDs, 3, "expected duplicate source rows to be removed")
+
+	// Convergence: further identical reports must not rewrite any source rows.
+	for range 2 {
+		ingest()
+		require.Equal(t, healedSourceIDs, sourceRowIDs(), "identical report must not rewrite host_certificate_sources rows")
+		require.Equal(t, 2, countActiveCerts())
+	}
+
+	// The API view is deduplicated again: exactly one row per (cert, source), with the right scopes surviving.
+	listed, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{OrderKey: "common_name", TestSecondaryOrderKey: "username"})
+	require.NoError(t, err)
+	type listedRow struct {
+		commonName string
+		source     fleet.HostCertificateSource
+		username   string
+	}
+	got := make([]listedRow, 0, len(listed))
+	for _, l := range listed {
+		got = append(got, listedRow{l.CommonName, l.Source, l.Username})
+	}
+	require.Equal(t, []listedRow{
+		{"dup-pair.example.com", fleet.SystemHostCertificate, ""},
+		{"dup-pair.example.com", fleet.UserHostCertificate, "alice"},
+		{"dup-sys.example.com", fleet.SystemHostCertificate, ""},
+	}, got)
+}
+
+// testUpdateHostCertificatesPreciseSourceWrites verifies that a source-set change touches only the rows that actually
+// changed: unchanged source rows must keep their primary key (no delete-and-reinsert).
+func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(89)
+		hostUUID = "precise-writes-host-uuid"
+	)
+
+	base := mkTestCertRecord(t, hostID, "precise.example.com", fleet.SystemHostCertificate, "")
+	ingest := func(sources ...fleet.HostCertificateScope) {
+		records := make([]*fleet.HostCertificateRecord, 0, len(sources))
+		for _, s := range sources {
+			rec := *base
+			rec.Source = s.Source
+			rec.Username = s.Username
+			records = append(records, &rec)
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID, records, fleet.HostCertificateOriginOsquery, nil))
+	}
+
+	type sourceRow struct {
+		ID       uint   `db:"id"`
+		Source   string `db:"source"`
+		Username string `db:"username"`
+	}
+	sourceRows := func() []sourceRow {
+		var rows []sourceRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT hcs.id, hcs.source, hcs.username FROM host_certificate_sources hcs
+				JOIN host_certificates hc ON hc.id = hcs.host_certificate_id
+				WHERE hc.host_id = ? ORDER BY hcs.source, hcs.username`, hostID)
+		})
+		return rows
+	}
+
+	ingest(
+		fleet.HostCertificateScope{Source: fleet.SystemHostCertificate},
+		fleet.HostCertificateScope{Source: fleet.UserHostCertificate, Username: "alice"},
+	)
+	before := sourceRows()
+	require.Len(t, before, 2)
+	systemRowID := before[0].ID
+	require.Equal(t, "system", before[0].Source)
+	require.Equal(t, "alice", before[1].Username)
+
+	// alice's scope is replaced by bob's; the system row must be untouched.
+	ingest(
+		fleet.HostCertificateScope{Source: fleet.SystemHostCertificate},
+		fleet.HostCertificateScope{Source: fleet.UserHostCertificate, Username: "bob"},
+	)
+	after := sourceRows()
+	require.Len(t, after, 2)
+	require.Equal(t, systemRowID, after[0].ID, "unchanged system source row must keep its primary key")
+	require.Equal(t, "system", after[0].Source)
+	require.Equal(t, "bob", after[1].Username, "alice's source row should be replaced by bob's")
+}
+
+// mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours
+// from now, scoped to the given source and username.
+func mkTestCertRecord(t *testing.T, hostID uint, commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
+	tmpl := x509.Certificate{
+		Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+		Issuer:                pkix.Name{CommonName: "issuer.example.com"},
+		SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+	rec := generateTestHostCertificateRecord(t, hostID, &tmpl)
+	rec.Source = source
+	rec.Username = username
+	return rec
 }
 
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {
@@ -416,6 +1487,120 @@ func generateTestHostCertificateRecordWithParent(t *testing.T, hostID uint, cert
 	require.NotNil(t, parsed)
 
 	return fleet.NewHostCertificateRecord(hostID, parsed)
+}
+
+// testUpdateHostCertificatesWindowsScopeReconciliation exercises the observed-scopes reconciliation used by the Windows
+// ingestion path: osquery can only enumerate a user's certificates while that user is logged in, so a logged-off user's
+// certificates must be preserved rather than soft-deleted.
+func testUpdateHostCertificatesWindowsScopeReconciliation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		hostID   = uint(42)
+		hostUUID = "windows-scope-host-uuid"
+	)
+
+	mkCert := func(commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
+		return mkTestCertRecord(t, hostID, commonName, source, username)
+	}
+
+	listKeys := func() []string {
+		certs, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{OrderKey: "common_name"})
+		require.NoError(t, err)
+		keys := make([]string, 0, len(certs))
+		for _, c := range certs {
+			keys = append(keys, fmt.Sprintf("%s|%s|%s", c.CommonName, c.Source, c.Username))
+		}
+		return keys
+	}
+
+	sysScope := fleet.HostCertificateScope{Source: fleet.SystemHostCertificate}
+	aliceScope := fleet.HostCertificateScope{Source: fleet.UserHostCertificate, Username: "alice"}
+	bobScope := fleet.HostCertificateScope{Source: fleet.UserHostCertificate, Username: "bob"}
+
+	certSys := mkCert("sys.example.com", fleet.SystemHostCertificate, "")
+	certAlice := mkCert("alice-old.example.com", fleet.UserHostCertificate, "alice")
+	certBob := mkCert("bob.example.com", fleet.UserHostCertificate, "bob")
+	// shared cert: present in the System store and in alice's store (same SHA1, two sources).
+	sharedSys := mkCert("shared.example.com", fleet.SystemHostCertificate, "")
+	sharedAliceClone := *sharedSys
+	sharedAlice := &sharedAliceClone
+	sharedAlice.Source = fleet.UserHostCertificate
+	sharedAlice.Username = "alice"
+
+	// 1. Initial report: alice and bob both logged in.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{certSys, certAlice, certBob, sharedSys, sharedAlice},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, aliceScope, bobScope}))
+	require.ElementsMatch(t, []string{
+		"sys.example.com|system|",
+		"alice-old.example.com|user|alice",
+		"bob.example.com|user|bob",
+		"shared.example.com|system|",
+		"shared.example.com|user|alice",
+	}, listKeys())
+
+	// 2. Alice logs off: her hive is not loaded so her certs are simply absent.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{certSys, certBob, sharedSys},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, bobScope}))
+	require.ElementsMatch(t, []string{
+		"sys.example.com|system|",
+		"alice-old.example.com|user|alice", // preserved (alice not observed)
+		"bob.example.com|user|bob",
+		"shared.example.com|system|",
+		"shared.example.com|user|alice", // preserved
+	}, listKeys())
+
+	// 3. Alice logs back in but has removed her old cert and her copy of the shared cert, and installed a new one.
+	certAlice2 := mkCert("alice-new.example.com", fleet.UserHostCertificate, "alice")
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{certSys, certBob, sharedSys, certAlice2},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, aliceScope, bobScope}))
+	require.ElementsMatch(t, []string{
+		"sys.example.com|system|",
+		"bob.example.com|user|bob",
+		"shared.example.com|system|", // alice's shared source dropped, system kept
+		"alice-new.example.com|user|alice",
+	}, listKeys())
+
+	// 4. A System certificate removed while present in the report → deleted, since System scope is always observed.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{certBob, sharedSys, certAlice2},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, aliceScope, bobScope}))
+	require.ElementsMatch(t, []string{
+		"bob.example.com|user|bob",
+		"shared.example.com|system|",
+		"alice-new.example.com|user|alice",
+	}, listKeys())
+
+	// 5. Alice logs back in and re-installs the shared cert, so it is again in both the System store and her store.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{certBob, sharedSys, sharedAlice, certAlice2},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, aliceScope, bobScope}))
+	require.ElementsMatch(t, []string{
+		"bob.example.com|user|bob",
+		"shared.example.com|system|",
+		"shared.example.com|user|alice",
+		"alice-new.example.com|user|alice",
+	}, listKeys())
+
+	// 6. The shared cert is removed from the machine store while alice is logged off, so it is absent from the report
+	// entirely. Its (observed) System source is dropped, but her (unobserved) source keeps the cert alive (it survives
+	// showing only her scope). alice's other cert is likewise preserved.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, hostID, hostUUID,
+		[]*fleet.HostCertificateRecord{certBob},
+		fleet.HostCertificateOriginOsquery,
+		[]fleet.HostCertificateScope{sysScope, bobScope}))
+	require.ElementsMatch(t, []string{
+		"bob.example.com|user|bob",
+		"shared.example.com|user|alice", // System source dropped, alice's preserved
+		"alice-new.example.com|user|alice",
+	}, listKeys())
 }
 
 func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
@@ -489,8 +1674,8 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	host2Cert.Username = "jsmith"
 
 	// Add the same certificate to both hosts
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1Cert}))
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2Cert}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1Cert}, fleet.HostCertificateOriginOsquery, nil))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2Cert}, fleet.HostCertificateOriginOsquery, nil))
 
 	// Verify both hosts have the correct certs, with the correct sources
 	host1Certs, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
@@ -511,7 +1696,7 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	host2CertUpdated.Source = fleet.UserHostCertificate
 	host2CertUpdated.Username = "janesmith"
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated}, fleet.HostCertificateOriginOsquery, nil))
 
 	// Verify host1's certificate source was *not* updated
 	host1CertsAfter, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
@@ -526,7 +1711,7 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	require.Equal(t, "janesmith", host2CertsAfter[0].Username)
 
 	// Verify no-op case
-	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated})
+	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated}, fleet.HostCertificateOriginOsquery, nil)
 	require.NoError(t, err)
 
 	// Verify host2's certificate source was updated
@@ -540,7 +1725,7 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	systemCertOnHost2 := fleet.NewHostCertificateRecord(host2.ID, parsed)
 	systemCertOnHost2.Source = fleet.SystemHostCertificate
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated, systemCertOnHost2}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated, systemCertOnHost2}, fleet.HostCertificateOriginOsquery, nil))
 
 	// Verify host2 now has the certificate with both sources
 	host2CertsMultiSource, _, err := ds.ListHostCertificates(ctx, host2.ID, fleet.ListOptions{})
@@ -566,6 +1751,182 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	require.Len(t, host1CertsMultiSource, 1)
 	require.Equal(t, fleet.UserHostCertificate, host1CertsMultiSource[0].Source)
 	require.Equal(t, "jdoe", host1CertsMultiSource[0].Username)
+}
+
+// testUpdateHostCertificatesOriginScopedDelete verifies that each ingestion
+// source only soft-deletes rows it owns: an osquery sync that omits an
+// MDM-only cert must not remove that cert, and vice versa.
+func testUpdateHostCertificatesOriginScopedDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("origin-host-osquery-id"),
+		NodeKey:         ptr.String("origin-host-node-key"),
+		UUID:            "origin-host-uuid",
+		Hostname:        "origin-host",
+	})
+	require.NoError(t, err)
+
+	mkCert := func(commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			KeyUsage:              x509.KeyUsageDigitalSignature,
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		rec := fleet.NewHostCertificateRecord(host.ID, parsed)
+		rec.Source = fleet.SystemHostCertificate
+		return rec
+	}
+
+	osqueryOnly := mkCert("osquery-only")
+	mdmOnly := mkCert("mdm-only")
+
+	// Initial state: osquery reports osqueryOnly; MDM reports mdmOnly.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{osqueryOnly}, fleet.HostCertificateOriginOsquery, nil))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{mdmOnly}, fleet.HostCertificateOriginMDM, nil))
+
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	originByCN := func(certs []*fleet.HostCertificateRecord) map[string]fleet.HostCertificateOrigin {
+		m := make(map[string]fleet.HostCertificateOrigin, len(certs))
+		for _, c := range certs {
+			m[c.CommonName] = c.Origin
+		}
+		return m
+	}
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"osquery-only": fleet.HostCertificateOriginOsquery,
+		"mdm-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN(certs))
+
+	// Osquery sync runs again with an EMPTY cert list. The osquery-only cert
+	// should be soft-deleted, but the mdm-only cert must survive.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{}, fleet.HostCertificateOriginOsquery, nil))
+
+	certs, _, err = ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1, "mdm-only cert should survive an osquery sync that omits it")
+	require.Equal(t, "mdm-only", certs[0].CommonName)
+	require.Equal(t, fleet.HostCertificateOriginMDM, certs[0].Origin)
+
+	// Now the symmetric case: osquery re-reports its cert, MDM sync runs with an
+	// empty list. The mdm-only cert should be soft-deleted, osquery-only survives.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{osqueryOnly}, fleet.HostCertificateOriginOsquery, nil))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{}, fleet.HostCertificateOriginMDM, nil))
+
+	certs, _, err = ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1, "osquery-only cert should survive an MDM sync that omits it")
+	require.Equal(t, "osquery-only", certs[0].CommonName)
+	require.Equal(t, fleet.HostCertificateOriginOsquery, certs[0].Origin)
+}
+
+// testUpdateHostCertificatesOriginDowngrade verifies that osquery rediscovery
+// of an mdm-origin cert flips origin to osquery, and that the downgrade is
+// one-way.
+func testUpdateHostCertificatesOriginDowngrade(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("downgrade-host-osquery-id"),
+		NodeKey:         new("downgrade-host-node-key"),
+		UUID:            "downgrade-host-uuid",
+		Hostname:        "downgrade-host",
+	})
+	require.NoError(t, err)
+
+	mkCert := func(commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			KeyUsage:              x509.KeyUsageDigitalSignature,
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		rec := fleet.NewHostCertificateRecord(host.ID, parsed)
+		rec.Source = fleet.SystemHostCertificate
+		return rec
+	}
+
+	rootCA := mkCert("user-installed-root-ca")
+	mdmDelivered := mkCert("mdm-delivered-only")
+
+	// MDM ingestion sees both certs first.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA, mdmDelivered}, fleet.HostCertificateOriginMDM, nil))
+
+	originByCN := func() map[string]fleet.HostCertificateOrigin {
+		certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		m := make(map[string]fleet.HostCertificateOrigin, len(certs))
+		for _, c := range certs {
+			m[c.CommonName] = c.Origin
+		}
+		return m
+	}
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"user-installed-root-ca": fleet.HostCertificateOriginMDM,
+		"mdm-delivered-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN())
+
+	// Osquery rediscovers the Root CA; row downgrades. MDM-only cert unchanged.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA}, fleet.HostCertificateOriginOsquery, nil))
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"user-installed-root-ca": fleet.HostCertificateOriginOsquery,
+		"mdm-delivered-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN())
+
+	// Downgrade is sticky across repeated osquery syncs.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA}, fleet.HostCertificateOriginOsquery, nil))
+	require.Equal(t, fleet.HostCertificateOriginOsquery, originByCN()["user-installed-root-ca"])
+
+	// Source-scoped delete preserved: osquery omitting the MDM-only cert does not soft-delete it.
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	// One-way: MDM rediscovery does not re-upgrade the downgraded row.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA, mdmDelivered}, fleet.HostCertificateOriginMDM, nil))
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"user-installed-root-ca": fleet.HostCertificateOriginOsquery,
+		"mdm-delivered-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN())
 }
 
 // testHostCertificateWithInvalidCountryCode tests that a certificate with a country code longer than the standard 2 letters works
@@ -649,7 +2010,7 @@ func testHostCertificateWithInvalidCountryCode(t *testing.T, ds *Datastore) {
 	payload[1].SubjectCountry = certWithNormalCountryTemplate.Subject.Country[0]
 	payload[1].IssuerCountry = parentWithLongIssuerCountryTemplate.Subject.Country[0]
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload, fleet.HostCertificateOriginOsquery, nil))
 
 	// verify that we saved the records correctly
 	certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
@@ -758,7 +2119,7 @@ func testTruncateLongCertificateFields(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Update certificates - this should trigger truncation
-	err = ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{cert})
+	err = ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{cert}, fleet.HostCertificateOriginOsquery, nil)
 	require.NoError(t, err)
 
 	// Retrieve the certificate and verify all fields were truncated
@@ -841,7 +2202,7 @@ func testListHostCertificatesCountMatches(t *testing.T, ds *Datastore) {
 	certUser.Source = fleet.UserHostCertificate
 	certUser.Username = "alice"
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{&certSys, &certUser}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{&certSys, &certUser}, fleet.HostCertificateOriginOsquery, nil))
 
 	// Now list with metadata
 	certs, meta, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{IncludeMetadata: true})
@@ -853,4 +2214,75 @@ func testListHostCertificatesCountMatches(t *testing.T, ds *Datastore) {
 	require.Len(t, certs, 2)
 
 	require.Equal(t, uint(len(certs)), meta.TotalResults, "expected total results to match returned rows")
+}
+
+// testSoftDeleteMDMHostCertificatesForUnenrolledHosts verifies the cron sweep
+// clears MDM-origin certs for hosts reporting host_mdm.enrolled=0 while leaving
+// osquery-origin certs and enrolled hosts' certs intact.
+func testSoftDeleteMDMHostCertificatesForUnenrolledHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	mkCert := func(hostID uint, commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName},
+			Issuer:                pkix.Name{CommonName: "issuer"},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		return fleet.NewHostCertificateRecord(hostID, parsed)
+	}
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("sweep-osq-" + suffix),
+			NodeKey:         ptr.String("sweep-nk-" + suffix),
+			UUID:            "sweep-uuid-" + suffix,
+			Hostname:        "sweep-" + suffix,
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// Unenrolled host with both an osquery-origin and an mdm-origin cert.
+	unenrolled := newHost("unenrolled")
+	require.NoError(t, ds.UpdateHostCertificates(ctx, unenrolled.ID, unenrolled.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(unenrolled.ID, "u-osquery")}, fleet.HostCertificateOriginOsquery, nil))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, unenrolled.ID, unenrolled.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(unenrolled.ID, "u-mdm")}, fleet.HostCertificateOriginMDM, nil))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, unenrolled.ID, false, false, "https://mdm.example.com", false, "Fleet", "", false))
+
+	// Enrolled host with an mdm-origin cert that must NOT be swept.
+	enrolled := newHost("enrolled")
+	require.NoError(t, ds.UpdateHostCertificates(ctx, enrolled.ID, enrolled.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(enrolled.ID, "e-mdm")}, fleet.HostCertificateOriginMDM, nil))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, enrolled.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+
+	count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+
+	// Unenrolled host: only the osquery cert remains.
+	certs, _, err := ds.ListHostCertificates(ctx, unenrolled.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, "u-osquery", certs[0].CommonName)
+
+	// Enrolled host: mdm cert untouched.
+	certs, _, err = ds.ListHostCertificates(ctx, enrolled.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, "e-mdm", certs[0].CommonName)
 }

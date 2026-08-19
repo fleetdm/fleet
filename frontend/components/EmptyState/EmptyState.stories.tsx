@@ -46,7 +46,7 @@ export const WithTwoButtons: Story = {
     header: "No policies",
     info: "Start monitoring compliance by creating your first policy.",
     primaryButton: <Button>Create policy</Button>,
-    secondaryButton: <Button variant="inverse">Import from library</Button>,
+    secondaryButton: <Button variant="secondary">Import from library</Button>,
   },
 };
 
@@ -98,9 +98,10 @@ export const HeaderList: Story = {
 export const HeaderListWithButton: Story = {
   args: {
     variant: "header-list",
-    header: "Add your certificate authority (CA)",
-    info: "Help your end users connect to Wi-Fi or VPNs.",
-    primaryButton: <Button>Add CA</Button>,
+    header: "No certificate authorities",
+    info:
+      "Add a certificate authority (CA) to help end users connect to Wi-Fi or VPNs.",
+    primaryButton: <Button>Add certificate authority</Button>,
   },
 };
 

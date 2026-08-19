@@ -185,6 +185,40 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				},
 			},
 		},
+		// CVE-2017-17522 is DISPUTED. NVD lists python:python up to (and including) 3.6.3 as
+		// vulnerable, but the CPE criteria is broad and matches modern Python installs (e.g. it was
+		// reported against Python 3.9.6). Python maintainers reject the report: exploitation is
+		// impossible because webbrowser.py relies on subprocess.Popen with the default shell=False.
+		// Following the same approach as CVE-2013-0340, we ignore it entirely. See #35148.
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2017-17522": {},
+			},
+		},
+		// CVE-2023-36632 is DISPUTED. NVD/Python state it is "neither a vulnerability nor a bug": the
+		// legacy email.utils.parseaddr function raises a RecursionError on crafted input, which is
+		// the email package's intended behavior of throwing an exception when size limits are
+		// exceeded. It matches python:python up to 3.11.4 with a 7.5 score. Following the same
+		// approach as CVE-2013-0340, we ignore it entirely. See #35148.
+		CPEMatchingRule{
+			IgnoreAll: true,
+			CVEs: map[string]struct{}{
+				"CVE-2023-36632": {},
+			},
+		},
+		// CVE-2024-3219 affects CPython's pure-Python socket.socketpair() implementation, which is
+		// only used on platforms lacking AF_UNIX support (Windows). Linux and macOS use the native
+		// AF_UNIX implementation and are not affected, but the NVD/VulnCheck CPE data uses
+		// target_sw=* causing false positives on macOS and Linux. See #35148.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-3219": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "windows"
+			},
+		},
 		// These vulnerabilities in the MongoDB client incorrectly match
 		// the VS Code extension.
 		CPEMatchingRule{

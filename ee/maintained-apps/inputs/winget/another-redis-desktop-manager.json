@@ -1,0 +1,13 @@
+{
+  "name": "Another Redis Desktop Manager",
+  "slug": "another-redis-desktop-manager/windows",
+  "package_identifier": "qishibo.AnotherRedisDesktopManager",
+  "unique_identifier": "Another Redis Desktop Manager",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/another-redis-desktop-manager_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/another-redis-desktop-manager_uninstall.ps1"
+}

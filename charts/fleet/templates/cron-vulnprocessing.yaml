@@ -31,6 +31,9 @@ spec:
           {{- if include "fleet.additionalCAs.enabled" . }}
           - name: install-trusted-cas
             image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+            {{- with .Values.imagePullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
             securityContext:
               runAsUser: 0
               runAsNonRoot: false
@@ -76,6 +79,9 @@ spec:
                 sql_proxy_pid=$(pgrep cloud_sql_proxy) && kill -INT $sql_proxy_pid;
                 {{- end }}
             image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+            {{- with .Values.imagePullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
             resources:
               limits:
                 cpu: {{ .Values.vulnProcessing.resources.limits.cpu }}
@@ -237,9 +243,15 @@ spec:
               {{- end }}
               ## END REDIS SECTION
               ## APPEND ENVIRONMENT VARIABLES FROM VALUES
+              # Skip empty/unset values so an env var provided via envsFrom (e.g. a
+              # secretKeyRef for FLEET_SERVER_PRIVATE_KEY) isn't duplicated by the
+              # empty default here, which server-side apply rejects as a
+              # duplicate env entry.
               {{- range $key, $value := .Values.environments }}
+              {{- if and (ne (kindOf $value) "invalid") (or (ne (kindOf $value) "string") (ne $value "")) }}
               - name: {{ $key }}
                 value: {{ $value | quote }}
+              {{- end }}
               {{- end }}
               ## APPEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
               {{- range .Values.envsFrom }}

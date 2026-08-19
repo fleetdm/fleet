@@ -1,7 +1,7 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { IMdmVppToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -87,10 +87,24 @@ export const generateTableConfig = (
     },
     {
       accessor: "location",
-      Header: "Location",
+      Header: "Organization unit",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      accessor: "country_code",
+      Header: "Country",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell
+          value={
+            cellProps.cell.value
+              ? cellProps.cell.value.toUpperCase()
+              : undefined
+          }
+        />
       ),
     },
     {
@@ -127,13 +141,13 @@ export const generateTableConfig = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
-          variant="small-button"
+          variant="secondary"
         />
       ),
     },
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmVppToken[]) => {
   return data;
 };

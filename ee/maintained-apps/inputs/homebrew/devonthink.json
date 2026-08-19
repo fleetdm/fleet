@@ -1,0 +1,10 @@
+{
+  "name": "DEVONthink",
+  "unique_identifier": "com.devon-technologies.think",
+  "token": "devonthink",
+  "installer_format": "zip",
+  "slug": "devonthink/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

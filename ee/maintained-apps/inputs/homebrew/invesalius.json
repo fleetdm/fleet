@@ -1,0 +1,10 @@
+{
+  "name": "InVesalius",
+  "unique_identifier": "br.gov.cti.invesalius",
+  "token": "invesalius",
+  "installer_format": "dmg",
+  "slug": "invesalius/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

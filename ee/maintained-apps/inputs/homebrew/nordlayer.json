@@ -1,0 +1,10 @@
+{
+  "name": "NordLayer",
+  "unique_identifier": "com.nordvpn.macos.teams",
+  "token": "nordlayer",
+  "installer_format": "pkg",
+  "slug": "nordlayer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

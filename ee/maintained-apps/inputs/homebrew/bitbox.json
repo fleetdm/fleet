@@ -1,0 +1,10 @@
+{
+  "name": "BitBox",
+  "unique_identifier": "ch.shiftcrypto.BitBoxApp",
+  "token": "bitbox",
+  "installer_format": "dmg",
+  "slug": "bitbox/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

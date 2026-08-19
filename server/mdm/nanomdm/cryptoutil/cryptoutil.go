@@ -40,12 +40,22 @@ func TopicFromPEMCert(pemCert []byte) (string, error) {
 	return TopicFromCert(cert)
 }
 
+// maxMdmSignatureBytes caps the decoded length of the Mdm-Signature header.
+// Real signing-cert + signed-attrs + signature blobs come in under 4 KB;
+const maxMdmSignatureBytes = 10 * 1024
+
 // VerifyMdmSignature verifies an Apple MDM "Mdm-Signature" header and returns the signing certificate.
 // See https://developer.apple.com/documentation/devicemanagement/implementing_device_management/managing_certificates_for_mdm_servers_and_devices
 // section "Pass an Identity Certificate Through a Proxy."
 func VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {
 	sig, err := base64.StdEncoding.DecodeString(header)
 	if err != nil {
+		return nil, err
+	}
+	if len(sig) > maxMdmSignatureBytes {
+		return nil, fmt.Errorf("Mdm-Signature header exceeds %d bytes", maxMdmSignatureBytes)
+	}
+	if err := ValidateBERDepth(sig, MaxBERDepth); err != nil {
 		return nil, err
 	}
 	p7, err := pkcs7.Parse(sig)

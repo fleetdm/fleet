@@ -32,17 +32,31 @@ module.exports = {
       type: 'string',
       required: true,
       isIn: [
-        'Website - Contact forms',
-        'Website - Sign up',
-        'Website - Newsletter',
+        'Attended a call with Fleet',
         'Event',
-        'GitHub - Stared fleetdm/fleet',
-        'GitHub - Forked fleetdm/fleet',
+        'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
         'GitHub - Contributed to fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Stared fleetdm/fleet',
         'LinkedIn - Comment',
+        'LinkedIn - Liked the LinkedIn company page',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
-        'LinkedIn - Liked the LinkedIn company page',
+        'Prospecting - AE',
+        'Prospecting - Meeting service',
+        'Prospecting - Specialist',
+        'Website - Chat',
+        'Website - Contact forms',
+        'Website - Contact forms - Demo',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
+        'Website - Newsletter',
+        'Website - Sign up',
+        'Website - Swag request',
+        'Website - Workshop request'
       ],
     },
     jobTitle: {
@@ -69,7 +83,16 @@ module.exports = {
         'Forked the fleetdm/fleet repo on GitHub',
         'Contributed to the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
-        'Attended a Fleet training course'
+        'Attended a Fleet training course',
+        'Submitted the "Send a message" form',
+        'Scheduled a "Talk to us" meeting',
+        'Scheduled a "Let\'s get you set up" meeting',
+        'Submitted the "GitOps workshop request" form',
+        'Signed up for a fleetdm.com account',
+        'Requested whitepaper download',
+        'Created a quote for a self-service Fleet Premium license',
+        'Requested webinar recording',
+        'Requested Fleet swag',
       ]
     },
     historicalContent: {
@@ -105,7 +128,7 @@ module.exports = {
     }
 
 
-    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+    let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       firstName,
       lastName,
       linkedinUrl,
@@ -122,8 +145,8 @@ module.exports = {
       }
     });
 
-    if(!recordIds.salesforceAccountId) {
-      sails.log.warn(`When the receive-from-clay received information about a user's activity (name: ${firstName} ${lastName}), activity: ${intentSignal}). A contact was successfully updated, but the webhook is unable to continue because this contact is not associated with any Salesforce account record. Contact ID: ${recordIds.salesforceContactId}`);
+    if(!recordDetails.salesforceAccountId) {
+      sails.log.warn(`When the receive-from-clay received information about a user's activity (name: ${firstName} ${lastName}), activity: ${intentSignal}). A contact was successfully updated, but the webhook is unable to continue because this contact is not associated with any Salesforce account record. Contact ID: ${recordDetails.salesforceContactId}`);
       throw 'couldNotCreateActivity';
     }
 
@@ -134,14 +157,15 @@ module.exports = {
 
     // Create the new Fleet website page view record.
     let newHistoricalRecordId = await sails.helpers.salesforce.createHistoricalEvent.with({
-      salesforceAccountId: recordIds.salesforceAccountId,
-      salesforceContactId: recordIds.salesforceContactId,
+      salesforceAccountId: recordDetails.salesforceAccountId,
+      salesforceContactId: recordDetails.salesforceContactId,
       eventType: 'Intent signal',
       intentSignal: intentSignal,
       eventContent: historicalContent,
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
-      relatedCampaign,
+      relatedCampaign: relatedCampaign || recordDetails.mostRecentCampaign,
+      eventSource: contactSource,
     })
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
@@ -151,8 +175,8 @@ module.exports = {
     // All done.
     return {
       historicalRecordId: newHistoricalRecordId,
-      contactId: recordIds.salesforceContactId,
-      accountId: recordIds.salesforceAccountId
+      contactId: recordDetails.salesforceContactId,
+      accountId: recordDetails.salesforceAccountId
     };
 
   }

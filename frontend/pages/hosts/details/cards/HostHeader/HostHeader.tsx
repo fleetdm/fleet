@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
@@ -12,7 +11,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
-import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
+import {
+  ANDROID_NO_REFETCH_TOOLTIP_MESSAGE,
+  DEVICE_STATUS_TAGS,
+  REFETCH_TOOLTIP_MESSAGES,
+} from "./helpers";
 
 const baseClass = "host-header";
 
@@ -54,9 +57,9 @@ const RefetchButton = ({
             className={classNames}
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
-            variant="inverse"
+            variant="secondary"
+            icon="refresh"
           >
-            <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}
           </Button>
         </div>
@@ -73,8 +76,11 @@ interface IHostSummaryProps {
   ) => void;
   renderActionsDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
+  /** Optional override for the title shown when `deviceUser` is true.
+   * Falls back to "My device" if not provided. */
+  deviceUserHeader?: string;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
-  hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
 
 const HostHeader = ({
@@ -83,6 +89,7 @@ const HostHeader = ({
   onRefetchHost,
   renderActionsDropdown,
   deviceUser,
+  deviceUserHeader,
   hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
 }: IHostSummaryProps) => {
@@ -93,7 +100,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";
@@ -155,8 +169,10 @@ const HostHeader = ({
 
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
-
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
+
+    const title = tag.title;
+    const tipContent = tag.generateTooltip(platform);
 
     const classNames = classnames(
       `${baseClass}__device-status-tag`,
@@ -166,13 +182,13 @@ const HostHeader = ({
     return (
       <>
         <TooltipWrapper
-          tipContent={tag.generateTooltip(platform)}
+          tipContent={tipContent}
           position="top"
           underline={false}
           showArrow
           className={`${baseClass}__device-status-tag-wrapper`}
         >
-          <span className={classNames}>{tag.title}</span>
+          <span className={classNames}>{title}</span>
         </TooltipWrapper>
       </>
     );
@@ -186,7 +202,7 @@ const HostHeader = ({
             disableTooltip={!isTruncated}
             tipContent={
               deviceUser
-                ? "My device"
+                ? deviceUserHeader || "My device"
                 : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE
             }
             underline={false}
@@ -195,7 +211,7 @@ const HostHeader = ({
           >
             <h1 className="display-name" ref={hostDisplayName}>
               {deviceUser
-                ? "My device"
+                ? deviceUserHeader || "My device"
                 : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
           </TooltipWrapper>
@@ -204,7 +220,6 @@ const HostHeader = ({
 
           <div className={`${baseClass}__last-fetched`}>
             {"Last fetched"} {lastFetched}
-            &nbsp;
           </div>
         </div>
       </div>

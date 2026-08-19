@@ -1,0 +1,13 @@
+{
+  "name": "Eclipse Temurin JRE 17",
+  "slug": "eclipse-temurin-jre-17/windows",
+  "package_identifier": "EclipseAdoptium.Temurin.17.JRE",
+  "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '17.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

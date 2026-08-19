@@ -5,7 +5,8 @@ import { IApiError } from "interfaces/errors";
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
-  const apiReason = err?.data?.errors?.[0]?.reason?.toLowerCase?.();
+  const originalReason = err?.data?.errors?.[0]?.reason;
+  const apiReason = originalReason?.toLowerCase();
 
   if (apiReason?.includes("version isn't supported by apple")) {
     return (
@@ -22,6 +23,10 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
         Couldn&apos;t update. The <b>Deadline</b> isn&apos;t a valid date.
       </>
     );
+  }
+
+  if (apiReason?.includes("couldn't update os updates settings")) {
+    return originalReason;
   }
 
   return "Couldn’t update. Please try again.";

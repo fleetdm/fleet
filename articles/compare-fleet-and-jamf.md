@@ -16,492 +16,128 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 ### Platform support
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>macOS management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Full MDM lifecycle</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — 20+ year track record</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>iOS / iPadOS management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Windows management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Linux management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Native osquery agent</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Android management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Partner developed solution</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Chromebook management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>tvOS / visionOS management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Device scoping &amp; targeting</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Dynamic labels, Manual labels, and Host vitals labels</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Smart Groups + Static Groups</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **macOS management** | ✅ Full MDM lifecycle | ✅ 20+ year track record |
+| **iOS / iPadOS management** | ✅ | ✅ |
+| **Windows management** | ✅ | ❌ |
+| **Linux management** | ✅ Native osquery agent | ❌ |
+| **Android management** | ✅ | ✅ Partner developed solution |
+| **Chromebook management** | ✅ | ❌ |
+| **tvOS / visionOS management** | ❌ | ✅ |
+| **Device scoping & targeting** | ✅ Dynamic labels, Manual labels, and Host vitals labels | ✅ Smart Groups + Static Groups |
  
 ### Enrollment and provisioning
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Zero-touch deployment (ABM/ASM)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — ABM/ASM + Autopilot</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — ABM/ASM; deep Apple integration</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>End-user IdP auth at Setup Assistant</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — SAML SSO during OOBE; local account pre-filled from IdP</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Platform SSO available but less integrated</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Bootstrap apps &amp; scripts during Setup Assistant</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Configure required apps and scripts before device release</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — PreStage enrollment triggers policies, less granular gating</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>BYOD enrollment</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Incl. Android work profiles</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — User-initiated enrollment</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>MDM migration from another vendor</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Built-in migration workflow</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Possible but no built-in migration tool</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Identity provider integration at enrollment</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Okta, Entra, Azure AD, etc.</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Platform SSO; Simplified Setup</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Zero-touch deployment (ABM/ASM)** | ✅ ABM/ASM + Autopilot | ✅ ABM/ASM; deep Apple integration |
+| **End-user IdP auth at Setup Assistant** | ✅ SAML SSO during OOBE; local account pre-filled from IdP | ⚠️ Platform SSO available but less integrated |
+| **Bootstrap apps & scripts during Setup Assistant** | ✅ Configure required apps and scripts before device release | ⚠️ PreStage enrollment triggers policies, less granular gating |
+| **BYOD enrollment** | ✅ Incl. Android work profiles | ✅ User-initiated enrollment |
+| **MDM migration from another vendor** | ✅ Built-in migration workflow | ⚠️ Possible but no built-in migration tool |
+| **Identity provider integration at enrollment** | ✅ Okta, Entra, Azure AD, etc. | ✅ Platform SSO; Simplified Setup |
  
 ### Identity and access
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>SAML SSO for admin console</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — SP- and IdP-initiated flows</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — SSO for Jamf Pro console</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>SCIM user provisioning &amp; attribute sync</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Provision/deprovision via SCIM with attribute sync</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Limited SCIM; primarily manual user management</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>IdP user-to-host mapping</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Sync IdP user attributes to hosts via SCIM</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Manual or LDAP-based; no automatic mapping</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Role-based access control (RBAC)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>SCEP certificate deployment (e.g., Okta Verify + FastPass)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Deploy SCEP cert profiles for device trust</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — SCEP via AD CS or third-party CA</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Conditional access integration (IdP policy-based block)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Policy failures trigger IdP conditional access blocks</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Requires Jamf Connect or third-party integration</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **SAML SSO for admin console** | ✅ SP- and IdP-initiated flows | ✅ SSO for Jamf Pro console |
+| **SCIM user provisioning & attribute sync** | ✅ Provision/deprovision via SCIM with attribute sync | ⚠️ Limited SCIM; primarily manual user management |
+| **IdP user-to-host mapping** | ✅ Sync IdP user attributes to hosts via SCIM | ⚠️ Manual or LDAP-based; no automatic mapping |
+| **Role-based access control (RBAC)** | ✅ | ✅ |
+| **SCEP certificate deployment (e.g., Okta Verify + FastPass)** | ✅ Deploy SCEP cert profiles for device trust | ✅ SCEP via AD CS or third-party CA |
+| **Conditional access integration (IdP policy-based block)** | ✅ Policy failures trigger IdP conditional access blocks | ⚠️ Requires Jamf Connect or third-party integration |
  
 ### Configuration management
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Configuration profile delivery with full confirmation</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Upload custom profiles</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Declarative Device Management (DDM)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Blueprints framework (Jamf Cloud)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Enforce disk encryption (FileVault/BitLocker)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Mac + Windows</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Mac only (FileVault)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Disk encryption key escrow and recovery</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Keys escrowed in Fleet, retrievable via host details</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — FileVault key escrow in Jamf Pro, retrievable by admin</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Enforce OS updates</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Mac, iOS, Windows</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Mac, iOS; managed software updates</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>OS update ring groups (canary/staged rollout)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Fleets for Ring 0 and Ring 1 with DDM enforcement</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Smart Groups approximate rings, no built-in concept</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Device scoping &amp; targeting</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Labels (dynamic via osquery) + fleets</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Smart Groups + Static Groups</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Local admin account creation and password escrow</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Script-based, credentials retrievable</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Requires Jamf Connect, not built into Pro</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Configuration profile delivery with full confirmation** | ✅ Upload custom profiles | ❌ |
+| **Declarative Device Management (DDM)** | ✅ | ⚠️ Blueprints framework (Jamf Cloud) |
+| **Enforce disk encryption (FileVault/BitLocker)** | ✅ Mac + Windows | ✅ Mac only (FileVault) |
+| **Disk encryption key escrow and recovery** | ✅ Keys escrowed in Fleet, retrievable via host details | ✅ FileVault key escrow in Jamf Pro, retrievable by admin |
+| **Enforce OS updates** | ✅ Mac, iOS, Windows | ✅ Mac, iOS; managed software updates |
+| **OS update ring groups (canary/staged rollout)** | ✅ Fleets for Ring 0 and Ring 1 with DDM enforcement | ⚠️ Smart Groups approximate rings, no built-in concept |
+| **Device scoping & targeting** | ✅ Labels (dynamic via osquery) + fleets | ✅ Smart Groups + Static Groups |
+| **Local admin account creation and password escrow** | ✅ Script-based, credentials retrievable | ⚠️ Requires Jamf Connect, not built into Pro |
  
 ### Software management
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>App deployment</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Fleet-maintained apps + custom packages</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — App Catalog + custom packages</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Self-service app installation</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Self Service+ (recently enhanced)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Volume Purchase Program (VPP / Apps &amp; Books)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Patch management</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Vulnerability-driven; cross-platform</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — App Installers; macOS &amp; iOS focused</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Pre/post-install scripts for app deployment</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>App install/uninstall/reinstall from admin UI</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Per-host from host details</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Via device management actions</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Script execution</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Cross-platform (Mac, Win, Linux)</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Mac scripts; Bash, Python, etc.</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **App deployment** | ✅ Fleet-maintained apps + custom packages | ✅ App Catalog + custom packages |
+| **Self-service app installation** | ✅ | ✅ Self Service+ (recently enhanced) |
+| **Volume Purchase Program (VPP / Apps & Books)** | ✅ | ✅ |
+| **Patch management** | ✅ Vulnerability-driven; cross-platform | ✅ App Installers; macOS & iOS focused |
+| **Pre/post-install scripts for app deployment** | ✅ | ✅ |
+| **App install/uninstall/reinstall from admin UI** | ✅ Per-host from host details | ✅ Via device management actions |
+| **Script execution** | ✅ Cross-platform (Mac, Win, Linux) | ✅ Mac scripts; Bash, Python, etc. |
  
 ### Security and compliance
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Vulnerability detection (CVEs)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Built-in; CISA KEV; cross-platform</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Basic in Pro; deep scanning requires Jamf Protect ($)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Compliance benchmarks (CIS / STIG)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — CIS queries publicly available</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Compliance Benchmarks (mSCP) in Pro</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Compliance policy dashboard (per-host pass/fail)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Per-host pass/fail on Policies page</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Smart Groups imply compliance, no unified dashboard</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Endpoint detection / threat monitoring</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes (built-in)</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Requires Jamf Protect (separate purchase)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>File integrity monitoring (FIM)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes - evented tables (built-in)</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Requires Jamf Protect</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>SIEM integration</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Custom log destinations; included</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Pro event logs; richer with Protect ($)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Lock / wipe commands</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Vulnerability detection (CVEs)** | ✅ Built-in; CISA KEV; cross-platform | ⚠️ Basic in Pro; deep scanning requires Jamf Protect ($) |
+| **Compliance benchmarks (CIS / STIG)** | ✅ CIS queries publicly available | ✅ Compliance Benchmarks (mSCP) in Pro |
+| **Compliance policy dashboard (per-host pass/fail)** | ✅ Per-host pass/fail on Policies page | ⚠️ Smart Groups imply compliance, no unified dashboard |
+| **Endpoint detection / threat monitoring** | ✅ Built-in | ⚠️ Requires Jamf Protect (separate purchase) |
+| **File integrity monitoring (FIM)** | ✅ evented tables (built-in) | ⚠️ Requires Jamf Protect |
+| **SIEM integration** | ✅ Custom log destinations; included | ✅ Pro event logs; richer with Protect ($) |
+| **Lock / wipe commands** | ✅ | ✅ |
  
 ### Visibility and reporting
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Real-time device queries</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes - Live queries</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Inventory on check-in schedule</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Hardware &amp; software inventory</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Extensive</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Comprehensive Apple inventory</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Application inventory and patch status view</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Per-host and fleet-wide; flags hosts below target version</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — App inventory; patch status via App Installers</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Custom data collection</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Custom SQL queries across 300+ tables (built-in)</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Extension attributes (scripts)</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Offline device alerting (webhooks)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Configurable offline threshold, alerts fire automatically</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Webhook notifications available, less granular thresholds</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Real-time device queries** | ✅ Live queries | ⚠️ Inventory on check-in schedule |
+| **Hardware & software inventory** | ✅ Extensive | ✅ Comprehensive Apple inventory |
+| **Application inventory and patch status view** | ✅ Per-host and fleet-wide; flags hosts below target version | ✅ App inventory; patch status via App Installers |
+| **Custom data collection** | ✅ Custom SQL queries across 300+ tables (built-in) | ⚠️ Extension attributes (scripts) |
+| **Offline device alerting (webhooks)** | ✅ Configurable offline threshold, alerts fire automatically | ⚠️ Webhook notifications available, less granular thresholds |
  
 ### Remediation and automation
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Policy-triggered auto-remediation</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Attach remediation script to policy, auto-executes on failure</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Smart Groups trigger policies, no direct policy→script link</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>On-demand script execution from admin UI</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Per-host from host details, real-time output</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Remote commands available for macOS</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Policy-triggered auto-remediation** | ✅ Attach remediation script to policy, auto-executes on failure | ⚠️ Smart Groups trigger policies, no direct policy→script link |
+| **On-demand script execution from admin UI** | ✅ Per-host from host details, real-time output | ✅ Remote commands available for macOS |
  
 ### Offboarding and lifecycle
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>User deprovisioning via IdP (SCIM)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — SCIM removes host-user mapping and revokes access</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Manual user deletion, limited IdP-driven deprovisioning</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Device re-assignment between users/teams</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Transfer device to new fleet, profiles auto-applied</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Move between sites/groups, profiles re-applied</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>End-user transparency</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Scope transparency; open source</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Limited native transparency features</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **User deprovisioning via IdP (SCIM)** | ✅ SCIM removes host-user mapping and revokes access | ⚠️ Manual user deletion, limited IdP-driven deprovisioning |
+| **Device re-assignment between users/teams** | ✅ Transfer device to new fleet, profiles auto-applied | ✅ Move between sites/groups, profiles re-applied |
+| **End-user transparency** | ✅ Scope transparency; open source | ⚠️ Limited native transparency features |
  
 ### Architecture and operations
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>GitOps / infrastructure as code</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — First-class; YAML/Git-based</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — IBM Terraform-based, not all functionality available</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>API-first architecture</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Unified REST API; all features</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — Multiple APIs; GUI-first design</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Self-hosted deployment</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — On-prem, cloud, air-gapped</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#fff3cd">Partial — functionality not as complete as cloud</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Managed cloud hosting (SaaS)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Jamf Cloud</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Open-source / source-available code</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — 100% on GitHub</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No — Proprietary</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Audit logging</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **GitOps / infrastructure as code** | ✅ First-class; YAML/Git-based | ⚠️ IBM Terraform-based, not all functionality available |
+| **API-first architecture** | ✅ Unified REST API; all features | ⚠️ Multiple APIs; GUI-first design |
+| **Self-hosted deployment** | ✅ On-prem, cloud, air-gapped | ⚠️ Functionality not as complete as cloud |
+| **Managed cloud hosting (SaaS)** | ✅ | ✅ Jamf Cloud |
+| **Open-source / source-available code** | ✅ 100% on GitHub | ❌ Proprietary |
+| **Audit logging** | ✅ | ✅ |
  
 ### Pricing and licensing
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Free tier available</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Core features; unlimited hosts</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No — 14-day free trial only</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Pricing model</strong></td>
-      <td style="border:1px solid #ccc;padding:8px"><strong>$7/host/month (Premium); all features included</strong></td>
-      <td style="border:1px solid #ccc;padding:8px"><strong>~$3.67–$7.89/device/month; varies by device type</strong></td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>All-inclusive security (vuln, EDR, FIM)</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Single license covers everything</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#f8d7da">No — Protect, Connect, ETP sold separately</td>
-    </tr>
-  </tbody>
-</table>
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Free tier available** | ✅ Core features; unlimited hosts | ❌ 14-day free trial only |
+| **Pricing model** | $7/host/month (Premium); all features included | ~$3.67–$7.89/device/month; varies by device type |
+| **All-inclusive security (vuln, EDR, FIM)** | ✅ Single license covers everything | ❌ Protect, Connect, ETP sold separately |
  
 ### Support and ecosystem
  
-<table style="border-collapse:collapse;width:100%">
-  <thead>
-    <tr>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none"></th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Fleet</th>
-      <th style="width:33.3%;padding:8px;background-color:#f2f2f2;border:none">Jamf Pro</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Vendor support channels</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Email, phone, video (Premium); community Slack</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Chat, email, phone; premium services available</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Community &amp; ecosystem maturity</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Growing — Active open-source communities &amp; ecosystems</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Mature — Large user base; Jamf Nation; 20+ years</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid #ccc;padding:8px"><strong>Apple relationship &amp; day-zero OS support</strong></td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Apple-oriented; tracks releases</td>
-      <td style="border:1px solid #ccc;padding:8px;background-color:#d4edda">Yes — Close Apple partnership; historically day-zero</td>
-    </tr>
-  </tbody>
-</table>
-
+| | Fleet | Jamf Pro |
+| --- | --- | --- |
+| **Vendor support channels** | ✅ Email, phone, video (Premium); community Slack | ✅ Chat, email, phone; premium services available |
+| **Community & ecosystem maturity** | ✅ Growing — Active open-source communities & ecosystems | ✅ Mature — Large user base; Jamf Nation; 20+ years |
+| **Apple relationship & day-zero OS support** | ✅ Apple-oriented; tracks releases | ✅ Close Apple partnership; historically day-zero |
+ 
 
 ## Device management workflow comparisons
 

@@ -12,6 +12,17 @@ const DEFAULT_PAGE_SIZE = 10;
 
 const baseClass = "select-software-table";
 
+const generateHelpText = (platform: SetupExperiencePlatform) => {
+  switch (platform) {
+    case "windows":
+      return "Policies are checked before install. Currently, custom targets (labels) don't apply during setup experience.";
+    case "linux":
+      return "Policies are checked before software is installed on compatible platforms. Currently, custom targets (labels) don't apply during setup experience.";
+    default:
+      return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience.";
+  }
+};
+
 const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<Record<string, boolean>>((acc, software) => {
     if (
@@ -78,10 +89,7 @@ const InstallSoftwareTable = ({
       isClientSideFilter
       renderTableHelpText={() => (
         <p className={`${baseClass}__help-text`}>
-          Software will be installed on{" "}
-          {platform === "linux" ? "compatible platforms" : "all hosts"}.
-          Currently, custom targets (labels) don&apos;t apply during setup
-          experience.
+          {generateHelpText(platform)}
         </p>
       )}
       suppressHeaderActions

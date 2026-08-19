@@ -3,9 +3,11 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { ITeam } from "interfaces/team";
+
 import TransferHostModal from "./TransferHostModal";
 
-const teams = [
+const teams: ITeam[] = [
   { id: 1, name: "Team Alpha" },
   { id: 2, name: "Team Beta" },
 ];
@@ -21,7 +23,7 @@ const setup = (
   render(
     <TransferHostModal
       isGlobalAdmin={false}
-      teams={teams as any}
+      teams={teams}
       onSubmit={onSubmit}
       onCancel={onCancel}
       isUpdating={false}
@@ -51,16 +53,16 @@ describe("TransferHostModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Create a fleet link when user is global admin", () => {
+  it("shows Add a fleet link when user is global admin", () => {
     setup({ isGlobalAdmin: true });
 
-    expect(screen.getByText(/Create a fleet/i)).toBeInTheDocument();
+    expect(screen.getByText(/Add a fleet/i)).toBeInTheDocument();
   });
 
-  it("does not show Create a fleet link when not global admin", () => {
+  it("does not show Add a fleet link when not global admin", () => {
     setup({ isGlobalAdmin: false });
 
-    expect(screen.queryByText(/Create a fleet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Add a fleet/i)).not.toBeInTheDocument();
   });
 
   it("disables Transfer button until a team is selected", () => {

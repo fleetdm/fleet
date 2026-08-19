@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
@@ -195,41 +196,74 @@ func scanVulnerabilities(
 		return fmt.Errorf("getting current time from database: %w", err)
 	}
 
+	scanStart := time.Now()
+
+	phaseStart := time.Now()
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "nvd", "elapsed", time.Since(phaseStart))
 
 	var ovalVulns []fleet.SoftwareVulnerability
 
 	// OVAL processes all platforms by default, but will exclude Ubuntu if OSV feature flag is enabled
+	phaseStart = time.Now()
 	ovalResults := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns = append(ovalVulns, ovalResults...)
+	logger.InfoContext(ctx, "phase completed", "phase", "oval", "elapsed", time.Since(phaseStart))
 
 	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
 		osvVulns := checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 		ovalVulns = append(ovalVulns, osvVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "osv", "elapsed", time.Since(phaseStart))
 	}
 
 	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
 		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 		ovalVulns = append(ovalVulns, rhelOSVVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "rhel_osv", "elapsed", time.Since(phaseStart))
 	}
 
+	phaseStart = time.Now()
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "goval_dictionary", "elapsed", time.Since(phaseStart))
 
+	phaseStart = time.Now()
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "mac_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "custom", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "windows_msrc", "elapsed", time.Since(phaseStart))
+
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		checkAndroidVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		logger.InfoContext(ctx, "phase completed", "phase", "android_osv", "elapsed", time.Since(phaseStart))
+	}
 
 	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
 	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
 	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
 	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
+	phaseStart = time.Now()
 	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
 	}
 	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
 	}
+	logger.InfoContext(ctx, "phase completed", "phase", "orphan_cleanup", "elapsed", time.Since(phaseStart))
+
+	logger.InfoContext(ctx, "all phases completed", "total_elapsed", time.Since(scanStart))
 
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
@@ -399,6 +433,61 @@ func checkWinVulnerabilities(
 		}
 		analyzeSpan.End()
 	}
+
+	return results
+}
+
+func checkAndroidVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.OSVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_android")
+	defer span.End()
+
+	var results []fleet.OSVulnerability
+
+	oses, err := ds.ListOperatingSystemsForPlatform(ctx, "android")
+	if err != nil {
+		errHandler(ctx, logger, "fetching list of Android operating systems", err)
+		return nil
+	}
+
+	if len(oses) == 0 {
+		return nil
+	}
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.android.sync")
+		downloaded, err := osv.RefreshAndroid(syncCtx, oses, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating Android OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(syncCtx, "android-osv-sync-downloaded", "artifact", d)
+		}
+		syncSpan.End()
+	}
+
+	cache := androidvuln.NewArtifactCache()
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.android.analyze")
+	for _, o := range oses {
+		start := time.Now()
+		r, err := androidvuln.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger, cache)
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "android-osv-analysis-done",
+			"os_version", o.Version,
+			"elapsed", elapsed,
+			"found_new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger.With("os_version", o.Version), "analyzing Android OS vulnerabilities", err)
+		}
+	}
+	analyzeSpan.End()
 
 	return results
 }
@@ -864,6 +953,7 @@ func newAutomationsSchedule(
 	logger *slog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -902,7 +992,7 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet)
+				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet, newActivitySvc)
 			},
 		),
 	)
@@ -939,6 +1029,7 @@ func triggerFailingPoliciesAutomation(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -953,7 +1044,7 @@ func triggerFailingPoliciesAutomation(
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger, newActivitySvc)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
@@ -996,6 +1087,9 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	androidModule android.Service,
+	chartSvc chart_api.Service,
+	androidBatchSize int,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1017,14 +1111,16 @@ func newWorkerIntegrationsSchedule(
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newJiraClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newJiraClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	zendesk := &worker.Zendesk{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newZendeskClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newZendeskClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	var (
 		depSvc *apple_mdm.DEPService
@@ -1054,11 +1150,20 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 	}
 	softwareWorker := &worker.SoftwareWorker{
-		Datastore:     ds,
-		Log:           logger,
-		AndroidModule: androidModule,
+		Datastore:        ds,
+		Log:              logger,
+		AndroidModule:    androidModule,
+		AndroidBatchSize: androidBatchSize,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
+	chartScrubGlobal := &worker.ChartScrubGlobal{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	chartScrubFleet := &worker.ChartScrubFleet{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -1167,6 +1272,7 @@ func newAppleMDMWorkerSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	inHouseAppInstaller worker.InHouseAppInstaller,
 	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1185,6 +1291,7 @@ func newAppleMDMWorkerSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
+		InHouseAppInstaller:   inHouseAppInstaller,
 		NewActivityFn:         newActivityFn,
 	}
 
@@ -1212,6 +1319,7 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	carveStore fleet.CarveStore,
 	svc fleet.Service,
 	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
@@ -1271,7 +1379,10 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"carves",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupCarves(ctx, time.Now())
+				expired, err := carveStore.CleanupCarves(ctx, time.Now())
+				if expired > 0 {
+					logger.InfoContext(ctx, "expired carves", "count", expired)
+				}
 				return err
 			},
 		),
@@ -1320,6 +1431,13 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			},
 		),
+		schedule.WithJob(
+			"expired_in_house_app_install_tokens",
+			func(ctx context.Context) error {
+				_, err := ds.DeleteExpiredInHouseAppInstallTokens(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -1337,6 +1455,13 @@ func newCleanupsAndAggregationSchedule(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+		schedule.WithJob(
+			// Self-healing safety net for the per-host Windows profile status rollup. This reconciles any drift and removes orphan rows.
+			"windows_profiles_status_reconcile",
+			func(ctx context.Context) error {
+				return ds.ReconcileWindowsProfilesStatus(ctx)
 			},
 		),
 		schedule.WithJob(
@@ -1431,8 +1556,26 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
+			return ds.CleanupWindowsMDMCommandQueue(ctx)
+		}),
+		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
+			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
+			// version installed, so the content survives exactly as long as some host could still need its <Delete>.
+			return ds.CleanupWindowsMDMProfilePriorContent(ctx)
+		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
+		}),
+		schedule.WithJob("cleanup_unenrolled_host_mdm_certificates", func(ctx context.Context) error {
+			count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
+			}
+			return nil
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
@@ -1483,6 +1626,37 @@ func newCleanupsAndAggregationSchedule(
 	return s, nil
 }
 
+// buildChartScopeResolver returns a per-dataset scope resolver for the chart
+// collection cron. It computes (skip, disabledFleetIDs) from the global and
+// per-team historical-data flags. Extracted from the cron closure so it can be
+// unit-tested without spinning up a schedule.
+func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, logger *slog.Logger) chart_api.CollectScopeFn {
+	return func(name string) (skip bool, disabledFleetIDs []uint) {
+		ok, err := appCfg.Features.HistoricalData.Enabled(name)
+		if err != nil {
+			// Unknown dataset — fall back to enabled with no team filter.
+			// The chart service is the source of truth for which datasets are
+			// registered; an unknown name here means a new dataset was added
+			// without a corresponding entry in Enabled().
+			if logger != nil {
+				logger.WarnContext(context.Background(), "chart scope: unknown dataset", "dataset", name, "err", err)
+			}
+			return false, nil
+		}
+		if !ok {
+			return true, nil
+		}
+		var disabled []uint
+		for _, t := range teams {
+			tok, terr := t.Config.Features.HistoricalData.Enabled(name)
+			if terr == nil && !tok {
+				disabled = append(disabled, t.ID)
+			}
+		}
+		return false, disabled
+	}
+}
+
 func newChartDataCollectionSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1492,13 +1666,31 @@ func newChartDataCollectionSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronChartDataCollection)
-		defaultInterval = 10 * time.Minute
+		defaultInterval = 1 * time.Hour
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
 		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
-			return chartSvc.CollectDatasets(ctx, time.Now())
+			// Build a per-dataset scope resolver from AppConfig + team configs.
+			// Loaded fresh each tick so config changes take effect without
+			// a process restart. Failures here halt this tick so that we don't
+			// collect data that we shouldn't (i.e. from disabled teams or datasets).
+			// The cron retries on its next interval.
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
+			}
+			teams, err := ds.ListTeams(ctx,
+				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
+				fleet.ListOptions{},
+			)
+			if err != nil {
+				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
+			}
+			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, logger))
 		}),
 	)
 
@@ -1603,9 +1795,11 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, err := assets.CAKeyPair(ctx, ds)
+	// Include previously-rolled-over CA certs so keys escrowed against an
+	// earlier CA still decrypt with the (unchanged) private key.
+	caCerts, caKey, err := assets.CACertsAndKeyForDecryption(ctx, ds)
 	if err != nil {
-		logger.ErrorContext(ctx, "unable to get CA keypair", "details", err)
+		logger.ErrorContext(ctx, "unable to get CA certs and key", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
@@ -1616,7 +1810,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, caCerts); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -1774,10 +1968,13 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
+			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_apple_device_names", func(ctx context.Context) error {
+			return service.ReconcileHostDeviceNames(ctx, ds, commander, logger)
 		}),
 	)
 
@@ -1817,6 +2014,7 @@ func newAndroidMDMProfileManagerSchedule(
 	logger *slog.Logger,
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1828,7 +2026,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
 		}),
 	)
 
@@ -1960,7 +2158,12 @@ func cronHostVitalsLabelMembership(
 ) error {
 	// Get all labels. We don't have a function for labels by membership type
 	// so we'll filter them later.
-	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
+	//
+	// We use a global admin filter so that fleet/team-scoped labels are included.
+	// An empty TeamFilter (nil User) falls back to the "global-only" filter
+	// (l.team_id IS NULL), which would silently exclude every fleet-scoped host
+	// vitals label and leave them unpopulated. See #46869.
+	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{
 		PerPage: 0, // No limit.
 	}, false)
 	if err != nil {
@@ -2111,6 +2314,36 @@ func cronUpgradeCodeSoftwareMigration(
 	return s, nil
 }
 
+// cronSoftwareChecksumMigration merges duplicate software inventory entries left
+// behind by the software checksum field-ordering change in Fleet v4.76.0. Like the
+// other one-shot software migrations (uninstall/upgrade code), it runs once shortly
+// after startup and can be re-run on demand with
+// `fleetctl trigger --name software_checksum_migration`.
+func cronSoftwareChecksumMigration(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSoftwareChecksumMigration)
+		defaultInterval = 24 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = logger.With("cron", name, "component", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithRunOnce(true),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return ds.ReconcileSoftwareChecksums(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2131,6 +2364,73 @@ func newMaintainedAppSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
+			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+// newWindowsMaintainedAppTitlesSchedule merges Windows software titles whose
+// reported name embeds the version (e.g. "Granola 7.373.2") onto the title owned
+// by the Fleet-maintained app's installer ("Granola").
+//
+// This is deliberately not a job on the Fleet-maintained apps schedule: it reads
+// only local installer and software title state, so it must keep running even when
+// the catalog fetch fails or the instance is not Premium. It is also not a job on
+// cleanups_then_aggregation, so that back-dating the first run to shortly after
+// startup — which is what makes existing mismatched titles heal on upgrade without
+// manual action — does not change the startup behaviour of that schedule's other
+// jobs.
+func newWindowsMaintainedAppTitlesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronWindowsMaintainedAppTitles)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("reconcile_windows_maintained_app_titles", func(ctx context.Context) error {
+			return ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMaintainedAppsAutoUpdateSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedAppsAutoUpdate)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
+			return eeservice.AutoUpdateFleetMaintainedApps(ctx, ds, softwareInstallStore, logger)
 		}),
 	)
 
@@ -2190,22 +2490,47 @@ func newUpcomingActivitiesSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	installReapTimeout time.Duration,
+	verifyTimeout time.Duration,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpcomingActivitiesMaintenance)
 		defaultInterval = 10 * time.Minute
 	)
-	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(logger.With("cron", name)),
-		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
-			const maxUnblockHosts = 500
-			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
-			return err
-		}),
-	)
+	logger = logger.With("cron", name)
 
-	return s, nil
+	opts := []schedule.Option{schedule.WithLogger(logger)}
+	if installReapTimeout > 0 {
+		// Both timeouts age an acknowledged install from the same instant, its command
+		// result's updated_at, so a reap timeout under the verification budget would fail
+		// installs verification was still entitled to be working on. Raised rather than
+		// honoured, since it asks Fleet to give up before it has finished trying.
+		if installReapTimeout < verifyTimeout {
+			logger.WarnContext(ctx, "raising stuck app install reap timeout to the verification timeout",
+				"vpp_install_reap_timeout", installReapTimeout.String(),
+				"vpp_verify_timeout", verifyTimeout.String())
+			installReapTimeout = verifyTimeout
+		}
+		// Registered ahead of the unblock job so that if a reap frees a head but leaves
+		// nothing activated, the unblock job catches it in this run rather than the next.
+		opts = append(opts, schedule.WithJob("reap_stuck_activated_mdm_installs", func(ctx context.Context) error {
+			const maxReapHosts = 500
+			return service.ReapStuckMDMInstalls(ctx, ds, logger, newActivityFn, installReapTimeout, maxReapHosts)
+		}))
+	} else {
+		// Left unregistered rather than run with a non-positive timeout, which would fail
+		// every activated install on the fleet instead of none.
+		logger.InfoContext(ctx, "stuck app install reaper disabled by configuration",
+			"vpp_install_reap_timeout", installReapTimeout.String())
+	}
+	opts = append(opts, schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+		const maxUnblockHosts = 500
+		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+		return err
+	}))
+
+	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
 }
 
 func newBatchActivitiesSchedule(
@@ -2266,6 +2591,36 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
 			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+// newAndroidMDMCommandReconcilerSchedule periodically polls AMAPI for the outcome of Android MDM
+// commands (Lock, Wipe, Clear passcode) that are still pending because their Pub/Sub COMMAND
+// notification never arrived, so hosts don't stay stuck in a pending state.
+func newAndroidMDMCommandReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAndroidCommandReconciler)
+		// Daily is enough: a dropped notification is rare, and a day of reconciliation lag is invisible
+		// next to the indefinite wait an affected host has otherwise.
+		defaultInterval = 24 * time.Hour
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_commands", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidCommands(ctx, ds, logger, licenseKey, newActivityFn)
 		}),
 	)
 
@@ -2343,6 +2698,78 @@ func newRecoveryLockPasswordSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
 			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newManagedLocalAccountRotationSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendManagedLocalAccountRotationCommands)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
+			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newCleanupExpiredADUEChallengesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronCleanupExpiredADUEChallenges)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppleMDMOSUpdatesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppleMDMOSUpdatesSchedule)
+		defaultInterval = 1 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
+			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
 		}),
 	)
 

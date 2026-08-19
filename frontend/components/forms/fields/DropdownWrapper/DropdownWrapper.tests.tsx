@@ -100,31 +100,53 @@ describe("DropdownWrapper Component", () => {
     expect(screen.getByText(/no results found/i)).toBeInTheDocument();
   });
 
-  test("doesn't render selected value when variant is button", async () => {
-    const buttonText = "Click me";
-    render(
+  test("shows the disabled tooltip on hover when disabled with content provided", async () => {
+    const { container } = render(
       <DropdownWrapper
         options={sampleOptions}
         value="option1"
         onChange={mockOnChange}
         name="test-dropdown"
         label="Test Dropdown"
-        placeholder={buttonText}
-        variant="button"
+        isDisabled
+        disabledTooltipContent="Reason it is disabled"
       />
     );
 
-    // Check if the button text is rendered
-    expect(screen.getByText(buttonText)).toBeInTheDocument();
+    const tooltipAnchor = container.querySelector(
+      ".dropdown-wrapper__disabled-tooltip .component__tooltip-wrapper__element"
+    );
+    expect(tooltipAnchor).toBeInTheDocument();
 
-    // Open the dropdown
-    await userEvent.click(screen.getByText(buttonText));
+    // react-tooltip only mounts the tip content once the anchor is hovered
+    await userEvent.hover(tooltipAnchor as Element);
+    expect(
+      await screen.findByText(/reason it is disabled/i)
+    ).toBeInTheDocument();
+  });
 
-    // Select Option 2
-    await userEvent.click(screen.getByText(/option 2/i));
+  // The tooltip wraps the control only when isDisabled and disabledTooltipContent are both set.
+  // Each case below drops one of those two operands, so neither can be removed from the condition.
+  test.each([
+    {
+      caseName: "enabled",
+      props: { disabledTooltipContent: "Reason it is disabled" },
+    },
+    { caseName: "disabled without content", props: { isDisabled: true } },
+  ])("does not render the disabled tooltip when $caseName", ({ props }) => {
+    const { container } = render(
+      <DropdownWrapper
+        options={sampleOptions}
+        value="option1"
+        onChange={mockOnChange}
+        name="test-dropdown"
+        label="Test Dropdown"
+        {...props}
+      />
+    );
 
-    // Check if the button text is still rendered and not replaced by the selected option
-    expect(screen.getByText(buttonText)).toBeInTheDocument();
-    expect(screen.queryByText(/option 2/i)).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".dropdown-wrapper__disabled-tooltip")
+    ).not.toBeInTheDocument();
   });
 });

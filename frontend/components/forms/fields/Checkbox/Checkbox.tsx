@@ -4,12 +4,15 @@ import { noop, pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 const baseClass = "fleet-checkbox";
 
-export interface ICheckboxProps {
+export type CheckboxVariant = "default" | "danger";
+
+interface ICheckboxPropsBase {
   children?: ReactNode;
   className?: string;
   /** readOnly displays a non-editable field */
@@ -17,12 +20,10 @@ export interface ICheckboxProps {
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
-  onChange?: any; // TODO: meant to be an event; figure out type for this
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
-  value?: boolean | null;
+  value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
-  parseTarget?: boolean;
   /** to display over the checkbox label */
   labelTooltipContent?: React.ReactNode;
   /** to allow hovering over the tooltip e.g. links within it, default: false to not block form */
@@ -31,10 +32,26 @@ export interface ICheckboxProps {
   iconTooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
   helpText?: React.ReactNode;
+  variant?: CheckboxVariant;
   /** Use in table action only
    * Do not use on forms as enter key reserved for submit */
   enableEnterToCheck?: boolean;
 }
+
+/** When parseTarget is true, onChange receives { name, value }.
+ * Uses IInputFieldParseTarget for compatibility with shared input change handlers. */
+interface ICheckboxParseTargetProps extends ICheckboxPropsBase {
+  parseTarget: true;
+  onChange?: (target: IInputFieldParseTarget<boolean>) => void;
+}
+
+/** When parseTarget is false/unset, onChange receives a boolean */
+interface ICheckboxDirectProps extends ICheckboxPropsBase {
+  parseTarget?: false;
+  onChange?: (value: boolean) => void;
+}
+
+export type ICheckboxProps = ICheckboxParseTargetProps | ICheckboxDirectProps;
 
 const Checkbox = (props: ICheckboxProps) => {
   const {
@@ -54,6 +71,7 @@ const Checkbox = (props: ICheckboxProps) => {
     iconTooltipContent,
     isLeftLabel,
     enableEnterToCheck = false,
+    variant = "default",
   } = props;
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +115,8 @@ const Checkbox = (props: ICheckboxProps) => {
   const checkBoxClass = classnames(
     { inverse: isLeftLabel },
     className,
-    baseClass
+    baseClass,
+    { [`${baseClass}--${variant}`]: variant !== "default" }
   );
 
   const checkBoxLabelClass = classnames(checkBoxClass, {
@@ -174,7 +193,7 @@ const Checkbox = (props: ICheckboxProps) => {
         <div
           role="checkbox"
           aria-label={name}
-          aria-checked={indeterminate ? "mixed" : value || undefined}
+          aria-checked={indeterminate ? "mixed" : value ?? undefined}
           aria-readonly={readOnly}
           aria-disabled={disabled}
           tabIndex={disabled ? -1 : 0}

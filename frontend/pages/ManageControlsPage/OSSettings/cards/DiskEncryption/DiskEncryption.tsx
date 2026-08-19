@@ -2,7 +2,7 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
 
@@ -42,7 +42,6 @@ const DiskEncryption = ({
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
@@ -71,11 +70,10 @@ const DiskEncryption = ({
     try {
       const updatedConfig = await configAPI.loadAll();
       setConfig(updatedConfig);
-    } catch {
-      renderFlash(
-        "error",
-        "Could not retrieve updated app config. Please try again."
-      );
+    } catch (err) {
+      notify.error("Could not retrieve updated app config. Please try again.", {
+        response: err,
+      });
     }
   };
 
@@ -113,10 +111,7 @@ const DiskEncryption = ({
         requireBitLockerPIN,
         currentTeamId
       );
-      renderFlash(
-        "success",
-        "Successfully updated disk encryption enforcement."
-      );
+      notify.success("Successfully updated disk encryption enforcement.");
       onMutation();
       setShowAggregate(diskEncryptionEnabled);
       if (currentTeamId === 0) {
@@ -126,8 +121,7 @@ const DiskEncryption = ({
       if (getErrorReason(e).includes("Missing required private key")) {
         const link =
           "https://fleetdm.com/learn-more-about/fleet-server-private-key";
-        renderFlash(
-          "error",
+        notify.error(
           <>
             Couldn&apos;t enable disk encryption. Please configure a private
             key.{" "}
@@ -137,13 +131,14 @@ const DiskEncryption = ({
               newTab
               variant="flash-message-link"
             />
-          </>
+          </>,
+          { response: e }
         );
       } else {
         const errorMsg =
           getErrorReason(e) ??
           "Could not update the disk encryption enforcement. Please try again.";
-        renderFlash("error", errorMsg);
+        notify.error(errorMsg, { response: e });
       }
     }
   };
@@ -156,17 +151,9 @@ const DiskEncryption = ({
     if (platform === "linux") {
       return (
         <>
-          For Ubuntu and Fedora Linux.
-          <br />
-          Currently, full disk encryption must be turned on{" "}
-          <b>
-            during OS
-            <br />
-            setup
-          </b>
-          . If disk encryption is off, the end user must re-install
-          <br />
-          their operating system.
+          For Ubuntu and Fedora Linux. Currently, full disk encryption must be
+          turned on <strong>during OS setup</strong>. If disk encryption is off,
+          the end user must re-install their operating system.
         </>
       );
     }
@@ -176,9 +163,11 @@ const DiskEncryption = ({
         : ["Apple", "FileVault"];
     return (
       <>
-        {AppleOrWindows} MDM must be turned on in <b>Settings</b> &gt;{" "}
-        <b>Integrations</b> &gt; <b>Mobile Device Management (MDM)</b> to
-        enforce disk encryption via {DEMethod}.
+        {AppleOrWindows} MDM must be turned on in{" "}
+        <strong>
+          Settings &gt; Integrations &gt; Mobile Device Management (MDM)
+        </strong>{" "}
+        to enforce disk encryption via {DEMethod}.
       </>
     );
   };
@@ -206,11 +195,7 @@ const DiskEncryption = ({
           </>
         }
       />
-      {!isPremiumTier && (
-        <PremiumFeatureMessage
-          className={`${baseClass}__premium-feature-message`}
-        />
-      )}
+      {!isPremiumTier && <PremiumFeatureMessage />}
       {isPremiumTier && isLoadingTeam && <Spinner />}
       {isPremiumTier && !isLoadingTeam && !showAggregate && isTechnician && (
         <p>Disk encryption is disabled.</p>
@@ -257,15 +242,13 @@ const DiskEncryption = ({
               <TooltipWrapper
                 tipContent={
                   <div>
-                    <p>
+                    <>
                       If enabled, end users on Windows hosts will be required to
                       set a BitLocker PIN.
-                    </p>
-                    <br />
-                    <p>
+                      <br />
                       When the PIN is set, it&rsquo;s required to unlock Windows
                       hosts during startup.
-                    </p>
+                    </>
                   </div>
                 }
               >

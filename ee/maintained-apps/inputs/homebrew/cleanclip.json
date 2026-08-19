@@ -1,0 +1,10 @@
+{
+  "name": "CleanClip",
+  "unique_identifier": "com.antiless.cleanclip.mac",
+  "token": "cleanclip",
+  "installer_format": "dmg",
+  "slug": "cleanclip/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

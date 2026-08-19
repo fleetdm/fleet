@@ -1,0 +1,124 @@
+.policy-automations-fields {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__errors {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxsmall;
+  }
+
+  &__error {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-vibrant-red;
+  }
+
+  &__table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    width: 100%;
+    font-size: $x-small;
+  }
+
+  &__row:first-child td:first-child {
+    border-top-left-radius: $border-radius-large;
+  }
+  &__row:first-child td:last-child {
+    border-top-right-radius: $border-radius-large;
+  }
+  &__row:last-child td:first-child {
+    border-bottom-left-radius: $border-radius-large;
+  }
+  &__row:last-child td:last-child {
+    border-bottom-right-radius: $border-radius-large;
+  }
+
+  &__row td {
+    height: 40px;
+    padding: $pad-xsmall $pad-large;
+    border-top: 1px solid $ui-fleet-black-10;
+    vertical-align: middle;
+  }
+
+  &__row:first-child td {
+    border-top: none;
+  }
+
+  &__row--disabled &__row-label {
+    color: $ui-fleet-black-50;
+  }
+
+  &__row-label .fleet-checkbox__label {
+    white-space: nowrap;
+  }
+
+  // Install-software row hosts two side-by-side dropdowns in the trailing
+  // cell; drop the padding between the label and trailing cells so the
+  // picker pair has a little more horizontal room to breathe.
+  #install-software-row-label {
+    padding-right: 0;
+    // Keep the "Install software" label pinned to the top of the cell so
+    // its vertical position doesn't shift when the trailing cell grows
+    // (e.g., a second dropdown surfaces on multi-package titles, or the
+    // pickers stack in the schema-open narrow-viewport layout).
+    vertical-align: top;
+
+    .fleet-checkbox {
+      height: 40px; // Match height of table cell
+    }
+  }
+
+  #install-software-row-label + &__row-trailing {
+    padding-left: 0;
+  }
+
+  &__row-trailing {
+    text-align: right;
+    max-width: 60%; // Fits second dropdown for multi-package
+    white-space: nowrap;
+  }
+
+  &__row-disabled-hint {
+    color: $ui-fleet-black-50;
+  }
+
+  &__row-picker {
+    // Pin to a fixed 300px so the control doesn't wobble when the selected
+    // option's label changes length (short vs long package name).
+    width: 225px;
+    max-width: 100%; // Guard against narrow containers
+    margin-left: auto;
+    text-align: left;
+  }
+
+  &__software-pickers {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-small;
+    align-items: flex-end;
+    // The flex container fills the td (block-level), so `margin-left: auto`
+    // has nothing to push against. Right-align via `justify-content` and
+    // reset the per-picker `margin-left: auto` (from `__row-picker`, used
+    // when a row hosts a single picker) so the pair sits flush.
+    justify-content: flex-end;
+
+    > * {
+      margin-left: 0;
+    }
+  }
+
+  &__learn-more {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+}

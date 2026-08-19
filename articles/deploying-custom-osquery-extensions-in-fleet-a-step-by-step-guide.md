@@ -51,10 +51,6 @@ sudo launchctl start com.fleetdm.orbit
 sudo systemctl restart orbit
 ```
 
-#### For complete examples, see Fleet's repository:
-
-- [Example Script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-macos-compatibility-extension.sh)
-- [Example Policy](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/policies/install-macos-compatibility-extension.yml)
 
 ## Considerations and best practices
 

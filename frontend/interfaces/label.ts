@@ -15,6 +15,19 @@ export default PropTypes.shape({
 });
 
 export type LabelType = "regular" | "builtin";
+
+// Valid platform values for a dynamic label, mirroring the server's
+// ValidLabelPlatformVariants (server/fleet/labels.go). "" targets all
+// platforms.
+export const LABEL_PLATFORMS = [
+  "",
+  "darwin",
+  "windows",
+  "linux",
+  "ubuntu",
+  "centos",
+] as const;
+export type LabelPlatform = typeof LABEL_PLATFORMS[number];
 export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
 export const LabelMembershipTypeToDisplayCopy: Record<
   LabelMembershipType,
@@ -25,14 +38,39 @@ export const LabelMembershipTypeToDisplayCopy: Record<
   host_vitals: "Host vitals",
 };
 
-export type LabelHostVitalsCriterion =
+export type LabelHostVitalsIdpCriterion =
   | "end_user_idp_group"
-  | "end_user_idp_department"; // for now, may expand to be configurable
+  | "end_user_idp_department";
 
-export type LabelLeafCriterion = {
-  vital: LabelHostVitalsCriterion;
+// A custom host vital is selected as a label criterion by referencing its
+// definition id. The IdP enum values self-identify their vital; the custom path
+// is a single sentinel, so the id (below) is what distinguishes one custom vital
+// from another.
+export const CUSTOM_HOST_VITAL_CRITERION = "custom_host_vital" as const;
+export type LabelHostVitalsCustomCriterion = typeof CUSTOM_HOST_VITAL_CRITERION;
+
+export type LabelHostVitalsCriterion =
+  | LabelHostVitalsIdpCriterion
+  | LabelHostVitalsCustomCriterion;
+
+// An IdP-based leaf: the vital enum self-identifies which vital, so no id.
+type LabelIdpLeafCriterion = {
+  vital: LabelHostVitalsIdpCriterion;
   value: string; // from user input
+  custom_host_vital_id?: never;
 };
+
+// A custom-host-vital leaf: the sentinel `vital` alone doesn't identify which
+// vital, so `custom_host_vital_id` is required.
+type LabelCustomLeafCriterion = {
+  vital: LabelHostVitalsCustomCriterion;
+  value: string; // from user input
+  custom_host_vital_id: number;
+};
+
+export type LabelLeafCriterion =
+  | LabelIdpLeafCriterion
+  | LabelCustomLeafCriterion;
 
 type LabelAndCriterion = {
   and: LabelHostVitalsCriteria[];
@@ -87,7 +125,7 @@ export interface ILabel extends ILabelSummary {
 
   // dynamic-specific
   query: string; // does return '""' for other types
-  platform: string; // does return '""' for other types
+  platform: LabelPlatform; // "" for non-dynamic label types, and for dynamic labels targeting all platforms
 
   // host_vitals-specific
   criteria: LabelHostVitalsCriteria | null;
@@ -103,7 +141,7 @@ export interface ILabelSpecResponse {
     name: string;
     description: string;
     query: string;
-    platform?: string; // improve to only allow possible platforms from API
+    platform?: LabelPlatform;
     label_type?: LabelType;
     label_membership_type: LabelMembershipType;
     hosts?: string[];

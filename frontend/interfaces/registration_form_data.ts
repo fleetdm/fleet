@@ -7,7 +7,7 @@ export default PropTypes.shape({
   email: PropTypes.string,
   org_name: PropTypes.string,
   org_web_url: PropTypes.string,
-  org_logo_url: PropTypes.string,
+  org_logo_file: PropTypes.instanceOf(File),
   fleet_web_address: PropTypes.string,
 });
 
@@ -18,7 +18,7 @@ export interface IRegistrationFormData {
   email: string;
   org_name: string;
   org_web_url: string;
-  org_logo_url: string;
+  org_logo_file?: File | null;
   fleet_web_address: string;
   server_url: string;
 }

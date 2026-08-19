@@ -1,0 +1,10 @@
+{
+  "name": "Pastebot",
+  "unique_identifier": "com.tapbots.Pastebot2Mac",
+  "token": "pastebot",
+  "installer_format": "dmg",
+  "slug": "pastebot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

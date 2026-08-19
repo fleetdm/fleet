@@ -1,8 +1,20 @@
 .hosts-enrolled-card {
   &__title {
-    font-size: $small;
     font-weight: $bold;
     margin: 0 0 $pad-medium !important;
+    line-height: 1;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+  }
+
+  // The bar chart's plot height is set inline to match the checkerboard's
+  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx).
+  &__chart-container {
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   // Theme-aware axis tick text. CSS fill overrides the inline fill attribute
@@ -21,34 +33,49 @@
     cursor: pointer;
   }
 
+  // Clickable platform labels are keyboard-operable buttons (see #48214). Give
+  // them a visible focus indicator when reached via keyboard: an outline ring
+  // plus a darker label fill to further set the focused row apart from the
+  // muted inactive ticks. This must be excluded from the recharts outline
+  // suppression below so the ring actually renders.
+  &__tick--clickable:focus-visible {
+    outline: 1px solid $core-focused-outline;
+    outline-offset: 2px;
+    fill: $core-fleet-black;
+  }
+
   &__tooltip {
-    background: $core-fleet-black;
-    color: $core-fleet-white;
-    padding: $pad-small $pad-medium;
-    border-radius: $border-radius;
-    font-size: $xx-small;
+    @include tooltip-text;
+
     box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    // Bar hover shows short "N hosts" / "X% of fleet" values that fit on one
+    // line each; keep them from wrapping so the tooltip stays compact.
     white-space: nowrap;
   }
 
   &__tooltip-label {
     margin-bottom: $pad-xsmall;
-    opacity: 0.8;
   }
 
   &__tooltip-value {
     font-weight: $bold;
   }
 
+  &__tooltip-share {
+    margin-top: $pad-xsmall;
+  }
+
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
   // and individual bar rectangles. Recharts wraps each bar in a focusable
-  // <rect> and the chart surface itself is focusable when interactive.
+  // <rect> and the chart surface itself is focusable when interactive. Mouse
+  // focus (`:focus:not(:focus-visible)`) is also suppressed on the clickable
+  // ticks so click-and-hold doesn't flash the browser's default blue ring;
+  // keyboard focus keeps the Fleet ring from the `:focus-visible` rule above.
   .recharts-wrapper,
   .recharts-surface,
   .recharts-bar-rectangle,
   .recharts-rectangle,
-  .recharts-wrapper *:focus,
-  .recharts-wrapper *:focus-visible {
+  .recharts-wrapper *:focus:not(:focus-visible) {
     outline: none !important;
   }
 }

@@ -1,11 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
   # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
     return
   fi
 

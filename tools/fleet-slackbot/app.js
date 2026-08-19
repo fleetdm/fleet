@@ -57,6 +57,7 @@ mcpClient.addLocalTool(
 const claude = new ClaudeClient({
   apiKey: config.anthropic.apiKey,
   model: config.anthropic.model,
+  maxToolCalls: config.anthropic.maxToolCalls,
   mcpClient,
 });
 

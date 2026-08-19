@@ -14,13 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	scep_server "github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -156,7 +155,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
 	// Mark host as enrolled in host_mdm
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
 			VALUES (?, 1, 'https://example.com', 0, 0)
@@ -226,7 +225,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
 	// Mark host as enrolled in host_mdm
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
 			VALUES (?, 1, 'https://example.com', 0, 0)
@@ -257,7 +256,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 			teamName,
 			certTemplateName,
 		),
-		0)
+		0,
+	)
 
 	// Step: Verify status is 'pending'
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "")
@@ -326,7 +326,12 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 			teamName,
 			certTemplateName,
 		),
-		0)
+		0,
+	)
+
+	// Deleting a certificate template that doesn't exist returns 404 for a user authorized to manage certificate templates,
+	// not a 500 from the authorization check being skipped ahead of the not found error.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusNotFound)
 }
 
 // TestCertificateTemplateSpecEndpointAndAMAPIFailure tests:
@@ -410,7 +415,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
 	// Mark host as enrolled in host_mdm
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
 			VALUES (?, 1, 'https://example.com', 0, 0)
@@ -523,7 +528,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
 
 	// Mark host as enrolled in host_mdm
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
 			VALUES (?, 1, 'https://example.com', 0, 0)
@@ -571,6 +576,89 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	require.Equal(t, fleet.CertificateTemplateFailed, getCertResp.Certificate.Status)
 
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, "", subjectName)
+}
+
+// TestCertificateTemplateWithSANIDPVariable tests that subject_alternative_name supports the
+// same $FLEET_VAR_HOST_* expansion as subject_name, end to end:
+//  1. Premium tenant creates a cert template with subject_alternative_name containing
+//     $FLEET_VAR_HOST_END_USER_IDP_USERNAME.
+//  2. Android host with no team is enrolled and associated with an IdP account.
+//  3. The fleetd certificate API returns the rendered SAN with the IdP username substituted.
+func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+
+	// Insert an IdP account that the Android host will be associated with so the
+	// $FLEET_VAR_HOST_END_USER_IDP_USERNAME variable resolves at delivery time.
+	idpUsername := fmt.Sprintf("san.idp.%s@example.com", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		Username: idpUsername,
+		Fullname: "SAN Test User",
+		Email:    idpUsername,
+	}))
+	insertedIdP, err := s.ds.GetMDMIdPAccountByEmail(ctx, idpUsername)
+	require.NoError(t, err)
+	require.NotNil(t, insertedIdP)
+
+	// Create the cert template with both subject_name and subject_alternative_name using the
+	// IdP-username variable. Both should expand at delivery time.
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
+	subjectName := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+	subjectAlternativeName := "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 0,
+		CertificateAuthorityId: caID,
+		SubjectName:            subjectName,
+		SubjectAlternativeName: subjectAlternativeName,
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	require.Equal(t, subjectAlternativeName, createResp.SubjectAlternativeName)
+	certificateTemplateID := createResp.ID
+
+	// Enroll an Android host with no team and link it to the IdP account.
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san")
+	require.NoError(t, s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID))
+
+	// Create pending certificate templates for the host (simulating what the pubsub handler does
+	// during enrollment).
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, 0)
+	require.NoError(t, err)
+
+	// AMAPI mock succeeds.
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// Run the Android setup-experience worker so the template moves to delivered.
+	enterpriseName := "enterprises/" + enterpriseID
+	require.NoError(t, worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, nil, enterpriseName))
+	s.runWorker()
+
+	// Fetch the certificate via the fleetd API. Both SN and SAN should have the IdP username
+	// substituted.
+	resp := s.DoRawWithHeaders(
+		"GET",
+		fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID),
+		nil,
+		http.StatusOK,
+		map[string]string{"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey)},
+	)
+	var getCertResp getDeviceCertificateTemplateResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	_ = resp.Body.Close()
+
+	require.NotNil(t, getCertResp.Certificate)
+	require.Equal(t, fleet.CertificateTemplateDelivered, getCertResp.Certificate.Status)
+	require.Equal(t, fmt.Sprintf("CN=%s", idpUsername), getCertResp.Certificate.SubjectName)
+	require.Equal(t,
+		fmt.Sprintf("DNS=wifi.example.com, UPN=%s, EMAIL=%s", idpUsername, idpUsername),
+		getCertResp.Certificate.SubjectAlternativeName)
 }
 
 // TestCertificateTemplateUnenrollReenroll tests:
@@ -651,7 +739,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 
 	// Step: Simulate the certificate being successfully installed on the device (status = verified).
 	// This is critical for testing that verified records are cleared on unenroll (issue #42600).
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE host_certificate_templates SET status = ?, uuid = UUID_TO_BIN(UUID(), true) WHERE host_uuid = ? AND certificate_template_id = ?",
 			fleet.CertificateTemplateVerified, host.UUID, certTemplateID)
@@ -667,7 +755,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 
 	// Verify host is actually unenrolled
 	var enrolledStatus int
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &enrolledStatus, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, host.ID)
 	})
 	require.Equal(t, 0, enrolledStatus, "Host should be marked as unenrolled in host_mdm")
@@ -704,7 +792,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.NoError(t, err)
 
 	// Verify host is re-enrolled
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &enrolledStatus, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, host.ID)
 	})
 	require.Equal(t, 1, enrolledStatus, "Host should be marked as enrolled in host_mdm after re-enrollment")
@@ -799,7 +887,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 			Status                fleet.CertificateTemplateStatus `db:"status"`
 			OperationType         fleet.MDMOperationType          `db:"operation_type"`
 		}
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &rows, `
 				SELECT certificate_template_id, status, operation_type
 				FROM host_certificate_templates
@@ -891,7 +979,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamEID, "all-statuses")
 
 		// Insert certificate template records with all status/operation combinations
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			for _, tc := range testCases {
 				challenge := "challenge"
 				if tc.status == fleet.CertificateTemplatePending || tc.status == fleet.CertificateTemplateFailed {
@@ -995,7 +1083,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		require.NoError(t, err)
 
 		// Set both certs to verified status (simulating they were both installed on device)
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				UPDATE host_certificate_templates
 				SET status = ?, fleet_challenge = 'challenge'
@@ -1187,7 +1275,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 
 			// Get the original UUID before renewal
 			var originalUUID string
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				return sqlx.GetContext(ctx, q, &originalUUID,
 					`SELECT COALESCE(BIN_TO_UUID(uuid, true), '') FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
 					host.UUID, certificateTemplateID)
@@ -1228,7 +1316,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 				NotValidAfter  *string `db:"not_valid_after"`
 				Serial         *string `db:"serial"`
 			}
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				return sqlx.GetContext(ctx, q, &newRecord,
 					`SELECT status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial
 					 FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
@@ -1316,8 +1404,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	caID := ca.ID
 
 	// Login as team admin
-	var loginResp loginResponse
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+	var loginResp fleet.LoginResponse
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{
 		Email:    teamAdminEmail,
 		Password: teamAdminPassword,
 	}, http.StatusOK, &loginResp)
@@ -1384,6 +1472,46 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 
 		// Team admin should get 403 forbidden when trying to list other team's certificates
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
+	})
+
+	// Reading and deleting hide the existence of templates the team admin can't reach.
+	// A template on another team and a template that doesn't exist must both come back as 404,
+	// so the response can't be used to probe which IDs exist.
+	t.Run("team admin cannot read or delete other team certificates", func(t *testing.T) {
+		s.token = originalToken
+		deleteOtherTeamName := t.Name() + "-other-team"
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: new(deleteOtherTeamName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		otherTeamID := createTeamResp.Team.ID
+
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   strings.ReplaceAll(t.Name(), "/", "-") + "-Cert",
+			TeamID:                 otherTeamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+
+		s.token = teamAdminToken
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createResp.ID), nil, http.StatusNotFound)
+		s.Do("DELETE", "/api/latest/fleet/certificates/9999999", nil, http.StatusNotFound)
+
+		// Reading a single template hides existence the same way deleting does.
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createResp.ID), nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/certificates/9999999", nil, http.StatusNotFound)
+
+		// The other team's template is still there.
+		s.token = originalToken
+		var listResp listCertificateTemplatesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusOK, &listResp)
+		require.Len(t, listResp.Certificates, 1)
+		require.Equal(t, createResp.ID, listResp.Certificates[0].ID)
 	})
 }
 
@@ -1505,7 +1633,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 			certTemplateID,
 			certTemplateName,
 		),
-		0)
+		0,
+	)
 
 	// Verify status is reset to 'pending', UUID changed, and all certificate fields cleared
 	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
@@ -1553,7 +1682,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 
 	// Verify the new fleet_challenge exists in the challenges table (GetCACaps doesn't consume it)
 	checkChallengeExists := func(challenge string, expectFound bool) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var found string
 			err := sqlx.GetContext(ctx, q, &found, "SELECT challenge FROM challenges WHERE challenge = ?", challenge)
 			if errors.Is(err, sql.ErrNoRows) {
@@ -1586,9 +1715,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 
 	// ---- Automatic retry tests (reusing same host/cert/CA setup) ----
 	t.Run("automatic retry", func(t *testing.T) {
-
 		// Reset the certificate to pending with retry_count=0 for a fresh retry test
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
 				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
@@ -1666,7 +1794,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after resend failure")
 
 		// Success on retry: reset to fresh, fail once, then succeed
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
 				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
@@ -1719,7 +1847,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 
 	// Get the certificate template ID
 	var certTemplateID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &certTemplateID,
 			"SELECT id FROM certificate_templates WHERE name = ? AND team_id = ?", "wifi-cert", team.ID)
 	})
@@ -1737,7 +1865,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 
 	// Verify that enrollment created the cert template record for this host.
 	var certStatus string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &certStatus,
 			"SELECT status FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
 			host.UUID, certTemplateID)
@@ -1806,7 +1934,7 @@ func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted
 	}, http.StatusOK, &certTemplateResp)
 
 	var certTemplateID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &certTemplateID,
 			"SELECT id FROM certificate_templates WHERE name = ? AND team_id = ?", "wifi-cert", team.ID)
 	})
@@ -1832,6 +1960,100 @@ func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted
 	s.awaitTriggerAndroidProfileSchedule(t)
 
 	s.assertONCProfilesReleased(t, host.UUID, "cert template deleted")
+}
+
+// TestONCProfileDetailPreservedWhenAddingAnotherProfile guards against this
+// regression: once an ONC profile is withheld pending a cert install
+// ("Waiting for certificate ..."), adding any other Android configuration
+// profile to the same team must NOT wipe the withheld profile's `detail`.
+func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnotherProfile() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableAndroidMDM(t)
+	s.setSkipWorkerJobs(t)
+
+	const (
+		oncProfileName    = "onc-wifi"
+		cameraProfileName = "camera-policy"
+		certTemplateName  = "wifi-cert"
+	)
+	expectedDetailSubstr := fmt.Sprintf(`Waiting for certificate %q`, certTemplateName)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name()},
+	}})
+	require.NoError(t, err)
+
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	var certTemplateResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{{
+			Name:                   certTemplateName,
+			Team:                   team.Name,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=WiFi Cert",
+		}},
+	}, http.StatusOK, &certTemplateResp)
+
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-detail-test", &team.ID, true)
+
+	// Apply the initial profile set and reconcile once so the ONC profile is
+	// in the withheld state we want to defend.
+	oncProfileJSON, cameraProfileJSON := s.oncWithholdingProfiles()
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: oncProfileName, Contents: oncProfileJSON},
+		{Name: cameraProfileName, Contents: cameraProfileJSON},
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.awaitTriggerAndroidProfileSchedule(t)
+	s.assertONCProfileWithheld(t, host.UUID)
+
+	fetchONCProfileRow := func(t *testing.T) (status, detail *string) {
+		t.Helper()
+		var row struct {
+			Status *string `db:"status"`
+			Detail *string `db:"detail"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &row,
+				"SELECT status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_name = ?",
+				host.UUID, oncProfileName)
+		})
+		return row.Status, row.Detail
+	}
+
+	requireDetailPreservedAndStatusReset := func(t *testing.T, trigger string) {
+		t.Helper()
+		status, detail := fetchONCProfileRow(t)
+		require.Nil(t, status, "%s: status should be reset to NULL", trigger)
+		require.NotNil(t, detail, "%s: detail must not be nil", trigger)
+		require.Contains(t, *detail, expectedDetailSubstr, "%s: detail must not be wiped", trigger)
+	}
+
+	t.Run("single-profile upload", func(t *testing.T) {
+		// POST /configuration_profiles
+		body, headers := generateNewProfileMultipartRequest(
+			t,
+			"extra-single.json",
+			[]byte(`{"cameraDisabled": false}`),
+			s.token,
+			map[string][]string{"team_id": {fmt.Sprint(team.ID)}},
+		)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		defer res.Body.Close()
+
+		requireDetailPreservedAndStatusReset(t, "POST /configuration_profiles")
+	})
+
+	t.Run("batch profile set", func(t *testing.T) {
+		// POST /mdm/profiles/batch
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: oncProfileName, Contents: oncProfileJSON},
+			{Name: cameraProfileName, Contents: cameraProfileJSON},
+			{Name: "extra-batch", Contents: []byte(`{"cameraDisabled": false}`)},
+		}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+		requireDetailPreservedAndStatusReset(t, "POST /mdm/profiles/batch")
+	})
 }
 
 // oncWithholdingProfiles returns ONC and camera profile JSON payloads for ONC
@@ -1869,7 +2091,7 @@ func (s *integrationMDMTestSuite) assertONCProfileWithheld(t *testing.T, hostUUI
 		Status      string  `db:"status"`
 		Detail      *string `db:"detail"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &profileStatuses,
 			"SELECT profile_name, status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
 			hostUUID)
@@ -1899,7 +2121,7 @@ func (s *integrationMDMTestSuite) assertONCProfilesReleased(t *testing.T, hostUU
 		Status      string  `db:"status"`
 		Detail      *string `db:"detail"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &profileStatuses,
 			"SELECT profile_name, status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
 			hostUUID)

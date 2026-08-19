@@ -1,0 +1,15 @@
+{
+  // Kilo Code project configuration.
+  //
+  // Fleet's agent skills live in .claude/skills/ (shared with Claude Code).
+  // Registering that directory here makes Kilo Code load all of them without
+  // each contributor having to turn on "Claude Code Compatibility" by hand.
+  //
+  // skills.paths accepts directories that contain skill subfolders. Paths are
+  // resolved relative to the project root. Each subfolder must hold a SKILL.md
+  // whose `name` matches the folder name.
+  // Docs: https://kilo.ai/docs/customize/skills
+  "skills": {
+    "paths": [".claude/skills"]
+  }
+}

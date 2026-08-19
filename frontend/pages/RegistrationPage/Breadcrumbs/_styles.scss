@@ -65,14 +65,6 @@
       }
 
       &.registration-breadcrumbs__page--active {
-        &::before {
-          background: linear-gradient(
-            to right,
-            $ui-fleet-black-75 50%,
-            $ui-fleet-black-25 50%
-          );
-        }
-
         &::after {
           background-color: transparent;
           outline: 2px solid $ui-fleet-black-75;
@@ -101,14 +93,6 @@
       }
 
       &.registration-breadcrumbs__page--active {
-        &::before {
-          background: linear-gradient(
-            to right,
-            $ui-fleet-black-75 50%,
-            $ui-fleet-black-25 50%
-          );
-        }
-
         &::after {
           background-color: transparent;
           outline: 2px solid $ui-fleet-black-75;
@@ -140,14 +124,6 @@
       }
 
       &.registration-breadcrumbs__page--active {
-        &::before {
-          background: linear-gradient(
-            to right,
-            $ui-fleet-black-75 50%,
-            $ui-fleet-black-25 50%
-          );
-        }
-
         &::after {
           background-color: transparent;
           outline: 2px solid $ui-fleet-black-75;

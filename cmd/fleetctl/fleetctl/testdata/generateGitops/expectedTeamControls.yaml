@@ -7,4 +7,5 @@ android_settings:
   certificates:
   - certificate_authority_name: DIGIDOO
     name: my_certypoo
+    subject_alternative_name: DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
     subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL

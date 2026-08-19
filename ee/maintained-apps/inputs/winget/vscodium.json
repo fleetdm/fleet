@@ -1,0 +1,12 @@
+{
+  "name": "VSCodium",
+  "slug": "vscodium/windows",
+  "package_identifier": "VSCodium.VSCodium",
+  "unique_identifier": "VSCodium",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/vscodium_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vscodium_uninstall.ps1"
+}

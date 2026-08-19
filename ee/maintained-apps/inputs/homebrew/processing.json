@@ -1,0 +1,10 @@
+{
+  "name": "Processing",
+  "unique_identifier": "org.processing.four",
+  "token": "processing",
+  "installer_format": "dmg",
+  "slug": "processing/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

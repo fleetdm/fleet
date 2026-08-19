@@ -1,10 +1,10 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import mdmAPI from "services/entities/mdm";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 interface DeleteAutoEnrollProfileProps {
   currentTeamId: number;
@@ -19,14 +19,12 @@ const DeleteAutoEnrollProfile = ({
   onCancel,
   onDelete,
 }: DeleteAutoEnrollProfileProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const handleDelete = async () => {
     try {
       await mdmAPI.deleteSetupEnrollmentProfile(currentTeamId);
-      renderFlash("success", "Successfully deleted.");
-    } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      notify.success("Successfully deleted.");
+    } catch (err) {
+      notify.error("Couldn’t delete. Please try again.", { response: err });
     }
     onDelete();
   };
@@ -46,7 +44,7 @@ const DeleteAutoEnrollProfile = ({
         <Button type="button" onClick={handleDelete} variant="alert">
           Delete
         </Button>
-        <Button onClick={onCancel} variant="inverse-alert">
+        <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
       </div>

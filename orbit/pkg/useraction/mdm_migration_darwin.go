@@ -240,6 +240,8 @@ type swiftDialogMDMMigrator struct {
 	// showCh is shared with the offline watcher and used to ensure only one dialog is open at a time
 	showCh chan struct{}
 
+	// testParseEnrollmentStatusFn is used in tests to mock profiles.ParseMDMEnrollmentStatus
+	testParseEnrollmentStatusFn func() (bool, bool, error)
 	// testEnrollmentCheckFileFn is used in tests to mock the call to verify
 	// the enrollment status of the host
 	testEnrollmentCheckFileFn func() (bool, error)
@@ -271,11 +273,17 @@ func isDarkMode() bool {
 }
 
 func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
-	icon := m.props.OrgInfo.OrgLogoURL
-
-	// If the user is using light mode we will set the icon to use the light background logo
-	if !isDarkMode() {
-		icon = m.props.OrgInfo.OrgLogoURLLightBackground
+	var icon string
+	if isDarkMode() {
+		icon = m.props.OrgInfo.OrgLogoURLDarkMode
+		if icon == "" {
+			icon = m.props.OrgInfo.OrgLogoURL
+		}
+	} else {
+		icon = m.props.OrgInfo.OrgLogoURLLightMode
+		if icon == "" {
+			icon = m.props.OrgInfo.OrgLogoURLLightBackground
+		}
 	}
 
 	// If the user has not set an org logo url, we will use the default fleet logo.
@@ -406,7 +414,13 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error 
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
 	log.Debug().Msg("checking current enrollment status")
-	enrolledViaDEP, err := profiles.ParseMDMEnrollmentStatus()
+	var enrolledViaDEP, mdmEnrolled bool
+	var err error
+	if m.testParseEnrollmentStatusFn != nil {
+		enrolledViaDEP, mdmEnrolled, err = m.testParseEnrollmentStatusFn()
+	} else {
+		enrolledViaDEP, mdmEnrolled, err = profiles.ParseMDMEnrollmentStatus()
+	}
 	if err != nil {
 		return err
 	}
@@ -467,21 +481,25 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			// show the loading spinner
 			m.renderLoadingSpinner(isPreSonoma, isManualMigration)
 
-			// send the API call
-			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
-				m.baseDialog.Exit()
-				errDialogExitChan, errDialogErrChan := m.renderError()
-				select {
-				case <-errDialogExitChan:
-					// return the error after showing the
-					// dialog so it can be caught upstream.
-					return notifyErr
-				case err := <-errDialogErrChan:
-					return fmt.Errorf("rendering error dialog: %w", err)
+			if mdmEnrolled {
+				// send the API call
+				if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
+					m.baseDialog.Exit()
+					errDialogExitChan, errDialogErrChan := m.renderError()
+					select {
+					case <-errDialogExitChan:
+						// return the error after showing the
+						// dialog so it can be caught upstream.
+						return notifyErr
+					case err := <-errDialogErrChan:
+						return fmt.Errorf("rendering error dialog: %w", err)
+					}
 				}
+				log.Info().Msg("webhook sent, checking for unenrollment")
+			} else {
+				log.Info().Msg("device is not enrolled in MDM locally, skipping webhook")
 			}
 
-			log.Info().Msg("webhook sent, checking for unenrollment")
 			if err := m.waitForUnenrollment(isADEMigration); err != nil {
 				m.baseDialog.Exit()
 				errDialogExitChan, errDialogErrChan := m.renderError()

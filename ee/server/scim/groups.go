@@ -87,8 +87,9 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 		return nil, err
 	}
 	userIDs := make([]uint, 0, len(members))
+	childGroupIDs := make([]uint, 0, len(members))
 	for _, member := range members {
-		// Get the value attribute which contains the user ID
+		// Get the value attribute which contains the member ID
 		valueIntf, ok := member["value"]
 		if !ok || valueIntf == nil {
 			continue
@@ -98,14 +99,20 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 			return nil, errors.ScimErrorBadParams([]string{"value"})
 		}
 
-		// Extract user ID from the value
-		userID, err := extractUserIDFromValue(valueStr)
+		// A member can be either a user (bare numeric ID) or a nested group
+		// (prefixed "group-<id>", as sent by Entra ID for nested groups).
+		kind, id, err := classifyMemberValue(valueStr)
 		if err != nil {
 			return nil, errors.ScimErrorBadParams([]string{"value"})
 		}
-		userIDs = append(userIDs, userID)
+		if kind == memberKindGroup {
+			childGroupIDs = append(childGroupIDs, id)
+		} else {
+			userIDs = append(userIDs, id)
+		}
 	}
 	group.ScimUsers = userIDs
+	group.ChildGroups = childGroupIDs
 
 	return &group, nil
 }
@@ -160,13 +167,19 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 	groupResource.Attributes = scim.ResourceAttributes{}
 	groupResource.Attributes[displayNameAttr] = group.DisplayName
 
-	// Add members if any
-	if len(group.ScimUsers) > 0 {
-		members := make([]scim.ResourceAttributes, 0, len(group.ScimUsers))
+	// Add members if any (users and nested child groups)
+	if len(group.ScimUsers) > 0 || len(group.ChildGroups) > 0 {
+		members := make([]scim.ResourceAttributes, 0, len(group.ScimUsers)+len(group.ChildGroups))
 		for _, userID := range group.ScimUsers {
 			members = append(members, map[string]interface{}{
 				"value": scimUserID(userID),
 				"type":  "User",
+			})
+		}
+		for _, childID := range group.ChildGroups {
+			members = append(members, map[string]any{
+				"value": scimGroupID(childID),
+				"type":  "Group",
 			})
 		}
 		groupResource.Attributes[membersAttr] = members
@@ -431,8 +444,9 @@ func (g *GroupHandler) patchDisplayName(ctx context.Context, op string, v any, g
 // patchMembers handles add/replace/remove operations for the members attribute
 func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove {
-		// Remove all members
+		// Remove all members (both users and nested child groups)
 		group.ScimUsers = []uint{}
+		group.ChildGroups = []uint{}
 		return nil
 	}
 
@@ -457,9 +471,12 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 
-	// Process the members
+	// Process the members. A member is either a user (bare numeric ID) or a
+	// nested group (prefixed "group-<id>", as sent by Entra ID for nested groups).
 	userIDs := make([]uint, 0, len(membersList))
-	valueStrings := make([]string, 0, len(membersList))
+	childGroupIDs := make([]uint, 0, len(membersList))
+	userValueStrings := make([]string, 0, len(membersList))
+	groupValueStrings := make([]string, 0, len(membersList))
 
 	for _, memberIntf := range membersList {
 		member, ok := memberIntf.(map[string]interface{})
@@ -468,7 +485,7 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", memberIntf)})
 		}
 
-		// Get the value attribute which contains the user ID
+		// Get the value attribute which contains the member ID
 		valueIntf, ok := member["value"]
 		if !ok || valueIntf == nil {
 			g.logger.InfoContext(ctx, "member missing value attribute", "member", member)
@@ -480,19 +497,22 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 			g.logger.InfoContext(ctx, "member value must be a string", "value", valueIntf)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", valueIntf)})
 		}
-		valueStrings = append(valueStrings, valueStr)
 
-		// Extract user ID from the value
-		userID, err := extractUserIDFromValue(valueStr)
+		kind, id, err := classifyMemberValue(valueStr)
 		if err != nil {
-			g.logger.InfoContext(ctx, "invalid user ID format", "value", valueStr, "err", err)
+			g.logger.InfoContext(ctx, "invalid member ID format", "value", valueStr, "err", err)
 			return errors.ScimErrorBadParams([]string{valueStr})
 		}
-
-		userIDs = append(userIDs, userID)
+		if kind == memberKindGroup {
+			childGroupIDs = append(childGroupIDs, id)
+			groupValueStrings = append(groupValueStrings, valueStr)
+		} else {
+			userIDs = append(userIDs, id)
+			userValueStrings = append(userValueStrings, valueStr)
+		}
 	}
 
-	// Verify all users exist in a single database call
+	// Verify all referenced users exist in a single database call
 	if len(userIDs) > 0 {
 		allExist, err := g.ds.ScimUsersExist(ctx, userIDs)
 		if err != nil {
@@ -501,45 +521,71 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 		}
 		if !allExist {
 			g.logger.InfoContext(ctx, "one or more users not found", "userIDs", userIDs)
-			return errors.ScimErrorBadParams(valueStrings)
+			return errors.ScimErrorBadParams(userValueStrings)
+		}
+	}
+
+	// Verify all referenced child groups exist in a single database call
+	if len(childGroupIDs) > 0 {
+		allExist, err := g.ds.ScimGroupsExist(ctx, childGroupIDs)
+		if err != nil {
+			g.logger.ErrorContext(ctx, "error checking child groups existence", "err", err)
+			return err
+		}
+		if !allExist {
+			g.logger.InfoContext(ctx, "one or more child groups not found", "childGroupIDs", childGroupIDs)
+			return errors.ScimErrorBadParams(groupValueStrings)
 		}
 	}
 
 	// For add operation, append to existing members
 	if op == scim.PatchOperationAdd {
-		// Create a map to track existing user IDs to avoid duplicates
-		existingUsers := make(map[uint]bool)
-		for _, id := range group.ScimUsers {
-			existingUsers[id] = true
-		}
-
-		// Add new users that don't already exist in the group
-		for _, id := range userIDs {
-			if !existingUsers[id] {
-				group.ScimUsers = append(group.ScimUsers, id)
-				existingUsers[id] = true
-			}
-		}
+		group.ScimUsers = appendMissingUint(group.ScimUsers, userIDs)
+		group.ChildGroups = appendMissingUint(group.ChildGroups, childGroupIDs)
 	} else {
 		// For replace operation, replace all members
 		group.ScimUsers = userIDs // FIXME: List should be deduplicated by us? See https://github.com/fleetdm/fleet/issues/30086
+		group.ChildGroups = childGroupIDs
 	}
 
 	return nil
 }
 
+// appendMissingUint appends to base the elements of extra that are not already
+// present, preserving order and avoiding duplicates.
+func appendMissingUint(base, extra []uint) []uint {
+	existing := make(map[uint]struct{}, len(base))
+	for _, id := range base {
+		existing[id] = struct{}{}
+	}
+	for _, id := range extra {
+		if _, ok := existing[id]; !ok {
+			base = append(base, id)
+			existing[id] = struct{}{}
+		}
+	}
+	return base
+}
+
 // patchMembersWithPathFiltering handles patch operations with path filtering for members
 // This supports paths like members[value eq "422"] for add/replace/remove operations
 func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op scim.PatchOperation, group *fleet.ScimGroup) error {
-	memberID, err := g.getMemberID(ctx, op)
+	kind, memberID, err := g.getMemberID(ctx, op)
 	if err != nil {
 		return err
+	}
+
+	// Operate on the appropriate member slice depending on whether the filter
+	// targets a user or a nested child group (e.g. members[value eq "group-62"]).
+	target := &group.ScimUsers
+	if kind == memberKindGroup {
+		target = &group.ChildGroups
 	}
 
 	// Check if the member exists in the group
 	memberFound := false
 	var memberIndex int
-	for i, id := range group.ScimUsers {
+	for i, id := range *target {
 		if id == memberID {
 			memberIndex = i
 			memberFound = true
@@ -550,27 +596,27 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 	// For remove operations, remove the member if found
 	if op.Op == scim.PatchOperationRemove {
 		if !memberFound {
-			g.logger.InfoContext(ctx, "member not found in group", "member_id", memberID, "op", fmt.Sprintf("%v", op))
+			g.logger.InfoContext(ctx, "member not found in group", "member_id", memberID, "kind", kind, "op", fmt.Sprintf("%v", op))
 			// The member may have been removed already from this group. For example, if the member was deleted.
 			return nil
 		}
-		group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
+		*target = append((*target)[:memberIndex], (*target)[memberIndex+1:]...)
 		return nil
 	}
 
 	// For add operations, add the member if not found
 	if op.Op == scim.PatchOperationAdd && !memberFound {
-		// Verify the user exists
-		userExists, err := g.ds.ScimUsersExist(ctx, []uint{memberID})
+		// Verify the referenced member exists
+		exists, err := g.memberExists(ctx, kind, memberID)
 		if err != nil {
-			g.logger.ErrorContext(ctx, "error checking user existence", "err", err)
+			g.logger.ErrorContext(ctx, "error checking member existence", "err", err)
 			return err
 		}
-		if !userExists {
-			g.logger.InfoContext(ctx, "user not found", "user_id", memberID)
-			return errors.ScimErrorBadParams([]string{scimUserID(memberID)})
+		if !exists {
+			g.logger.InfoContext(ctx, "member not found", "member_id", memberID, "kind", kind)
+			return errors.ScimErrorBadParams([]string{memberValue(kind, memberID)})
 		}
-		group.ScimUsers = append(group.ScimUsers, memberID)
+		*target = append(*target, memberID)
 		return nil
 	}
 
@@ -585,7 +631,7 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 
 		// If the value is nil or an empty object, remove the member
 		if op.Value == nil {
-			group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
+			*target = append((*target)[:memberIndex], (*target)[memberIndex+1:]...)
 			return nil
 		}
 
@@ -597,38 +643,88 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 	return nil
 }
 
-// getMemberID extracts the member ID from a path expression like members[value eq "422"]
-func (g *GroupHandler) getMemberID(ctx context.Context, op scim.PatchOperation) (uint, error) {
+// getMemberID extracts the member kind and ID from a path expression like
+// members[value eq "422"] (user) or members[value eq "group-62"] (nested group).
+func (g *GroupHandler) getMemberID(ctx context.Context, op scim.PatchOperation) (memberKind, uint, error) {
 	attrExpression, ok := op.Path.ValueExpression.(*filter.AttributeExpression)
 	if !ok {
 		g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
-		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 
-	// Only matching by member value (user ID) is supported
+	// Only matching by member value is supported
 	if attrExpression.AttributePath.String() != valueAttr || attrExpression.Operator != filter.EQ {
 		g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
-		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 
 	memberIDStr, ok := attrExpression.CompareValue.(string)
 	if !ok {
 		g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
-		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 
-	// Extract user ID from the value
-	userID, err := extractUserIDFromValue(memberIDStr)
+	// Classify and extract the member ID from the value
+	kind, id, err := classifyMemberValue(memberIDStr)
 	if err != nil {
-		g.logger.InfoContext(ctx, "invalid user ID format", "value", memberIDStr, "err", err)
-		return 0, errors.ScimErrorBadParams([]string{memberIDStr})
+		g.logger.InfoContext(ctx, "invalid member ID format", "value", memberIDStr, "err", err)
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{memberIDStr})
 	}
 
-	return userID, nil
+	return kind, id, nil
 }
 
 func scimGroupID(groupID uint) string {
 	return fmt.Sprintf("group-%d", groupID)
+}
+
+// groupValuePrefix is the prefix used to identify a member value that references
+// a nested SCIM group (e.g. "group-62") rather than a user (e.g. "1031").
+const groupValuePrefix = "group-"
+
+// memberKind distinguishes a user member from a nested group member in a SCIM
+// group's members list.
+type memberKind int
+
+const (
+	memberKindUser memberKind = iota
+	memberKindGroup
+)
+
+// classifyMemberValue inspects a SCIM group member "value" and reports whether it
+// references a user or a nested group, along with the parsed numeric ID. Entra ID
+// sends user members as bare numeric IDs (e.g. "1031") and nested group members as
+// prefixed IDs (e.g. "group-62").
+func classifyMemberValue(value string) (memberKind, uint, error) {
+	if strings.HasPrefix(value, groupValuePrefix) {
+		id, err := extractGroupIDFromValue(value)
+		if err != nil {
+			return memberKindGroup, 0, err
+		}
+		return memberKindGroup, id, nil
+	}
+	id, err := extractUserIDFromValue(value)
+	if err != nil {
+		return memberKindUser, 0, err
+	}
+	return memberKindUser, id, nil
+}
+
+// memberExists reports whether the referenced user or nested group exists.
+func (g *GroupHandler) memberExists(ctx context.Context, kind memberKind, id uint) (bool, error) {
+	if kind == memberKindGroup {
+		return g.ds.ScimGroupsExist(ctx, []uint{id})
+	}
+	return g.ds.ScimUsersExist(ctx, []uint{id})
+}
+
+// memberValue renders the SCIM member "value" string for the given kind and ID,
+// for use in error messages.
+func memberValue(kind memberKind, id uint) string {
+	if kind == memberKindGroup {
+		return scimGroupID(id)
+	}
+	return scimUserID(id)
 }
 
 // extractGroupIDFromValue extracts the group ID from a value like "group-123"

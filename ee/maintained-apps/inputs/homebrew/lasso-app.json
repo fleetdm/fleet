@@ -1,0 +1,10 @@
+{
+  "name": "Lasso",
+  "unique_identifier": "com.heavylightapps.lasso",
+  "token": "lasso-app",
+  "installer_format": "dmg",
+  "slug": "lasso-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -25,6 +25,7 @@ TODO
 
 ### 🧑‍💻  Steps to reproduce
 <!-- Provide step-by-step actions of how to recreate this bug in a clean install of Fleet. (This helps others understand and fix it more quickly.) -->
+<!-- PRs that fix this bug must include reproduction and manual verification. -->
 
 These steps:
 

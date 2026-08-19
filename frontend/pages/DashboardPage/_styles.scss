@@ -1,5 +1,4 @@
 .dashboard-page {
-  overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
   @include vertical-page-layout;
 
   h2 {
@@ -31,6 +30,11 @@
     .fleeticon-offline {
       color: $ui-error;
     }
+  }
+
+  .card {
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   &__platforms {

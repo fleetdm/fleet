@@ -1,0 +1,10 @@
+{
+  "name": "sbarex QLMarkdown",
+  "unique_identifier": "org.sbarex.QLMarkdown",
+  "token": "qlmarkdown",
+  "installer_format": "zip",
+  "slug": "qlmarkdown/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
