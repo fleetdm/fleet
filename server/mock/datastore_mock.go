@@ -728,6 +728,8 @@ type GetPoliciesWithAssociatedVPPFunc func(ctx context.Context, teamID uint, pol
 
 type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error)
 
+type GetPoliciesWithAssociatedProfileFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error)
+
 type ResetPolicyAutomationRetryAttemptsForHostFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
@@ -1281,6 +1283,8 @@ type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTok
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
 type MarkHostDEPAssignmentDeletedFunc func(ctx context.Context, hostID uint) error
+
+type MarkHostDEPAssignmentsDeletedFunc func(ctx context.Context, hostIDs []uint) error
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
 
@@ -3401,6 +3405,9 @@ type DataStore struct {
 	GetPoliciesWithAssociatedScriptFunc        GetPoliciesWithAssociatedScriptFunc
 	GetPoliciesWithAssociatedScriptFuncInvoked bool
 
+	GetPoliciesWithAssociatedProfileFunc        GetPoliciesWithAssociatedProfileFunc
+	GetPoliciesWithAssociatedProfileFuncInvoked bool
+
 	ResetPolicyAutomationRetryAttemptsForHostFunc        ResetPolicyAutomationRetryAttemptsForHostFunc
 	ResetPolicyAutomationRetryAttemptsForHostFuncInvoked bool
 
@@ -4231,6 +4238,9 @@ type DataStore struct {
 
 	MarkHostDEPAssignmentDeletedFunc        MarkHostDEPAssignmentDeletedFunc
 	MarkHostDEPAssignmentDeletedFuncInvoked bool
+
+	MarkHostDEPAssignmentsDeletedFunc        MarkHostDEPAssignmentsDeletedFunc
+	MarkHostDEPAssignmentsDeletedFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
@@ -8292,6 +8302,13 @@ func (s *DataStore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID 
 	return s.GetPoliciesWithAssociatedScriptFunc(ctx, teamID, policyIDs)
 }
 
+func (s *DataStore) GetPoliciesWithAssociatedProfile(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+	s.mu.Lock()
+	s.GetPoliciesWithAssociatedProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPoliciesWithAssociatedProfileFunc(ctx, teamID, policyIDs)
+}
+
 func (s *DataStore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error {
 	s.mu.Lock()
 	s.ResetPolicyAutomationRetryAttemptsForHostFuncInvoked = true
@@ -10229,6 +10246,13 @@ func (s *DataStore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uin
 	s.MarkHostDEPAssignmentDeletedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkHostDEPAssignmentDeletedFunc(ctx, hostID)
+}
+
+func (s *DataStore) MarkHostDEPAssignmentsDeleted(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.MarkHostDEPAssignmentsDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkHostDEPAssignmentsDeletedFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error {
