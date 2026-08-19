@@ -52,8 +52,7 @@ export const EXIT_CODES_NEEDING_EUE_LINK: ReadonlySet<number> = new Set([
   101,
 ]);
 
-// Substring the BE appends only on notify_before_patching skips — named to
-// prevent silent drift.
+// Substring the BE appends only on notify_before_patching skips.
 const NOTIFY_SKIP_MARKER = "Fleet notifies the end user";
 export const isNotifyBeforePatchingSkip = (
   preInstallOutput?: string | null

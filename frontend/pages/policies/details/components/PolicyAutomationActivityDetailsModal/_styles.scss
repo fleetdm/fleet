@@ -17,8 +17,7 @@
       gap: 0;
     }
 
-    // The flex column stretches children full-width by default; the reveal
-    // button should hug its content.
+    // Prevent full-width stretching
     .reveal-button {
       align-self: flex-start;
     }
