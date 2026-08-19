@@ -17,6 +17,7 @@ import { GlobalPoliciesAutomationType } from "./global_policies";
 export type AutomationType =
   | "software"
   | "scripts"
+  | "profiles"
   | "calendar"
   | "conditional_access"
   | "other";

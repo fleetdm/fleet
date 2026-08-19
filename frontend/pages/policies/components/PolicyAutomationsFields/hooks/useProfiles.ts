@@ -1,3 +1,4 @@
+import { omit } from "lodash";
 import { useQuery } from "react-query";
 import mdmApi, {
   IGetProfilesApiParams,
@@ -11,21 +12,24 @@ interface IUseProfilesArgs {
   enabled: boolean;
 }
 
+type IUseProfilesQueryKey = IGetProfilesApiParams & { scope: "profiles" };
+
 const useProfiles = ({ fleetId, enabled }: IUseProfilesArgs) =>
   useQuery<
     IMdmProfilesResponse,
     Error,
     IMdmProfilesResponse,
-    [IGetProfilesApiParams]
+    [IUseProfilesQueryKey]
   >(
     [
       {
+        scope: "profiles",
         page: 0,
         per_page: PROFILES_PAGE_SIZE,
         fleet_id: fleetId,
       },
     ],
-    ({ queryKey: [key] }) => mdmApi.getProfiles(key),
+    ({ queryKey: [key] }) => mdmApi.getProfiles(omit(key, "scope")),
     { enabled, staleTime: 30_000 }
   );
 

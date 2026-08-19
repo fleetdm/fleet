@@ -2,6 +2,7 @@
 
 import React, {
   forwardRef,
+  useCallback,
   useContext,
   useEffect,
   useImperativeHandle,
@@ -229,6 +230,19 @@ const PolicyAutomationsFields = forwardRef<
     );
     const resendProfileDisabled = !hasProfilePlatform;
 
+    const [errors, setErrors] = useState<IAutomationsErrors>({});
+
+    const clearError = useCallback(
+      (key: keyof IAutomationsErrors) =>
+        setErrors((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        }),
+      [setErrors]
+    );
+
     // An empty selection means the platform checkboxes haven't hydrated yet
     // (they mount unchecked and are filled in by an effect), so it can't be
     // read as "no profile platform" without wiping a stored selection.
@@ -239,17 +253,7 @@ const PolicyAutomationsFields = forwardRef<
         setResendConfigProfile(false);
         clearError("resend_configuration_profile");
       }
-    }, [hasPlatformSelection, hasProfilePlatform]);
-
-    const [errors, setErrors] = useState<IAutomationsErrors>({});
-
-    const clearError = (key: keyof IAutomationsErrors) =>
-      setErrors((prev) => {
-        if (!prev[key]) return prev;
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
+    }, [hasPlatformSelection, hasProfilePlatform, clearError]);
 
     const validate = (): IAutomationsErrors => {
       const newErrors: IAutomationsErrors = {};
@@ -582,7 +586,8 @@ const PolicyAutomationsFields = forwardRef<
           ),
           checked: resendConfigProfile,
           onToggle: handleToggleResendConfigProfile,
-          isDisabled: resendProfileDisabled,
+          isDisabled: false,
+          isLocked: resendProfileDisabled,
           picker: resendConfigProfile ? (
             <DropdownWrapper
               name="profile"
