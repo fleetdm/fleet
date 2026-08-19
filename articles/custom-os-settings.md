@@ -72,7 +72,7 @@ Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/d
 
 ### Target hosts with labels
 
-A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, or iPadOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
+A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, or iPadOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.admx` or `.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
 
 On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes, and you can use only one per profile:
 
