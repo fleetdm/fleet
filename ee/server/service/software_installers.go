@@ -1056,7 +1056,7 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 	}
 
 	if notifyBeforePatchingFlag && installer.Platform != "darwin" {
-		return false, false, false, &fleet.BadRequestError{Message: `"notify_before_patching" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`}
+		return false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()}
 	}
 
 	// The pre-install query is read-only only while a patch option will actually be in effect.

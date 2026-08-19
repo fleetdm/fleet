@@ -463,10 +463,25 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Platform:                 "linux,windows",
 				ConditionalAccessEnabled: true,
 				Type:                     fleet.PolicyTypePatch,
-				PatchWhenClosed:          true,
+				NotifyBeforePatching:     true,
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:              6,
+				Name:            "Team patch when closed policy",
+				Query:           "SELECT * FROM team_policy WHERE id = 6",
+				Resolution:      new("Do a team thing"),
+				Description:     "This is a team patch policy that waits for the app to close",
+				Platform:        "windows",
+				Type:            fleet.PolicyTypePatch,
+				PatchWhenClosed: true,
+			},
+			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 9,
 			},
 		},
 		{
@@ -680,6 +695,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				}, {
 					LabelName: "Label B",
 				}},
+				// Mirrors the API, which returns the managed app open query while notify_before_patching is on.
 				PreInstallQuery:      "SELECT * FROM pre_install_query",
 				InstallScript:        "install",
 				PostInstallScript:    "postinstall",
@@ -690,6 +706,12 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Categories:           []string{"Browsers"},
 				BundleIdentifier:     "com.my.fma",
 				FleetMaintainedAppID: ptr.Uint(1),
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           2,
+					Name:                         "Team patch policy",
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
 			},
 			IconUrl:          ptr.String("/api/icon1.png"),
 			BundleIdentifier: ptr.String("com.my.fma"),
@@ -2050,15 +2072,9 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-fma-darwin-preinstallquery.yml"]; ok {
-		require.Equal(t, []map[string]any{{
-			"query": "SELECT * FROM pre_install_query",
-		}}, fileContents)
-	} else {
-		t.Fatalf("Expected file not found")
-	}
-
-	// The windows FMA is patch_when_closed, so its query is not written out.
+	// The darwin FMA is notify_before_patching and the windows FMA is patch_when_closed, so both
+	// hold Fleet's managed app open query and neither is written out.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-fma-darwin-preinstallquery.yml")
 	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-windows-fma-windows-preinstallquery.yml")
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
@@ -2689,6 +2705,10 @@ func TestGeneratePolicies(t *testing.T) {
 			8: {
 				MaintainedAppID: 1,
 				Slug:            "fma1/darwin",
+			},
+			9: {
+				MaintainedAppID: 2,
+				Slug:            "fma2/windows",
 			},
 		},
 		ScriptList: map[uint]string{

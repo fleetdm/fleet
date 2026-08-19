@@ -3876,7 +3876,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slu
 	return slug, installerServer.URL
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchWhenClosed() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchPolicyOptions() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -3969,6 +3969,20 @@ reports:
 	require.Len(t, pols, 1)
 	require.Equal(t, firstID, pols[0].ID, "re-apply should be a no-op")
 	require.True(t, pols[0].PatchWhenClosed)
+	require.True(t, pols[0].ContinuousAutomationsEnabled)
+
+	// Switching the same policy to notify_before_patching flips both flags and keeps
+	// continuous automations auto-set on.
+	apply(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    notify_before_patching: true`, slug))
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID)
+	require.True(t, pols[0].NotifyBeforePatching, "notify_before_patching should persist")
+	require.False(t, pols[0].PatchWhenClosed, "patch_when_closed should be cleared")
 	require.True(t, pols[0].ContinuousAutomationsEnabled)
 
 	// An explicit continuous_automations_enabled: false is rejected end-to-end.

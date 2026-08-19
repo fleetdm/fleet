@@ -26,8 +26,6 @@ fleet_maintained_apps:
       - Label B
     post_install_script:
       path: ../lib/some-team/scripts/my-fma-darwin-postinstall.sh
-    pre_install_query:
-      path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
     self_service: true
   - slug: fma2/windows
     labels_include_all:

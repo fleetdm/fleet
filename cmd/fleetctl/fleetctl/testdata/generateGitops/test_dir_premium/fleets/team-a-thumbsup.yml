@@ -73,11 +73,25 @@ policies:
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
-  patch_when_closed: true
+  notify_before_patching: true
+  patch_when_closed: false
   platform: linux,windows
   resolution: Do a team thing
   type: patch
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: false
+  critical: false
+  description: This is a team patch policy that waits for the app to close
+  fleet_maintained_app_slug: foo/darwin
+  name: Team patch when closed policy
+  notify_before_patching: false
+  patch_when_closed: true
+  platform: windows
+  resolution: Do a team thing
+  type: patch
+  webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
   continuous_automations_enabled: false
@@ -205,8 +219,6 @@ software:
     - Label B
     post_install_script:
       path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall.sh"
-    pre_install_query:
-      path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     slug: fma1/darwin

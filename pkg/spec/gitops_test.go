@@ -5611,7 +5611,7 @@ policies:
 	}
 }
 
-func TestGitOpsPatchWhenClosed(t *testing.T) {
+func TestGitOpsPatchPolicyOptions(t *testing.T) {
 	t.Parallel()
 
 	const fmaSoftware = `
@@ -5703,6 +5703,46 @@ policies:
     fleet_maintained_app_slug: google-chrome/darwin
 `,
 			wantCA: new(false),
+		},
+		{
+			name:     "notify_before_patching with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "notify_before_patching with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"continuous_automations_enabled" must be true when "notify_before_patching" is true`},
+		},
+		{
+			name:     "notify_before_patching rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin" when "notify_before_patching" is true`},
 		},
 	}
 
