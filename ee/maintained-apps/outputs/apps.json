@@ -6516,7 +6516,7 @@
       "slug": "perimeter81/darwin",
       "platform": "darwin",
       "unique_identifier": "com.safervpn.osx.smb",
-      "description": ""
+      "description": "Perimeter 81 is a zero trust network as a service client."
     },
     {
       "name": "pgAdmin 4",
