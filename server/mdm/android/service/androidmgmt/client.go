@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -130,10 +132,12 @@ func IsBadRequestError(err error) bool {
 }
 
 // IsNotFoundError reports whether the AMAPI error indicates that the requested
-// resource does not exist.
+// resource does not exist. AMAPI sometimes returns a 500 with "Requested entity
+// was not found" instead of a proper 404.
 func IsNotFoundError(err error) bool {
 	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
-		return ae.Code == http.StatusNotFound
+		return ae.Code == http.StatusNotFound ||
+			(ae.Code == http.StatusInternalServerError && strings.Contains(ae.Message, "Requested entity was not found"))
 	}
 	return false
 }
@@ -156,3 +160,50 @@ func IsTooManyRequestsError(err error) bool {
 	}
 	return false
 }
+
+// IsConflictError reports whether the AMAPI error indicates that the device
+// state is incompatible with the requested operation.
+func IsConflictError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusConflict
+	}
+	return false
+}
+
+// FleetErrFromAMAPI maps a *googleapi.Error to the corresponding Fleet error
+// type. Returns nil when err is nil or is not a *googleapi.Error,
+// in which case the caller should fall through to its default error handling.
+func FleetErrFromAMAPI(err error) error {
+	ae, ok := errors.AsType[*googleapi.Error](err)
+	if !ok {
+		return nil
+	}
+	switch {
+	case IsBadRequestError(err):
+		return &fleet.BadRequestError{Message: ae.Message, InternalErr: err}
+	case IsNotFoundError(err):
+		return &notFoundError{message: ae.Message, internalErr: err}
+	case IsConflictError(err):
+		return &fleet.ConflictError{Message: ae.Message}
+	default:
+		return nil
+	}
+}
+
+// notFoundError implements the fleet IsNotFound interface so the HTTP layer
+// returns 404.
+type notFoundError struct {
+	message     string
+	internalErr error
+}
+
+func (e *notFoundError) Error() string {
+	if e.message != "" {
+		return e.message
+	}
+	return "not found"
+}
+
+func (e *notFoundError) IsNotFound() bool    { return true }
+func (e *notFoundError) IsClientError() bool { return true }
+func (e *notFoundError) Unwrap() error       { return e.internalErr }
