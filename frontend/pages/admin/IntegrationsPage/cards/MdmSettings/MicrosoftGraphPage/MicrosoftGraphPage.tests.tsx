@@ -20,8 +20,8 @@ const mockedAPI = microsoftGraphCredentialsAPI as jest.Mocked<
 const createMockCredential = (
   overrides: Partial<IMicrosoftGraphCredential> = {}
 ): IMicrosoftGraphCredential => ({
-  tenant_id: "tenant-guid",
-  client_id: "client-guid",
+  tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+  client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
   credential_invalid: false,
   last_synced_at: null,
   last_sync_error: null,
@@ -86,9 +86,13 @@ describe("MicrosoftGraphPage", () => {
     renderPage([createMockCredential()]);
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Tenant ID")).toHaveValue("tenant-guid");
+      expect(screen.getByLabelText("Tenant ID")).toHaveValue(
+        "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+      );
     });
-    expect(screen.getByLabelText("Client ID")).toHaveValue("client-guid");
+    expect(screen.getByLabelText("Client ID")).toHaveValue(
+      "7f6b1665-51f5-48de-a9b6-ac17539583fb"
+    );
     // The API never returns the secret; the mask signals that one is stored.
     expect(screen.getByLabelText("Client secret")).toHaveValue("********");
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
@@ -123,7 +127,10 @@ describe("MicrosoftGraphPage", () => {
 
     await waitFor(() => {
       expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
-        { tenant_id: "tenant-guid", client_id: "client-guid" },
+        {
+          tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
+        },
       ]);
     });
   });
@@ -139,8 +146,8 @@ describe("MicrosoftGraphPage", () => {
     await waitFor(() => {
       expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
         {
-          tenant_id: "tenant-guid",
-          client_id: "client-guid",
+          tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          client_id: "7f6b1665-51f5-48de-a9b6-ac17539583fb",
           client_secret: "new-secret",
         },
       ]);
@@ -152,7 +159,7 @@ describe("MicrosoftGraphPage", () => {
 
     const clientIdField = await screen.findByLabelText("Client ID");
     await user.clear(clientIdField);
-    await user.type(clientIdField, "different-client");
+    await user.type(clientIdField, "9a2e4d10-3b77-4c58-8e21-1f0c5d6a7b88");
 
     // The stored secret belongs to the old app registration, so the mask is cleared and re-entry is required. The API
     // rejects a masked secret alongside a changed ID, so catching it here avoids a round trip.
@@ -165,6 +172,69 @@ describe("MicrosoftGraphPage", () => {
       await screen.findByText("Enter a client secret")
     ).toBeInTheDocument();
     expect(mockedAPI.applyCredentials).not.toHaveBeenCalled();
+  });
+
+  it("rejects IDs that are not in Entra's GUID format", async () => {
+    const { user } = renderPage([]);
+
+    await user.type(await screen.findByLabelText("Tenant ID"), "not-a-guid");
+    await user.type(screen.getByLabelText("Client ID"), "also-not-a-guid");
+    await user.type(screen.getByLabelText("Client secret"), "a-secret");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // The API rejects a malformed GUID with a 422, so catching it inline avoids the round trip.
+    expect(
+      await screen.findByText("Enter a tenant ID in GUID format")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter a client ID in GUID format")
+    ).toBeInTheDocument();
+    expect(mockedAPI.applyCredentials).not.toHaveBeenCalled();
+  });
+
+  it("treats a differently-cased ID as the same app registration", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const clientIdField = await screen.findByLabelText("Client ID");
+    await user.clear(clientIdField);
+    await user.type(clientIdField, "7F6B1665-51F5-48DE-A9B6-AC17539583FB");
+
+    // The API lower-cases both IDs before comparing, so re-pasting the same ID in upper case is not an identity
+    // change and must not force the admin to re-enter a secret that did not change.
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.queryByText("Enter a client secret")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockedAPI.applyCredentials).toHaveBeenCalledWith([
+        {
+          tenant_id: "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          client_id: "7F6B1665-51F5-48DE-A9B6-AC17539583FB",
+        },
+      ]);
+    });
+  });
+
+  it("keeps typed input when a background refetch only moves sync state", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const tenantField = await screen.findByLabelText("Tenant ID");
+    await user.clear(tenantField);
+    await user.type(tenantField, "11111111-2222-3333-4444-555555555555");
+
+    // The sync cron rewrites last_synced_at every 5 minutes, and refetchOnWindowFocus is on, so returning to the tab
+    // hands the form a new credential object. Re-seeding on that would discard what the admin is typing.
+    mockedAPI.getCredentials.mockResolvedValue({
+      microsoft_graph_credentials: [
+        createMockCredential({ last_synced_at: "2026-08-19T16:10:37Z" }),
+      ],
+    });
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Last synced:")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Tenant ID")).toHaveValue(
+      "11111111-2222-3333-4444-555555555555"
+    );
   });
 
   it("validates on save rather than disabling the button", async () => {

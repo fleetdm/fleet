@@ -33,6 +33,17 @@ const baseClass = "microsoft-graph-page";
 // Entra IDs and secrets are stored in varchar(255) columns.
 const FIELD_MAX_LENGTH = 255;
 
+// Mirrors entraGUIDRegex in server/fleet/microsoft_graph.go. Case-insensitive because Entra emits IDs lower-cased but
+// admins paste them either way, which is also why the identity comparisons below fold case.
+const ENTRA_GUID_REGEX = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/;
+
+const isEntraGUID = (value: string) => ENTRA_GUID_REGEX.test(value);
+
+// The API lower-cases both IDs before comparing, so the UI must too or re-pasting the same app registration in a
+// different case looks like an identity change and needlessly demands a fresh secret.
+const sameEntraID = (a: string, b: string) =>
+  a.toLowerCase() === b.toLowerCase();
+
 interface IFormErrors {
   tenantId?: string;
   clientId?: string;
@@ -69,12 +80,16 @@ const MicrosoftGraphPage = () => {
 
   // Seed the form from the stored credential. The API never returns the secret, so the field shows the masked
   // placeholder to signal that one is stored; leaving it untouched keeps the stored secret.
+  // Keyed on identity, not on the credential object. A background refetch (focus, or after the 5-minute sync rewrites
+  // last_synced_at) yields a new object, and re-seeding on that would discard whatever the admin is mid-way through
+  // typing. onSave restores the mask itself, so nothing here needs to react to sync state.
   useEffect(() => {
     setTenantId(storedCredential?.tenant_id ?? "");
     setClientId(storedCredential?.client_id ?? "");
     setClientSecret(storedCredential ? UNCHANGED_PASSWORD_API_RESPONSE : "");
     setFormErrors({});
-  }, [storedCredential]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedCredential?.tenant_id, storedCredential?.client_id]);
 
   // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Clearing the mask
   // forces re-entry, which is the same pattern AccountProvisioning and the certificate-authority edit flow use, and it
@@ -87,14 +102,20 @@ const MicrosoftGraphPage = () => {
 
   const onChangeTenantId = (value: string) => {
     setTenantId(value);
-    if (storedCredential && value.trim() !== storedCredential.tenant_id) {
+    if (
+      storedCredential &&
+      !sameEntraID(value.trim(), storedCredential.tenant_id)
+    ) {
       clearMaskedSecretOnIdChange();
     }
   };
 
   const onChangeClientId = (value: string) => {
     setClientId(value);
-    if (storedCredential && value.trim() !== storedCredential.client_id) {
+    if (
+      storedCredential &&
+      !sameEntraID(value.trim(), storedCredential.client_id)
+    ) {
       clearMaskedSecretOnIdChange();
     }
   };
@@ -102,8 +123,8 @@ const MicrosoftGraphPage = () => {
   // Re-entry is required whenever the app registration's identity changes, matching the API's own rule.
   const identityChanged =
     !!storedCredential &&
-    (tenantId.trim() !== storedCredential.tenant_id ||
-      clientId.trim() !== storedCredential.client_id);
+    (!sameEntraID(tenantId.trim(), storedCredential.tenant_id) ||
+      !sameEntraID(clientId.trim(), storedCredential.client_id));
 
   const secretChanged =
     clientSecret !== "" && clientSecret !== UNCHANGED_PASSWORD_API_RESPONSE;
@@ -114,9 +135,13 @@ const MicrosoftGraphPage = () => {
     const errs: IFormErrors = {};
     if (tenantId.trim() === "") {
       errs.tenantId = "Enter a tenant ID";
+    } else if (!isEntraGUID(tenantId.trim())) {
+      errs.tenantId = "Enter a tenant ID in GUID format";
     }
     if (clientId.trim() === "") {
       errs.clientId = "Enter a client ID";
+    } else if (!isEntraGUID(clientId.trim())) {
+      errs.clientId = "Enter a client ID in GUID format";
     }
     if ((!storedCredential || identityChanged) && !secretChanged) {
       errs.clientSecret = "Enter a client secret";
@@ -156,6 +181,9 @@ const MicrosoftGraphPage = () => {
     setIsSaving(true);
     try {
       await microsoftGraphCredentialsAPI.applyCredentials([credential]);
+      // A secret is stored either way now, so show the mask again. The seeding effect only fires when the identity
+      // changed, so a save that kept the same tenant and client would otherwise leave the raw secret on screen.
+      setClientSecret(UNCHANGED_PASSWORD_API_RESPONSE);
       notify.success("Successfully saved Microsoft Graph credential.");
       refetch();
       await refreshAppConfig();

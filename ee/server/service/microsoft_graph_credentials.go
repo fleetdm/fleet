@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -197,7 +198,17 @@ func microsoftGraphVerifyMessage(err error) string {
 	if msg := msgraph.UserFacingMessage(err); msg != "" {
 		return msg
 	}
-	return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", err)
+	// Unwrapped for the same reason the sync path stores a classified message: the wrap chain is internal plumbing, and
+	// the innermost error is the part an admin can act on (a DNS or TLS failure, say).
+	root := err
+	for {
+		unwrapped := errors.Unwrap(root)
+		if unwrapped == nil {
+			break
+		}
+		root = unwrapped
+	}
+	return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", root)
 }
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants

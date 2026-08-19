@@ -2527,6 +2527,8 @@ type Datastore interface {
 	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) error
 
 	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any previous error.
+	// last_synced_at reports the last SUCCESSFUL sync: a failed pass records its error and leaves the timestamp alone, so a stale
+	// value alongside an error tells the admin how far behind the synced data has fallen.
 	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
 
 	// UpdateMicrosoftGraphCredentialInvalidAggregate recomputes MDM.MicrosoftGraphCredentialInvalid from the
