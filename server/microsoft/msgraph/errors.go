@@ -56,9 +56,7 @@ func (e *Error) IsTransient() bool {
 }
 
 // UserFacingMessage turns a Graph failure into a single sentence an admin can act on, discarding the internal wrap
-// chain that an error accumulates on its way up. Returns "" when the failure did not come from Graph, leaving the
-// caller to describe it in terms that fit its own context. The raw error stays in the server logs, which is where the
-// trace and correlation IDs belong.
+// chain that an error accumulates on its way up.
 func UserFacingMessage(err error) string {
 	graphErr, ok := AsError(err)
 	if !ok {

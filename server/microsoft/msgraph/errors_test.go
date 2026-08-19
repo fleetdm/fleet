@@ -129,13 +129,11 @@ func TestUserFacingMessage(t *testing.T) {
 	}
 
 	t.Run("non-graph error yields no message", func(t *testing.T) {
-		t.Parallel()
 		// The caller describes a failure that never reached Graph, since only it knows what it was attempting.
 		assert.Empty(t, UserFacingMessage(errors.New("dial tcp: timeout")))
 	})
 
 	t.Run("wrapped graph error is still classified", func(t *testing.T) {
-		t.Parallel()
 		wrapped := fmt.Errorf("list windows autopilot devices: %w", &Error{StatusCode: http.StatusUnauthorized})
 		msg := UserFacingMessage(wrapped)
 		assert.Contains(t, msg, "rejected the credential")

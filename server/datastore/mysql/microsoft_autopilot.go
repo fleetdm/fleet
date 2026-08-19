@@ -139,11 +139,8 @@ func (ds *Datastore) SetMicrosoftGraphCredentialInvalid(ctx context.Context, ten
 }
 
 // RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass for a tenant. A nil syncErr records a success and
-// clears any previous error; a non-nil one records the message for display alongside the credential.
-//
-// last_synced_at means "last successful sync", so a failed pass records its error without advancing it. The stale
-// timestamp is the point: next to an error it tells the admin how far behind their pending hosts have fallen, which is
-// the fact they can act on. A timestamp that advanced on failure would claim the opposite.
+// clears any previous error; a non-nil one records the message for display alongside the credential. last_synced_at
+// means "last successful sync."
 func (ds *Datastore) RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error {
 	const stmt = `
 		UPDATE mdm_microsoft_graph_credentials

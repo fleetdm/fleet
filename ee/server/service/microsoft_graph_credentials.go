@@ -196,6 +196,10 @@ func (svc *Service) verifyMicrosoftGraphCredentials(
 // reached Graph is described here rather than in msgraph, because only the caller knows what it was attempting.
 func microsoftGraphVerifyMessage(err error) string {
 	if msg := msgraph.UserFacingMessage(err); msg != "" {
+		// Someone is waiting on this save, so retrying by hand is real advice.
+		if graphErr, ok := msgraph.AsError(err); ok && graphErr.IsTransient() {
+			return msg + " Please try again."
+		}
 		return msg
 	}
 	// Unwrapped for the same reason the sync path stores a classified message: the wrap chain is internal plumbing, and
