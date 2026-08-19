@@ -143,6 +143,10 @@
         gap: 64px;
       }
 
+      .content-with-sidebar--qr-only {
+        justify-content: center;
+      }
+
       .mobile-enroll-sidebar p {
         max-width: 208px;
         font-weight: bold;
@@ -287,14 +291,24 @@
 
     <!-- android content when not fully managed-->
     <template id="android-template">
-      <section class="device-instructions-content">
-        <h1>How to enroll your Android device to Fleet</h1>
-        <div class="android-content">
-          <p>Select <b>Enroll</b> and follow the steps.</p>
-          <a class="enroll-link" href="" target="_blank">Enroll</a>
-          <p>Already finished? You can close this tab.</p>
-        </div>
-      </section>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to enroll your Android device to Fleet</h1>
+          <div class="android-content">
+            <p>Select <b>Enroll</b> and follow the steps.</p>
+            <a class="enroll-link" href="" target="_blank">Enroll</a>
+            <p>Already finished? You can close this tab.</p>
+          </div>
+        </section>
+        <!-- shown only when this page is opened on a desktop browser; see renderDesktopHandoffQRCode() -->
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Enrolling an Android device?</p>
+            <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Scan this QR code with that device</p>
+          </div>
+        </section>
+      </div>
     </template>
 
     <!-- content when full managed is enabled. This will show for any platform, despite the copy referencing Android -->
@@ -371,84 +385,13 @@
 
     <!-- ios, ipados content -->
     <template id="ios-ipad-template">
-      <section class="device-instructions-content">
-        <h1>
-          How to enroll your
-          <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
-          Fleet
-        </h1>
-        <div>
-          <div class="byod-tabs" role="tablist">
-            <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
-            <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
-          </div>
-          <div class="byod-info-banner">
-            <span class="byod-info-banner-icon" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 14.5C11.8137 14.5 14.5 11.8137 14.5 8.5C14.5 5.18629 11.8137 2.5 8.5 2.5C5.18629 2.5 2.5 5.18629 2.5 8.5C2.5 11.8137 5.18629 14.5 8.5 14.5ZM8.5 16.5C12.9183 16.5 16.5 12.9183 16.5 8.5C16.5 4.08172 12.9183 0.5 8.5 0.5C4.08172 0.5 0.5 4.08172 0.5 8.5C0.5 12.9183 4.08172 16.5 8.5 16.5ZM8.5 12.5C7.94772 12.5 7.5 12.0523 7.5 11.5L7.5 8.5C7.5 7.94772 7.94771 7.5 8.5 7.5C9.05228 7.5 9.5 7.94772 9.5 8.5V11.5C9.5 12.0523 9.05229 12.5 8.5 12.5ZM8.5 4.5C7.94772 4.5 7.5 4.94772 7.5 5.5C7.5 6.05228 7.94772 6.5 8.5 6.5C9.05229 6.5 9.5 6.05228 9.5 5.5C9.5 4.94772 9.05228 4.5 8.5 4.5Z" fill="#515774"/>
-              </svg>
-            </span>
-            <span class="byod-info-banner-text">
-              <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out. <a class="byod-learn-more" href="https://fleetdm.com/learn-more-about/byod-transparency" target="_blank" rel="noopener noreferrer">Learn more<svg class="byod-learn-more-icon" width="9" height="9" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="8" height="8" x="1" y="1" fill="none" stroke="currentColor" rx="2"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M4 3.333h2.667m0 0V6m0-2.667L3.333 6.668"/></svg></a></span>
-              <span data-byod-content="company">Your organization can see and delete all device information.</span>
-            </span>
-          </div>
-        </div>
-        <ol>
-          <li>
-            <p>
-              <span>1.</span>
-              <span>
-                Tap the button below to download the Fleet profile. When
-                prompted, tap <b>Allow</b>.
-              </span>
-            </p>
-            <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
-          </li>
-          <li>
-            <p>
-              <span>2.</span>
-              <span>Go to <b>Settings > Profile Downloaded</b>.</span>
-            </p>
-            <div class="profile-downloaded-container">
-              <img
-                class="profile-downloaded-img"
-                src=""
-                alt="select profile downloaded in settings"
-              />
-            </div>
-          </li>
-          <li>
-            <p>
-              <span>3.</span>
-              <span>
-                Tap <b>Install</b>. You'll see a red <b>Not Verified</b> warning, which is
-                expected. Tap <b>Install</b> again when prompted.
-              </span>
-            </p>
-            <div class="install-profile-container">
-              <img class="install-profile-img" src="" alt="select install" />
-            </div>
-          </li>
-          <li>
-            <p>
-              <span>4.</span>
-              <span>
-                When you see the <b>Remote Management</b> screen, tap
-                <b>Trust</b>.
-              </span>
-            </p>
-          </li>
-        </ol>
-        <p>Done! You can close this tab.</p>
-      </section>
-    </template>
-
-    <!-- macos content -->
-    <template id="macos-template">
       <div class="content-with-sidebar">
         <section class="device-instructions-content">
-          <h1>How to turn on MDM on your Mac</h1>
+          <h1>
+            How to enroll your
+            <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+            Fleet
+          </h1>
           <div>
             <div class="byod-tabs" role="tablist">
               <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
@@ -471,8 +414,8 @@
               <p>
                 <span>1.</span>
                 <span>
-                  Tap the button below to download the Fleet profile. Open it.
-                  You'll see a warning, which is expected.
+                  Tap the button below to download the Fleet profile. When
+                  prompted, tap <b>Allow</b>.
                 </span>
               </p>
               <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
@@ -480,39 +423,111 @@
             <li>
               <p>
                 <span>2.</span>
-                <span>
-                  Go to the Apple menu in the top left corner of your screen.
-                  Select
-                  <b>System Settings</b>.
-                </span>
+                <span>Go to <b>Settings > Profile Downloaded</b>.</span>
               </p>
+              <div class="profile-downloaded-container">
+                <img
+                  class="profile-downloaded-img"
+                  src=""
+                  alt="select profile downloaded in settings"
+                />
+              </div>
             </li>
             <li>
               <p>
                 <span>3.</span>
                 <span>
-                  Go to <b>Profile Downloaded</b>. Double-click the
-                  <b>[Organization name] enrollment</b> profile.
+                  Tap <b>Install</b>. You'll see a red <b>Not Verified</b> warning, which is
+                  expected. Tap <b>Install</b> again when prompted.
                 </span>
               </p>
+              <div class="install-profile-container">
+                <img class="install-profile-img" src="" alt="select install" />
+              </div>
             </li>
             <li>
               <p>
                 <span>4.</span>
-                <span>Select <b>Install</b>. Enter your password.</span>
+                <span>
+                  When you see the <b>Remote Management</b> screen, tap
+                  <b>Trust</b>.
+                </span>
               </p>
             </li>
           </ol>
           <p>Done! You can close this tab.</p>
         </section>
+        <!-- shown only when this page is opened on a desktop browser; see renderDesktopHandoffQRCode() -->
         <section class="mobile-enroll-sidebar">
           <div class="qr-container">
-            <p>Trying to enroll your mobile device?</p>
+            <p>Enrolling an iPhone or iPad?</p>
             <canvas class="qr-code"></canvas>
-            <p class="qr-subtext">Opens this page on your mobile device</p>
+            <p class="qr-subtext">Scan this QR code with that device</p>
           </div>
         </section>
       </div>
+    </template>
+
+    <!-- macos content -->
+    <template id="macos-template">
+      <section class="device-instructions-content">
+        <h1>How to turn on MDM on your Mac</h1>
+        <div>
+          <div class="byod-tabs" role="tablist">
+            <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+            <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
+          </div>
+          <div class="byod-info-banner">
+            <span class="byod-info-banner-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 14.5C11.8137 14.5 14.5 11.8137 14.5 8.5C14.5 5.18629 11.8137 2.5 8.5 2.5C5.18629 2.5 2.5 5.18629 2.5 8.5C2.5 11.8137 5.18629 14.5 8.5 14.5ZM8.5 16.5C12.9183 16.5 16.5 12.9183 16.5 8.5C16.5 4.08172 12.9183 0.5 8.5 0.5C4.08172 0.5 0.5 4.08172 0.5 8.5C0.5 12.9183 4.08172 16.5 8.5 16.5ZM8.5 12.5C7.94772 12.5 7.5 12.0523 7.5 11.5L7.5 8.5C7.5 7.94772 7.94771 7.5 8.5 7.5C9.05228 7.5 9.5 7.94772 9.5 8.5V11.5C9.5 12.0523 9.05229 12.5 8.5 12.5ZM8.5 4.5C7.94772 4.5 7.5 4.94772 7.5 5.5C7.5 6.05228 7.94772 6.5 8.5 6.5C9.05229 6.5 9.5 6.05228 9.5 5.5C9.5 4.94772 9.05228 4.5 8.5 4.5Z" fill="#515774"/>
+              </svg>
+            </span>
+            <span class="byod-info-banner-text">
+              <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out. <a class="byod-learn-more" href="https://fleetdm.com/learn-more-about/byod-transparency" target="_blank" rel="noopener noreferrer">Learn more<svg class="byod-learn-more-icon" width="9" height="9" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="8" height="8" x="1" y="1" fill="none" stroke="currentColor" rx="2"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M4 3.333h2.667m0 0V6m0-2.667L3.333 6.668"/></svg></a></span>
+              <span data-byod-content="company">Your organization can see and delete all device information.</span>
+            </span>
+          </div>
+        </div>
+        <ol>
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Tap the button below to download the Fleet profile. Open it.
+                You'll see a warning, which is expected.
+              </span>
+            </p>
+            <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>
+                Go to the Apple menu in the top left corner of your screen.
+                Select
+                <b>System Settings</b>.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>
+                Go to <b>Profile Downloaded</b>. Double-click the
+                <b>[Organization name] enrollment</b> profile.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span>Select <b>Install</b>. Enter your password.</span>
+            </p>
+          </li>
+        </ol>
+        <p>Done! You can close this tab.</p>
+      </section>
     </template>
 
     <!-- Open in Safari content (iOS/iPadOS only) -->
@@ -585,8 +600,13 @@
         true
       );
 
-      const getPlatform = () => {
+      // Pure user-agent based detection. Returns "windows" as a distinct
+      // case (on top of the platforms getPlatform() cares about) so
+      // isDesktopUserAgent() can tell a desktop browser apart from a mobile
+      // device without affecting which enrollment instructions get shown.
+      const detectUserAgentPlatform = () => {
         const userAgent = navigator.userAgent;
+        const isWindows = /Windows/i.test(userAgent);
         const isIPhone = /iPhone/i.test(userAgent);
         const isIPad =
           /iPad/i.test(userAgent) ||
@@ -607,9 +627,40 @@
             return "ipad";
           case isMac:
             return "macos";
+          case isWindows:
+            return "windows";
           default:
             return "unsupported";
         }
+      };
+
+      const getPlatform = () => {
+        // The Add hosts modal knows which platform tab generated this link,
+        // so prefer that over guessing from the user agent (e.g. an admin
+        // opening an Android BYOD link from a desktop browser to grab the QR
+        // code shouldn't see mac/ios instructions instead).
+        const validPlatforms = ["android", "ios", "ipad", "macos"];
+        const platformParam = new URLSearchParams(
+          window.location.search
+        ).get("platform");
+        if (validPlatforms.includes(platformParam)) {
+          return platformParam;
+        }
+
+        const detected = detectUserAgentPlatform();
+        // "windows" isn't one of the platforms we render instructions for;
+        // treat it the same as any other undetected platform.
+        return detected === "windows" ? "unsupported" : detected;
+      };
+
+      // Whether the CURRENT browser (as opposed to the platform whose
+      // instructions are being shown, which comes from the platform query
+      // param) is a desktop browser. Used to offer a handoff QR code when,
+      // e.g., an admin previews an Android or iOS/iPadOS enrollment link on
+      // their Mac or Windows computer instead of the actual device.
+      const isDesktopUserAgent = () => {
+        const detected = detectUserAgentPlatform();
+        return detected === "macos" || detected === "windows";
       };
 
       // Detects if the browser is Safari on iOS/iPadOS
@@ -694,6 +745,41 @@
         QRCode.toCanvas(element, text, QROptions, function (error) {
           if (error) console.error("problem with rendering QR code", error);
         });
+      };
+
+      // Builds the URL encoded in the "scan with your mobile device" QR
+      // code. That QR is meant to be opened on a DIFFERENT device than the
+      // one currently showing this page (e.g. a phone scanning a code shown
+      // on a Mac), so it must drop the current page's platform hint and let
+      // the scanning device's own user agent decide its platform.
+      const getMobileDeviceQRCodeUrl = () => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("platform");
+        return url.toString();
+      };
+
+      // Shows a QR code (encoding this same smart-path URL, platform hint
+      // included) on the android/ios-ipad templates when the CURRENT browser
+      // is a desktop one, so whoever's previewing the link can hand it off
+      // to the actual device via camera scan. The written steps are for the
+      // enrolling device, not this one, so they're dropped in favor of just
+      // the QR code. On the enrolling device itself there's nothing to hand
+      // off to, so the QR sidebar is removed instead and the written steps
+      // stay.
+      const renderDesktopHandoffQRCode = () => {
+        const sidebar = document.querySelector(".mobile-enroll-sidebar");
+        if (!sidebar) {
+          return;
+        }
+        if (isDesktopUserAgent()) {
+          renderQRCode(window.location.href, sidebar.querySelector(".qr-code"));
+          document.querySelector(".device-instructions-content")?.remove();
+          document
+            .querySelector(".content-with-sidebar")
+            ?.classList.add("content-with-sidebar--qr-only");
+        } else {
+          sidebar.remove();
+        }
       };
 
       const getTemplateIdFromPlatform = (platform) => {
@@ -911,7 +997,7 @@
         if (platform === "unsupported") {
           renderContent("unsupported-template");
           renderQRCode(
-            window.location.href,
+            getMobileDeviceQRCodeUrl(),
             document.querySelector(".qr-code")
           );
           return;
@@ -944,6 +1030,7 @@
             );
             return;
           }
+          renderDesktopHandoffQRCode();
         }
 
         // handle rendering for macos
@@ -956,10 +1043,6 @@
             return;
           }
           renderContent(templateId);
-          renderQRCode(
-            window.location.href,
-            document.querySelector(".qr-code")
-          );
           wireBYODTabs();
         }
 
@@ -973,8 +1056,11 @@
             return;
           }
 
-          // Check if user is NOT in Safari - redirect them to Safari
-          if (!isSafariBrowser()) {
+          // The Safari requirement only matters for the device that will
+          // actually install the profile. On a desktop browser nothing gets
+          // installed here anyway - hand off to the real device via QR code
+          // instead of forcing the admin into Safari.
+          if (!isDesktopUserAgent() && !isSafariBrowser()) {
             renderContent("open-in-safari-template");
             const openBtn = document.querySelector(".open-safari-btn");
             if (openBtn) {
@@ -986,6 +1072,7 @@
           renderContent(templateId);
           setIosIpadContent(platform);
           wireBYODTabs();
+          renderDesktopHandoffQRCode();
         }
       });
     </script>

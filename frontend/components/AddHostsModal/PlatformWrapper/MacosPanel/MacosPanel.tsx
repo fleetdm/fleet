@@ -38,6 +38,7 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
       {
         enroll_secret: enrollSecret,
         byod: deviceType === "personalBYOD" ? "true" : undefined,
+        platform: "macos",
       }
     );
 

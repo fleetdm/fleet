@@ -17,7 +17,7 @@ const generateUrl = (
 ) => {
   const url = `${serverUrl}/enroll?enroll_secret=${encodeURIComponent(
     enrollSecret
-  )}`;
+  )}&platform=android`;
 
   if (enrollType === "fullyManaged") {
     return `${url}&fully_managed=true`;
