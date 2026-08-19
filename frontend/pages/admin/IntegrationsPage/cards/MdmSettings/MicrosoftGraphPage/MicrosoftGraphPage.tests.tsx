@@ -6,11 +6,13 @@ import { createMockConfig } from "__mocks__/configMock";
 import { IMicrosoftGraphCredential } from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI from "services/entities/microsoft_graph_credentials";
 
+import { notify } from "components/ToastNotification";
+
 import MicrosoftGraphPage from "./MicrosoftGraphPage";
 
 jest.mock("services/entities/microsoft_graph_credentials");
 jest.mock("components/ToastNotification", () => ({
-  notify: { success: jest.fn(), error: jest.fn() },
+  notify: { success: jest.fn(), error: jest.fn(), batch: jest.fn() },
 }));
 
 const mockedAPI = microsoftGraphCredentialsAPI as jest.Mocked<
@@ -245,6 +247,79 @@ describe("MicrosoftGraphPage", () => {
     const secretField = await screen.findByLabelText("Client secret");
     expect(secretField).toHaveAttribute("autocomplete", "new-password");
     expect(secretField).toHaveAttribute("data-1p-ignore");
+  });
+
+  it("shows a field error on blur once the field is dirty", async () => {
+    const { user } = renderPage([]);
+
+    const tenantField = await screen.findByLabelText("Tenant ID");
+    await user.type(tenantField, "not-a-guid");
+    await user.tab();
+
+    expect(
+      await screen.findByText("Enter a tenant ID in GUID format")
+    ).toBeInTheDocument();
+    // Blur validates the blurred field only.
+    expect(screen.queryByText("Enter a client ID")).not.toBeInTheDocument();
+  });
+
+  it("stays silent on blur of a field the admin never typed in", async () => {
+    const { user } = renderPage([]);
+
+    await user.click(await screen.findByLabelText("Tenant ID"));
+    await user.tab();
+    await user.tab();
+
+    expect(screen.queryByText("Enter a tenant ID")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter a client ID")).not.toBeInTheDocument();
+  });
+
+  it("renders a server field error inline and toasts it", async () => {
+    mockedAPI.applyCredentials.mockRejectedValue({
+      data: {
+        errors: [
+          {
+            name: "microsoft_graph_credentials.client_secret",
+            reason: "Microsoft Graph rejected the credential.",
+          },
+        ],
+      },
+    });
+    const { user } = renderPage([createMockCredential()]);
+
+    const secretField = await screen.findByLabelText("Client secret");
+    await user.clear(secretField);
+    await user.type(secretField, "wrong-secret");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // The field can be scrolled off-screen after submit, so the error surfaces inline and as a toast.
+    expect(
+      await screen.findByText("Microsoft Graph rejected the credential.")
+    ).toBeInTheDocument();
+    expect(notify.batch).toHaveBeenCalled();
+  });
+
+  it("clears the secret error when the identity change that required it is reverted", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const clientIdField = await screen.findByLabelText("Client ID");
+    await user.clear(clientIdField);
+    await user.type(clientIdField, "9a2e4d10-3b77-4c58-8e21-1f0c5d6a7b88");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      await screen.findByText("Enter a client secret")
+    ).toBeInTheDocument();
+
+    // Putting the stored client ID back means the app registration is unchanged, so the secret is no longer required
+    // and its error no longer applies.
+    await user.clear(clientIdField);
+    await user.type(clientIdField, "7f6b1665-51f5-48de-a9b6-ac17539583fb");
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Enter a client secret")
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("validates on save rather than disabling the button", async () => {

@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { IMicrosoftGraphCredentialFormData } from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI, {
   IGetMicrosoftGraphCredentialsResponse,
@@ -20,6 +21,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import IconStatusMessage from "components/IconStatusMessage";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import InputField from "components/forms/fields/InputField";
+import isUUID from "components/forms/validators/valid_uuid";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -33,32 +35,70 @@ const baseClass = "microsoft-graph-page";
 // Entra IDs and secrets are stored in varchar(255) columns.
 const FIELD_MAX_LENGTH = 255;
 
-// Mirrors entraGUIDRegex in server/fleet/microsoft_graph.go. Case-insensitive because Entra emits IDs lower-cased but
-// admins paste them either way, which is also why the identity comparisons below fold case.
-const ENTRA_GUID_REGEX = /^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/;
-
-const isEntraGUID = (value: string) => ENTRA_GUID_REGEX.test(value);
-
 // The API lower-cases both IDs before comparing, so the UI must too or re-pasting the same app registration in a
 // different case looks like an identity change and needlessly demands a fresh secret.
 const sameEntraID = (a: string, b: string) =>
   a.toLowerCase() === b.toLowerCase();
 
-interface IFormErrors {
-  tenantId?: string;
-  clientId?: string;
-  clientSecret?: string;
-}
+type ICredentialField = "tenantId" | "clientId" | "clientSecret";
+
+type IFormData = Record<ICredentialField, string>;
+
+type IFormErrors = Partial<Record<ICredentialField, string>>;
+
+const SECRET_REQUIRED_ERROR = "Enter a client secret";
+
+const CREDENTIAL_FIELDS: ICredentialField[] = [
+  "tenantId",
+  "clientId",
+  "clientSecret",
+];
+
+// The API reports per-field problems under these names. Anything it reports under the bare `microsoft_graph_credentials`
+// key is a whole-credential failure (verification, licensing, missing private key) with no field to attach it to.
+// Lets one change handler compare either ID against the credential Fleet already stores.
+const STORED_ID_KEYS = {
+  tenantId: "tenant_id",
+  clientId: "client_id",
+} as const;
+
+const SERVER_ERROR_NAMES: Record<ICredentialField, string> = {
+  tenantId: "microsoft_graph_credentials.tenant_id",
+  clientId: "microsoft_graph_credentials.client_id",
+  clientSecret: "microsoft_graph_credentials.client_secret",
+};
+
+const getServerFieldErrors = (err: unknown): IFormErrors => {
+  const errs: IFormErrors = {};
+  CREDENTIAL_FIELDS.forEach((field) => {
+    const reason = getErrorReason(err, {
+      nameEquals: SERVER_ERROR_NAMES[field],
+    });
+    if (reason) {
+      errs[field] = reason;
+    }
+  });
+  return errs;
+};
 
 const MicrosoftGraphPage = () => {
   const { isPremiumTier, setConfig } = useContext(AppContext);
 
-  const [tenantId, setTenantId] = useState("");
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
+  const [formData, setFormData] = useState<IFormData>({
+    tenantId: "",
+    clientId: "",
+    clientSecret: "",
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
+  // A field is dirty once the admin has typed in it, and stays dirty for the session. Blur only surfaces errors for
+  // dirty fields; submit ignores this and validates everything.
+  const [dirtyFields, setDirtyFields] = useState<
+    Partial<Record<ICredentialField, boolean>>
+  >({});
+
+  const { tenantId, clientId, clientSecret } = formData;
 
   const { data: credentialsResponse, isLoading, isError, refetch } = useQuery<
     IGetMicrosoftGraphCredentialsResponse,
@@ -84,40 +124,39 @@ const MicrosoftGraphPage = () => {
   // last_synced_at) yields a new object, and re-seeding on that would discard whatever the admin is mid-way through
   // typing. onSave restores the mask itself, so nothing here needs to react to sync state.
   useEffect(() => {
-    setTenantId(storedCredential?.tenant_id ?? "");
-    setClientId(storedCredential?.client_id ?? "");
-    setClientSecret(storedCredential ? UNCHANGED_PASSWORD_API_RESPONSE : "");
+    setFormData({
+      tenantId: storedCredential?.tenant_id ?? "",
+      clientId: storedCredential?.client_id ?? "",
+      clientSecret: storedCredential ? UNCHANGED_PASSWORD_API_RESPONSE : "",
+    });
     setFormErrors({});
+    setDirtyFields({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storedCredential?.tenant_id, storedCredential?.client_id]);
 
-  // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Clearing the mask
-  // forces re-entry, which is the same pattern AccountProvisioning and the certificate-authority edit flow use, and it
-  // surfaces inline what the API would otherwise reject with a 422.
-  const clearMaskedSecretOnIdChange = () => {
-    setClientSecret((prev) =>
-      prev === UNCHANGED_PASSWORD_API_RESPONSE ? "" : prev
-    );
-  };
+  const markDirty = (field: ICredentialField) =>
+    setDirtyFields((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
 
-  const onChangeTenantId = (value: string) => {
-    setTenantId(value);
-    if (
-      storedCredential &&
-      !sameEntraID(value.trim(), storedCredential.tenant_id)
-    ) {
-      clearMaskedSecretOnIdChange();
-    }
-  };
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
+    const field = name as ICredentialField;
+    const nextValue = String(value);
+    markDirty(field);
 
-  const onChangeClientId = (value: string) => {
-    setClientId(value);
-    if (
-      storedCredential &&
-      !sameEntraID(value.trim(), storedCredential.client_id)
-    ) {
-      clearMaskedSecretOnIdChange();
-    }
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: nextValue };
+      // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Clearing the
+      // mask forces re-entry, which is the same pattern AccountProvisioning and the certificate-authority edit flow
+      // use, and it surfaces inline what the API would otherwise reject with a 422.
+      if (
+        storedCredential &&
+        field !== "clientSecret" &&
+        prev.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE &&
+        !sameEntraID(nextValue.trim(), storedCredential[STORED_ID_KEYS[field]])
+      ) {
+        updated.clientSecret = "";
+      }
+      return updated;
+    });
   };
 
   // Re-entry is required whenever the app registration's identity changes, matching the API's own rule.
@@ -129,25 +168,54 @@ const MicrosoftGraphPage = () => {
   const secretChanged =
     clientSecret !== "" && clientSecret !== UNCHANGED_PASSWORD_API_RESPONSE;
 
+  // The secret is only required for a new credential or a changed app registration.
+  const secretRequired = !storedCredential || identityChanged;
+
+  // Reverting an edited ID back to its stored value drops the requirement, so the error it produced no longer applies
+  // and clears on its own. Matched by message rather than cleared outright, so a server error on the same field stays.
+  useEffect(() => {
+    if (secretRequired) {
+      return;
+    }
+    setFormErrors((prev) =>
+      prev.clientSecret === SECRET_REQUIRED_ERROR
+        ? { ...prev, clientSecret: undefined }
+        : prev
+    );
+  }, [secretRequired]);
+
   // A new credential needs all three values. An existing one can be saved without re-entering the secret, since
   // omitting it keeps the stored one.
   const validate = () => {
     const errs: IFormErrors = {};
     if (tenantId.trim() === "") {
       errs.tenantId = "Enter a tenant ID";
-    } else if (!isEntraGUID(tenantId.trim())) {
+    } else if (!isUUID(tenantId.trim())) {
       errs.tenantId = "Enter a tenant ID in GUID format";
     }
     if (clientId.trim() === "") {
       errs.clientId = "Enter a client ID";
-    } else if (!isEntraGUID(clientId.trim())) {
+    } else if (!isUUID(clientId.trim())) {
       errs.clientId = "Enter a client ID in GUID format";
     }
-    if ((!storedCredential || identityChanged) && !secretChanged) {
-      errs.clientSecret = "Enter a client secret";
+    if (secretRequired && !secretChanged) {
+      errs.clientSecret = SECRET_REQUIRED_ERROR;
     }
     return errs;
   };
+
+  // Blur re-validates one field and touches no others. A pristine field stays silent, so an admin who tabs through the
+  // form without typing never sees an error.
+  const onBlurField = (field: ICredentialField) => () => {
+    if (!dirtyFields[field]) {
+      return;
+    }
+    const errs = validate();
+    setFormErrors((prev) => ({ ...prev, [field]: errs[field] }));
+  };
+
+  const onFocusField = (field: ICredentialField) => () =>
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
 
   // The app-wide banner reads config.mdm.microsoft_graph_credential_invalid from AppContext, and App only refreshes
   // that on a pathname change. Saving or deleting recomputes the aggregate server-side, so pull the config again or a
@@ -183,14 +251,28 @@ const MicrosoftGraphPage = () => {
       await microsoftGraphCredentialsAPI.applyCredentials([credential]);
       // A secret is stored either way now, so show the mask again. The seeding effect only fires when the identity
       // changed, so a save that kept the same tenant and client would otherwise leave the raw secret on screen.
-      setClientSecret(UNCHANGED_PASSWORD_API_RESPONSE);
+      setFormData((prev) => ({
+        ...prev,
+        clientSecret: UNCHANGED_PASSWORD_API_RESPONSE,
+      }));
       notify.success("Successfully saved Microsoft Graph credential.");
       refetch();
       await refreshAppConfig();
     } catch (e) {
-      notify.error(
-        getErrorReason(e) || "Couldn't save Microsoft Graph credential."
-      );
+      // Field-specific problems render inline AND toast: the form can be scrolled past the errored field after submit.
+      // A whole-credential failure has no field to attach to, so it is a toast only.
+      const fieldErrors = getServerFieldErrors(e);
+      const messages = Object.values(fieldErrors);
+      if (messages.length > 0) {
+        setFormErrors((prev) => ({ ...prev, ...fieldErrors }));
+        notify.batch(
+          messages.map((message) => ({ variant: "error" as const, message }))
+        );
+      } else {
+        notify.error(
+          getErrorReason(e) || "Couldn't save Microsoft Graph credential."
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -234,64 +316,42 @@ const MicrosoftGraphPage = () => {
     );
   };
 
+  const renderField = (
+    field: ICredentialField,
+    label: string,
+    extra?: Partial<React.ComponentProps<typeof InputField>>
+  ) => (
+    <GitOpsModeTooltipWrapper
+      isInputField
+      renderChildren={(disableChildren) => (
+        <InputField
+          label={label}
+          name={field}
+          value={formData[field]}
+          onChange={onInputChange}
+          parseTarget
+          error={formErrors[field]}
+          onFocus={onFocusField(field)}
+          onBlur={onBlurField(field)}
+          inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
+          disabled={disableChildren}
+          {...extra}
+        />
+      )}
+    />
+  );
+
   const renderForm = () => (
     <form className={`${baseClass}__form`} onSubmit={onSave}>
-      <GitOpsModeTooltipWrapper
-        isInputField
-        renderChildren={(disableChildren) => (
-          <InputField
-            label="Tenant ID"
-            name="tenantId"
-            value={tenantId}
-            onChange={onChangeTenantId}
-            error={formErrors.tenantId}
-            onFocus={() =>
-              setFormErrors((prev) => ({ ...prev, tenantId: undefined }))
-            }
-            inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-            disabled={disableChildren}
-          />
-        )}
-      />
-      <GitOpsModeTooltipWrapper
-        isInputField
-        renderChildren={(disableChildren) => (
-          <InputField
-            label="Client ID"
-            name="clientId"
-            value={clientId}
-            onChange={onChangeClientId}
-            error={formErrors.clientId}
-            onFocus={() =>
-              setFormErrors((prev) => ({ ...prev, clientId: undefined }))
-            }
-            inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-            disabled={disableChildren}
-          />
-        )}
-      />
-      <GitOpsModeTooltipWrapper
-        isInputField
-        renderChildren={(disableChildren) => (
-          <InputField
-            label="Client secret"
-            name="clientSecret"
-            type="password"
-            // Renders autocomplete="new-password" so a password manager neither offers to fill this nor prompts to
-            // save it. This is a service principal's secret, not a user login, and the field carries a mask rather
-            // than the real value. InputField's ignore1password default already emits data-1p-ignore.
-            blockAutoComplete
-            value={clientSecret}
-            onChange={setClientSecret}
-            error={formErrors.clientSecret}
-            onFocus={() =>
-              setFormErrors((prev) => ({ ...prev, clientSecret: undefined }))
-            }
-            inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-            disabled={disableChildren}
-          />
-        )}
-      />
+      {renderField("tenantId", "Tenant ID")}
+      {renderField("clientId", "Client ID")}
+      {/* blockAutoComplete renders autocomplete="new-password" so a password manager neither offers to fill this nor
+          prompts to save it. This is a service principal's secret, not a user login, and the field carries a mask
+          rather than the real value. InputField's ignore1password default already emits data-1p-ignore. */}
+      {renderField("clientSecret", "Client secret", {
+        type: "password",
+        blockAutoComplete: true,
+      })}
       <div className={`${baseClass}__form-actions`}>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (

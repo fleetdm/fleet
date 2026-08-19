@@ -2276,24 +2276,18 @@ const TAGGED_TEMPLATES = {
   },
   addedMicrosoftGraphCredential: (activity: IActivity) => {
     const tenantId = activity.details?.tenant_id;
-    return (
-      <> added Microsoft Graph credential{tenantId ? ` (${tenantId})` : ""}.</>
-    );
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> added Microsoft Graph credential{suffix}.</>;
   },
   editedMicrosoftGraphCredential: (activity: IActivity) => {
     const tenantId = activity.details?.tenant_id;
-    return (
-      <> edited Microsoft Graph credential{tenantId ? ` (${tenantId})` : ""}.</>
-    );
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> edited Microsoft Graph credential{suffix}.</>;
   },
   deletedMicrosoftGraphCredential: (activity: IActivity) => {
     const tenantId = activity.details?.tenant_id;
-    return (
-      <>
-        {" "}
-        deleted Microsoft Graph credential{tenantId ? ` (${tenantId})` : ""}.
-      </>
-    );
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> deleted Microsoft Graph credential{suffix}.</>;
   },
   addedMicrosoftEntraClientId: (activity: IActivity) => {
     const clientId = activity.details?.client_id;
