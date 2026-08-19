@@ -94,3 +94,54 @@ func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *f
 	}
 	return contents, "", nil
 }
+
+// isNotificationScript identifies an end user notification by the script Fleet
+// queued for it. Its stored contents always hold the notification URL variable,
+// since Fleet only ever expands that into the copy fleetd fetches, so this holds
+// whatever the notification's execution_id points at by now. Both the fetch and
+// the result path ask this, and they have to agree.
+func isNotificationScript(script *fleet.HostScriptResult) bool {
+	// admin-written scripts are never internal, so this skips them without a scan
+	if !script.IsInternal {
+		return false
+	}
+	return slices.Contains(variables.Find(script.ScriptContents), string(fleet.FleetVarPatchNotificationURL))
+}
+
+// expandNotificationURL resolves $FLEET_VAR_PATCH_NOTIFICATION_URL to the
+// notification's device page URL. It resolves here rather than when the script
+// is queued so script_contents never holds a live credential.
+func (svc *Service) expandNotificationURL(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (expanded string, failureMessage string) {
+	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to",
+			"execution_id", script.ExecutionID, "err", err)
+		return "", "Fleet couldn't find the notification this script belongs to."
+	}
+
+	// orbit generates this token and sends it on check-in, so Fleet waits for one
+	// rather than minting it here
+	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		svc.logger.InfoContext(ctx, "host has no fresh device auth token to notify against, waiting for it to send one",
+			"host_id", host.ID)
+		return "", "Fleet is waiting for this host to send a current authentication token."
+	default:
+		svc.logger.ErrorContext(ctx, "failed to check a host's device auth token", "host_id", host.ID, "err", err)
+		return "", "Fleet couldn't check this host's authentication token."
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to load app config to build a notification url", "err", err)
+		return "", "Fleet couldn't load its configuration to build the notification URL."
+	}
+
+	notificationURL := fmt.Sprintf("%s/device/%s/notifications/%s",
+		strings.TrimRight(appConfig.ServerSettings.ServerURL, "/"), token, notificationUUID)
+
+	return variables.Replace(script.ScriptContents, string(fleet.FleetVarPatchNotificationURL), notificationURL), ""
+}

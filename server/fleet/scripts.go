@@ -277,6 +277,10 @@ type HostScriptResult struct {
 	// as part of any API endpoint.
 	SyncRequest bool `json:"-" db:"sync_request"`
 
+	// IsInternal is true for scripts Fleet queued for itself rather than for a
+	// user-requested run. Not returned as part of any API endpoint.
+	IsInternal bool `json:"-" db:"is_internal"`
+
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
 	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"-"` // TODO: should we omit this from the json result?

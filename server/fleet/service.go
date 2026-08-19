@@ -689,6 +689,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
+	// SetNotificationsService sets the notifications bounded context service for write operations.
+	SetNotificationsService(notificationsSvc NotificationsWriteService)
+
 	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)

@@ -291,6 +291,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real service module.
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
 
+	// Set up mock notifications service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	svc.SetNotificationsService(&fleet_mock.MockNotificationsService{})
+
 	return svc, ctx
 }
 

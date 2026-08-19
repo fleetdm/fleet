@@ -430,7 +430,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.setup_experience_script_id,
 		hsr.canceled,
 		bahr.batch_execution_id,
-		hsr.attempt_number
+		hsr.attempt_number,
+		COALESCE(hsr.is_internal, 0) as is_internal
 	FROM
 		host_script_results hsr
 	LEFT JOIN
@@ -464,7 +465,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		sua.setup_experience_script_id,
 		0 as canceled,
 		NULL as batch_execution_id,
-		NULL as attempt_number
+		NULL as attempt_number,
+		COALESCE(ua.payload->'$.is_internal', 0) as is_internal
   FROM
 		upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua

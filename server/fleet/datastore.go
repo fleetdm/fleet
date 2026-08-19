@@ -2773,6 +2773,11 @@ type Datastore interface {
 	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
 	// scripts after MDM events).
 	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// BatchNewInternalHostScriptExecutionRequests queues the same script as an
+	// internal run on each of the given hosts, and returns the execution ID it
+	// queued for each one. For server-driven sweeps that would otherwise do a
+	// round trip per host.
+	BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
 	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload, attemptNumber *int) (hsr *HostScriptResult, action string, err error)

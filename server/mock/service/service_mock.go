@@ -409,6 +409,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetNotificationsServiceFunc func(notificationsSvc fleet.NotificationsWriteService)
+
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
 type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
@@ -1579,6 +1581,9 @@ type Service struct {
 
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
+
+	SetNotificationsServiceFunc        SetNotificationsServiceFunc
+	SetNotificationsServiceFuncInvoked bool
 
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
@@ -3821,6 +3826,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	s.ApplyTeamSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
+}
+
+func (s *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	s.mu.Lock()
+	s.SetNotificationsServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetNotificationsServiceFunc(notificationsSvc)
 }
 
 func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
