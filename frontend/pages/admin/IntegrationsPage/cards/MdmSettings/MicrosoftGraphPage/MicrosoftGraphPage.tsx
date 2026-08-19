@@ -360,7 +360,7 @@ const MicrosoftGraphPage = () => {
                 <CustomLink
                   newTab
                   text="guide"
-                  url="https://fleetdm.com/learn-more-about/connect-microsoft-entra"
+                  url="https://fleetdm.com/learn-more-about/connect-microsoft-graph"
                 />
               </>
             }
