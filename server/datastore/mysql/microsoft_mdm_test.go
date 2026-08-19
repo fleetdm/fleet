@@ -38,6 +38,7 @@ func TestMDMWindows(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestDeleteMDMWindowsConfigProfileWithPolicyAutomation", testDeleteMDMWindowsConfigProfileWithPolicyAutomation},
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
 		{"TestMDMWindowsEnrollmentZTDRegistrationID", testMDMWindowsEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
@@ -61,7 +62,6 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsProfilesStatusRollup", testWindowsProfilesStatusRollup},
 		{"TestWindowsProfilesStatusReconcileBatching", testWindowsProfilesStatusReconcileBatching},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
-		{"DeleteMDMWindowsConfigProfileWithPolicyAutomation", testDeleteMDMWindowsConfigProfileWithPolicyAutomation},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 		{"NewMDMWindowsConfigProfileSoftwareUpdateTracking", testNewMDMWindowsConfigProfileSoftwareUpdateTracking},
 		{"TestUpdateMDMWindowsConfigProfile", testUpdateMDMWindowsConfigProfile},
@@ -8293,7 +8293,7 @@ func testDeleteMDMWindowsConfigProfileWithPolicyAutomation(t *testing.T, ds *Dat
 		require.ErrorAs(t, err, &conflictErr)
 		require.ErrorContains(t, err, wantMsg)
 	}
-	const batchConflictMsg = "Couldn't delete. Policy automations uses one or more of the profiles being deleted. " +
+	const batchConflictMsg = "Couldn't delete. Policy automations use one or more of the profiles being deleted. " +
 		"Please disable policy automations for the profiles being deleted and try again."
 
 	// deleting the profile used by the policy automation returns a conflict with a

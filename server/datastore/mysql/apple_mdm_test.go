@@ -14886,7 +14886,7 @@ func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datas
 	// batch-setting a new set of profiles that would delete the profile used by the
 	// policy automation returns a conflict mentioning the profiles being deleted.
 	requireConflict(ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, []*fleet.MDMAppleConfigProfile{generateAppleCP("B", "B", tm.ID)}),
-		"Couldn't delete. Policy automations uses one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again.")
+		"Couldn't delete. Policy automations use one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again.")
 
 	// profiles are still there
 	_, err = ds.GetMDMAppleConfigProfile(ctx, profA.ProfileUUID)

@@ -546,6 +546,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.R
 
 	return raw, nil
 }
+
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -2621,6 +2622,11 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
 ) error {
+	// While it's gated outside, we gate in here as well to avoid future callers not gating.
+	if host.Platform != "darwin" && host.Platform != "windows" {
+		return nil
+	}
+
 	var policyTeamID uint
 	if host.TeamID == nil {
 		policyTeamID = fleet.PolicyNoTeamID

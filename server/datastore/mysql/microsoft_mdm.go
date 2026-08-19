@@ -3273,7 +3273,7 @@ ON DUPLICATE KEY UPDATE
 	if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 		if isMySQLForeignKey(err) {
 			if strings.Contains(err.Error(), "fk_policies_resend_windows_profile") {
-				return false, nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Couldn't delete. Policy automations uses one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again."})
+				return false, nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Couldn't delete. Policy automations use one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again."})
 			}
 		}
 		return false, nil, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
