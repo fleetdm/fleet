@@ -2274,6 +2274,27 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
     );
   },
+  addedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    return (
+      <> added Microsoft Graph credential{tenantId ? ` (${tenantId})` : ""}.</>
+    );
+  },
+  editedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    return (
+      <> edited Microsoft Graph credential{tenantId ? ` (${tenantId})` : ""}.</>
+    );
+  },
+  deletedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    return (
+      <>
+        {" "}
+        deleted Microsoft Graph credential{tenantId ? ` (${tenantId})` : ""}.
+      </>
+    );
+  },
   addedMicrosoftEntraClientId: (activity: IActivity) => {
     const clientId = activity.details?.client_id;
     return (
@@ -2813,6 +2834,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraClientId: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
+    }
+    case ActivityType.AddedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.addedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.EditedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.editedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.DeletedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.deletedMicrosoftGraphCredential(activity);
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);

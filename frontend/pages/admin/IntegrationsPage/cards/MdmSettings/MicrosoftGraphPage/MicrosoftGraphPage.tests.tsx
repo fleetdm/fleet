@@ -102,7 +102,7 @@ describe("MicrosoftGraphPage", () => {
       }),
     ]);
 
-    expect(await screen.findByText("Last synced")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced:")).toBeInTheDocument();
     expect(
       screen.getByText("AADSTS7000215: Invalid client secret provided.")
     ).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("MicrosoftGraphPage", () => {
   it("reports never synced when the credential has not synced yet", async () => {
     renderPage([createMockCredential()]);
 
-    expect(await screen.findByText("Last synced")).toBeInTheDocument();
+    expect(await screen.findByText("Last synced:")).toBeInTheDocument();
     expect(screen.getByText("Never")).toBeInTheDocument();
   });
 

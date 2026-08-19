@@ -82,9 +82,14 @@ func syncMicrosoftAutopilotTenant(
 		}
 	}
 
+	// The stored message is displayed verbatim in the UI, so record the classified sentence rather than syncErr.Error(),
+	// which carries the whole ctxerr wrap chain. The caller logs the raw error, trace IDs and all.
 	var syncErrMsg *string
 	if syncErr != nil {
-		msg := syncErr.Error()
+		msg := msgraph.UserFacingMessage(syncErr)
+		if msg == "" {
+			msg = "Couldn't sync Windows Autopilot devices from Microsoft Graph."
+		}
 		syncErrMsg = &msg
 	}
 	if recErr := ds.RecordMicrosoftGraphSyncResult(ctx, cred.TenantID, syncErrMsg); recErr != nil {

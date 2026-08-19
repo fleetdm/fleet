@@ -15,7 +15,9 @@ import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
+import DataSet from "components/DataSet";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import IconStatusMessage from "components/IconStatusMessage";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import InputField from "components/forms/fields/InputField";
 import MainContent from "components/MainContent";
@@ -55,7 +57,9 @@ const MicrosoftGraphPage = () => {
     () => microsoftGraphCredentialsAPI.getCredentials(),
     {
       enabled: isPremiumTier,
-      refetchOnWindowFocus: false,
+      // Left on React Query's default so the sync status refreshes when the admin returns from the Entra portal. The
+      // sync cron runs every 5 minutes, so a snapshot taken at mount goes wrong quickly on a page left open.
+      refetchOnWindowFocus: true,
     }
   );
 
@@ -179,16 +183,24 @@ const MicrosoftGraphPage = () => {
 
     return (
       <div className={`${baseClass}__sync-status`}>
-        <div className={`${baseClass}__sync-status-row`}>
-          <span className={`${baseClass}__sync-status-label`}>Last synced</span>
-          {last_synced_at ? (
-            <HumanTimeDiffWithDateTip timeString={last_synced_at} />
-          ) : (
-            <span>Never</span>
-          )}
-        </div>
+        <DataSet
+          orientation="horizontal"
+          textOnly
+          title="Last synced"
+          value={
+            last_synced_at ? (
+              <HumanTimeDiffWithDateTip timeString={last_synced_at} />
+            ) : (
+              "Never"
+            )
+          }
+        />
         {!!last_sync_error && (
-          <div className={`${baseClass}__sync-error`}>{last_sync_error}</div>
+          <IconStatusMessage
+            className={`${baseClass}__sync-error`}
+            iconName="error"
+            message={last_sync_error}
+          />
         )}
       </div>
     );
@@ -197,50 +209,55 @@ const MicrosoftGraphPage = () => {
   const renderForm = () => (
     <form className={`${baseClass}__form`} onSubmit={onSave}>
       <GitOpsModeTooltipWrapper
-        tipOffset={8}
+        isInputField
         renderChildren={(disableChildren) => (
-          <>
-            <InputField
-              label="Tenant ID"
-              name="tenantId"
-              value={tenantId}
-              onChange={onChangeTenantId}
-              error={formErrors.tenantId}
-              onFocus={() =>
-                setFormErrors((prev) => ({ ...prev, tenantId: undefined }))
-              }
-              inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-              disabled={disableChildren}
-              tooltip="The directory (tenant) ID of the Microsoft Entra tenant whose Autopilot devices Fleet syncs."
-            />
-            <InputField
-              label="Client ID"
-              name="clientId"
-              value={clientId}
-              onChange={onChangeClientId}
-              error={formErrors.clientId}
-              onFocus={() =>
-                setFormErrors((prev) => ({ ...prev, clientId: undefined }))
-              }
-              inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-              disabled={disableChildren}
-              tooltip="The application (client) ID of the Entra app registration Fleet authenticates as."
-            />
-            <InputField
-              label="Client secret"
-              name="clientSecret"
-              type="password"
-              value={clientSecret}
-              onChange={setClientSecret}
-              error={formErrors.clientSecret}
-              onFocus={() =>
-                setFormErrors((prev) => ({ ...prev, clientSecret: undefined }))
-              }
-              inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-              disabled={disableChildren}
-              tooltip="The client secret for the app registration. Fleet never displays a stored secret."
-            />
-          </>
+          <InputField
+            label="Tenant ID"
+            name="tenantId"
+            value={tenantId}
+            onChange={onChangeTenantId}
+            error={formErrors.tenantId}
+            onFocus={() =>
+              setFormErrors((prev) => ({ ...prev, tenantId: undefined }))
+            }
+            inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
+            disabled={disableChildren}
+          />
+        )}
+      />
+      <GitOpsModeTooltipWrapper
+        isInputField
+        renderChildren={(disableChildren) => (
+          <InputField
+            label="Client ID"
+            name="clientId"
+            value={clientId}
+            onChange={onChangeClientId}
+            error={formErrors.clientId}
+            onFocus={() =>
+              setFormErrors((prev) => ({ ...prev, clientId: undefined }))
+            }
+            inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
+            disabled={disableChildren}
+          />
+        )}
+      />
+      <GitOpsModeTooltipWrapper
+        isInputField
+        renderChildren={(disableChildren) => (
+          <InputField
+            label="Client secret"
+            name="clientSecret"
+            type="password"
+            value={clientSecret}
+            onChange={setClientSecret}
+            error={formErrors.clientSecret}
+            onFocus={() =>
+              setFormErrors((prev) => ({ ...prev, clientSecret: undefined }))
+            }
+            inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
+            disabled={disableChildren}
+          />
         )}
       />
       <div className={`${baseClass}__form-actions`}>

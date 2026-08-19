@@ -3,8 +3,6 @@ import React from "react";
 import Button from "components/buttons/Button";
 import SectionCard from "../../SectionCard";
 
-const baseClass = "microsoft-graph-card";
-
 interface IMicrosoftGraphCardProps {
   /** Whether a Graph credential is stored. */
   credentialAdded: boolean;
@@ -21,7 +19,6 @@ const MicrosoftGraphNotAddedCard = ({
   addCredential: () => void;
 }) => (
   <SectionCard
-    className={baseClass}
     header="Microsoft Graph"
     cta={<Button onClick={addCredential}>Connect</Button>}
   >
@@ -36,7 +33,6 @@ const MicrosoftGraphUnavailableCard = ({
   viewDetails: () => void;
 }) => (
   <SectionCard
-    className={baseClass}
     iconName="warning"
     cta={
       <Button onClick={viewDetails} variant="subdued" icon="pencil">
@@ -54,7 +50,6 @@ const MicrosoftGraphAddedCard = ({
   editCredential: () => void;
 }) => (
   <SectionCard
-    className={baseClass}
     iconName="success"
     cta={
       <Button onClick={editCredential} variant="subdued" icon="pencil">
@@ -72,7 +67,6 @@ const MicrosoftGraphInvalidCard = ({
   editCredential: () => void;
 }) => (
   <SectionCard
-    className={baseClass}
     iconName="error"
     cta={
       <Button onClick={editCredential} variant="subdued" icon="pencil">

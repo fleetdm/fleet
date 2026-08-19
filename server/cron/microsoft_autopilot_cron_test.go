@@ -304,7 +304,20 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 		assert.Empty(t, env.removed)
 		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
 		require.NotNil(t, env.syncResults[tenantA])
-		assert.Contains(t, *env.syncResults[tenantA], "pagination stopped advancing")
+		// A failure Graph did not report has no admin-facing remedy, so the stored message stays generic and the
+		// developer-phrased cause is left to the logs rather than rendered in the UI.
+		assert.Equal(t, "Couldn't sync Windows Autopilot devices from Microsoft Graph.", *env.syncResults[tenantA])
+	})
+
+	t.Run("a graph failure is stored as one admin-facing sentence, not the wrap chain", func(t *testing.T) {
+		env := newAutopilotSyncEnv(t, testCred(tenantA))
+		env.graphFails(tenantA, &msgraph.Error{StatusCode: http.StatusUnauthorized, Code: "invalid_client", Message: "AADSTS7000215: bad secret"})
+		env.sync(t)
+
+		require.NotNil(t, env.syncResults[tenantA])
+		stored := *env.syncResults[tenantA]
+		assert.Equal(t, "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret.", stored)
+		assert.NotContains(t, stored, "list windows autopilot devices", "the ctxerr wrap chain must never reach the UI")
 	})
 }
 

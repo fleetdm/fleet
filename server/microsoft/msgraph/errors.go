@@ -55,6 +55,28 @@ func (e *Error) IsTransient() bool {
 	return e.StatusCode == http.StatusTooManyRequests || e.StatusCode >= http.StatusInternalServerError
 }
 
+// UserFacingMessage turns a Graph failure into a single sentence an admin can act on, discarding the internal wrap
+// chain that an error accumulates on its way up. Returns "" when the failure did not come from Graph, leaving the
+// caller to describe it in terms that fit its own context. The raw error stays in the server logs, which is where the
+// trace and correlation IDs belong.
+func UserFacingMessage(err error) string {
+	graphErr, ok := AsError(err)
+	if !ok {
+		return ""
+	}
+	switch {
+	case graphErr.IsPermissionError():
+		return "Microsoft Graph denied the request. Grant the app registration the DeviceManagementServiceConfig.Read.All " +
+			"application permission and grant admin consent for your tenant."
+	case graphErr.IsAuthError():
+		return "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret."
+	case graphErr.IsTransient():
+		return fmt.Sprintf("Microsoft Graph is temporarily unavailable (%d).", graphErr.StatusCode)
+	default:
+		return fmt.Sprintf("Microsoft Graph returned an error (%d): %s", graphErr.StatusCode, graphErr.Message)
+	}
+}
+
 // AsError extracts the Graph error from a possibly-wrapped error. Callers classify a failure by unwrapping it here
 // rather than type-asserting themselves, so the unwrap and the classification stay in one place.
 func AsError(err error) (*Error, bool) {

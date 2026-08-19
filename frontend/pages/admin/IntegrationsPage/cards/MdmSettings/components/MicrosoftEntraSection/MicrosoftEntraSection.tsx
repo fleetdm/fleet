@@ -39,7 +39,9 @@ const MicrosoftEntraSection = ({
     () => microsoftGraphCredentialsAPI.getCredentials(),
     {
       enabled: isPremiumTier,
-      refetchOnWindowFocus: false,
+      // Matches MicrosoftGraphPage, which shares this query key: the card's connected/invalid state should refresh when
+      // the admin returns from the Entra portal.
+      refetchOnWindowFocus: true,
     }
   );
 
@@ -59,7 +61,9 @@ const MicrosoftEntraSection = ({
       {!isPremiumTier ? (
         <PremiumFeatureMessage />
       ) : (
-        <div className={`${baseClass}__content`}>
+        // Cards render as direct children of SettingsSection so its vertical-card-layout provides the standard
+        // spacing, the same way MdmSettingsSection lays out the Apple/Windows/Android cards.
+        <>
           <WindowsAutomaticEnrollmentCard
             windowsMdmEnabled={windowsMdmEnabled}
             tenantAdded={tenantAdded}
@@ -75,7 +79,7 @@ const MicrosoftEntraSection = ({
               viewDetails={navigateToMicrosoftGraph}
             />
           )}
-        </div>
+        </>
       )}
     </SettingsSection>
   );

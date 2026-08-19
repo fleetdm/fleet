@@ -14,20 +14,8 @@
     gap: $pad-small;
   }
 
-  &__sync-status-row {
-    display: flex;
-    gap: $pad-small;
-    align-items: baseline;
-  }
-
-  &__sync-status-label {
-    font-weight: $bold;
-  }
-
-  // The sync error is a raw message from Microsoft Graph, so it can be long and unbroken.
   &__sync-error {
     color: $ui-error;
-    overflow-wrap: anywhere;
   }
 
   &__form {
@@ -36,8 +24,13 @@
     gap: $pad-large;
   }
 
+  // Reversed the same way modal-cta-wrap is, so the primary action stays first in the DOM (tab order and the form's
+  // implicit submit both reach Save first) while rendering on the right. justify-content pins the pair to the left
+  // edge, since row-reverse would otherwise pack it against the container's right edge.
   &__form-actions {
     display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
     gap: $pad-medium;
   }
 }

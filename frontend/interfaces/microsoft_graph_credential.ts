@@ -12,9 +12,11 @@ export interface IMicrosoftGraphCredential {
    * credential is saved, because a credential is verified before it is stored.
    */
   credential_invalid: boolean;
-  /** When the last sync ran for this tenant. Null until the first sync completes. */
+  /** When this tenant last synced SUCCESSFULLY. Null until the first sync succeeds, and not advanced by a failed pass,
+   * so a stale value next to `last_sync_error` shows how far behind the pending hosts have fallen. */
   last_synced_at: string | null;
-  /** The error from the last sync, when it failed. Null on success. */
+  /** The error from the last sync, when it failed. Null on success. Already classified into one admin-facing sentence
+   * server-side, so it renders verbatim. */
   last_sync_error: string | null;
 }
 
