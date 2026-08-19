@@ -59,9 +59,7 @@ const NotifyBeforePatchingDetailsModal = ({
     () => scriptsAPI.getScriptResult(scriptExecutionId as string),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      // Only fetch when the server actually ran a script. A dispatcher-caught
-      // deferral has no execution id and we render the deferred sentence
-      // without hitting the API.
+      // Skip the fetch on dispatcher-caught deferrals (no execution id).
       enabled: !!scriptExecutionId,
       retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
     }
@@ -89,8 +87,7 @@ const NotifyBeforePatchingDetailsModal = ({
         ? `Exit code: ${scriptResult.exit_code}\n${scriptResult.output ?? ""}`
         : null;
 
-    // Bold each title, Oxford comma, truncate past three with a "and N more
-    // apps" tail. Full list moves to the Apps row when truncated.
+    // Bold titles, Oxford comma, ", and N more app(s)" past three.
     const bold = (name: string) => <b>{getDisplayedSoftwareName(name)}</b>;
     const overflow = titles.length - 3;
     let titleList: React.ReactNode = null;
@@ -117,8 +114,7 @@ const NotifyBeforePatchingDetailsModal = ({
       );
     }
 
-    // Intro sentence covers 1–3 apps in full; the Apps row only adds signal
-    // when the intro truncated.
+    // Apps row is redundant when the intro already lists everything (≤3 apps).
     const showAppsRow = titles.length > 3;
 
     return (

@@ -31,8 +31,7 @@ const stubScriptResult = (
     )
   );
 
-// useQuery inside the notify branch needs a QueryClientProvider — use the
-// project's standard test renderer instead of RTL's bare render.
+// The notify branch's useQuery needs a QueryClientProvider.
 const render = createCustomRenderer({ withBackendMock: true });
 
 const failedSoftwareActivity: IPolicyAutomationActivity = {
@@ -243,8 +242,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       expect(link.target).toBe("_blank");
       unmount();
 
-      // Exit code 41 (screen locked) does NOT get the link — it's not a
-      // Fleet-Desktop-required failure.
+      // Non-Fleet-Desktop failures don't get the link.
       stubScriptResult({ exit_code: 41 });
       render(
         <PolicyAutomationActivityDetailsModal

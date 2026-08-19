@@ -149,11 +149,8 @@ export const StatusMessage = ({
     : "";
 
   if (skippedInstall && status === "failed_install") {
-    // Trailing sentence diverges by patch variant. The BE encodes which one
-    // ran in pre_install_query_output — the notify variant appends "Fleet
-    // notifies the end user...". For patch_when_closed we keep Carlo's
-    // original copy (added in the "patch when closed UI" commit); it's not in
-    // Figma but tells Fleet Free admins what actually resolves the skip.
+    // Notify variant appends "Fleet notifies the end user..." to
+    // pre_install_query_output; patch_when_closed doesn't.
     const isNotifyVariant = isNotifyBeforePatchingSkip(
       installResult.pre_install_query_output
     );

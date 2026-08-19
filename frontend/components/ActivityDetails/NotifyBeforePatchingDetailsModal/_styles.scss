@@ -2,8 +2,7 @@
   &__content {
     @include vertical-modal-layout;
 
-    // The vertical-modal-layout flex column stretches children full-width by
-    // default; the reveal button should hug its content.
+    // Hug content instead of stretching to the flex column's full width.
     .reveal-button {
       align-self: flex-start;
     }

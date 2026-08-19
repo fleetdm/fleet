@@ -58,8 +58,7 @@ const PolicyAutomationActivityDetailsModal = ({
 
   const [showDetails, setShowDetails] = useState(false);
 
-  // Only the notify branches need the script result — the failure sentence
-  // depends on the exit code, which the automation activity doesn't carry.
+  // Only the notify branches need the exit code (not on the activity itself).
   const { data: scriptResult } = useQuery<IScriptResultResponse, AxiosError>(
     ["notify-script-result", scriptExecutionId],
     () => scriptsAPI.getScriptResult(scriptExecutionId as string),
@@ -91,9 +90,7 @@ const PolicyAutomationActivityDetailsModal = ({
     scriptResult?.exit_code != null &&
     EXIT_CODES_NEEDING_EUE_LINK.has(scriptResult.exit_code);
 
-  // Notify + skipped-install-notify hide their code output behind a Details
-  // reveal with a specific label; other software installs keep the flat
-  // pre/install/post rendering.
+  // Notify + notify-skip cases hide output behind a Details reveal.
   const revealLabel = (() => {
     if (isNotify) return "Notification script output:";
     if (isSkippedNotifyVariant) return "Pre-install query output:";
@@ -106,10 +103,7 @@ const PolicyAutomationActivityDetailsModal = ({
   })();
 
   // A code-style output block with a copy button. Renders nothing when empty.
-  // `plainLabel` skips the bold treatment used elsewhere in the modal — Figma
-  // wants the reveal-case labels ("Notification script output:", "Pre-install
-  // query output:") in regular weight since they're inside the Details reveal
-  // rather than acting as top-level section headings.
+  // `plainLabel` drops the bold treatment for labels inside the Details reveal.
   const renderOutputSection = (
     label: string,
     value: string | null,

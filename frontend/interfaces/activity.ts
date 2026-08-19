@@ -314,9 +314,7 @@ export interface IActivityDetails {
   host_platform?: string;
   host_serial?: string;
   install_at?: string;
-  /** True on an `installed_software` activity whose install was skipped
-   * because the app was open. Distinct from `skipped_install`, which is
-   * the frontend display status derived from this + policy flags. */
+  /** True on an app-open skip. Wire field; `skipped_install` is the derived display status. */
   install_skipped_when_app_open?: boolean;
   install_uuid?: string;
   installed_from_dep?: boolean;
@@ -329,17 +327,13 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
-  /** Uuid of the notify-before-patching notification an activity belongs
-   * to. One notification may cover several patch policies and appear in
-   * each of their automation-runs tables. */
+  /** One notification may cover several patch policies and appear in each of their runs tables. */
   patch_notification_uuid?: string;
   platform?: Platform; // OS platform
   policy_id?: number;
   policy_ids?: number[];
   policy_name?: string;
-  /** Output text from the app-open pre-install query on a skipped install.
-   * Distinguishes a `patch_when_closed` skip from a `notify_before_patching`
-   * skip — the two carry different text per the payload contract. */
+  /** BE-supplied; text differs between patch_when_closed and notify_before_patching skips. */
   pre_install_query_output?: string;
   profile_identifier?: string;
   profile_name?: string;
@@ -362,7 +356,7 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
-  /** Software titles covered by a single notify-before-patching notification. */
+  /** Titles covered by a single notify-before-patching notification. */
   software_titles?: string[];
   software_titles_count?: number;
   /** Custom name set per team by admin */
@@ -375,8 +369,7 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
-  /** Seconds before the patch install that the end user was notified.
-   * Drives the "1 hour" vs "5 minutes" copy in the notify activity. */
+  /** Seconds before the patch install (drives "1 hour" vs "5 minutes" copy). */
   time_before?: number;
   triggered_by?: string;
   from_setup_experience?: boolean;

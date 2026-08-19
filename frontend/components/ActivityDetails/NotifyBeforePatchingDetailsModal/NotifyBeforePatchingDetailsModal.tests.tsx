@@ -11,9 +11,7 @@ import { IScriptResultResponse } from "services/entities/scripts";
 
 import NotifyBeforePatchingDetailsModal from "./NotifyBeforePatchingDetailsModal";
 
-// Default carries a stub script body so the Details reveal has something to
-// show — matches real payload shape where notification runs always have
-// contents.
+// Stub body so the Details reveal has something to render.
 const DEFAULT_SCRIPT_CONTENTS = "#!/bin/bash\nfleet-desktop notify ...";
 
 const scriptResult = (
@@ -150,8 +148,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
   });
 
   it("renders the deferred sentence when script_execution_id is absent, no fetch fired", async () => {
-    // Handler set to fail loudly if hit — absence of execution id must skip
-    // the fetch entirely.
+    // Fail loudly if the handler fires — no execution id means no fetch.
     const shouldNotFireHandler = jest.fn();
     mockServer.use(
       http.get(baseUrl("/scripts/results/:executionId"), () => {
@@ -254,10 +251,9 @@ describe("NotifyBeforePatchingDetailsModal", () => {
 
     expect(screen.getByText(/Notification script:/)).toBeInTheDocument();
     expect(screen.getByText(/#!\/bin\/bash/)).toBeInTheDocument();
-    // The label is split around the "output recorded" tooltip trigger, so
-    // match the trigger substring rather than the whole sentence.
+    // Label is split around the tooltip trigger; match just the trigger.
     expect(screen.getByText("output recorded")).toBeInTheDocument();
-    // Output block leads with the exit code line per Figma.
+    // Output block leads with the exit code line.
     expect(screen.getByText(/Exit code: 41/)).toBeInTheDocument();
     await waitFor(() =>
       expect(

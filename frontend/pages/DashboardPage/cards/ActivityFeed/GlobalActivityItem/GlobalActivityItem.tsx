@@ -2327,8 +2327,7 @@ const TAGGED_TEMPLATES = {
     const failed = status === "failed";
     const verb = failed ? "failed to notify" : "notified";
 
-    // Bolds each title, uses an Oxford comma, and truncates past three
-    // titles with a ", and N more app(s)" suffix (Figma dev note 5546:46306).
+    // Bold titles, Oxford comma, ", and N more app(s)" past three.
     const bold = (name: string) => <b>{getDisplayedSoftwareName(name)}</b>;
     const overflow = titles.length - 3;
     let titleList: React.ReactNode = null;
