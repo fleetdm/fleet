@@ -129,6 +129,20 @@ describe("shouldShowControlsTab", () => {
     it("hides the tab when no controls were derived", () => {
       expect(shouldShowControlsTab(linuxArgs)).toBe(false);
     });
+
+    // My device omits isPlatformMdmEnabled, which defaults to true — without
+    // the Linux guard that default would show the tab there but not on Host
+    // details, and claim the host "isn't enrolled in MDM".
+    it("hides the tab on My device, where the global MDM flag is unavailable", () => {
+      expect(
+        shouldShowControlsTab({
+          platform: linuxArgs.platform,
+          osVersion: linuxArgs.osVersion,
+          enrollmentStatus: linuxArgs.enrollmentStatus,
+          hasControls: false,
+        })
+      ).toBe(false);
+    });
   });
 
   // My device can't read per-platform MDM flags, so the tab shows on any

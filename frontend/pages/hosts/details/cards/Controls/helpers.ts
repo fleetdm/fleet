@@ -2,6 +2,7 @@ import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isChrome,
+  isLinuxLike,
   isOsSettingsDisplayPlatform,
 } from "interfaces/platform";
 
@@ -35,9 +36,16 @@ export const shouldShowControlsTab = ({
   }
 
   // Any derived row shows the tab — the bar the OS settings indicator used
-  // before this tab existed. Also covers Linux, which has no MDM to enroll in.
+  // before this tab existed.
   if (hasControls) {
     return true;
+  }
+
+  // Linux has no MDM, so there's no enrollment state to explain and nothing
+  // else it can ever be targeted by. Checked before the MDM branch below, whose
+  // `isPlatformMdmEnabled` defaults to true on My device.
+  if (isLinuxLike(platform)) {
+    return false;
   }
 
   // With nothing to show, the tab still earns its empty state wherever the
