@@ -1740,16 +1740,73 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 				fleet.CertificateTemplateDelivered, "")
 		}
 
+		// Helper: read the certificate's profile off the host details endpoint. The admin UI
+		// distinguishes an automatic retry from a first delivery using the retry count and detail
+		// reported here, so they have to survive the trip through the API.
+		getCertProfile := func() fleet.HostMDMProfile {
+			var getHostResp getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.Profiles)
+			for _, p := range *getHostResp.Host.MDM.Profiles {
+				if p.CertificateTemplateID != nil && *p.CertificateTemplateID == certTemplateID {
+					return p
+				}
+			}
+			t.Fatalf("no profile found for certificate template %d", certTemplateID)
+			return fleet.HostMDMProfile{}
+		}
+
+		// A first delivery reports no retries yet, alongside the allowance the UI counts against.
+		deliverCert()
+		profile := getCertProfile()
+		require.NotNil(t, profile.RetryCount)
+		require.EqualValues(t, 0, *profile.RetryCount)
+		require.NotNil(t, profile.MaxRetries)
+		require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.MaxRetries)
+		require.Empty(t, profile.Detail)
+		require.NotNil(t, profile.Retrying)
+		require.False(t, *profile.Retrying, "a first delivery is not a retry")
+
 		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
+		var previousDetail string
 		for i := range fleet.MaxCertificateInstallRetries {
-			deliverCert()
+			if i > 0 {
+				// The first delivery already happened above.
+				deliverCert()
+
+				// This is the state reported in #50739: the retry has been re-delivered, so the
+				// profile reads as an ordinary in-flight install again, and only the retry count
+				// and the detail carried over from the previous attempt mark it as a retry. The
+				// delivery transitions must leave both alone.
+				profile = getCertProfile()
+				require.Equal(t, string(fleet.CertificateTemplateDelivered), *profile.Status)
+				require.Equal(t, previousDetail, profile.Detail,
+					"re-delivering a retry must preserve the previous failure detail")
+				require.NotNil(t, profile.RetryCount)
+				require.Equal(t, i, *profile.RetryCount)
+				require.NotNil(t, profile.Retrying)
+				require.True(t, *profile.Retrying, "a re-delivered retry must still report as retrying")
+			}
 			detail := fmt.Sprintf("SCEP failure %d", i+1)
+			previousDetail = detail
 			reportCertStatus(string(fleet.MDMDeliveryFailed), &detail)
 
 			record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 			require.NoError(t, err)
 			require.Equal(t, fleet.CertificateTemplatePending, record.Status, "retry %d should auto-retry", i+1)
 			require.Equal(t, i+1, record.RetryCount)
+
+			// While retrying, the profile still reports an in-progress status, so the retry count
+			// and the preserved detail are all the UI has to go on.
+			profile = getCertProfile()
+			require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
+			require.Equal(t, detail, profile.Detail)
+			require.NotNil(t, profile.Retrying)
+			require.True(t, *profile.Retrying)
+			require.NotNil(t, profile.RetryCount)
+			require.Equal(t, i+1, *profile.RetryCount)
+			require.NotNil(t, profile.MaxRetries)
+			require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.MaxRetries)
 		}
 
 		// One more failure with retry_count at max -- should be terminal
@@ -1760,6 +1817,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 		require.NoError(t, err)
 		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after max retries")
+
+		// Terminal failure reports the exhausted allowance, which is how the UI knows to stop
+		// showing it as a retry.
+		profile = getCertProfile()
+		require.Equal(t, string(fleet.CertificateTemplateFailed), *profile.Status)
+		require.Equal(t, terminalDetail, profile.Detail)
+		require.NotNil(t, profile.RetryCount)
+		require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.RetryCount)
+		require.NotNil(t, profile.Retrying)
+		require.False(t, *profile.Retrying, "a terminal failure is not a retry")
 
 		// Verify terminal failure activity was logged on the host with correct details
 		var hostActivitiesResp listActivitiesResponse
@@ -1786,6 +1853,17 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.NoError(t, err)
 		require.Equal(t, fleet.MaxCertificateInstallRetries, record.RetryCount, "resend should set retry_count to max")
 
+		// A resend also leaves a maxed-out retry count on an in-progress profile, so the cleared
+		// detail is what keeps the UI from reading it as an automatic retry.
+		profile = getCertProfile()
+		require.Empty(t, profile.Detail, "resend should clear the detail from the previous failure")
+		require.NotNil(t, profile.RetryCount)
+		require.Equal(t, fleet.MaxCertificateInstallRetries, *profile.RetryCount)
+		// The resend is indistinguishable from a final automatic retry by retry count and detail
+		// alone -- both sit at the maximum with no detail -- so this flag is the only separator.
+		require.NotNil(t, profile.Retrying)
+		require.False(t, *profile.Retrying, "a manual resend must not report as an automatic retry")
+
 		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
 		deliverCert()
 		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("post-resend failure"))
@@ -1806,11 +1884,27 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		require.NoError(t, err)
 		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
 
+		// A failure reported without a detail still has to leave a retry count behind, since that
+		// is then the only thing marking the profile as a retry rather than a first delivery.
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), nil)
+		profile = getCertProfile()
+		require.Empty(t, profile.Detail)
+		require.NotNil(t, profile.RetryCount)
+		require.EqualValues(t, 2, *profile.RetryCount)
+		require.NotNil(t, profile.Retrying)
+		require.True(t, *profile.Retrying, "a failure reported without a detail is still a retry")
+
 		deliverCert()
 		reportCertStatus(string(fleet.MDMDeliveryVerified), nil)
 		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 		require.NoError(t, err)
 		require.Equal(t, fleet.CertificateTemplateVerified, record.Status, "should succeed on retry")
+
+		// A verified certificate clears the detail and stops being a retry in the UI.
+		profile = getCertProfile()
+		require.Equal(t, string(fleet.CertificateTemplateVerified), *profile.Status)
+		require.Empty(t, profile.Detail)
 	}) // end "automatic retry" subtest
 }
 

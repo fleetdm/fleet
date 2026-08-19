@@ -1,4 +1,5 @@
 import {
+  FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   HostNameSettingStatus,
   ProfileOperationType,
@@ -11,8 +12,12 @@ import {
   TooltipInnerContentOption,
 } from "./components/Tooltip/TooltipContent";
 
-import { OsSettingsTableStatusValue } from "../OSSettingsTableConfig";
+import {
+  IHostMdmProfileWithAddedStatus,
+  OsSettingsTableStatusValue,
+} from "../OSSettingsTableConfig";
 import TooltipInnerContentActionRequired from "./components/Tooltip/ActionRequired";
+import { formatAndroidCertificateError } from "./errorTooltipHelpers";
 
 export const isDiskEncryptionProfile = (profileName: string) => {
   return profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
@@ -23,6 +28,56 @@ export type ProfileDisplayOption = {
   iconName: IconNames;
   tooltip: TooltipInnerContentOption | null;
 } | null;
+
+/**
+ * When an Android certificate install fails, Fleet resets the certificate and delivers it again,
+ * so the profile goes back to an in-progress status and is otherwise indistinguishable from a
+ * first delivery. The server decides this: a manual resend leaves the same retry count behind, and
+ * telling the two apart needs state that does not survive into the API response.
+ */
+export const isRetryingAndroidCertificate = (
+  profile?: IHostMdmProfileWithAddedStatus
+) =>
+  profile?.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID &&
+  !!profile.retrying;
+
+/**
+ * Builds the tooltip for a retrying Android certificate, e.g. "Network error during SCEP
+ * enrollment. Retrying enrollment (attempt 2 of 4)." The numbers are labelled as attempts because
+ * they count the initial attempt, and so run one higher than the retry_count/max_retries the API
+ * reports. The host does not have to report an error message with a failure, in which case the
+ * retry stands on its own.
+ */
+export const getAndroidCertificateRetryTooltip = (
+  profile: IHostMdmProfileWithAddedStatus
+) => {
+  const attempts =
+    profile.retry_count === undefined || profile.max_retries === undefined
+      ? ""
+      : ` (attempt ${profile.retry_count + 1} of ${profile.max_retries + 1})`;
+  const retrying = `Retrying enrollment${attempts}.`;
+
+  const reported = profile.detail?.trim();
+  if (!reported) {
+    return retrying;
+  }
+
+  // Prefer plain language over the app's own wording, falling back to what it reported so an
+  // unrecognized failure still reaches the reader.
+  const detail = formatAndroidCertificateError(reported) ?? reported;
+  const sentence = /[.!?]$/.test(detail) ? detail : `${detail}.`;
+  return `${sentence} ${retrying}`;
+};
+
+export const ANDROID_CERT_RETRYING_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Retrying",
+  // Deliberately the same icon the in-progress statuses use, rather than a warning icon: a retry
+  // is still in flight, and a new status icon would have to be introduced across the rest of the
+  // OS settings UI. The status text and tooltip carry the difference.
+  iconName: "pending-outline",
+  // The tooltip is built from the profile's detail, see getAndroidCertificateRetryTooltip.
+  tooltip: null,
+};
 
 type MacProfileSpecificStatus = "success" | "acknowledged";
 type AndroidCertSpecificStatus = "delivered" | "delivering";
