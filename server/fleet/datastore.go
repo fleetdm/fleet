@@ -127,6 +127,12 @@ type Datastore interface {
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
+	// HasLabelScopedScheduledQueries returns true if any active scheduled queries
+	// for the given scope have label targeting (entries in query_labels).
+	// If teamID is non-nil, checks both global (team_id IS NULL) and the specified team's queries,
+	// since both appear in a team host's pack config.
+	// If teamID is nil, checks only global queries.
+	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
@@ -995,8 +1001,8 @@ type Datastore interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType PolicyAutomationType, platform string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType PolicyAutomationType, platform string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -1095,8 +1101,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string, platform string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType PolicyAutomationType, platform string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -2121,6 +2127,18 @@ type Datastore interface {
 	// host_dep_assignments for host with matching serials only if the entry is associated to the provided ABM token.
 	DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error
 
+	// MarkHostDEPAssignmentDeleted marks as deleted the host_dep_assignments entry for the provided host ID.
+	//
+	// Prefer `DeleteHostDEPAssignments` when the host row still exists AND the pending-host
+	// cleanup it performs is wanted: that one also deletes pending host rows matching the
+	// serial, since a pending host no longer in ABM will never enroll. Callers that are
+	// deleting the host themselves, or that only have a host ID (an assignment whose ABM
+	// token was removed has no token to match on), want this one.
+	MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error
+
+	// MarkHostDEPAssignmentsDeleted is the batched form of MarkHostDEPAssignmentDeleted.
+	MarkHostDEPAssignmentsDeleted(ctx context.Context, hostIDs []uint) error
+
 	// UpdateHostDEPAssignProfileResponses receives a profile UUID and threes lists of serials, each representing
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses. For each response, it also sets the ABM token id in the table to the provided value.
 	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
@@ -2513,14 +2531,27 @@ type Datastore interface {
 	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
 	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error
 
-	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports whether the flag actually changed.
-	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant.
+	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) error
 
 	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any previous error.
 	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
 
-	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
-	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+	// UpdateMicrosoftGraphCredentialInvalidAggregate recomputes MDM.MicrosoftGraphCredentialInvalid from the
+	// credentials table, saving the app config only when it changed.
+	UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error
+
+	// HostIDByAutopilotDeviceID resolves a host from the Autopilot device ID (the ZTDID), which the device supplies at
+	// Windows MDM enrollment and which Microsoft Graph returns as windowsAutopilotDeviceIdentity.id.
+	HostIDByAutopilotDeviceID(ctx context.Context, autopilotDeviceID string) (uint, error)
+
+	// IngestWindowsAutopilotDevices creates a pending Windows host for every Autopilot device that has no host yet,
+	// and stores the Autopilot metadata for every device passed in.
+	IngestWindowsAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// RemoveWindowsAutopilotHosts handles devices that left the Autopilot registry: hosts still pending are deleted,
+	// hosts that already enrolled keep their host row and only lose the Autopilot metadata.
+	RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []uint) error
 
 	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are no
 	// longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
@@ -4026,9 +4057,9 @@ type AndroidDatastore interface {
 	// back to the originating Fleet command.
 	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 
-	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
+	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message/raw_result) of
 	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
-	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error
 
 	// ListPendingMDMAndroidCommands returns commands still in the pending status that were created
 	// before createdBefore, oldest first, capped at limit rows. Used by the command reconciler cron to
@@ -4052,6 +4083,10 @@ type AndroidDatastore interface {
 	// HostLockWipeStatus.IsPendingClearPasscode reads to flip device_status to "clearing passcode" while the AMAPI
 	// command is in flight. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
+	// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
+	InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.

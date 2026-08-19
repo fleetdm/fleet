@@ -233,6 +233,7 @@ module.exports.custom = {
     'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
     '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
+    'docs/solutions': ['ddribeiro', 'allenhouchins'],
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],

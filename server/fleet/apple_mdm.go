@@ -406,6 +406,12 @@ type MDMAppleProfilePayload struct {
 	IgnoreError       bool               `db:"ignore_error"`
 	Scope             PayloadScope       `db:"scope"`
 	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
+	// CancelOnly marks a removal carried through the reconciler solely so its
+	// already-queued RemoveProfile command can be cancelled, because the same
+	// identifier is being installed again on the host under a different profile
+	// UUID. Delivering the removal would strip the profile the admin just asked
+	// for, so nothing is ever enqueued for these rows.
+	CancelOnly bool `db:"-"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
