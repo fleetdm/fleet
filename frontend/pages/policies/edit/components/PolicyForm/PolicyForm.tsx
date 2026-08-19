@@ -69,6 +69,7 @@ import {
 } from "pages/policies/hooks";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
+import { getPolicyAutomationErrorMessage } from "./helpers";
 
 const baseClass = "policy-form";
 
@@ -306,7 +307,9 @@ const PolicyForm = ({
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
-    onError: () => notify.error("Could not update policy automations."),
+    onError: (err) => {
+      notify.error(getPolicyAutomationErrorMessage(err), { response: err });
+    },
   });
 
   /* - Observer/Observer+ and Technicians cannot edit existing policies
@@ -771,6 +774,7 @@ const PolicyForm = ({
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
                 patchSlot={patchOptions}
+                selectedPlatform={getSelectedPlatforms()}
               />
             </div>
           )}

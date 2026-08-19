@@ -14,8 +14,10 @@ import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
 import { IPolicy } from "interfaces/policy";
 import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
+import { QueryablePlatform } from "interfaces/platform";
 
 import permissions from "utilities/permissions";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import Checkbox from "components/forms/fields/Checkbox";
@@ -39,7 +41,8 @@ import { PatchOption } from "pages/SoftwarePage/components/forms/SoftwareDeployS
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 
 import { IAutomationCheckboxRow } from "./types";
-import { useScripts, useSoftwareTitles } from "./hooks";
+import { useProfiles, useScripts, useSoftwareTitles } from "./hooks";
+import { filterValidProfiles, rewriteProfilePlatform } from "./helpers";
 
 const baseClass = "policy-automations-fields";
 
@@ -69,6 +72,7 @@ export interface IPolicyAutomationsFieldsHandle {
 interface IAutomationsErrors {
   install_software?: string;
   run_script?: string;
+  resend_configuration_profile?: string;
 }
 
 interface IPolicyAutomationsFieldsProps {
@@ -91,6 +95,8 @@ interface IPolicyAutomationsFieldsProps {
   /** Rendered between the automation types and the continuous-automation
    *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
   patchSlot?: React.ReactNode;
+  /** The platform of the updated policy, used to filter automation fields by platform */
+  selectedPlatform: QueryablePlatform[];
 }
 
 const PolicyAutomationsFields = forwardRef<
@@ -107,6 +113,7 @@ const PolicyAutomationsFields = forwardRef<
       fleetName,
       patchOption,
       patchSlot,
+      selectedPlatform,
     },
     ref
   ) => {
@@ -152,6 +159,7 @@ const PolicyAutomationsFields = forwardRef<
     const initialWebhookOrTicket = webhookOrTicketPolicyIds.includes(policy.id);
     const initialInstallSoftware = !!policy.install_software;
     const initialRunScript = !!policy.run_script;
+    const initialResendConfigProfile = !!policy.resend_configuration_profile;
     const initialCalendar = policy.calendar_events_enabled;
     const initialConditionalAccess = policy.conditional_access_enabled;
     const initialContinuous = policy.continuous_automations_enabled ?? false;
@@ -164,6 +172,9 @@ const PolicyAutomationsFields = forwardRef<
       initialInstallSoftware
     );
     const [runScript, setRunScript] = useState(initialRunScript);
+    const [resendConfigProfile, setResendConfigProfile] = useState(
+      initialResendConfigProfile
+    );
     const [calendarEvent, setCalendarEvent] = useState(initialCalendar);
     const [conditionalAccess, setConditionalAccess] = useState(
       initialConditionalAccess
@@ -210,6 +221,24 @@ const PolicyAutomationsFields = forwardRef<
     const [scriptId, setScriptId] = useState<number | null>(
       policy.run_script?.id ?? null
     );
+    const [profileUUID, setProfileUUID] = useState<string | null>(
+      policy.resend_configuration_profile?.profile_uuid ?? null
+    );
+    const [resendProfileDisabled, setResendProfileDisabled] = useState<boolean>(
+      selectedPlatform.some((p) => p === "darwin" || p === "windows")
+    );
+
+    useEffect(() => {
+      const hasProfilePlatform = selectedPlatform.some(
+        (p) => p === "darwin" || p === "windows"
+      );
+      setResendProfileDisabled(!hasProfilePlatform);
+      if (!hasProfilePlatform) {
+        setProfileUUID(null);
+        setResendConfigProfile(false);
+        clearError("resend_configuration_profile");
+      }
+    }, [selectedPlatform]);
 
     const [errors, setErrors] = useState<IAutomationsErrors>({});
 
@@ -242,6 +271,10 @@ const PolicyAutomationsFields = forwardRef<
       if (runScript && scriptId === null) {
         newErrors.run_script = "Please select a script to run.";
       }
+      if (resendConfigProfile && profileUUID === null) {
+        newErrors.resend_configuration_profile =
+          "Please select a configuration profile to resend.";
+      }
       return newErrors;
     };
 
@@ -252,6 +285,10 @@ const PolicyAutomationsFields = forwardRef<
     const handleToggleRunScript = (next: boolean) => {
       setRunScript(next);
       if (!next) clearError("run_script");
+    };
+    const handleToggleResendConfigProfile = (next: boolean) => {
+      setResendConfigProfile(next);
+      if (!next) clearError("resend_configuration_profile");
     };
     const handleSelectSoftware = (id: number | null) => {
       setSoftwareTitleId(id);
@@ -267,6 +304,10 @@ const PolicyAutomationsFields = forwardRef<
     const handleSelectScript = (id: number | null) => {
       setScriptId(id);
       if (id !== null) clearError("run_script");
+    };
+    const handleSelectProfile = (uuid: string | null) => {
+      setProfileUUID(uuid);
+      if (uuid !== null) clearError("resend_configuration_profile");
     };
     const handleToggleContinuous = (next: boolean) => {
       setContinuousEnabled(next);
@@ -284,6 +325,10 @@ const PolicyAutomationsFields = forwardRef<
     const { data: scriptsData } = useScripts({
       fleetId: teamIdForApi ?? 0,
       enabled: canFetchTeamScopedLists && runScript,
+    });
+    const { data: profilesData } = useProfiles({
+      fleetId: teamIdForApi ?? 0,
+      enabled: canFetchTeamScopedLists && resendConfigProfile,
     });
 
     const softwareOptions: CustomOptionType[] = useMemo(
@@ -348,6 +393,19 @@ const PolicyAutomationsFields = forwardRef<
       [scriptsData]
     );
 
+    const profileOptions: CustomOptionType[] = useMemo(
+      () =>
+        (profilesData?.profiles ?? []).filter(filterValidProfiles).map(
+          (p) =>
+            ({
+              label: p.name,
+              value: p.profile_uuid,
+              helpText: rewriteProfilePlatform(p.platform),
+            } as CustomOptionType)
+        ),
+      [profilesData]
+    );
+
     useImperativeHandle(ref, () => ({
       getAutomationsPayload: () => {
         const newErrors = validate();
@@ -365,6 +423,9 @@ const PolicyAutomationsFields = forwardRef<
               (policy.install_software?.software_installer_id ?? null) ||
             runScript !== initialRunScript ||
             scriptId !== (policy.run_script?.id ?? null) ||
+            resendConfigProfile !== initialResendConfigProfile ||
+            profileUUID !==
+              (policy.resend_configuration_profile?.profile_uuid ?? null) ||
             calendarEvent !== initialCalendar ||
             conditionalAccess !== initialConditionalAccess ||
             effectiveContinuousEnabled !== initialContinuous ||
@@ -387,6 +448,7 @@ const PolicyAutomationsFields = forwardRef<
                   ? effectiveSoftwareInstallerId
                   : null,
                 script_id: runScript ? scriptId : null,
+                profile_uuid: resendConfigProfile ? profileUUID : null,
                 // When the team has the feature disabled, the row is locked
                 // and the user can't toggle it — so we omit the field instead
                 // of carrying the stale state through to the PATCH. That
@@ -509,6 +571,35 @@ const PolicyAutomationsFields = forwardRef<
           ) : undefined,
         },
         {
+          key: "resend_configuration_profile",
+          label: "Resend configuration profile",
+          tooltip: (
+            <AutomationRowTooltip
+              text="The selected configuration profile will be resent when hosts fail the policy. Host counts will reset when new configuration profile is selected."
+              learnMoreUrl={`${LEARN_MORE_ABOUT_BASE_LINK}/policy-automation-resend-configuration-profile`}
+            />
+          ),
+          checked: resendConfigProfile,
+          onToggle: handleToggleResendConfigProfile,
+          isDisabled: resendProfileDisabled,
+          picker: resendConfigProfile ? (
+            <DropdownWrapper
+              name="profile"
+              className={`${baseClass}__row-picker`}
+              isDisabled={gitOpsModeEnabled}
+              value={
+                profileOptions.find((o) => o.value === (profileUUID ?? "")) ??
+                null
+              }
+              options={profileOptions}
+              placeholder="Select profile"
+              onChange={(opt: SingleValue<CustomOptionType>) =>
+                handleSelectProfile(opt ? String(opt.value) : null)
+              }
+            />
+          ) : undefined,
+        },
+        {
           key: "calendar_event",
           label: "Calendar event",
           tooltip: (
@@ -537,7 +628,7 @@ const PolicyAutomationsFields = forwardRef<
       );
     }
 
-    const errorMessages = [errors.install_software, errors.run_script].filter(
+    const errorMessages = Object.values(errors).filter(
       (msg): msg is string => !!msg
     );
 
