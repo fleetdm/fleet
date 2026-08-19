@@ -110,10 +110,6 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
-  /**
-   * True when a stored Microsoft Graph credential has been rejected by Entra. Raised by the Autopilot sync rather than
-   * at save time, so it can lag a failure by up to one sync interval.
-   */
   microsoft_graph_credential_invalid?: boolean;
   windows_enrollment?: IWindowsEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;

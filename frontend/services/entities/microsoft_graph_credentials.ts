@@ -15,10 +15,6 @@ export default {
     return sendRequest("GET", MDM_MICROSOFT_GRAPH_CREDENTIALS);
   },
 
-  /**
-   * Replaces the stored credentials with `credentials`. The endpoint is declarative, so this is also how a credential
-   * is deleted: send an empty list.
-   */
   applyCredentials: (
     credentials: IMicrosoftGraphCredentialFormData[]
   ): Promise<void> => {
