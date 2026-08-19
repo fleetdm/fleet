@@ -277,6 +277,10 @@ const MicrosoftGraphPage = () => {
             label="Client secret"
             name="clientSecret"
             type="password"
+            // Renders autocomplete="new-password" so a password manager neither offers to fill this nor prompts to
+            // save it. This is a service principal's secret, not a user login, and the field carries a mask rather
+            // than the real value. InputField's ignore1password default already emits data-1p-ignore.
+            blockAutoComplete
             value={clientSecret}
             onChange={setClientSecret}
             error={formErrors.clientSecret}

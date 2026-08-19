@@ -237,6 +237,16 @@ describe("MicrosoftGraphPage", () => {
     );
   });
 
+  it("keeps password managers out of the client secret field", async () => {
+    renderPage([createMockCredential()]);
+
+    // A service principal's secret is not a user login, and the field holds a mask rather than the real value, so
+    // neither 1Password nor the browser should offer to fill or save it.
+    const secretField = await screen.findByLabelText("Client secret");
+    expect(secretField).toHaveAttribute("autocomplete", "new-password");
+    expect(secretField).toHaveAttribute("data-1p-ignore");
+  });
+
   it("validates on save rather than disabling the button", async () => {
     const { user } = renderPage([]);
 
