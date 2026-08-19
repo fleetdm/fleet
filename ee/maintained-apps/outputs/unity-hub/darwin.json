@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.20.1",
+      "version": "3.21.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.20.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.21.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.unity3d.unityhub');"
       },
-      "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/3.20.1/UnityHubSetup-3.20.1-arm64.dmg",
+      "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/3.21.0/UnityHubSetup-3.21.0-arm64.dmg",
       "install_script_ref": "f7867145",
       "uninstall_script_ref": "5b95ff58",
-      "sha256": "1876a3d6ee431ed19f6d3b93b5b833510077a521a124478cb02a3d560bd9bc67",
+      "sha256": "e4e6e913a9b24a670beff23f3838c2ca28aa826a57e4424b71d1cb2d5d12e5f0",
       "default_categories": [
         "Productivity"
       ]
