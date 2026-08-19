@@ -37,6 +37,7 @@ import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEn
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
 import MdmEnrolledActivityItem from "./ActivityItems/MdmEnrolledActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
+import UnlockedUserAccountActivityItem from "./ActivityItems/UnlockedUserAccountActivityItem";
 import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
@@ -97,6 +98,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
   [ActivityType.MdmEnrolled]: MdmEnrolledActivityItem,
   [ActivityType.RanCustomMdmCommand]: RanCustomMdmCommandActivityItem,
+  [ActivityType.UnlockedUserAccount]: UnlockedUserAccountActivityItem,
   [ActivityType.EditedCustomHostVitalValue]: EditedCustomHostVitalValueActivityItem,
   [ActivityType.RanAutomationWebhook]: PolicyAutomationActivityItem,
   [ActivityType.RanAutomationTicket]: PolicyAutomationActivityItem,

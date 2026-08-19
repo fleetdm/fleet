@@ -1,0 +1,1 @@
+- Added an **Unlock user account** host action so admins, maintainers, and technicians can unlock local macOS accounts without constructing a custom MDM command.

@@ -33,6 +33,7 @@ const baseClass = "global-activity-item";
 
 const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanCustomMdmCommand,
+  ActivityType.UnlockedUserAccount,
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
@@ -1144,6 +1145,15 @@ const TAGGED_TEMPLATES = {
         {" "}
         ran {formatMdmCommandNameForActivityItem(request_type)} on{" "}
         <b>{host_display_name}</b>.
+      </>
+    );
+  },
+  unlockedUserAccount: (activity: IActivity) => {
+    const { username, host_display_name } = activity.details || {};
+    return (
+      <>
+        {" unlocked the "}
+        <b>{username}</b> user account on <b>{host_display_name}</b>.
       </>
     );
   },
@@ -2563,6 +2573,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.RanCustomMdmCommand: {
       return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
+    }
+    case ActivityType.UnlockedUserAccount: {
+      return TAGGED_TEMPLATES.unlockedUserAccount(activity);
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);

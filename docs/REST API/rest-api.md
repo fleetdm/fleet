@@ -3425,6 +3425,7 @@ None.
 - [Get host's certificates](#get-hosts-certificates)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
+- [Unlock user account](#unlock-user-account)
 - [Wipe host](#wipe-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
@@ -6283,6 +6284,41 @@ Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its
   "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
   "request_type": "ClearPasscode",
   "platform": "ios"
+}
+```
+
+### Unlock user account
+
+Unlocks a local macOS user account that was locked after too many failed login attempts. This does not reset the user's password or unlock FileVault. The host must be company-managed by Fleet's Apple MDM, and its MDM enrollment profile must include the Device Lock and Passcode Removal access right.
+
+`POST /api/v1/fleet/hosts/:id/unlock_user_account`
+
+#### Parameters
+
+| Name     | Type   | In   | Description                                      |
+| -------- | ------ | ---- | ------------------------------------------------ |
+| id       | number | path | **Required.** The Fleet host ID.                  |
+| username | string | body | **Required.** The local macOS account short name. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/unlock_user_account`
+
+```json
+{
+  "username": "anna"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
+  "request_type": "UnlockUserAccount",
+  "platform": "darwin"
 }
 ```
 

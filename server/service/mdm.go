@@ -51,6 +51,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4537,4 +4538,100 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type unlockUserAccountRequest struct {
+	HostID   uint   `url:"id"`
+	Username string `json:"username"`
+}
+
+func unlockUserAccountEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*unlockUserAccountRequest)
+	res, err := svc.UnlockUserAccount(ctx, req.HostID, req.Username)
+	if err != nil {
+		return fleet.UnlockUserAccountResponse{Err: err}, nil
+	}
+	return fleet.UnlockUserAccountResponse{CommandEnqueueResult: res}, nil
+}
+
+func (svc *Service) UnlockUserAccount(ctx context.Context, hostID uint, username string) (*fleet.CommandEnqueueResult, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host for unlock user account")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionUnlockUserAccount); err != nil {
+		return nil, err
+	}
+
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil, fleet.NewInvalidArgumentError("username", "Username is required.")
+	}
+
+	if host.FleetPlatform() != "darwin" {
+		return nil, fleet.NewInvalidArgumentError("host_id", "Unlock user account is only supported on macOS hosts.")
+	}
+
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		if errors.Is(err, fleet.ErrMDMNotConfigured) {
+			return nil, fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "checking whether Apple MDM is configured")
+	}
+
+	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, fleet.NewInvalidArgumentError("host_id", "Can't unlock the user account because the host doesn't have MDM turned on.")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting host MDM information for unlock user account")
+	}
+	if !hostMDM.Enrolled || !hostMDM.ConnectedToFleet {
+		return nil, fleet.NewInvalidArgumentError("host_id", "Can't unlock the user account because the host doesn't have MDM turned on.")
+	}
+	if hostMDM.IsPersonalEnrollment {
+		return nil, fleet.NewInvalidArgumentError("host_id", "Unlock user account isn't available for personally enrolled hosts.")
+	}
+
+	permissions, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "getting Apple MDM enrollment permissions for unlock user account")
+	}
+	accessRights := apple_mdm.MDMAccessRightAll
+	if permissions != nil {
+		accessRights = permissions.AccessRights
+	}
+	if accessRights&apple_mdm.MDMAccessRightDeviceLock == 0 {
+		return nil, fleet.NewInvalidArgumentError("host_id", "The host's MDM enrollment profile doesn't allow unlocking user accounts.")
+	}
+
+	commandUUID, err := svc.mdmAppleCommander.UnlockUserAccount(ctx, host.UUID, username, uuid.NewString())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unlocking user account")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeUnlockedUserAccount{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		HostUUID:        host.UUID,
+		Username:        username,
+		CommandUUID:     commandUUID,
+		RequestType:     fleet.AppleMDMCommandTypeUnlockUserAccount,
+		Platform:        "darwin",
+	}); err != nil {
+		// The command was already enqueued. Avoid returning an error that could
+		// cause a client to retry and enqueue the same action again.
+		svc.logger.ErrorContext(ctx, "failed to log activity for unlocked user account", "err", err, "host_uuid", host.UUID)
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: commandUUID,
+		RequestType: fleet.AppleMDMCommandTypeUnlockUserAccount,
+		Platform:    "darwin",
+	}, nil
 }

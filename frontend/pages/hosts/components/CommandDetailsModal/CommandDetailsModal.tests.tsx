@@ -1,10 +1,13 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
+import { ICommandResult } from "interfaces/command";
+
 import {
   getIconName,
   getVerbForCommandStatus,
   ModalContent,
+  UnlockUserAccountCommandStatus,
 } from "./CommandDetailsModal";
 
 describe("getIconName", () => {
@@ -87,5 +90,72 @@ describe("ModalContent", () => {
     expect(
       screen.queryByText(/something's gone wrong/i)
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("UnlockUserAccountCommandStatus", () => {
+  const result = (status: string): ICommandResult => ({
+    host_uuid: "host-uuid",
+    command_uuid: "command-uuid",
+    status,
+    updated_at: "",
+    request_type: "UnlockUserAccount",
+    hostname: "Anna's Mac",
+    payload: "",
+    result: "",
+    name: null,
+  });
+
+  it.each([
+    ["Pending", /request to unlock.*is pending/i],
+    ["NotNow", /request to unlock.*is deferred/i],
+    ["Acknowledged", /unlocked the.*user account/i],
+    ["Error", /failed to unlock the.*user account/i],
+  ])("renders dedicated copy for %s", (status, expectedCopy) => {
+    render(
+      <UnlockUserAccountCommandStatus
+        result={result(status)}
+        username="anna"
+        actorFullName="Jay Moore"
+      />
+    );
+
+    expect(screen.getByText(expectedCopy)).toBeInTheDocument();
+    expect(screen.queryByText(/custom MDM command/i)).not.toBeInTheDocument();
+  });
+
+  it("uses activity metadata when the command result was deleted", () => {
+    render(
+      <UnlockUserAccountCommandStatus
+        result={{ ...result("Deleted"), hostname: "", request_type: "" }}
+        username="anna"
+        actorFullName="Jay Moore"
+        hostDisplayName="Anna's Mac"
+      />
+    );
+
+    expect(
+      screen.getByText(/sent a request to unlock the.*user account/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Anna's Mac")).toBeInTheDocument();
+    expect(
+      screen.getByText("This command has been deleted.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/custom MDM command/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the requested account fallback without a duplicate article", () => {
+    render(
+      <UnlockUserAccountCommandStatus
+        result={result("Acknowledged")}
+        actorFullName="Jay Moore"
+      />
+    );
+
+    const accountName = screen.getByText("requested");
+    expect(accountName.parentElement).toHaveTextContent(
+      "unlocked the requested user account"
+    );
+    expect(screen.queryByText("the requested")).not.toBeInTheDocument();
   });
 });

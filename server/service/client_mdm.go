@@ -437,6 +437,18 @@ func (c *Client) MDMClearPasscodeHost(hostID uint) (*fleet.CommandEnqueueResult,
 	return response.CommandEnqueueResult, nil
 }
 
+// MDMUnlockUserAccountHost issues an UnlockUserAccount MDM command for a macOS host.
+func (c *Client) MDMUnlockUserAccountHost(hostID uint, username string) (*fleet.CommandEnqueueResult, error) {
+	request := struct {
+		Username string `json:"username"`
+	}{Username: username}
+	var response fleet.UnlockUserAccountResponse
+	if err := c.authenticatedRequest(&request, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock_user_account", hostID), &response); err != nil {
+		return nil, fmt.Errorf("unlock user account request: %w", err)
+	}
+	return response.CommandEnqueueResult, nil
+}
+
 type eulaContent struct {
 	Bytes []byte
 }

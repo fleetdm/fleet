@@ -36,7 +36,8 @@ const (
 	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 
-	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+	AppleMDMCommandTypeClearPasscode     = "ClearPasscode"
+	AppleMDMCommandTypeUnlockUserAccount = "UnlockUserAccount"
 
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."

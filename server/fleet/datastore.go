@@ -4139,6 +4139,10 @@ type MDMAppleStore interface {
 	MDMAssetRetriever
 	GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
+	// EnqueueUnlockUserAccountCommand atomically reuses an active pending
+	// UnlockUserAccount command for the same host and username, or enqueues cmd
+	// when no matching command exists. It returns the UUID that is pending.
+	EnqueueUnlockUserAccountCommand(ctx context.Context, hostUUID, username string, cmd *mdm.Command) (string, error)
 	EnqueueDeviceUnlockCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }

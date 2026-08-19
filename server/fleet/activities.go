@@ -2211,6 +2211,24 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeUnlockedUserAccount struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostUUID        string `json:"host_uuid"`
+	Username        string `json:"username"`
+	CommandUUID     string `json:"command_uuid"`
+	RequestType     string `json:"request_type"`
+	Platform        string `json:"platform"`
+}
+
+func (a ActivityTypeUnlockedUserAccount) ActivityName() string {
+	return "unlocked_user_account"
+}
+
+func (a ActivityTypeUnlockedUserAccount) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCanceledSetupExperience struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

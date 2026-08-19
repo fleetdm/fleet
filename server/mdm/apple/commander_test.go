@@ -734,6 +734,44 @@ func TestMDMAppleCommanderClearPasscode(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 }
 
+func TestMDMAppleCommanderUnlockUserAccount(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	username := `local&user<admin>`
+	mdmStorage.EnqueueUnlockUserAccountCommandFunc = func(ctx context.Context, gotHostUUID, gotUsername string, cmd *mdm.Command) (string, error) {
+		require.Equal(t, hostUUID, gotHostUUID)
+		require.Equal(t, username, gotUsername)
+		require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, cmd.Command.RequestType)
+		require.Equal(t, cmdUUID, cmd.CommandUUID)
+		require.Contains(t, string(cmd.Raw), "<key>UserName</key>")
+		require.Contains(t, string(cmd.Raw), "local&amp;user&lt;admin&gt;")
+		return cmdUUID, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		return map[string]*mdm.Push{
+			hostUUID: {PushMagic: "magic", Token: []byte("token"), Topic: "topic"},
+		}, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	gotCommandUUID, err := cmdr.UnlockUserAccount(ctx, hostUUID, username, cmdUUID)
+	require.NoError(t, err)
+	require.Equal(t, cmdUUID, gotCommandUUID)
+	require.True(t, mdmStorage.EnqueueUnlockUserAccountCommandFuncInvoked)
+}
+
 func TestMDMAppleCommanderDeviceNameSetting(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}

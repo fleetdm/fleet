@@ -111,6 +111,7 @@ export enum ActivityType {
   EditedWindowsEnrollmentDefaultFleet = "edited_windows_enrollment_default_fleet",
   RanScript = "ran_script",
   RanCustomMdmCommand = "ran_custom_mdm_command",
+  UnlockedUserAccount = "unlocked_user_account",
   RanScriptBatch = "ran_script_batch",
   ScheduledScriptBatch = "scheduled_script_batch",
   CanceledScriptBatch = "canceled_script_batch",
@@ -241,6 +242,7 @@ export type IHostPastActivityType =
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
   | ActivityType.RanCustomMdmCommand
+  | ActivityType.UnlockedUserAccount
   | ActivityType.EditedCustomHostVitalValue
   | ActivityType.RanAutomationWebhook
   | ActivityType.RanAutomationTicket
@@ -370,6 +372,7 @@ export interface IActivityDetails {
   failure_reason?: string;
   user_email?: string;
   user_id?: number;
+  username?: string;
   webhook_url?: string;
   // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
   status_code?: number;
@@ -522,6 +525,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   mdm_enrolled: "MDM turned on",
   mdm_unenrolled: "MDM turned off",
   ran_custom_mdm_command: "Ran custom MDM command",
+  unlocked_user_account: "Unlocked user account",
   ran_script: "Ran script",
   ran_script_batch: "Bulk ran script",
   scheduled_script_batch: "Scheduled script batch",

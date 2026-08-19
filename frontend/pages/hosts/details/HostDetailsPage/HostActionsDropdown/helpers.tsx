@@ -87,6 +87,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Unlock user account",
+    value: "unlockUserAccount",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -523,6 +528,27 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
   return true;
 };
 
+const canUnlockUserAccount = (config: IHostActionConfigOptions) => {
+  const hasRequiredRole =
+    config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isGlobalTechnician ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer ||
+    config.isTeamTechnician;
+
+  return (
+    hasRequiredRole &&
+    isMacOS(config.hostPlatform) &&
+    config.isMacMdmEnabledAndConfigured &&
+    config.isEnrolledInMdm &&
+    !!config.isConnectedToFleetMdm &&
+    (config.hostMdmEnrollmentStatus === "On (company-owned)" ||
+      config.hostMdmEnrollmentStatus === "On (automatic)" ||
+      config.hostMdmEnrollmentStatus === "On (manual)")
+  );
+};
+
 const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
@@ -579,6 +605,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "clearPasscode");
   }
 
+  if (!canUnlockUserAccount(config)) {
+    options = options.filter((option) => option.value !== "unlockUserAccount");
+  }
+
   if (!canTurnOffMdm(config)) {
     options = options.filter((option) => option.value !== "mdmOff");
   }
@@ -623,6 +653,13 @@ const BYOD_DISABLED_TOOLTIPS: Record<string, JSX.Element> = {
   lock: (
     <>
       Lock permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  unlockUserAccount: (
+    <>
+      Unlock user account permissions
       <br />
       are disabled for this host.
     </>
@@ -739,7 +776,12 @@ const modifyOptions = (
     byodDisableOptions(options.filter((option) => option.value === "wipe"));
   }
   if (lockAllowed === false) {
-    byodDisableOptions(options.filter((option) => option.value === "lock"));
+    byodDisableOptions(
+      options.filter(
+        (option) =>
+          option.value === "lock" || option.value === "unlockUserAccount"
+      )
+    );
   }
   if (clearPasscodeAllowed === false) {
     byodDisableOptions(

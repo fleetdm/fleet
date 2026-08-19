@@ -21,6 +21,7 @@ import (
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/plist"
 )
 
 // lockConflictError indicates a lock command already exists for the host
@@ -293,6 +294,69 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 
 		return nil
 	}, s.logger)
+}
+
+// EnqueueUnlockUserAccountCommand serializes enqueue attempts per host so a UI
+// retry after an APNs failure can wake the command that is already queued
+// instead of creating a duplicate. A command for a different username is a
+// distinct action and may be queued independently.
+func (s *NanoMDMStorage) EnqueueUnlockUserAccountCommand(
+	ctx context.Context,
+	hostUUID, username string,
+	cmd *mdm.Command,
+) (string, error) {
+	var pendingCommandUUID string
+	err := common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		// Lock the host row even when it has no pending unlock command yet. This
+		// closes the empty-result race between concurrent requests.
+		var hostID uint
+		if err := sqlx.GetContext(ctx, tx, &hostID,
+			`SELECT id FROM hosts WHERE uuid = ? FOR UPDATE`, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "locking host for UnlockUserAccount enqueue")
+		}
+
+		var candidates []struct {
+			CommandUUID string `db:"command_uuid"`
+			Raw         []byte `db:"command"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &candidates, `
+			SELECT nc.command_uuid, nc.command
+			FROM nano_commands nc
+			INNER JOIN nano_enrollment_queue neq ON neq.command_uuid = nc.command_uuid
+			LEFT JOIN nano_command_results ncr
+			  ON ncr.command_uuid = nc.command_uuid AND ncr.id = neq.id
+			WHERE neq.id = ?
+			  AND neq.active = 1
+			  AND nc.request_type = ?
+			  AND (ncr.command_uuid IS NULL OR ncr.status = 'NotNow')
+			ORDER BY nc.created_at DESC`, hostUUID, fleet.AppleMDMCommandTypeUnlockUserAccount); err != nil {
+			return ctxerr.Wrap(ctx, err, "finding pending UnlockUserAccount command")
+		}
+
+		for _, candidate := range candidates {
+			var payload struct {
+				Command struct {
+					UserName string
+				}
+			}
+			if err := plist.Unmarshal(candidate.Raw, &payload); err != nil {
+				// This may be a malformed custom command with the same request
+				// type. It cannot be proven equivalent, so do not reuse it.
+				continue
+			}
+			if payload.Command.UserName == username {
+				pendingCommandUUID = candidate.CommandUUID
+				return nil
+			}
+		}
+
+		if err := enqueueCommandDB(ctx, tx, []string{hostUUID}, cmd); err != nil {
+			return err
+		}
+		pendingCommandUUID = cmd.CommandUUID
+		return nil
+	}, s.logger)
+	return pendingCommandUUID, err
 }
 
 func (s *NanoMDMStorage) EnqueueDeviceUnlockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {

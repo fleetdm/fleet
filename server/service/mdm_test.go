@@ -724,6 +724,126 @@ func TestRunMDMCommandCreatesActivity(t *testing.T) {
 	assert.Equal(t, test.UserAdmin.Email, capturedUser.Email)
 }
 
+func TestUnlockUserAccount(t *testing.T) {
+	errAppConfig := errors.New("app config failed")
+
+	testCases := []struct {
+		name                string
+		username            string
+		platform            string
+		hostMDM             *fleet.HostMDM
+		accessRights        int
+		failAPNS            bool
+		mdmConfigured       *bool
+		appConfigErr        error
+		permissionsNotFound bool
+		wantEnqueued        bool
+		wantErr             string
+		wantErrCause        error
+		wantHTTPStatus      int
+		wantNoHTTPStatus    bool
+	}{
+		{name: "empty username", username: "   ", platform: "darwin", wantErr: "Username is required"},
+		{name: "wrong platform", username: "anna", platform: "windows", wantErr: "only supported on macOS"},
+		{name: "MDM not configured", username: "anna", platform: "darwin", mdmConfigured: new(false), wantErr: fleet.AppleMDMNotConfiguredMessage, wantHTTPStatus: http.StatusBadRequest},
+		{name: "app config datastore error", username: "anna", platform: "darwin", appConfigErr: errAppConfig, wantErr: errAppConfig.Error(), wantErrCause: errAppConfig, wantNoHTTPStatus: true},
+		{name: "MDM disconnected", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true}, wantErr: "doesn't have MDM turned on"},
+		{name: "personal enrollment", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true, IsPersonalEnrollment: true}, wantErr: "personally enrolled"},
+		{name: "missing access right", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, accessRights: apple_mdm.MDMAccessRightAll &^ apple_mdm.MDMAccessRightDeviceLock, wantErr: "doesn't allow unlocking user accounts"},
+		{name: "enrollment permissions not found", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, permissionsNotFound: true, wantEnqueued: true},
+		{name: "APNs failure after enqueue", username: "anna", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, accessRights: apple_mdm.MDMAccessRightAll, failAPNS: true, wantEnqueued: true, wantErr: "APNS delivery failed"},
+		{name: "success", username: "  anna  ", platform: "darwin", hostMDM: &fleet.HostMDM{Enrolled: true, ConnectedToFleet: true}, accessRights: apple_mdm.MDMAccessRightAll, wantEnqueued: true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			mdmStorage := &mdmmock.MDMAppleStore{}
+			var enqueued *nanomdm_mdm.CommandWithSubtype
+			mdmStorage.EnqueueCommandFunc = func(_ context.Context, _ []string, cmd *nanomdm_mdm.CommandWithSubtype) (map[string]error, error) {
+				enqueued = cmd
+				return nil, nil
+			}
+			mdmStorage.EnqueueUnlockUserAccountCommandFunc = func(_ context.Context, _ string, _ string, cmd *nanomdm_mdm.Command) (string, error) {
+				enqueued = &nanomdm_mdm.CommandWithSubtype{Command: *cmd}
+				return cmd.CommandUUID, nil
+			}
+			opts := &TestServerOpts{
+				SkipCreateTestUsers: true,
+				MDMStorage:          mdmStorage,
+				MDMPusher: &mockAPNSPusher{failUUIDs: map[string]bool{
+					"mac-uuid": tt.failAPNS,
+				}},
+			}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = test.UserContext(ctx, test.UserAdmin)
+
+			host := &fleet.Host{ID: 42, UUID: "mac-uuid", Platform: tt.platform, Hostname: "mac"}
+			ds.HostLiteFunc = func(context.Context, uint) (*fleet.Host, error) { return host, nil }
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				if tt.appConfigErr != nil {
+					return nil, tt.appConfigErr
+				}
+				mdmConfigured := true
+				if tt.mdmConfigured != nil {
+					mdmConfigured = *tt.mdmConfigured
+				}
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmConfigured}}, nil
+			}
+			ds.GetHostMDMFunc = func(context.Context, uint) (*fleet.HostMDM, error) { return tt.hostMDM, nil }
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(context.Context, string) (*fleet.HostMDMApplePermissions, error) {
+				if tt.permissionsNotFound {
+					return nil, newNotFoundError()
+				}
+				return &fleet.HostMDMApplePermissions{AccessRights: tt.accessRights}, nil
+			}
+
+			var capturedActivity *fleet.ActivityTypeUnlockedUserAccount
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				capturedActivity, _ = act.(*fleet.ActivityTypeUnlockedUserAccount)
+				return nil
+			}
+
+			result, err := svc.UnlockUserAccount(ctx, host.ID, tt.username)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				if tt.wantErrCause != nil {
+					require.ErrorIs(t, err, tt.wantErrCause)
+				}
+				var statusErr interface{ Status() int }
+				if tt.wantHTTPStatus != 0 {
+					require.ErrorAs(t, err, &statusErr)
+					require.Equal(t, tt.wantHTTPStatus, statusErr.Status())
+				}
+				if tt.wantNoHTTPStatus {
+					require.NotErrorAs(t, err, &statusErr)
+				}
+				require.Nil(t, result)
+				if tt.wantEnqueued {
+					require.NotNil(t, enqueued)
+				} else {
+					require.Nil(t, enqueued)
+				}
+				require.Nil(t, capturedActivity)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, result.RequestType)
+			require.Equal(t, "darwin", result.Platform)
+			require.NotEmpty(t, result.CommandUUID)
+			require.NotNil(t, enqueued)
+			require.Contains(t, string(enqueued.Raw), "<string>anna</string>")
+			require.NotNil(t, capturedActivity)
+			require.Equal(t, "anna", capturedActivity.Username)
+			require.Equal(t, result.CommandUUID, capturedActivity.CommandUUID)
+			require.Equal(t, host.UUID, capturedActivity.HostUUID)
+			require.Equal(t, fleet.AppleMDMCommandTypeUnlockUserAccount, capturedActivity.RequestType)
+			require.Equal(t, "darwin", capturedActivity.Platform)
+		})
+	}
+}
+
 // mockAPNSPusher implements nanomdm_push.Pusher for unit tests, returning a
 // push failure for any UUID in failUUIDs and success for all others.
 type mockAPNSPusher struct {

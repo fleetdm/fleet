@@ -17,6 +17,10 @@ const (
 	// This action is permitted for technicians in addition to admin/maintainer/gitops,
 	// so transferring does not require the broader ActionWrite permission.
 	ActionTransferHost = "transfer_host"
+	// ActionUnlockUserAccount refers to sending an UnlockUserAccount MDM command
+	// to a macOS host. This intentionally does not grant the broader permission
+	// to run arbitrary MDM commands.
+	ActionUnlockUserAccount = "unlock_user_account"
 	// ActionResend refers to resending an entity on a single host (currently used for configuration profiles).
 	ActionResend = "resend"
 	// ActionReadSecrets refers to reading secrets/credentials of an entity (e.g. CA private keys, API tokens).
