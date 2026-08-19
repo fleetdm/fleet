@@ -1,11 +1,2 @@
-* Fixed the `munki_info` table erroring on hosts where Munki reported items it could not install, which left those hosts without Munki version, errors, and warnings.
-
-* Fixed the `time_zone_name` column of the `macadmins_unified_log` table always being empty.
-
-* Fixed the `transaction_uuid` column of the `puppet_info` table returning whether the Puppet transaction completed instead of its UUID.
-
-* Fixed crashes in the `crowdstrike_falcon` and `mdm` tables, which stopped fleetd's osquery extension and made every table it provides unavailable until it restarted.
-
-* Fixed the `macadmins_unified_log` table returning an extra empty row for every query.
-
-* Updated the `file_lines` table to report an error instead of results when a wildcard path matches a directory or a file it cannot read. Patterns that match directories, such as `/var/log/%`, now need narrowing to match only files, such as `/var/log/%.log`.
+* Updated macadmins/osquery-extension` to `v1.5.1`, which fixes the following issue:
+  * Fixed the `munki_info` table erroring on hosts where Munki reported items it could not install, which left those hosts without Munki version, errors, and warnings. 
