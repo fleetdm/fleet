@@ -1278,6 +1278,10 @@ type DeleteHostDEPAssignmentsFromAnotherABMFunc func(ctx context.Context, abmTok
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, abmTokenID uint, serials []string) error
 
+type MarkHostDEPAssignmentDeletedFunc func(ctx context.Context, hostID uint) error
+
+type MarkHostDEPAssignmentsDeletedFunc func(ctx context.Context, hostIDs []uint) error
+
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error
 
 type UpdateHostDEPAssignProfileResponsesSameABMFunc func(ctx context.Context, resp *godep.ProfileResponse) error
@@ -4193,6 +4197,12 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	MarkHostDEPAssignmentDeletedFunc        MarkHostDEPAssignmentDeletedFunc
+	MarkHostDEPAssignmentDeletedFuncInvoked bool
+
+	MarkHostDEPAssignmentsDeletedFunc        MarkHostDEPAssignmentsDeletedFunc
+	MarkHostDEPAssignmentsDeletedFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
@@ -10135,6 +10145,20 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID uin
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostDEPAssignmentsFunc(ctx, abmTokenID, serials)
+}
+
+func (s *DataStore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.MarkHostDEPAssignmentDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkHostDEPAssignmentDeletedFunc(ctx, hostID)
+}
+
+func (s *DataStore) MarkHostDEPAssignmentsDeleted(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.MarkHostDEPAssignmentsDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkHostDEPAssignmentsDeletedFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse, abmTokenID uint) error {
