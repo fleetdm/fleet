@@ -246,6 +246,72 @@ func (ds *Datastore) QueryByName(
 	return &query, nil
 }
 
+// queryLabelScopeStmt scopes a query to a host by label, as AND clauses ready to append to
+// a WHERE over the queries table aliased as q. The two scopes coexist on query_labels via
+// require_all and are ANDed, each passing when the query has no labels of that scope:
+// include_any (require_all = 0) needs the host in at least one of the labels, include_all
+// (require_all = 1) needs the host in every one. Use queryLabelScope to get its args.
+const queryLabelScopeStmt = `
+		AND (
+			NOT EXISTS (
+				SELECT 1 FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 0
+			)
+			OR EXISTS (
+				SELECT 1 FROM query_labels ql
+				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
+				WHERE ql.query_id = q.id AND ql.require_all = 0
+			)
+		)
+		AND (
+			NOT EXISTS (
+				SELECT 1 FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			)
+			OR (
+				SELECT COUNT(*) FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			) = (
+				SELECT COUNT(*) FROM query_labels ql
+				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			)
+		)`
+
+func queryLabelScope(hostID uint) (string, []any) {
+	return queryLabelScopeStmt, []any{hostID, hostID}
+}
+
+func (ds *Datastore) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+	teamSQL := ""
+	var args []any
+	if teamID != nil {
+		teamSQL = " OR q.team_id = ?"
+		args = append(args, *teamID)
+	}
+	args = append(args, fleet.LoggingSnapshot)
+
+	labelSQL, labelArgs := queryLabelScope(hostID)
+	args = append(args, labelArgs...)
+
+	stmt := fmt.Sprintf(`
+		SELECT q.id
+		FROM queries q
+		WHERE q.saved = 1
+		AND q.schedule_interval > 0
+		AND (q.team_id IS NULL%s)
+		AND (
+			q.automations_enabled
+			OR (NOT q.discard_data AND q.logging_type = ?)
+		)`, teamSQL) + labelSQL
+
+	var queryIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list queries scheduled for host")
+	}
+	return queryIDs, nil
+}
+
 func (ds *Datastore) NewQuery(
 	ctx context.Context,
 	query *fleet.Query,
@@ -959,38 +1025,9 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
 	labelSQL := ""
 	if hostID != nil {
-		// Two-scope label filter:
-		// - include_any: query passes if it has no include_any labels OR host has at least one of them
-		// - include_all: query passes if it has no include_all labels OR host has every one of them
-		labelSQL = `
-		-- include_any check
-		AND (
-			NOT EXISTS (
-				SELECT 1 FROM query_labels ql
-				WHERE ql.query_id = q.id AND ql.require_all = 0
-			)
-			OR EXISTS (
-				SELECT 1 FROM query_labels ql
-				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
-				WHERE ql.query_id = q.id AND ql.require_all = 0
-			)
-		)
-		-- include_all check
-		AND (
-			NOT EXISTS (
-				SELECT 1 FROM query_labels ql
-				WHERE ql.query_id = q.id AND ql.require_all = 1
-			)
-			OR (
-				SELECT COUNT(*) FROM query_labels ql
-				WHERE ql.query_id = q.id AND ql.require_all = 1
-			) = (
-				SELECT COUNT(*) FROM query_labels ql
-				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
-				WHERE ql.query_id = q.id AND ql.require_all = 1
-			)
-		)`
-		args = append(args, hostID, hostID)
+		var labelArgs []any
+		labelSQL, labelArgs = queryLabelScope(*hostID)
+		args = append(args, labelArgs...)
 	}
 	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL, labelSQL)
 
