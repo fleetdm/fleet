@@ -960,7 +960,7 @@ The attribution system is driven by a single trigger: **when Most Recent Campaig
 
 **Step 4 — Populate Opportunity on creation.** When an opportunity is created, the Most Recent Channel, Most Recent Channel Detail, and Most Recent Campaign values are copied to the Converting fields on the Opportunity record, capturing the converting-touch at that exact moment.
 
-Note: The Most Recent values on the contact are updated with each engagemet with the contact, overwriting historical values.
+Note: The Most Recent values on the contact are updated with each engagement with the contact, overwriting historical values.
 
 ## SFDC campaign hierarchy
 
