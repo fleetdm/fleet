@@ -25,8 +25,32 @@ locals {
   # Single label under loadtest.fleetdm.com so the *.loadtest.fleetdm.com
   # wildcard cert would cover it if the mock ever moves to the HTTPS listener.
   # A nested name would not: wildcards match exactly one label.
+  #
+  # This name resolves to the shared internal ALB and is now an operator door
+  # only -- /healthz, /stats, /memstats from the VPN, where the Cloud Map name
+  # below does not resolve. No load-bearing traffic goes through it; see
+  # apple_apns_mock.tf for why.
   apple_apns_mock_hostname = "${local.customer}-apns-mock.loadtest.fleetdm.com"
   apple_apns_mock_port     = 8378
+
+  # Cloud Map private DNS: resolves straight to the mock's task IP, no load
+  # balancer in the path. Every simulated device holds an SSE stream open for
+  # the life of the test, and an ALB has to hold one connection per stream from
+  # its own node IPs to a single target IP:port. That tops out around 55k
+  # connections per ALB node against one target (source ephemeral ports), so a
+  # 75k-host run -- two streams per host, device plus user channel -- collapsed
+  # into a 39k-count TargetConnectionErrorCount/504 storm at ~75-100k streams
+  # while the mock itself sat at ~0ms response time and never went unhealthy.
+  # Dialing the task directly moves the port space to the osquery-perf side,
+  # where it is spread over every loadtest container's ENI instead of a handful
+  # of ALB nodes.
+  #
+  # Built from locals rather than from the aws_service_discovery_service
+  # resource so the Fleet task definition does not take a dependency on the
+  # mock. Nothing resolves this name until a push actually happens.
+  apple_apns_mock_namespace = "${local.customer}.internal"
+  apple_apns_mock_dns_name  = "apns-mock.${local.customer}.internal"
+  apple_apns_mock_url       = "http://apns-mock.${local.customer}.internal:8378"
 
   # MDM behaviours we always want in a loadtest. These were previously buried
   # in the Elastic APM branch above, which meant they silently vanished
@@ -44,7 +68,7 @@ locals {
     # initAppleMDMPushService to a nopPusher before the push URL is ever read,
     # so setting both would silently make the mock unreachable.
     var.enable_apple_mdm ? {
-      FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL = "http://${local.apple_apns_mock_hostname}"
+      FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL = local.apple_apns_mock_url
       } : {
       FLEET_DEV_MDM_APPLE_DISABLE_PUSH = "1"
     }
