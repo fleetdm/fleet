@@ -135,6 +135,8 @@ jobs:
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
+    # Skipped on draft PRs along with the rest of the non-fast tier.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: 'ubuntu-latest'
     services:
       mysql:
