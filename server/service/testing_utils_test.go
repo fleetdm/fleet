@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
@@ -66,6 +67,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/notifications"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -373,6 +376,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real service module.
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
 
+	// Set up mock notifications service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	svc.SetNotificationsService(&fleet_mock.MockNotificationsService{})
+
 	return svc, ctx
 }
 
@@ -520,6 +527,31 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
 		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
+	}
+
+	// Notifications routes. Same DBConns-gated pattern as the activity bounded
+	// context above, but auth is device-token based rather than user-session
+	// based.
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		notificationsACLAdapter := notificationsacl.NewFleetServiceAdapter(ds)
+		notificationsSvc, notificationsRoutesFn := notifications_bootstrap.New(
+			opts[0].DBConns,
+			notificationsACLAdapter,
+			logger,
+		)
+		svc.SetNotificationsService(notificationsSvc)
+		notificationsSvc.RegisterKind(NewPatchNotificationKind(notificationsSvc))
+		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
+		opts[0].NotificationsSvc = notificationsSvc
+	} else {
+		_, notificationsRoutesFn := notifications_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(notificationsRoutesFn(noopAuth)))
 	}
 
 	// The chart bounded context is wired into the real server in serve.go but not into

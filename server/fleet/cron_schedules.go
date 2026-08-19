@@ -73,6 +73,9 @@ const (
 	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
 	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
 	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
+	// CronEndUserNotifications queues end user notifications that are due and gives up on expired
+	// ones. Runs every 1 minute, which is what a reminder timed to the minute needs.
+	CronEndUserNotifications CronScheduleName = "end_user_notifications"
 )
 
 type CronSchedulesService interface {
