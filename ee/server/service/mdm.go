@@ -1975,6 +1975,46 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 	})
 }
 
+func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	// Whoever can send a lock/wipe can cancel one, so this mirrors the authz
+	// of the commands themselves rather than the unified queue's
+	// cancel_host_activity (which excludes gitops).
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Non-Apple hosts have no nano queue rows; without this guard they would
+	// fall through to a misleading not-found.
+	if !fleet.IsApplePlatform(host.Platform) {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Couldn't cancel. Only Apple MDM commands can be canceled.",
+		})
+	}
+
+	requestType, err := svc.ds.CancelHostMDMCommand(ctx, host, commandUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel host mdm command")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCanceledMDMCommand{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		CommandType:     requestType,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for canceled mdm command")
+	}
+	return nil
+}
+
 // clearPasscodeAndroid dispatches Clear passcode to the Android Service.
 func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
 	if !appCfg.MDM.AndroidEnabledAndConfigured {
