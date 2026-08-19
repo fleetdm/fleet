@@ -1379,8 +1379,11 @@ module.exports.routes = {
   'GET /learn-more-about/idp-account-sync': '/guides/deploying-apple-account-provisioning-with-fleet',
   'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
   'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
+  'GET /learn-more-about/ddm-activations': '/guides/custom-os-settings#apple-declarations-ddm',
+  'GET /learn-more-about/linux-disk-encryption': '/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux',
   'GET /learn-more-about/removal-behavior': '/guides/custom-os-settings#removal-behavior',
-
+  'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
+  'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
 
   // Sitemap
   // =============================================================================================================
@@ -1436,6 +1439,7 @@ module.exports.routes = {
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/get-android-device' },
+  'GET /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId/operations/:operationId': { action: 'android-proxy/get-android-device-operation' },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },

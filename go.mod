@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.26.5
+go 1.26.6
 
 require (
 	cloud.google.com/go/pubsub v1.50.1
@@ -61,7 +61,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.1
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-ini/ini v1.67.0
 	github.com/go-jose/go-jose/v3 v3.0.5
 	github.com/go-json-experiment/json v0.0.0-20260214004413-d219187c3433
@@ -95,7 +95,7 @@ require (
 	github.com/klauspost/compress v1.18.6
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.4.1
+	github.com/macadmins/osquery-extension v1.5.1
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -187,7 +187,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.1
 	pgregory.net/rapid v1.2.0
-	software.sslmate.com/src/go-pkcs12 v0.7.1
+	software.sslmate.com/src/go-pkcs12 v0.7.2
 )
 
 require (

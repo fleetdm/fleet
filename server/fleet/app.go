@@ -266,6 +266,10 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
+	// MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by
+	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent.
+	MicrosoftGraphCredentialInvalid bool `json:"microsoft_graph_credential_invalid"`
+
 	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
 	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
 	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
@@ -1099,11 +1103,12 @@ type EnrichedAppConfig struct {
 
 // enrichedAppConfigFields are grouped separately to aid with JSON unmarshaling
 type enrichedAppConfigFields struct {
-	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
-	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
-	License         *LicenseInfo           `json:"license,omitempty"`
-	Logging         *Logging               `json:"logging,omitempty"`
-	Email           *EmailConfig           `json:"email,omitempty"`
+	UpdateInterval         *UpdateIntervalConfig  `json:"update_interval,omitempty"`
+	Vulnerabilities        *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
+	License                *LicenseInfo           `json:"license,omitempty"`
+	Logging                *Logging               `json:"logging,omitempty"`
+	Email                  *EmailConfig           `json:"email,omitempty"`
+	MaxSoftwarePackageSize int64                  `json:"max_software_package_size"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize

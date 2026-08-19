@@ -1,0 +1,1 @@
+- Fixed the "Advanced options" reveal button on the Edit software modal not expanding for `.msix` packages (e.g., Claude, Slack on Windows), which prevented users from viewing or editing install/uninstall scripts.

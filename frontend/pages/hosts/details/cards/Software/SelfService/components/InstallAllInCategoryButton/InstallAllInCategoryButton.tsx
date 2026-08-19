@@ -21,6 +21,9 @@ export interface IInstallAllInCategoryButtonProps {
    * — the service omits the `category_id` query param and the BE installs
    * every uninstalled item the device user is entitled to. */
   categoryId?: number;
+  /** Current search query. When non-empty, forwarded to install_all so the
+   * request scopes to the filtered subset the user sees on screen. */
+  query?: string;
   /** Called after the install_all request resolves successfully. */
   onSuccess: () => void;
 }
@@ -30,6 +33,7 @@ const InstallAllInCategoryButton = ({
   hasInProgressInCategory,
   deviceToken,
   categoryId,
+  query,
   onSuccess,
 }: IInstallAllInCategoryButtonProps) => {
   const [showModal, setShowModal] = useState(false);
@@ -40,7 +44,8 @@ const InstallAllInCategoryButton = ({
     try {
       await deviceUserAPI.installAllSelfServiceSoftwareInCategory(
         deviceToken,
-        categoryId
+        categoryId,
+        query
       );
       setShowModal(false);
       onSuccess();
@@ -49,7 +54,7 @@ const InstallAllInCategoryButton = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [deviceToken, categoryId, onSuccess]);
+  }, [deviceToken, categoryId, query, onSuccess]);
 
   // Nothing eligible and no install_all batch running — drop the button from
   // the DOM. When a previous batch IS still running (count === 0 &&

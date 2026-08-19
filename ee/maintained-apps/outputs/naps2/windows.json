@@ -4,7 +4,8 @@
       "version": "8.3.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'NAPS2' AND publisher = 'NAPS2 Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NAPS2' AND publisher = 'NAPS2 Software' AND version_compare(version, '8.3.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NAPS2' AND publisher = 'NAPS2 Software' AND version_compare(version, '8.3.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'naps2.exe');"
       },
       "installer_url": "https://github.com/cyanfish/naps2/releases/download/v8.3.2/naps2-8.3.2-win-x64.msi",
       "install_script_ref": "22e48c46",

@@ -108,6 +108,15 @@ Fleet pieces typically carry two calls to action, and they play different roles:
 - **The post-takeaways button** (above) — one button, high on the page, for the reader who's already convinced.
 - **The closing CTA** — at the foot of the article, a fuller menu of next steps. This can be a short "See it live" block (a guide link plus one or two bullets such as **Get a demo** → `/contact` and **Join a GitOps training session** → `/gitops-workshop`) and/or an italic CTA line with links. Keep it to the actions that genuinely fit the piece; real links only.
 
+### Endmatter
+
+Every article ends with the `<meta>` block from [`content-style/references/content-types.md`](../content-style/references/content-types.md). Emit it as part of the draft; `assets/article-template.md` already carries it. Two fields need care:
+
+- `articleTitle` matches the H1 exactly, character for character.
+- **`description` must be 150 characters or fewer.** This is enforced by the website build, not a style preference: `website/scripts/build-static-content.js` throws `An article page has an invalid description meta tag` and fails the whole production build for any article over the limit. It applies to every content type that uses this endmatter, articles and comparisons included. Count the characters rather than eyeballing it, since a description that reads like one or two sentences lands near 150 more often than you'd expect. Trim words, don't drop the substance.
+
+Never fabricate `authorFullName`, `authorGitHubUsername`, or `publishedOn`. If you don't have them, leave the placeholders and tell the author which fields to fill in.
+
 ## Voice and terminology
 
 Fleet's voice is confident, specific, and honest. It respects the reader's intelligence and never oversells.
@@ -175,6 +184,7 @@ Use this to bring older Fleet content up to the current format. Work through it 
 - Every capability claim is true and grounded; partial truths are hedged; unverified claims are flagged.
 - No idea is repeated across sections without a reason; formatting is restrained outside the takeaways.
 - Closing lands the through-line without re-listing the takeaways; the top button and closing CTA aren't identical, and all links are real.
+- Endmatter is present, `articleTitle` matches the H1 exactly, and `description` is 150 characters or fewer (counted, not estimated). Author and date are real or flagged, never invented.
 - The `content-style` skill has been run over the prose, and its voice, grammar, and terminology guidance is satisfied.
 
 ## Reference

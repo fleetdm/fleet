@@ -87,3 +87,13 @@ output "rds_security_group_id" {
   description = "Security group ID for the RDS cluster"
   value       = module.loadtest.rds.security_group_id
 }
+
+output "apple_apns_mock_url" {
+  description = "Internal URL of the Apple APNs mock, or null when var.enable_apple_mdm is false. Fleet is already pointed at this; use it for osquery-perf or for curling /stats from inside the VPC."
+  value       = var.enable_apple_mdm ? "http://${local.apple_apns_mock_hostname}" : null
+}
+
+output "apple_apns_mock_hostname" {
+  description = "Hostname the Apple APNs mock claims on the internal ALB, or null when var.enable_apple_mdm is false."
+  value       = var.enable_apple_mdm ? local.apple_apns_mock_hostname : null
+}

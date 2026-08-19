@@ -4,7 +4,8 @@
       "version": "3.16.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.soulver.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.soulver.mac' AND version_compare(bundle_short_version, '3.16.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.soulver.mac' AND version_compare(bundle_short_version, '3.16.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'app.soulver.mac');"
       },
       "installer_url": "https://soulver.app/mac/sparkle/soulver-3.16.3-541.zip",
       "install_script_ref": "ad7c4a09",

@@ -88,6 +88,9 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - `stripQuotes(str)`, `strToBool(str)` — input parsing
 - `enforceFleetSentenceCasing(str)` — respects Fleet stylization rules
 
+## Buttons
+Always use `<Button icon="name">` — the `<Button><Icon /></Button>` child pattern is not allowed; icon-only buttons must set `ariaLabel`.
+
 ## Software titles
 
 ### Display name

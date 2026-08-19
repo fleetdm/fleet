@@ -5403,9 +5403,11 @@ func (s *integrationTestSuite) TestLabels() {
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 
-		// create invalid label, conflicts with builtin name
+		// create invalid label, conflicts with builtin name (case-insensitive)
 		for n := range builtinsMap {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToLower(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToUpper(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
 		// try to create a label with an invalid platform
@@ -5514,6 +5516,8 @@ func (s *integrationTestSuite) TestLabels() {
 		// attempt to modify a label to a reserved name
 		for n := range builtinsMap {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToLower(n))}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToUpper(n))}, http.StatusUnprocessableEntity, &modResp)
 		}
 
 		// modify a non-existing label
@@ -5628,6 +5632,23 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Len(t, listHostsResp.Hosts, 2)
 		assert.Equal(t, lbl2Hosts[1].ID, listHostsResp.Hosts[0].ID)
 		assert.Equal(t, lbl2Hosts[2].ID, listHostsResp.Hosts[1].ID)
+
+		// a dynamic label's membership cannot be replaced, and an empty list is a
+		// replacement too (it would clear all of its members)
+		for _, payload := range []fleet.ModifyLabelPayload{
+			{HostIDs: []uint{}},
+			{HostIDs: []uint{lbl2Hosts[0].ID}},
+			{Hosts: []string{}},
+			{Hosts: []string{lbl2Hosts[0].UUID}},
+		} {
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl2.ID), &payload, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, `"hosts" or "host_ids" can only be provided for a manual label`)
+		}
+
+		listHostsResp = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
+		assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
 
 		// list hosts in manual label 1
 		listHostsResp = listHostsResponse{}
@@ -5795,6 +5816,24 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// delete a non-existing label by name
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
+
+		// delete a built-in label by name (case-insensitive)
+		for n := range builtinsMap {
+			for _, variant := range []string{n, strings.ToLower(n), strings.ToUpper(n)} {
+				res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(variant)), nil, http.StatusUnprocessableEntity)
+				errMsg = extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "cannot delete built-in label")
+			}
+		}
+		listResp = fleet.ListLabelsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		var remainingBuiltIns int
+		for _, lbl := range listResp.Labels {
+			if _, ok := builtinsMap[lbl.Name]; ok {
+				remainingBuiltIns++
+			}
+		}
+		require.Equal(t, len(builtinsMap), remainingBuiltIns)
 
 		// delete a manual label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)
@@ -5991,7 +6030,11 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			// Compare whitespace-normalized SQL: the IdP join fragment is a multi-line
+			// raw string whose indentation is irrelevant to the query's meaning.
+			assert.Equal(t,
+				"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id",
+				strings.Join(strings.Fields(query), " "))
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -6048,7 +6091,10 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
+			// Compare whitespace-normalized SQL (see the IdP Group Label subtest above).
+			assert.Equal(t,
+				"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id",
+				strings.Join(strings.Fields(query), " "))
 			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -8963,6 +9009,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
 	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
 	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
+	expectedMaxPackageSize := config.TestConfig().Server.MaxInstallerSizeBytes
+	assert.Equal(t, expectedMaxPackageSize, acResp.MaxSoftwarePackageSize)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -11092,7 +11140,59 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		}
 	}
 
-	// with a label id
+	var putDMResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID),
+		putHostDeviceMappingRequest{Email: "=1+1", Source: "custom"}, http.StatusOK, &putDMResp)
+
+	deviceMappingForHost0 := func(cols string) ([]string, string) {
+		res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", cols)
+		rows, err := csv.NewReader(res.Body).ReadAll()
+		res.Body.Close()
+		require.NoError(t, err)
+		require.Len(t, rows, len(hosts)+1)
+
+		idIx, dmIx := -1, -1
+		for i, hdr := range rows[0] {
+			switch hdr {
+			case "id":
+				idIx = i
+			case "device_mapping":
+				dmIx = i
+			}
+		}
+		require.NotEqual(t, -1, idIx)
+		require.NotEqual(t, -1, dmIx)
+
+		for _, row := range rows[1:] {
+			if row[idIx] == fmt.Sprint(hosts[0].ID) {
+				return rows[0], row[dmIx]
+			}
+		}
+		t.Fatalf("no row found for host %d", hosts[0].ID)
+		return nil, ""
+	}
+
+	reqCols := []string{"id", "display_name", "device_mapping"}
+	hdr, cell := deviceMappingForHost0(strings.Join(reqCols, ","))
+	require.Equal(t, reqCols, hdr)
+	require.Equal(t, "'=1+1", cell)
+
+	hdr, cell = deviceMappingForHost0("")
+	require.Greater(t, len(hdr), len(reqCols))
+	require.Equal(t, "'=1+1", cell)
+
+	adminToken := s.token
+	s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+	_, cell = deviceMappingForHost0(strings.Join(reqCols, ","))
+	require.Equal(t, "'=1+1", cell)
+	s.token = adminToken
+
+	require.Len(t, putDMResp.DeviceMapping, 1)
+	require.Equal(t, "=1+1", putDMResp.DeviceMapping[0].Email)
+
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID),
+		putHostDeviceMappingRequest{Email: ""}, http.StatusOK, &putDMResp)
+
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
@@ -11516,6 +11616,161 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrWindowsMDMNotConfigured.Error())
+}
+
+// hostIOSVitalsJSONKeys are the JSON keys of the 29 iOS/iPadOS vitals fields
+// added to fleet.Host: they must be fully omitted (not present, not null)
+// from the host response for non-iOS/iPadOS hosts, or for a field that's
+// absent from the host's host_mdm_apple_device_vitals row.
+var hostIOSVitalsJSONKeys = []string{
+	"udid", "model_number", "modem_firmware_version", "supplemental_build_version",
+	"supplemental_os_version_extra", "bluetooth_mac", "wifi_mac", "eas_device_identifier",
+	"itunes_store_account_hash", "push_token", "battery_level", "cellular_technology",
+	"app_analytics_enabled", "awaiting_configuration", "data_roaming_enabled",
+	"diagnostic_submission_enabled", "is_cloud_backup_enabled", "is_device_locator_service_enabled",
+	"is_do_not_disturb_in_effect", "is_mdm_lost_mode_enabled", "is_network_tethered",
+	"itunes_store_account_is_active", "personal_hotspot_enabled", "last_cloud_backup_date",
+	"accessibility_settings", "organization_info", "mdm_options", "device_properties_attestation",
+	"service_subscriptions",
+}
+
+func (s *integrationTestSuite) getHostJSON(path string) map[string]any {
+	t := s.T()
+	res := s.DoRaw("GET", path, nil, http.StatusOK)
+	defer res.Body.Close()
+
+	var raw struct {
+		Host map[string]any `json:"host"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&raw))
+	return raw.Host
+}
+
+func (s *integrationTestSuite) TestGetHostIOSVitals() {
+	t := s.T()
+	ctx := t.Context()
+
+	newHost := func(platform, uuidSuffix string) *fleet.Host {
+		name := strings.ReplaceAll(t.Name(), "/", "_") + uuidSuffix
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(name),
+			OsqueryHostID:   new(name),
+			UUID:            name,
+			Hostname:        name + ".local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	lastBackup := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	fullVitals := fleet.MDMAppleDeviceVitals{
+		UDID:                          new("00008030-AAA"),
+		ModelNumber:                   new("MNEP3LL/A"),
+		ModemFirmwareVersion:          new("2.01.00"),
+		SupplementalBuildVersion:      new("21E236"),
+		SupplementalOSVersionExtra:    new("a"),
+		BluetoothMAC:                  new("a4:83:e7:12:34:57"),
+		WiFiMAC:                       new("a4:83:e7:12:34:58"),
+		EASDeviceIdentifier:           new("3E2A1F9C"),
+		ITunesStoreAccountHash:        new("a1b2c3"),
+		PushToken:                     []byte("push-token-bytes"),
+		BatteryLevel:                  new(0.87),
+		CellularTechnology:            new(int64(1)),
+		AppAnalyticsEnabled:           new(true),
+		AwaitingConfiguration:         new(false),
+		DataRoamingEnabled:            new(false),
+		DiagnosticSubmissionEnabled:   new(true),
+		IsCloudBackupEnabled:          new(true),
+		IsDeviceLocatorServiceEnabled: new(true),
+		IsDoNotDisturbInEffect:        new(false),
+		IsMDMLostModeEnabled:          new(false),
+		IsNetworkTethered:             new(false),
+		ITunesStoreAccountIsActive:    new(true),
+		PersonalHotspotEnabled:        new(false),
+		LastCloudBackupDate:           &lastBackup,
+		AccessibilitySettings: &fleet.MDMAppleAccessibilitySettings{
+			VoiceOverEnabled: new(true),
+			GrayscaleEnabled: new(false),
+		},
+		OrganizationInfo: &fleet.MDMAppleOrganizationInfo{
+			OrganizationName: new("Acme Corp"),
+		},
+		MDMOptions: &fleet.MDMAppleDeviceVitalsMDMOptions{
+			BootstrapTokenAllowed: new(true),
+		},
+		DevicePropertiesAttestation: [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")},
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", ICCID: new("iccid-1")},
+		},
+	}
+
+	// A fully populated iOS host returns all 29 fields, on both GET endpoints.
+	fullHost := newHost("ios", "-full")
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, fullHost.UUID, fullVitals))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, "00008030-AAA", *getHostResp.Host.UDID)
+	require.InDelta(t, 0.87, *getHostResp.Host.BatteryLevel, 0.001)
+	require.True(t, *getHostResp.Host.AccessibilitySettings.VoiceOverEnabled)
+	require.Len(t, getHostResp.Host.ServiceSubscriptions, 1)
+
+	hostJSON := s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID))
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.Contains(t, hostJSON, key, "expected key %q in response for fully populated iOS host", key)
+	}
+	// cellular_technology is stored as Apple's raw integer but returned as its
+	// display label.
+	assert.Equal(t, "GSM", hostJSON["cellular_technology"])
+
+	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// loading path and must behave identically.
+	var getByIdentifierResp getHostResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	require.Equal(t, "00008030-AAA", *getByIdentifierResp.Host.UDID)
+
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated iOS host", key)
+	}
+
+	// A non-Apple-mobile host omits all 29 keys.
+	macHost := newHost("darwin", "-macos")
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID))
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.NotContains(t, hostJSON, key, "did not expect key %q for a non-Apple-mobile host", key)
+	}
+
+	// A field absent from the side table row is omitted; other populated
+	// fields are still present.
+	partialHost := newHost("ipados", "-partial")
+	partialVitals := fleet.MDMAppleDeviceVitals{
+		UDID:         new("00008030-CCC"),
+		BatteryLevel: new(0.5),
+	}
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, partialHost.UUID, partialVitals))
+
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", partialHost.ID))
+	assert.Contains(t, hostJSON, "udid")
+	assert.Contains(t, hostJSON, "battery_level")
+	assert.NotContains(t, hostJSON, "model_number")
+	assert.NotContains(t, hostJSON, "accessibility_settings")
+	assert.NotContains(t, hostJSON, "service_subscriptions")
+
+	// An iOS host with no vitals row yet (hasn't refetched since this
+	// shipped) omits all 29 keys, with no error.
+	noRowHost := newHost("ios", "-no-row")
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", noRowHost.ID))
+	for _, key := range hostIOSVitalsJSONKeys {
+		assert.NotContains(t, hostJSON, key, "did not expect key %q for an iOS host with no vitals row yet", key)
+	}
 }
 
 func (s *integrationTestSuite) TestListVulnerabilities() {
@@ -11989,9 +12244,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
 	assertOSVersion(t, expectedVersion, *osVersionResp.OSVersion)
 
-	// invalid id
-	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+	// invalid id returns a not-found error rather than an empty object
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
@@ -17799,4 +18053,165 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
+}
+
+// TestOsqueryConfigPackCacheLabelScopedQueries verifies that the per-team pack
+// config cache does not serve one host's label-scoped query set to other hosts
+// of the same team. Reproduces the bug described in #51033.
+func (s *integrationTestSuite) TestOsqueryConfigPackCacheLabelScopedQueries() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Two teams so each ordering gets its own (cold) cache key.
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-B"})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(uuid.New().String()),
+			NodeKey:         new(uuid.New().String()),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostA1 := newHost("a1", &teamA.ID) // label member
+	hostA2 := newHost("a2", &teamA.ID) // not a member
+	hostB1 := newHost("b1", &teamB.ID) // label member
+	hostB2 := newHost("b2", &teamB.ID) // not a member
+
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "-label",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	for _, h := range []*fleet.Host{hostA1, hostB1} {
+		err = s.ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	scoped := []fleet.LabelIdent{{LabelName: label.Name}}
+
+	unscopedA, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-unscoped-A", TeamID: &teamA.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+	})
+	require.NoError(t, err)
+	scopedA, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-scoped-A", TeamID: &teamA.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+		LabelsIncludeAny: scoped,
+	})
+	require.NoError(t, err)
+	unscopedB, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-unscoped-B", TeamID: &teamB.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+	})
+	require.NoError(t, err)
+	scopedB, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-scoped-B", TeamID: &teamB.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+		LabelsIncludeAny: scoped,
+	})
+	require.NoError(t, err)
+
+	teamQueries := func(host *fleet.Host, teamID uint) map[string]any {
+		req := getClientConfigRequest{NodeKey: *host.NodeKey}
+		var resp getClientConfigResponse
+		s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
+		packs, ok := resp.Config["packs"].(map[string]any)
+		require.True(t, ok, "expected a packs key in the osquery config")
+		teamPack, ok := packs[fmt.Sprintf("team-%d", teamID)].(map[string]any)
+		require.True(t, ok, "expected a team pack in the osquery config")
+		return teamPack["queries"].(map[string]any)
+	}
+
+	// Team A: the label member calls GetClientConfig first (populates the cache).
+	queries := teamQueries(hostA1, teamA.ID)
+	require.Contains(t, queries, unscopedA.Name)
+	require.Contains(t, queries, scopedA.Name)
+
+	// The non-member must NOT receive the label-scoped query.
+	queries = teamQueries(hostA2, teamA.ID)
+	require.Contains(t, queries, unscopedA.Name)
+	require.NotContains(t, queries, scopedA.Name,
+		"host that is not a member of the label received the label-scoped query")
+
+	// Team B: the non-member calls GetClientConfig first (populates the cache).
+	queries = teamQueries(hostB2, teamB.ID)
+	require.Contains(t, queries, unscopedB.Name)
+	require.NotContains(t, queries, scopedB.Name,
+		"host that is not a member of the label received the label-scoped query")
+
+	// The label member must still receive its label-scoped query.
+	queries = teamQueries(hostB1, teamB.ID)
+	require.Contains(t, queries, unscopedB.Name)
+	require.Contains(t, queries, scopedB.Name,
+		"label member did not receive its label-scoped query")
+}
+
+func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	profileUUID := fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()
+
+	// Create: rejected at decode, before the profile is ever looked up.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID),
+		&fleet.TeamPolicyRequest{
+			Name:        "premium resend",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: new(profileUUID),
+		}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// Modify: same decode-time gate.
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "premium resend patch",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, pol.ID),
+		json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, profileUUID)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// GitOps spec apply: explicit license check, so this one is a 402.
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:        "premium resend spec",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			Team:        team.Name,
+			ProfileUUID: new(profileUUID),
+		}},
+	}, http.StatusPaymentRequired)
+	require.Contains(t, extractServerErrorText(res.Body), "Requires Fleet Premium license")
+
+	// Without profile_uuid the same spec applies cleanly on a free license.
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:     "premium resend spec",
+			Query:    "SELECT 1;",
+			Platform: "darwin",
+			Team:     team.Name,
+		}},
+	}, http.StatusOK)
 }

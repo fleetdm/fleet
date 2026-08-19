@@ -4,7 +4,8 @@
       "version": "1.17.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam' AND version_compare(version, '1.17.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LocalSend' AND publisher = 'Tien Do Nam' AND version_compare(version, '1.17.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'localsend.exe');"
       },
       "installer_url": "https://github.com/localsend/localsend/releases/download/v1.17.0/LocalSend-1.17.0-windows-x86-64.exe",
       "install_script_ref": "67e98e13",

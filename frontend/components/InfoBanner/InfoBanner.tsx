@@ -66,14 +66,13 @@ const InfoBanner = ({
         <div className={`${baseClass}__cta`}>
           {cta}
           {closable && (
-            <Button variant="subdued" onClick={() => setHideBanner(true)}>
-              <Icon
-                name="close"
-                color="core-fleet-black"
-                size="small"
-                className={`${baseClass}__close`}
-              />
-            </Button>
+            <Button
+              variant="subdued"
+              icon="close"
+              ariaLabel="Close"
+              onClick={() => setHideBanner(true)}
+              className={`${baseClass}__close`}
+            />
           )}
         </div>
       )}

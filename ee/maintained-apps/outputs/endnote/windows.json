@@ -4,7 +4,8 @@
       "version": "22.3.1.19926",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'EndNote 20%' AND publisher = 'Clarivate Analytics';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'EndNote 20%' AND publisher = 'Clarivate Analytics' AND version_compare(version, '22.3.1.19926') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'EndNote 20%' AND publisher = 'Clarivate Analytics' AND version_compare(version, '22.3.1.19926') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'endnote.exe');"
       },
       "installer_url": "https://download.endnote.com/downloads/2025/EN2025Inst.msi",
       "install_script_ref": "22e48c46",

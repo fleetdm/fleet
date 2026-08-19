@@ -169,9 +169,9 @@ After generating the XML file, upload it to your identity provider according to 
 
 ## Fleet configuration
 
-To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO) > Fleet users**.
+To configure SSO in Fleet head to **Settings > Integrations > Authentication (SSO) > Fleet users**.
 
-If you're configuring IdP authentication for setup experience head to **Settings > Integrations > Single sign-on (SSO) > End users**.
+If you're configuring end user authentication head to **Settings > Integrations > Authentication (SSO) > End users**.
 
 - **Identity provider name** - A human-readable name of the IdP. This is rendered on the login page.
 
@@ -189,7 +189,7 @@ If you're configuring IdP authentication for setup experience head to **Settings
 
 `Applies only to Fleet Premium`
 
-Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check **Create user and sync permissions on login**.
+Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Authentication (SSO) > Fleet users** and check **Create user and sync permissions on login**.
 
 When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
@@ -289,7 +289,7 @@ When SCIM is configured with your IdP, Fleet automatically deletes a user's Flee
 
 Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
 
-If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled.
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Authentication (SSO)** is enabled.
 
 No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
 

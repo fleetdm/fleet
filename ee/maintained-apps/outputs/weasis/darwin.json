@@ -4,7 +4,8 @@
       "version": "4.7.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.weasis.launcher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.weasis.launcher' AND version_compare(bundle_short_version, '4.7.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.weasis.launcher' AND version_compare(bundle_short_version, '4.7.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.weasis.launcher');"
       },
       "installer_url": "https://github.com/nroduit/Weasis/releases/download/v4.7.2/Weasis-4.7.2-aarch64.pkg",
       "install_script_ref": "61706202",

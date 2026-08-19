@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0.30.0",
+      "version": "5.0.49.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors' AND version_compare(version, '5.0.30.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'dnGrep %' AND publisher = 'dnGrep Community Contributors' AND version_compare(version, '5.0.49.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dngrep.exe');"
       },
-      "installer_url": "https://github.com/dnGrep/dnGrep/releases/download/v5.0.30.0/dnGREP.5.0.30.x64.msi",
+      "installer_url": "https://github.com/dnGrep/dnGrep/releases/download/v5.0.49.0/dnGREP.5.0.49.x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "63930700",
-      "sha256": "a934eb64ded4d3de45240d3b3def21fe5c104076677e1197f5a5b16adc0b2c37",
+      "sha256": "a8d3bca28307d538fd4201650abd23a13549584406a28c2f997efe69d5ebed38",
       "default_categories": [
         "Utilities"
       ],

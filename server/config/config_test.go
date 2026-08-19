@@ -775,6 +775,50 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	}
 }
 
+func TestValidateSoftwareInstallersSignedURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		enabled    bool
+		endpoint   string
+		accessKey  string
+		secret     string
+		gcsIAMAuth bool
+		wantFatal  bool
+	}{
+		{"disabled skips validation", false, "https://s3.amazonaws.com", "", "", false, false},
+		{"gcs host with hmac creds", true, "https://storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"gcs bucket virtual host", true, "https://my-bucket.storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"scheme-less endpoint rejected", true, "storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"http scheme rejected", true, "http://storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"look-alike host rejected", true, "https://storage.googleapis.com.evil.com", "GOOG-key", "secret", false, true},
+		{"substring in path rejected", true, "https://evil.com/storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"non-gcs host rejected", true, "https://s3.amazonaws.com", "GOOG-key", "secret", false, true},
+		{"missing access key rejected", true, "https://storage.googleapis.com", "", "secret", false, true},
+		{"missing secret rejected", true, "https://storage.googleapis.com", "GOOG-key", "", false, true},
+		{"iam auth skips hmac cred check", true, "https://storage.googleapis.com", "", "", true, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersSignedURL:       c.enabled,
+				SoftwareInstallersEndpointURL:     c.endpoint,
+				SoftwareInstallersAccessKeyID:     c.accessKey,
+				SoftwareInstallersSecretAccessKey: c.secret,
+				SoftwareInstallersGCSIAMAuth:      c.gcsIAMAuth,
+			}
+			var gotFatal bool
+			initFatal := func(err error, msg string) {
+				gotFatal = true
+				require.Error(t, err)
+			}
+			s3.ValidateSoftwareInstallersSignedURL(initFatal)
+			require.Equal(t, c.wantFatal, gotFatal)
+		})
+	}
+}
+
 func TestAndroidAgentConfigValidate(t *testing.T) {
 	t.Parallel()
 

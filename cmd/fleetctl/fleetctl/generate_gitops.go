@@ -75,6 +75,7 @@ type generateGitopsClient interface {
 	ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetProfileActivation(profileID string) ([]byte, error)
 	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
@@ -93,6 +94,7 @@ type generateGitopsClient interface {
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+	GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error)
 	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 	ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error)
 	GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error)
@@ -279,11 +281,13 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "generate-gitops",
-		Hidden:      true,
-		Usage:       "Generate GitOps configuration files for Fleet.",
-		Description: "This command generates GitOps configuration files for Fleet.",
-		Action:      createGenerateGitopsAction(nil),
+		Name:  "generate-gitops",
+		Usage: "Migrate an existing Fleet instance's configuration to GitOps YAML files",
+		Description: "Exports an existing Fleet's configuration " +
+			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
+			"YAML files. Use this to migrate an existing Fleet to GitOps.\n\n" +
+			"If you're getting started with GitOps, use `fleetctl new` instead",
+		Action: createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -782,6 +786,13 @@ func generateFilename(name string) string {
 	return fileName
 }
 
+func scriptExtensionForPlatform(platform string) string {
+	if platform == "windows" {
+		return ".ps1"
+	}
+	return ".sh"
+}
+
 var isJSON = regexp.MustCompile(`^\s*\{`)
 
 // Generate a filename for a profile based on its name and contents.
@@ -839,6 +850,30 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		return nil, err
 	}
 	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
+
+	var graphCreds []*fleet.MicrosoftGraphCredential
+	if cmd.AppConfig.License.IsPremium() {
+		graphCreds, err = cmd.Client.GetMicrosoftGraphCredentials()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(graphCreds) > 0 {
+		credT := reflect.TypeFor[fleet.MicrosoftGraphCredential]()
+		creds := make([]map[string]any, 0, len(graphCreds))
+		for _, cred := range graphCreds {
+			creds = append(creds, map[string]any{
+				jsonFieldName(credT, "TenantID"):     cred.TenantID,
+				jsonFieldName(credT, "ClientID"):     cred.ClientID,
+				jsonFieldName(credT, "ClientSecret"): cmd.AddComment("default.yml", "TODO: Add your Microsoft Graph client secret here"),
+			})
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "microsoft_graph_credentials.client_secret",
+			})
+		}
+		orgSettings["microsoft_graph_credentials"] = creds
+	}
 
 	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
 	if err != nil {
@@ -1286,11 +1321,13 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	}
 
 	if team.ID == 0 {
-		// Only include failing_policies_webhook for "No Team".
+		// Only include failing_policies_webhook and host_activities_webhook for "No Team".
 		fpw := webhookSettings["failing_policies_webhook"]
+		haw := webhookSettings["host_activities_webhook"]
 		teamSettings = map[string]any{
 			jsonFieldName(t, "WebhookSettings"): map[string]any{
 				"failing_policies_webhook": fpw,
+				"host_activities_webhook":  haw,
 			},
 		}
 		return teamSettings, nil
@@ -1604,6 +1641,33 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 
 		profileSpec["path"] = path
 
+		// Only declarations can carry one, and the list endpoint doesn't return
+		// activations, so it takes a second call.
+		var activation []byte
+		if profile.Platform == "darwin" && strings.HasSuffix(generatedFilename, ".json") {
+			activation, err = cmd.Client.GetProfileActivation(profile.ProfileUUID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting profile activation: %s\n", err)
+				return nil, err
+			}
+		}
+
+		// Written as a sibling file so the generated YAML round-trips through gitops.
+		if len(activation) > 0 {
+			activationFileName := fmt.Sprintf("activations/%s", generatedFilename)
+			if teamId == nil {
+				activationFileName = fmt.Sprintf("lib/%s", activationFileName)
+			} else {
+				activationFileName = fmt.Sprintf("lib/%s/%s", teamName, activationFileName)
+			}
+			cmd.FilesToWrite[activationFileName] = string(activation)
+			if teamId == nil {
+				profileSpec["activation"] = fmt.Sprintf("./%s", activationFileName)
+			} else {
+				profileSpec["activation"] = fmt.Sprintf("../%s", activationFileName)
+			}
+		}
+
 		switch profile.Platform {
 		case "darwin":
 			appleProfilesSlice = append(appleProfilesSlice, profileSpec)
@@ -1743,6 +1807,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				return nil, err
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
+			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -1927,7 +1992,11 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	const perPage = 1000
 	var titles []fleet.SoftwareTitleListResult
 	for page := 0; ; page++ {
-		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d", teamID, perPage, page)
+		// order_key is load-bearing here, not cosmetic: the default order is by
+		// hosts_count, which changes as hosts install and uninstall software. An
+		// unstable order across a paginated read can duplicate or skip titles, and it
+		// makes every regenerated file differ from the last for no config reason.
+		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d&order_key=name", teamID, perPage, page)
 		pageTitles, err := client.ListSoftwareTitles(query)
 		if err != nil {
 			return nil, nil, nil, err
@@ -2015,7 +2084,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil // software is premium-only
 	}
 
-	query := fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
+	// Sorted by name so regenerating an unchanged config produces an unchanged file.
+	// The default order is by hosts_count, so the software list reshuffles whenever a
+	// host installs or uninstalls something, which shows up as a diff with no
+	// configuration change behind it.
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&order_key=name", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
@@ -2039,10 +2112,18 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
 		return nil, err
 	}
+	// Each .ipa produces one title per platform but is deduplicated to a single
+	// YAML entry below, so collect its selections keyed by filename and emit
+	// them as setup_experience_platform instead of the setup_experience boolean.
+	inHouseSetupPlatformsByFilename := make(map[string][]string)
 	for _, software := range setupSoftware {
 		pkg := software.SoftwarePackage
 		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			if filepath.Ext(pkg.Name) == ".ipa" {
+				inHouseSetupPlatformsByFilename[pkg.Name] = append(inHouseSetupPlatformsByFilename[pkg.Name], pkg.Platform)
+			} else {
+				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			}
 		}
 		if software.AppStoreApp != nil {
 			appStoreApp := software.AppStoreApp
@@ -2160,6 +2241,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
+			scriptExtension := scriptExtensionForPlatform(sw.SoftwarePackage.Platform)
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
@@ -2192,7 +2274,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if !isScriptPackage {
 				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.InstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install"+scriptExtension)
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["install_script"] = map[string]interface{}{
 						"path": path,
@@ -2202,7 +2284,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if softwareTitle.SoftwarePackage.PostInstallScript != "" {
 					script := softwareTitle.SoftwarePackage.PostInstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall"+scriptExtension)
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["post_install_script"] = map[string]interface{}{
 						"path": path,
@@ -2212,7 +2294,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.UninstallScript
-					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
+					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall"+scriptExtension)
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["uninstall_script"] = map[string]interface{}{
 						"path": path,
@@ -2220,7 +2302,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+				// With patch_when_closed on, this holds Fleet's managed app open query, which gitops rejects.
+				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" && (patchPolicy == nil || !patchPolicy.PatchWhenClosed) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
@@ -2384,6 +2468,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
 				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
 			}
+			// Never set together with the cross-selection emission above: .ipa
+			// titles can't be cross-selected because the setup experience listing
+			// excludes them for any non-mobile target platform.
+			if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[sp.Name]; ok && len(inHousePlatforms) > 0 {
+				slices.Sort(inHousePlatforms)
+				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
+			}
 		} else {
 			app := softwareTitle.AppStoreApp
 			labelKey, labelNames = scopeLabels(app.LabelsIncludeAny, app.LabelsExcludeAny, app.LabelsIncludeAll)
@@ -2434,6 +2525,7 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 	items := make([]map[string]any, 0, len(title.Packages))
 	for i, pkg := range title.Packages {
 		prefix := fmt.Sprintf("%s-%s-%d", generateFilename(swName), pkg.Platform, i+1)
+		scriptExtension := scriptExtensionForPlatform(pkg.Platform)
 		item := map[string]any{"hash_sha256": pkg.StorageID}
 		if pkg.URL != "" {
 			item["url"] = pkg.URL
@@ -2445,13 +2537,13 @@ func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitl
 			item["categories"] = pkg.Categories
 		}
 		if pkg.InstallScript != "" {
-			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install", pkg.InstallScript)}
+			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install"+scriptExtension, pkg.InstallScript)}
 		}
 		if pkg.PostInstallScript != "" {
-			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall", pkg.PostInstallScript)}
+			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall"+scriptExtension, pkg.PostInstallScript)}
 		}
 		if pkg.UninstallScript != "" {
-			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall", pkg.UninstallScript)}
+			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall"+scriptExtension, pkg.UninstallScript)}
 		}
 		if pkg.PreInstallQuery != "" {
 			item["pre_install_query"] = map[string]any{"path": writeSideFile("queries", prefix+"-preinstallquery.yml", []map[string]any{{"query": pkg.PreInstallQuery}})}

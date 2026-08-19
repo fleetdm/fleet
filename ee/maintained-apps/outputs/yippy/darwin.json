@@ -4,7 +4,8 @@
       "version": "2.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'MatthewDavidson.Yippy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'MatthewDavidson.Yippy' AND version_compare(bundle_short_version, '2.8.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'MatthewDavidson.Yippy' AND version_compare(bundle_short_version, '2.8.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'MatthewDavidson.Yippy');"
       },
       "installer_url": "https://github.com/mattDavo/Yippy/releases/download/2.8.1/Yippy.zip",
       "install_script_ref": "30cbb7c2",

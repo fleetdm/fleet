@@ -264,6 +264,8 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	})
+	// Timeout on response headers missing after fully sending the request if 45 seconds pass.
+	tr.ResponseHeaderTimeout = 45 * time.Second
 	return tr
 }
 

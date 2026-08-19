@@ -1,9 +1,8 @@
-# Builds and releases to production the fleetdm/bomutils:latest and fleetdm/wix:latest
-# docker images, which are the docker image dependencies of the fleetctl command.
+# Builds and releases to production the fleetdm/wix:latest
+# docker image, which is the docker image dependency of the fleetctl command.
 #
 # This is separate from Fleet releases because we only release
-# fleetdm/bomutils and fleetdm/wix only if we add new dependencies
-# or for security updates.
+# fleetdm/wix if we add new dependencies or for security updates.
 name: Release fleetctl docker dependencies
 
 on:
@@ -13,7 +12,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -57,12 +56,9 @@ jobs:
       - name: Build fleetdm/wix
         run: make wix-docker
 
-      - name: Build fleetdm/bomutils
-        run: make bomutils-docker
-
       #
-      # After fleetdm/wix and fleetdm/bomutils are built,
-      # let's smoke test pkg/msi generation before pushing.
+      # After fleetdm/wix is built,
+      # let's smoke test msi generation before pushing.
       #
 
       - name: Build fleetctl
@@ -71,15 +67,9 @@ jobs:
       - name: Build MSI
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
-      - name: Build PKG
-        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
-
       #
       # Now push to production
       #
-
-      - name: Push fleetdm/bomutils to docker hub
-        run: docker push fleetdm/bomutils:latest
 
       - name: Push fleetdm/wix to docker hub
         run: docker push fleetdm/wix:latest

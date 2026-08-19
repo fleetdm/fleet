@@ -266,7 +266,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
-			if sec.Installers != 0 || sec.VPP != 0 {
+			if sec.Installers != 0 || sec.VPP != 0 || sec.InHouseApps != 0 {
 				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {
@@ -935,7 +935,10 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
-		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+		if errors.Is(err, sso.ErrSessionNotFound) {
+			return apple_mdm.FleetUISSOCallbackSessionExpired, ""
+		}
+		return apple_mdm.FleetUISSOCallbackError, ""
 	}
 
 	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience {
@@ -946,7 +949,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		// supports not just Apple MDM).
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			logging.WithErr(ctx, err)
-			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+			return apple_mdm.FleetUISSOCallbackError, ""
 		}
 	}
 
@@ -971,7 +974,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 			token, err := svc.ds.GetABMTokenByUniqueToken(ctx, uniqueToken)
 			if err != nil {
 				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get ABM token by unique token for account driven enrollment"))
-				return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+				return apple_mdm.FleetUISSOCallbackError, ""
 			}
 			abmTokenID = &token.ID
 		}
@@ -979,7 +982,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		challenge, err := svc.ds.InsertADUEEnrollmentChallenge(ctx, abmTokenID, enrollmentRef, fleet.ADUEEnrollmentChallengeExpiration)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "insert ADUE enrollment challenge for account driven enrollment"))
-			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+			return apple_mdm.FleetUISSOCallbackError, ""
 		}
 
 		// For account driven enrollment we have to use this special protocol URL scheme to pass the
@@ -1524,7 +1527,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars)
+	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars, fleet.MDMAppleActivationKeep)
 	if err != nil {
 		return err
 	}

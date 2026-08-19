@@ -84,7 +84,7 @@
       "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,
+      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -284,6 +284,7 @@
         }
       }
     },
+    "max_software_package_size": 537919488,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",
