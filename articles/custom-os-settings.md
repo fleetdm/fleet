@@ -118,6 +118,8 @@ How to deliver user-scoped configuration profiles:
 
 #### macOS
 
+For `.mobileconfig` configuration profiles:
+
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
 
 2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
@@ -135,7 +137,10 @@ How to deliver user-scoped configuration profiles:
 </plist>
 ```
 
+For declaration (DDM) profiles add the `"PayloadScope"` key and set it to `"User"`.
+
 Here's an example DDM (`com.apple.configuration.*`) snippet:
+
 ```json
 {
     "Type": "com.apple.configuration.passcode.settings",
