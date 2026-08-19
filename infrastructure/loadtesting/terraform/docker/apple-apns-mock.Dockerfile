@@ -1,6 +1,3 @@
-# Must be >= the `go` directive in the cloned repo's go.mod. The official Go
-# images set GOTOOLCHAIN=local, so a lower version here does not silently
-# download a newer toolchain -- it fails the build.
 FROM golang:1.26.5-alpine3.23@sha256:622e56dbc11a8cfe87cafa2331e9a201877271cbff918af53d3be315f3da88cc
 ARG TAG
 RUN apk add git

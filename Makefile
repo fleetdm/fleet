@@ -1064,7 +1064,7 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
 
 # make update-go version=1.24.4
-UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
 UPDATE_GO_MODS := \
 	go.mod \
 	./tools/mdm/windows/bitlocker/go.mod \
