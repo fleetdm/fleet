@@ -10,6 +10,12 @@
   display: flex;
   align-items: center;
 
+  // Anchors the absolutely positioned select container to the trigger button
+  // (see the `container` style in ActionsDropdown.tsx).
+  &--icon-trigger {
+    position: relative;
+  }
+
   button .children-wrapper {
     gap: $pad-small;
 
