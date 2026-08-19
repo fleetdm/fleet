@@ -5518,7 +5518,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		return svc.handleRefetchAppsResults(ctx, host, cmdResult)
 
 	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCertsCommandUUIDPrefix):
-		return svc.handleRefetchCertsResults(ctx, host, cmdResult)
+		return svc.handleRefetchCertsResults(ctx, host, r.EnrollID, cmdResult)
 
 	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix):
 		// for devices added via legacy enrollment flows, we may need to set an enroll reference
@@ -6149,7 +6149,12 @@ func parseHHMM(s string) (hour, min_ int, err error) {
 	return h, m, nil
 }
 
-func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+// handleRefetchCertsResults ingests a CertificateList response. The response
+// only covers the keychain of the channel it was sent to — system on the device
+// channel, the responding user's login keychain on the user channel — so the
+// answering enrollment decides which scope the certs are recorded under and
+// which scope may be reconciled. A nil enrollID reads as the device channel.
+func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx context.Context, host *fleet.Host, enrollID *mdm.EnrollID, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCertsCommandUUIDPrefix) {
 		// Caller should have checked this, but just in case we'll return an error.
 		return nil, ctxerr.New(ctx, fmt.Sprintf("expected REFETCH-CERTS- prefix but got %s", cmdResult.CommandUUID))
@@ -6163,32 +6168,72 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: remove refetch command")
 	}
 
-	// TODO(mna): when we add iOS/iPadOS support for https://github.com/fleetdm/fleet/issues/26913,
-	// this is where we'll need to identify user-keychain certs for iPad/iPhone. For now we set
-	// them all as "system" certificates.
 	var listResp fleet.MDMAppleCertificateListResponse
 	if err := plist.Unmarshal(cmdResult.Raw, &listResp); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: unmarshal certificate list command result")
 	}
+
+	// normalize() gives user-channel enrollments a ParentID; device ones have none.
+	isUserChannel := enrollID != nil && enrollID.ParentID != ""
+	// nano keys its queue and result rows on the answering enrollment, not the host UUID.
+	enrollmentID := host.UUID
+	if enrollID != nil && enrollID.ID != "" {
+		enrollmentID = enrollID.ID
+	}
+
+	// TODO(mna): when we add iOS/iPadOS support for https://github.com/fleetdm/fleet/issues/26913,
+	// this is where we'll need to identify user-keychain certs for iPad/iPhone;
+	// those refetches run on the device channel, so they land here as system.
+	certSource := fleet.SystemHostCertificate
+	var username string
+	if isUserChannel {
+		certSource = fleet.UserHostCertificate
+		var err error
+		username, err = svc.userChannelShortName(ctx, host.UUID, &listResp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	payload := make([]*fleet.HostCertificateRecord, 0, len(listResp.CertificateList))
 	for _, cert := range listResp.CertificateList {
 		parsed, err := cert.Parse(host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refetch certs: parse certificate")
 		}
+		parsed.Source = certSource
+		parsed.Username = username
 		payload = append(payload, parsed)
 	}
 
-	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginMDM, nil); err != nil {
+	// Reconcile only the keychain this response describes; the other channel's
+	// certs weren't observed and must not be soft-deleted.
+	observedScopes := []fleet.HostCertificateScope{{Source: certSource, Username: username}}
+	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginMDM, observedScopes); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: update host certificates")
 	}
 
 	// Best-effort cleanup of stale refetch commands of the same type.
-	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
-		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch certs commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchCertsCommandUUIDPrefix)
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch certs commands", "err", err, "enrollment_id", enrollmentID, "command_prefix", fleet.RefetchCertsCommandUUIDPrefix)
 	}
 
 	return nil, nil
+}
+
+// userChannelShortName resolves the user whose login keychain a user-channel
+// CertificateList describes, matching the scope osquery reports the same certs
+// under (it derives the username from the keychain path). Falls back to nano's
+// record for devices that omit UserShortName.
+func (svc *MDMAppleCheckinAndCommandService) userChannelShortName(ctx context.Context, hostUUID string, listResp *fleet.MDMAppleCertificateListResponse) (string, error) {
+	if listResp.UserShortName != "" {
+		return listResp.UserShortName, nil
+	}
+	shortName, _, err := svc.ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, hostUUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get user enrollment short name")
+	}
+	return shortName, nil
 }
 
 // maybeQueueCertificateListForACMEProfile fires a CertificateList MDM command
@@ -6199,9 +6244,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // because IOSiPadOSRefetch already runs CertificateList on a cron.
 //
 // Gating happens server-side in a single indexed query
-// (ProfileHasACMEPayloadForCommand): host platform and ACME payload presence.
-// The hot path early-returns for the common non-ACME / non-darwin cases
-// without parsing the profile or making additional roundtrips.
+// (ProfileHasACMEPayloadForCommand): host platform, ACME payload presence, and
+// the profile's scope. The hot path early-returns for the common non-ACME /
+// non-darwin cases without parsing the profile or making additional roundtrips.
 //
 // We deliberately do NOT dedupe against an in-flight CertificateList: if a
 // previous refetch is still pending when this trigger fires, that earlier
@@ -6228,13 +6273,12 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 	// keychain certs, so send the command to the user enrollment instead.
 	enrollmentID := hostUUID
 	if res.Scope == fleet.PayloadScopeUser {
-		userEnrollment, err := svc.ds.GetNanoMDMUserEnrollment(ctx, hostUUID)
-		if err != nil {
-			svc.logger.WarnContext(ctx, "get user enrollment for CertificateList",
-				"err", err, "host_uuid", hostUUID)
-		} else if userEnrollment != nil {
-			enrollmentID = userEnrollment.ID
+		if res.UserEnrollmentID == "" {
+			// Nothing can report the login keychain, and the device channel
+			// would answer about the system keychain instead.
+			return nil
 		}
+		enrollmentID = res.UserEnrollmentID
 	}
 
 	cmdUUID := uuid.NewString()

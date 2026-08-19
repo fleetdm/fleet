@@ -11,6 +11,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"sort"
@@ -32,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -10500,36 +10502,9 @@ func (s *integrationMDMTestSuite) TestProfileEditCancelsUndeliveredInstallComman
 	require.Equal(t, 1, mdmActiveCmdCount(t, s.ds, iNew), "new install command not active after profile edit")
 }
 
-// TestACMECertNotShowingForUserChannelProfile reproduces issue #51281:
-// an ACME cert deployed via the user channel on macOS does not appear
-// in Fleet's host certificates API.
-//
-// Root cause: CertificateList is always sent to the device channel, but
-// user-scoped ACME profiles install certs into the user's login keychain.
-// The device channel's CertificateList only returns system-keychain certs,
-// so the ACME cert is invisible. No CertificateList is ever sent to the
-// user channel where the cert actually lives.
-//
-// The test simulates this by having the device return an EMPTY cert list
-// on the device channel (the cert isn't in the system keychain), and then
-// verifying that no CertificateList was sent to the user channel (the bug).
-func (s *integrationMDMTestSuite) TestACMECertNotShowingForUserChannelProfile() {
-	t := s.T()
-	ctx := t.Context()
-
-	// Enroll a macOS device and drain the initial (fleetd/CA) profiles.
-	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
-	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
-
-	// Set up user-channel enrollment (simulates automatic user enrollment
-	// that happens on DEP-enrolled macOS devices).
-	require.NoError(t, mdmDevice.UserEnroll())
-	userEnr, err := s.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
-	require.NoError(t, err)
-	require.NotNil(t, userEnr, "user enrollment must exist after UserEnroll")
-
-	// Upload a user-scoped ACME profile (WiFi cert scenario from #51281).
-	const acmeUserProfile = `<?xml version="1.0" encoding="UTF-8"?>
+// acmeProfileForScope builds a profile with a single ACME payload in the given scope.
+func acmeProfileForScope(ident string, scope fleet.PayloadScope) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -10537,36 +10512,116 @@ func (s *integrationMDMTestSuite) TestACMECertNotShowingForUserChannelProfile() 
 	<array>
 		<dict>
 			<key>PayloadType</key><string>com.apple.security.acme</string>
-			<key>PayloadIdentifier</key><string>com.fleetdm.test.acme.wifi</string>
-			<key>PayloadUUID</key><string>11111111-2222-3333-4444-555555555555</string>
+			<key>PayloadIdentifier</key><string>%[1]s.payload</string>
+			<key>PayloadUUID</key><string>%[2]s</string>
 			<key>PayloadVersion</key><integer>1</integer>
-			<key>PayloadDisplayName</key><string>ACME WiFi Cert</string>
+			<key>PayloadDisplayName</key><string>ACME payload</string>
 			<key>DirectoryURL</key><string>https://acme.example.com/directory</string>
 			<key>Subject</key>
 			<array>
 				<array><array><string>CN</string><string>test-device</string></array></array>
-				<array><array><string>OU</string><string>static-ou</string></array></array>
 			</array>
 		</dict>
 	</array>
-	<key>PayloadDisplayName</key><string>ACME WiFi Profile</string>
-	<key>PayloadIdentifier</key><string>com.fleetdm.test.profile.acme.wifi</string>
+	<key>PayloadDisplayName</key><string>%[1]s</string>
+	<key>PayloadIdentifier</key><string>%[1]s</string>
 	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadUUID</key><string>%[3]s</string>
 	<key>PayloadVersion</key><integer>1</integer>
-	<key>PayloadScope</key><string>User</string>
+	<key>PayloadScope</key><string>%[4]s</string>
 </dict>
-</plist>`
+</plist>`, ident, uuid.NewString(), uuid.NewString(), scope))
+}
 
+// acmeCertTemplate returns a cert template identifiable by common name.
+func acmeCertTemplate(commonName string) *x509.Certificate {
+	tmpl := mdmtesting.NewTestMDMAppleCertTemplate()
+	tmpl.SerialNumber = big.NewInt(int64(len(commonName)) + 1000)
+	tmpl.Subject.CommonName = commonName
+	return tmpl
+}
+
+// ackProfileInstall drains the channel until it acknowledges wantCmdUUID,
+// returning the next command the server handed back.
+func ackProfileInstall(t *testing.T, d *mdmtest.TestAppleMDMClient, userChannel bool, wantCmdUUID string) *mdm.Command {
+	idle, ack := d.Idle, d.Acknowledge
+	if userChannel {
+		idle, ack = d.UserIdle, d.UserAcknowledge
+	}
+	cmd, err := idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		isTarget := cmd.CommandUUID == wantCmdUUID
+		next, err := ack(cmd.CommandUUID)
+		require.NoError(t, err)
+		if isTarget {
+			return next
+		}
+		cmd = next
+	}
+	require.FailNow(t, "profile command was never delivered", "command uuid %s", wantCmdUUID)
+	return nil
+}
+
+// nanoCertificateListUUIDs returns the CertificateList commands queued against one
+// nano enrollment, telling a device-channel refetch apart from a user-channel one.
+func nanoCertificateListUUIDs(t *testing.T, ds *mysql.Datastore, enrollmentID string) []string {
+	var uuids []string
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &uuids,
+			`SELECT neq.command_uuid
+			 FROM nano_enrollment_queue neq
+			 JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid
+			 WHERE nc.request_type = 'CertificateList' AND neq.id = ?
+			 ORDER BY neq.created_at`, enrollmentID)
+	})
+	return uuids
+}
+
+// hostCertificateScopes maps common name to reported scope, per the host details API.
+func (s *integrationMDMTestSuite) hostCertificateScopes(t *testing.T, hostID uint) map[string]string {
+	var resp listHostCertificatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", hostID), nil, http.StatusOK, &resp)
+	scopes := make(map[string]string, len(resp.Certificates))
+	for _, c := range resp.Certificates {
+		scope := string(c.Source)
+		if c.Username != "" {
+			scope += ":" + c.Username
+		}
+		scopes[c.CommonName] = scope
+	}
+	return scopes
+}
+
+// TestACMECertForUserChannelProfile covers an ACME cert from a user-scoped
+// profile on macOS: it lands in the user's login keychain, which the device
+// channel can't see, so the refetch has to go out on the user channel and the
+// cert has to be recorded under the user's scope.
+func (s *integrationMDMTestSuite) TestACMECertForUserChannelProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Enroll a macOS device and drain the initial (fleetd/CA) profiles.
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+
+	// User-channel enrollment, as DEP-enrolled macOS devices do automatically.
+	require.NoError(t, mdmDevice.UserEnroll())
+	userEnr, err := s.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnr, "user enrollment must exist after UserEnroll")
+
+	// Upload a user-scoped ACME profile.
+	const profIdent = "com.fleetdm.test.profile.acme.wifi"
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "ACME-WiFi", Contents: []byte(acmeUserProfile)},
+		{Name: "ACME-WiFi", Contents: acmeProfileForScope(profIdent, fleet.PayloadScopeUser)},
 	}}, http.StatusNoContent)
 
 	// Trigger profile reconciliation so the cron picks up the new profile.
 	s.awaitTriggerProfileSchedule(t)
 
 	// Verify the profile row was created with scope=User.
-	ok, cmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, "com.fleetdm.test.profile.acme.wifi", fleet.MDMOperationTypeInstall)
+	ok, cmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, profIdent, fleet.MDMOperationTypeInstall)
 	require.True(t, ok, "ACME profile should be pending install")
 	require.NotEmpty(t, cmdUUID)
 
@@ -10578,43 +10633,118 @@ func (s *integrationMDMTestSuite) TestACMECertNotShowingForUserChannelProfile() 
 	})
 	require.Equal(t, userEnr.ID, queuedEnrollmentID, "install command must be queued to user enrollment")
 
-	// Simulate the device polling the user channel and receiving the InstallProfile command.
+	// Acking the install on the user channel fires the certificate refetch.
+	ackProfileInstall(t, mdmDevice, true, cmdUUID)
+
+	// --- The refetch must target the user channel, not the device channel ---
+	require.Empty(t, nanoCertificateListUUIDs(t, s.ds, host.UUID),
+		"no CertificateList may be queued to the device channel: it only reports the system keychain")
+	userCertListUUIDs := nanoCertificateListUUIDs(t, s.ds, userEnr.ID)
+	require.Len(t, userCertListUUIDs, 1,
+		"exactly one CertificateList must be queued to the user channel")
+
+	// --- Answer on the user channel with the login keychain's contents ---
 	cmd, err := mdmDevice.UserIdle()
 	require.NoError(t, err)
-	for cmd != nil && cmd.Command.RequestType != "InstallProfile" {
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
 		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
-	require.NotNil(t, cmd, "InstallProfile command must be delivered on user channel")
+	require.NotNil(t, cmd, "CertificateList must be delivered on user channel")
+	require.Equal(t, userCertListUUIDs[0], cmd.CommandUUID)
 
-	// ACK the InstallProfile on the user channel.
-	// This triggers maybeQueueCertificateListForACMEProfile.
-	cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
+	const acmeCN = "acme-user-keychain-cert"
+	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID,
+		[]*x509.Certificate{acmeCertTemplate(acmeCN)})
 	require.NoError(t, err)
 
-	// --- Step 1: Verify CertificateList was queued to the USER channel ---
-	// Before the fix, CertificateList was sent to the device channel only.
-	// User-scoped ACME certs land in the user's login keychain, which the
-	// device channel's CertificateList cannot see.
+	// --- The cert shows up, attributed to the enrolled user's keychain ---
+	require.Equal(t, "user:"+mdmDevice.Username, s.hostCertificateScopes(t, host.ID)[acmeCN],
+		"ACME cert must show under the enrolled user's scope, not the system keychain")
 
-	var userCertListUUID string
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, q, &userCertListUUID,
-			`SELECT neq.command_uuid FROM nano_enrollment_queue neq
-			 JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid
-			 WHERE nc.request_type = 'CertificateList'
-			   AND neq.id = ?`, userEnr.ID)
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		return err
-	})
-	require.NotEmpty(t, userCertListUUID,
-		"CertificateList must be queued to user channel for user-scoped ACME profile")
+	// Cleanup must run against the answering enrollment, or the user channel's
+	// refetch rows are never reclaimed.
+	var trackedCommands []fleet.HostMDMCommand
+	trackedCommands, err = s.ds.GetHostMDMCommands(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotContains(t, trackedCommands,
+		fleet.HostMDMCommand{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		"refetch certs tracking row must be cleared once the user channel answers")
+}
 
-	// --- Step 2: Poll user channel and respond with cert data ---
-	// The cert is in the user's login keychain, so CertificateList on the
-	// user channel returns it.
+// TestACMECertUserAndSystemScopedProfilesCoexist covers a host with ACME profiles
+// in both scopes: each channel reports only its own keychain, so neither refetch
+// may clear the other's cert — removals included.
+func (s *integrationMDMTestSuite) TestACMECertUserAndSystemScopedProfilesCoexist() {
+	t := s.T()
+	ctx := t.Context()
+
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	host, mdmDevice := s.enrollHostDrainInitialProfiles(t)
+	require.NoError(t, mdmDevice.UserEnroll())
+	userEnr, err := s.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnr)
+
+	const (
+		userProfIdent = "com.fleetdm.test.profile.acme.user"
+		sysProfIdent  = "com.fleetdm.test.profile.acme.system"
+		userCN        = "acme-user-keychain-cert"
+		sysCN         = "acme-system-keychain-cert"
+	)
+	userProfile := fleet.MDMProfileBatchPayload{Name: "ACME-User", Contents: acmeProfileForScope(userProfIdent, fleet.PayloadScopeUser)}
+	sysProfile := fleet.MDMProfileBatchPayload{Name: "ACME-System", Contents: acmeProfileForScope(sysProfIdent, fleet.PayloadScopeSystem)}
+
+	// --- Install the user-scoped profile and ingest its login keychain cert ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{userProfile}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, userCmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, userProfIdent, fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	ackProfileInstall(t, mdmDevice, true, userCmdUUID)
+
+	cmd, err := mdmDevice.UserIdle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "CertificateList", cmd.Command.RequestType)
+	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID, []*x509.Certificate{acmeCertTemplate(userCN)})
+	require.NoError(t, err)
+	require.Equal(t, "user:"+mdmDevice.Username, s.hostCertificateScopes(t, host.ID)[userCN])
+
+	// --- Install the system-scoped profile and ingest its system keychain cert ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{userProfile, sysProfile}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, sysCmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, sysProfIdent, fleet.MDMOperationTypeInstall)
+	require.True(t, ok)
+	ackProfileInstall(t, mdmDevice, false, sysCmdUUID)
+
+	deviceCertListUUIDs := nanoCertificateListUUIDs(t, s.ds, host.UUID)
+	require.Len(t, deviceCertListUUIDs, 1, "system-scoped ACME profile must refetch on the device channel")
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil && cmd.Command.RequestType != "CertificateList" {
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, cmd, "CertificateList must be delivered on device channel")
+	// The device channel reports the system keychain only.
+	_, err = mdmDevice.AcknowledgeCertificateList(mdmDevice.UUID, cmd.CommandUUID, []*x509.Certificate{acmeCertTemplate(sysCN)})
+	require.NoError(t, err)
+
+	scopes := s.hostCertificateScopes(t, host.ID)
+	require.Equal(t, "system", scopes[sysCN], "system keychain cert must be ingested")
+	require.Equal(t, "user:"+mdmDevice.Username, scopes[userCN],
+		"device-channel refetch must not clear the login keychain cert it cannot see")
+
+	// --- Removing the user-scoped profile clears only its own cert ---
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{sysProfile}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	ok, removeCmdUUID := hostHasAppleProfileOp(t, s.ds, host.UUID, userProfIdent, fleet.MDMOperationTypeRemove)
+	require.True(t, ok, "user-scoped profile should be pending removal")
+	ackProfileInstall(t, mdmDevice, true, removeCmdUUID)
 
 	cmd, err = mdmDevice.UserIdle()
 	require.NoError(t, err)
@@ -10622,43 +10752,13 @@ func (s *integrationMDMTestSuite) TestACMECertNotShowingForUserChannelProfile() 
 		cmd, err = mdmDevice.UserAcknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
-	require.NotNil(t, cmd, "CertificateList must be delivered on user channel")
-
-	// Generate a self-signed test certificate to simulate the ACME cert.
-	parsedCert, _, err := apple_mdm.NewSCEPCACertKey()
+	require.NotNil(t, cmd, "removal must refetch on the user channel")
+	// The login keychain no longer holds the cert.
+	_, err = mdmDevice.AcknowledgeUserCertificateList(cmd.CommandUUID, nil)
 	require.NoError(t, err)
 
-	certListPayload := map[string]any{
-		"Status":      "Acknowledged",
-		"UDID":        mdmDevice.UUID,
-		"UserID":      mdmDevice.UserUUID,
-		"CommandUUID": cmd.CommandUUID,
-		"CertificateList": []map[string]any{
-			{
-				"CommonName": parsedCert.Subject.CommonName,
-				"Data":       parsedCert.Raw,
-				"IsIdentity": true,
-			},
-		},
-	}
-	cmd, err = mdmDevice.SendRawResponse(certListPayload)
-	require.NoError(t, err)
-
-	// --- Step 3: Verify the ACME cert is now visible ---
-
-	var certResp listHostCertificatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", host.ID),
-		nil, http.StatusOK, &certResp)
-
-	require.Greater(t, certResp.Count, uint(0),
-		"ACME cert must show in host certificates after user-channel CertificateList response")
-
-	found := false
-	for _, c := range certResp.Certificates {
-		if c.CommonName == parsedCert.Subject.CommonName {
-			found = true
-			break
-		}
-	}
-	require.True(t, found, "expected to find the ACME cert by common name in host certificates")
+	scopes = s.hostCertificateScopes(t, host.ID)
+	require.NotContains(t, scopes, userCN, "removed profile's user keychain cert must be cleared")
+	require.Equal(t, "system", scopes[sysCN],
+		"user-channel refetch must not clear the system keychain cert it cannot see")
 }
