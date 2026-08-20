@@ -72,7 +72,7 @@ const PolicyAutomationActivityDetailsModal = ({
 
   const detailOutput = getDetailOutputText(activity);
 
-  const renderProseSentence = (): string | null => {
+  const renderExplanation = (): string | null => {
     if (isNotify) {
       if (activity.status === "success") {
         return getAutomationNotifiedSentence(activity.details?.time_before);
@@ -85,19 +85,19 @@ const PolicyAutomationActivityDetailsModal = ({
     return null;
   };
 
-  const proseSentence = renderProseSentence();
+  const explanation = renderExplanation();
   const showEueLink =
     isNotify &&
     scriptResult?.exit_code != null &&
     EXIT_CODES_NEEDING_EUE_LINK.has(scriptResult.exit_code);
 
   // Notify + notify-skip cases hide output behind a Details reveal.
-  const revealLabel = (() => {
+  const detailsLabel = (() => {
     if (isNotify) return "Notification script output:";
     if (isSkippedNotifyVariant) return "Pre-install query output:";
     return null;
   })();
-  const revealOutput = (() => {
+  const detailsContent = (() => {
     if (isNotify) return scriptResult?.output || activity.output || null;
     if (isSkippedNotifyVariant) return activity.pre_install_output;
     return null;
@@ -136,11 +136,11 @@ const PolicyAutomationActivityDetailsModal = ({
     ) : null;
 
   const renderBody = () => {
-    if (proseSentence) {
+    if (explanation) {
       return (
         <>
-          <p className={`${baseClass}__prose`}>
-            {proseSentence}
+          <p className={`${baseClass}__explanation`}>
+            {explanation}
             {showEueLink && (
               <>
                 {" "}
@@ -152,7 +152,7 @@ const PolicyAutomationActivityDetailsModal = ({
               </>
             )}
           </p>
-          {revealOutput && revealLabel && (
+          {detailsContent && detailsLabel && (
             <>
               <RevealButton
                 isShowing={showDetails}
@@ -162,7 +162,7 @@ const PolicyAutomationActivityDetailsModal = ({
                 onClick={() => setShowDetails((s) => !s)}
               />
               {showDetails &&
-                renderOutputSection(revealLabel, revealOutput, true)}
+                renderOutputSection(detailsLabel, detailsContent, true)}
             </>
           )}
         </>

@@ -68,7 +68,7 @@ const NotifyBeforePatchingDetailsModal = ({
     }
   );
 
-  const caveatSentence = getCaveatSentence(
+  const explanation = getCaveatSentence(
     scriptExecutionId,
     scriptResult?.exit_code
   );
@@ -83,7 +83,7 @@ const NotifyBeforePatchingDetailsModal = ({
 
     const verb = failed ? "failed to notify" : "notified";
     // Nothing to reveal for a dispatcher-caught deferral (no script ran).
-    const hasScriptDetails =
+    const hasDetailsContent =
       !!scriptResult?.script_contents || scriptResult?.exit_code != null;
     const outputBlock =
       scriptResult?.exit_code != null
@@ -107,9 +107,9 @@ const NotifyBeforePatchingDetailsModal = ({
             </span>
           }
         />
-        {caveatSentence && (
-          <p className={`${baseClass}__caveat`}>
-            {caveatSentence}
+        {explanation && (
+          <p className={`${baseClass}__explanation`}>
+            {explanation}
             {scriptResult?.exit_code != null &&
               EXIT_CODES_NEEDING_EUE_LINK.has(scriptResult.exit_code) && (
                 <>
@@ -129,7 +129,7 @@ const NotifyBeforePatchingDetailsModal = ({
             value={titles.map((t) => getDisplayedSoftwareName(t)).join(", ")}
           />
         )}
-        {hasScriptDetails && (
+        {hasDetailsContent && (
           <RevealButton
             isShowing={showDetails}
             showText="Details"

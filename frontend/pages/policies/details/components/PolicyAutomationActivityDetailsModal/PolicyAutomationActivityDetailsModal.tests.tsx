@@ -179,7 +179,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       post_install_output: null,
     };
 
-    it("shows the offline caveat prose on success and hides the script output behind Details", async () => {
+    it("shows the offline caveat explanation on success and hides the script output behind Details", async () => {
       stubScriptResult({ exit_code: 0, output: "Notification displayed." });
       render(
         <PolicyAutomationActivityDetailsModal
