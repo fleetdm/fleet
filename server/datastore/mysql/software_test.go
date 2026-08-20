@@ -8063,15 +8063,15 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			Name:               installer1.Filename,
 			Version:            installer1.Version,
 			Platform:           installer1.Platform,
-			SelfService:        ptr.Bool(false),
-			HasUninstallScript: ptr.Bool(true),
+			SelfService:        new(false),
+			HasUninstallScript: new(true),
 		},
 		selfServiceinstaller.Filename: {
 			Name:               selfServiceinstaller.Filename,
 			Version:            selfServiceinstaller.Version,
 			Platform:           selfServiceinstaller.Platform,
-			SelfService:        ptr.Bool(true),
-			HasUninstallScript: ptr.Bool(true),
+			SelfService:        new(true),
+			HasUninstallScript: new(true),
 		},
 	}
 
@@ -8242,8 +8242,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		Name:               installer2.Filename,
 		Version:            installer2.Version,
 		Platform:           installer2.Platform,
-		SelfService:        ptr.Bool(false),
-		HasUninstallScript: ptr.Bool(true),
+		SelfService:        new(false),
+		HasUninstallScript: new(true),
 	}
 
 	// There's 2 installers now: installerID1 and installerID2 (because it has no labels associated)
@@ -8314,8 +8314,8 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		Name:               installer3.Filename,
 		Version:            installer3.Version,
 		Platform:           installer3.Platform,
-		SelfService:        ptr.Bool(false),
-		HasUninstallScript: ptr.Bool(true),
+		SelfService:        new(false),
+		HasUninstallScript: new(true),
 	}
 
 	// Add a new label and apply it to the installer. There are no hosts with this label.
@@ -9284,13 +9284,13 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 		installer1.Filename: {
 			Name:               installer1.Filename,
 			Version:            installer1.Version,
-			SelfService:        ptr.Bool(false),
+			SelfService:        new(false),
 			Platform:           "darwin",
-			HasUninstallScript: ptr.Bool(true),
+			HasUninstallScript: new(true),
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
-			SelfService: ptr.Bool(true),
+			SelfService: new(true),
 			Platform:    "darwin",
 		},
 	}
