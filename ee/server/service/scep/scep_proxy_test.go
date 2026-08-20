@@ -1382,6 +1382,29 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	}
 }
 
+// The three classified failures need someone to act before Fleet could succeed, so they fail the profile against the
+// host. Everything else is an unclassified failure talking to the admin URL, which clears on its own, so callers leave
+// the profile queued instead. Keep this in step with TestNDESChallengeErrorToDetail below: they classify the same set.
+func TestIsTerminalNDESChallengeError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"invalid credentials", NewNDESInvalidError("invalid admin URL or credentials"), true},
+		{"password cache full", NewNDESPasswordCacheFullError("the password cache is full"), true},
+		{"insufficient permissions", NewNDESInsufficientPermissionsError("account lacks permissions"), true},
+		{"wrapped terminal error is still terminal", fmt.Errorf("scraping challenge: %w", NewNDESPasswordCacheFullError("full")), true},
+		{"connection refused", errors.New("sending request: dial tcp 10.0.0.10:80: connect: connection refused"), false},
+		{"timeout", context.DeadlineExceeded, false},
+		{"truncated response", errors.New("reading response body: unexpected EOF"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, IsTerminalNDESChallengeError(tc.err))
+		})
+	}
+}
+
 func TestNDESChallengeErrorToDetail(t *testing.T) {
 	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
 

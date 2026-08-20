@@ -797,6 +797,29 @@ func NewNDESInsufficientPermissionsError(msg string) NDESInsufficientPermissions
 	return NDESInsufficientPermissionsError{msg: msg}
 }
 
+// IsTerminalNDESChallengeError reports whether a challenge-fetch failure needs someone to act before Fleet could
+// possibly succeed. The three classified failures all do: bad admin credentials, an exhausted password cache (which
+// only clears when an admin raises the cache size or cached passwords age out after an hour), and an account without
+// SCEP enroll permission.
+//
+// Anything else reaching here is an unclassified failure talking to the admin URL, so a connection refused or reset, a
+// timeout, a TLS error, or a truncated response. Those clear on their own, which is why callers leave the profile
+// queued and try again on a later tick instead of failing it against the host: nothing was delivered, so there is no
+// host-side outcome to report, and marking it failed would make an NDES blip during a rollout permanently strand every
+// profile it touched until an admin resent them one by one.
+//
+// Keep this in step with NDESChallengeErrorToDetail below; they classify the same set.
+func IsTerminalNDESChallengeError(err error) bool {
+	switch {
+	case errors.As(err, &NDESInvalidError{}),
+		errors.As(err, &NDESPasswordCacheFullError{}),
+		errors.As(err, &NDESInsufficientPermissionsError{}):
+		return true
+	default:
+		return false
+	}
+}
+
 // NDESChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
 // for profile failure details. Used by both Apple and Windows NDES profile processing.
 func NDESChallengeErrorToDetail(err error) string {

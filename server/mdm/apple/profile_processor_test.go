@@ -198,21 +198,19 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
-	// Other NDES challenge error
+	// NDES briefly unreachable. Nobody has to act and nothing was delivered, so the profile must be left queued for a
+	// later tick rather than failed against the host: failing here would strand every profile an NDES blip touched
+	// until someone resent them by hand.
 	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
-		return "", errors.New("NDES error")
+		return "", errors.New("sending request: dial tcp 10.0.0.10:80: connect: connection refused")
 	}
 	updatedProfile = nil
 	populateTargets()
 	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
-	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
-	assert.NotContains(t, updatedProfile.Detail, "cached passwords")
-	assert.NotContains(t, updatedProfile.Detail, "update credentials")
-	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
-	assert.Empty(t, targets)
+	assert.Nil(t, updatedProfile, "a self-clearing NDES failure must not be reported against the host")
+	assert.Empty(t, targets, "the profile must not be sent without a challenge")
 
 	// NDES challenge
 	challenge := "ndes-challenge"
