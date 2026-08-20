@@ -3486,6 +3486,12 @@ type Datastore interface {
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
+	// ResendWindowsHostCertificateProfile is the Windows counterpart of ResendHostCertificateProfile: it marks the
+	// given Windows profile to be resent to the given host and resets its retry counter, for the cases where Fleet
+	// itself decided the delivery cannot succeed (an expired or rejected SCEP challenge) rather than the host having
+	// failed to install anything.
+	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 

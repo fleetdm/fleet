@@ -1611,6 +1611,42 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 	return retried, nil
 }
 
+// ResendWindowsHostCertificateProfile queues a Windows certificate profile for redelivery and gives it a full retry
+// budget back. It is for the cases where Fleet decided the delivery could not have succeeded, not where the host
+// reported a failure: an NDES challenge that aged past its window before the device got to PKIOperation, or a custom
+// SCEP challenge Fleet would not accept. The host never had the chance to install anything, so the attempt must not
+// count against the retries that exist to bound genuine failures.
+//
+// This deliberately differs from ResendHostMDMProfile, the admin-initiated Resend, which preserves the counter.
+//
+// Unlike the Apple counterpart there is no queued command to deactivate: the profile manager writes a new command UUID
+// onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
+func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	const stmt = `
+		UPDATE host_mdm_windows_profiles
+		SET status = NULL, detail = '', retries = 0
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt, hostUUID, profUUID, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending windows host certificate profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			ds.logger.DebugContext(ctx, "resend windows certificate profile status not updated",
+				"host_uuid", hostUUID, "profile_uuid", profUUID)
+			return nil
+		}
+
+		// This path only updates a profile row, so no rollup row can be orphaned.
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after certificate profile resend")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `SELECT
     mwe.host_uuid,

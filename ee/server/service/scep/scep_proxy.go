@@ -540,16 +540,17 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 // resendProfileForExpiredChallenge resends a SCEP profile whose challenge has expired so the
 // reconcile cron regenerates it with a fresh challenge.
 //
-// For Apple profiles we use ResendHostCertificateProfile, which additionally clears the stale
-// in-flight command and resets the retry counter. This matters because an expired challenge is a
-// timing condition, not a host install failure, so it must not consume the host's limited Apple
-// profile retries (and a late failure ACK for the superseded command must not strand the profile
-// as "failed"). ResendHostCertificateProfile only operates on Apple tables, so Windows/Android
-// profiles fall back to the platform-aware ResendHostMDMProfile to avoid silently dropping the
-// resend.
+// An expired challenge is a timing condition, not a host install failure: the device never got the chance to install
+// anything, so the attempt must not consume the host's limited profile retries (and for Apple, a late failure ACK for
+// the superseded command must not strand the profile as "failed"). Both platforms therefore use their retry-resetting
+// resend. The tables are separate, so the platform is picked off the profile UUID prefix; Android has no host profile
+// row at all and falls back to the generic resend.
 func (svc *scepProxyService) resendProfileForExpiredChallenge(ctx context.Context, hostUUID, profileUUID string) error {
-	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
 		return svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID)
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return svc.ds.ResendWindowsHostCertificateProfile(ctx, hostUUID, profileUUID)
 	}
 	return svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID)
 }
@@ -570,11 +571,12 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 	var errs []error
 
 	// ResendHostCertificateProfile only touches the Apple tables, so a Windows profile whose challenge was rejected would never be resent
-	// and would stay stuck. Route Windows through the platform-aware resend. (Android resends are a separate pre-existing gap: its SCEP
-	// flow is backed by certificate templates rather than a host profile row, so it is left on the existing path here.)
+	// and would stay stuck. Route Windows through its own equivalent, which likewise gives the profile its retries back: Fleet turned
+	// this delivery away, so it is not one of the failures the retry budget exists to bound. (Android resends are a separate pre-existing
+	// gap: its SCEP flow is backed by certificate templates rather than a host profile row, so it is left on the existing path here.)
 	resendProfile := svc.ds.ResendHostCertificateProfile
 	if strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
-		resendProfile = svc.ds.ResendHostMDMProfile
+		resendProfile = svc.ds.ResendWindowsHostCertificateProfile
 	}
 
 	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {

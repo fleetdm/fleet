@@ -460,9 +460,9 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		// a-profile-uuid is an Apple profile, so the expired-challenge resend
-		// routes through ResendHostCertificateProfile (resets retries + clears
-		// the stale command). Windows/Android profiles use ResendHostMDMProfile.
+		// a-profile-uuid is an Apple profile, so the expired-challenge resend routes through
+		// ResendHostCertificateProfile (resets retries + clears the stale command). Windows profiles use their own
+		// equivalent; Android has no host profile row and falls back to ResendHostMDMProfile.
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)
@@ -476,6 +476,43 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "challenge password has expired")
 		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
 		ds.ResendHostCertificateProfileFuncInvoked = false
+	})
+
+	// The challenge aged out before the device reached PKIOperation, so the host never had a usable profile to
+	// install. Redelivering must hand the profile a full retry budget back, or a slow-syncing host could spend its
+	// retries on deliveries it was never able to act on and end up "failed" without the CA ever being asked.
+	t.Run("NDES challenge expired for a Windows profile resets the retry budget", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		verifyingStatus := fleet.MDMDeliveryVerifying
+		expiredTime := time.Now().Add(-58 * time.Minute)
+		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &verifyingStatus,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+				ChallengeRetrievedAt: &expiredTime,
+			}, nil
+		}
+		ds.ResendWindowsHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "w-profile-uuid", profileUUID)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "challenge password has expired")
+		assert.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
+		assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend preserves retries and must not be used here")
 	})
 
 	t.Run("NDES challenge not expired", func(t *testing.T) {
@@ -798,8 +835,9 @@ func TestValidateIdentifier(t *testing.T) {
 				ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
 					return sql.ErrNoRows // challenge not found
 				}
-				// Windows profiles must be resent through the platform-aware path, not the Apple-only one.
-				ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+				// Fleet turned this delivery away, so the resend has to give the profile its retries back rather
+				// than spend one on an install the host never attempted.
+				ds.ResendWindowsHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 					assert.Equal(t, "host-uuid", hostUUID)
 					assert.Equal(t, "w-profile-uuid", profileUUID)
 					return nil
@@ -809,8 +847,9 @@ func TestValidateIdentifier(t *testing.T) {
 				_, err := svc.validateIdentifier(ctx, tc.identifier, true)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "custom scep challenge failed")
-				assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
+				assert.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
 				assert.False(t, ds.ResendHostCertificateProfileFuncInvoked, "Windows profiles must not use the Apple-only resend")
+				assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend preserves retries and must not be used here")
 			})
 		}
 

@@ -348,6 +348,36 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, 0, gotRetries)
 	})
 
+	// A challenge Fleet turned away (expired NDES password, rejected custom SCEP challenge) is not an install the host
+	// failed, so redelivering it hands the profile a full budget back. Contrast ResendHostMDMProfile, the
+	// admin-initiated Resend, which deliberately preserves the counter.
+	t.Run("certificate profile resend gives the retries back", func(t *testing.T) {
+		h := mkHost(t, "resend-cert")
+		p := "w-resend-cert"
+		upsertWinProfile(t, h, p, "cmd-resend-cert", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			"SCEP PKIOperation failed: HTTP 500", h.UUID, p)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, p))
+
+		status, detail, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Empty(t, detail)
+		require.Equal(t, 0, retries)
+		require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[h.UUID])
+	})
+
+	t.Run("certificate profile resend no-ops for a removed profile", func(t *testing.T) {
+		h := mkHost(t, "resend-cert-missing")
+		require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, "w-missing"))
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, "w-missing"))
+		require.Equal(t, 0, count)
+	})
+
 	t.Run("proxy failure no-ops for a removed profile", func(t *testing.T) {
 		h := mkHost(t, "setfailed-missing")
 		// No profile row exists for this (host, profile): must not error and must not resurrect a row.

@@ -1934,6 +1934,8 @@ type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID strin
 
 type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
+type ResendWindowsHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
+
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error)
 
 type CreateSecretVariableFunc func(ctx context.Context, name string, value string) (id uint, err error)
@@ -5217,6 +5219,9 @@ type DataStore struct {
 
 	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
 	ResendHostCertificateProfileFuncInvoked bool
+
+	ResendWindowsHostCertificateProfileFunc        ResendWindowsHostCertificateProfileFunc
+	ResendWindowsHostCertificateProfileFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
@@ -12531,6 +12536,13 @@ func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID s
 	s.ResendHostCertificateProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostCertificateProfileFunc(ctx, hostUUID, profUUID)
+}
+
+func (s *DataStore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	s.mu.Lock()
+	s.ResendWindowsHostCertificateProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendWindowsHostCertificateProfileFunc(ctx, hostUUID, profUUID)
 }
 
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
