@@ -982,12 +982,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
 		nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
 		for _, n := range nested {
+			cmdRef, verb := n.CmdID.Value, n.XMLName.Local
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(n.CmdID.Value),
-				Cmd:     ptr.String(n.XMLName.Local),
-				Data:    ptr.String(status),
+				CmdRef:  &cmdRef,
+				Cmd:     &verb,
+				Data:    &status,
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})

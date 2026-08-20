@@ -278,7 +278,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	// terminal. Each retry puts the profile back in the queue, where the profile manager renders it afresh and, for a
 	// SCEP profile, fetches a new challenge.
 	const scepFailDetail = "SCEP PKIOperation failed: HTTP 500"
-	for retries := 0; retries < mdm.MaxWindowsProfileRetries; retries++ {
+	for retries := range mdm.MaxWindowsProfileRetries {
 		t.Run(fmt.Sprintf("proxy failure retries the profile at %d retries", retries), func(t *testing.T) {
 			h := mkHost(t, fmt.Sprintf("setfailed-retry-%d", retries))
 			p := "w-fail"
@@ -367,6 +367,20 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Empty(t, detail)
 		require.Equal(t, 0, retries)
 		require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[h.UUID])
+	})
+
+	// The other half of that contrast, pinned because the two resends now sit next to each other and differ only in
+	// this. An admin hitting Resend gets one more delivery, not a fresh budget.
+	t.Run("admin resend keeps the retries spent", func(t *testing.T) {
+		h := mkHost(t, "resend-admin")
+		p := "w-resend-admin"
+		upsertWinProfile(t, h, p, "cmd-resend-admin", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries)
+
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, h.UUID, p))
+
+		status, _, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
 	})
 
 	t.Run("certificate profile resend no-ops for a removed profile", func(t *testing.T) {
