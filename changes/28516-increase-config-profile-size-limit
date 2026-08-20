@@ -1,0 +1,1 @@
+- Increased the maximum configuration profile file size from 1 MB to 16 MB to support delivering large fonts to macOS, iOS, and iPadOS hosts via configuration profiles.
