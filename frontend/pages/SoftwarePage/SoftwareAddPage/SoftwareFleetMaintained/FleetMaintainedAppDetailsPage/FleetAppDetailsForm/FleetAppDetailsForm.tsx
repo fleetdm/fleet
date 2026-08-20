@@ -24,7 +24,6 @@ import RevealButton from "components/buttons/RevealButton";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
-import { isMacOS } from "interfaces/platform";
 import {
   EndUserExperience,
   PatchOption,
@@ -301,12 +300,11 @@ const FleetAppDetailsForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible
             gitOpsModeEnabled={gitOpsModeEnabled}
-            patchWhenClosed={
+            preInstallQueryLocked={
               formData.patch &&
               (formData.patchOption === "closed" ||
                 (formData.patchOption === "force" &&
-                  formData.endUserExperience === "notify" &&
-                  isMacOS(platform)))
+                  formData.endUserExperience === "notify"))
             }
           />
         )}

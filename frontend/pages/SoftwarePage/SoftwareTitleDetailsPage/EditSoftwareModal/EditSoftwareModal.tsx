@@ -5,7 +5,6 @@ import classnames from "classnames";
 import { ILabelSummary } from "interfaces/label";
 import {
   IAppStoreApp,
-  getInstallablePlatform,
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
@@ -23,7 +22,6 @@ import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import { isMacOS } from "interfaces/platform";
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import SoftwareVppForm from "pages/SoftwarePage/components/forms/SoftwareVppForm";
@@ -64,7 +62,7 @@ interface IEditSoftwareModalProps {
    * software" — we're editing one specific installer on a title that has
    * several, not the title's only package. */
   canActivateMultiplePackages?: boolean;
-  patchWhenClosed?: boolean;
+  preInstallQueryLocked?: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -82,7 +80,7 @@ const EditSoftwareModal = ({
   source,
   iconUrl = undefined,
   canActivateMultiplePackages = false,
-  patchWhenClosed = false,
+  preInstallQueryLocked = false,
 }: IEditSoftwareModalProps) => {
   const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
@@ -96,15 +94,12 @@ const EditSoftwareModal = ({
   // Backend rejects pre_install_query on save when patch_when_closed or
   // notify_before_patching is on, so the field must be read-only and
   // omitted. Derived from the installer's own patch policy so a caller
-  // can't forget; explicit prop can still force it. Notify branch is
-  // Mac-gated to mirror `getPatchPolicyFlags`.
-  const derivedPlatform = getInstallablePlatform(source);
+  // can't forget; explicit prop can still force it.
   const notifyLocksPreInstallQuery =
     "patch_policy" in softwareInstaller &&
-    !!softwareInstaller.patch_policy?.notify_before_patching &&
-    isMacOS(derivedPlatform);
-  const effectivePatchWhenClosed =
-    patchWhenClosed ||
+    !!softwareInstaller.patch_policy?.notify_before_patching;
+  const effectivePreInstallQueryLocked =
+    preInstallQueryLocked ||
     ("patch_policy" in softwareInstaller &&
       !!softwareInstaller.patch_policy?.patch_when_closed) ||
     notifyLocksPreInstallQuery;
@@ -239,7 +234,7 @@ const EditSoftwareModal = ({
           // progress bar at 97% until the server response is received
           setUploadProgress(Math.max(progress - 0.03, 0.01));
         },
-        omitPreInstallQuery: effectivePatchWhenClosed,
+        omitPreInstallQuery: effectivePreInstallQueryLocked,
       });
 
       notify.success(
@@ -388,7 +383,7 @@ const EditSoftwareModal = ({
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
           teamId={teamId}
-          patchWhenClosed={effectivePatchWhenClosed}
+          preInstallQueryLocked={effectivePreInstallQueryLocked}
         />
       );
     }

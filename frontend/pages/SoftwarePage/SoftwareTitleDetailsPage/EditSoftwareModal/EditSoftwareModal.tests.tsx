@@ -51,8 +51,8 @@ describe("EditSoftwareModal — multi-package title", () => {
   });
 
   // Regression: a patch-when-closed installer must treat the pre-install query
-  // as Fleet-managed even when the caller doesn't pass patchWhenClosed — the
-  // modal derives it from the installer's own patch policy. Otherwise the
+  // as Fleet-managed even when the caller doesn't pass preInstallQueryLocked —
+  // the modal derives it from the installer's own patch policy. Otherwise the
   // pre-install query is sent on save and the backend rejects unrelated edits
   // (e.g. toggling self-service).
   it("treats the pre-install query as Fleet-managed when the installer's patch policy is patch-when-closed", async () => {
@@ -99,9 +99,8 @@ describe("EditSoftwareModal — multi-package title", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the pre-install query editable when notify-before-patching is set on a non-Mac source", async () => {
+  it("locks the pre-install query when notify-before-patching is set", async () => {
     const { user } = renderModal({
-      source: "programs", // maps to windows
       softwareInstaller: createMockSoftwarePackage({
         patch_policy: {
           id: 7,
@@ -116,10 +115,10 @@ describe("EditSoftwareModal — multi-package title", () => {
     await user.click(screen.getByRole("button", { name: "Advanced options" }));
 
     expect(
-      screen.queryByText(
+      screen.getByText(
         /Pre-install query won't run when install is triggered via self-service/
       )
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
   });
 
   it("keeps the pre-install query editable when there is no patch-when-closed policy", async () => {

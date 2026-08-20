@@ -159,7 +159,7 @@ interface IPackageFormProps {
   /** Overrides the initial `targetType` for new (non-editing) forms. The
    * multi-package add modal preselects `"Custom"` per Figma. */
   initialTargetType?: string;
-  patchWhenClosed?: boolean;
+  preInstallQueryLocked?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -188,7 +188,7 @@ const PackageForm = ({
   restrictedFileAccept,
   restrictedFileTypeLabel,
   initialTargetType,
-  patchWhenClosed = false,
+  preInstallQueryLocked = false,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const { config } = useContext(AppContext);
@@ -569,7 +569,7 @@ const PackageForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
-            patchWhenClosed={patchWhenClosed}
+            preInstallQueryLocked={preInstallQueryLocked}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>

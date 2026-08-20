@@ -396,7 +396,7 @@ describe("PolicyAutomationsFields — payload", () => {
     });
   });
 
-  it("maps End user initiated to no continuous automation", () => {
+  it("hides the continuous checkbox on End user initiated and preserves the stored value on the wire", () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
     };
@@ -412,11 +412,13 @@ describe("PolicyAutomationsFields — payload", () => {
       { patchOption: "manual" }
     );
 
+    // Manual hides the checkbox but preserves stored continuous — the wire
+    // must not silently downgrade a value the user never touched.
     expect(
       handleRef.current?.getAutomationsPayload().policyUpdate
     ).toMatchObject({
       software_title_id: null,
-      continuous_automations_enabled: false,
+      continuous_automations_enabled: true,
     });
 
     expect(
@@ -547,67 +549,5 @@ describe("PolicyAutomationsFields — payload", () => {
         "Continuous automation can't be disabled when Notify before patching is selected."
       )
     ).toBeInTheDocument();
-  });
-
-  it("auto-heals a legacy Windows policy carrying notify_before_patching:true by sending notify_before_patching:false on save", () => {
-    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
-      current: null,
-    };
-    renderWithHandle(
-      {
-        type: "patch",
-        platform: "windows",
-        patch_software: { name: "Notepad", software_title_id: 55 },
-        patch_when_closed: false,
-        // Legacy bad state — this shouldn't have shipped, but if it did, the
-        // Mac gate on the derivation flips it back to false and the dirty
-        // check writes the corrected value to the wire.
-        notify_before_patching: true,
-        continuous_automations_enabled: true,
-      },
-      handleRef,
-      { patchOption: "force", endUserExperience: "notify" }
-    );
-
-    const payload = handleRef.current?.getAutomationsPayload().policyUpdate;
-    expect(payload).toMatchObject({
-      notify_before_patching: false,
-      // continuous stays at the policy's stored value — the Mac gate on the
-      // state init keeps us from silently downgrading it alongside notify.
-      continuous_automations_enabled: true,
-    });
-  });
-
-  it("never surfaces notify_before_patching for a Windows policy even when the endUserExperience state says notify", () => {
-    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
-      current: null,
-    };
-    renderWithHandle(
-      {
-        type: "patch",
-        platform: "windows",
-        patch_software: { name: "Notepad", software_title_id: 55 },
-        patch_when_closed: false,
-        notify_before_patching: false,
-        continuous_automations_enabled: false,
-      },
-      handleRef,
-      { patchOption: "force", endUserExperience: "notify" }
-    );
-
-    // Windows: notify state is present but the derivation gates on
-    // policy.platform === "darwin", so notifyBeforePatching stays false and
-    // matches initial — the "dirty" check omits the field from the payload,
-    // which is exactly what we want on the wire.
-    const payload = handleRef.current?.getAutomationsPayload().policyUpdate;
-    expect(payload).toMatchObject({
-      software_title_id: 55,
-      continuous_automations_enabled: false,
-    });
-    expect(payload?.notify_before_patching ?? false).toBe(false);
-    // And the continuous checkbox stays editable — the lock is off.
-    expect(
-      screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
-    ).toHaveAttribute("aria-disabled", "false");
   });
 });

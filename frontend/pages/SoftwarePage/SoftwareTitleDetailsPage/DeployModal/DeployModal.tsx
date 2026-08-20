@@ -103,11 +103,7 @@ const DeployModal = ({
   const onSave = async () => {
     setIsSaving(true);
     let savedAnyChange = false;
-    const patchFlags = getPatchPolicyFlags(
-      patchOption,
-      endUserExperience,
-      platform
-    );
+    const patchFlags = getPatchPolicyFlags(patchOption, endUserExperience);
     try {
       if (forceInstall !== !!forceInstallPolicy) {
         if (forceInstall) {

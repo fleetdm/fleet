@@ -1008,9 +1008,7 @@ describe("PolicyForm - component", () => {
             })
           )
         );
-        // Dropdown must never render for a Windows patch policy — the
-        // getPatchPolicyFlags gate is the last line of defense, but the UI
-        // shouldn't even offer the choice.
+        // Dropdown never renders for a Windows patch policy.
         expect(
           screen.queryByRole("combobox", { name: /End user experience/i })
         ).not.toBeInTheDocument();

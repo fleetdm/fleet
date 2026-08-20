@@ -34,7 +34,6 @@ import {
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import { isMacOS } from "interfaces/platform";
 import {
   EndUserExperience,
   PatchOption,
@@ -166,13 +165,6 @@ const PolicyAutomationsFields = forwardRef<
     const initialContinuous = policy.continuous_automations_enabled ?? false;
     const initialPatchWhenClosed = policy.patch_when_closed ?? false;
     const initialNotifyBeforePatching = policy.notify_before_patching ?? false;
-    // Gate the notify init on Mac so a legacy Windows policy with
-    // `notify_before_patching: true` doesn't silently downgrade its stored
-    // `continuous_automations_enabled` on the next unrelated save — the
-    // continuous state should stay at whatever the policy currently carries
-    // when the notify flag doesn't actually apply.
-    const initialIsMacNotify =
-      initialNotifyBeforePatching && isMacOS(policy.platform);
 
     const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
       initialWebhookOrTicket
@@ -186,29 +178,23 @@ const PolicyAutomationsFields = forwardRef<
       initialConditionalAccess
     );
     const [continuousEnabled, setContinuousEnabled] = useState(
-      initialPatchWhenClosed || initialIsMacNotify ? false : initialContinuous
+      initialPatchWhenClosed || initialNotifyBeforePatching
+        ? false
+        : initialContinuous
     );
     const patchWhenClosed = patchOption
       ? patchOption === "closed"
       : initialPatchWhenClosed;
-    // Notify before patching is macOS-only; gate at the derivation so the
-    // continuous-automations lock and the wire payload stay in sync even if
-    // a legacy Windows policy carries `notify_before_patching: true`.
-    // Uses the same helper as the wire boundary so multi-platform policy
-    // strings (`"darwin,linux"`) are treated as Mac too.
-    const isMacPolicy = isMacOS(policy.platform);
     const notifyBeforePatching =
       patchOption !== undefined
-        ? patchOption === "force" &&
-          endUserExperience === "notify" &&
-          isMacPolicy
-        : initialNotifyBeforePatching && isMacPolicy;
+        ? patchOption === "force" && endUserExperience === "notify"
+        : initialNotifyBeforePatching;
     // Continuous automations is locked on for both "Patch when app is closed"
     // and "Notify before patching" — the backend forces it on for both, so an
     // editable checkbox would lie.
     const isContinuousAutomationsRequired =
       patchWhenClosed || notifyBeforePatching;
-    const getContinuousAutomationsRequiredTooltip = (): string | undefined => {
+    const getContinuousAutomationsRequiredTooltip = () => {
       if (patchWhenClosed) {
         return "Continuous automation can't be disabled when Patch when app is closed is selected.";
       }
@@ -217,9 +203,11 @@ const PolicyAutomationsFields = forwardRef<
       }
       return undefined;
     };
-    const getEffectiveContinuousEnabled = (): boolean => {
+    const getEffectiveContinuousEnabled = () => {
       if (isContinuousAutomationsRequired) return true;
-      if (patchOption === "manual") return false;
+      // Manual patch hides the continuous checkbox; preserve the stored value
+      // on the wire so a policy that had continuous on doesn't silently flip.
+      if (patchOption === "manual") return initialContinuous;
       return continuousEnabled;
     };
     const continuousAutomationsRequiredTooltip = getContinuousAutomationsRequiredTooltip();
@@ -400,12 +388,6 @@ const PolicyAutomationsFields = forwardRef<
           return { isValid: false, isDirty: false };
         }
 
-        // Legacy-Windows auto-heal: a policy that shouldn't have stored
-        // `notify_before_patching: true` still gets the derived value
-        // flipped back to false, so this dirty check writes the correction
-        // on save. `initialIsMacNotify` (state init) is what keeps the
-        // stored `continuous_automations_enabled` from being downgraded
-        // alongside it.
         const perPolicyDirty =
           !isGlobalPolicy &&
           (effectiveInstallSoftware !== initialInstallSoftware ||

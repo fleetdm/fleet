@@ -17,24 +17,13 @@ const baseClass = "software-deploy-selector";
 export type PatchOption = "closed" | "force" | "manual";
 export type EndUserExperience = "immediate" | "notify";
 
-/**
- * Returns the three policy flags derived from the deploy selector state.
- * `notify_before_patching` is gated on `isMacOS(platform)` at the wire
- * boundary — Notify before patching is macOS-only today, and the UI hides
- * the dropdown for Windows, so the flag must not slip through if state
- * ever carries "notify" on a non-Mac software (legacy data, hydration
- * mismatch, or a future third platform). `endUserExperience` and
- * `platform` are defaulted so pre-migration call sites keep compiling.
- */
+/** Returns the three policy flags derived from the deploy selector state. */
 export const getPatchPolicyFlags = (
   patchOption: PatchOption,
-  endUserExperience: EndUserExperience = "immediate",
-  platform?: string
+  endUserExperience: EndUserExperience = "immediate"
 ) => {
   const notifyActive =
-    patchOption === "force" &&
-    endUserExperience === "notify" &&
-    isMacOS(platform);
+    patchOption === "force" && endUserExperience === "notify";
   return {
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,

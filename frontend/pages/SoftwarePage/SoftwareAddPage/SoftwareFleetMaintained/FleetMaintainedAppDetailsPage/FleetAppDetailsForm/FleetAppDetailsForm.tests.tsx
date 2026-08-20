@@ -160,11 +160,9 @@ describe("FleetAppDetailsForm", () => {
   });
 
   it("keeps the pre-install query editable when Force patch is selected on a Windows FMA", async () => {
-    // Defense-in-depth: the Add FMA form starts with endUserExperience
-    // "immediate" and Windows hides the dropdown, so state can't reach
-    // "notify" through the UI. The platform gate on the `patchWhenClosed`
-    // composite is what still keeps the pre-install query editable — this
-    // test locks in that Windows Force-patch stays unlocked.
+    // Add FMA form starts with endUserExperience "immediate" and Windows
+    // hides the End user experience dropdown, so state can never reach
+    // "notify" through the UI — the pre-install query stays unlocked.
     const { user } = renderForm(false, "windows");
 
     await user.click(screen.getByRole("checkbox", { name: "patch" }));
