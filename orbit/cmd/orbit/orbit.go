@@ -1466,15 +1466,23 @@ func orbitAction(c *cli.Context) error {
 	// activation runs first, the osqueryd worker exits fatally ("Cannot
 	// activate fleet_orbit_distributed distributed plugin"), the extension
 	// socket dies, orbit's extension runner times out a minute later and the
-	// whole process crashloops. The timeout gives orbit ample time to
-	// connect; if the extension never registers, osqueryd exits and the
-	// osquery runner brings the whole orbit process down for a clean restart.
+	// whole process crashloops.
+	//
+	// Since these flags override the flagfile's, any --extensions_require or
+	// --extensions_timeout the user set there (e.g. via command_line_flags in
+	// agent options) is merged in rather than dropped — clobbering the user's
+	// required-extensions list would let osquery activate plugins before the
+	// user's extensions register, hitting the same fatal race for them.
 	if wsTransportEnabled {
-		options = append(options, osquery.WithFlags([]string{
-			"--distributed_plugin", wstransport.DistributedPluginName,
-			"--extensions_require", table.ExtensionName,
-			"--extensions_timeout", "60",
-		}))
+		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
+		if err != nil {
+			// the flagfile may legitimately not exist; merge against nothing
+			if !errors.Is(err, os.ErrNotExist) {
+				log.Warn().Err(err).Msg("read osquery.flags to merge websocket transport flags")
+			}
+			userFlags = nil
+		}
+		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags)))
 	}
 
 	// Handle additional args after '--' in the command line. These are added last and should
