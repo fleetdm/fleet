@@ -207,7 +207,6 @@ const UserForm = ({
       // if an existing user is converted to sso, the API expects `new_password` to be null
       if (data.sso_enabled) {
         submitData.new_password = null;
-        submitData.mfa_enabled = false; // Edge case a user sets mfa, and then sets sso, we need to remove mfa
       }
     }
 
@@ -216,6 +215,12 @@ const UserForm = ({
       data.newUserType === NewUserType.AdminInvited
     ) {
       submitData.password = null; // this field will not be submitted with the form
+    }
+
+    // Turning SSO on hides the MFA checkbox but keeps its value, so a user who
+    // ticked it first would otherwise submit sso_enabled with mfa_enabled.
+    if (submitData.sso_enabled) {
+      submitData.mfa_enabled = false;
     }
 
     return data.global_role !== null

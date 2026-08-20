@@ -219,6 +219,32 @@ describe("UserForm - component", () => {
     ).toBeInTheDocument();
   });
 
+  it("does not submit mfa_enabled for a new user who switches to SSO", async () => {
+    const onSubmit = jest.fn();
+    const { user } = renderWithSetup(
+      <UserForm
+        {...defaultProps}
+        canUseSso
+        defaultGlobalRole="observer"
+        onSubmit={onSubmit}
+      />
+    );
+
+    await user.type(screen.getByLabelText("Full name"), "User 1");
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+
+    // Ticking MFA and then switching to SSO hides the checkbox but leaves its
+    // value in form state, so the payload must drop it.
+    await user.click(screen.getByRole("checkbox", { name: "mfa_enabled" }));
+    await user.click(screen.getByRole("radio", { name: "Single sign-on" }));
+
+    await user.click(screen.getByText("Add"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ sso_enabled: true, mfa_enabled: false })
+    );
+  });
+
   it("displays disabled SSO option when SSO is globally disabled but was previously enabled for the user", async () => {
     const props = {
       ...defaultProps,
