@@ -9018,22 +9018,6 @@ None.
 }
 ```
 
-##### Not configured
-
-`Status: 404 Resource Not Found`
-
-```json
-{
-  "message": "Resource Not Found",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Android zero-touch enrollment is not configured"
-    }
-  ]
-}
-```
-
 ## SCIM
 
 - [List users](#list-scim-users)
