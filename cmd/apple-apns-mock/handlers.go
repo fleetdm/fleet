@@ -424,13 +424,6 @@ type memStatsResponse struct {
 }
 
 func memStatsHandler(w http.ResponseWriter, r *http.Request) {
-	// ?gc=1 collects first so heap_bytes reflects live data rather than live
-	// data plus whatever garbage has accumulated since the last cycle. The
-	// endpoint has always documented this; it just never did it.
-	if r.URL.Query().Get("gc") == "1" {
-		runtime.GC()
-	}
-
 	heap, stacks, inUse := runtimeMem()
 
 	w.Header().Set("Content-Type", "application/json")
