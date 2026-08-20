@@ -918,52 +918,31 @@ describe("HostInstallerActionCell component", () => {
     ).toBeNull();
   });
 
-  it("re-enables uninstall after an API failure so the row isn't stuck", async () => {
-    // Parent returns false on API error (see HostSoftwareLibrary.onClick*Action).
-    // Without the child re-enable, the row's optimistic pending state persists
-    // and the user has to refresh.
-    const failingUninstall = jest.fn().mockResolvedValue(false);
+  // Parent returns false on API error (see HostSoftwareLibrary.onClick*Action).
+  // Without the child re-enable, the row's optimistic pending state persists
+  // and the user has to refresh.
+  it.each([
+    ["uninstall" as const, "installed" as const],
+    ["install" as const, "failed_install" as const],
+  ])("re-enables the %s button after an API failure", async (action, uiStatus) => {
+    const failing = jest.fn().mockResolvedValue(false);
     const { user } = renderWithSetup(
       <HostInstallerActionCell
-        software={{ ...defaultSoftware, ui_status: "installed" }}
-        onClickInstallAction={noop}
-        onClickUninstallAction={failingUninstall}
+        software={{ ...defaultSoftware, ui_status: uiStatus }}
+        onClickInstallAction={action === "install" ? failing : noop}
+        onClickUninstallAction={action === "uninstall" ? failing : noop}
         baseClass={baseClass}
         hostScriptsEnabled
         hostMDMEnrolled
       />
     );
 
-    const uninstallBtn = screen.getByTestId(
-      `${baseClass}__uninstall-button--test`
-    );
-    await user.click(uninstallBtn);
+    const btn = screen.getByTestId(`${baseClass}__${action}-button--test`);
+    await user.click(btn);
 
-    expect(failingUninstall).toHaveBeenCalled();
+    expect(failing).toHaveBeenCalled();
     await waitFor(() => {
-      expect(uninstallBtn.closest("button")).toBeEnabled();
-    });
-  });
-
-  it("re-enables install after an API failure so the row isn't stuck", async () => {
-    const failingInstall = jest.fn().mockResolvedValue(false);
-    const { user } = renderWithSetup(
-      <HostInstallerActionCell
-        software={{ ...defaultSoftware, ui_status: "failed_install" }}
-        onClickInstallAction={failingInstall}
-        onClickUninstallAction={noop}
-        baseClass={baseClass}
-        hostScriptsEnabled
-        hostMDMEnrolled
-      />
-    );
-
-    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    await user.click(installBtn);
-
-    expect(failingInstall).toHaveBeenCalled();
-    await waitFor(() => {
-      expect(installBtn.closest("button")).toBeEnabled();
+      expect(btn.closest("button")).toBeEnabled();
     });
   });
 });
