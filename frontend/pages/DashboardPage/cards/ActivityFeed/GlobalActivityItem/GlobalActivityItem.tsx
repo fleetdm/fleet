@@ -21,7 +21,11 @@ import {
 import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import { pluralize } from "utilities/strings/stringUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import { renderNotifyTitleList } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -2324,8 +2328,8 @@ const TAGGED_TEMPLATES = {
       status,
       time_before: timeBefore,
     } = details;
-    const timeLabel = timeBefore === 300 ? "5 minutes" : "1 hour";
-    const failed = status === "failed";
+    const timeLabel = formatNotifyTimeLabel(timeBefore);
+    const failed = isNotifyFailure(status);
     const verb = failed ? "failed to notify" : "notified";
 
     const titleList = renderNotifyTitleList(titles);

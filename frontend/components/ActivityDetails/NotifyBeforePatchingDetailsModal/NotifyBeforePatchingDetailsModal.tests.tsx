@@ -167,6 +167,20 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     expect(shouldNotFireHandler).not.toHaveBeenCalled();
   });
 
+  it("renders the intro without an app list when software_titles is empty (defensive)", async () => {
+    useScriptResultHandler({ exit_code: 0 });
+    renderModal({ status: "success", software_titles: [] });
+
+    const intro = (await screen.findByText(/before patching/i)).closest(
+      "span"
+    ) as HTMLElement;
+    // No title list injected; sentence still reads grammatically.
+    expect(intro.textContent).toContain(
+      "before patching on John's MacBook Pro."
+    );
+    expect(screen.queryByText("Apps")).not.toBeInTheDocument();
+  });
+
   it("puts the app name inline in the intro when there is one app, and hides the Apps row", async () => {
     useScriptResultHandler({ exit_code: 0 });
     renderModal({ status: "success", software_titles: ["1Password"] });
@@ -183,7 +197,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     expect(screen.queryByText("Apps")).not.toBeInTheDocument();
   });
 
-  it("truncates the intro past three apps with a 'and N more apps' tail and moves the full list to Apps", async () => {
+  it("truncates the intro past four apps with a 'and N more apps' tail and moves the full list to Apps", async () => {
     useScriptResultHandler({ exit_code: 0 });
     renderModal({
       status: "success",
@@ -211,7 +225,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     expect(screen.getByText("Apps")).toBeInTheDocument();
   });
 
-  it("lists every title in the Apps row (no truncation past three)", async () => {
+  it("lists every title in the Apps row (no truncation past four)", async () => {
     useScriptResultHandler({ exit_code: 0 });
     renderModal({
       software_titles: [

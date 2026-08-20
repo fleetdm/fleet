@@ -2620,7 +2620,7 @@ describe("Activity Feed", () => {
       );
     });
 
-    it("truncates past three apps with ', and N more apps'", () => {
+    it("truncates past four apps with ', and N more apps'", () => {
       const activity = createMockActivity({
         type: ActivityType.NotifiedEndUserBeforePatching,
         fleet_initiated: true,
@@ -2646,7 +2646,7 @@ describe("Activity Feed", () => {
       );
     });
 
-    it("uses singular 'app' when exactly one title overflows", () => {
+    it("lists the fourth app inline instead of using '1 more app'", () => {
       const activity = createMockActivity({
         type: ActivityType.NotifiedEndUserBeforePatching,
         fleet_initiated: true,
@@ -2662,8 +2662,9 @@ describe("Activity Feed", () => {
       );
 
       expect(container.textContent).toContain(
-        "1Password, Slack, Docker Desktop, and 1 more app "
+        "1Password, Slack, Docker Desktop, and Zoom"
       );
+      expect(container.textContent).not.toMatch(/more app/);
     });
 
     it("renders 5 minutes for the reminder (time_before: 300)", () => {

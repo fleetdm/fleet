@@ -58,7 +58,7 @@ describe("NotifiedEndUserBeforePatchingActivityItem", () => {
     );
   });
 
-  it("truncates past three apps with pluralized 'more apps'", () => {
+  it("truncates past four apps with pluralized 'more apps'", () => {
     const { container } = render(
       <NotifiedEndUserBeforePatchingActivityItem
         activity={createNotifyActivity({

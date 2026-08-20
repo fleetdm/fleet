@@ -25,6 +25,8 @@ import {
   EXIT_CODES_NEEDING_EUE_LINK,
   PATCHING_END_USER_EXPERIENCE_URL,
   renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
 } from "./helpers";
 
 const baseClass = "notify-before-patching-details-modal";
@@ -46,8 +48,8 @@ const NotifyBeforePatchingDetailsModal = ({
     script_execution_id: scriptExecutionId,
   } = details;
 
-  const timeLabel = timeBefore === 300 ? "5 minutes" : "1 hour";
-  const failed = status === "failed";
+  const timeLabel = formatNotifyTimeLabel(timeBefore);
+  const failed = isNotifyFailure(status);
 
   const [showDetails, setShowDetails] = useState(false);
 
@@ -61,7 +63,8 @@ const NotifyBeforePatchingDetailsModal = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       // Skip the fetch on dispatcher-caught deferrals (no execution id).
       enabled: !!scriptExecutionId,
-      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      retry: (failureCount, err) =>
+        err?.response?.status !== 404 && failureCount < 3,
     }
   );
 
@@ -89,7 +92,7 @@ const NotifyBeforePatchingDetailsModal = ({
 
     const titleList = renderNotifyTitleList(titles);
     // Apps row is redundant when the intro already lists everything (≤3 apps).
-    const showAppsRow = titles.length > 3;
+    const showAppsRow = titles.length > 4;
 
     return (
       <div className={`${baseClass}__content`}>

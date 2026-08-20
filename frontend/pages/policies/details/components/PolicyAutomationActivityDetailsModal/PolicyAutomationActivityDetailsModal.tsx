@@ -65,7 +65,8 @@ const PolicyAutomationActivityDetailsModal = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isNotify && !!scriptExecutionId,
-      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      retry: (failureCount, err) =>
+        err?.response?.status !== 404 && failureCount < 3,
     }
   );
 

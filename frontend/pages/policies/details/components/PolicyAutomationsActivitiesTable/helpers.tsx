@@ -2,6 +2,8 @@ import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { Colors } from "styles/var/colors";
 
+import { getAutomationNotifiedSentence } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
 
@@ -11,11 +13,6 @@ const getNotifySoftwareName = (
   details: IPolicyAutomationActivity["details"] | undefined
 ): string | undefined =>
   details?.software_title || details?.software_titles?.[0];
-
-const getNotifiedSentence = (timeBefore?: number): string => {
-  const label = timeBefore === 300 ? "5 minutes" : "1 hour";
-  return `End user was notified. Patch will be forced in ${label}. If the host is offline when a patch should be forced, Fleet notifies the end user again when it comes back online and patches it after 1 hour.`;
-};
 
 /** Label for the "Automation" column. */
 export const getAutomationRunDisplayName = (
@@ -94,7 +91,7 @@ export const getDetailOutputText = (
     activity.type === ActivityType.NotifiedEndUserBeforePatching &&
     activity.status !== "error"
   ) {
-    return getNotifiedSentence(activity.details?.time_before);
+    return getAutomationNotifiedSentence(activity.details?.time_before);
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;

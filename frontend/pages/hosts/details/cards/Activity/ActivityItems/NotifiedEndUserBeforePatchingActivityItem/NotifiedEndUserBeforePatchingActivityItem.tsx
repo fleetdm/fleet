@@ -1,7 +1,11 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
-import { renderNotifyTitleList } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
@@ -20,8 +24,8 @@ const NotifiedEndUserBeforePatchingActivityItem = ({
     status,
     time_before: timeBefore,
   } = details;
-  const timeLabel = timeBefore === 300 ? "5 minutes" : "1 hour";
-  const failed = status === "failed";
+  const timeLabel = formatNotifyTimeLabel(timeBefore);
+  const failed = isNotifyFailure(status);
   const verb = failed ? "failed to notify" : "notified";
   const titleList = renderNotifyTitleList(titles);
 
