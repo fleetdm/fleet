@@ -33,8 +33,7 @@ const baseClass = "user-form";
 const PASSWORD_ERRORS: Record<string, string> = {
   too_short: "Enter a password with at least 12 characters",
   too_long: "Enter a password with 48 characters or fewer",
-  invalid_format:
-    "Enter a password with at least 1 letter, 1 number and 1 symbol",
+  invalid_format: "Enter a password with at least 1 number and 1 symbol",
 };
 
 export enum NewUserType {
@@ -134,6 +133,11 @@ const UserForm = ({
   // Per instance, so two forms on one page can't collide on the id.
   const formId = useId();
 
+  // Editing an email requires SMTP/SES to send the confirmation, so without one
+  // the field renders read-only — and a field the user can't edit must never
+  // hold an error that blocks submit.
+  const isEmailReadOnly = !isNewUser && !(smtpConfigured || sesConfigured);
+
   // Mirrors the render condition for renderPasswordSection — a hidden field is
   // never validated.
   const isPasswordShown = (data: UserFormState) =>
@@ -156,10 +160,12 @@ const UserForm = ({
       errors.name = "Enter a name";
     }
 
-    if (!validatePresence(data.email)) {
-      errors.email = "Enter an email";
-    } else if (!validEmail(data.email)) {
-      errors.email = "Enter a valid email";
+    if (!isEmailReadOnly) {
+      if (!validatePresence(data.email)) {
+        errors.email = "Enter an email";
+      } else if (!validEmail(data.email)) {
+        errors.email = "Enter a valid email";
+      }
     }
 
     if (isPasswordShown(data)) {
@@ -359,6 +365,7 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={(teams: ITeam[]) => commitFields({ teams })}
                 isApiOnly={isApiOnly}
+                disabled={isSubmitting}
               />
             </>
           ) : (
@@ -368,6 +375,7 @@ const UserForm = ({
               defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={(teams: ITeam[]) => commitFields({ teams })}
               isApiOnly={isApiOnly}
+              disabled={isSubmitting}
             />
           ))}
         {getError("teams") && (
@@ -469,7 +477,7 @@ const UserForm = ({
         placeholder="Email"
         value={formData.email}
         disabled={isSubmitting}
-        readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
+        readOnly={isEmailReadOnly}
         tooltip={
           <>
             Editing an email address requires that SMTP or SES is configured in

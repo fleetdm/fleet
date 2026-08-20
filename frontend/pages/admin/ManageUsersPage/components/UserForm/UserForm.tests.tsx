@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import { renderWithSetup, createMockRouter } from "test/test-utils";
+import createMockTeam from "__mocks__/teamMock";
 import UserForm from "./UserForm";
 
 // Note: Happy path is tested e2e so these integration tests are only edge cases
@@ -159,6 +160,63 @@ describe("UserForm - component", () => {
     expect(screen.queryByText("Enter an email")).not.toBeInTheDocument();
     // Clearing is per-field: the other errors are still on screen.
     expect(screen.getByText("Enter a name")).toBeInTheDocument();
+  });
+
+  it("does not validate the email when the field is read-only", async () => {
+    // No SMTP/SES on an edit form makes email read-only. A field the user can't
+    // edit must never hold an error that blocks submit.
+    const onSubmit = jest.fn();
+    const { user } = renderWithSetup(
+      <UserForm
+        {...defaultProps}
+        isNewUser={false}
+        smtpConfigured={false}
+        sesConfigured={false}
+        defaultName="User 1"
+        defaultEmail="not-a-valid-email"
+        defaultGlobalRole="observer"
+        onSubmit={onSubmit}
+      />
+    );
+
+    expect(screen.getByLabelText("Email")).toBeDisabled();
+
+    await user.click(screen.getByText("Save"));
+
+    expect(screen.queryByText("Enter a valid email")).not.toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalled();
+  });
+
+  it("disables the permissions selectors while a submission is in flight", () => {
+    render(
+      <UserForm
+        {...defaultProps}
+        availableTeams={[createMockTeam({ id: 1, name: "Fleet 1" })]}
+        defaultGlobalRole={null}
+        defaultTeams={[createMockTeam({ id: 1, name: "Fleet 1" })]}
+        isUpdatingUsers
+      />
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Fleet 1" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(screen.getByRole("radio", { name: "Global user" })).toBeDisabled();
+  });
+
+  it("uses password error copy that matches the help text", async () => {
+    const { user } = renderWithSetup(<UserForm {...defaultProps} />);
+
+    const passwordField = document.querySelector(
+      'input[name="password"]'
+    ) as HTMLInputElement;
+    await user.type(passwordField, "abcdefghijkl");
+    await user.tab();
+
+    expect(
+      screen.getByText("Enter a password with at least 1 number and 1 symbol")
+    ).toBeInTheDocument();
   });
 
   it("displays disabled SSO option when SSO is globally disabled but was previously enabled for the user", async () => {

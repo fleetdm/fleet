@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { isEmpty } from "lodash";
+import { isEmpty, noop } from "lodash";
 
 import TableContainer from "components/TableContainer";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
@@ -68,6 +68,7 @@ const pathDepth = (path: string) => path.split("/").filter(Boolean).length;
 interface IApiEndpointSelectorTableProps {
   selectedEndpoints: IApiEndpointRef[];
   onSelectionChange: (endpoints: IApiEndpointRef[]) => void;
+  disabled?: boolean;
 }
 
 interface ICellProps {
@@ -117,7 +118,8 @@ const searchResultsTableHeaders = [
 ];
 
 const generateSelectedTableHeaders = (
-  handleRemove: (row: Row<IApiEndpointRow>) => void
+  handleRemove: (row: Row<IApiEndpointRow>) => void,
+  disabled?: boolean
 ) => [
   ...searchResultsTableHeaders,
   {
@@ -129,6 +131,7 @@ const generateSelectedTableHeaders = (
         variant="subdued"
         icon="close-filled"
         ariaLabel="Remove"
+        disabled={disabled}
       />
     ),
     disableHidden: true,
@@ -138,6 +141,7 @@ const generateSelectedTableHeaders = (
 const ApiEndpointSelectorTable = ({
   selectedEndpoints,
   onSelectionChange,
+  disabled,
 }: IApiEndpointSelectorTableProps) => {
   const [searchText, setSearchText] = useState("");
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -232,8 +236,8 @@ const ApiEndpointSelectorTable = ({
   );
 
   const selectedTableHeaders = useMemo(
-    () => generateSelectedTableHeaders(handleRowRemove),
-    [handleRowRemove]
+    () => generateSelectedTableHeaders(handleRowRemove, disabled),
+    [handleRowRemove, disabled]
   );
 
   const isDropdownOpen = !isEmpty(searchText);
@@ -248,6 +252,7 @@ const ApiEndpointSelectorTable = ({
         value={searchText}
         placeholder="Search by name or path"
         onChange={setSearchText}
+        disabled={disabled}
       />
       <span className="form-field__help-text">
         You can find this information in the{" "}
@@ -285,7 +290,7 @@ const ApiEndpointSelectorTable = ({
             // react-table's built-in sorting, discarding the relevance
             // order computed above.
             manualSortBy
-            onClickRow={handleRowSelect}
+            onClickRow={disabled ? noop : handleRowSelect}
           />
         </div>
       )}

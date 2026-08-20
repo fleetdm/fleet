@@ -191,6 +191,7 @@ const ApiUserForm = ({
             usersCurrentTeams={formData.fleets}
             onFormChange={(fleets: ITeam[]) => commitFields({ fleets })}
             isApiOnly
+            disabled={isSubmitting}
           />
           {getError("fleets") && (
             <div className="form-field__label form-field__label--error">
@@ -227,6 +228,7 @@ const ApiUserForm = ({
               commitFields({ api_endpoints })
             }
             error={getError("api_endpoints")}
+            disabled={isSubmitting}
           />
         )}
         <div className="user-management-form__footer">
