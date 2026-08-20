@@ -1,4 +1,4 @@
-# Three things to know before you renew your current MDM
+# Three questions to answer before you renew your MDM
 
 *Renewal is the one moment each cycle when you have real leverage over your device management stack. Here is what to check before you sign.*
 
@@ -90,7 +90,7 @@ If those answers are good, sign with confidence. If they are not, you have just 
 ---
 *Ready to ask harder questions before your next renewal? [Talk to Fleet](https://fleetdm.com/contact), or read [9 problems every IT team has, and why they switch to Fleet](https://fleetdm.com/articles/nine-problems-every-it-team-has-and-why-they-switch-to-fleet).*
 
-<meta name="articleTitle" value="Three things to know before you renew your current MDM">
+<meta name="articleTitle" value="Three questions to answer before you renew your MDM">
 <meta name="authorFullName" value="Mitch Francese">
 <meta name="authorGitHubUsername" value="tux234">
 <meta name="category" value="articles">
