@@ -560,6 +560,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// This is a bit of a code smell but I don't see a better way to initialize this for the tests. The
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
+	appleMDMJob.InHouseAppInstaller = svc
 
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
@@ -1079,9 +1080,43 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
 
+// withDEPDeviceDetails answers Apple's "Get Device Details" endpoint, which host
+// deletion consults to tell a device released from Apple Business apart from one
+// Fleet still owns. Every requested serial is reported as still assigned, which is
+// the state these suites set up; without this the lookup fails and deletes are
+// refused. Tests needing a different answer should serve /devices themselves and
+// bypass this wrapper.
+func withDEPDeviceDetails(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/devices" {
+			handler.ServeHTTP(w, r)
+			return
+		}
+
+		var req struct {
+			Devices []string `json:"devices"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Fail loudly rather than answering an unreadable request, so a client
+			// regression shows up here instead of as a puzzling downstream result.
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		devices := make(map[string]any, len(req.Devices))
+		for _, serial := range req.Devices {
+			devices[serial] = map[string]any{"serial_number": serial, "response_status": "SUCCESS"}
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(map[string]any{"devices": devices}); err != nil {
+			panic(err)
+		}
+	})
+}
+
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
 	t := s.T()
-	srv := httptest.NewServer(handler)
+	srv := httptest.NewServer(withDEPDeviceDetails(handler))
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
 	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))

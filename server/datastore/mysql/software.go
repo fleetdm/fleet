@@ -4476,9 +4476,12 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 				COUNT(label_membership.label_id) AS count_host_labels,
 				SUM(
 					CASE
+						-- only dynamic labels (membership type 0) need to wait for the host to
+						-- report label results; manual and host vitals membership is populated by
+						-- the server.
 						WHEN labels.created_at IS NOT NULL AND (
-							labels.label_membership_type = 1 OR
-							(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							labels.label_membership_type <> 0 OR
+							:host_label_updated_at >= labels.created_at
 						) THEN 1
 						ELSE 0
 					END
@@ -4743,8 +4746,7 @@ func filterVPPAppsByLabel(
 					COUNT(label_membership.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at THEN 1
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 1 THEN 1
+							WHEN labels.created_at IS NOT NULL AND (labels.label_membership_type <> 0 OR :host_label_updated_at >= labels.created_at) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -4925,8 +4927,7 @@ func filterInHouseAppsByLabel(
 					COUNT(lm.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -6451,8 +6452,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(
-									CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1
-									WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+									CASE WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 									ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								software_installer_labels sil
@@ -6510,8 +6510,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+								WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 								ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								vpp_app_team_labels vatl
@@ -6568,8 +6567,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+								WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 								ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								in_house_app_labels ihl

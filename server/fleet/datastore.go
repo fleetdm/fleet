@@ -127,9 +127,19 @@ type Datastore interface {
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
+	// HasLabelScopedScheduledQueries returns true if any active scheduled queries
+	// for the given scope have label targeting (entries in query_labels).
+	// If teamID is non-nil, checks both global (team_id IS NULL) and the specified team's queries,
+	// since both appear in a team host's pack config.
+	// If teamID is nil, checks only global queries.
+	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
+	// QueriesPerHost returns the IDs of the saved queries that are scheduled for the given host,
+	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
+	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
+	QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
@@ -995,8 +1005,8 @@ type Datastore interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
 	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
-	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error)
-	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error)
+	CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType PolicyAutomationType, platform string) (int, error)
+	CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType PolicyAutomationType, platform string) (int, error)
 	UpdateHostPolicyCounts(ctx context.Context) error
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -1029,6 +1039,7 @@ type Datastore interface {
 	// GetPoliciesWithAssociatedVPP returns team policies that have an associated VPP app
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
+	GetPoliciesWithAssociatedProfile(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyProfileData, error)
 	// ResetPolicyAutomationRetryAttemptsForHost marks all prior policy automation
 	// script/install attempts on this host as "old sequence" (attempt_number=0)
 	// for the given policies. Used when continuous_automations_enabled triggers
@@ -1095,8 +1106,8 @@ type Datastore interface {
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args PolicyPayload) (*Policy, error)
-	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
-	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType string, platform string) ([]*Policy, error)
+	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, automationType PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*Policy, err error)
+	ListMergedTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, automationType PolicyAutomationType, platform string) ([]*Policy, error)
 
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
@@ -2122,8 +2133,16 @@ type Datastore interface {
 	DeleteHostDEPAssignments(ctx context.Context, abmTokenID uint, serials []string) error
 
 	// MarkHostDEPAssignmentDeleted marks as deleted the host_dep_assignments entry for the provided host ID.
-	// Only use when we no longer have a host row, if we do use `DeleteHostDEPAssignments` instead.
+	//
+	// Prefer `DeleteHostDEPAssignments` when the host row still exists AND the pending-host
+	// cleanup it performs is wanted: that one also deletes pending host rows matching the
+	// serial, since a pending host no longer in ABM will never enroll. Callers that are
+	// deleting the host themselves, or that only have a host ID (an assignment whose ABM
+	// token was removed has no token to match on), want this one.
 	MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error
+
+	// MarkHostDEPAssignmentsDeleted is the batched form of MarkHostDEPAssignmentDeleted.
+	MarkHostDEPAssignmentsDeleted(ctx context.Context, hostIDs []uint) error
 
 	// UpdateHostDEPAssignProfileResponses receives a profile UUID and threes lists of serials, each representing
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses. For each response, it also sets the ABM token id in the table to the provided value.
@@ -2517,14 +2536,27 @@ type Datastore interface {
 	// ReplaceMicrosoftGraphCredentials reconciles the stored credentials.
 	ReplaceMicrosoftGraphCredentials(ctx context.Context, upsert []*MicrosoftGraphCredential, deleteTenantIDs []string) error
 
-	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant. It reports whether the flag actually changed.
-	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) (wasSet bool, err error)
+	// SetMicrosoftGraphCredentialInvalid sets the credential_invalid flag for a tenant.
+	SetMicrosoftGraphCredentialInvalid(ctx context.Context, tenantID string, invalid bool) error
 
 	// RecordMicrosoftGraphSyncResult stamps the outcome of a sync pass. A nil syncErr records a success and clears any previous error.
 	RecordMicrosoftGraphSyncResult(ctx context.Context, tenantID string, syncErr *string) error
 
-	// BatchUpsertHostAutopilotDevices stores the Windows Autopilot metadata for many hosts, clearing any soft deletion.
-	BatchUpsertHostAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+	// UpdateMicrosoftGraphCredentialInvalidAggregate recomputes MDM.MicrosoftGraphCredentialInvalid from the
+	// credentials table, saving the app config only when it changed.
+	UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.Context) error
+
+	// HostIDByAutopilotDeviceID resolves a host from the Autopilot device ID (the ZTDID), which the device supplies at
+	// Windows MDM enrollment and which Microsoft Graph returns as windowsAutopilotDeviceIdentity.id.
+	HostIDByAutopilotDeviceID(ctx context.Context, autopilotDeviceID string) (uint, error)
+
+	// IngestWindowsAutopilotDevices creates a pending Windows host for every Autopilot device that has no host yet,
+	// and stores the Autopilot metadata for every device passed in.
+	IngestWindowsAutopilotDevices(ctx context.Context, devices []*HostAutopilotDevice) error
+
+	// RemoveWindowsAutopilotHosts handles devices that left the Autopilot registry: hosts still pending are deleted,
+	// hosts that already enrolled keep their host row and only lose the Autopilot metadata.
+	RemoveWindowsAutopilotHosts(ctx context.Context, hostIDs []uint) error
 
 	// BatchSoftDeleteHostAutopilotDevices tombstones the Autopilot records for the given hosts, for devices that are no
 	// longer present in the tenant's Autopilot registry. The host rows themselves are untouched.
@@ -2894,6 +2926,15 @@ type Datastore interface {
 	// Idle (sent right after the device acknowledges the lock command)
 	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
+
+	// CancelHostMDMCommand cancels a pending Apple MDM command for the host by
+	// deactivating its queue row so it is never delivered, and clears the
+	// matching host_mdm_actions reference (lock/wipe) if any. It returns the
+	// command's request type. It returns a not-found error if the command
+	// doesn't exist for that host or was already canceled, and a bad-request
+	// error if the command's type is not cancelable or the command has already
+	// run on the host.
+	CancelHostMDMCommand(ctx context.Context, host *Host, commandUUID string) (requestType string, err error)
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
 	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
