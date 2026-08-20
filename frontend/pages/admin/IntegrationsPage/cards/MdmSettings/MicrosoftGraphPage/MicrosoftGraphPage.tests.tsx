@@ -316,6 +316,26 @@ describe("MicrosoftGraphPage", () => {
     });
   });
 
+  it("restores the secret mask when the identity change that cleared it is reverted", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const clientIdField = await screen.findByLabelText("Client ID");
+    await user.clear(clientIdField);
+    await user.type(clientIdField, "9a2e4d10-3b77-4c58-8e21-1f0c5d6a7b88");
+    await waitFor(() => {
+      expect(screen.getByLabelText("Client secret")).toHaveValue("");
+    });
+
+    // Putting the stored client ID back means the stored secret applies again, so the field must not read as though
+    // no secret is configured.
+    await user.clear(clientIdField);
+    await user.type(clientIdField, "7f6b1665-51f5-48de-a9b6-ac17539583fb");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Client secret")).toHaveValue("********");
+    });
+  });
+
   it("validates on save rather than disabling the button", async () => {
     const { user } = renderPage([]);
 

@@ -6,7 +6,10 @@ import { AppContext } from "context/app";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { equalsIgnoreCase } from "utilities/strings/stringUtils";
-import { IMicrosoftGraphCredentialFormData } from "interfaces/microsoft_graph_credential";
+import {
+  IMicrosoftGraphCredential,
+  IMicrosoftGraphCredentialFormData,
+} from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI, {
   IGetMicrosoftGraphCredentialsResponse,
 } from "services/entities/microsoft_graph_credentials";
@@ -54,13 +57,16 @@ const CREDENTIAL_FIELDS: ICredentialField[] = [
   "clientSecret",
 ];
 
+// The API lower-cases both IDs before comparing, so the UI must too.
+const identityMatchesStored = (
+  ids: Pick<IFormData, "tenantId" | "clientId">,
+  stored: IMicrosoftGraphCredential
+) =>
+  equalsIgnoreCase(ids.tenantId.trim(), stored.tenant_id) &&
+  equalsIgnoreCase(ids.clientId.trim(), stored.client_id);
+
 // The API reports per-field problems under these names. Anything it reports under the bare `microsoft_graph_credentials`
 // key is a whole-credential failure (verification, licensing, missing private key) with no field to attach it to.
-const STORED_ID_KEYS = {
-  tenantId: "tenant_id",
-  clientId: "client_id",
-} as const;
-
 const SERVER_ERROR_NAMES: Record<ICredentialField, string> = {
   tenantId: "microsoft_graph_credentials.tenant_id",
   clientId: "microsoft_graph_credentials.client_id",
@@ -139,28 +145,29 @@ const MicrosoftGraphPage = () => {
 
     setFormData((prev) => {
       const updated = { ...prev, [field]: nextValue };
-      // The stored secret belongs to a specific app registration, so changing either ID invalidates it.
-      if (
-        storedCredential &&
-        field !== "clientSecret" &&
-        prev.clientSecret === STORED_SECRET_PLACEHOLDER &&
-        !equalsIgnoreCase(
-          nextValue.trim(),
-          storedCredential[STORED_ID_KEYS[field]]
-        )
-      ) {
-        updated.clientSecret = "";
+      // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Reverting to
+      // the stored IDs makes it apply again, so the mask comes back.
+      if (storedCredential && field !== "clientSecret") {
+        const identityUnchanged = identityMatchesStored(
+          updated,
+          storedCredential
+        );
+        if (
+          prev.clientSecret === STORED_SECRET_PLACEHOLDER &&
+          !identityUnchanged
+        ) {
+          updated.clientSecret = "";
+        } else if (prev.clientSecret === "" && identityUnchanged) {
+          updated.clientSecret = STORED_SECRET_PLACEHOLDER;
+        }
       }
       return updated;
     });
   };
 
-  // Re-entry is required whenever the app registration's identity changes, matching the API's own rule. The API
-  // lower-cases both IDs before comparing, so the UI must too.
+  // Re-entry is required whenever the app registration's identity changes, matching the API's own rule.
   const identityChanged =
-    !!storedCredential &&
-    (!equalsIgnoreCase(tenantId.trim(), storedCredential.tenant_id) ||
-      !equalsIgnoreCase(clientId.trim(), storedCredential.client_id));
+    !!storedCredential && !identityMatchesStored(formData, storedCredential);
 
   const secretChanged =
     clientSecret !== "" && clientSecret !== STORED_SECRET_PLACEHOLDER;

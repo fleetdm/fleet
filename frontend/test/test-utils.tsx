@@ -241,14 +241,14 @@ const MODAL_CONTAINER_SELECTOR = ".modal__modal_container";
 /**
  * Waits for a modal to open and returns its container, for scoping queries with `within`.
  */
-export const getOpenModal = async (): Promise<HTMLElement> => {
-  await waitFor(() => {
-    if (!document.querySelector(MODAL_CONTAINER_SELECTOR)) {
+export const getOpenModal = (): Promise<HTMLElement> =>
+  waitFor(() => {
+    const modal = document.querySelector<HTMLElement>(MODAL_CONTAINER_SELECTOR);
+    if (!modal) {
       throw new Error("Modal not yet rendered");
     }
+    return modal;
   });
-  return document.querySelector(MODAL_CONTAINER_SELECTOR) as HTMLElement;
-};
 
 /**
  * Returns the open modal's container, or null when none is open. Use to assert a modal has closed — going through this
