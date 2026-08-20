@@ -37,30 +37,8 @@ func init() {
 	projectCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	projectCmd.Flags().BoolP("all-issues", "a", false, "Select all issues once the view is populated")
 	projectCmd.Flags().StringP("workflow", "w", "", "Run this workflow immediately instead of waiting for input (e.g. 'demo')")
-	estimatedCmd.Flags().IntP("limit", "l", 500, "Maximum number of items to fetch from drafting project")
 	sprintCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	sprintCmd.Flags().BoolP("previous", "p", false, "Show previous sprint instead of current")
-}
-
-var estimatedCmd = &cobra.Command{
-	Use:   "estimated [project-id-or-alias]",
-	Short: "Get estimated GitHub issues from the drafting project filtered by project label",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		projectID, err := ghapi.ResolveProjectID(args[0])
-		if err != nil {
-			fmt.Printf("Error resolving project: %v\n", err)
-			return
-		}
-
-		limit, err := cmd.Flags().GetInt("limit")
-		if err != nil {
-			fmt.Printf("Error getting limit flag: %v\n", err)
-			return
-		}
-
-		tui.RunTUI(tui.EstimatedCommand, projectID, limit, "", false, "")
-	},
 }
 
 // sprintCmd fetches only the issues currently in the active sprint for a project.

@@ -78,9 +78,6 @@ chmod +x gm
 # Don't know your project number off the top of your head?
 # There are some easy to use aliases defined in pkg/ghapi/project.go in `Aliases`
 
-# View estimated tickets
-./gm estimated mdm --limit 25
-
 # Pre-sprint report for one or more teams
 # Single team (alias or project id)
 ./gm pre-sprint report mdm
@@ -89,6 +86,18 @@ chmod +x gm
 
 # CSV format for spreadsheet use (outputs values per team in provided order)
 ./gm pre-sprint report mdm,soft --format csv
+
+# Priority (P0/P1) issue report over time
+# Buckets issues by the week they were created and breaks them down by
+# product group ("#g-" label) per month so you can spot ownership trends.
+./gm reports priority
+# Override the window (default is the last 6 months)
+./gm reports priority --months 12
+# Report on a single priority, or add P2
+./gm reports priority --priority P0
+./gm reports priority --priority P0,P1,P2
+# Machine-readable output
+./gm reports priority --format json
 ```
 
 ## 🎮 Interactive Controls
