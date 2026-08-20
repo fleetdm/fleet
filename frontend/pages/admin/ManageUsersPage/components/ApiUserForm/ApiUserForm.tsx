@@ -4,19 +4,19 @@ import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useFormValidation from "hooks/useFormValidation";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import validatePresence from "components/forms/validators/validate_presence";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import ApiAccessSection from "../ApiAccessSection";
 import { roleOptions } from "../../helpers/userManagementHelpers";
+import { ApiUserFormState, validateApiUserForm } from "./helpers";
 
 export interface IApiUserFormData {
   name: string;
@@ -39,15 +39,6 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
-type ApiUserFormState = {
-  name: string;
-  global_role: UserRole;
-  isGlobalUser: boolean;
-  fleets: ITeam[];
-  isSpecificEndpoints: boolean;
-  api_endpoints: IApiEndpointRef[];
-};
-
 const ApiUserForm = ({
   isPremiumTier,
   onCancel,
@@ -58,24 +49,8 @@ const ApiUserForm = ({
 }: IApiUserFormProps) => {
   const isNewUser = defaultData === undefined;
 
-  const validate = (data: ApiUserFormState): IFormErrors => {
-    const errors: IFormErrors = {};
-
-    if (!validatePresence(data.name)) {
-      errors.name = "Enter a name";
-    }
-    // The permissions and API-access selectors only render on premium.
-    if (isPremiumTier) {
-      if (!data.isGlobalUser && data.fleets.length === 0) {
-        errors.fleets = "Select at least one fleet";
-      }
-      if (data.isSpecificEndpoints && data.api_endpoints.length === 0) {
-        errors.api_endpoints = "Select at least one API endpoint";
-      }
-    }
-
-    return errors;
-  };
+  const validate = (data: ApiUserFormState) =>
+    validateApiUserForm(data, { isPremiumTier });
 
   const {
     formData,

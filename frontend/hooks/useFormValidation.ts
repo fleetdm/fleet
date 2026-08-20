@@ -42,7 +42,7 @@ interface IUseFormValidationOptions<TFormData> {
    * String fields that must reach the API verbatim. Everything else is trimmed
    * on submit. Passwords belong here — trimming changes the credential.
    */
-  skipTrim?: readonly string[];
+  skipTrim?: readonly (keyof TFormData & string)[];
 }
 
 interface IUseFormValidationReturn<TFormData> {
@@ -110,7 +110,7 @@ const trimFormData = <TFormData>(
   return trimmed as TFormData;
 };
 
-const NO_SKIP_TRIM: readonly string[] = [];
+const NO_SKIP_TRIM: readonly never[] = [];
 
 /**
  * Single source of truth for the form validation behavior specified in

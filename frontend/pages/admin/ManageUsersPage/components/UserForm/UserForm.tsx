@@ -14,10 +14,6 @@ import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import ModalFooter from "components/ModalFooter";
-import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email";
-// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
@@ -27,19 +23,17 @@ import TooltipWrapper from "components/TooltipWrapper";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
+import {
+  isPasswordShown,
+  NewUserType,
+  UserFormState,
+  validateUserForm,
+} from "./helpers";
+
+// Re-exported so existing importers of NewUserType from this module keep working.
+export { NewUserType } from "./helpers";
 
 const baseClass = "user-form";
-
-const PASSWORD_ERRORS: Record<string, string> = {
-  too_short: "Enter a password with at least 12 characters",
-  too_long: "Enter a password with 48 characters or fewer",
-  invalid_format: "Enter a password with at least 1 number and 1 symbol",
-};
-
-export enum NewUserType {
-  AdminInvited = "ADMIN_INVITED",
-  AdminCreated = "ADMIN_CREATED",
-}
 
 enum UserTeamType {
   GlobalUser = "GLOBAL_USER",
@@ -61,18 +55,6 @@ export interface IUserFormData {
   invited_by?: number;
   role?: UserRole;
 }
-
-/** What the fields on screen hold. */
-type UserFormState = {
-  email: string;
-  name: string;
-  newUserType: NewUserType | null;
-  password: string;
-  sso_enabled: boolean;
-  mfa_enabled: boolean;
-  global_role: UserRole | null;
-  teams: ITeam[];
-};
 
 interface IUserFormProps {
   availableTeams: ITeam[];
@@ -136,56 +118,16 @@ const UserForm = ({
   // hold an error that blocks submit.
   const isEmailReadOnly = !isNewUser && !(smtpConfigured || sesConfigured);
 
-  const isPasswordShown = (data: UserFormState) =>
-    ((isNewUser && data.newUserType !== NewUserType.AdminInvited) ||
-      (!isNewUser && !isInvitePending)) &&
-    !data.sso_enabled;
-
-  // A password is required when creating a user with SSO off, and when moving a
-  // user off SSO onto password auth (which includes the case where SSO was
-  // turned off org-wide). On an edit form for a password user it stays optional:
-  // leaving it blank keeps the current password.
-  const isPasswordRequired = (data: UserFormState) =>
-    (isNewUser && data.newUserType === NewUserType.AdminCreated) ||
-    !!isSsoEnabled;
-
-  const validate = (data: UserFormState): IFormErrors => {
-    const errors: IFormErrors = {};
-
-    if (!validatePresence(data.name)) {
-      errors.name = "Enter a name";
-    }
-
-    if (!isEmailReadOnly) {
-      if (!validatePresence(data.email)) {
-        errors.email = "Enter an email";
-      } else if (!validEmail(data.email)) {
-        errors.email = "Enter a valid email";
-      }
-    }
-
-    if (isPasswordShown(data)) {
-      const hasPassword = validatePresence(data.password);
-      if (!hasPassword && isPasswordRequired(data)) {
-        errors.password = "Enter a password";
-      } else if (hasPassword) {
-        // An optional password still has to satisfy the format rule once it has
-        // a value. Fall back to the validator's own copy if it grows a new code.
-        const { error_code: errorCode, error } = validPassword(data.password);
-        if (errorCode) {
-          errors.password = PASSWORD_ERRORS[errorCode] || error;
-        }
-      }
-    }
-
-    // The fleet selector is on screen whenever the user isn't global. Its
-    // "at least one" error belongs on the selector, not in a toast.
-    if (isPremiumTier && !data.global_role && !data.teams.length) {
-      errors.teams = "Select at least one fleet";
-    }
-
-    return errors;
+  const validationContext = {
+    isNewUser,
+    isInvitePending,
+    isSsoEnabled,
+    isPremiumTier,
+    isEmailReadOnly,
   };
+
+  const validate = (data: UserFormState) =>
+    validateUserForm(data, validationContext);
 
   const {
     formData,
@@ -682,7 +624,8 @@ const UserForm = ({
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
           {renderAuthenticationSection()}
-          {isPasswordShown(formData) && renderPasswordSection()}
+          {isPasswordShown(formData, validationContext) &&
+            renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
             renderTwoFactorAuthenticationOption()}

@@ -62,7 +62,9 @@ interface IHookProps {
   isSubmitting?: boolean;
 }
 
-const setup = (options: { skipTrim?: readonly string[] } = {}) =>
+const setup = (
+  options: { skipTrim?: readonly (keyof TestFormData & string)[] } = {}
+) =>
   renderHook(
     ({ serverErrors, isSubmitting }: IHookProps) =>
       useFormValidation<TestFormData>({
