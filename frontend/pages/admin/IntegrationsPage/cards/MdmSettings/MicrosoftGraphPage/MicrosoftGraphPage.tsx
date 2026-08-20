@@ -146,7 +146,8 @@ const MicrosoftGraphPage = () => {
     setFormData((prev) => {
       const updated = { ...prev, [field]: nextValue };
       // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Reverting to
-      // the stored IDs makes it apply again, so the mask comes back.
+      // the stored IDs makes it apply again, so the mask comes back. The dirty check keeps the restore from
+      // overwriting a secret field the admin cleared themselves.
       if (storedCredential && field !== "clientSecret") {
         const identityUnchanged = identityMatchesStored(
           updated,
@@ -157,7 +158,11 @@ const MicrosoftGraphPage = () => {
           !identityUnchanged
         ) {
           updated.clientSecret = "";
-        } else if (prev.clientSecret === "" && identityUnchanged) {
+        } else if (
+          prev.clientSecret === "" &&
+          identityUnchanged &&
+          !dirtyFields.clientSecret
+        ) {
           updated.clientSecret = STORED_SECRET_PLACEHOLDER;
         }
       }

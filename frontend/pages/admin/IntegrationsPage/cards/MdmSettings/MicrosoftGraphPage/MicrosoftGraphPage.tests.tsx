@@ -336,6 +336,24 @@ describe("MicrosoftGraphPage", () => {
     });
   });
 
+  it("leaves a secret field the admin cleared themselves alone during ID edits", async () => {
+    const { user } = renderPage([createMockCredential()]);
+
+    const secretField = await screen.findByLabelText("Client secret");
+    await waitFor(() => {
+      expect(secretField).toHaveValue("********");
+    });
+    await user.clear(secretField);
+
+    // A net no-op ID edit leaves the identity matching the stored credential, but the admin emptied the secret field
+    // on purpose, so the mask must not reappear under them.
+    const tenantIdField = screen.getByLabelText("Tenant ID");
+    await user.type(tenantIdField, "x");
+    await user.type(tenantIdField, "{backspace}");
+
+    expect(screen.getByLabelText("Client secret")).toHaveValue("");
+  });
+
   it("validates on save rather than disabling the button", async () => {
     const { user } = renderPage([]);
 
