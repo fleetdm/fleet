@@ -1172,4 +1172,53 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
     expect(uninstallBtn.closest("button")).toBeEnabled();
     expect(installBtn.closest("button")).toBeEnabled();
   });
+
+  it("re-enables uninstall after an API failure so the row isn't stuck", async () => {
+    // Parent returns false on API error (see HostSoftwareLibrary.onClick*Action).
+    // Without the child re-enable, the row's optimistic pending state persists
+    // and the user has to refresh.
+    const failingUninstall = jest.fn().mockResolvedValue(false);
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{ ...defaultSoftware, ui_status: "installed" }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={failingUninstall}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    await user.click(uninstallBtn);
+
+    expect(failingUninstall).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(uninstallBtn.closest("button")).toBeEnabled();
+    });
+  });
+
+  it("re-enables install after an API failure so the row isn't stuck", async () => {
+    const failingInstall = jest.fn().mockResolvedValue(false);
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{ ...defaultSoftware, ui_status: "failed_install" }}
+        onClickInstallAction={failingInstall}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    await user.click(installBtn);
+
+    expect(failingInstall).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(installBtn.closest("button")).toBeEnabled();
+    });
+  });
 });

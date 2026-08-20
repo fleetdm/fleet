@@ -57,11 +57,14 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
+  /** Returns true on API success, false on API failure so the row can clear
+   * its optimistic pending state. Callers that ignore the return value
+   * (fire-and-forget) are still supported. */
   onClickInstallAction: (
     softwareId: number,
     isSoftwarePackage?: boolean
-  ) => void;
-  onClickUninstallAction: () => void;
+  ) => Promise<boolean> | void;
+  onClickUninstallAction: () => Promise<boolean> | void;
   onClickOpenInstructionsAction?: () => void;
   baseClass: string;
   hostScriptsEnabled?: boolean;
@@ -325,14 +328,24 @@ export const HostInstallerActionCell = ({
     installedVersionsDetected,
   });
 
-  // Wrap handlers to disable action button(s) immediately, important for slow connections/APIs
-  const handleInstallClick = () => {
+  // Wrap handlers to disable action button(s) immediately, important for slow
+  // connections/APIs. On API failure the parent returns false; clear the
+  // optimistic flag so the row is clickable again instead of stuck until a
+  // page refresh. On success the useEffect above clears the flag once
+  // `status` leaves the pending state.
+  const handleInstallClick = async () => {
     if (installDisabled || isInstallUninstallPendingLocal) return;
     setIsInstallUninstallPendingLocal(true);
-    onClickInstallAction(id, SCRIPT_PACKAGE_SOURCES.includes(software.source));
+    const ok = await onClickInstallAction(
+      id,
+      SCRIPT_PACKAGE_SOURCES.includes(software.source)
+    );
+    if (ok === false) {
+      setIsInstallUninstallPendingLocal(false);
+    }
   };
 
-  const handleUninstallClick = () => {
+  const handleUninstallClick = async () => {
     if (uninstallDisabled || isInstallUninstallPendingLocal) return;
     // On My Device, uninstall opens a confirmation modal instead of calling the
     // API directly. Skip the optimistic pending flag so cancelling the modal
@@ -340,7 +353,10 @@ export const HostInstallerActionCell = ({
     if (!isMyDevicePage) {
       setIsInstallUninstallPendingLocal(true);
     }
-    onClickUninstallAction();
+    const ok = await onClickUninstallAction();
+    if (ok === false) {
+      setIsInstallUninstallPendingLocal(false);
+    }
   };
 
   const onSelectOption = (option: string) => {
