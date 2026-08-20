@@ -247,6 +247,41 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Empty(t, detail)
 	})
 
+	// Redelivery correctness. When a profile is sent again (a retry, an admin Resend, or a renewal) the host is still
+	// carrying the certificate from the previous issuance, and it has the same renewal-ID marker as the one we are
+	// waiting for. Verification therefore has to wait for a genuinely new certificate. Two things make that work, and
+	// this pins both: re-rendering the profile clears the observed certificate off the managed-certificate row, and
+	// the renewal-ID matcher only considers certificates newly reported in this ingest. If either regressed, a
+	// redelivery would report "verified" off the stale certificate and quietly deliver nothing.
+	t.Run("redelivery waits for a new certificate", func(t *testing.T) {
+		h := mkHost(t, "redeliver")
+		p := "w-redeliver"
+		upsertWinProfile(t, h, p, "cmd-redeliver-1", fleet.MDMDeliveryVerifying, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+		// First issuance lands and verifies.
+		firstCert := certWithRenewalID(t, h, p, 7301)
+		ingest(t, h, firstCert)
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+
+		// Fleet redelivers. The reconciler re-renders the profile, which rewrites the managed-certificate row with a
+		// fresh challenge and no observed certificate, and the host acknowledges the new command.
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		upsertWinProfile(t, h, p, "cmd-redeliver-2", fleet.MDMDeliveryVerifying, 1)
+
+		// The host still reports only the previous certificate: the new exchange has not produced one.
+		ingest(t, h, firstCert)
+		status, _, _ = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status,
+			"a certificate from the previous issuance must not verify a redelivery")
+
+		// The reissued certificate does.
+		ingest(t, h, firstCert, certWithRenewalID(t, h, p, 7302))
+		status, _, _ = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
 	t.Run("no matching cert keeps profile verifying", func(t *testing.T) {
 		h := mkHost(t, "nomatch")
 		p := "w-scep-nomatch"
