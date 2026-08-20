@@ -77,7 +77,6 @@ type UserFormState = {
 interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
-  /** Return the request promise to have the hook track in-flight state. */
   onSubmit: (formData: IUserFormData) => void | Promise<unknown>;
   defaultName?: string;
   defaultEmail?: string;
@@ -96,7 +95,6 @@ interface IUserFormProps {
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
-  /** Field-specific errors from the API. Pass a new object per failed request. */
   serverErrors: IFormErrors;
   isUpdatingUsers?: boolean;
 }
@@ -138,8 +136,6 @@ const UserForm = ({
   // hold an error that blocks submit.
   const isEmailReadOnly = !isNewUser && !(smtpConfigured || sesConfigured);
 
-  // Mirrors the render condition for renderPasswordSection — a hidden field is
-  // never validated.
   const isPasswordShown = (data: UserFormState) =>
     ((isNewUser && data.newUserType !== NewUserType.AdminInvited) ||
       (!isNewUser && !isInvitePending)) &&

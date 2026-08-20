@@ -27,7 +27,6 @@ export interface IApiUserFormData {
 
 interface IApiUserFormProps {
   onCancel: () => void;
-  /** Return the request promise to have the hook track in-flight state. */
   onSubmit: (formData: IApiUserFormData) => void | Promise<unknown>;
   availableTeams: ITeam[];
   defaultData?: IApiUserFormData;
@@ -40,11 +39,6 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
-/**
- * The permissions and API-access selectors are part of the validated form data
- * rather than separate UI state so that `validate` stays a pure function of one
- * object.
- */
 type ApiUserFormState = {
   name: string;
   global_role: UserRole;
@@ -70,8 +64,7 @@ const ApiUserForm = ({
     if (!validatePresence(data.name)) {
       errors.name = "Enter a name";
     }
-    // The permissions and API-access selectors only render on premium, so their
-    // rules can't apply on free — the user would have no way to satisfy them.
+    // The permissions and API-access selectors only render on premium.
     if (isPremiumTier) {
       if (!data.isGlobalUser && data.fleets.length === 0) {
         errors.fleets = "Select at least one fleet";
@@ -137,8 +130,7 @@ const ApiUserForm = ({
     commitFields({ isGlobalUser: value === UserTeamType.GlobalUser });
   };
 
-  // Narrowing to "all endpoints" discards the selection, matching the behavior
-  // before this form used the hook.
+  // Narrowing to "all endpoints" discards the selection.
   const onAccessTypeChange = (isSpecific: boolean) => {
     commitFields(
       isSpecific
