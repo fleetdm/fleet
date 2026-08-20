@@ -70,6 +70,7 @@ const PolicyAutomationActivityDetailsModal = ({
   );
 
   const detailOutput = getDetailOutputText(activity);
+  const statusIcon = getAutomationStatusIcon(activity);
 
   const getExplanation = (): string | null => {
     if (isNotify) {
@@ -211,10 +212,7 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon
-                name={getAutomationStatusIcon(activity).name}
-                color={getAutomationStatusIcon(activity).color}
-              />
+              <Icon name={statusIcon.name} color={statusIcon.color} />
               {getAutomationRunDisplayName(activity)}
             </span>
           }

@@ -290,10 +290,6 @@ export type IHostUpcomingActivity = Omit<
   details: IActivityDetails;
 };
 
-/** `details.status` values on a `notified_end_user_before_patching` activity.
- * Distinct from the automation-runs wrapper's `"error" | "success"` union. */
-export type INotifyActivityStatus = "success" | "failed";
-
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
@@ -318,8 +314,6 @@ export interface IActivityDetails {
   host_platform?: string;
   host_serial?: string;
   install_at?: string;
-  /** True on an app-open skip. Wire field; `skipped_install` is the derived display status. */
-  install_skipped_when_app_open?: boolean;
   install_uuid?: string;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
-import { IActivityDetails, INotifyActivityStatus } from "interfaces/activity";
+import { IActivityDetails } from "interfaces/activity";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
@@ -50,7 +50,7 @@ const NotifyBeforePatchingDetailsModal = ({
   } = details;
 
   const timeLabel = formatNotifyTimeLabel(timeBefore);
-  const failed = isNotifyFailure(status as INotifyActivityStatus | undefined);
+  const failed = isNotifyFailure(status);
 
   const [showDetails, setShowDetails] = useState(false);
 
@@ -161,7 +161,7 @@ const NotifyBeforePatchingDetailsModal = ({
               >
                 output recorded
               </TooltipWrapper>{" "}
-              when ran the script above:
+              when Fleet ran the script above:
             </p>
             <Textarea variant="code">{outputBlock}</Textarea>
           </div>
@@ -177,12 +177,8 @@ const NotifyBeforePatchingDetailsModal = ({
       onExit={onCancel}
       onEnter={onCancel}
     >
-      <>
-        {renderContent()}
-        <ModalFooter
-          primaryButtons={<Button onClick={onCancel}>Done</Button>}
-        />
-      </>
+      {renderContent()}
+      <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
     </Modal>
   );
 };

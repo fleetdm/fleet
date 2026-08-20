@@ -1,11 +1,11 @@
 import React from "react";
 
-import { INotifyActivityStatus } from "interfaces/activity";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
-export const isNotifyFailure = (
-  status: INotifyActivityStatus | undefined
-): boolean => status === "failed";
+// Loose input — details.status is typed as `string | undefined` on
+// IActivityDetails; the string comparison is safe for any input.
+export const isNotifyFailure = (status: string | undefined): boolean =>
+  status === "failed";
 
 export const DEFERRED_EXIT_CODE = 50;
 
@@ -13,21 +13,20 @@ export const DEFERRED_EXIT_CODE = 50;
 // "..., and N more apps" and move the full list to the Apps row.
 export const INLINE_APP_LIMIT = 4;
 
-// Keyed by script exit code. Index 0 is the offline caveat shown on success;
-// non-zero entries are failure reasons.
+export const DEFERRED_SENTENCE =
+  "Another notification was displayed. Fleet will try again on the next policy run.";
+
+// Keyed by script exit code. The 0 entry is the offline caveat shown on
+// success; non-zero entries are failure reasons.
 export const COPY_BY_EXIT_CODE: Record<number, string> = {
   0: "If the host is offline when the patch is forced, Fleet skips the patch. When the host comes back online Fleet notifies the end user again and the patch is forced 1 hour later.",
   30: "The notification couldn't load. Fleet will try again on the next policy run.",
   31: "The notification couldn't load. Fleet will try again on the next policy run.",
   41: "The screen was locked so the end user couldn't see the notification. Fleet will try again on the next policy run.",
-  [DEFERRED_EXIT_CODE]:
-    "Another notification was displayed. Fleet will try again on the next policy run.",
+  [DEFERRED_EXIT_CODE]: DEFERRED_SENTENCE,
   100: "The Fleet Desktop app is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
   101: "The Fleet Desktop app v1.5.0 is required to notify end users. Add the app from the Fleet-maintained catalog and deploy to all your hosts.",
 };
-
-export const DEFERRED_SENTENCE =
-  "Another notification was displayed. Fleet will try again on the next policy run.";
 
 // Covers both success (exit 0 caveat) and failure sentences.
 export const getCaveatMessage = (

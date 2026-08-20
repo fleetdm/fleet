@@ -1,11 +1,7 @@
 import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
-import {
-  ActivityType,
-  IActivity,
-  INotifyActivityStatus,
-} from "interfaces/activity";
+import { ActivityType, IActivity } from "interfaces/activity";
 import {
   DATASET_LABEL,
   HISTORICAL_DATA_CONFIG_KEYS,
@@ -2331,7 +2327,7 @@ const TAGGED_TEMPLATES = {
       time_before: timeBefore,
     } = details;
     const timeLabel = formatNotifyTimeLabel(timeBefore);
-    const failed = isNotifyFailure(status as INotifyActivityStatus | undefined);
+    const failed = isNotifyFailure(status);
     const verb = failed ? "failed to notify" : "notified";
 
     const titleList = renderNotifyTitleList(titles);

@@ -91,7 +91,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     expect(screen.queryByText(/failed to notify/)).not.toBeInTheDocument();
   });
 
-  it("renders the Fleet Desktop required sentence for exit code 100", async () => {
+  it("renders the Fleet Desktop required sentence and the EUE link for exit code 100", async () => {
     useScriptResultHandler({ exit_code: 100 });
     renderModal({ status: "failed" });
 
@@ -100,24 +100,33 @@ describe("NotifyBeforePatchingDetailsModal", () => {
         /The Fleet Desktop app is required to notify end users\./
       )
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /End user experience/ })
+    ).toBeInTheDocument();
   });
 
-  it("renders the Fleet Desktop v1.5.0 sentence for exit code 101", async () => {
+  it("renders the Fleet Desktop v1.5.0 sentence and the EUE link for exit code 101", async () => {
     useScriptResultHandler({ exit_code: 101 });
     renderModal({ status: "failed" });
 
     expect(
       await screen.findByText(/The Fleet Desktop app v1\.5\.0 is required/)
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /End user experience/ })
+    ).toBeInTheDocument();
   });
 
-  it("renders the 'notification couldn't load' sentence for exit code 30", async () => {
+  it("renders the 'notification couldn't load' sentence for exit code 30 without the EUE link", async () => {
     useScriptResultHandler({ exit_code: 30 });
     renderModal({ status: "failed" });
 
     expect(
       await screen.findByText(/The notification couldn't load\./)
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /End user experience/ })
+    ).not.toBeInTheDocument();
   });
 
   it("renders the screen-locked sentence for exit code 41", async () => {
