@@ -19,9 +19,9 @@ Issues generally fall into two categories: feature requests and bug reports.
 
 New customer requests go to the Drafting inbox where they are [triaged](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design, and assigned to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). The product group's Product Designer reviews these requests and determines if they qualify to be "unpacked" in a process called [Unpacking the why](https://fleetdm.com/handbook/product-design#unpacking-the-why), where the request is reviewed with a former IT admin to get a better understanding of it. This is the most common time that the original comment on the request will be updated, to clarify the intent of the request.
 
-Features are then prioritized during [Feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest), which occurs approximately every three weeks. If a feature is selected for prioritization, it will move into the Product Design drafting process, where at least one [subissue](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/browsing-sub-issues) called a story will be created. This story will receive a milestone, and wireframes will be designed and reviewed before handing it off to Engineering. A milestone is a proposed release version along with a proposed release date, both of which are subject to change.
+Features are then prioritized during [Feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest), which occurs approximately every three weeks. If a feature is selected for prioritization, it will move into the Product Design drafting process, where at least one [sub-issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/browsing-sub-issues) called a story will be created. This story will receive a milestone, and wireframes will be designed and reviewed before handing it off to Engineering. A milestone is a proposed release version along with a proposed release date, both of which are subject to change.
 
-If a feature request is large and requires changes in multiple areas of the product, multiple subissues are created and attached to it. Check for any subissues under the request and its stories for milestones, as the parent issue sometimes doesn't have a milestone, but the subissues will; or the subissues will have a different milestone than the parent issue.
+If a feature request is large and requires changes in multiple areas of the product, multiple sub-issues are created and attached to it. Check for any sub-issues under the request and its stories for milestones, as the parent issue sometimes doesn't have a milestone, but the sub-issues will; or the sub-issues will have a different milestone than the parent issue.
 
 After wireframes have been approved, work will begin on implementing and testing the new feature. After the code has been reviewed and approved, [QA](https://fleetdm.com/handbook/company/product-groups#quality) confirms the change works as intended on a live test instance.
 
@@ -34,18 +34,18 @@ Sometimes feature requests get converted to [quick wins](https://fleetdm.com/han
 
 ## Bug reports
 
-Bugs follow a simpler process and do not (typically) have subissues. Bugs are [triaged during standup](https://fleetdm.com/handbook/company/product-groups#daily-standup-30-minutes), [assigned a priority](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) if needed, worked on [in order](https://fleetdm.com/handbook/company/product-groups#bug-prioritization), and brought through [a process](https://fleetdm.com/handbook/company/product-groups#inbox) where they are reproduced if necessary, reviewed and resolved by Engineering with a pull request, and then verified by QA. If prioritized, they similarly receive a milestone.
+Bugs follow a simpler process and do not (typically) have sub-issues. Bugs are [triaged during standup](https://fleetdm.com/handbook/company/product-groups#daily-standup-30-minutes), [assigned a priority](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) if needed, worked on [in order](https://fleetdm.com/handbook/company/product-groups#bug-prioritization), and brought through [a process](https://fleetdm.com/handbook/company/product-groups#inbox) where they are reproduced if necessary, reviewed and resolved by Engineering with a pull request, and then verified by QA. If prioritized, they similarly receive a milestone.
 
 
 ## FAQ
 
 **When will this feature be released? When will this bug be fixed?**
 
-Check the milestone (in the sidebar) of the original issue, and any subissues. If there isn't a milestone, the issue does not have a planned release date. Please note that the release version and date are subject to change.
+Check the milestone (in the sidebar) of the original issue, and any sub-issues. If there isn't a milestone, the issue does not have a planned release date. Please note that the release version and date are subject to change.
 
 **Are there any updates on this issue?**
 
-New comments and status updates are public and show in the GitHub feed for the original issue, and any subissues. This is the best place to check for any updates on the issue. The status is best seen under the Projects section in the sidebar on the right.
+New comments and status updates are public and show in the GitHub feed for the original issue, and any sub-issues. This is the best place to check for any updates on the issue. The status is best seen under the Projects section in the sidebar on the right.
 
 **Why is the original post being edited?**
 
