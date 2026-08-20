@@ -1145,6 +1145,9 @@ const HostDetailsPage = ({
     // label counts.
     queryClient.invalidateQueries([{ scope: "host-upcoming-mdm-commands" }]);
     queryClient.invalidateQueries([{ scope: "host-past-mdm-commands" }]);
+    // the canceled_mdm_command activity renders from the past-activities
+    // feed, not the command queries
+    queryClient.invalidateQueries([{ scope: "past-activities" }]);
     // the device status chip ("Lock pending") is derived from host.mdm on the
     // host details query
     refetchHostDetails();
