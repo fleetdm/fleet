@@ -847,6 +847,8 @@ type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipe
 
 type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
 
+type CancelHostMDMCommandFunc func(ctx context.Context, hostID uint, commandUUID string) error
+
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
 type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
@@ -2242,6 +2244,9 @@ type Service struct {
 
 	ClearPasscodeFunc        ClearPasscodeFunc
 	ClearPasscodeFuncInvoked bool
+
+	CancelHostMDMCommandFunc        CancelHostMDMCommandFunc
+	CancelHostMDMCommandFuncInvoked bool
 
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
@@ -5369,6 +5374,13 @@ func (s *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comman
 	s.ClearPasscodeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearPasscodeFunc(ctx, hostID)
+}
+
+func (s *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
+	s.mu.Lock()
+	s.CancelHostMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelHostMDMCommandFunc(ctx, hostID, commandUUID)
 }
 
 func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {

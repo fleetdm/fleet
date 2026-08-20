@@ -138,7 +138,7 @@ func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *slog.
 		span.RecordError(err)
 		return fmt.Errorf("updating vulnerability host counts: %w", err)
 	}
-	logger.InfoContext(ctx, "vulnerability host counts updated", "took", time.Since(start).Seconds())
+	logger.InfoContext(ctx, "vulnerability host counts updated", "took", time.Since(start))
 
 	return nil
 }

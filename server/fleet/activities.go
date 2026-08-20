@@ -1733,6 +1733,21 @@ func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeCanceledMDMCommand struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// CommandType is the raw MDM request type, e.g. "DeviceLock".
+	CommandType string `json:"command_type"`
+}
+
+func (a ActivityTypeCanceledMDMCommand) ActivityName() string {
+	return "canceled_mdm_command"
+}
+
+func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCanceledInstallSoftware struct {
 	HostID              uint   `json:"host_id"`
 	HostDisplayName     string `json:"host_display_name"`

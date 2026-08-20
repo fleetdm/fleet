@@ -406,11 +406,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /visibility-and-reporting': {
-    action: 'view-visibility-and-reporting',
+  'GET /endpoint-governance': {
+    action: 'view-endpoint-governance',
     locals: {
-      pageTitleForMeta: 'Visibility and reporting',
-      pageDescriptionForMeta: 'Pulse check anything, build reports, and ship data to any platform with Fleet.',
+      pageTitleForMeta: 'Endpoint governance',
+      pageDescriptionForMeta: 'Secure every extension, package, and AI tool running on your devices.',
       currentSection: 'platform',
     }
   },
@@ -1168,6 +1168,7 @@ module.exports.routes = {
   'GET /gitops-workshop': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/workshops' + originalQueryString); },
   'GET /gitops-workshops': '/workshops',
   'GET /guides/seamless-mdm-migration': '/support',
+  'GET /visibility-and-reporting': '/endpoint-governance',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝

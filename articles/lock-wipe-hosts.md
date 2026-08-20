@@ -26,7 +26,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 > **Android**: The lock action will enforce the host lock screen and require the user to enter their password or PIN. It is available on company-owned and BYOD Android hosts.
 >
-> On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge.
+> On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge).
 
 ### Get location of locked iOS/iPadOS host
 
@@ -164,8 +164,6 @@ For Linux hosts, running `fleetctl mdm wipe` triggers the same script-based wipe
 *For Windows and Linux hosts, a script will run as part of the lock and unlock actions. Details for each script can be found in GitHub for [Windows](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/windows_lock.ps1) and [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_lock.sh) hosts.
 
 **For Linux hosts, the wipe action also runs a script. The wipe script can be found in GitHub for [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_wipe.sh).
-
-** Fleet is currently tracking a [known Apple bug](https://github.com/fleetdm/fleet/issues/34208), which results in Lost mode being cleared after reboot on iOS/iPadOS 26.
 
 <meta name="articleTitle" value="Lock and wipe hosts">
 <meta name="authorFullName" value="JD Strong">

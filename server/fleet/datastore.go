@@ -136,6 +136,10 @@ type Datastore interface {
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
+	// QueriesPerHost returns the IDs of the saved queries that are scheduled for the given host,
+	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
+	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
+	QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
 	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
@@ -2922,6 +2926,15 @@ type Datastore interface {
 	// Idle (sent right after the device acknowledges the lock command)
 	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
+
+	// CancelHostMDMCommand cancels a pending Apple MDM command for the host by
+	// deactivating its queue row so it is never delivered, and clears the
+	// matching host_mdm_actions reference (lock/wipe) if any. It returns the
+	// command's request type. It returns a not-found error if the command
+	// doesn't exist for that host or was already canceled, and a bad-request
+	// error if the command's type is not cancelable or the command has already
+	// run on the host.
+	CancelHostMDMCommand(ctx context.Context, host *Host, commandUUID string) (requestType string, err error)
 
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
 	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.

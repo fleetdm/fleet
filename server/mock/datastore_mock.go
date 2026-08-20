@@ -118,6 +118,8 @@ type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, 
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
+type QueriesPerHostFunc func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
+
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
 type CleanupGlobalDiscardQueryResultsFunc func(ctx context.Context) error
@@ -1648,6 +1650,8 @@ type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlat
 
 type CleanAppleMDMLockFunc func(ctx context.Context, hostUUID string) error
 
+type CancelHostMDMCommandFunc func(ctx context.Context, host *fleet.Host, commandUUID string) (requestType string, err error)
+
 type InsertHostLocationDataFunc func(ctx context.Context, locData fleet.HostLocationData) error
 
 type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.HostLocationData, error)
@@ -2489,6 +2493,9 @@ type DataStore struct {
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
+
+	QueriesPerHostFunc        QueriesPerHostFunc
+	QueriesPerHostFuncInvoked bool
 
 	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
 	ObserverCanRunQueryFuncInvoked bool
@@ -4785,6 +4792,9 @@ type DataStore struct {
 	CleanAppleMDMLockFunc        CleanAppleMDMLockFunc
 	CleanAppleMDMLockFuncInvoked bool
 
+	CancelHostMDMCommandFunc        CancelHostMDMCommandFunc
+	CancelHostMDMCommandFuncInvoked bool
+
 	InsertHostLocationDataFunc        InsertHostLocationDataFunc
 	InsertHostLocationDataFuncInvoked bool
 
@@ -6165,6 +6175,13 @@ func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) 
 	s.QueryByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryByNameFunc(ctx, teamID, name)
+}
+
+func (s *DataStore) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+	s.mu.Lock()
+	s.QueriesPerHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueriesPerHostFunc(ctx, hostID, teamID)
 }
 
 func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
@@ -11520,6 +11537,13 @@ func (s *DataStore) CleanAppleMDMLock(ctx context.Context, hostUUID string) erro
 	s.CleanAppleMDMLockFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanAppleMDMLockFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CancelHostMDMCommand(ctx context.Context, host *fleet.Host, commandUUID string) (requestType string, err error) {
+	s.mu.Lock()
+	s.CancelHostMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelHostMDMCommandFunc(ctx, host, commandUUID)
 }
 
 func (s *DataStore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
