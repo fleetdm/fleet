@@ -12164,19 +12164,20 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 	}
 	assertFlags := func(t *testing.T, sw []*fleet.HostSoftwareWithInstaller, requireIDs map[uint]bool) {
 		t.Helper()
-		seen := make(map[uint]bool, len(requireIDs))
+		seen := make(map[uint]struct{}, len(requireIDs))
 		for _, s := range sw {
 			want, ok := expect[s.ID]
 			if !ok {
 				continue
 			}
-			seen[s.ID] = true
+			seen[s.ID] = struct{}{}
 			require.NotNil(t, s.SoftwarePackage, "title %d missing SoftwarePackage", s.ID)
 			require.NotNil(t, s.SoftwarePackage.HasUninstallScript, "title %d missing HasUninstallScript", s.ID)
 			require.Equal(t, want, *s.SoftwarePackage.HasUninstallScript, "title %d has_uninstall_script mismatch", s.ID)
 		}
 		for id := range requireIDs {
-			require.True(t, seen[id], "title %d not returned by ListHostSoftware", id)
+			_, ok := seen[id]
+			require.True(t, ok, "title %d not returned by ListHostSoftware", id)
 		}
 	}
 
