@@ -1482,6 +1482,10 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 				// and increment the retry count
 				payload.Status = nil
 				hp.Retries++
+				// A NULL status reads as "pending" everywhere it surfaces, so the attempt that just failed must not
+				// leave its error behind in the Details column while Fleet is still retrying. The detail is written
+				// again, for real, if the retries run out. Apple clears it for the same reason in setMDMProfilesRetryDB.
+				payload.Detail = ""
 			}
 		}
 
