@@ -249,7 +249,7 @@ Edit your existing profile rather than creating a second one. Where a device gro
 
 Standard users can't install software or change protected settings. Use the [Windows setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) to install what end users need at enrollment and offer other apps as [self--service software](https://fleetdm.com/guides/software-self-service).
 
-Autopilot profile settings apply during OOBE, so changing the profile doesn't demote accounts on devices that are already enrolled. To demote accounts on already enrolled Windows hosts, [run this script](TODO) or reset and re-enroll the host.
+Autopilot profile settings apply during OOBE, so changing the profile doesn't demote accounts on devices that are already enrolled. To demote accounts on already enrolled Windows hosts, [run this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/demote-admin-to-standard-user.ps1) or reset and re-enroll the host.
 
 ## Automatic Windows MDM migration
 
