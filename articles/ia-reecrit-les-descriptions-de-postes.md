@@ -60,10 +60,3 @@ Privilégiez le discernement à la syntaxe. Les compétences qui conservent leur
 Si vous attendez d'être certain que la situation est réelle avant de vous impliquer : l'écart entre les équipes qui agissent maintenant et celles qui agiront plus tard est déjà mesurable. Le descriptif de poste est en cours de redéfinition. La question est de savoir si vous participez à cette redéfinition.
 
 *Prêt à construire l'interface IA de surface, axée sur le code, dont elle a besoin? [Consultez le flux de travail GitOps de Fleet](https://fleetdm.com/docs/configuration/yaml-files) or [obtenez une démo](https://fleetdm.com/contact).*
-
-<meta name="articleTitle" value="L'IA ne remplace pas que des emplois, elle redéfinit les descriptions de poste">
-<meta name="authorFullName" value="Kitzy">
-<meta name="authorGitHubUsername" value="kitzy">
-<meta name="publishedOn" value="2026-06-26">
-<meta name="description" value="L'IA ne supprime pas tant le travail informatique qu'elle ne redéfinit les rôles de chacun. La ligne de démarcation traverse directement les équipes informatiques, et les données le montrent clairement.">
-<meta name="category" value="articles">
