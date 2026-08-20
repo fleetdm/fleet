@@ -450,9 +450,9 @@ controls:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
         self_service: true
-        hidden: true
       - paths: ../lib/macos/profiles/*.mobileconfig2
         self_service: false
+        hidden: true
       - path: ../lib/macos/profiles/my-declaration.json
       - paths: ../lib/macos/profiles/ddm.json
         labels_include_any:
