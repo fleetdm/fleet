@@ -81,29 +81,17 @@ func TestRequestSecurityTokenResponseCollectionSoapResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	require.Contains(t, string(outXML), fmt.Sprintf("base64binary\">%s</BinarySecurityToken>", provisionedToken))
-}
 
-func TestCertStoreProvisioningROBOSupportDisabled(t *testing.T) {
-	certStore := NewCertStoreProvisioningData(
-		"Device",
-		"AAAAAAAAAAAAAAAAAAAAAAAAA",
-		[]byte("identity-cert"),
-		"BBBBBBBBBBBBBBBBBBBBBBBBB",
-		[]byte("signed-cert"),
-	)
-	appConfig := NewApplicationProvisioningData("https://example.com/mdm/management", "device-id", "password")
-	dmClient := NewDMClientProvisioningData()
-
-	provDoc := NewProvisioningDoc(certStore, appConfig, dmClient)
+	// Verify the provisioning doc advertises ROBOSupport=false. Fleet does
+	// not implement WSTEP ROBO renewal; advertising "true" causes Windows
+	// to attempt renewal, fail, and set EnrollmentState=3. See #50611.
+	certStore := NewCertStoreProvisioningData("Device", "AA", []byte("id"), "BB", []byte("sc"))
+	appCfg := NewApplicationProvisioningData("https://example.com/mdm", "dev", "pw")
+	provDoc := NewProvisioningDoc(certStore, appCfg, NewDMClientProvisioningData())
 	encoded, err := provDoc.GetEncodedB64Representation()
 	require.NoError(t, err)
-
 	raw, err := base64.StdEncoding.DecodeString(encoded)
 	require.NoError(t, err)
-
-	// Fleet does not implement WSTEP ROBO renewal. The provisioning doc
-	// must advertise ROBOSupport=false so Windows does not attempt renewal
-	// and set EnrollmentState=3 on the host. See #50611.
 	require.Contains(t, string(raw), `name="ROBOSupport" value="false"`)
 	require.NotContains(t, string(raw), `name="ROBOSupport" value="true"`)
 }
