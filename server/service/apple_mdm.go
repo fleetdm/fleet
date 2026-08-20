@@ -5349,7 +5349,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
+			// Auto-update terminal failures land here (all retries exhausted), so
+			// we need to carry the from_auto_update flag onto the emitted activity
+			// alongside from_setup_experience. Without this, WasFromAutomation()
+			// returns false and the activity is attributed to actor_full_name
+			// instead of Fleet. The success path is handled separately in the
+			// InstalledApplicationList result handler.
+			fromAutoUpdate, err := svc.ds.IsAutoUpdateVPPInstall(r.Context, cmdResult.CommandUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update")
+			}
 			act.FromSetupExperience = fromSetupExperience
+			act.FromAutoUpdate = fromAutoUpdate
 			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
