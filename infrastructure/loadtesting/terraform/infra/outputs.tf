@@ -89,26 +89,16 @@ output "rds_security_group_id" {
 }
 
 output "apple_apns_mock_url" {
-  description = "Cloud Map URL of the Apple APNs mock, or null when var.enable_apple_mdm is false. Resolves to the task IP with no load balancer in the path. Fleet is already pointed at this; pass it to osquery-perf as -mdm_apns_url. Only resolves from inside the VPC."
+  description = "URL of the Apple APNs mock via its own internal NLB, or null when var.enable_apple_mdm is false. Fleet is already pointed at this; pass it to osquery-perf as -mdm_apns_url, and use it for /stats and /memstats."
   value       = var.enable_apple_mdm ? local.apple_apns_mock_url : null
 }
 
 output "apple_apns_mock_osquery_perf_flag" {
-  description = "Ready-made osquery-perf flag for extra_flags. Devices must use the Cloud Map URL, not the ALB hostname: 150k long-lived SSE streams exhaust an ALB's per-target ephemeral ports."
+  description = "Ready-made osquery-perf flag for extra_flags. Note the explicit port: the mock's NLB listens on 8378, not 80."
   value       = var.enable_apple_mdm ? "-mdm_apns_url=${local.apple_apns_mock_url}" : null
 }
 
-output "apple_apns_mock_dns_name" {
-  description = "Cloud Map private DNS name for the Apple APNs mock, or null when var.enable_apple_mdm is false."
-  value       = var.enable_apple_mdm ? local.apple_apns_mock_dns_name : null
-}
-
-output "apple_apns_mock_ops_url" {
-  description = "Operator-only URL for the Apple APNs mock via the internal ALB (/healthz, /stats, /memstats), reachable over the VPN where the Cloud Map name does not resolve. Do NOT point devices or Fleet at this."
-  value       = var.enable_apple_mdm ? "http://${local.apple_apns_mock_hostname}" : null
-}
-
 output "apple_apns_mock_hostname" {
-  description = "Hostname the Apple APNs mock claims on the internal ALB for operator access, or null when var.enable_apple_mdm is false."
+  description = "Hostname of the Apple APNs mock's internal NLB, or null when var.enable_apple_mdm is false."
   value       = var.enable_apple_mdm ? local.apple_apns_mock_hostname : null
 }

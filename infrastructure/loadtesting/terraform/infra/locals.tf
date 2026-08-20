@@ -23,34 +23,28 @@ locals {
   }
 
   # Single label under loadtest.fleetdm.com so the *.loadtest.fleetdm.com
-  # wildcard cert would cover it if the mock ever moves to the HTTPS listener.
+  # wildcard cert would cover it if the mock ever moves to a TLS listener.
   # A nested name would not: wildcards match exactly one label.
   #
-  # This name resolves to the shared internal ALB and is now an operator door
-  # only -- /healthz, /stats, /memstats from the VPN, where the Cloud Map name
-  # below does not resolve. No load-bearing traffic goes through it; see
-  # apple_apns_mock.tf for why.
+  # Resolves to the mock's own internal NLB (apple_apns_mock.tf), not to a
+  # host-based rule on the shared internal ALB. Every simulated device holds an
+  # SSE stream open for the whole run, two per macOS host, and an ALB has to
+  # hold one connection per stream from its own node IPs to a single target
+  # IP:port -- roughly 55k per ALB node. A 75k-host run is 150k streams, and it
+  # collapsed at 75-100k into a 39k-count TargetConnectionErrorCount and an
+  # equal count of 504s while the mock sat healthy at ~0ms. The NLB avoids that
+  # by preserving the client IP instead of source-NATting, which moves the port
+  # space onto the osquery-perf task IPs.
+  #
+  # Unlike a Cloud Map private DNS name, this still resolves over the VPN, so
+  # /stats and /memstats stay reachable from a laptop.
   apple_apns_mock_hostname = "${local.customer}-apns-mock.loadtest.fleetdm.com"
   apple_apns_mock_port     = 8378
 
-  # Cloud Map private DNS: resolves straight to the mock's task IP, no load
-  # balancer in the path. Every simulated device holds an SSE stream open for
-  # the life of the test, and an ALB has to hold one connection per stream from
-  # its own node IPs to a single target IP:port. That tops out around 55k
-  # connections per ALB node against one target (source ephemeral ports), so a
-  # 75k-host run -- two streams per host, device plus user channel -- collapsed
-  # into a 39k-count TargetConnectionErrorCount/504 storm at ~75-100k streams
-  # while the mock itself sat at ~0ms response time and never went unhealthy.
-  # Dialing the task directly moves the port space to the osquery-perf side,
-  # where it is spread over every loadtest container's ENI instead of a handful
-  # of ALB nodes.
-  #
-  # Built from locals rather than from the aws_service_discovery_service
-  # resource so the Fleet task definition does not take a dependency on the
-  # mock. Nothing resolves this name until a push actually happens.
-  apple_apns_mock_namespace = "${local.customer}.internal"
-  apple_apns_mock_dns_name  = "apns-mock.${local.customer}.internal"
-  apple_apns_mock_url       = "http://apns-mock.${local.customer}.internal:8378"
+  # The NLB listens on the mock's own port rather than 80, so callers need it
+  # explicitly. Built from locals rather than from the aws_lb resource so the
+  # Fleet task definition takes no dependency on the mock.
+  apple_apns_mock_url = "http://${local.apple_apns_mock_hostname}:${local.apple_apns_mock_port}"
 
   # MDM behaviours we always want in a loadtest. These were previously buried
   # in the Elastic APM branch above, which meant they silently vanished

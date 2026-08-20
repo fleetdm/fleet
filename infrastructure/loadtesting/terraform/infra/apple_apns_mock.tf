@@ -58,51 +58,83 @@ resource "aws_cloudwatch_log_group" "apple_apns_mock" {
   retention_in_days = 30
 }
 
-# ---- Service discovery (Cloud Map) ----
+# ---- Network Load Balancer ----
 #
-# Simulated devices resolve the mock through this namespace and connect to the
-# task IP directly, with no load balancer in the path. See the
-# apple_apns_mock_dns_name comment in locals.tf for the ALB connection ceiling
-# this exists to escape.
+# Its own NLB, not a rule on the shared internal ALB. Every simulated device
+# holds an SSE stream open for the whole run (two per macOS host, device plus
+# user channel), and an ALB has to hold one connection per stream from its own
+# node IPs to a single target IP and port. That tops out near 55k connections
+# per ALB node, so a 75k-host run collapsed at roughly 75-100k streams into a
+# 39k-count TargetConnectionErrorCount and an equal count of 504s, while the
+# mock itself stayed healthy with a target response time near zero.
 #
-# Pure DNS on purpose. ECS Service Connect would also give name resolution, but
-# it does it by injecting an Envoy sidecar into every client task and proxying
-# through it -- reintroducing exactly the kind of per-connection intermediary
-# that broke here, in front of 150k long-lived streams.
+# An NLB fixes that only because preserve_client_ip is set on the target group
+# below. Read that comment before changing anything here.
 
-resource "aws_service_discovery_private_dns_namespace" "loadtest" {
-  count       = var.enable_apple_mdm ? 1 : 0
-  name        = local.apple_apns_mock_namespace
-  vpc         = data.terraform_remote_state.shared.outputs.vpc.vpc_id
-  description = "Private DNS for ${local.customer} loadtest services reached without a load balancer"
+resource "aws_lb" "apple_apns_mock" {
+  count              = var.enable_apple_mdm ? 1 : 0
+  name               = "${local.customer}-apnsm-nlb"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = data.terraform_remote_state.shared.outputs.vpc.private_subnets
+
+  # desired_count is 1, so the task lives in exactly one AZ. Without
+  # cross-zone, the NLB nodes in the other two AZs have no healthy target and
+  # drop out of DNS, funnelling every client onto one node. Enabling it keeps
+  # all three nodes usable and the DNS answer stable when ECS replaces the task
+  # into a different AZ.
+  enable_cross_zone_load_balancing = true
+
+  # An NLB drops idle TCP flows after 350s and that timeout is not
+  # configurable, unlike the ALB's. The mock's --keep-alive defaults to 30s and
+  # the container command does not override it, so streams stay well inside it.
+  # Passing --keep-alive 0 (or anything above 350s) would have every stream
+  # silently reset every 350s and 150k clients reconnecting behind it.
 }
 
-resource "aws_service_discovery_service" "apple_apns_mock" {
-  count = var.enable_apple_mdm ? 1 : 0
-  name  = "apns-mock"
+resource "aws_lb_target_group" "apple_apns_mock" {
+  count                = var.enable_apple_mdm ? 1 : 0
+  name                 = "${local.customer}-apnsm-nlb"
+  protocol             = "TCP"
+  port                 = local.apple_apns_mock_port
+  target_type          = "ip"
+  vpc_id               = data.terraform_remote_state.shared.outputs.vpc.vpc_id
+  deregistration_delay = 10
 
-  dns_config {
-    namespace_id = aws_service_discovery_private_dns_namespace.loadtest[0].id
+  # THE load-bearing setting. AWS defaults client IP preservation to DISABLED
+  # for TCP target groups whose target type is ip, and with it disabled an NLB
+  # source-NATs every connection to its own node IPs -- reinstating the exact
+  # per-node ephemeral port ceiling (~55k per node against one target IP:port)
+  # that made the ALB fall over. With it enabled the NLB does not rewrite the
+  # source, so the port space is the osquery-perf side's: each loadtest task IP
+  # contributes its own ~28k ephemeral ports toward this target. 150k streams
+  # therefore needs at least ~6 osquery-perf containers, which a 75k-host run
+  # far exceeds.
+  preserve_client_ip = "true"
 
-    # A records straight to the awsvpc task IP. The TTL is short because the
-    # record changes whenever ECS replaces the task, and every reconnecting
-    # client re-resolves; Go's resolver does no caching of its own.
-    dns_records {
-      type = "A"
-      ttl  = 15
-    }
-
-    # MULTIVALUE returns every healthy task IP in a shuffled order, which is
-    # what we would want if this were ever scaled out. It is not -- see the
-    # desired_count comment on the ECS service.
-    routing_policy = "MULTIVALUE"
+  # An NLB requires healthy_threshold and unhealthy_threshold to be equal, and
+  # caps the HTTP health check timeout at 6s.
+  health_check {
+    protocol            = "HTTP"
+    path                = "/healthz"
+    port                = "traffic-port"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 6
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
   }
+}
 
-  # ECS owns registration and deregistration of task instances. Without this
-  # block Cloud Map expects an external health checker and never marks the
-  # instance healthy, so the name resolves to nothing.
-  health_check_custom_config {
-    failure_threshold = 1
+resource "aws_lb_listener" "apple_apns_mock" {
+  count             = var.enable_apple_mdm ? 1 : 0
+  load_balancer_arn = aws_lb.apple_apns_mock[0].arn
+  port              = local.apple_apns_mock_port
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.apple_apns_mock[0].arn
   }
 }
 
@@ -112,27 +144,31 @@ resource "aws_security_group" "apple_apns_mock" {
   count       = var.enable_apple_mdm ? 1 : 0
   name_prefix = "${local.customer}-apple-apns-mock-"
   vpc_id      = data.terraform_remote_state.shared.outputs.vpc.vpc_id
-  description = "Apple APNS mock - allows HTTP from internal ALB"
+  description = "Apple APNS mock - HTTP from loadtest tasks via its own NLB"
 
-  # Fleet and osquery-perf share the Fleet service's security groups (the
-  # osquery_perf module is handed the same list), so this one rule covers both
-  # the push side and the 150k device streams now that they bypass the ALB.
+  # Because the target group preserves the client IP, packets arrive with the
+  # Fleet or osquery-perf task IP as their source, not the NLB's. So the rule
+  # has to name the client security groups; a rule naming the load balancer
+  # would drop every stream. Fleet and osquery-perf share the Fleet service's
+  # security groups (the osquery_perf module is handed the same list), so this
+  # one rule covers both the push side and the 150k device streams.
   ingress {
-    description     = "HTTP from Fleet and osquery-perf tasks"
+    description     = "HTTP from Fleet and osquery-perf tasks (client IP preserved through the NLB)"
     from_port       = local.apple_apns_mock_port
     to_port         = local.apple_apns_mock_port
     protocol        = "tcp"
     security_groups = module.loadtest.byo-db.byo-ecs.service.network_configuration[0].security_groups
   }
 
-  # Retained only so the ALB can reach /healthz for the target group and an
-  # operator on the VPN can curl /stats. No device traffic arrives this way.
+  # Health checks are the one thing that still arrives from the NLB nodes
+  # themselves, which draw their addresses from the private subnets. Without
+  # this the target group never turns healthy and the listener serves nothing.
   ingress {
-    description     = "HTTP from internal ALB (operator access and health checks)"
-    from_port       = local.apple_apns_mock_port
-    to_port         = local.apple_apns_mock_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.internal.id]
+    description = "NLB health checks"
+    from_port   = local.apple_apns_mock_port
+    to_port     = local.apple_apns_mock_port
+    protocol    = "tcp"
+    cidr_blocks = data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks
   }
 
   egress {
@@ -221,9 +257,9 @@ resource "aws_ecs_service" "apple_apns_mock" {
   # Do NOT scale this out. The store is per-process (cmd/apple-apns-mock's
   # store.go holds every pending push and live subscriber in memory), so a push
   # only reaches a device if Fleet's POST /3/device/<token> lands on the same
-  # task that is holding that device's SSE stream. With two tasks and both
-  # sides picking a task at random from the Cloud Map answer, most pushes would
-  # be accepted with a 200 and silently dropped -- a far worse failure than
+  # task that is holding that device's SSE stream. A second task would have the
+  # NLB spread streams and pushes across both, and most pushes would then be
+  # accepted with a 200 and silently dropped -- a far worse failure than
   # running out of capacity, because nothing reports it. Scaling out needs
   # consistent hashing on the device token in both Fleet's push client and the
   # devices, which does not exist today.
@@ -234,17 +270,6 @@ resource "aws_ecs_service" "apple_apns_mock" {
     security_groups = [aws_security_group.apple_apns_mock[0].id]
   }
 
-  # The path devices and Fleet actually use: ECS registers the task IP here as
-  # it starts and deregisters it as it stops.
-  service_registries {
-    registry_arn = aws_service_discovery_service.apple_apns_mock[0].arn
-  }
-
-  # Operator access only (/healthz, /stats, /memstats over the VPN). Kept
-  # because the Cloud Map name above resolves only inside the VPC, and reaching
-  # it from a laptop would need a Route53 Resolver inbound endpoint. This
-  # carries no device streams, so it never approaches the per-target connection
-  # ceiling that made the ALB the bottleneck in the first place.
   load_balancer {
     target_group_arn = aws_lb_target_group.apple_apns_mock[0].arn
     container_name   = "apple-apns-mock"
@@ -252,33 +277,16 @@ resource "aws_ecs_service" "apple_apns_mock" {
   }
 
   depends_on = [
-    aws_lb_listener_rule.apple_apns_mock,
+    aws_lb_listener.apple_apns_mock,
   ]
 }
 
-# ---- ALB target group + host-based listener rule ----
+# ---- DNS ----
 
-resource "aws_lb_target_group" "apple_apns_mock" {
-  count                = var.enable_apple_mdm ? 1 : 0
-  name                 = "${local.customer}-apnsm"
-  protocol             = "HTTP"
-  port                 = local.apple_apns_mock_port
-  target_type          = "ip"
-  vpc_id               = data.terraform_remote_state.shared.outputs.vpc.vpc_id
-  deregistration_delay = 10
-
-  health_check {
-    path                = "/healthz"
-    matcher             = "200"
-    timeout             = 5
-    interval            = 30
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-  }
-}
-
-# The zone is public but the ALB is internal, so this resolves to VPC-private
+# The zone is public but the NLB is internal, so this resolves to VPC-private
 # addresses; only callers inside the VPC (Fleet, osquery-perf) can reach it.
+# Same hostname as before, now pointing at the mock's own NLB instead of a
+# host-based rule on the shared internal ALB, which frees listener priority 30.
 resource "aws_route53_record" "apple_apns_mock" {
   count   = var.enable_apple_mdm ? 1 : 0
   zone_id = data.aws_route53_zone.main.id
@@ -286,31 +294,8 @@ resource "aws_route53_record" "apple_apns_mock" {
   type    = "A"
 
   alias {
-    name                   = aws_lb.internal.dns_name
-    zone_id                = aws_lb.internal.zone_id
+    name                   = aws_lb.apple_apns_mock[0].dns_name
+    zone_id                = aws_lb.apple_apns_mock[0].zone_id
     evaluate_target_health = true
-  }
-}
-
-# Host-based rather than path-based routing: the mock's paths (/healthz,
-# /stats, /events, /3/device/*) would otherwise collide with Fleet's own routes
-# on this shared internal ALB -- /healthz in particular is the health check
-# path for the Fleet target group in internal_alb.tf. Matching on Host means
-# every path on this hostname reaches the mock and nothing else is affected.
-resource "aws_lb_listener_rule" "apple_apns_mock" {
-  count        = var.enable_apple_mdm ? 1 : 0
-  listener_arn = aws_lb_listener.internal.arn
-  # Priorities 20/21 on this listener belong to the android_amapi_mock module.
-  priority = 30
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.apple_apns_mock[0].arn
-  }
-
-  condition {
-    host_header {
-      values = [local.apple_apns_mock_hostname]
-    }
   }
 }
