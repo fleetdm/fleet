@@ -178,13 +178,17 @@ func FleetErrFromAMAPI(err error) error {
 	if !ok {
 		return nil
 	}
+	msg := ae.Message
+	if msg == "" {
+		msg = ae.Body
+	}
 	switch {
 	case IsBadRequestError(err):
-		return &fleet.BadRequestError{Message: ae.Message, InternalErr: err}
+		return &fleet.BadRequestError{Message: msg, InternalErr: err}
 	case IsNotFoundError(err):
-		return &notFoundError{message: ae.Message, internalErr: err}
+		return &notFoundError{message: msg, internalErr: err}
 	case IsConflictError(err):
-		return &fleet.ConflictError{Message: ae.Message}
+		return &fleet.ConflictError{Message: msg}
 	default:
 		return nil
 	}

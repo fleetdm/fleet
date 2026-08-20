@@ -61,6 +61,15 @@ func TestFleetErrFromAMAPI(t *testing.T) {
 			},
 		},
 		{
+			name: "400 bad request with empty message falls back to body",
+			err:  &googleapi.Error{Code: http.StatusBadRequest, Body: "bad params"},
+			checkFunc: func(t *testing.T, err error) {
+				var brErr *fleet.BadRequestError
+				require.ErrorAs(t, err, &brErr)
+				assert.Equal(t, "bad params", brErr.Message)
+			},
+		},
+		{
 			name: "404 not found",
 			err:  &googleapi.Error{Code: http.StatusNotFound, Message: "device not found"},
 			checkFunc: func(t *testing.T, err error) {
