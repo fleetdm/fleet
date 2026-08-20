@@ -79,6 +79,7 @@
     },
     "fleet_desktop": {
       "alternative_browser_host": "",
+      "sso_enabled": false,
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {

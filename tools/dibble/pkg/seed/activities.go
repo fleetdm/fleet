@@ -276,6 +276,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeEditedHostNameTemplate{},
 		fleet.ActivityTypeEnabledGitOpsMode{},
 		fleet.ActivityTypeDisabledGitOpsMode{},
+		fleet.ActivityTypeEnabledSSOFleetDesktop{},
+		fleet.ActivityTypeDisabledSSOFleetDesktop{},
 		fleet.ActivityTypeEnabledGitOpsException{},
 		fleet.ActivityTypeDisabledGitOpsException{},
 		fleet.ActivityTypeEnabledHistoricalDataset{},
