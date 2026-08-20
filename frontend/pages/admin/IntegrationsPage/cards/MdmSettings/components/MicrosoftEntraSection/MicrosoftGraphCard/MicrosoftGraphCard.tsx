@@ -1,6 +1,7 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
+import { IconNames } from "components/icons";
 import SectionCard from "../../SectionCard";
 
 interface IMicrosoftGraphCardProps {
@@ -13,69 +14,25 @@ interface IMicrosoftGraphCardProps {
   viewDetails: () => void;
 }
 
-const MicrosoftGraphNotAddedCard = ({
-  addCredential,
-}: {
-  addCredential: () => void;
-}) => (
-  <SectionCard
-    header="Microsoft Graph"
-    cta={<Button onClick={addCredential}>Connect</Button>}
-  >
-    Add a Microsoft Entra app registration to sync Windows Autopilot devices to
-    Fleet as pending hosts.
-  </SectionCard>
-);
-
-const MicrosoftGraphUnavailableCard = ({
-  viewDetails,
-}: {
-  viewDetails: () => void;
-}) => (
-  <SectionCard
-    iconName="warning"
-    cta={
-      <Button onClick={viewDetails} variant="subdued" icon="pencil">
-        Edit
-      </Button>
-    }
-  >
-    Couldn&apos;t load the Microsoft Graph connection status.
-  </SectionCard>
-);
-
-const MicrosoftGraphAddedCard = ({
+/** Every state that has a credential to talk about differs only by icon and copy. */
+const StoredCredentialCard = ({
+  iconName,
   editCredential,
+  children,
 }: {
+  iconName: IconNames;
   editCredential: () => void;
+  children: React.ReactNode;
 }) => (
   <SectionCard
-    iconName="success"
+    iconName={iconName}
     cta={
       <Button onClick={editCredential} variant="subdued" icon="pencil">
         Edit
       </Button>
     }
   >
-    Microsoft Graph connected.
-  </SectionCard>
-);
-
-const MicrosoftGraphInvalidCard = ({
-  editCredential,
-}: {
-  editCredential: () => void;
-}) => (
-  <SectionCard
-    iconName="error"
-    cta={
-      <Button onClick={editCredential} variant="subdued" icon="pencil">
-        Edit
-      </Button>
-    }
-  >
-    Microsoft Graph credential is invalid. Windows Autopilot devices won&apos;t
-    sync to Fleet as pending hosts.
+    {children}
   </SectionCard>
 );
 
@@ -87,18 +44,39 @@ const MicrosoftGraphCard = ({
 }: IMicrosoftGraphCardProps) => {
   // A failed lookup is not the same as no credential; saying "Connect" here would misreport a configured tenant.
   if (credentialStatusUnavailable) {
-    return <MicrosoftGraphUnavailableCard viewDetails={viewDetails} />;
+    return (
+      <StoredCredentialCard iconName="warning" editCredential={viewDetails}>
+        Couldn&apos;t load the Microsoft Graph connection status.
+      </StoredCredentialCard>
+    );
   }
 
   if (!credentialAdded) {
-    return <MicrosoftGraphNotAddedCard addCredential={viewDetails} />;
+    return (
+      <SectionCard
+        header="Microsoft Graph"
+        cta={<Button onClick={viewDetails}>Connect</Button>}
+      >
+        Add a Microsoft Entra app registration to sync Windows Autopilot devices
+        to Fleet as pending hosts.
+      </SectionCard>
+    );
   }
 
   if (credentialInvalid) {
-    return <MicrosoftGraphInvalidCard editCredential={viewDetails} />;
+    return (
+      <StoredCredentialCard iconName="error" editCredential={viewDetails}>
+        Microsoft Graph credential is invalid. Windows Autopilot devices
+        won&apos;t sync to Fleet as pending hosts.
+      </StoredCredentialCard>
+    );
   }
 
-  return <MicrosoftGraphAddedCard editCredential={viewDetails} />;
+  return (
+    <StoredCredentialCard iconName="success" editCredential={viewDetails}>
+      Microsoft Graph connected.
+    </StoredCredentialCard>
+  );
 };
 
 export default MicrosoftGraphCard;
