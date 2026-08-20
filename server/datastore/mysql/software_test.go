@@ -12143,23 +12143,17 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 		return titleID
 	}
 
-	// .tgz + empty uninstall (this PR's bug case for .tgz)
+	// .tgz uploads may omit an uninstall script — flag should be false.
 	tgzNoID := newInstaller("tgz-none", "tgz_packages", "tar.gz", "no-uninst.tar.gz", "s-tgz-none", "")
-	// .tgz + real uninstall (this PR's fix case for .tgz)
+	// .tgz with a provided uninstall script — flag should be true.
 	tgzWithID := newInstaller("tgz-with", "tgz_packages", "tar.gz", "with-uninst.tar.gz", "s-tgz-with", "echo uninstall")
-	// script-only .sh + empty uninstall (this PR's bug case for script-only)
+	// script-only .sh uploads may omit an uninstall script — flag should be false.
 	shNoID := newInstaller("sh-none", "sh_packages", "sh", "no-uninst.sh", "s-sh-none", "")
-	// script-only .sh + real uninstall
+	// script-only .sh with a provided uninstall script — flag should be true.
 	shWithID := newInstaller("sh-with", "sh_packages", "sh", "with-uninst.sh", "s-sh-with", "echo uninstall")
 	// .deb stands in for the msi/pkg/deb/rpm/exe extensions that always
 	// carry a default uninstall script from the upload layer.
 	debID := newInstaller("deb-default", "deb_packages", "deb", "installer.deb", "s-deb", "dpkg -r installer")
-
-	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
-		ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
-		IncludeAvailableForInstall: true,
-	})
-	require.NoError(t, err)
 
 	expect := map[uint]bool{
 		tgzNoID:   false,
@@ -12168,20 +12162,47 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 		shWithID:  true,
 		debID:     true,
 	}
-	seen := make(map[uint]bool, len(expect))
-	for _, s := range sw {
-		want, ok := expect[s.ID]
-		if !ok {
-			continue
+	assertFlags := func(t *testing.T, sw []*fleet.HostSoftwareWithInstaller, requireIDs map[uint]bool) {
+		t.Helper()
+		seen := make(map[uint]bool, len(requireIDs))
+		for _, s := range sw {
+			want, ok := expect[s.ID]
+			if !ok {
+				continue
+			}
+			seen[s.ID] = true
+			require.NotNil(t, s.SoftwarePackage, "title %d missing SoftwarePackage", s.ID)
+			require.NotNil(t, s.SoftwarePackage.HasUninstallScript, "title %d missing HasUninstallScript", s.ID)
+			require.Equal(t, want, *s.SoftwarePackage.HasUninstallScript, "title %d has_uninstall_script mismatch", s.ID)
 		}
-		seen[s.ID] = true
-		require.NotNil(t, s.SoftwarePackage, "title %d missing SoftwarePackage", s.ID)
-		require.NotNil(t, s.SoftwarePackage.HasUninstallScript, "title %d missing HasUninstallScript", s.ID)
-		require.Equal(t, want, *s.SoftwarePackage.HasUninstallScript, "title %d has_uninstall_script mismatch", s.ID)
+		for id := range requireIDs {
+			require.True(t, seen[id], "title %d not returned by ListHostSoftware", id)
+		}
 	}
-	for id := range expect {
-		require.True(t, seen[id], "title %d not returned by ListHostSoftware", id)
-	}
+
+	// First pass — nothing installed on the host, so every title hits the
+	// "available for install" SELECT (software.go:6301).
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+	assertFlags(t, sw, expect)
+
+	// Second pass — install the deb so it lands in host_software. That title
+	// now flows through the UNION "installed" SELECT (software.go:7327), which
+	// selects package_has_uninstall_script from a different subquery. Reasserting
+	// covers both SQL branches with a single test.
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "deb-default", Version: "1.0.0", Source: "deb_packages"},
+	})
+	require.NoError(t, err)
+	sw, _, err = ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+	assertFlags(t, sw, map[uint]bool{debID: true})
 }
 
 // testListHostSoftwarePaginationWithMultipleInstallers verifies that pagination metadata

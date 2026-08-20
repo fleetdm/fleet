@@ -17,6 +17,7 @@ import {
   IHostAppStoreApp,
   EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -275,13 +276,13 @@ export const HostInstallerActionCell = ({
     SCRIPT_PACKAGE_SOURCES.includes(software.source) &&
     ui_status === "ran_script";
 
-  // .tgz and script-only (.ps1/.sh/.py) installers may be uploaded without an
-  // uninstall script, so gate the Uninstall action on the flag for these
-  // sources. Other package types default an uninstall script from the
-  // extension.
-  const sourceMayLackUninstallScript =
-    software.source === "tgz_packages" ||
-    SCRIPT_PACKAGE_SOURCES.includes(software.source);
+  // NO_VERSION_OR_HOST_DATA_SOURCES (tgz + script-only .ps1/.sh/.py) may be
+  // uploaded without an uninstall script, so gate the Uninstall action on the
+  // flag for those sources. Other package types default an uninstall script
+  // from the extension.
+  const sourceMayLackUninstallScript = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+    software.source
+  );
   const uninstallScriptAvailable =
     !sourceMayLackUninstallScript || !!software_package?.has_uninstall_script;
 

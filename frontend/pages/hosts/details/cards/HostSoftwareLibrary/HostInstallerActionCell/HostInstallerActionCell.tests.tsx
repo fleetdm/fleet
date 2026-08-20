@@ -804,7 +804,7 @@ describe("HostInstallerActionCell component", () => {
   );
 
   // .tgz and script-only installers may be uploaded without an uninstall
-  // script; gate the Uninstall action on has_uninstall_script (fleet#51238).
+  // script; gate the Uninstall action on has_uninstall_script.
   it("does not render Uninstall for a tgz package without an uninstall script", () => {
     render(
       <HostInstallerActionCell

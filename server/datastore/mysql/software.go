@@ -5355,10 +5355,13 @@ func hydrateHostSoftwareRecordFromDb(hydrated *hostSoftware, softwareTitle *host
 		platform = *hydrated.PackagePlatform
 	}
 	hydrated.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-		Name:               *hydrated.PackageName,
-		Version:            version,
-		Platform:           platform,
-		SelfService:        hydrated.PackageSelfService,
+		Name:        *hydrated.PackageName,
+		Version:     version,
+		Platform:    platform,
+		SelfService: hydrated.PackageSelfService,
+		// From `hydrated`, not `softwareTitle`: the flag is scanned per-installer
+		// on both the "available" and "installed" SELECTs, not from the last
+		// install/uninstall rows.
 		HasUninstallScript: hydrated.PackageHasUninstallScript,
 	}
 
