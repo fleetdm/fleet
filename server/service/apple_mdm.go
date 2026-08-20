@@ -4211,8 +4211,10 @@ func (callbackMDMSSORequest) DecodeRequest(ctx context.Context, r *http.Request)
 }
 
 type callbackMDMSSOResponse struct {
-	redirectURL           string
-	byodEnrollCookieValue string
+	redirectURL              string
+	byodEnrollCookieValue    string
+	deviceSSOSessionID       string
+	deviceSSOSessionDuration int
 }
 
 func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -4225,6 +4227,9 @@ func (r callbackMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWri
 	if r.byodEnrollCookieValue != "" {
 		setBYODCookie(w, r.byodEnrollCookieValue, 30*60) // valid for 30 minutes
 	}
+	if r.deviceSSOSessionID != "" {
+		setDeviceSSOSessionCookie(w, r.deviceSSOSessionID, r.deviceSSOSessionDuration)
+	}
 }
 
 // Error will always be nil because errors are handled by sending a query
@@ -4234,19 +4239,21 @@ func (r callbackMDMSSOResponse) Error() error { return nil }
 
 func callbackMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMSSORequest)
-	redirectURL, byodCookieValue := svc.MDMSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+	redirectURL, byodCookieValue, deviceSSOSessionID, deviceSSOSessionDuration := svc.MDMSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
 	return callbackMDMSSOResponse{
-		redirectURL:           redirectURL,
-		byodEnrollCookieValue: byodCookieValue,
+		redirectURL:              redirectURL,
+		byodEnrollCookieValue:    byodCookieValue,
+		deviceSSOSessionID:       deviceSSOSessionID,
+		deviceSSOSessionDuration: deviceSSOSessionDuration,
 	}, nil
 }
 
-func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
+func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+	return apple_mdm.FleetUISSOCallbackPath + "?error=true", "", "", 0
 }
 
 ////////////////////////////////////////////////////////////////////////////////

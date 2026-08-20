@@ -6970,6 +6970,186 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.False(t, q.Has("reason"))
 }
 
+func (s *integrationMDMTestSuite) TestDeviceSSO() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	newHostWithToken := func(suffix string) (*fleet.Host, string) {
+		h, err := s.ds.NewHost(t.Context(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   new(t.Name() + "-osquery" + suffix),
+			NodeKey:         new(t.Name() + "-nodekey" + suffix),
+			UUID:            strings.ToUpper(uuid.NewString()),
+			Hostname:        fmt.Sprintf("%sfoo%s.local", t.Name(), suffix),
+			HardwareSerial:  mdmtest.RandSerialNumber(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		token := uuid.New().String()
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(t.Context(), h.ID, token))
+		return h, token
+	}
+
+	fleetHost, deviceToken := newHostWithToken("-a")
+	otherHost, otherDeviceToken := newHostWithToken("-b")
+
+	res := s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+deviceToken+"/sso", nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "is not enabled")
+
+	for _, c := range res.Cookies() {
+		require.NotEqual(t, cookieNameSSOSession, c.Name, "error response must not touch the handshake cookie")
+	}
+
+	s.DoRawNoAuth("POST", "/api/v1/fleet/device/bozo-token/sso", nil, http.StatusUnauthorized)
+
+	s.setUpMDMSSO(t, false)
+	defer s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": false }
+	}`), http.StatusOK, &appConfigResponse{})
+
+	// enable fleet_desktop.sso_enabled
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": true }
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+
+	prevCookieSecure := cookieSecure
+	t.Cleanup(func() { cookieSecure = prevCookieSecure })
+	cookieSecure = false
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false), fleethttp.WithCookieJar(jar))
+
+	var resIni initiateDeviceSSOResponse
+	iniRes := s.doWithClient(client, "POST", "/api/v1/fleet/device/"+deviceToken+"/sso", nil, http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(iniRes.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+	require.NotEmpty(t, resIni.URL)
+	var gotHandshakeCookie bool
+	for _, c := range iniRes.Cookies() {
+		if c.Name == cookieNameSSOSession {
+			gotHandshakeCookie = true
+		}
+	}
+	require.True(t, gotHandshakeCookie, "expected the SSO handshake cookie to be set")
+
+	forgedBody, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorFleetDesktop,
+		HostUUID:  fleetHost.UUID,
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso", forgedBody, http.StatusBadRequest)
+
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK)
+
+	// complete the flow: sign in at the IdP and post the assertion back to the
+	// existing MDM SSO callback
+	res = s.LoginDeviceSSOUser("sso_user", "user123#", deviceToken)
+	require.Equal(t, "https://localhost:8080/device/"+deviceToken, res.Header.Get("Location"))
+
+	var gotSessionCookie *http.Cookie
+	var handshakeCookieDeleted bool
+	for _, c := range res.Cookies() {
+		switch c.Name {
+		case cookieNameDeviceSSOSession:
+			gotSessionCookie = c
+		case cookieNameSSOSession:
+			handshakeCookieDeleted = c.MaxAge < 0
+		}
+	}
+	require.NotNil(t, gotSessionCookie, "expected the device SSO session cookie to be set")
+	require.NotEmpty(t, gotSessionCookie.Value)
+	require.True(t, handshakeCookieDeleted, "expected the handshake cookie to be deleted")
+
+	// the cookie must be unreadable from JS, scoped to the whole site so the
+	// device page's API calls carry it, and live exactly as long as the session
+	require.True(t, gotSessionCookie.HttpOnly)
+	require.Equal(t, "/", gotSessionCookie.Path)
+	require.Equal(t, http.SameSiteLaxMode, gotSessionCookie.SameSite)
+	require.Equal(t, int(s.fleetCfg.Session.Duration.Seconds()), gotSessionCookie.MaxAge)
+
+	deviceSSOSession := func(sessionID string) fleet.DeviceSSOSession {
+		t.Helper()
+		raw, err := s.keyValueStore.Get(t.Context(), "device_sso_session:"+sessionID)
+		require.NoError(t, err)
+		require.NotNil(t, raw, "expected a stored device SSO session")
+		var sess fleet.DeviceSSOSession
+		require.NoError(t, json.Unmarshal([]byte(*raw), &sess))
+		return sess
+	}
+
+	// the minted session is bound to the host whose token initiated the flow,
+	// which is what stops one device's cookie from unlocking another's page
+	session := deviceSSOSession(gotSessionCookie.Value)
+	require.Equal(t, fleetHost.ID, session.HostID)
+	require.NotEqual(t, otherHost.ID, session.HostID)
+
+	// the session also records which IdP identity signed in
+	ssoUserAcct, err := s.ds.GetMDMIdPAccountByEmail(t.Context(), "sso_user@example.com")
+	require.NoError(t, err)
+	require.Equal(t, ssoUserAcct.UUID, session.IdPAccountUUID)
+
+	// a session initiated from a different host's token binds to that host
+	otherRes := s.LoginDeviceSSOUser("sso_user", "user123#", otherDeviceToken)
+	var otherSessionCookie *http.Cookie
+	for _, c := range otherRes.Cookies() {
+		if c.Name == cookieNameDeviceSSOSession {
+			otherSessionCookie = c
+		}
+	}
+	require.NotNil(t, otherSessionCookie)
+	require.NotEqual(t, gotSessionCookie.Value, otherSessionCookie.Value)
+	require.Equal(t, otherHost.ID, deviceSSOSession(otherSessionCookie.Value).HostID)
+
+	// the fleet_desktop branch never associates the IdP account with the host
+	// -- that link belongs to enrollment flows, not a Fleet Desktop sign-in.
+	var idpAssociationCount int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &idpAssociationCount,
+			`SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?)`, fleetHost.UUID, otherHost.UUID)
+	})
+	assert.Zero(t, idpAssociationCount)
+
+	// A failed callback sends the end user back to the device page with a
+	// reason, not to the admin SSO callback route, and mints nothing.
+	requireNoSessionMinted := func(res *http.Response, deviceToken, wantReason, msg string) {
+		t.Helper()
+		require.Equal(t, "https://localhost:8080/device/"+deviceToken+"?sso_error="+wantReason,
+			res.Header.Get("Location"), msg)
+		for _, c := range res.Cookies() {
+			require.NotEqualf(t, cookieNameDeviceSSOSession, c.Name, "no session cookie expected: %s", msg)
+		}
+	}
+
+	// if the host is gone by the time the IdP calls back, the callback errors
+	// out instead of minting a dangling session
+	deletedClient := s.newSSOTestClient()
+	deletedIdPURL := s.InitiateDeviceSSO(deletedClient, otherDeviceToken)
+	require.NoError(t, s.ds.DeleteHost(t.Context(), otherHost.ID))
+	requireNoSessionMinted(
+		s.CompleteDeviceSSO(deletedClient, deletedIdPURL, "sso_user", "user123#"),
+		otherDeviceToken, "server_error", "host no longer exists",
+	)
+
+	// disabling the feature between initiation and callback also stops a
+	// session from being minted -- otherwise it would outlive the change by its
+	// whole TTL
+	_, thirdToken := newHostWithToken("-c")
+	disabledClient := s.newSSOTestClient()
+	disabledIdPURL := s.InitiateDeviceSSO(disabledClient, thirdToken)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": false }
+	}`), http.StatusOK, &appConfigResponse{})
+	requireNoSessionMinted(
+		s.CompleteDeviceSSO(disabledClient, disabledIdPURL, "sso_user", "user123#"),
+		thirdToken, "sso_disabled", "feature disabled mid-flow",
+	)
+}
+
 // TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for
 // https://github.com/fleetdm/fleet/issues/47626.
 //

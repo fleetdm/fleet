@@ -12347,6 +12347,21 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
 }
 
+func (s *integrationTestSuite) TestInitiateDeviceSSOFreeTier() {
+	t := s.T()
+
+	createHostAndDeviceToken(t, s.ds, "device-sso-token")
+
+	// free tier: no InitiateDeviceSSO implementation beyond the license error,
+	// same shape as every other premium-only device endpoint.
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/device-sso-token/sso", nil, http.StatusPaymentRequired)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, fleet.ErrMissingLicense.Error())
+
+	// invalid device token behaves like every other device-authenticated route
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/bozo-token/sso", nil, http.StatusUnauthorized)
+}
+
 func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	t := s.T()
 
