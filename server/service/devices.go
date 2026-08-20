@@ -144,7 +144,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	// must still load the full host details, as it returns more information
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
-		IncludePolicies:  false,
+		IncludePolicies:  true,
 		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
@@ -506,11 +506,15 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
+	// skipauth: Authorization is not required. The host is authenticated via
+	// its device token, and the response only contains device-safe policy data.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list policies for host")
+	}
+	return fleet.HostPoliciesToDevicePolicies(policies), nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -104,6 +104,7 @@ const PREMIUM_TAB_PATHS = [
 const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
+  PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
@@ -761,13 +762,11 @@ const DeviceUserPage = ({
                     <TabText>Software</TabText>
                   </Tab>
                 )}
-                {isPremiumTier && (
-                  <Tab>
-                    <TabText count={failingPoliciesCount} countVariant="alert">
-                      Policies
-                    </TabText>
-                  </Tab>
-                )}
+                <Tab>
+                  <TabText count={failingPoliciesCount} countVariant="alert">
+                    Policies
+                  </TabText>
+                </Tab>
               </TabList>
               {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                 <TabPanel>
@@ -843,24 +842,22 @@ const DeviceUserPage = ({
                   />
                 </TabPanel>
               )}
-              {isPremiumTier && (
-                <TabPanel>
-                  <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingDupDetails}
-                    deviceUser
-                    togglePolicyDetailsModal={togglePolicyDetailsModal}
-                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
-                    hostPlatform={host?.platform || ""}
-                    conditionalAccessEnabled={
-                      globalConfig?.features?.enable_conditional_access
-                    }
-                    conditionalAccessBypassed={
-                      host?.conditional_access_bypassed
-                    }
-                  />
-                </TabPanel>
-              )}
+              <TabPanel>
+                <PoliciesCard
+                  policies={host?.policies || []}
+                  isLoading={isLoadingDupDetails}
+                  deviceUser
+                  togglePolicyDetailsModal={togglePolicyDetailsModal}
+                  closePolicyDetailsModal={onCancelPolicyDetailsModal}
+                  hostPlatform={host?.platform || ""}
+                  conditionalAccessEnabled={
+                    globalConfig?.features?.enable_conditional_access
+                  }
+                  conditionalAccessBypassed={
+                    host?.conditional_access_bypassed
+                  }
+                />
+              </TabPanel>
             </Tabs>
           </TabNav>
           {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
