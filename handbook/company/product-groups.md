@@ -413,14 +413,11 @@ All of the steps above happen prior to any breaking changes to stable features b
 
 ### Server and agent compatibility
 
-Features that require changes to both the Fleet server and the agent (fleetd) must be backward compatible in both directions:
+When a feature requires changes to both the Fleet server and the agent (fleetd), updating one component without the other must not break anything. The feature will not be available until both are updated, but hosts that have not yet upgraded continue to work as before.
 
-- **New server, old agent:** A feature introduced in Fleet server version X that relies on agent version Y must work for hosts running agent version Y or later. Hosts still on older agents will not have the feature, but nothing will break.
-- **Old server, new agent:** A host that upgrades to agent version Y while still connected to server version X-1 must not break. The new feature simply will not work until the server is also upgraded.
+This covers the current release and the one before it (for example, server version S with agent version A-1, or agent version A with server version S-1). For long-term compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy).
 
-This applies to the current release and the one immediately before it (e.g., server version X with agent version X or X-1). For long-term version compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy).
-
-Release notes for Fleet server version X must document when a feature requires a minimum agent version Y.
+Server release notes must document when a feature requires a minimum agent version.
 
 
 #### API changes
