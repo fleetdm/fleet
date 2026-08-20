@@ -5,13 +5,15 @@ import { pluralize } from "utilities/strings/stringUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 export const isNotifyFailure = (
-  status: string | INotifyActivityStatus | undefined
+  status: INotifyActivityStatus | undefined
 ): boolean => status === "failed";
 
 // Provisional pending final BE confirmation.
 export const DEFERRED_EXIT_CODE = 50;
 
-export const FAILURE_COPY_BY_EXIT_CODE: Record<number, string> = {
+// Keyed by script exit code. Index 0 is the offline caveat shown on success;
+// non-zero entries are failure reasons.
+export const COPY_BY_EXIT_CODE: Record<number, string> = {
   0: "If the host is offline when the patch is forced, Fleet skips the patch. When the host comes back online Fleet notifies the end user again and the patch is forced 1 hour later.",
   30: "The notification couldn't load. Fleet will try again on the next policy run.",
   31: "The notification couldn't load. Fleet will try again on the next policy run.",
@@ -27,21 +29,23 @@ export const DEFERRED_SENTENCE =
 
 // Covers both success (exit 0 caveat) and failure sentences.
 export const getCaveatSentence = (
+  failed: boolean,
   scriptExecutionId?: string,
   exitCode?: number | null
 ): string | null => {
-  // Absence of script_execution_id signals a server-side deferral.
-  if (!scriptExecutionId) return DEFERRED_SENTENCE;
+  // Absence of script_execution_id signals a server-side deferral, which the
+  // BE only emits as a failure. Guard against showing a caveat next to a
+  // success icon if the invariant ever slips.
+  if (!scriptExecutionId) return failed ? DEFERRED_SENTENCE : null;
   if (exitCode === null || exitCode === undefined) return null;
-  return FAILURE_COPY_BY_EXIT_CODE[exitCode] ?? null;
+  return COPY_BY_EXIT_CODE[exitCode] ?? null;
 };
 
 // One source of truth for the "1 hour" / "5 minutes" mapping.
 export const formatNotifyTimeLabel = (timeBefore?: number): string =>
   timeBefore === 300 ? "5 minutes" : "1 hour";
 
-// Longer-form success caveat; intentionally different from
-// FAILURE_COPY_BY_EXIT_CODE[0].
+// Longer-form success caveat; intentionally different from COPY_BY_EXIT_CODE[0].
 export const getAutomationNotifiedSentence = (timeBefore?: number): string =>
   `End user was notified. Patch will be forced in ${formatNotifyTimeLabel(
     timeBefore

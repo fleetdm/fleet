@@ -65,8 +65,7 @@ const PolicyAutomationActivityDetailsModal = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isNotify && !!scriptExecutionId,
-      retry: (failureCount, err) =>
-        err?.response?.status !== 404 && failureCount < 3,
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
     }
   );
 
@@ -77,7 +76,11 @@ const PolicyAutomationActivityDetailsModal = ({
       if (activity.status === "success") {
         return getAutomationNotifiedSentence(activity.details?.time_before);
       }
-      return getCaveatSentence(scriptExecutionId, scriptResult?.exit_code);
+      return getCaveatSentence(
+        true,
+        scriptExecutionId,
+        scriptResult?.exit_code
+      );
     }
     if (isSkippedNotifyVariant) {
       return SKIPPED_INSTALL_NOTIFY_EXPLANATION;

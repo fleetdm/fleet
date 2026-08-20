@@ -1,5 +1,6 @@
 import React from "react";
 
+import { INotifyActivityStatus } from "interfaces/activity";
 import ActivityItem from "components/ActivityItem";
 import {
   renderNotifyTitleList,
@@ -25,7 +26,7 @@ const NotifiedEndUserBeforePatchingActivityItem = ({
     time_before: timeBefore,
   } = details;
   const timeLabel = formatNotifyTimeLabel(timeBefore);
-  const failed = isNotifyFailure(status);
+  const failed = isNotifyFailure(status as INotifyActivityStatus | undefined);
   const verb = failed ? "failed to notify" : "notified";
   const titleList = renderNotifyTitleList(titles);
 

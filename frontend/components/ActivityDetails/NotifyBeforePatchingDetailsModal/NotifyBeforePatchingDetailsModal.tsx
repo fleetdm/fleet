@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
-import { IActivityDetails } from "interfaces/activity";
+import { IActivityDetails, INotifyActivityStatus } from "interfaces/activity";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
@@ -49,7 +49,7 @@ const NotifyBeforePatchingDetailsModal = ({
   } = details;
 
   const timeLabel = formatNotifyTimeLabel(timeBefore);
-  const failed = isNotifyFailure(status);
+  const failed = isNotifyFailure(status as INotifyActivityStatus | undefined);
 
   const [showDetails, setShowDetails] = useState(false);
 
@@ -63,12 +63,12 @@ const NotifyBeforePatchingDetailsModal = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       // Skip the fetch on dispatcher-caught deferrals (no execution id).
       enabled: !!scriptExecutionId,
-      retry: (failureCount, err) =>
-        err?.response?.status !== 404 && failureCount < 3,
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
     }
   );
 
   const explanation = getCaveatSentence(
+    failed,
     scriptExecutionId,
     scriptResult?.exit_code
   );
@@ -82,13 +82,18 @@ const NotifyBeforePatchingDetailsModal = ({
     }
 
     const verb = failed ? "failed to notify" : "notified";
-    // Nothing to reveal for a dispatcher-caught deferral (no script ran).
-    const hasDetailsContent =
-      !!scriptResult?.script_contents || scriptResult?.exit_code != null;
-    const outputBlock =
-      scriptResult?.exit_code != null
-        ? `Exit code: ${scriptResult.exit_code}\n${scriptResult.output ?? ""}`
-        : null;
+    // On a silent success (exit 0, no output) the output block would just read
+    // "Exit code: 0" — noise, skip it.
+    const outputBlock = (() => {
+      const code = scriptResult?.exit_code;
+      const output = scriptResult?.output;
+      if (code == null) return null;
+      if (code === 0 && !output) return null;
+      return output ? `Exit code: ${code}\n${output}` : `Exit code: ${code}`;
+    })();
+    // Nothing to reveal for a dispatcher-caught deferral (no script ran) or a
+    // silent success (no script contents, no output).
+    const hasDetailsContent = !!scriptResult?.script_contents || !!outputBlock;
 
     const titleList = renderNotifyTitleList(titles);
     // Apps row is redundant when the intro already lists everything (≤3 apps).
