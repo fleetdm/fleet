@@ -1488,6 +1488,18 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "software")
 	require.Len(t, listResp.Policies, 1)
 	assert.Equal(t, installPolicy.Policy.ID, listResp.Policies[0].ID)
+
+	// List with automation_type=patch - should return only the patch policy
+	listResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "patch")
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, patchPolicy.Policy.ID, listResp.Policies[0].ID)
+
+	// List with merge_inherited and automation_type=patch
+	listResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "patch")
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, patchPolicy.Policy.ID, listResp.Policies[0].ID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {

@@ -16,6 +16,7 @@ import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =
   | "software"
+  | "patch"
   | "scripts"
   | "calendar"
   | "conditional_access"

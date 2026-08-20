@@ -97,6 +97,7 @@ export const DEFAULT_SORT_COLUMN = "name";
 
 const AUTOMATION_TYPES: AutomationType[] = [
   "software",
+  "patch",
   "scripts",
   "calendar",
   "conditional_access",
@@ -749,6 +750,11 @@ const ManagePolicyPage = ({
       label: "Software",
       value: "software",
       helpText: "Policies with software automation enabled.",
+    },
+    {
+      label: "Patch",
+      value: "patch",
+      helpText: "Patch policies for Fleet-maintained apps.",
     },
     {
       label: "Scripts",
