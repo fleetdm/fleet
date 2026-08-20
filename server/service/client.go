@@ -3602,6 +3602,44 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			config.Policies[i].ScriptID = &scriptID
 		}
 
+		var teamProfiles map[string]string
+		hydrateProfiles := func() error {
+			if teamProfiles != nil {
+				return nil
+			}
+			profiles, err := c.ListConfigurationProfiles(teamID)
+			if err != nil {
+				return fmt.Errorf("error listing configuration profiles for team %d: %w", *teamID, err)
+			}
+			teamProfiles = make(map[string]string, len(profiles))
+			for _, profile := range profiles {
+				teamProfiles[profile.Name] = profile.ProfileUUID
+			}
+			return nil
+		}
+		// assign profile UUIDs for policies with resend configuration profiles
+		for i := range config.Policies {
+			// default to empty string to unset, and then override if match is found
+			config.Policies[i].ProfileUUID = new("")
+
+			if config.Policies[i].ResendConfigurationProfileName == nil || *config.Policies[i].ResendConfigurationProfileName == "" {
+				continue
+			}
+
+			if err := hydrateProfiles(); err != nil {
+				return fmt.Errorf("error hydrating configuration profiles for team %d: %w", *teamID, err)
+			}
+
+			profileUUID, ok := teamProfiles[*config.Policies[i].ResendConfigurationProfileName]
+			if !ok {
+				if !dryRun { // this shouldn't happen
+					logFn("[!] reference to an unknown configuration profile: %s\n", *config.Policies[i].ResendConfigurationProfileName)
+				}
+				continue
+			}
+			config.Policies[i].ProfileUUID = &profileUUID
+		}
+
 		// Get patch policy title IDs for the team
 		for _, policy := range config.Policies {
 			if policy.Type == fleet.PolicyTypePatch {
