@@ -297,6 +297,7 @@ const routes = (
               <IndexRedirect to="details" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
+              <Route path="controls" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage}>
                 <IndexRedirect to="inventory" />
                 <Route path="inventory" component={HostDetailsPage} />
@@ -459,6 +460,7 @@ const routes = (
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />
+            <Route path="controls" component={DeviceUserPage} />
             <Route path="software" component={DeviceUserPage} />
             <Route path="policies" component={DeviceUserPage} />
           </Route>

@@ -107,6 +107,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
+		{"ListHostSoftwareHostVitalsExcludeAnyLabel", testListHostSoftwareHostVitalsExcludeAnyLabel},
 		{"ListHostSoftwareMultiplePackagesPrecedence", testListHostSoftwareMultiplePackagesPrecedence},
 		{"ListHostSoftwareMultiplePackagesInstallDetails", testListHostSoftwareMultiplePackagesInstallDetails},
 		{"ListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned", testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned},
@@ -7751,6 +7752,194 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			require.Equal(t, len(tt.expected), count)
 		})
 	}
+}
+
+func testListHostSoftwareHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// every host's label_updated_at predates the labels created below, so a dynamic label's
+	// membership is unknown for all of them while a host vitals label's membership is known.
+	beforeLabels := time.Now().Add(-1 * time.Minute)
+	nonMember := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", beforeLabels, test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, nonMember, false)
+	member := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", beforeLabels, test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, member, false)
+	iosNonMember := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", beforeLabels, test.WithPlatform("ios"))
+	nanoEnroll(t, ds, iosNonMember, false)
+	iosMember := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", beforeLabels, test.WithPlatform("ios"))
+	nanoEnroll(t, ds, iosMember, false)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	require.NoError(t, err)
+
+	hostVitalsLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-hv", LabelMembershipType: fleet.LabelMembershipTypeHostVitals})
+	require.NoError(t, err)
+	dynamicLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-dyn", Query: "select 1"})
+	require.NoError(t, err)
+
+	// the host vitals cron writes plain label_membership rows, same as any other label.
+	require.NoError(t, ds.AddLabelsToHost(ctx, member.ID, []uint{hostVitalsLabel.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, iosMember.ID, []uint{hostVitalsLabel.ID}))
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	newInstaller := func(name, storageID string) uint {
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "hello",
+			UninstallScript:  "goodbye",
+			InstallerFile:    tfr,
+			StorageID:        storageID,
+			Filename:         name,
+			Title:            name,
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			BundleIdentifier: name,
+			Platform:         "darwin",
+			SelfService:      true,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return installerID
+	}
+	hvInstallerID := newInstaller("hv-installer", "storage-hv")
+	dynInstallerID := newInstaller("dyn-installer", "storage-dyn")
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "hv-vpp-app",
+		BundleIdentifier: "hv-vpp-app",
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
+
+	inHouseAppID, inHouseTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "hv-inhouse-app",
+		Source:           "ios_apps",
+		Filename:         "hv-inhouse-app.ipa",
+		Extension:        "ipa",
+		BundleIdentifier: "hv-inhouse-app",
+		UserID:           user.ID,
+		SelfService:      true,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), hvInstallerID, excludeAnyLabelScope(hostVitalsLabel), softwareTypeInstaller))
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), dynInstallerID, excludeAnyLabelScope(dynamicLabel), softwareTypeInstaller))
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, excludeAnyLabelScope(hostVitalsLabel), softwareTypeVPP))
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), inHouseAppID, excludeAnyLabelScope(hostVitalsLabel), softwareTypeInHouseApp))
+
+	// put the VPP and in-house apps in the hosts' software inventory: installed titles are
+	// label-filtered through a separate path than available-for-install ones, and both paths
+	// must agree on who the exclude label applies to.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+			"hv-vpp-app", "1.0", "apps", "hv-vpp-app", vppApp.TitleID, "hv-vpp-checksum")
+		if err != nil {
+			return err
+		}
+		vppSoftwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		res, err = q.ExecContext(ctx, `INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+			"hv-inhouse-app", "1.0", "ios_apps", "hv-inhouse-app", inHouseTitleID, "hv-ihp-checksum")
+		if err != nil {
+			return err
+		}
+		inHouseSoftwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?)`,
+			nonMember.ID, vppSoftwareID, member.ID, vppSoftwareID, iosNonMember.ID, inHouseSoftwareID, iosMember.ID, inHouseSoftwareID)
+		return err
+	})
+
+	listTitles := func(host *fleet.Host, selfServiceOnly bool) []string {
+		titles, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 20, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+			SelfServiceOnly:            selfServiceOnly,
+			IsMDMEnrolled:              true,
+		})
+		require.NoError(t, err)
+		names := make([]string, 0, len(titles))
+		for _, title := range titles {
+			names = append(names, title.Name)
+		}
+		return names
+	}
+
+	// the host vitals label excludes only its members; the dynamic label's membership is still
+	// unknown for every host, so it keeps excluding all of them. An excluded member still
+	// reports the app it already has installed in the full inventory listing, but self-service
+	// no longer offers it.
+	require.ElementsMatch(t, []string{"hv-installer", "hv-vpp-app"}, listTitles(nonMember, false))
+	require.ElementsMatch(t, []string{"hv-installer", "hv-vpp-app"}, listTitles(nonMember, true))
+	require.ElementsMatch(t, []string{"hv-vpp-app"}, listTitles(member, false))
+	require.Empty(t, listTitles(member, true))
+	require.ElementsMatch(t, []string{"hv-inhouse-app"}, listTitles(iosNonMember, false))
+	require.ElementsMatch(t, []string{"hv-inhouse-app"}, listTitles(iosMember, false))
+	require.Empty(t, listTitles(iosMember, true))
+
+	// the install itself is gated separately from the listing, so it must agree.
+	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, hvInstallerID, nonMember.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, hvInstallerID, member.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, dynInstallerID, nonMember.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppAppTeamID, nonMember.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppAppTeamID, member.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+	scoped, err = ds.IsInHouseAppLabelScoped(ctx, inHouseAppID, iosNonMember.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+	scoped, err = ds.IsInHouseAppLabelScoped(ctx, inHouseAppID, iosMember.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// auto-install, policy-triggered installs and setup experience all target hosts through
+	// these maps.
+	hostsInScope, err := ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, hvInstallerID)
+	require.NoError(t, err)
+	require.Contains(t, hostsInScope, nonMember.ID)
+	require.NotContains(t, hostsInScope, member.ID)
+
+	hostsInScope, err = ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, dynInstallerID)
+	require.NoError(t, err)
+	require.NotContains(t, hostsInScope, nonMember.ID)
+
+	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
+	require.NoError(t, err)
+	require.Contains(t, hostsInScope, nonMember.ID)
+	require.NotContains(t, hostsInScope, member.ID)
+
+	hostsExcluded, err := ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, hvInstallerID)
+	require.NoError(t, err)
+	require.Contains(t, hostsExcluded, member.ID)
+	require.NotContains(t, hostsExcluded, nonMember.ID)
+
+	// once the dynamic label has been reported by the host, it behaves like the host vitals one.
+	nonMember.LabelUpdatedAt = time.Now()
+	require.NoError(t, ds.UpdateHost(ctx, nonMember))
+	require.ElementsMatch(t, []string{"dyn-installer", "hv-installer", "hv-vpp-app"}, listTitles(nonMember, false))
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, dynInstallerID, nonMember.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
 }
 
 func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {

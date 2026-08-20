@@ -730,9 +730,8 @@ const ManagePolicyPage = ({
           lastUpdatedAt={updatedAt}
           customTooltipText={
             <>
-              Counts are updated hourly. Click host
-              <br />
-              counts for the most up-to-date count.
+              Counts are updated hourly. Click host counts for the most
+              up-to-date count.
             </>
           }
         />

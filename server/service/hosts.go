@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -612,6 +613,54 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	}
 
 	doDelete := func(hostIDs []uint, hosts []*fleet.Host) error {
+		// Settle Apple Business assignments before anything is written, so the
+		// activities below can never claim a deletion the restore path undoes.
+		checks, err := svc.checkDEPAssignmentsForDelete(ctx, hosts)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking dep assignments before bulk delete")
+		}
+
+		// Hosts Apple couldn't be asked about are left in place and reported; the
+		// rest of the batch still goes through.
+		skipped := make(map[uint]struct{})
+		var skippedNames []string
+		for _, host := range hosts {
+			if checks[host.ID].check == depDeleteUnverified {
+				skipped[host.ID] = struct{}{}
+				// A host ingested from Apple Business has no display name until it
+				// checks in, so fall back to the serial — which is how the admin
+				// would look it up in Apple Business anyway.
+				name := host.DisplayName()
+				if name == "" {
+					name = host.HardwareSerial
+				}
+				skippedNames = append(skippedNames, name)
+			}
+		}
+		if len(skipped) > 0 {
+			keptIDs := make([]uint, 0, len(hostIDs))
+			for _, id := range hostIDs {
+				if _, ok := skipped[id]; !ok {
+					keptIDs = append(keptIDs, id)
+				}
+			}
+			keptHosts := make([]*fleet.Host, 0, len(hosts))
+			for _, host := range hosts {
+				if _, ok := skipped[host.ID]; !ok {
+					keptHosts = append(keptHosts, host)
+				}
+			}
+			hostIDs, hosts = keptIDs, keptHosts
+		}
+
+		if err := svc.clearDisownedDEPAssignments(ctx, checks); err != nil {
+			return err
+		}
+
+		if len(hostIDs) == 0 {
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, 0), "deleting hosts")
+		}
+
 		if err := svc.ds.DeleteHosts(ctx, hostIDs); err != nil {
 			return err
 		}
@@ -659,6 +708,10 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			); err != nil {
 				return err
 			}
+		}
+
+		if len(skippedNames) > 0 {
+			return ctxerr.Wrap(ctx, unverifiedABMHostsError(checks, skippedNames, len(hostIDs)), "deleting hosts")
 		}
 
 		return nil
@@ -919,7 +972,7 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 		}
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
+		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
 			return err
 		}
 	}
@@ -1146,7 +1199,22 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// rather than a forbidden that would confirm the host exists on some
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
+	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
+		return err
+	}
+
+	// Settle the host's Apple Business assignment before anything is written, so
+	// the activity below can never claim a deletion that the restore path is
+	// about to undo.
+	checks, err := svc.checkDEPAssignmentsForDelete(ctx, []*fleet.Host{host})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking dep assignment before delete")
+	}
+	if c := checks[host.ID]; c.check == depDeleteUnverified {
+		return ctxerr.Wrap(ctx,
+			fleet.NewBadGatewayError(fleet.CantDeleteHostUnverifiedABMMessage, c.appleErr), "deleting host")
+	}
+	if err := svc.clearDisownedDEPAssignments(ctx, checks); err != nil {
 		return err
 	}
 
@@ -3258,6 +3326,12 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		}
 	}
 
+	for _, row := range outRows {
+		for i, cell := range row {
+			row[i] = sanitizeCSVFormula(cell)
+		}
+	}
+
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -3266,6 +3340,30 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
 		logging.WithErr(ctx, err)
 	}
+}
+
+// sanitizeCSVFormula neutralizes values that spreadsheet applications would
+// interpret as a formula (or as a DDE payload) when an exported CSV file is
+// opened, by prefixing them with a single quote so the cell is treated as text.
+func sanitizeCSVFormula(val string) string {
+	// Clients may trim the cell before parsing it, so the formula character is
+	// not necessarily the first byte.
+	trimmed := strings.TrimSpace(val)
+	if trimmed == "" {
+		return val
+	}
+
+	if !strings.ContainsRune("=+-@", rune(trimmed[0])) {
+		return val
+	}
+
+	// Signed numbers are not formulas, so leave them alone to keep numeric
+	// columns machine-readable.
+	if _, err := strconv.ParseFloat(trimmed, 64); err == nil {
+		return val
+	}
+
+	return "'" + val
 }
 
 // csvColumnPlacements forces the ordering of columns in the full (unfiltered)

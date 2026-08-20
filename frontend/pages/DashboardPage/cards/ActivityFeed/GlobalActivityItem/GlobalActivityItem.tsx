@@ -307,8 +307,10 @@ const TAGGED_TEMPLATES = {
           <TooltipWrapper
             tipContent={
               <>
-                The host expiry window configured in <br />
-                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+                The host expiry window configured in{" "}
+                <strong>
+                  Settings &gt; Organization settings &gt; Advanced options
+                </strong>
               </>
             }
           >
@@ -1526,7 +1528,7 @@ const TAGGED_TEMPLATES = {
       source,
       self_service,
       from_setup_experience,
-      install_skipped_when_app_open,
+      skipped_install,
     } = details;
 
     const showSoftwarePackage =
@@ -1534,7 +1536,7 @@ const TAGGED_TEMPLATES = {
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-    if (install_skipped_when_app_open) {
+    if (skipped_install) {
       return (
         <>
           {" "}
