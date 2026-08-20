@@ -144,6 +144,7 @@ export enum ActivityType {
   EditedActivityAutomations = "edited_activity_automations",
   DisabledActivityAutomations = "disabled_activity_automations",
   CanceledRunScript = "canceled_run_script",
+  CanceledMdmCommand = "canceled_mdm_command",
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
@@ -228,6 +229,7 @@ export type IHostPastActivityType =
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp
   | ActivityType.CanceledRunScript
+  | ActivityType.CanceledMdmCommand
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
   | ActivityType.CanceledUninstallSoftware
@@ -295,6 +297,8 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  /** The raw MDM request type of a canceled command, e.g. "DeviceLock" */
+  command_type?: string;
   host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
@@ -429,6 +433,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Canceled activity: install App Store (VPP) app",
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
+  canceled_mdm_command: "Canceled activity: MDM command",
   canceled_uninstall_software: "Canceled activity: uninstall software",
   canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
