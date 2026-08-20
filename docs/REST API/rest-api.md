@@ -8757,6 +8757,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8984,6 +8985,54 @@ None.
 `Status: 200`
 
 ---
+
+### Get Android zero-touch enrollment configuration
+
+_Available in Fleet Premium_
+
+Get Fleet's Android zero-touch DCP extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled.
+
+`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "dpc_extras": {
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver",
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": "I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg",
+    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+      "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "b1RlNGZYcVpvS3g3TnZD"
+    }
+  }
+}
+```
+
+##### Not configured
+
+`Status: 404 Resource Not Found`
+
+```json
+{
+  "message": "Resource Not Found",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Android zero-touch enrollment is not configured"
+    }
+  ]
+}
+```
 
 ## SCIM
 
