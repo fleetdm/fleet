@@ -1,15 +1,17 @@
 import React from "react";
 
 import { INotifyActivityStatus } from "interfaces/activity";
-import { pluralize } from "utilities/strings/stringUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 export const isNotifyFailure = (
   status: INotifyActivityStatus | undefined
 ): boolean => status === "failed";
 
-// Provisional pending final BE confirmation.
 export const DEFERRED_EXIT_CODE = 50;
+
+// Titles inlined into the intro sentence; past this we truncate to
+// "..., and N more apps" and move the full list to the Apps row.
+export const INLINE_APP_LIMIT = 4;
 
 // Keyed by script exit code. Index 0 is the offline caveat shown on success;
 // non-zero entries are failure reasons.
@@ -38,6 +40,8 @@ export const getCaveatMessage = (
   // success icon if the invariant ever slips.
   if (!scriptExecutionId) return failed ? DEFERRED_SENTENCE : null;
   if (exitCode === null || exitCode === undefined) return null;
+  // Mirror guard: exit 0 is the success caveat; don't show it next to a red icon.
+  if (failed && exitCode === 0) return null;
   return COPY_BY_EXIT_CODE[exitCode] ?? null;
 };
 
@@ -70,8 +74,8 @@ export const isNotifyBeforePatchingSkip = (
   preInstallOutput?: string | null
 ): boolean => !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER);
 
-// Bold titles, Oxford comma. Inline all when ≤4; past 4 truncate to 3 +
-// ", and N more apps". Returns null on empty input.
+// Bold titles, Oxford comma. Inline all when ≤ INLINE_APP_LIMIT; past that
+// truncate to 3 + ", and N more apps". Returns null on empty input.
 // TODO(BE contract): software_titles is currently string[]; if BE emits
 // objects with display_name, swap this to render the display name.
 export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
@@ -87,7 +91,7 @@ export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
       </>
     );
   }
-  if (titles.length <= 4) {
+  if (titles.length <= INLINE_APP_LIMIT) {
     const head = titles.slice(0, -1);
     const tail = titles[titles.length - 1];
     return (
@@ -102,11 +106,12 @@ export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
       </>
     );
   }
+  // overflow is always ≥ 2 past INLINE_APP_LIMIT, so no pluralize needed.
   const overflow = titles.length - 3;
   return (
     <>
       {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and {overflow}{" "}
-      more {pluralize(overflow, "app")}
+      more apps
     </>
   );
 };

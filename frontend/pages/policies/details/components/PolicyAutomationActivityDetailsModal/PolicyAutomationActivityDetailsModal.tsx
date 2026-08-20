@@ -71,16 +71,12 @@ const PolicyAutomationActivityDetailsModal = ({
 
   const detailOutput = getDetailOutputText(activity);
 
-  const renderExplanation = (): string | null => {
+  const getExplanation = (): string | null => {
     if (isNotify) {
       if (activity.status === "success") {
         return getAutomationNotifiedMessage(activity.details?.time_before);
       }
-      return getCaveatMessage(
-        true,
-        scriptExecutionId,
-        scriptResult?.exit_code
-      );
+      return getCaveatMessage(true, scriptExecutionId, scriptResult?.exit_code);
     }
     if (isSkippedNotifyVariant) {
       return SKIPPED_INSTALL_NOTIFY_EXPLANATION;
@@ -88,7 +84,7 @@ const PolicyAutomationActivityDetailsModal = ({
     return null;
   };
 
-  const explanation = renderExplanation();
+  const explanation = getExplanation();
   const showEueLink =
     isNotify &&
     scriptResult?.exit_code != null &&

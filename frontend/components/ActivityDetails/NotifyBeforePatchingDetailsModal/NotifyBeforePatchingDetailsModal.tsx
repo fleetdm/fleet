@@ -23,6 +23,7 @@ import CustomLink from "components/CustomLink";
 import {
   getCaveatMessage,
   EXIT_CODES_NEEDING_EUE_LINK,
+  INLINE_APP_LIMIT,
   PATCHING_END_USER_EXPERIENCE_URL,
   renderNotifyTitleList,
   formatNotifyTimeLabel,
@@ -96,8 +97,8 @@ const NotifyBeforePatchingDetailsModal = ({
     const hasDetailsContent = !!scriptResult?.script_contents || !!outputBlock;
 
     const titleList = renderNotifyTitleList(titles);
-    // Apps row is redundant when the intro already lists everything (≤3 apps).
-    const showAppsRow = titles.length > 4;
+    // Apps row is redundant when the intro already lists everything.
+    const showAppsRow = titles.length > INLINE_APP_LIMIT;
 
     return (
       <div className={`${baseClass}__content`}>

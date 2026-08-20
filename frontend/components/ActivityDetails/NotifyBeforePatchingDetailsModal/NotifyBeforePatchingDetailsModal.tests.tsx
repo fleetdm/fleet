@@ -298,4 +298,32 @@ describe("NotifyBeforePatchingDetailsModal", () => {
       screen.queryByRole("button", { name: /Details/ })
     ).not.toBeInTheDocument();
   });
+
+  // Mirror guard: exit 0 is the success caveat. If BE ever slips and pairs
+  // status: "failed" with exit_code: 0, don't render the success caveat next
+  // to the red icon.
+  it("hides the offline caveat when status is failed but exit_code is 0", async () => {
+    useScriptResultHandler({ exit_code: 0 });
+    renderModal({ status: "failed" });
+
+    expect(await screen.findByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/If the host is offline when the patch is forced/)
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders DataError when the script-result fetch fails", async () => {
+    // 404 short-circuits the retry override, so the query settles in error
+    // state on the first attempt.
+    mockServer.use(
+      http.get(baseUrl("/scripts/results/:executionId"), () =>
+        HttpResponse.json({ message: "Not found" }, { status: 404 })
+      )
+    );
+    renderModal({ status: "success" });
+
+    expect(
+      await screen.findByText("Close this modal and try again.")
+    ).toBeInTheDocument();
+  });
 });

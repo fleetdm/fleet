@@ -73,7 +73,7 @@ export const getAutomationStatusIcon = (
   }
   if (
     activity.type === ActivityType.NotifiedEndUserBeforePatching &&
-    activity.status !== "error"
+    activity.status === "success"
   ) {
     return { name: "error-outline", color: "ui-fleet-black-50" };
   }
@@ -89,7 +89,7 @@ export const getDetailOutputText = (
   // Notify success/deferral: computed sentence keyed on time_before.
   if (
     activity.type === ActivityType.NotifiedEndUserBeforePatching &&
-    activity.status !== "error"
+    activity.status === "success"
   ) {
     return getAutomationNotifiedMessage(activity.details?.time_before);
   }
