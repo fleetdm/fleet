@@ -144,7 +144,7 @@
       }
 
       .content-with-sidebar--qr-only {
-        justify-content: center;
+        justify-content: flex-start;
       }
 
       .mobile-enroll-sidebar p {
@@ -303,7 +303,7 @@
         <!-- shown only when this page is opened on a desktop browser; see renderDesktopHandoffQRCode() -->
         <section class="mobile-enroll-sidebar">
           <div class="qr-container">
-            <p>Enrolling an Android device?</p>
+            <p>Enrolling a mobile device?</p>
             <canvas class="qr-code"></canvas>
             <p class="qr-subtext">Scan this QR code with that device</p>
           </div>
@@ -460,7 +460,7 @@
         <!-- shown only when this page is opened on a desktop browser; see renderDesktopHandoffQRCode() -->
         <section class="mobile-enroll-sidebar">
           <div class="qr-container">
-            <p>Enrolling an iPhone or iPad?</p>
+            <p>Enrolling a mobile device?</p>
             <canvas class="qr-code"></canvas>
             <p class="qr-subtext">Scan this QR code with that device</p>
           </div>
@@ -772,7 +772,9 @@
           return;
         }
         if (isDesktopUserAgent()) {
-          renderQRCode(window.location.href, sidebar.querySelector(".qr-code"));
+          renderQRCode(window.location.href, sidebar.querySelector(".qr-code"), {
+            width: 260,
+          });
           document.querySelector(".device-instructions-content")?.remove();
           document
             .querySelector(".content-with-sidebar")
