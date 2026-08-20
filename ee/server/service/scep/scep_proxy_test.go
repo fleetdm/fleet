@@ -1270,32 +1270,53 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		var gotDetail string
-		ds.SetMDMWindowsHostProfileFailedFunc = func(_ context.Context, hostUUID, profileUUID, detail string) error {
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, hostUUID, profileUUID, detail string) (bool, error) {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "w-profile-uuid", profileUUID)
 			gotDetail = detail
-			return nil
+			return false, nil
 		}
 		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
-		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
 	})
 
 	t.Run("records with a live context even when the request deadline is exceeded", func(t *testing.T) {
 		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, _, _, _ string) error {
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(ctx context.Context, _, _, _ string) (bool, error) {
 			// The write must be detached from the expired request context (WithoutCancel), or it would fail to persist
 			// the failure we just observed. This assertion is what actually guards that detach.
 			assert.NoError(t, ctx.Err())
-			return nil
+			return false, nil
 		}
 		// Deadline already in the past (as after an upstream timeout): ctx.Err() is DeadlineExceeded, which must NOT
 		// skip recording - only true cancellation does.
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 		defer cancel()
 		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", upstreamErr)
-		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 	})
+
+	// The datastore owns the retry-or-fail decision; the proxy just has to hand the error over and not care which way
+	// it went. A datastore error must not panic or double-report.
+	for _, tc := range []struct {
+		name    string
+		retried bool
+		err     error
+	}{
+		{"another delivery attempt", true, nil},
+		{"a terminal failure", false, nil},
+		{"a datastore error", false, errors.New("write failed")},
+	} {
+		t.Run("hands the error over regardless of "+tc.name, func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string) (bool, error) {
+				return tc.retried, tc.err
+			}
+			newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
+			require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
+		})
+	}
 
 	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
 	canceledCtx, cancelFn := context.WithCancel(context.Background())
@@ -1313,9 +1334,9 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	} {
 		t.Run("skips "+tc.name, func(t *testing.T) {
 			ds := new(mock.DataStore)
-			ds.SetMDMWindowsHostProfileFailedFunc = func(context.Context, string, string, string) error {
+			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string) (bool, error) {
 				t.Fatalf("must not record a failure for %s", tc.name)
-				return nil
+				return false, nil
 			}
 			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", tc.err)
 		})

@@ -2507,9 +2507,11 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
-	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
-	// "failed" with the provided detail.
-	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given
+	// (hostUUID, profileUUID) Windows profile. While the profile has retries left it goes back to "pending" so the
+	// profile manager redelivers it, and reports retried=true; once they are exhausted the failure is terminal and the
+	// provided detail is surfaced to the user.
+	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to

@@ -291,8 +291,8 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	return res, nil
 }
 
-// recordWindowsSCEPProxyFailure marks a Windows SCEP profile "failed" when the proxy observes a per-profile upstream
-// error.
+// recordWindowsSCEPProxyFailure records a per-profile upstream error the proxy observed against a Windows SCEP profile.
+// The datastore decides whether that means another delivery attempt or a terminal failure.
 func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
 	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
 	// not an upstream CA failure and must not mark the profile failed. Genuine upstream timeouts arrive as
@@ -310,11 +310,15 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 	// values (tracing, etc.) while dropping the deadline; the write gets its own short timeout.
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), windowsSCEPFailureWriteTimeout)
 	defer cancel()
-	if err := svc.ds.SetMDMWindowsHostProfileFailed(writeCtx, hostUUID, profileUUID, detail); err != nil {
+	retried, err := svc.ds.SetMDMWindowsHostProfileFailedOrRetry(writeCtx, hostUUID, profileUUID, detail)
+	if err != nil {
 		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
 			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)
 		ctxerr.Handle(ctx, err)
+		return
 	}
+	svc.debugLogger.DebugContext(ctx, "recorded Windows SCEP proxy failure",
+		"host_uuid", hostUUID, "profile_uuid", profileUUID, "operation", operation, "will_retry", retried)
 }
 
 // parseHostAndProfileFromSCEPIdentifier extracts the host and profile UUIDs from the SCEP proxy identifier

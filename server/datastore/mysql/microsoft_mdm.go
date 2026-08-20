@@ -1535,19 +1535,68 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	return nil
 }
 
-func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for a Windows install profile, which today
+// means an error the SCEP proxy saw from the upstream CA. While the profile has retries left it is put back in the
+// pending state so the profile manager redelivers it on its next tick, with freshly rendered contents (a SCEP profile
+// therefore gets a brand new challenge). Once the retries are exhausted the failure is terminal and the detail is
+// surfaced to the user.
+//
+// Delivery attempts are what the retry counter is meant to bound, not requests: the Windows SCEP CSP retries
+// PKIOperation on its own schedule, so one delivery can produce several upstream errors in quick succession. The
+// "status is not NULL" condition is what keeps those from each consuming a retry. The first error moves the row out of
+// "verifying" and costs one; the rest land on an already-pending row and are ignored, because a delivery is by then
+// already queued and supersedes them. setMDMProfilesRetryDB guards Apple's retry path the same way.
+func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
-	const stmt = `
+	const loadStmt = `
+		SELECT status, retries
+		FROM host_mdm_windows_profiles
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
+		FOR UPDATE`
+
+	const retryStmt = `
+		UPDATE host_mdm_windows_profiles
+		SET status = NULL, detail = '', retries = retries + 1
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+
+	const failStmt = `
 		UPDATE host_mdm_windows_profiles
 		SET status = ?, detail = ?
-		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
-			AND (status IS NULL OR status <> ?)`
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt,
-			fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+
+	var retried bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		retried = false
+
+		var row struct {
+			Status  *fleet.MDMDeliveryStatus `db:"status"`
+			Retries uint                     `db:"retries"`
+		}
+		switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "loading windows host profile to record failure")
+		}
+
+		switch {
+		case row.Status == nil:
+			// A delivery is already queued for this profile, so nothing to record.
+			return nil
+		case *row.Status == fleet.MDMDeliveryVerified:
+			return nil
+		case row.Retries < mdm.MaxWindowsProfileRetries:
+			if _, err := tx.ExecContext(ctx, retryStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
+				return ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
+			}
+			retried = true
+		default:
+			if _, err := tx.ExecContext(ctx, failStmt,
+				fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+			}
 		}
 
 		// This path only updates a profile row, so no rollup row can be orphaned.
@@ -1556,6 +1605,10 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUI
 		}
 		return nil
 	})
+	if err != nil {
+		return false, err
+	}
+	return retried, nil
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
