@@ -523,8 +523,12 @@ func TestE2EStatsStartAtZero(t *testing.T) {
 
 	assert.Positive(t, stats.Goroutines)
 	assert.Positive(t, stats.FDLimit, "RLIMIT_NOFILE should always be readable")
-	assert.GreaterOrEqual(t, stats.OpenFDs, -1)
 	assert.GreaterOrEqual(t, stats.OSThreads, -1)
+
+	// Counting descriptors is opt-in because it costs tens of seconds at load,
+	// so a plain /stats must not carry it. Anything watching a running test
+	// polls this endpoint, and it has to stay cheap.
+	assert.Nil(t, stats.OpenFDs, "open_fds must be absent unless ?fds=1 asks for it")
 }
 
 func TestE2EKeepalive(t *testing.T) {

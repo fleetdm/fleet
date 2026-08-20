@@ -46,7 +46,7 @@ func main() {
 		if r := recover(); r != nil {
 			logger.ErrorContext(ctx, "fatal: unrecovered panic in main",
 				"panic", r, "stack", string(debug.Stack()),
-				"connected", st.connected.Load(), "open_fds", openFDs(), "os_threads", osThreads())
+				"connected", st.connected.Load(), "os_threads", osThreads())
 			flushLogs()
 			os.Exit(2)
 		}
@@ -60,9 +60,14 @@ func main() {
 	signal.Notify(sigC, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-sigC
+		// Nothing expensive on this path. ECS sends SIGKILL a fixed interval
+		// after SIGTERM (30s by default), and counting descriptors takes tens
+		// of seconds at 140k streams, so sampling them here would get the
+		// process killed before flushLogs could ship the one line that proves
+		// the stop was orchestrator-initiated rather than a crash.
 		logger.ErrorContext(ctx, "received termination signal, exiting",
 			"signal", sig.String(), "connected", st.connected.Load(),
-			"open_fds", openFDs(), "os_threads", osThreads())
+			"os_threads", osThreads())
 		flushLogs()
 		os.Exit(128 + int(sig.(syscall.Signal)))
 	}()
@@ -122,7 +127,7 @@ func main() {
 	err = server.Serve(&resilientListener{Listener: lst, logger: logger, errs: &st.acceptErrors})
 	logger.ErrorContext(ctx, "server stopped serving", "error", err,
 		"connected", st.connected.Load(), "accept_errors", st.acceptErrors.Load(),
-		"open_fds", openFDs(), "os_threads", osThreads())
+		"os_threads", osThreads())
 	flushLogs()
 	os.Exit(1)
 }
@@ -140,11 +145,20 @@ func flushLogs() {
 // it, so a task killed while holding 140k streams left no record of what it
 // was doing.
 //
-// open_fds and os_threads earn their place: either can hit a hard ceiling
-// while CPU and memory stay flat, and neither appears in container metrics. A
-// descriptor limit stops new connections while existing streams keep working,
-// and passing the runtime's 10,000-thread limit is a fatal error rather than a
-// panic.
+// os_threads earns its place: it can hit a hard ceiling while CPU and memory
+// stay flat, it never appears in container metrics, and passing the runtime's
+// 10,000-thread limit is a fatal error rather than a panic. It is also cheap,
+// being one small read of /proc/self/status.
+//
+// Everything here has to stay cheap. openFDs is deliberately absent: walking
+// /proc/self/fd is O(descriptors) and contends with the file table that every
+// accept and close needs, which at 140k streams under an active ramp took
+// 30-60 seconds. On a 30s ticker that ran essentially continuously, starving
+// the accept path badly enough to fail a 6s health check -- the telemetry
+// causing the outage it was meant to explain. fd_limit is kept because it is a
+// single getrlimit and it answers the only question that mattered, whether the
+// platform actually granted the limit the task definition asked for. Ask for a
+// live count explicitly with GET /stats?fds=1, and expect it to be slow.
 func logStats(ctx context.Context, logger *slog.Logger, st *store) {
 	heap, stacks, inUse := runtimeMem()
 	logger.InfoContext(ctx, "stats",
@@ -158,7 +172,6 @@ func logStats(ctx context.Context, logger *slog.Logger, st *store) {
 		"accept_errors", st.acceptErrors.Load(),
 		"goroutines", runtime.NumGoroutine(),
 		"os_threads", osThreads(),
-		"open_fds", openFDs(),
 		"fd_limit", fdLimit(),
 		"heap_bytes", heap,
 		"stack_bytes", stacks,

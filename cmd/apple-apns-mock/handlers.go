@@ -374,15 +374,23 @@ type statsResponse struct {
 	// memory, so none of this shows up in container metrics.
 	AcceptErrors int    `json:"accept_errors"`
 	Goroutines   int    `json:"goroutines"`
-	OSThreads    int    `json:"os_threads"` // -1 where unavailable; the runtime kills the process past 10,000
-	OpenFDs      int    `json:"open_fds"`   // -1 where unavailable (no /proc)
-	FDLimit      uint64 `json:"fd_limit"`   // soft RLIMIT_NOFILE actually granted, which may not be what was asked for
+	OSThreads    int    `json:"os_threads"`         // -1 where unavailable; the runtime kills the process past 10,000
+	OpenFDs      *int   `json:"open_fds,omitempty"` // only with ?fds=1, see statsHandler. -1 where unavailable (no /proc)
+	FDLimit      uint64 `json:"fd_limit"`           // soft RLIMIT_NOFILE actually granted, which may not be what was asked for
 }
 
 // statsHandler serves GET /stats — the store's counters as JSON, for
 // watching a load test (connected clients, delivered vs stored vs coalesced
 // vs expired pushes).
-func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
+//
+// Everything here is an atomic load or a single syscall, so polling it during a
+// run is free. open_fds is the exception and is opt-in behind ?fds=1: counting
+// descriptors walks /proc/self/fd, which is O(descriptors) and contends with
+// the file table every accept and close needs. At 140k streams that made this
+// endpoint take 30-60 seconds, and the contention was enough to push keepalive
+// writes past their write deadline, so polling /stats was itself tearing down
+// streams. Ask for the count when you need it, knowing what it costs.
+func statsHandler(w http.ResponseWriter, r *http.Request, st *store) {
 	w.Header().Set("Content-Type", "application/json")
 	stats := statsResponse{
 		ActiveConnections:  int(st.connected.Load()),
@@ -395,8 +403,10 @@ func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
 		AcceptErrors:       int(st.acceptErrors.Load()),
 		Goroutines:         runtime.NumGoroutine(),
 		OSThreads:          osThreads(),
-		OpenFDs:            openFDs(),
 		FDLimit:            fdLimit(),
+	}
+	if r.URL.Query().Get("fds") == "1" {
+		stats.OpenFDs = new(openFDs())
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -414,30 +424,41 @@ func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
 // 40k-connection run by 3x. Divide these by /stats active_connections for a
 // per-connection number that means something.
 type memStatsResponse struct {
-	Goroutines int    `json:"goroutines"`   // ~1 per live SSE stream, plus a handful of runtime and accept goroutines
-	OSThreads  int    `json:"os_threads"`   // not the goroutine count; the runtime kills the process past 10,000. -1 where unavailable
-	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage unless ?gc=1
-	StackBytes uint64 `json:"stack_bytes"`  // goroutine stacks
-	InUseBytes uint64 `json:"in_use_bytes"` // everything the runtime holds minus what it has released to the OS
-	OpenFDs    int    `json:"open_fds"`     // one per live stream; the ceiling that stops new connections while existing ones keep working. -1 where unavailable
-	FDLimit    uint64 `json:"fd_limit"`     // soft RLIMIT_NOFILE actually granted, which is not always what the task definition asked for
+	Goroutines int    `json:"goroutines"`         // ~1 per live SSE stream, plus a handful of runtime and accept goroutines
+	OSThreads  int    `json:"os_threads"`         // not the goroutine count; the runtime kills the process past 10,000. -1 where unavailable
+	HeapBytes  uint64 `json:"heap_bytes"`         // heap objects; includes uncollected garbage unless ?gc=1
+	StackBytes uint64 `json:"stack_bytes"`        // goroutine stacks
+	InUseBytes uint64 `json:"in_use_bytes"`       // everything the runtime holds minus what it has released to the OS
+	OpenFDs    *int   `json:"open_fds,omitempty"` // only with ?fds=1; counting them costs 30-60s at 140k streams, see statsHandler
+	FDLimit    uint64 `json:"fd_limit"`           // soft RLIMIT_NOFILE actually granted, which is not always what the task definition asked for
 }
 
 func memStatsHandler(w http.ResponseWriter, r *http.Request) {
+	// ?gc=1 collects first so heap_bytes reflects live data rather than live
+	// data plus whatever garbage has accumulated since the last cycle. This
+	// endpoint has always documented the parameter; it just never acted on it.
+	if r.URL.Query().Get("gc") == "1" {
+		runtime.GC()
+	}
+
 	heap, stacks, inUse := runtimeMem()
 
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(memStatsResponse{
+	resp := memStatsResponse{
 		Goroutines: runtime.NumGoroutine(),
 		OSThreads:  osThreads(),
 		HeapBytes:  heap,
 		StackBytes: stacks,
 		InUseBytes: inUse,
-		OpenFDs:    openFDs(),
 		FDLimit:    fdLimit(),
-	}); err != nil {
+	}
+	if r.URL.Query().Get("fds") == "1" {
+		resp.OpenFDs = new(openFDs())
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(resp); err != nil {
 		http.Error(w, "Failed to encode memstats", http.StatusInternalServerError)
 		return
 	}
