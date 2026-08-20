@@ -131,6 +131,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
+		{"ListHostSoftwarePackageHasUninstallScript", testListHostSoftwarePackageHasUninstallScript},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
 		{"ListHostSoftwareFMAReplacedInstallerOutOfScope", testListHostSoftwareFMAReplacedInstallerOutOfScope},
 		{"ListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata", testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata},
@@ -12106,6 +12107,81 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	require.False(t, foundSh, ".sh package should NOT be visible to windows host")
 	require.False(t, foundPy, ".py package should NOT be visible to windows host")
 	require.False(t, foundDeb, ".deb package should NOT be visible to windows host")
+}
+
+// testListHostSoftwarePackageHasUninstallScript verifies that the
+// package_has_uninstall_script flag flows from script_contents through
+// ListHostSoftware. Empty uninstall scripts (which script-only and .tgz
+// packages can carry when the uploader omits one) should surface false;
+// non-empty ones — including the defaults msi/pkg/deb/rpm/exe get on
+// upload — should surface true.
+func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "linux-host", "", "hukey", "huuuid", time.Now(), test.WithPlatform("ubuntu"))
+	nanoEnroll(t, ds, host, false)
+	user := test.NewUser(t, ds, "u", "u@example.com", true)
+
+	newInstaller := func(title, source, ext, filename, storage, uninstall string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("payload-"+title), t.TempDir)
+		require.NoError(t, err)
+		_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "echo install",
+			UninstallScript: uninstall,
+			InstallerFile:   tfr,
+			StorageID:       storage,
+			Filename:        filename,
+			Title:           title,
+			Version:         "1.0.0",
+			Source:          source,
+			Platform:        "linux",
+			Extension:       ext,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+
+	// .tgz + empty uninstall (this PR's bug case for .tgz)
+	tgzNoID := newInstaller("tgz-none", "tgz_packages", "tar.gz", "no-uninst.tar.gz", "s-tgz-none", "")
+	// .tgz + real uninstall (this PR's fix case for .tgz)
+	tgzWithID := newInstaller("tgz-with", "tgz_packages", "tar.gz", "with-uninst.tar.gz", "s-tgz-with", "echo uninstall")
+	// script-only .sh + empty uninstall (this PR's bug case for script-only)
+	shNoID := newInstaller("sh-none", "sh_packages", "sh", "no-uninst.sh", "s-sh-none", "")
+	// script-only .sh + real uninstall
+	shWithID := newInstaller("sh-with", "sh_packages", "sh", "with-uninst.sh", "s-sh-with", "echo uninstall")
+	// .deb stands in for the msi/pkg/deb/rpm/exe extensions that always
+	// carry a default uninstall script from the upload layer.
+	debID := newInstaller("deb-default", "deb_packages", "deb", "installer.deb", "s-deb", "dpkg -r installer")
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+
+	expect := map[uint]bool{
+		tgzNoID:   false,
+		tgzWithID: true,
+		shNoID:    false,
+		shWithID:  true,
+		debID:     true,
+	}
+	seen := make(map[uint]bool, len(expect))
+	for _, s := range sw {
+		want, ok := expect[s.ID]
+		if !ok {
+			continue
+		}
+		seen[s.ID] = true
+		require.NotNil(t, s.SoftwarePackage, "title %d missing SoftwarePackage", s.ID)
+		require.NotNil(t, s.SoftwarePackage.HasUninstallScript, "title %d missing HasUninstallScript", s.ID)
+		require.Equal(t, want, *s.SoftwarePackage.HasUninstallScript, "title %d has_uninstall_script mismatch", s.ID)
+	}
+	for id := range expect {
+		require.True(t, seen[id], "title %d not returned by ListHostSoftware", id)
+	}
 }
 
 // testListHostSoftwarePaginationWithMultipleInstallers verifies that pagination metadata

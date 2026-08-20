@@ -953,7 +953,8 @@ type SoftwarePackageOrApp struct {
 	SelfService *bool  `json:"self_service,omitempty"`
 	// HasUninstallScript indicates whether the installer has a non-empty
 	// uninstall script configured. Only populated for software installers,
-	// not for VPP or in-house apps.
+	// not for VPP or in-house apps — and only on host software responses;
+	// the /software/titles endpoints omit the field.
 	HasUninstallScript *bool                  `json:"has_uninstall_script,omitempty"`
 	LastInstall        *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall      *HostSoftwareUninstall `json:"last_uninstall"`
