@@ -2024,61 +2024,59 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 	// cast already parsed controls to it's type
 	macOSSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
-	if !ok {
-		// TODO: what to do here?
-	}
-	for _, item := range macOSSettings.CustomSettings {
-		// each entry has already been expanded so we can expect a single path
-		if item.Path == "" {
-			multiError = multierror.Append(multiError, errors.New("macos_settings.configuration_profiles[]: path is required for each profile"))
-			continue
-		}
+	if ok {
+		for _, item := range macOSSettings.CustomSettings {
+			// each entry has already been expanded so we can expect a single path
+			if item.Path == "" {
+				multiError = multierror.Append(multiError, errors.New("macos_settings.configuration_profiles[]: path is required for each profile"))
+				continue
+			}
 
-		if !strings.HasSuffix(item.Path, ".mobileconfig") {
-			// no-op and skip silently
-			continue
-		}
+			if !strings.HasSuffix(item.Path, ".mobileconfig") {
+				// no-op and skip silently
+				continue
+			}
 
-		// next we need to read the file, parse it and
-		fileBytes, err := resolveAndReturnFileBytes(item.Path)
-		if err != nil {
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to resolve and read file %s: %v", item.Path, err))
-			continue
-		}
+			// next we need to read the file, parse it and
+			fileBytes, err := resolveAndReturnFileBytes(item.Path)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to resolve and read file %s: %v", item.Path, err))
+				continue
+			}
 
-		// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
-		mc := mobileconfig.Mobileconfig(fileBytes)
-		parsed, err := mc.ParseConfigProfile()
-		if err != nil {
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to parse mobileconfig file %s: %v", item.Path, err))
-			continue
-		}
-		if parsed.PayloadDisplayName == "" {
-			multiError = multierror.Append(multiError, fmt.Errorf("mobileconfig file %s is missing PayloadDisplayName", item.Path))
-			continue
-		}
+			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
+			mc := mobileconfig.Mobileconfig(fileBytes)
+			parsed, err := mc.ParseConfigProfile()
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse mobileconfig file %s: %v", item.Path, err))
+				continue
+			}
+			if parsed.PayloadDisplayName == "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("mobileconfig file %s is missing PayloadDisplayName", item.Path))
+				continue
+			}
 
-		definedProfileNames[parsed.PayloadDisplayName] = struct{}{}
+			definedProfileNames[parsed.PayloadDisplayName] = struct{}{}
+		}
 	}
 
 	windowsSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
-	if !ok {
-		// TODO: what to do here?
-	}
-	for _, item := range windowsSettings.CustomSettings.Value {
-		// each entry has already been expanded so we can expect a single path
-		if item.Path == "" {
-			multiError = multierror.Append(multiError, errors.New("windows_settings.configuration_profiles[]: path is required for each profile"))
-			continue
-		}
+	if ok {
+		for _, item := range windowsSettings.CustomSettings.Value {
+			// each entry has already been expanded so we can expect a single path
+			if item.Path == "" {
+				multiError = multierror.Append(multiError, errors.New("windows_settings.configuration_profiles[]: path is required for each profile"))
+				continue
+			}
 
-		if !strings.HasSuffix(item.Path, ".xml") {
-			// no-op and skip silently
-			continue
-		}
+			if !strings.HasSuffix(item.Path, ".xml") {
+				// no-op and skip silently
+				continue
+			}
 
-		// windows profile names come from the file name without the extension
-		definedProfileNames[strings.TrimSuffix(filepath.Base(item.Path), ".xml")] = struct{}{}
+			// windows profile names come from the file name without the extension
+			definedProfileNames[strings.TrimSuffix(filepath.Base(item.Path), ".xml")] = struct{}{}
+		}
 	}
 
 	// Validate unknown keys in policies section.
