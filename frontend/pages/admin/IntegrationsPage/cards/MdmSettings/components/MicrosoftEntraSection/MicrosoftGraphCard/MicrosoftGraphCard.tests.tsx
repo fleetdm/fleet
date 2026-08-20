@@ -1,77 +1,66 @@
 import React from "react";
-import noop from "lodash/noop";
+import { screen } from "@testing-library/react";
 
-import { render, screen } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import MicrosoftGraphCard from "./MicrosoftGraphCard";
 
-describe("MicrosoftGraphCard", () => {
-  it("prompts to connect when no credential is stored", async () => {
-    render(
+const COPY = {
+  connect:
+    "Add a Microsoft Entra app registration to sync Windows Autopilot devices to Fleet as pending hosts.",
+  connected: "Microsoft Graph connected.",
+  invalid:
+    "Microsoft Graph credential is invalid. Windows Autopilot devices won't sync to Fleet as pending hosts.",
+  unavailable: "Couldn't load the Microsoft Graph connection status.",
+};
+
+const renderCard = (
+  props: Partial<React.ComponentProps<typeof MicrosoftGraphCard>> = {}
+) => {
+  const viewDetails = jest.fn();
+  return {
+    viewDetails,
+    ...renderWithSetup(
       <MicrosoftGraphCard
         credentialAdded={false}
         credentialInvalid={false}
-        viewDetails={noop}
+        viewDetails={viewDetails}
+        {...props}
       />
-    );
+    ),
+  };
+};
 
-    expect(
-      await screen.findByRole("button", { name: "Connect" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/sync Windows Autopilot devices to Fleet/i)
-    ).toBeInTheDocument();
+describe("MicrosoftGraphCard", () => {
+  it("prompts to connect when no credential is stored", async () => {
+    const { user, viewDetails } = renderCard();
+
+    expect(screen.getByText(COPY.connect)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    expect(viewDetails).toHaveBeenCalled();
   });
 
   it("renders the connected state when a healthy credential is stored", async () => {
-    render(
-      <MicrosoftGraphCard
-        credentialAdded
-        credentialInvalid={false}
-        viewDetails={noop}
-      />
-    );
+    const { user, viewDetails } = renderCard({ credentialAdded: true });
 
-    expect(
-      await screen.findByRole("button", { name: "Edit" })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Microsoft Graph connected.")).toBeInTheDocument();
+    expect(screen.getByText(COPY.connected)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(viewDetails).toHaveBeenCalled();
   });
 
-  it("calls out an invalid credential rather than showing it as connected", async () => {
-    render(
-      <MicrosoftGraphCard
-        credentialAdded
-        credentialInvalid
-        viewDetails={noop}
-      />
-    );
+  it("calls out an invalid credential rather than showing it as connected", () => {
+    renderCard({ credentialAdded: true, credentialInvalid: true });
 
-    expect(
-      await screen.findByText(/Microsoft Graph credential is invalid/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("Microsoft Graph connected.")
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(COPY.invalid)).toBeInTheDocument();
+    expect(screen.queryByText(COPY.connected)).not.toBeInTheDocument();
     // Still editable, so the admin can fix it from here.
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
   });
 
-  it("reports unknown status rather than Connect when the lookup failed", async () => {
-    render(
-      <MicrosoftGraphCard
-        credentialAdded={false}
-        credentialInvalid={false}
-        credentialStatusUnavailable
-        viewDetails={noop}
-      />
-    );
+  it("reports unknown status rather than Connect when the lookup failed", () => {
+    renderCard({ credentialStatusUnavailable: true });
 
-    expect(
-      await screen.findByText(
-        /Couldn't load the Microsoft Graph connection status/i
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(COPY.unavailable)).toBeInTheDocument();
     // Claiming "Connect" here would misreport a configured tenant as disconnected.
     expect(
       screen.queryByRole("button", { name: "Connect" })
