@@ -8060,16 +8060,18 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	}
 	expectedInstallers := map[string]*fleet.SoftwarePackageOrApp{
 		installer1.Filename: {
-			Name:        installer1.Filename,
-			Version:     installer1.Version,
-			Platform:    installer1.Platform,
-			SelfService: ptr.Bool(false),
+			Name:               installer1.Filename,
+			Version:            installer1.Version,
+			Platform:           installer1.Platform,
+			SelfService:        ptr.Bool(false),
+			HasUninstallScript: ptr.Bool(true),
 		},
 		selfServiceinstaller.Filename: {
-			Name:        selfServiceinstaller.Filename,
-			Version:     selfServiceinstaller.Version,
-			Platform:    selfServiceinstaller.Platform,
-			SelfService: ptr.Bool(true),
+			Name:               selfServiceinstaller.Filename,
+			Version:            selfServiceinstaller.Version,
+			Platform:           selfServiceinstaller.Platform,
+			SelfService:        ptr.Bool(true),
+			HasUninstallScript: ptr.Bool(true),
 		},
 	}
 
@@ -8237,10 +8239,11 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expectedInstallers[installer2.Filename] = &fleet.SoftwarePackageOrApp{
-		Name:        installer2.Filename,
-		Version:     installer2.Version,
-		Platform:    installer2.Platform,
-		SelfService: ptr.Bool(false),
+		Name:               installer2.Filename,
+		Version:            installer2.Version,
+		Platform:           installer2.Platform,
+		SelfService:        ptr.Bool(false),
+		HasUninstallScript: ptr.Bool(true),
 	}
 
 	// There's 2 installers now: installerID1 and installerID2 (because it has no labels associated)
@@ -8308,10 +8311,11 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 
 	time.Sleep(time.Second)
 	expectedInstallers[installer3.Filename] = &fleet.SoftwarePackageOrApp{
-		Name:        installer3.Filename,
-		Version:     installer3.Version,
-		Platform:    installer3.Platform,
-		SelfService: ptr.Bool(false),
+		Name:               installer3.Filename,
+		Version:            installer3.Version,
+		Platform:           installer3.Platform,
+		SelfService:        ptr.Bool(false),
+		HasUninstallScript: ptr.Bool(true),
 	}
 
 	// Add a new label and apply it to the installer. There are no hosts with this label.
@@ -9278,10 +9282,11 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	}
 	expectedInstallers := map[string]*fleet.SoftwarePackageOrApp{
 		installer1.Filename: {
-			Name:        installer1.Filename,
-			Version:     installer1.Version,
-			SelfService: ptr.Bool(false),
-			Platform:    "darwin",
+			Name:               installer1.Filename,
+			Version:            installer1.Version,
+			SelfService:        ptr.Bool(false),
+			Platform:           "darwin",
+			HasUninstallScript: ptr.Bool(true),
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
