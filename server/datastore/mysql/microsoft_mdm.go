@@ -1611,20 +1611,26 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 	return retried, nil
 }
 
-// ResendWindowsHostCertificateProfile queues a Windows certificate profile for redelivery and gives it a full retry
-// budget back. It is for the cases where Fleet decided the delivery could not have succeeded, not where the host
-// reported a failure: an NDES challenge that aged past its window before the device got to PKIOperation, or a custom
-// SCEP challenge Fleet would not accept. The host never had the chance to install anything, so the attempt must not
-// count against the retries that exist to bound genuine failures.
+// ResendWindowsHostCertificateProfile queues a Windows certificate profile for redelivery after Fleet turned a SCEP
+// request away: an NDES challenge that aged past its window before the device got to PKIOperation, or a custom SCEP
+// challenge Fleet would not accept. The host never had a usable profile to install, so this is not one of the failures
+// the retry budget exists to bound, and nothing is charged for it. Note that the charge would not happen anyway: a
+// challenge that fails validateIdentifier returns before PKIOperation reaches the CA, so no upstream failure is ever
+// recorded for it.
 //
-// This deliberately differs from ResendHostMDMProfile, the admin-initiated Resend, which preserves the counter.
+// It deliberately does NOT reset the counter, which is where it parts company with the Apple equivalent. The Windows
+// SCEP CSP retries the exchange on its own schedule using the challenge baked into the profile it already holds, so
+// right after a redelivery Fleet reliably sees one of those late requests carrying the superseded challenge and
+// rejects it. Zeroing the counter there would hand the profile a fresh budget on every cycle and it would never reach
+// a terminal state, no matter how many times the CA actually failed. Apple has no equivalent exposure because its
+// profile install is atomic and the device does not re-drive SCEP by itself.
 //
-// Unlike the Apple counterpart there is no queued command to deactivate: the profile manager writes a new command UUID
-// onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
+// Unlike the Apple counterpart there is also no queued command to deactivate: the profile manager writes a new command
+// UUID onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
 func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	const stmt = `
 		UPDATE host_mdm_windows_profiles
-		SET status = NULL, detail = '', retries = 0
+		SET status = NULL, detail = ''
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {

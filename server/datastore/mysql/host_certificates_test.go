@@ -384,12 +384,15 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	})
 
 	// A challenge Fleet turned away (expired NDES password, rejected custom SCEP challenge) is not an install the host
-	// failed, so redelivering it hands the profile a full budget back. Contrast ResendHostMDMProfile, the
-	// admin-initiated Resend, which deliberately preserves the counter.
-	t.Run("certificate profile resend gives the retries back", func(t *testing.T) {
+	// failed, so nothing is charged for it. It must not hand the budget back either: the Windows SCEP CSP re-drives the
+	// exchange on its own using the challenge in the profile it already holds, so Fleet sees a request carrying the
+	// superseded challenge shortly after every redelivery. Resetting there would refill the budget on each cycle and
+	// the profile would never reach a terminal state however often the CA failed. Observed live on a Windows 11 host:
+	// retries went 0 -> 1 -> 0 -> 1 and never converged.
+	t.Run("certificate profile resend neither charges nor refills the retries", func(t *testing.T) {
 		h := mkHost(t, "resend-cert")
 		p := "w-resend-cert"
-		upsertWinProfile(t, h, p, "cmd-resend-cert", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries)
+		upsertWinProfile(t, h, p, "cmd-resend-cert", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries-1)
 		_, err := ds.writer(ctx).ExecContext(ctx,
 			`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
 			"SCEP PKIOperation failed: HTTP 500", h.UUID, p)
@@ -400,8 +403,23 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		status, detail, retries := getProfile(t, h, p)
 		require.Empty(t, status)
 		require.Empty(t, detail)
-		require.Equal(t, 0, retries)
+		require.Equal(t, mdm.MaxWindowsProfileRetries-1, retries)
 		require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[h.UUID])
+
+		// The budget still runs out. Each step redelivers first (status back to verifying) so the failure is judged on
+		// the retry count and not short-circuited by the already-queued guard.
+		upsertWinProfile(t, h, p, "cmd-resend-cert-2", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries-1)
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		require.NoError(t, err)
+		require.True(t, retried)
+
+		upsertWinProfile(t, h, p, "cmd-resend-cert-3", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
+		retried, err = ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		require.NoError(t, err)
+		require.False(t, retried, "a challenge resend must not have refilled the budget")
+		status, detail, _ = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryFailed, status)
+		require.Equal(t, scepFailDetail, detail)
 	})
 
 	// The other half of that contrast, pinned because the two resends now sit next to each other and differ only in

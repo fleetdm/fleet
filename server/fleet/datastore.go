@@ -3486,10 +3486,11 @@ type Datastore interface {
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
-	// ResendWindowsHostCertificateProfile is the Windows counterpart of ResendHostCertificateProfile: it marks the
-	// given Windows profile to be resent to the given host and resets its retry counter, for the cases where Fleet
-	// itself decided the delivery cannot succeed (an expired or rejected SCEP challenge) rather than the host having
-	// failed to install anything.
+	// ResendWindowsHostCertificateProfile marks the given Windows profile to be resent to the given host after Fleet
+	// turned a SCEP request away (an expired or rejected challenge) rather than the host having failed to install
+	// anything. Nothing is charged against the retry budget, and unlike the Apple counterpart the counter is not reset
+	// either: the Windows SCEP CSP re-drives the exchange on its own with the superseded challenge, so resetting would
+	// stop the profile ever reaching a terminal state.
 	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
