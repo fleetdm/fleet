@@ -282,8 +282,8 @@ const SaveNewQueryModal = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Automations and reporting will be paused <br />
-                      for this report until an interval is set.
+                      Automations and reporting will be paused for this report
+                      until an interval is set.
                     </>
                   }
                   position="right"

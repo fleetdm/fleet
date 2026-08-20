@@ -5403,9 +5403,11 @@ func (s *integrationTestSuite) TestLabels() {
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
 
-		// create invalid label, conflicts with builtin name
+		// create invalid label, conflicts with builtin name (case-insensitive)
 		for n := range builtinsMap {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToLower(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
+			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToUpper(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
 		// try to create a label with an invalid platform
@@ -5514,6 +5516,8 @@ func (s *integrationTestSuite) TestLabels() {
 		// attempt to modify a label to a reserved name
 		for n := range builtinsMap {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToLower(n))}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToUpper(n))}, http.StatusUnprocessableEntity, &modResp)
 		}
 
 		// modify a non-existing label
@@ -5628,6 +5632,23 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Len(t, listHostsResp.Hosts, 2)
 		assert.Equal(t, lbl2Hosts[1].ID, listHostsResp.Hosts[0].ID)
 		assert.Equal(t, lbl2Hosts[2].ID, listHostsResp.Hosts[1].ID)
+
+		// a dynamic label's membership cannot be replaced, and an empty list is a
+		// replacement too (it would clear all of its members)
+		for _, payload := range []fleet.ModifyLabelPayload{
+			{HostIDs: []uint{}},
+			{HostIDs: []uint{lbl2Hosts[0].ID}},
+			{Hosts: []string{}},
+			{Hosts: []string{lbl2Hosts[0].UUID}},
+		} {
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl2.ID), &payload, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, `"hosts" or "host_ids" can only be provided for a manual label`)
+		}
+
+		listHostsResp = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp)
+		assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts))
 
 		// list hosts in manual label 1
 		listHostsResp = listHostsResponse{}
@@ -5795,6 +5816,24 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// delete a non-existing label by name
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
+
+		// delete a built-in label by name (case-insensitive)
+		for n := range builtinsMap {
+			for _, variant := range []string{n, strings.ToLower(n), strings.ToUpper(n)} {
+				res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(variant)), nil, http.StatusUnprocessableEntity)
+				errMsg = extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "cannot delete built-in label")
+			}
+		}
+		listResp = fleet.ListLabelsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
+		var remainingBuiltIns int
+		for _, lbl := range listResp.Labels {
+			if _, ok := builtinsMap[lbl.Name]; ok {
+				remainingBuiltIns++
+			}
+		}
+		require.Equal(t, len(builtinsMap), remainingBuiltIns)
 
 		// delete a manual label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)
@@ -11101,7 +11140,59 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		}
 	}
 
-	// with a label id
+	var putDMResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID),
+		putHostDeviceMappingRequest{Email: "=1+1", Source: "custom"}, http.StatusOK, &putDMResp)
+
+	deviceMappingForHost0 := func(cols string) ([]string, string) {
+		res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", cols)
+		rows, err := csv.NewReader(res.Body).ReadAll()
+		res.Body.Close()
+		require.NoError(t, err)
+		require.Len(t, rows, len(hosts)+1)
+
+		idIx, dmIx := -1, -1
+		for i, hdr := range rows[0] {
+			switch hdr {
+			case "id":
+				idIx = i
+			case "device_mapping":
+				dmIx = i
+			}
+		}
+		require.NotEqual(t, -1, idIx)
+		require.NotEqual(t, -1, dmIx)
+
+		for _, row := range rows[1:] {
+			if row[idIx] == fmt.Sprint(hosts[0].ID) {
+				return rows[0], row[dmIx]
+			}
+		}
+		t.Fatalf("no row found for host %d", hosts[0].ID)
+		return nil, ""
+	}
+
+	reqCols := []string{"id", "display_name", "device_mapping"}
+	hdr, cell := deviceMappingForHost0(strings.Join(reqCols, ","))
+	require.Equal(t, reqCols, hdr)
+	require.Equal(t, "'=1+1", cell)
+
+	hdr, cell = deviceMappingForHost0("")
+	require.Greater(t, len(hdr), len(reqCols))
+	require.Equal(t, "'=1+1", cell)
+
+	adminToken := s.token
+	s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+	_, cell = deviceMappingForHost0(strings.Join(reqCols, ","))
+	require.Equal(t, "'=1+1", cell)
+	s.token = adminToken
+
+	require.Len(t, putDMResp.DeviceMapping, 1)
+	require.Equal(t, "=1+1", putDMResp.DeviceMapping[0].Email)
+
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID),
+		putHostDeviceMappingRequest{Email: ""}, http.StatusOK, &putDMResp)
+
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
@@ -17962,4 +18053,165 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
+}
+
+// TestOsqueryConfigPackCacheLabelScopedQueries verifies that the per-team pack
+// config cache does not serve one host's label-scoped query set to other hosts
+// of the same team. Reproduces the bug described in #51033.
+func (s *integrationTestSuite) TestOsqueryConfigPackCacheLabelScopedQueries() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Two teams so each ordering gets its own (cold) cache key.
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-B"})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(uuid.New().String()),
+			NodeKey:         new(uuid.New().String()),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostA1 := newHost("a1", &teamA.ID) // label member
+	hostA2 := newHost("a2", &teamA.ID) // not a member
+	hostB1 := newHost("b1", &teamB.ID) // label member
+	hostB2 := newHost("b2", &teamB.ID) // not a member
+
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "-label",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	for _, h := range []*fleet.Host{hostA1, hostB1} {
+		err = s.ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	scoped := []fleet.LabelIdent{{LabelName: label.Name}}
+
+	unscopedA, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-unscoped-A", TeamID: &teamA.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+	})
+	require.NoError(t, err)
+	scopedA, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-scoped-A", TeamID: &teamA.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+		LabelsIncludeAny: scoped,
+	})
+	require.NoError(t, err)
+	unscopedB, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-unscoped-B", TeamID: &teamB.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+	})
+	require.NoError(t, err)
+	scopedB, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name: t.Name() + "-scoped-B", TeamID: &teamB.ID, Interval: 30,
+		AutomationsEnabled: true, Logging: fleet.LoggingSnapshot,
+		Query: "SELECT * FROM time;", Saved: true,
+		LabelsIncludeAny: scoped,
+	})
+	require.NoError(t, err)
+
+	teamQueries := func(host *fleet.Host, teamID uint) map[string]any {
+		req := getClientConfigRequest{NodeKey: *host.NodeKey}
+		var resp getClientConfigResponse
+		s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
+		packs, ok := resp.Config["packs"].(map[string]any)
+		require.True(t, ok, "expected a packs key in the osquery config")
+		teamPack, ok := packs[fmt.Sprintf("team-%d", teamID)].(map[string]any)
+		require.True(t, ok, "expected a team pack in the osquery config")
+		return teamPack["queries"].(map[string]any)
+	}
+
+	// Team A: the label member calls GetClientConfig first (populates the cache).
+	queries := teamQueries(hostA1, teamA.ID)
+	require.Contains(t, queries, unscopedA.Name)
+	require.Contains(t, queries, scopedA.Name)
+
+	// The non-member must NOT receive the label-scoped query.
+	queries = teamQueries(hostA2, teamA.ID)
+	require.Contains(t, queries, unscopedA.Name)
+	require.NotContains(t, queries, scopedA.Name,
+		"host that is not a member of the label received the label-scoped query")
+
+	// Team B: the non-member calls GetClientConfig first (populates the cache).
+	queries = teamQueries(hostB2, teamB.ID)
+	require.Contains(t, queries, unscopedB.Name)
+	require.NotContains(t, queries, scopedB.Name,
+		"host that is not a member of the label received the label-scoped query")
+
+	// The label member must still receive its label-scoped query.
+	queries = teamQueries(hostB1, teamB.ID)
+	require.Contains(t, queries, unscopedB.Name)
+	require.Contains(t, queries, scopedB.Name,
+		"label member did not receive its label-scoped query")
+}
+
+func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	profileUUID := fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()
+
+	// Create: rejected at decode, before the profile is ever looked up.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID),
+		&fleet.TeamPolicyRequest{
+			Name:        "premium resend",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: new(profileUUID),
+		}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// Modify: same decode-time gate.
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "premium resend patch",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, pol.ID),
+		json.RawMessage(fmt.Sprintf(`{"profile_uuid": %q}`, profileUUID)), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+
+	// GitOps spec apply: explicit license check, so this one is a 402.
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:        "premium resend spec",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			Team:        team.Name,
+			ProfileUUID: new(profileUUID),
+		}},
+	}, http.StatusPaymentRequired)
+	require.Contains(t, extractServerErrorText(res.Body), "Requires Fleet Premium license")
+
+	// Without profile_uuid the same spec applies cleanly on a free license.
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:     "premium resend spec",
+			Query:    "SELECT 1;",
+			Platform: "darwin",
+			Team:     team.Name,
+		}},
+	}, http.StatusOK)
 }

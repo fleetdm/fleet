@@ -360,7 +360,7 @@
               I don't have an account
             </label>
           </div>
-          <ajax-form action="signup" purpose="modal-form" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="signupFormErrors" :form-data="signupFormData" :form-rules="signupFormRules" @submitted="submittedSignupForm()" v-if="formToDisplay === 'signup'">
+          <ajax-form action="signup" purpose="modal-form" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="signupFormErrors" :form-data="signupFormData" :form-rules="signupFormRules" @submitted="submittedSignupForm($event)" v-if="formToDisplay === 'signup'">
             <div class="form-group">
               <label purpose="modal-form-label" for="email-address">Work email *</label>
               <input tabindex="1" purpose="modal-form-input" class="form-control" id="email-address"  :class="[signupFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="signupFormData.emailAddress" @input="typeClearOneFormError('emailAddress')">

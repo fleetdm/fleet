@@ -307,8 +307,10 @@ const TAGGED_TEMPLATES = {
           <TooltipWrapper
             tipContent={
               <>
-                The host expiry window configured in <br />
-                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+                The host expiry window configured in{" "}
+                <strong>
+                  Settings &gt; Organization settings &gt; Advanced options
+                </strong>
               </>
             }
           >
@@ -1526,7 +1528,7 @@ const TAGGED_TEMPLATES = {
       source,
       self_service,
       from_setup_experience,
-      install_skipped_when_app_open,
+      skipped_install,
     } = details;
 
     const showSoftwarePackage =
@@ -1534,7 +1536,7 @@ const TAGGED_TEMPLATES = {
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-    if (install_skipped_when_app_open) {
+    if (skipped_install) {
       return (
         <>
           {" "}
@@ -1557,8 +1559,8 @@ const TAGGED_TEMPLATES = {
             isScriptPackageSource
           )}{" "}
           on <b>{hostName}</b>
-          {from_setup_experience ? " during setup experience" : ""}{" "}
-          (self-service).
+          {from_setup_experience ? " during setup experience" : ""} (self
+          service).
         </>
       );
     }
@@ -1599,7 +1601,7 @@ const TAGGED_TEMPLATES = {
           <b>{title}</b>
           {showSoftwarePackage && ` (${details.software_package})`}{" "}
           {getInstallUninstallStatusPredicatePassive(status)} on{" "}
-          <b>{hostName}</b> (self-service).
+          <b>{hostName}</b> (self service).
         </>
       );
     }
@@ -1627,7 +1629,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        <b>End user</b> installed all the software in self-service.
+        <b>End user</b> installed all the software in self service.
       </>
     );
   },

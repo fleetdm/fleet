@@ -719,6 +719,11 @@ func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtConte
 	}
 	res, err := tx.ExecContext(ctx, stmt, arg)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			if strings.Contains(err.Error(), "fk_policies_resend_apple_profile") {
+				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Couldn't delete. Policy automations use this profile. Please disable policy automations for this profile and try again."})
+			}
+		}
 		return ctxerr.Wrap(ctx, err)
 	}
 
@@ -2423,7 +2428,7 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
 		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
-		       profile_uuid, assign_profile_response, response_updated_at
+		       profile_uuid, assign_profile_response, response_updated_at, hardware_serial
 		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2622,6 +2627,32 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		return deleteHosts(ctx, tx, pendingHostIDs)
 	})
+}
+
+func (ds *Datastore) MarkHostDEPAssignmentDeleted(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_dep_assignments
+		SET deleted_at = NOW(), mdm_migration_deadline = NULL, mdm_migration_completed = NULL
+		WHERE host_id = ? AND deleted_at IS NULL`, hostID)
+	return ctxerr.Wrap(ctx, err, "mark host dep assignment deleted")
+}
+
+func (ds *Datastore) MarkHostDEPAssignmentsDeleted(ctx context.Context, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`
+		UPDATE host_dep_assignments
+		SET deleted_at = NOW(), mdm_migration_deadline = NULL, mdm_migration_completed = NULL
+		WHERE host_id IN (?) AND deleted_at IS NULL`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for marking host dep assignments deleted")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host dep assignments deleted")
+	}
+	return nil
 }
 
 func (ds *Datastore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fleet.Host) error {
@@ -2905,6 +2936,11 @@ ON DUPLICATE KEY UPDATE
 		return false, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 	}
 	if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+		if isMySQLForeignKey(err) {
+			if strings.Contains(err.Error(), "fk_policies_resend_apple_profile") {
+				return false, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Couldn't delete. Policy automations use one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again."})
+			}
+		}
 		return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 	}
 	if result != nil {
@@ -6995,6 +7031,21 @@ func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.Hos
 	return nil
 }
 
+func (ds *Datastore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error {
+	// A join and not `host_id = (SELECT id FROM hosts WHERE uuid = ?)`: hosts.uuid carries only a
+	// non-unique index, so cloned VMs and double-enrolled devices can share one, and a scalar
+	// subselect would raise ER_SUBQUERY_NO_1_ROW on exactly those hosts. Clearing the command for
+	// every host holding that UUID is right anyway, since the MDM enrollment is keyed by UUID.
+	const stmt = `
+		DELETE hmc FROM host_mdm_commands hmc
+		JOIN hosts h ON h.id = hmc.host_id
+		WHERE h.uuid = ? AND hmc.command_type = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, commandType); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands by host uuid")
+	}
+	return nil
+}
+
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
 	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
@@ -7342,6 +7393,113 @@ func (ds *Datastore) DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context
 
 		return nil
 	})
+}
+
+func (ds *Datastore) CancelHostMDMCommand(ctx context.Context, host *fleet.Host, commandUUID string) (string, error) {
+	var requestType string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Cancelable command types are only ever enqueued on the device
+		// channel, whose enrollment id is the host UUID — scoping on it also
+		// makes another host's command a not-found.
+		var cmd struct {
+			RequestType       string `db:"request_type"`
+			Active            bool   `db:"active"`
+			HasTerminalResult bool   `db:"has_terminal_result"`
+		}
+		const selStmt = `
+SELECT
+	nc.request_type,
+	neq.active,
+	EXISTS (
+		SELECT 1 FROM nano_command_results ncr
+		WHERE ncr.id = neq.id AND ncr.command_uuid = neq.command_uuid AND ncr.status != 'NotNow'
+	) AS has_terminal_result
+FROM nano_enrollment_queue neq
+JOIN nano_commands nc ON nc.command_uuid = neq.command_uuid
+WHERE neq.id = ? AND neq.command_uuid = ?`
+		switch err := sqlx.GetContext(ctx, tx, &cmd, selStmt, host.UUID, commandUUID); {
+		case errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, notFound("HostMDMCommand"))
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "get mdm command to cancel")
+		}
+		if !cmd.Active {
+			// consistent with the unified queue, a second cancel of the same
+			// command is a not-found
+			return ctxerr.Wrap(ctx, notFound("HostMDMCommand"))
+		}
+		if _, ok := fleet.CancelableAppleMDMRequestTypes[cmd.RequestType]; !ok {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Couldn't cancel. Only lock, wipe, and clear passcode commands can be canceled.",
+			})
+		}
+		if cmd.HasTerminalResult {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "Couldn't cancel. The command has already run on the host.",
+			})
+		}
+		requestType = cmd.RequestType
+
+		// The terminal-result guard is re-checked inside the UPDATE because
+		// StoreCommandReport writes nano_command_results without touching the
+		// queue row, so an in-flight result can land between the SELECT above
+		// and here. Whichever lands first wins: result first → the cancel
+		// aborts below and the normal ack pipeline proceeds untouched;
+		// deactivation first → the late ack takes the restore path in
+		// UpdateHostLockWipeStatusFromAppleMDMResult.
+		const cancelStmt = `
+UPDATE nano_enrollment_queue neq
+SET neq.active = 0
+WHERE neq.id = ? AND neq.command_uuid = ? AND neq.active = 1
+	AND NOT EXISTS (
+		SELECT 1 FROM nano_command_results ncr
+		WHERE ncr.id = neq.id AND ncr.command_uuid = neq.command_uuid AND ncr.status != 'NotNow'
+	)`
+		res, err := tx.ExecContext(ctx, cancelStmt, host.UUID, commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm command to cancel")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			// lost a race since the SELECT: either a terminal result landed
+			// (the command ran) or a concurrent cancel deactivated the row
+			var terminal bool
+			if err := sqlx.GetContext(ctx, tx, &terminal,
+				`SELECT EXISTS (SELECT 1 FROM nano_command_results WHERE id = ? AND command_uuid = ? AND status != 'NotNow')`,
+				host.UUID, commandUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "disambiguate mdm command cancel conflict")
+			}
+			if terminal {
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: "Couldn't cancel. The command has already run on the host.",
+				})
+			}
+			return ctxerr.Wrap(ctx, notFound("HostMDMCommand"))
+		}
+
+		// Clear the host's pending lock/wipe bookkeeping, but only when it
+		// points at this very command: raw commands sent via POST /commands/run
+		// never write host_mdm_actions, and a ref set by a newer command must
+		// not be touched. Only the matched columns are NULLed so the rest of
+		// the row (fleet_platform, other refs) survives.
+		var clearStmt string
+		switch cmd.RequestType {
+		case "DeviceLock", fleet.EnableLostModeCmdName:
+			clearStmt = `UPDATE host_mdm_actions SET lock_ref = NULL, unlock_pin = NULL WHERE host_id = ? AND lock_ref = ?`
+		case "EraseDevice":
+			clearStmt = `UPDATE host_mdm_actions SET wipe_ref = NULL WHERE host_id = ? AND wipe_ref = ?`
+		default:
+			// ClearPasscode has no host_mdm_actions reference on Apple hosts
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, clearStmt, host.ID, commandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear host_mdm_actions ref for canceled mdm command")
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return requestType, nil
 }
 
 func (ds *Datastore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {

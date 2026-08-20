@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -110,6 +111,7 @@ func TestLabels(t *testing.T) {
 		{"SetAsideLabels", testSetAsideLabels},
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
+		{"ApplyLabelSpecsCannotModifyBuiltInLabel", testApplyLabelSpecsCannotModifyBuiltInLabel},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
 		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
 		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
@@ -255,19 +257,21 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 		{ID: 9, Name: "bar7"},
 		{ID: 10, Name: "bar8"},
 		{ID: 11, Name: "bar9"},
-		{
-			ID:        12,
-			Name:      "All Hosts",
-			LabelType: fleet.LabelTypeBuiltIn,
-		},
 	}
 	err := db.ApplyLabelSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
+	// built-in labels are created by migrations; ApplyLabelSpecs refuses them, so create it here.
+	allHosts, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:      "All Hosts",
+		LabelType: fleet.LabelTypeBuiltIn,
+	})
+	require.NoError(t, err)
+
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
-	all, _, err := db.Label(context.Background(), specs[len(specs)-1].ID, filter)
+	all, _, err := db.Label(context.Background(), allHosts.ID, filter)
 	require.Nil(t, err)
 	l3, _, err := db.Label(context.Background(), specs[2].ID, filter)
 	require.Nil(t, err)
@@ -826,11 +830,36 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			},
 		},
 	}
-	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
+	// built-in labels are created by migrations; ApplyLabelSpecs refuses them, so create it here.
+	err := ds.ApplyLabelSpecs(context.Background(), regularLabelSpecs(expectedSpecs))
 	require.Nil(t, err)
+	for _, s := range expectedSpecs {
+		if s.LabelType != fleet.LabelTypeBuiltIn {
+			continue
+		}
+		_, err := ds.NewLabel(context.Background(), &fleet.Label{
+			Name:                s.Name,
+			Description:         s.Description,
+			Query:               s.Query,
+			Platform:            s.Platform,
+			LabelType:           s.LabelType,
+			LabelMembershipType: s.LabelMembershipType,
+		})
+		require.NoError(t, err)
+	}
 
 	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"} //nolint:gosec // dismiss G602
 	return expectedSpecs
+}
+
+func regularLabelSpecs(specs []*fleet.LabelSpec) []*fleet.LabelSpec {
+	regular := make([]*fleet.LabelSpec, 0, len(specs))
+	for _, s := range specs {
+		if s.LabelType != fleet.LabelTypeBuiltIn {
+			regular = append(regular, s)
+		}
+	}
+	return regular
 }
 
 func testLabelsGetSpec(t *testing.T, ds *Datastore) {
@@ -950,8 +979,8 @@ func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
 
-	// Should be idempotent
-	err = ds.ApplyLabelSpecs(context.Background(), globalSpecs)
+	// Should be idempotent for the regular specs; built-in ones are refused
+	err = ds.ApplyLabelSpecs(context.Background(), regularLabelSpecs(globalSpecs))
 	require.Nil(t, err)
 	specs, err = ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
@@ -1415,6 +1444,84 @@ func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
 				assert.Contains(t, queries, ubuntuKey, "expected ubuntu label for %s host", tc.platform)
 			} else {
 				assert.NotContains(t, queries, ubuntuKey, "did not expect ubuntu label for %s host", tc.platform)
+			}
+		})
+	}
+}
+
+func TestBuiltinLinuxLabelQueries(t *testing.T) {
+	db := CreateMySQLDS(t)
+	ctx := t.Context()
+	require.NoError(t, db.MigrateData(ctx))
+
+	type storedLabel struct {
+		Name     string `db:"name"`
+		Platform string `db:"platform"`
+		Query    string `db:"query"`
+	}
+	var stored []storedLabel
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &stored,
+			"SELECT name, platform, query FROM labels WHERE label_type = ?", fleet.LabelTypeBuiltIn)
+	})
+	require.NotEmpty(t, stored)
+
+	byName := make(map[string]storedLabel, len(stored))
+	for _, l := range stored {
+		byName[l.Name] = l
+		assert.Empty(t, l.Platform, "built-in label %q must not be scoped to a platform", l.Name)
+	}
+
+	sources := map[string]string{"database": byName[fleet.BuiltinLabelNameUbuntuLinux].Query}
+	for _, l := range data.Labels2() {
+		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
+			sources["data migration Labels2"] = l.Query
+		}
+	}
+	for _, l := range test.BuiltinLabels() {
+		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
+			sources["test.BuiltinLabels"] = l.Query
+		}
+	}
+	require.Len(t, sources, 3)
+	for name, query := range sources {
+		require.NotEmpty(t, query, "%s has no %s query", name, fleet.BuiltinLabelNameUbuntuLinux)
+		assert.Equal(t, sources["database"], query,
+			"the %s query in %q disagrees with the migrated database; every copy of it must be updated together",
+			fleet.BuiltinLabelNameUbuntuLinux, name)
+	}
+
+	for i, platform := range []string{
+		"ubuntu", "pop", "linuxmint", "zorin", "debian", "kali",
+		"rhel", "amzn", "opensuse-leap",
+	} {
+		t.Run(platform, func(t *testing.T) {
+			host, err := db.EnrollOsquery(ctx,
+				fleet.WithEnrollOsqueryHostID(fmt.Sprint(i)),
+				fleet.WithEnrollOsqueryNodeKey(fmt.Sprint(i)),
+			)
+			require.NoError(t, err)
+
+			host.Platform = platform
+			require.NoError(t, db.UpdateHost(ctx, host))
+
+			queries, err := db.LabelQueriesForHost(ctx, host)
+			require.NoError(t, err)
+
+			gotQueries := make(map[string]struct{}, len(queries))
+			for _, q := range queries {
+				gotQueries[q] = struct{}{}
+			}
+			for _, name := range []string{
+				fleet.BuiltinLabelNameUbuntuLinux,
+				fleet.BuiltinLabelNameCentOSLinux,
+				fleet.BuiltinLabelNameRedHatLinux,
+				fleet.BuiltinLabelFedoraLinux,
+				fleet.BuiltinLabelNameAllLinux,
+			} {
+				require.Contains(t, byName, name)
+				assert.Contains(t, gotQueries, byName[name].Query,
+					"expected built-in label %q to be distributed to a %q host", name, platform)
 			}
 		})
 	}
@@ -3814,6 +3921,80 @@ func testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam(t *testing.T, ds *Dat
 		{Name: "conflicting-label", Query: "SELECT 1 updated", TeamID: &team1.ID},
 	})
 	require.NoError(t, err)
+}
+
+func testApplyLabelSpecsCannotModifyBuiltInLabel(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	builtIn, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "All Hosts",
+		Description:         "All hosts enrolled in Fleet",
+		Query:               "select 1;",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	exact := fleet.LabelSpec{
+		Name:                "All Hosts",
+		Description:         "All hosts enrolled in Fleet",
+		Query:               "select 1;",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
+
+	for _, tc := range []struct {
+		name    string
+		spec    fleet.LabelSpec
+		wantErr string
+	}{
+		// a built-in spec is refused outright, so not even an unchanged one can reach
+		// the upsert
+		{
+			name:    "exact reapplication",
+			spec:    exact,
+			wantErr: "cannot modify or add built-in label 'All Hosts'",
+		},
+		{
+			name:    "changed query",
+			spec:    func() fleet.LabelSpec { s := exact; s.Query = "select 'BYPASSED';"; return s }(),
+			wantErr: "cannot modify or add built-in label 'All Hosts'",
+		},
+		{
+			name:    "built-in label that does not exist yet",
+			spec:    fleet.LabelSpec{Name: "Brand New Built In", Query: "select 1;", LabelType: fleet.LabelTypeBuiltIn},
+			wantErr: "cannot modify or add built-in label 'Brand New Built In'",
+		},
+		// a regular spec still resolves to the built-in row, by exact name or by a
+		// case variant the collation treats as equal
+		{
+			name:    "regular label with a built-in name",
+			spec:    fleet.LabelSpec{Name: "All Hosts", Query: "select 'BYPASSED';", LabelType: fleet.LabelTypeRegular},
+			wantErr: "cannot modify built-in label 'All Hosts'",
+		},
+		{
+			name:    "regular label with a case variant of a built-in name",
+			spec:    fleet.LabelSpec{Name: "all hosts", Query: "select 'BYPASSED';", LabelType: fleet.LabelTypeRegular},
+			wantErr: "cannot modify built-in label 'All Hosts'",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&tc.spec})
+			require.ErrorContains(t, err, tc.wantErr)
+
+			stored, _, err := ds.Label(ctx, builtIn.ID, fleet.TeamFilter{User: test.UserAdmin})
+			require.NoError(t, err)
+			require.Equal(t, "All Hosts", stored.Name)
+			require.Equal(t, "All hosts enrolled in Fleet", stored.Description)
+			require.Equal(t, "select 1;", stored.Query)
+			require.Empty(t, stored.Platform)
+			require.Equal(t, fleet.LabelTypeBuiltIn, stored.LabelType)
+			require.Equal(t, fleet.LabelMembershipTypeDynamic, stored.LabelMembershipType)
+		})
+	}
+
+	_, err = ds.LabelByName(ctx, "Brand New Built In", fleet.TeamFilter{User: test.UserAdmin})
+	require.True(t, fleet.IsNotFound(err), "rejected built-in spec must not create a label")
 }
 
 func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {

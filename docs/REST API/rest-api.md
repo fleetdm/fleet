@@ -4755,6 +4755,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+> `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
+
 ### Delete host
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
@@ -8736,6 +8738,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8943,6 +8946,24 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Delete Android Enterprise
+
+Delete Android Enterprise that's connected to Fleet. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
