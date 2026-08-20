@@ -3396,7 +3396,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(`Couldn't edit configuration_profiles. Label %q cannot appear in both include and exclude lists.`, overlap))
 		}
 
-		if len(profile.Contents) > 1024*1024 {
+		if len(profile.Contents) > int(fleet.MaxProfileSize) {
 			return fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
 		}
 

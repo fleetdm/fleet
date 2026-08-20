@@ -1844,7 +1844,7 @@ func TestUpdateMDMConfigProfileDecodeRequest(t *testing.T) {
 			name:        "oversized profile file is rejected",
 			profileUUID: "abc-123",
 			fileContent: oversizedFile,
-			wantErr:     "maximum configuration profile file size is 1 MB",
+			wantErr:     "Maximum configuration profile file size is 16 MB",
 		},
 		{
 			// The only way to say "remove the activation": multipart has no null.
@@ -2805,10 +2805,10 @@ func TestValidateProfiles(t *testing.T) {
 		{
 			name: "Too large profile",
 			profiles: []fleet.MDMProfileBatchPayload{
-				{Name: "hugeprofile", Contents: []byte(strings.Repeat("a", 1024*1024+1))},
+				{Name: "hugeprofile", Contents: []byte(strings.Repeat("a", int(fleet.MaxProfileSize)+1))},
 			},
 			wantErr: true,
-			errMsg:  "validation failed: mdm maximum configuration profile file size is 1 MB",
+			errMsg:  "validation failed: mdm Maximum configuration profile file size is 16 MB",
 		},
 	}
 
