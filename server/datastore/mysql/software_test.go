@@ -12154,13 +12154,17 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 	// .deb stands in for the msi/pkg/deb/rpm/exe extensions that always
 	// carry a default uninstall script from the upload layer.
 	debID := newInstaller("deb-default", "deb_packages", "deb", "installer.deb", "s-deb", "dpkg -r installer")
+	// Whitespace-only uninstall script (would run as a no-op) — flag should
+	// be false so the UI doesn't surface a misleading Uninstall action.
+	tgzWhitespaceID := newInstaller("tgz-whitespace", "tgz_packages", "tar.gz", "ws-uninst.tar.gz", "s-tgz-ws", "   ")
 
 	expect := map[uint]bool{
-		tgzNoID:   false,
-		tgzWithID: true,
-		shNoID:    false,
-		shWithID:  true,
-		debID:     true,
+		tgzNoID:         false,
+		tgzWithID:       true,
+		shNoID:          false,
+		shWithID:        true,
+		debID:           true,
+		tgzWhitespaceID: false,
 	}
 	assertFlags := func(t *testing.T, sw []*fleet.HostSoftwareWithInstaller, requireIDs map[uint]bool) {
 		t.Helper()
@@ -12182,7 +12186,7 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 	}
 
 	// First pass — nothing installed on the host, so every title hits the
-	// "available for install" SELECT (software.go:6301).
+	// "available for install" SELECT.
 	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
 		ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
 		IncludeAvailableForInstall: true,
@@ -12191,8 +12195,8 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 	assertFlags(t, sw, expect)
 
 	// Second pass — install the deb so it lands in host_software. That title
-	// now flows through the UNION "installed" SELECT (software.go:7327), which
-	// selects package_has_uninstall_script from a different subquery. Reasserting
+	// now flows through the UNION "installed" SELECT, which selects
+	// package_has_uninstall_script from a different subquery. Reasserting
 	// covers both SQL branches with a single test.
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "deb-default", Version: "1.0.0", Source: "deb_packages"},
