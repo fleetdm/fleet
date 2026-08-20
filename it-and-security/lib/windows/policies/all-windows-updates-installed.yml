@@ -1,4 +1,4 @@
-- name: Windows - All available updates installed
+- name: All available updates installed
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM windows_updates);
   critical: false
   description: This Windows device may have outdated system software, which could lead to security vulnerabilities, performance issues, and incompatibility with other systems.

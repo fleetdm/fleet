@@ -4,7 +4,8 @@
       "version": "26.04.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.Kdenlive';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.Kdenlive' AND version_compare(bundle_short_version, '26.04.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kde.Kdenlive' AND version_compare(bundle_short_version, '26.04.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.kde.Kdenlive');"
       },
       "installer_url": "https://cdn.download.kde.org/stable/kdenlive/26.04/macOS/kdenlive-26.04.3-arm64.dmg",
       "install_script_ref": "7b5dd185",

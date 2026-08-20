@@ -4,12 +4,13 @@
       "version": "1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.naotanhaocan.BetterMouse';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.naotanhaocan.BetterMouse' AND version_compare(bundle_short_version, '1.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.naotanhaocan.BetterMouse' AND version_compare(bundle_short_version, '1.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.naotanhaocan.BetterMouse');"
       },
-      "installer_url": "https://better-mouse.com/wp-content/uploads/BetterMouse.1.6.8893.zip",
+      "installer_url": "https://better-mouse.com/wp-content/uploads/BetterMouse.1.6.8905.zip",
       "install_script_ref": "a00f30de",
       "uninstall_script_ref": "598ead04",
-      "sha256": "ec8309ab4d1bff931547535f3bc41cb24e7a1886e3b1a024b07de31c2a782ca5",
+      "sha256": "de723ae004bf2f5e32ed2b30cf33f1c76123e969af9496b03df7b654ff562fab",
       "default_categories": [
         "Productivity"
       ]

@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.13.4",
+      "version": "1.13.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian' AND version_compare(bundle_short_version, '1.13.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian' AND version_compare(bundle_short_version, '1.13.7') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'md.obsidian');"
       },
-      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.4/Obsidian-1.13.4.dmg",
+      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.13.7/Obsidian-1.13.7.dmg",
       "install_script_ref": "2a90e12f",
       "uninstall_script_ref": "06bfea71",
-      "sha256": "e84b9595aba5e50221c97e43d3e3f437416edfbf4c4a84c379461e70f854d78f",
+      "sha256": "05daa54f5e1a4458f75da29f8faaa17e8e37ae16998432537f674c626db99bce",
       "default_categories": [
         "Productivity"
       ]

@@ -70,7 +70,7 @@ go.mod @fleetdm/go
 /docs/solutions                                         @ddribeiro
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor # software ingestion is security & compliance
+/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
@@ -159,9 +159,8 @@ go.mod @fleetdm/go
 
 ##############################################################################################
 # 🤖 Claude Code configuration (agents, skills, rules, settings).
-# (Reviewed by the product group tech leads.)
 ##############################################################################################
-/.claude/ @JordanMontgomery @cdcme @lucasmrod @getvictor 
+/.claude/ @JordanMontgomery @cdcme @lucasmrod @getvictor @lukeheath @georgekarrv @sharon-fdm
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

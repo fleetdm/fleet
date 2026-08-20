@@ -1,6 +1,6 @@
 import { IconNames } from "components/icons";
 import {
-  SoftwareInstallUninstallStatus,
+  SoftwareInstallDetailsStatus,
   EnhancedSoftwareInstallUninstallStatus,
   SoftwareInstallStatus,
 } from "interfaces/software";
@@ -8,7 +8,7 @@ import {
 // Install/Uninstall helpers
 
 export const INSTALL_DETAILS_STATUS_ICONS: Record<
-  SoftwareInstallUninstallStatus, // former is superset of latter, latter included in union for type system
+  SoftwareInstallDetailsStatus,
   IconNames
 > = {
   pending_install: "pending-outline",
@@ -17,10 +17,13 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   failed_install: "error",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error",
+  // Same "!" glyph as a failure, but the call site renders it muted grey
+  // (ui-fleet-black-50): a skip is deferred (app was open), not an error.
+  skipped_install: "error-outline",
 } as const;
 
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
-  EnhancedSoftwareInstallUninstallStatus,
+  EnhancedSoftwareInstallUninstallStatus | "skipped_install",
   string
 > = {
   pending_install: "is installing or will install",
@@ -32,6 +35,7 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   pending_script: "is running or will run",
   failed_script: "failed to run",
   ran_script: "ran",
+  skipped_install: "skipped install of",
 } as const;
 
 export const getInstallDetailsStatusPredicate = (

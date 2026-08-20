@@ -40,7 +40,16 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 		}
 
 		if !v.CanPerformActions() || v.User.GlobalRole == nil || *v.User.GlobalRole != fleet.RoleAdmin {
-			http.Error(w, "Unauthorized", http.StatusForbidden)
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// Debug routes are not part of the public API catalog, so they can never appear in an
+		// API-only user's endpoint allowlist. A restricted API-only token (api_only with a
+		// non-empty api_endpoints list) must therefore be denied here, matching the least-privilege
+		// scoping that APIOnlyEndpointCheck enforces on the main API path.
+		if v.User.APIOnly && len(v.User.APIEndpoints) > 0 {
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 

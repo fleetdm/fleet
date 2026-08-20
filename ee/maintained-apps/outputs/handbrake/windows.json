@@ -4,7 +4,8 @@
       "version": "1.11.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'HandBrake %';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'HandBrake %' AND version_compare(version, '1.11.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'HandBrake %' AND version_compare(version, '1.11.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'handbrake.exe');"
       },
       "installer_url": "https://github.com/HandBrake/HandBrake/releases/download/1.11.2/HandBrake-1.11.2-x86_64-Win_GUI.exe",
       "install_script_ref": "b102dbce",

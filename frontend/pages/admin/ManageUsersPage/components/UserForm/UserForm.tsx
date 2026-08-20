@@ -496,9 +496,8 @@ const UserForm = ({
             <TooltipWrapper
               tipContent={
                 <>
-                  SSO is not enabled in organization settings.
-                  <br />
-                  User must sign in with a password.
+                  SSO is not enabled in organization settings. User must sign in
+                  with a password.
                 </>
               }
             >

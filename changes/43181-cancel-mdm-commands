@@ -1,0 +1,1 @@
+- Added the ability to cancel a pending Apple MDM lock, wipe, clear passcode, or enable lost mode command before the host receives it, via `DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`. If the host executes a canceled lock or wipe anyway, Fleet now restores the host's lock/wipe state (including the unlock PIN) when the result arrives.

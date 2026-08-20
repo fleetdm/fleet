@@ -4,7 +4,8 @@
       "version": "2.1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.globaldelight.Capto';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.globaldelight.Capto' AND version_compare(bundle_short_version, '2.1.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.globaldelight.Capto' AND version_compare(bundle_short_version, '2.1.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.globaldelight.Capto');"
       },
       "installer_url": "https://d3l6g06uqih57x.cloudfront.net/Captomac/webstore/Capto.dmg",
       "install_script_ref": "79932e03",

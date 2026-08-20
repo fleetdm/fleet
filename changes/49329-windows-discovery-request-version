@@ -1,4 +1,0 @@
-- Fixed a bug where fresh Windows 11 25H2 (and other recent builds) failed MDM enrollment with error
-  80180006 because the device's discovery `RequestVersion` (e.g. "9.0") was rejected by an exact-match
-  allow-list. Fleet now accepts any MS-MDE2 discovery `RequestVersion` at or above the minimum supported
-  version ("4.0").

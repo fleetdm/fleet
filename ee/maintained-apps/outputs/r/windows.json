@@ -4,7 +4,8 @@
       "version": "4.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team' AND version_compare(version, '4.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'R for Windows %' AND publisher = 'R Core Team' AND version_compare(version, '4.6.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'r for windows.exe');"
       },
       "installer_url": "https://cloud.r-project.org/bin/windows/base/old/4.6.1/R-4.6.1-win.exe",
       "install_script_ref": "1c98e2a1",

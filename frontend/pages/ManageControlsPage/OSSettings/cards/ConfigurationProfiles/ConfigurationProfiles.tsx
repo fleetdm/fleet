@@ -12,7 +12,6 @@ import { IMdmProfile } from "interfaces/mdm";
 
 import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
 
-import Card from "components/Card/Card";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
@@ -21,7 +20,6 @@ import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
@@ -29,7 +27,6 @@ import Pagination from "components/Pagination";
 
 import UploadList from "../../../../../components/UploadList";
 
-import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import EditProfileModal from "./components/EditProfileModal";
@@ -69,6 +66,7 @@ const ConfigurationProfiles = ({
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  const canAddConfigurationProfile = !isTechnician;
   // The "Turn on" button links to /settings/integrations/mdm, which is
   // gated to global admins only (AuthGlobalAdminRoutes).
   const canTurnOnMdm = !!isGlobalAdmin;
@@ -214,14 +212,31 @@ const ConfigurationProfiles = ({
     }
 
     if (!profiles?.length) {
-      if (isTechnician) {
-        return (
-          <Card className="empty-profiles">
-            No configuration profiles have been added.
-          </Card>
-        );
-      }
-      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No configuration profiles"
+          info={
+            canAddConfigurationProfile
+              ? "Add a configuration profile to enforce custom settings on your hosts."
+              : "No configuration profiles have been added."
+          }
+          primaryButton={
+            canAddConfigurationProfile ? (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={() => setShowAddProfileModal(true)}
+                  >
+                    Add profile
+                  </Button>
+                )}
+              />
+            ) : undefined
+          }
+        />
+      );
     }
 
     return (
@@ -266,7 +281,7 @@ const ConfigurationProfiles = ({
     </>
   );
 
-  const showAddProfileButton = mdmEnabled && !isTechnician;
+  const showAddProfileButton = mdmEnabled && canAddConfigurationProfile;
 
   return (
     <div className={baseClass}>
@@ -300,9 +315,9 @@ const ConfigurationProfiles = ({
                         size="small"
                         onClick={() => setShowAddProfileModal(true)}
                         disabled={disableChildren}
+                        icon="plus"
                       >
-                        <Icon name="plus" size="small" />
-                        <span>Add profile</span>
+                        Add profile
                       </Button>
                     )}
                   />

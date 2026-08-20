@@ -4,7 +4,8 @@
       "version": "3.6.15",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Joplin %' AND publisher = 'Laurent Cozic';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Joplin %' AND publisher = 'Laurent Cozic' AND version_compare(version, '3.6.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Joplin %' AND publisher = 'Laurent Cozic' AND version_compare(version, '3.6.15') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'joplin.exe');"
       },
       "installer_url": "https://github.com/laurent22/joplin/releases/download/v3.6.15/Joplin-Setup-3.6.15.exe",
       "install_script_ref": "c256db87",

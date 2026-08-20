@@ -26,6 +26,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	android "github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -1845,6 +1846,32 @@ func TestUpdateMDMConfigProfileDecodeRequest(t *testing.T) {
 			fileContent: oversizedFile,
 			wantErr:     "maximum configuration profile file size is 1 MB",
 		},
+		{
+			// The only way to say "remove the activation": multipart has no null.
+			name:        "empty activation value marks it for removal",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"activation": {""}},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.True(t, req.ActivationSet)
+				assert.Nil(t, req.Activation)
+			},
+		},
+		{
+			// More likely a malformed upload than a request to delete.
+			name:        "nonempty activation value is rejected",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"activation": {"com.apple.activation.simple"}},
+			wantErr:     ActivationEmptyFileErrorMsg,
+		},
+		{
+			name:        "activation not mentioned leaves it untouched",
+			profileUUID: "abc-123",
+			fields:      map[string][]string{"labels_include_all": {"Label A"}},
+			check: func(t *testing.T, req *updateMDMConfigProfileRequest) {
+				assert.False(t, req.ActivationSet)
+				assert.Nil(t, req.Activation)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1930,6 +1957,62 @@ func TestUploadWindowsMDMConfigProfileAllowsBitLockerWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
+	build := func(t *testing.T, content []byte) *http.Request {
+		t.Helper()
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, err := w.CreateFormFile("activation", "activation.json")
+		require.NoError(t, err)
+		_, err = fw.Write(content)
+		require.NoError(t, err)
+		require.NoError(t, w.Close())
+
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		return mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+	}
+
+	t.Run("a file replaces the activation", func(t *testing.T) {
+		result, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(),
+			build(t, []byte(`{"Type":"com.apple.activation.simple"}`)))
+		require.NoError(t, err)
+		decoded, ok := result.(*updateMDMConfigProfileRequest)
+		require.True(t, ok)
+		assert.True(t, decoded.ActivationSet)
+		require.NotNil(t, decoded.Activation)
+	})
+
+	t.Run("a file and a value together are rejected", func(t *testing.T) {
+		// Contradictory: one says replace, the other says remove. Picking either
+		// silently would be a guess.
+		var buf bytes.Buffer
+		w := multipart.NewWriter(&buf)
+		fw, err := w.CreateFormFile("activation", "activation.json")
+		require.NoError(t, err)
+		_, err = fw.Write([]byte(`{"Type":"com.apple.activation.simple"}`))
+		require.NoError(t, err)
+		require.NoError(t, w.WriteField("activation", ""))
+		require.NoError(t, w.Close())
+
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/configuration_profiles/x", &buf)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		req = mux.SetURLVars(req, map[string]string{"profile_uuid": "abc-123"})
+
+		_, err = updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationConflictingPartsErrorMsg)
+	})
+
+	t.Run("a zero-byte file is rejected", func(t *testing.T) {
+		// Otherwise a failed upload silently deletes the stored activation.
+		// Removal has to go through the explicit empty field.
+		_, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), build(t, nil))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationEmptyFileErrorMsg)
+	})
+}
+
 func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
@@ -1945,14 +2028,33 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		return nil, errors.New("simulated declaration lookup error")
 	}
 
-	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")
 	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
 
 	// an unrecognized profile UUID prefix still falls through to "not supported".
-	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
+
+	// Clearing an activation is as meaningless as setting one on a profile that
+	// can't have one, so both are rejected -- keyed on the field being present,
+	// not on whether it carried content.
+	for _, prefix := range []string{"a", "w", "g"} {
+		for _, tc := range []struct {
+			name       string
+			activation []byte
+		}{
+			{"with content", []byte(`{"Type":"com.apple.activation.simple"}`)},
+			{"explicitly emptied", nil},
+		} {
+			t.Run(prefix+" "+tc.name, func(t *testing.T) {
+				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation))
+				require.Error(t, err)
+				assert.ErrorContains(t, err, ActivationUnsupportedProfileErrorMsg)
+			})
+		}
+	}
 }
 
 func TestMDMBatchSetProfiles(t *testing.T) {
@@ -4223,7 +4325,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.RawJSON)
@@ -4256,7 +4358,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -4286,7 +4388,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
@@ -4315,7 +4417,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -4337,7 +4439,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Invalid JSON payload")
 	})
@@ -4354,7 +4456,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -4371,7 +4473,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -4383,7 +4485,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -4400,7 +4502,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -4409,7 +4511,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -4430,14 +4532,14 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 
 		// labels-only edit passes no variables -- the datastore leaves the
 		// existing associations untouched when no content is provided
 		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Empty(t, capturedVars)
 	})
@@ -4458,10 +4560,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil)
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -4514,10 +4616,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil)
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
@@ -4962,10 +5064,17 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
 			return nil, &notFoundError{}
 		}
+		// On this branch the serial is persisted on the unlinked enrollment row so the orbit enrollment path can reverse-link it.
+		ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc = func(_ context.Context, mdmDeviceID string, hardwareSerial string) error {
+			assert.Equal(t, testDeviceID, mdmDeviceID)
+			assert.Equal(t, testSerial, hardwareSerial)
+			return nil
+		}
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
 		require.NoError(t, err)
 		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.True(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked, "serial should be persisted for the reverse-link path")
 		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 		assert.Empty(t, enrolledDevice.HostUUID, "no link means HostUUID stays empty")
 		assert.True(t, hasGetForDevDetailSerial(cmds), "without a host match, the Get is reinjected for the next session")
@@ -5045,5 +5154,209 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "even updated=false must refresh in-memory HostUUID")
 		assert.False(t, hasGetForDevDetailSerial(cmds), "in-memory HostUUID is now set; no redundant Get")
+	})
+}
+
+// mockAndroidService is a minimal mock of android.Service for RunMDMCommand tests.
+// Only IssueCustomCommand is implemented; all other methods panic if called.
+type mockAndroidService struct {
+	android.Service        // embed interface — unimplemented methods panic
+	IssueCustomCommandFunc func(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error)
+}
+
+func (m *mockAndroidService) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+	return m.IssueCustomCommandFunc(ctx, hostID, rawJSON)
+}
+
+func TestRunMDMCommandAndroid(t *testing.T) {
+	androidHost := &fleet.Host{
+		ID:       100,
+		UUID:     "android-uuid-1",
+		Platform: "android",
+		Hostname: "Pixel 7",
+		TeamID:   new(uint(1)),
+	}
+
+	setupDS := func(t *testing.T) *mock.Store {
+		ds := new(mock.Store)
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{androidHost}, nil
+		}
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true}, nil
+		}
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+		return ds
+	}
+
+	t.Run("success creates activity", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+				require.Equal(t, androidHost.ID, hostID)
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-1",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			capturedActivity = act
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "cmd-uuid-1", result.CommandUUID)
+		assert.Equal(t, "REBOOT", result.RequestType)
+		assert.Equal(t, "android", result.Platform)
+
+		require.NotNil(t, capturedActivity)
+		act, ok := capturedActivity.(*fleet.ActivityTypeRanCustomMDMCommand)
+		require.True(t, ok)
+		assert.Equal(t, androidHost.ID, act.HostID)
+		assert.Equal(t, "android", act.Platform)
+		assert.Equal(t, "REBOOT", act.RequestType)
+	})
+
+	t.Run("premium gating rejects LOCK without license", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"LOCK"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("premium gating rejects RESET_PASSWORD without license", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"RESET_PASSWORD"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("premium gating allows REBOOT without license", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-reboot",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "REBOOT", result.RequestType)
+	})
+
+	t.Run("premium gating allows LOCK with premium license", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-lock",
+					CommandType: "LOCK",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"LOCK"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "LOCK", result.RequestType)
+	})
+
+	t.Run("rejects multiple Android hosts", func(t *testing.T) {
+		ds := new(mock.Store)
+		androidHost2 := &fleet.Host{ID: 101, UUID: "android-uuid-2", Platform: "android", TeamID: new(uint(1))}
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{androidHost, androidHost2}, nil
+		}
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true, androidHost2.UUID: true}, nil
+		}
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID, androidHost2.UUID})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "can only target a single host")
+	})
+
+	t.Run("android MDM not configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{androidHost}, nil
+		}
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true}, nil
+		}
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: false},
+			}, nil
+		}
+
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Android MDM isn't turned on")
 	})
 }

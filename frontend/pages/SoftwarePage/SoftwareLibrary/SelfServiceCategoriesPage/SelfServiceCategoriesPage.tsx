@@ -17,7 +17,6 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -196,7 +195,7 @@ const SelfServiceCategoriesPage = ({
           header="No self-service categories"
           info={
             canManage
-              ? "Add category to group your software and scripts in self-service."
+              ? "Add category to group your software and scripts in self service."
               : "No self-service categories are available."
           }
           primaryButton={
@@ -221,8 +220,11 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button variant="secondary" onClick={() => setShowAddModal(true)}>
-                <Icon name="plus" />
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddModal(true)}
+                icon="plus"
+              >
                 Add category
               </Button>
             )}
@@ -240,17 +242,15 @@ const SelfServiceCategoriesPage = ({
                   onClick={() => setCategoryToEdit(listItem)}
                   ariaLabel={`Edit ${listItem.name}`}
                   title="Edit"
-                >
-                  <Icon name="pencil" />
-                </Button>
+                  icon="pencil"
+                />
                 <Button
                   variant="secondary"
                   onClick={() => setCategoryToDelete(listItem)}
                   ariaLabel={`Delete ${listItem.name}`}
                   title="Delete"
-                >
-                  <Icon name="trash" />
-                </Button>
+                  icon="trash"
+                />
               </div>
             )}
           </div>

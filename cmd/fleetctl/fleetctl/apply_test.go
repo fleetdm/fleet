@@ -298,7 +298,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -773,7 +773,7 @@ func TestApplyAppConfig(t *testing.T) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -1300,7 +1300,7 @@ spec:
   label_membership_type: dynamic
   label_type: builtin
   name: Ubuntu Linux
-  query: select 1 from os_version where platform = 'ubuntu';
+  query: select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';
 `
 	packsSpec = `---
 apiVersion: v1
@@ -1516,7 +1516,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -2038,7 +2038,7 @@ func TestApplyLabels(t *testing.T) {
 	ubuntuLabel := &fleet.Label{
 		ID:                  8,
 		Name:                fleet.BuiltinLabelNameUbuntuLinux,
-		Query:               "select 1 from os_version where platform = 'ubuntu';",
+		Query:               "select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';",
 		Description:         "All Ubuntu hosts",
 		LabelType:           fleet.LabelTypeBuiltIn,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
