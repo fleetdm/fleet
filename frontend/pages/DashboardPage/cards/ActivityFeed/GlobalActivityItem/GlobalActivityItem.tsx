@@ -2335,8 +2335,9 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {verb} end user {timeLabel} before patching {titleList} on{" "}
-        <strong>{hostName}</strong>.
+        {verb} end user {timeLabel} before patching
+        {titleList && <> {titleList}</>} on{" "}
+        <strong>{hostName || "the host"}</strong>.
       </>
     );
   },

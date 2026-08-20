@@ -1,5 +1,6 @@
 import React from "react";
 
+import { INotifyActivityStatus } from "interfaces/activity";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 // Loose input — details.status is typed as `string | undefined` on
@@ -12,6 +13,7 @@ export const DEFERRED_EXIT_CODE = 50;
 // Titles inlined into the intro sentence; past this we truncate to
 // "..., and N more apps" and move the full list to the Apps row.
 export const INLINE_APP_LIMIT = 4;
+const TRUNCATED_INLINE_COUNT = 3;
 
 export const DEFERRED_SENTENCE =
   "Another notification was displayed. Fleet will try again on the next policy run.";
@@ -30,19 +32,26 @@ export const COPY_BY_EXIT_CODE: Record<number, string> = {
 
 // Covers both success (exit 0 caveat) and failure sentences.
 export const getCaveatMessage = (
-  failed: boolean,
+  status: INotifyActivityStatus,
   scriptExecutionId?: string,
   exitCode?: number | null
 ): string | null => {
+  const isFailure = status === "failed";
   // Absence of script_execution_id signals a server-side deferral, which the
   // BE only emits as a failure. Guard against showing a caveat next to a
   // success icon if the invariant ever slips.
-  if (!scriptExecutionId) return failed ? DEFERRED_SENTENCE : null;
+  if (!scriptExecutionId) return isFailure ? DEFERRED_SENTENCE : null;
   if (exitCode === null || exitCode === undefined) return null;
   // Mirror guard: exit 0 is the success caveat; don't show it next to a red icon.
-  if (failed && exitCode === 0) return null;
+  if (isFailure && exitCode === 0) return null;
   return COPY_BY_EXIT_CODE[exitCode] ?? null;
 };
+
+// Shared react-query retry: give up on 404, otherwise retry up to 3 times.
+export const retryUnless404 = (
+  failureCount: number,
+  err: { status?: number } | undefined
+): boolean => err?.status !== 404 && failureCount < 3;
 
 // One source of truth for the "1 hour" / "5 minutes" mapping.
 export const formatNotifyTimeLabel = (timeBefore?: number): string =>
@@ -105,12 +114,14 @@ export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
       </>
     );
   }
-  // overflow is always ≥ 2 past INLINE_APP_LIMIT, so no pluralize needed.
-  const overflow = titles.length - 3;
+  // When truncating past INLINE_APP_LIMIT, always name the first N inline;
+  // overflow is always ≥ 2, so no pluralize needed.
+  const shown = titles.slice(0, TRUNCATED_INLINE_COUNT);
+  const overflow = titles.length - TRUNCATED_INLINE_COUNT;
   return (
     <>
-      {bold(titles[0])}, {bold(titles[1])}, {bold(titles[2])}, and {overflow}{" "}
-      more apps
+      {bold(shown[0])}, {bold(shown[1])}, {bold(shown[2])}, and {overflow} more
+      apps
     </>
   );
 };

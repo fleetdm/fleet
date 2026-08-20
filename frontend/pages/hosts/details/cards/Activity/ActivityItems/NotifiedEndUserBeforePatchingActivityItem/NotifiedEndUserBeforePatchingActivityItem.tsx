@@ -38,8 +38,8 @@ const NotifiedEndUserBeforePatchingActivityItem = ({
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
     >
-      <strong>Fleet</strong> {verb} end user {timeLabel} before patching{" "}
-      {titleList} on this host.
+      <strong>Fleet</strong> {verb} end user {timeLabel} before patching
+      {titleList && <> {titleList}</>} on this host.
     </ActivityItem>
   );
 };

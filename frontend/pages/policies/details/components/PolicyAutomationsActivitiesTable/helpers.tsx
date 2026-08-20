@@ -26,7 +26,7 @@ export const getAutomationRunDisplayName = (
     case ActivityType.InstalledAppStoreApp:
       // App-open skips are recorded as failed_install but aren't failures.
       if (details?.skipped_install) {
-        return withName("Install skipped", details?.software_title);
+        return withName("Patch skipped", details?.software_title);
       }
       return withName(
         failed ? "Software failed" : "Software installed",

@@ -25,6 +25,7 @@ import {
   SKIPPED_INSTALL_NOTIFY_EXPLANATION,
   EXIT_CODES_NEEDING_EUE_LINK,
   PATCHING_END_USER_EXPERIENCE_URL,
+  retryUnless404,
 } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 
 import {
@@ -65,7 +66,7 @@ const PolicyAutomationActivityDetailsModal = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isNotify && !!scriptExecutionId,
-      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      retry: retryUnless404,
     }
   );
 
@@ -77,7 +78,11 @@ const PolicyAutomationActivityDetailsModal = ({
       if (activity.status === "success") {
         return getAutomationNotifiedMessage(activity.details?.time_before);
       }
-      return getCaveatMessage(true, scriptExecutionId, scriptResult?.exit_code);
+      return getCaveatMessage(
+        "failed",
+        scriptExecutionId,
+        scriptResult?.exit_code
+      );
     }
     if (isSkippedNotifyVariant) {
       return SKIPPED_INSTALL_NOTIFY_EXPLANATION;

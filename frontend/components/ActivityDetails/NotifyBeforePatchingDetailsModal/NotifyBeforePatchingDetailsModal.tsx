@@ -28,6 +28,7 @@ import {
   renderNotifyTitleList,
   formatNotifyTimeLabel,
   isNotifyFailure,
+  retryUnless404,
 } from "./helpers";
 
 const baseClass = "notify-before-patching-details-modal";
@@ -64,12 +65,12 @@ const NotifyBeforePatchingDetailsModal = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       // Skip the fetch on dispatcher-caught deferrals (no execution id).
       enabled: !!scriptExecutionId,
-      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      retry: retryUnless404,
     }
   );
 
   const explanation = getCaveatMessage(
-    failed,
+    failed ? "failed" : "success",
     scriptExecutionId,
     scriptResult?.exit_code
   );
@@ -98,7 +99,7 @@ const NotifyBeforePatchingDetailsModal = ({
 
     const titleList = renderNotifyTitleList(titles);
     // Apps row is redundant when the intro already lists everything.
-    const showAppsRow = titles.length > INLINE_APP_LIMIT;
+    const hasOverflowApps = titles.length > INLINE_APP_LIMIT;
 
     return (
       <div className={`${baseClass}__content`}>
@@ -129,7 +130,7 @@ const NotifyBeforePatchingDetailsModal = ({
               )}
           </p>
         )}
-        {showAppsRow && (
+        {hasOverflowApps && (
           <DataSet
             title="Apps"
             value={titles.map((t) => getDisplayedSoftwareName(t)).join(", ")}

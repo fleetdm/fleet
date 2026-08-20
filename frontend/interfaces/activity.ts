@@ -290,6 +290,10 @@ export type IHostUpcomingActivity = Omit<
   details: IActivityDetails;
 };
 
+/** `details.status` values on a `notified_end_user_before_patching` activity.
+ * Distinct from the automation-runs wrapper's `"error" | "success"` union. */
+export type INotifyActivityStatus = "success" | "failed";
+
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;

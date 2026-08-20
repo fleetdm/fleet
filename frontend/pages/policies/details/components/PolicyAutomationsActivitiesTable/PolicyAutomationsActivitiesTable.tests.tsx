@@ -83,7 +83,7 @@ describe("getAutomationRunDisplayName", () => {
           },
         })
       )
-    ).toBe("Install skipped (1Password)");
+    ).toBe("Patch skipped (1Password)");
   });
 
   it("labels a successful notify as 'Notified end user' and a failure as 'Failed to notify'", () => {
