@@ -339,14 +339,14 @@ const MicrosoftGraphPage = () => {
   );
 
   const renderForm = () => (
-    <form className={`${baseClass}__form`} onSubmit={onSave}>
+    <form onSubmit={onSave}>
       {renderField("tenantId", "Tenant ID")}
       {renderField("clientId", "Client ID")}
       {renderField("clientSecret", "Client secret", {
         type: "password",
         blockAutoComplete: true,
       })}
-      <div className={`${baseClass}__form-actions`}>
+      <div className={`button-wrap ${baseClass}__form-actions`}>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

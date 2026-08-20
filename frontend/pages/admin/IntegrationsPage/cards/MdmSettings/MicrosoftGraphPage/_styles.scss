@@ -18,19 +18,11 @@
     color: $ui-error;
   }
 
-  &__form {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-  }
-
-  // Reversed the same way modal-cta-wrap is, so the primary action stays first in the DOM (tab order and the form's
-  // implicit submit both reach Save first) while rendering on the right. justify-content pins the pair to the left
-  // edge, since row-reverse would otherwise pack it against the container's right edge.
+  // button-wrap supplies the flex row and gap. Reversed the same way modal-cta-wrap is, so the primary action stays
+  // first in the DOM (tab order and the form's implicit submit both reach Save first) while rendering on the right.
+  // justify-content pins the pair to the left edge, since row-reverse would otherwise pack it against the right.
   &__form-actions {
-    display: flex;
     flex-direction: row-reverse;
     justify-content: flex-end;
-    gap: $pad-medium;
   }
 }
