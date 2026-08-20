@@ -406,10 +406,15 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 			return ctxerr.Wrap(ctx, err, "clear host_mdm_actions on android reenroll")
 		}
 
-		// Fail the installs the previous enrollment left pending. This reuses the helper
-		// behind the Android unenroll path so the two produce the same observable result:
-		// marking them canceled instead would hide them from the host software list and
-		// from the activity feed, losing the record entirely.
+		// Fail every install that never reached a verdict, and return the activities so
+		// the caller can emit them. This is the same helper the Android unenroll path
+		// uses, so a device that unenrolls and one that re-enrolls report their
+		// interrupted installs identically. Note that it also fails rows flagged
+		// removed = 1 that never reached a verdict, which is the helper's existing
+		// behaviour rather than anything specific to re-enrollment.
+		//
+		// Marking the installs canceled instead would hide them from the host software
+		// list and from the activity feed, losing the record entirely.
 		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail pending android software installs on reenroll")
