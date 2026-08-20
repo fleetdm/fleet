@@ -1439,3 +1439,20 @@ func BatchSoftwareInstallerRetryInterval() time.Duration {
 
 	return defaultInterval
 }
+
+// SoftwareInstallAttemptStore tracks recent software install attempts per host and
+// installer so Fleet can stop retrying an install that never succeeds. Attempts are
+// counted over a rolling window and drop out of the count once they age past it.
+type SoftwareInstallAttemptStore interface {
+	// RecordAttempt records an attempt made at now, keyed on executionID so a
+	// repeated record for the same execution counts once, and returns how many
+	// attempts fall within window, including this one.
+	RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint, executionID string, now time.Time,
+		window time.Duration) (int, error)
+	// CountAttempts returns how many recorded attempts fall within window. It
+	// records nothing, so it leaves no state behind for a host that has never
+	// failed an install.
+	CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint, now time.Time, window time.Duration) (int, error)
+	// ClearAttempts drops every recorded attempt for this host and installer.
+	ClearAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error
+}

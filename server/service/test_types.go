@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -184,4 +186,70 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 		policyIDs = append(policyIDs, policyID)
 	}
 	return policyIDs, nil
+}
+
+// memSoftwareInstallAttemptStore is an in-memory fleet.SoftwareInstallAttemptStore used by tests.
+type memSoftwareInstallAttemptStore struct {
+	mMu sync.RWMutex
+	m   map[string]map[string]time.Time
+}
+
+var _ fleet.SoftwareInstallAttemptStore = (*memSoftwareInstallAttemptStore)(nil)
+
+// NewMemSoftwareInstallAttemptStore returns a new in-memory SoftwareInstallAttemptStore.
+func NewMemSoftwareInstallAttemptStore() *memSoftwareInstallAttemptStore {
+	return &memSoftwareInstallAttemptStore{
+		m: make(map[string]map[string]time.Time),
+	}
+}
+
+func memInstallAttemptKey(hostID uint, softwareInstallerID uint) string {
+	return fmt.Sprintf("%d:%d", hostID, softwareInstallerID)
+}
+
+// RecordAttempt records an attempt and returns how many fall within the window.
+func (m *memSoftwareInstallAttemptStore) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
+	executionID string, now time.Time, window time.Duration,
+) (int, error) {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	key := memInstallAttemptKey(hostID, softwareInstallerID)
+	if m.m[key] == nil {
+		m.m[key] = make(map[string]time.Time)
+	}
+	cutoff := now.Add(-window)
+	for execID, at := range m.m[key] {
+		if !at.After(cutoff) {
+			delete(m.m[key], execID)
+		}
+	}
+	m.m[key][executionID] = now
+	return len(m.m[key]), nil
+}
+
+// CountAttempts returns how many recorded attempts fall within the window.
+func (m *memSoftwareInstallAttemptStore) CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint,
+	now time.Time, window time.Duration,
+) (int, error) {
+	m.mMu.RLock()
+	defer m.mMu.RUnlock()
+
+	cutoff := now.Add(-window)
+	var count int
+	for _, at := range m.m[memInstallAttemptKey(hostID, softwareInstallerID)] {
+		if at.After(cutoff) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// ClearAttempts drops every recorded attempt for this host and installer.
+func (m *memSoftwareInstallAttemptStore) ClearAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	delete(m.m, memInstallAttemptKey(hostID, softwareInstallerID))
+	return nil
 }

@@ -74,6 +74,8 @@ type Service struct {
 
 	keyValueStore fleet.KeyValueStore
 
+	installAttempts fleet.SoftwareInstallAttemptStore
+
 	androidSvc android.Service
 
 	// activitySvc is the activity bounded context service for write operations.
@@ -161,6 +163,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
+	installAttempts fleet.SoftwareInstallAttemptStore,
 	androidSvc android.Service,
 	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
@@ -201,6 +204,7 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
+		installAttempts:                 installAttempts,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),

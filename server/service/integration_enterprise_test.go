@@ -69,6 +69,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -33900,6 +33901,332 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		}
 		assert.Nil(t, rows[fleet.MaxPolicyAutomationRetries+1].AttemptNumber, "retry should be queued (NULL) after fresh sequence")
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+// TestPolicyAutomationsContinuousFailingInstallIsBounded covers issue #51086: a
+// continuous-automation policy whose software install always fails currently
+// re-queues installs forever. Nothing bounds it, because the cooldown in
+// processSoftwareForNewlyFailingPolicies only engages when the previous install
+// succeeded, and every continuous re-fire resets attempt_number so
+// MaxPolicyAutomationRetries only caps one ladder rather than the total.
+//
+// The expected behavior is to stop after 10 consecutive failed attempts for the
+// same host and installer, and to start a fresh sequence when the host reports
+// the policy passing again.
+//
+// This runs a fleet of hosts through several failing policy reports each rather
+// than one host, so the attempt count and the installer egress it implies are
+// measured at the scale of the report instead of extrapolated from one host.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousFailingInstallIsBounded() {
+	t := s.T()
+	ctx := context.Background()
+
+	const (
+		// The bound the fix must enforce, per the issue.
+		maxConsecutiveFailedAttempts = 10
+		// Fleet size and how many failing policy reports each host sends.
+		scaleHosts         = 1000
+		policyReportCycles = 10
+		driverWorkers      = 24
+		// The reported environment, used to scale the measurement up to the
+		// window it was observed over: ~1,900 hosts for about 7 days on a 300 MB
+		// installer, at the default 1h osquery.policy_update_interval.
+		reportedHosts          = 1900
+		reportedDays           = 7
+		reportedInstallerBytes = 300 * 1024 * 1024
+		policyReportsPerDay    = 24
+		bytesPerTB             = 1 << 40
+	)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// An installer that can never succeed on these hosts, standing in for the
+	// per-user installer on a host with no logged-in user from the report.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
+		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg",
+		)
+	})
+	require.NotZero(t, installerID)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "continuous-never-resolves",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	var mtplr fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	type driverHost struct {
+		host         *fleet.Host
+		orbitNodeKey string
+	}
+	hosts := make([]driverHost, scaleHosts)
+
+	var driverErrsMu sync.Mutex
+	var driverErrCount int
+	var driverErrSamples []error
+	recordDriverErr := func(err error) {
+		driverErrsMu.Lock()
+		defer driverErrsMu.Unlock()
+		driverErrCount++
+		if len(driverErrSamples) < 5 {
+			driverErrSamples = append(driverErrSamples, err)
+		}
+	}
+
+	// Work runs on worker goroutines, so it cannot use require or the s.Do
+	// helpers: those call t.FailNow off the test goroutine and register a
+	// t.Cleanup per request. It returns errors that are asserted below instead.
+	runParallel := func(count int, work func(index int) error) {
+		var wg sync.WaitGroup
+		indexes := make(chan int)
+		for range driverWorkers {
+			wg.Go(func() {
+				for index := range indexes {
+					if err := work(index); err != nil {
+						recordDriverErr(err)
+					}
+				}
+			})
+		}
+		for index := range count {
+			indexes <- index
+		}
+		close(indexes)
+		wg.Wait()
+	}
+
+	// The default transport holds only 2 idle connections per host, which would
+	// put the workers into a reconnect for nearly every request.
+	driverClient := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        driverWorkers,
+			MaxIdleConnsPerHost: driverWorkers,
+		},
+	}
+	postAsHost := func(path string, body any, wantStatus int) error {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		req, err := http.NewRequestWithContext(ctx, "POST", s.server.URL+path, bytes.NewReader(raw))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := driverClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		responseBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != wantStatus {
+			return fmt.Errorf("POST %s: status %d, want %d: %s", path, resp.StatusCode, wantStatus, responseBody)
+		}
+		return nil
+	}
+
+	runParallel(scaleHosts, func(index int) error {
+		key := fmt.Sprintf("%s-%d", t.Name(), index)
+		newHost, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   new(key),
+			NodeKey:         new(key),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", key),
+			Platform:        "darwin",
+			TeamID:          &team.ID,
+		})
+		if err != nil {
+			return err
+		}
+		orbitNodeKey := uuid.New().String()
+		if _, err := s.ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: key, HardwareSerial: newHost.HardwareSerial}),
+			fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
+			fleet.WithEnrollOrbitTeamID(&team.ID),
+		); err != nil {
+			return err
+		}
+		hosts[index] = driverHost{host: newHost, orbitNodeKey: orbitNodeKey}
+		return nil
+	})
+	require.Zero(t, driverErrCount, "enrolling the test fleet: %v", driverErrSamples)
+
+	// One cycle is one osquery report of a failing result plus draining the retry
+	// ladder it queues. The distributed write handler queues the install inline
+	// and the install result handler queues each retry inline, so a queued
+	// attempt is there as soon as the request returns and there is nothing to
+	// poll for. A missing pending install means the server declined to queue
+	// another one, which is what the bound should produce once it is in place.
+	// Host IDs restart at 1 once the suite truncates tables, so recorded attempts
+	// from an earlier run would still be inside the 24h window and would cap this
+	// run before it starts.
+	attemptStore := redis_install_attempts.New(s.redisPool)
+	runParallel(scaleHosts, func(index int) error {
+		return attemptStore.ClearAttempts(ctx, hosts[index].host.ID, installerID)
+	})
+	require.Zero(t, driverErrCount, "clearing recorded install attempts: %v", driverErrSamples)
+
+	runParallel(scaleHosts, func(index int) error {
+		driven := hosts[index]
+		failingResult := map[uint]*bool{policy.ID: new(false)}
+		for range policyReportCycles {
+			if err := postAsHost("/api/osquery/distributed/write",
+				genDistributedReqWithPolicyResults(driven.host, failingResult), http.StatusOK); err != nil {
+				return err
+			}
+			for range fleet.MaxPolicyAutomationRetries {
+				last, err := s.ds.GetHostLastInstallData(ctx, driven.host.ID, installerID)
+				if err != nil {
+					return err
+				}
+				if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+					break
+				}
+				if err := postAsHost("/api/fleet/orbit/software_install/result", map[string]any{
+					"orbit_node_key":           driven.orbitNodeKey,
+					"install_uuid":             last.ExecutionID,
+					"install_script_exit_code": 1,
+					"install_script_output":    "fail",
+				}, http.StatusNoContent); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	require.Zero(t, driverErrCount, "driving the test fleet: %v", driverErrSamples)
+
+	type hostAttempts struct {
+		HostID     uint `db:"host_id"`
+		Attempts   int  `db:"attempts"`
+		Failures   int  `db:"failures"`
+		Unreported int  `db:"unreported"`
+	}
+	var hostRows []hostAttempts
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &hostRows, `
+			SELECT host_id,
+			       COUNT(*) AS attempts,
+			       COUNT(CASE WHEN install_script_exit_code IS NOT NULL AND install_script_exit_code != 0 THEN 1 END) AS failures,
+			       COUNT(CASE WHEN install_script_exit_code IS NULL THEN 1 END) AS unreported
+			FROM host_software_installs
+			WHERE software_installer_id = ? AND policy_id = ?
+			GROUP BY host_id
+		`, installerID, policy.ID)
+	})
+	require.Len(t, hostRows, scaleHosts, "every host in the fleet should have queued installs")
+
+	totalAttempts, totalFailures, totalUnreported := 0, 0, 0
+	minPerHost, maxPerHost := hostRows[0].Attempts, hostRows[0].Attempts
+	for _, hostRow := range hostRows {
+		totalAttempts += hostRow.Attempts
+		totalFailures += hostRow.Failures
+		totalUnreported += hostRow.Unreported
+		minPerHost = min(minPerHost, hostRow.Attempts)
+		maxPerHost = max(maxPerHost, hostRow.Attempts)
+	}
+	// A leftover queued install means the driver stopped reporting results early,
+	// which would make every count below an undercount.
+	require.Zero(t, totalUnreported, "the driver left queued installs unreported")
+
+	measuredEgressTB := float64(totalAttempts) * reportedInstallerBytes / bytesPerTB
+	reportsInReportedWindow := float64(reportedDays * policyReportsPerDay)
+	projectedAttempts := float64(totalAttempts) * (reportsInReportedWindow / policyReportCycles) * (float64(reportedHosts) / scaleHosts)
+	projectedEgressTB := projectedAttempts * reportedInstallerBytes / bytesPerTB
+	boundedEgressTB := float64(maxConsecutiveFailedAttempts) * scaleHosts * reportedInstallerBytes / bytesPerTB
+	t.Logf("%d hosts x %d failing policy reports: %d install attempts, %d failed, %d to %d per host",
+		scaleHosts, policyReportCycles, totalAttempts, totalFailures, minPerHost, maxPerHost)
+	t.Logf("that is %.1f TB of installer downloads at %d MB each, over the ~%d hours those reports span",
+		measuredEgressTB, reportedInstallerBytes/(1<<20), policyReportCycles)
+	t.Logf("same rate over %d hosts for %d days: %.0f attempts, %.0f TB egress (%.0f TB/day)",
+		reportedHosts, reportedDays, projectedAttempts, projectedEgressTB, projectedEgressTB/reportedDays)
+	t.Logf("issue #51086 reported 937k attempts, 878k of them failures, over ~7 days across ~1,900 hosts")
+	t.Logf("with the bound, these %d hosts stop at %d attempts each: %.1f TB total, not per day",
+		scaleHosts, maxConsecutiveFailedAttempts, boundedEgressTB)
+
+	require.Equal(t, maxConsecutiveFailedAttempts, maxPerHost,
+		"a policy the install can never resolve must stop after %d consecutive failed attempts", maxConsecutiveFailedAttempts)
+	require.Equal(t, maxConsecutiveFailedAttempts, minPerHost, "the bound must hold for every host, not on average")
+
+	// The rest is per-host behavior, so it runs on one host from the fleet with
+	// the ordinary helpers.
+	sample := hosts[0]
+	submitSampleResult := func(passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			sample.host,
+			map[uint]*bool{policy.ID: new(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+	countSampleAttempts := func() int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*) FROM host_software_installs
+				WHERE host_id = ? AND software_installer_id = ? AND policy_id = ?
+			`, sample.host.ID, installerID, policy.ID)
+		})
+		return count
+	}
+
+	// Once the bound is reached, further failing reports must not queue anything.
+	submitSampleResult(false)
+	require.Never(t, func() bool {
+		return countSampleAttempts() != maxConsecutiveFailedAttempts
+	}, 2*time.Second, 100*time.Millisecond, "no further installs once the bound is reached")
+
+	// The bound counts consecutive failures, so a passing report clears it and
+	// the next failure starts a fresh sequence. Without this a host that
+	// remediates and later regresses would never get another install.
+	submitSampleResult(true)
+	submitSampleResult(false)
+	freshInstall, err := s.ds.GetHostLastInstallData(ctx, sample.host.ID, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, freshInstall, "a pass then fail flip must start a fresh sequence")
+	require.NotNil(t, freshInstall.Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *freshInstall.Status)
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"install_script_exit_code": 1,
+			"install_script_output": "fail"
+		}`, sample.orbitNodeKey, freshInstall.ExecutionID)),
+		http.StatusNoContent)
+	require.Equal(t, maxConsecutiveFailedAttempts+1, countSampleAttempts())
 }
 
 // TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit

@@ -166,6 +166,16 @@ const PolicyNoTeamID = uint(0)
 // Max times a policy automation will be retried on failure.
 const MaxPolicyAutomationRetries = 3
 
+// Max failed install attempts a policy automation makes for one host and
+// installer within PolicyAutomationInstallAttemptWindow. This bounds an install
+// that can never make its policy pass, which the per-sequence retry cap above
+// does not, because a continuous automation starts a new retry sequence on every
+// failing policy result.
+const MaxPolicyAutomationInstallAttempts = 10
+
+// Rolling window that MaxPolicyAutomationInstallAttempts is counted over.
+const PolicyAutomationInstallAttemptWindow = 24 * time.Hour
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {

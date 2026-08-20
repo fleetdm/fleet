@@ -2407,6 +2407,13 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Queue no install at all for a host that keeps failing this installer. This
+		// returns before the reset below, so attempt_number keeps the failed sequence it
+		// already holds instead of being zeroed for an install that never gets queued.
+		if svc.installFailureLimitReached(ctx, hostID, installerMetadata.InstallerID, policyID) {
+			continue
+		}
+
 		// On a continuous re-fire (policy still failing), reset prior
 		// attempt_number values for this host/policy to 0 so the new attempt
 		// restarts the retry sequence at 1 instead of inheriting the cap from
