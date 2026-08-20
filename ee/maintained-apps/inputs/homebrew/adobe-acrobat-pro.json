@@ -2,7 +2,9 @@
   "name": "Adobe Acrobat Pro",
   "unique_identifier": "com.adobe.Acrobat.Pro",
   "token": "adobe-acrobat-pro",
-  "installer_format": "dmg",
+  "installer_format": "pkg",
   "slug": "adobe-acrobat-pro/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ]
 }
