@@ -942,7 +942,7 @@ SELECT
 	COALESCE(detail, '') AS detail,
 	scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
+		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
 	END AS managed_local_account
 FROM
@@ -965,7 +965,7 @@ SELECT
 	COALESCE(detail, '') AS detail,
 	scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
+		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
 	END AS managed_local_account
 FROM
@@ -2742,9 +2742,13 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases
-	// Note that we only ever return the first active user enrollment from the device
+	// Note that we only ever return the first active user enrollment from the device.
+	// created_at has second granularity, so id breaks ties: every query that
+	// resolves a host's user channel must agree on which enrollment that is, or
+	// the channel a user-scoped profile installs on can differ from the channel
+	// later commands for it are sent to.
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
-		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? ORDER BY created_at ASC LIMIT 1`, deviceId)
+		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? ORDER BY created_at ASC, id ASC LIMIT 1`, deviceId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -2779,7 +2783,7 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context
 			ne.type = 'User' AND
 			ne.enabled = 1 AND
 			ne.device_id = ?
-		ORDER BY ne.created_at ASC
+		ORDER BY ne.created_at ASC, ne.id ASC
 		LIMIT 1`, deviceID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
