@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260818072111(t *testing.T) {
+func TestUp_20260820094500(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const staleDetail = `"cameraDisabled" setting couldn't apply to a host.`

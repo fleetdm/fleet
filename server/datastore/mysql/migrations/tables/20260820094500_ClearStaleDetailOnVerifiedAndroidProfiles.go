@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260818072111, Down_20260818072111)
+	MigrationClient.AddMigration(Up_20260820094500, Down_20260820094500)
 }
 
 // When an Android profile moved to verified, the detail recorded by an earlier
@@ -17,7 +17,7 @@ func init() {
 //
 // Scoped to verified rows: a failed or pending profile's detail is its current
 // error message and has to survive.
-func Up_20260818072111(tx *sql.Tx) error {
+func Up_20260820094500(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		UPDATE host_mdm_android_profiles
 		SET detail = '', updated_at = updated_at
@@ -29,6 +29,6 @@ func Up_20260818072111(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260818072111(tx *sql.Tx) error {
+func Down_20260820094500(tx *sql.Tx) error {
 	return nil
 }
