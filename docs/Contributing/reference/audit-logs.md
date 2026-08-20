@@ -3383,6 +3383,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_microsoft_graph_credential
+
+Generated when a Microsoft Graph credential is added.
+
+This activity contains the following fields:
+- "tenant_id": the Microsoft Entra tenant ID the credential authenticates against.
+
+#### Example
+
+```json
+{
+	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
+
+## edited_microsoft_graph_credential
+
+Generated when a Microsoft Graph credential is edited.
+
+This activity contains the following fields:
+- "tenant_id": the Microsoft Entra tenant ID the credential authenticates against.
+
+#### Example
+
+```json
+{
+	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
+
+## deleted_microsoft_graph_credential
+
+Generated when a Microsoft Graph credential is deleted.
+
+This activity contains the following fields:
+- "tenant_id": the Microsoft Entra tenant ID the credential authenticated against.
+
+#### Example
+
+```json
+{
+	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
+
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
