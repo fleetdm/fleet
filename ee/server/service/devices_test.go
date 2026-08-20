@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,6 +52,35 @@ func TestCreateDeviceSSOSession(t *testing.T) {
 	require.Equal(t, host.ID, session.HostID)
 	require.Equal(t, "idp-acct-uuid", session.IdPAccountUUID)
 	require.Equal(t, mockClock.Now().Add(time.Hour), session.ExpiresAt.UTC())
+}
+
+func TestDeviceSSOSessionExpires(t *testing.T) {
+	svc, _, mockClock := newDeviceSSOTestService(t, new(mock.Store), time.Hour)
+
+	ctx := t.Context()
+	sessionID, _, err := svc.createDeviceSSOSession(ctx, &fleet.Host{ID: 42, UUID: "host-uuid-1"}, "idp-acct-uuid")
+	require.NoError(t, err)
+
+	// still valid just before the deadline
+	mockClock.AddTime(time.Hour - time.Second)
+	_, err = svc.validateDeviceSSOSession(ctx, sessionID)
+	require.NoError(t, err)
+
+	// the absolute deadline is enforced on read even though this store never
+	// drops the key, so a store that stops honoring TTLs can't keep the session
+	// alive.
+	mockClock.AddTime(2 * time.Second)
+	_, err = svc.validateDeviceSSOSession(ctx, sessionID)
+	require.Error(t, err)
+}
+
+func TestDeviceSSOSessionUnknownIDNotFound(t *testing.T) {
+	svc, _, _ := newDeviceSSOTestService(t, new(mock.Store), time.Hour)
+
+	for _, sessionID := range []string{"", "does-not-exist"} {
+		_, err := svc.validateDeviceSSOSession(t.Context(), sessionID)
+		require.Error(t, err)
+	}
 }
 
 func TestInitiateDeviceSSOGuards(t *testing.T) {
@@ -187,4 +218,176 @@ func TestInitiateDeviceSSOMissingHostInContext(t *testing.T) {
 
 	_, err := svc.InitiateDeviceSSO(t.Context(), "/device/some-token")
 	require.Error(t, err)
+}
+
+func TestRequireDeviceSSOSession(t *testing.T) {
+	host := &fleet.Host{ID: 1, UUID: "host-uuid-1"}
+	otherHost := &fleet.Host{ID: 2, UUID: "host-uuid-2"}
+
+	// mintFor returns a session ID for h, or "" for the callers that stand in for
+	// a browser with no cookie yet.
+	type sessionFor func(t *testing.T, svc *Service, ctx context.Context) string
+	noSession := func(*testing.T, *Service, context.Context) string { return "" }
+	sessionOf := func(h *fleet.Host) sessionFor {
+		return func(t *testing.T, svc *Service, ctx context.Context) string {
+			sessionID, _, err := svc.createDeviceSSOSession(ctx, h, "idp-acct-uuid")
+			require.NoError(t, err)
+			return sessionID
+		}
+	}
+
+	cases := []struct {
+		name                  string
+		ssoEnabled            bool
+		awaitingConfiguration bool
+		session               sessionFor
+		advanceClock          time.Duration
+		wantSSORequired       bool
+		wantSessionLookup     bool
+	}{
+		{
+			name:       "setting off allows the request",
+			ssoEnabled: false,
+			session:    noSession,
+		},
+		{
+			name:              "session bound to the host allows the request",
+			ssoEnabled:        true,
+			session:           sessionOf(host),
+			wantSessionLookup: true,
+		},
+		{
+			name:              "no session requires sso",
+			ssoEnabled:        true,
+			session:           noSession,
+			wantSSORequired:   true,
+			wantSessionLookup: true,
+		},
+		{
+			name:              "expired session requires sso",
+			ssoEnabled:        true,
+			session:           sessionOf(host),
+			advanceClock:      2 * time.Hour,
+			wantSSORequired:   true,
+			wantSessionLookup: true,
+		},
+		{
+			name:              "session minted for another host requires sso",
+			ssoEnabled:        true,
+			session:           sessionOf(otherHost),
+			wantSSORequired:   true,
+			wantSessionLookup: true,
+		},
+		{
+			name:                  "host in setup experience is exempt",
+			ssoEnabled:            true,
+			awaitingConfiguration: true,
+			session:               noSession,
+			wantSessionLookup:     true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				var ac fleet.AppConfig
+				ac.FleetDesktop.SSOEnabled = c.ssoEnabled
+				return &ac, nil
+			}
+			ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+				require.Equal(t, host.UUID, hostUUID)
+				return c.awaitingConfiguration, nil
+			}
+
+			svc, getKey, mockClock := newDeviceSSOTestService(t, ds, time.Hour)
+			ctx := t.Context()
+
+			sessionID := c.session(t, svc, ctx)
+			mockClock.AddTime(c.advanceClock)
+
+			err := svc.RequireDeviceSSOSession(ctx, host, sessionID)
+
+			if c.wantSSORequired {
+				var ssoRequired *fleet.DeviceSSORequiredError
+				require.ErrorAs(t, err, &ssoRequired)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// With the setting off nothing is looked up at all: no session read and
+			// no setup experience query, so a Fleet running without the feature
+			// pays nothing for it.
+			if !c.wantSessionLookup {
+				require.Nil(t, getKey(deviceSSOSessionKeyPrefix+sessionID))
+				require.False(t, ds.GetHostAwaitingConfigurationFuncInvoked)
+			}
+		})
+	}
+}
+
+func TestRequireDeviceSSOSessionSetupExperienceSurvivesStoreFailure(t *testing.T) {
+	host := &fleet.Host{ID: 1, UUID: "host-uuid-1"}
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		var ac fleet.AppConfig
+		ac.FleetDesktop.SSOEnabled = true
+		return &ac, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return true, nil
+	}
+
+	svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
+	svc.keyValueStore = &redismock.KeyValueStore{
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			return nil, errors.New("redis is down")
+		},
+	}
+
+	require.NoError(t, svc.RequireDeviceSSOSession(t.Context(), host, ""))
+}
+
+func TestRequireDeviceSSOSessionMissingSetupExperienceRow(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		var ac fleet.AppConfig
+		ac.FleetDesktop.SSOEnabled = true
+		return &ac, nil
+	}
+	// Hosts that never ran setup experience have no row at all.
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, &notFoundError{}
+	}
+
+	svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
+
+	var ssoRequired *fleet.DeviceSSORequiredError
+	require.ErrorAs(t, svc.RequireDeviceSSOSession(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"}, ""), &ssoRequired)
+}
+
+func TestRequireDeviceSSOSessionStoreFailure(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		var ac fleet.AppConfig
+		ac.FleetDesktop.SSOEnabled = true
+		return &ac, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
+	svc.keyValueStore = &redismock.KeyValueStore{
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			return nil, errors.New("redis is down")
+		},
+	}
+
+	err := svc.RequireDeviceSSOSession(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"}, "some-session")
+
+	require.ErrorContains(t, err, "redis is down")
+	var ssoRequired *fleet.DeviceSSORequiredError
+	require.NotErrorAs(t, err, &ssoRequired, "a broken session store must not read as a prompt to sign in")
 }

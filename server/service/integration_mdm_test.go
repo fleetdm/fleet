@@ -7037,7 +7037,8 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 	require.NoError(t, err)
 	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso", forgedBody, http.StatusBadRequest)
 
-	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK)
+	// the gate is on, so the device page is refused until the end user signs in
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusUnauthorized), true)
 
 	// complete *this* flow: sign in at the IdP and post the assertion back to the
 	// existing MDM SSO callback, on the same client that holds the handshake cookie

@@ -139,6 +139,10 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 	return nil, fleet.ErrMissingLicense
 }
 
+func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
+	return nil
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // Get Current Device's Host
 /////////////////////////////////////////////////////////////////////////////////
