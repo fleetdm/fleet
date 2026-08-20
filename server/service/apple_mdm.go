@@ -70,6 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
+	ActivationTooLargeErrorMsg              = "Maximum activation file size is 1 MB."
 	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 

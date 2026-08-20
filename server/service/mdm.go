@@ -1776,8 +1776,8 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	// determines the profile type.
 	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
 		decoded.Activation = fhs[0]
-		if decoded.Activation.Size > fleet.MaxProfileSize {
-			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
+		if decoded.Activation.Size > fleet.MaxActivationSize {
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationTooLargeErrorMsg)
 		}
 	}
 
@@ -2004,8 +2004,8 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		switch {
 		case decoded.Activation.Size == 0:
 			return nil, fleet.NewInvalidArgumentError("activation", ActivationEmptyFileErrorMsg)
-		case decoded.Activation.Size > fleet.MaxProfileSize:
-			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
+		case decoded.Activation.Size > fleet.MaxActivationSize:
+			return nil, fleet.NewInvalidArgumentError("activation", ActivationTooLargeErrorMsg)
 		}
 	} else if hasActivationValue {
 		decoded.ActivationSet = true

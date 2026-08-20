@@ -2011,6 +2011,13 @@ func TestUpdateMDMConfigProfileDecodeActivationFile(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), ActivationEmptyFileErrorMsg)
 	})
+
+	t.Run("an oversized file is rejected", func(t *testing.T) {
+		oversized := bytes.Repeat([]byte("a"), int(fleet.MaxActivationSize)+1)
+		_, err := updateMDMConfigProfileRequest{}.DecodeRequest(t.Context(), build(t, oversized))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), ActivationTooLargeErrorMsg)
+	})
 }
 
 func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
