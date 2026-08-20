@@ -61,6 +61,7 @@ type store struct {
 	stored             atomic.Int64 // number of pushes stored for later delivery (pending)
 	coalesced          atomic.Int64 // number of pushes that were coalesced (overwritten) by a later push
 	expired            atomic.Int64 // number of pushes that expired before delivery (pending)
+	acceptErrors       atomic.Int64 // number of accept failures the listener retried past (see listener.go)
 }
 
 // newStore initializes all shard maps up front (writing to a nil map

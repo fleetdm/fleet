@@ -506,7 +506,25 @@ func TestE2EHealthz(t *testing.T) {
 
 func TestE2EStatsStartAtZero(t *testing.T) {
 	srv := newTestServer(t)
-	assert.Equal(t, statsResponse{}, getStats(t, srv.URL))
+	stats := getStats(t, srv.URL)
+
+	// Only the push/connection counters start at zero. The resource fields
+	// report the live process, so they are asserted for plausibility rather
+	// than equality: goroutines and descriptors depend on the test binary, and
+	// os_threads/open_fds are -1 wherever /proc is absent (so, on macOS).
+	assert.Zero(t, stats.ActiveConnections)
+	assert.Zero(t, stats.TotalPushes)
+	assert.Zero(t, stats.DeliveredLive)
+	assert.Zero(t, stats.DeliveredOnConnect)
+	assert.Zero(t, stats.Stored)
+	assert.Zero(t, stats.Coalesced)
+	assert.Zero(t, stats.Expired)
+	assert.Zero(t, stats.AcceptErrors, "a fresh server must not have failed an accept")
+
+	assert.Positive(t, stats.Goroutines)
+	assert.Positive(t, stats.FDLimit, "RLIMIT_NOFILE should always be readable")
+	assert.GreaterOrEqual(t, stats.OpenFDs, -1)
+	assert.GreaterOrEqual(t, stats.OSThreads, -1)
 }
 
 func TestE2EKeepalive(t *testing.T) {

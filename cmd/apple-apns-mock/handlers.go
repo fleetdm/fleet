@@ -11,7 +11,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"runtime/metrics"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -85,8 +85,22 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 	// strings.Clone cuts the token loose from the request's URL string, which
 	// would otherwise keep it (and the buffer it was parsed from) alive for
 	// the life of the stream.
+	//
+	// The panic is recovered here rather than left to the runtime: this
+	// goroutine outlives the handler, so net/http's per-request recover no
+	// longer covers it, and one panicking stream would otherwise end the
+	// process and every other stream with it. streamEvents' own defers still
+	// run while unwinding, so the store stays consistent.
 	//nolint:gosec // G118: the request context is canceled the moment this handler returns, and returning is exactly what frees the per-connection buffers. The stream has to outlive it.
-	go streamEvents(conn, strings.Clone(token), st, logger, keepAlive, writeTimeout)
+	go func(token string) {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.ErrorContext(context.Background(), "panic in SSE stream",
+					"token", token, "panic", r, "stack", string(debug.Stack()))
+			}
+		}()
+		streamEvents(conn, token, st, logger, keepAlive, writeTimeout)
+	}(strings.Clone(token))
 }
 
 // sseResponseHead is the 200 that eventsSSEHandler writes by hand after
@@ -354,6 +368,15 @@ type statsResponse struct {
 	Stored             int `json:"stored"`
 	Coalesced          int `json:"coalesced"`
 	Expired            int `json:"expired"`
+
+	// Resource counters. A process that has run out of descriptors, or that is
+	// failing to accept, keeps serving its existing streams with flat CPU and
+	// memory, so none of this shows up in container metrics.
+	AcceptErrors int    `json:"accept_errors"`
+	Goroutines   int    `json:"goroutines"`
+	OSThreads    int    `json:"os_threads"` // -1 where unavailable; the runtime kills the process past 10,000
+	OpenFDs      int    `json:"open_fds"`   // -1 where unavailable (no /proc)
+	FDLimit      uint64 `json:"fd_limit"`   // soft RLIMIT_NOFILE actually granted, which may not be what was asked for
 }
 
 // statsHandler serves GET /stats — the store's counters as JSON, for
@@ -369,6 +392,11 @@ func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
 		Stored:             int(st.stored.Load()),
 		Coalesced:          int(st.coalesced.Load()),
 		Expired:            int(st.expired.Load()),
+		AcceptErrors:       int(st.acceptErrors.Load()),
+		Goroutines:         runtime.NumGoroutine(),
+		OSThreads:          osThreads(),
+		OpenFDs:            openFDs(),
+		FDLimit:            fdLimit(),
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -387,28 +415,35 @@ func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
 // per-connection number that means something.
 type memStatsResponse struct {
 	Goroutines int    `json:"goroutines"`   // ~1 per live SSE stream, plus a handful of runtime and accept goroutines
+	OSThreads  int    `json:"os_threads"`   // not the goroutine count; the runtime kills the process past 10,000. -1 where unavailable
 	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage unless ?gc=1
 	StackBytes uint64 `json:"stack_bytes"`  // goroutine stacks
 	InUseBytes uint64 `json:"in_use_bytes"` // everything the runtime holds minus what it has released to the OS
+	OpenFDs    int    `json:"open_fds"`     // one per live stream; the ceiling that stops new connections while existing ones keep working. -1 where unavailable
+	FDLimit    uint64 `json:"fd_limit"`     // soft RLIMIT_NOFILE actually granted, which is not always what the task definition asked for
 }
 
 func memStatsHandler(w http.ResponseWriter, r *http.Request) {
-	samples := []metrics.Sample{
-		{Name: "/memory/classes/heap/objects:bytes"},
-		{Name: "/memory/classes/heap/stacks:bytes"},
-		{Name: "/memory/classes/total:bytes"},
-		{Name: "/memory/classes/heap/released:bytes"},
+	// ?gc=1 collects first so heap_bytes reflects live data rather than live
+	// data plus whatever garbage has accumulated since the last cycle. The
+	// endpoint has always documented this; it just never did it.
+	if r.URL.Query().Get("gc") == "1" {
+		runtime.GC()
 	}
-	metrics.Read(samples)
+
+	heap, stacks, inUse := runtimeMem()
 
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(memStatsResponse{
 		Goroutines: runtime.NumGoroutine(),
-		HeapBytes:  samples[0].Value.Uint64(),
-		StackBytes: samples[1].Value.Uint64(),
-		InUseBytes: samples[2].Value.Uint64() - samples[3].Value.Uint64(),
+		OSThreads:  osThreads(),
+		HeapBytes:  heap,
+		StackBytes: stacks,
+		InUseBytes: inUse,
+		OpenFDs:    openFDs(),
+		FDLimit:    fdLimit(),
 	}); err != nil {
 		http.Error(w, "Failed to encode memstats", http.StatusInternalServerError)
 		return
