@@ -4,9 +4,9 @@
 
 ## Key takeaways
 
-- **Vulnerability data means nothing without prioritization.** Fleet matches installed software against CVE feeds from NVD, CISA's Known Exploited Vulnerabilities catalog, and EPSS exploit-probability scores, so your team patches what is actually being targeted instead of triaging a flat list by CVSS score.
 - **Shadow AI is already on your endpoints, whether your MDM can see it or not.** Fleet inventories AI tooling, from MCP server configurations to IDE extensions, across macOS, Windows, and Linux, so AI governance covers what is actually installed, not just what a SaaS catalog happens to know about.
-- **You are probably renewing five contracts, not one.** Most teams pay for a separate tool per operating system, plus a vulnerability scanner and a compliance reporting tool. Fleet manages macOS, Windows, Linux, iOS, iPadOS, and Android, including devices most MDMs never reach, from one server and one API.
+- **Vulnerability data means nothing without prioritization.** Fleet matches installed software against CVE feeds from NVD, CISA's Known Exploited Vulnerabilities catalog, and EPSS exploit-probability scores, so your team patches what is actually being targeted instead of triaging a flat list by CVSS score.
+- **You are probably renewing multiple contracts, not one.** Most teams pay for a separate tool per operating system, plus a vulnerability scanner and a compliance reporting tool. Fleet manages macOS, Windows, Linux, iOS, iPadOS, and Android, including devices most MDMs never reach, from one server and one API.
 - **Configuration as code decides what your team can do for the next three years.** With Fleet, every profile, policy, and report lives in Git, gets reviewed in a pull request, and rolls back with one revert. That is also the only safe way to let AI draft changes to your fleet.
 - **You can watch your own bugs and feature requests move, instead of waiting on a ticket number.** Fleet tracks issues and feature requests in public GitHub repos with a quarterly public roadmap, so you see what is being worked on rather than guessing at a support queue's priorities.
 - **Leaving is possible even if you never plan to.** Fleet's core is open source and your configuration is portable YAML, which keeps switching a choice instead of a project a price hike forces on you.
@@ -73,7 +73,7 @@ Moving management over comes later, on your schedule. For Apple devices, Fleet f
 
 You do not have to switch tools to get value out of a renewal. You do have to ask the questions while somebody has a reason to answer them: show me what you can tell me about AI tooling on my endpoints, show me how you prioritize vulnerabilities, show me the status of my open feature requests, and show me where Linux fits.
 
-If those answers are good, sign with confidence. If they are not, you have just learned what you are paying for, and you have a year to do something about it.
+If those answers are good, sign with confidence. If they are not, you have just learned what you are paying for, and you time do something about it.
 
 ## See it live
 
@@ -85,8 +85,8 @@ If those answers are good, sign with confidence. If they are not, you have just 
 *Ready to ask harder questions before your next renewal? [Talk to Fleet](https://fleetdm.com/contact), or read [9 problems every IT team has, and why they switch to Fleet](https://fleetdm.com/articles/nine-problems-every-it-team-has-and-why-they-switch-to-fleet).*
 
 <meta name="articleTitle" value="Three things to know before you renew your current MDM">
-<meta name="authorFullName" value="">
-<meta name="authorGitHubUsername" value="">
+<meta name="authorFullName" value="Mitch Francese">
+<meta name="authorGitHubUsername" value="tux234">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="YYYY-MM-DD">
+<meta name="publishedOn" value="2026-08-20">
 <meta name="description" value="Three questions to ask your MDM vendor at renewal: vulnerability prioritization, AI governance, tool sprawl, and how bugs and features get tracked.">
