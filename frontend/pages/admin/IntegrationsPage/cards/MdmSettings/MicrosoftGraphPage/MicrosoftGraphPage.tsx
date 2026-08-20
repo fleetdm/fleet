@@ -5,12 +5,12 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { equalsIgnoreCase } from "utilities/strings/stringUtils";
 import { IMicrosoftGraphCredentialFormData } from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI, {
   IGetMicrosoftGraphCredentialsResponse,
 } from "services/entities/microsoft_graph_credentials";
 import { getErrorReason } from "interfaces/errors";
-import configAPI from "services/entities/config";
 
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
@@ -35,10 +35,10 @@ const baseClass = "microsoft-graph-page";
 // Entra IDs and secrets are stored in varchar(255) columns.
 const FIELD_MAX_LENGTH = 255;
 
-// The API lower-cases both IDs before comparing, so the UI must too or re-pasting the same app registration in a
-// different case looks like an identity change and needlessly demands a fresh secret.
-const sameEntraID = (a: string, b: string) =>
-  a.toLowerCase() === b.toLowerCase();
+// The API never returns a stored secret, so the field shows this placeholder to signal one exists. It doubles as the
+// "unchanged" sentinel: the secret is only sent when the value differs from it. Aliased to the shared constant so the
+// two can't drift, since the API would accept the mask on a write.
+const STORED_SECRET_PLACEHOLDER = UNCHANGED_PASSWORD_API_RESPONSE;
 
 type ICredentialField = "tenantId" | "clientId" | "clientSecret";
 
@@ -56,7 +56,6 @@ const CREDENTIAL_FIELDS: ICredentialField[] = [
 
 // The API reports per-field problems under these names. Anything it reports under the bare `microsoft_graph_credentials`
 // key is a whole-credential failure (verification, licensing, missing private key) with no field to attach it to.
-// Lets one change handler compare either ID against the credential Fleet already stores.
 const STORED_ID_KEYS = {
   tenantId: "tenant_id",
   clientId: "client_id",
@@ -82,7 +81,7 @@ const getServerFieldErrors = (err: unknown): IFormErrors => {
 };
 
 const MicrosoftGraphPage = () => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const { config, isPremiumTier, setConfig } = useContext(AppContext);
 
   const [formData, setFormData] = useState<IFormData>({
     tenantId: "",
@@ -118,16 +117,12 @@ const MicrosoftGraphPage = () => {
   const storedCredential =
     credentialsResponse?.microsoft_graph_credentials?.[0];
 
-  // Seed the form from the stored credential. The API never returns the secret, so the field shows the masked
-  // placeholder to signal that one is stored; leaving it untouched keeps the stored secret.
-  // Keyed on identity, not on the credential object. A background refetch (focus, or after the 5-minute sync rewrites
-  // last_synced_at) yields a new object, and re-seeding on that would discard whatever the admin is mid-way through
-  // typing. onSave restores the mask itself, so nothing here needs to react to sync state.
+  // Seed the form from the stored credential. Leaving the secret field untouched keeps the stored secret.
   useEffect(() => {
     setFormData({
       tenantId: storedCredential?.tenant_id ?? "",
       clientId: storedCredential?.client_id ?? "",
-      clientSecret: storedCredential ? UNCHANGED_PASSWORD_API_RESPONSE : "",
+      clientSecret: storedCredential ? STORED_SECRET_PLACEHOLDER : "",
     });
     setFormErrors({});
     setDirtyFields({});
@@ -144,14 +139,15 @@ const MicrosoftGraphPage = () => {
 
     setFormData((prev) => {
       const updated = { ...prev, [field]: nextValue };
-      // The stored secret belongs to a specific app registration, so changing either ID invalidates it. Clearing the
-      // mask forces re-entry, which is the same pattern AccountProvisioning and the certificate-authority edit flow
-      // use, and it surfaces inline what the API would otherwise reject with a 422.
+      // The stored secret belongs to a specific app registration, so changing either ID invalidates it.
       if (
         storedCredential &&
         field !== "clientSecret" &&
-        prev.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE &&
-        !sameEntraID(nextValue.trim(), storedCredential[STORED_ID_KEYS[field]])
+        prev.clientSecret === STORED_SECRET_PLACEHOLDER &&
+        !equalsIgnoreCase(
+          nextValue.trim(),
+          storedCredential[STORED_ID_KEYS[field]]
+        )
       ) {
         updated.clientSecret = "";
       }
@@ -159,14 +155,15 @@ const MicrosoftGraphPage = () => {
     });
   };
 
-  // Re-entry is required whenever the app registration's identity changes, matching the API's own rule.
+  // Re-entry is required whenever the app registration's identity changes, matching the API's own rule. The API
+  // lower-cases both IDs before comparing, so the UI must too.
   const identityChanged =
     !!storedCredential &&
-    (!sameEntraID(tenantId.trim(), storedCredential.tenant_id) ||
-      !sameEntraID(clientId.trim(), storedCredential.client_id));
+    (!equalsIgnoreCase(tenantId.trim(), storedCredential.tenant_id) ||
+      !equalsIgnoreCase(clientId.trim(), storedCredential.client_id));
 
   const secretChanged =
-    clientSecret !== "" && clientSecret !== UNCHANGED_PASSWORD_API_RESPONSE;
+    clientSecret !== "" && clientSecret !== STORED_SECRET_PLACEHOLDER;
 
   // The secret is only required for a new credential or a changed app registration.
   const secretRequired = !storedCredential || identityChanged;
@@ -217,15 +214,16 @@ const MicrosoftGraphPage = () => {
   const onFocusField = (field: ICredentialField) => () =>
     setFormErrors((prev) => ({ ...prev, [field]: undefined }));
 
-  // The app-wide banner reads config.mdm.microsoft_graph_credential_invalid from AppContext, and App only refreshes
-  // that on a pathname change. Saving or deleting recomputes the aggregate server-side, so pull the config again or a
-  // repaired credential leaves the banner up until the admin navigates away.
-  const refreshAppConfig = async () => {
-    try {
-      setConfig(await configAPI.loadAll());
-    } catch {
-      // Non-fatal: the banner clears on the next navigation.
+  // Saving or deleting always leaves the tenant healthy: a save only succeeds once Fleet has verified the credential
+  // against Microsoft Graph, and a delete leaves none that could be invalid.
+  const clearInvalidCredentialBanner = () => {
+    if (!config?.mdm.microsoft_graph_credential_invalid) {
+      return;
     }
+    setConfig({
+      ...config,
+      mdm: { ...config.mdm, microsoft_graph_credential_invalid: false },
+    });
   };
 
   const onSave = async (evt: React.FormEvent) => {
@@ -249,18 +247,17 @@ const MicrosoftGraphPage = () => {
     setIsSaving(true);
     try {
       await microsoftGraphCredentialsAPI.applyCredentials([credential]);
-      // A secret is stored either way now, so show the mask again. The seeding effect only fires when the identity
-      // changed, so a save that kept the same tenant and client would otherwise leave the raw secret on screen.
+      // A secret is stored either way now, so show the mask again.
       setFormData((prev) => ({
         ...prev,
-        clientSecret: UNCHANGED_PASSWORD_API_RESPONSE,
+        clientSecret: STORED_SECRET_PLACEHOLDER,
       }));
       notify.success("Successfully saved Microsoft Graph credential.");
       refetch();
-      await refreshAppConfig();
+      clearInvalidCredentialBanner();
     } catch (e) {
-      // Field-specific problems render inline AND toast: the form can be scrolled past the errored field after submit.
-      // A whole-credential failure has no field to attach to, so it is a toast only.
+      // Field-specific problems render inline AND toast. A whole-credential failure has no field to attach to, so it is
+      // a toast only.
       const fieldErrors = getServerFieldErrors(e);
       const messages = Object.values(fieldErrors);
       if (messages.length > 0) {
@@ -281,7 +278,7 @@ const MicrosoftGraphPage = () => {
   const onDeleted = () => {
     setShowDeleteModal(false);
     refetch();
-    refreshAppConfig();
+    clearInvalidCredentialBanner();
   };
 
   const renderSyncStatus = () => {
@@ -345,9 +342,6 @@ const MicrosoftGraphPage = () => {
     <form className={`${baseClass}__form`} onSubmit={onSave}>
       {renderField("tenantId", "Tenant ID")}
       {renderField("clientId", "Client ID")}
-      {/* blockAutoComplete renders autocomplete="new-password" so a password manager neither offers to fill this nor
-          prompts to save it. This is a service principal's secret, not a user login, and the field carries a mask
-          rather than the real value. InputField's ignore1password default already emits data-1p-ignore. */}
       {renderField("clientSecret", "Client secret", {
         type: "password",
         blockAutoComplete: true,
