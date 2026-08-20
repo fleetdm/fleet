@@ -364,19 +364,46 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	// but the cert is absent, the profile fails. Device-scoped relies on the always-readable system store; user-scoped
 	// needs a user cert in the report (single-user assumption).
 	for i, tc := range []struct {
-		name       string
-		userScoped bool
-		backdate   time.Duration // 0 = still within the grace window
-		certSource fleet.HostCertificateSource
-		username   string
-		retries    int
-		wantStatus fleet.MDMDeliveryStatus
-		wantDetail string
+		name        string
+		userScoped  bool
+		backdate    time.Duration // 0 = still within the grace window
+		certSource  fleet.HostCertificateSource
+		username    string
+		retries     int
+		wantStatus  fleet.MDMDeliveryStatus // "" means pending, i.e. queued for another delivery
+		wantDetail  string
+		wantRetries int
 	}{
-		{"device-scoped fails past grace when cert absent", false, 2 * time.Hour, fleet.SystemHostCertificate, "", 2, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
-		{"device-scoped stays verifying within grace", false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
-		{"user-scoped stays verifying when no user cert observed", true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
-		{"user-scoped fails past grace once a user cert is observed", true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+		{
+			"device-scoped retries past grace when cert absent",
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, "", "", 1,
+		},
+		{
+			"device-scoped retries again on its last attempt",
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", mdm.MaxWindowsProfileRetries - 1, "", "", mdm.MaxWindowsProfileRetries,
+		},
+		{
+			"device-scoped fails past grace once the retries are spent",
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", mdm.MaxWindowsProfileRetries,
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries,
+		},
+		{
+			"device-scoped stays verifying within grace",
+			false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0,
+		},
+		{
+			"user-scoped stays verifying when no user cert observed",
+			true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0,
+		},
+		{
+			"user-scoped retries past grace once a user cert is observed",
+			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, "", "", 1,
+		},
+		{
+			"user-scoped fails past grace once the retries are spent",
+			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", mdm.MaxWindowsProfileRetries,
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries,
+		},
 	} {
 		t.Run("backstop: "+tc.name, func(t *testing.T) {
 			h := mkHost(t, fmt.Sprintf("backstop-%d", i))
@@ -394,9 +421,34 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			status, detail, retries := getProfile(t, h, p)
 			require.Equal(t, tc.wantStatus, status)
 			require.Equal(t, tc.wantDetail, detail)
-			require.Equal(t, tc.retries, retries)
+			require.Equal(t, tc.wantRetries, retries)
 		})
 	}
+
+	// Redelivering resets updated_at, so a retried profile is back inside the grace window and the backstop must leave
+	// it alone until the next window elapses. Without this, one ingest per detail cycle would burn the whole budget in
+	// minutes instead of giving each attempt its own grace period.
+	t.Run("backstop: a retried profile is not failed again until the next grace window", func(t *testing.T) {
+		h := mkHost(t, "backstop-regrace")
+		p := "w-backstop-regrace"
+		upsertWinProfile(t, h, p, "cmd-bs-regrace", fleet.MDMDeliveryVerifying, 0)
+		insertConfigProfile(t, p, "bs-regrace", false)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		backdateProfile(t, h, p, 2*time.Hour)
+
+		ingest(t, h, plainCert(t, h, "regrace-cert", fleet.SystemHostCertificate, ""))
+		status, _, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Equal(t, 1, retries)
+
+		// Simulate the redelivery the retry triggers: back to verifying, with a fresh updated_at.
+		upsertWinProfile(t, h, p, "cmd-bs-regrace-2", fleet.MDMDeliveryVerifying, 1)
+
+		ingest(t, h, plainCert(t, h, "regrace-cert", fleet.SystemHostCertificate, ""))
+		status, _, retries = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status)
+		require.Equal(t, 1, retries, "an ingest inside the grace window must not consume a retry")
+	})
 
 	t.Run("observed cert wins over the backstop even past grace", func(t *testing.T) {
 		h := mkHost(t, "backstop-flipwins")
@@ -460,18 +512,27 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
 		})
 
-		t.Run("verification backstop", func(t *testing.T) {
-			h := mkHost(t, "rollup-backstop")
-			p := "w-rollup-backstop"
-			upsertWinProfile(t, h, p, "cmd-rollup-backstop", fleet.MDMDeliveryVerifying, 0)
-			insertConfigProfile(t, p, "rollup-backstop", false)
-			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-			backdateProfile(t, h, p, 2*time.Hour)
+		for _, tc := range []struct {
+			name    string
+			retries int
+			want    fleet.MDMDeliveryStatus
+		}{
+			{"verification backstop with retries left", 0, fleet.MDMDeliveryPending},
+			{"verification backstop once the retries are spent", mdm.MaxWindowsProfileRetries, fleet.MDMDeliveryFailed},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				h := mkHost(t, fmt.Sprintf("rollup-backstop-%d", tc.retries))
+				p := fmt.Sprintf("w-rollup-backstop-%d", tc.retries)
+				upsertWinProfile(t, h, p, "cmd-rollup-backstop", fleet.MDMDeliveryVerifying, tc.retries)
+				insertConfigProfile(t, p, fmt.Sprintf("rollup-backstop-%d", tc.retries), false)
+				upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+				backdateProfile(t, h, p, 2*time.Hour)
 
-			ingest(t, h, plainCert(t, h, "rollup-backstop-cert", fleet.SystemHostCertificate, ""))
+				ingest(t, h, plainCert(t, h, "rollup-backstop-cert", fleet.SystemHostCertificate, ""))
 
-			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryFailed)
-		})
+				requireRollupMatchesReconcile(t, h.UUID, tc.want)
+			})
+		}
 	})
 }
 
