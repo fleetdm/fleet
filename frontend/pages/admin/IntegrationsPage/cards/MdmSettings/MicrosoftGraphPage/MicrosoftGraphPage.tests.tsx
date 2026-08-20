@@ -1,7 +1,7 @@
 import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, getOpenModal } from "test/test-utils";
 import { createMockConfig } from "__mocks__/configMock";
 import { IMicrosoftGraphCredential } from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI from "services/entities/microsoft_graph_credentials";
@@ -95,8 +95,12 @@ describe("MicrosoftGraphPage", () => {
     expect(screen.getByLabelText("Client ID")).toHaveValue(
       "7f6b1665-51f5-48de-a9b6-ac17539583fb"
     );
-    // The API never returns the secret; the mask signals that one is stored.
-    expect(screen.getByLabelText("Client secret")).toHaveValue("********");
+    // The API never returns the secret; the mask signals that one is stored. A service principal's secret is not a user
+    // login and the field holds a mask, so neither 1Password nor the browser should offer to fill or save it.
+    const secretField = screen.getByLabelText("Client secret");
+    expect(secretField).toHaveValue("********");
+    expect(secretField).toHaveAttribute("autocomplete", "new-password");
+    expect(secretField).toHaveAttribute("data-1p-ignore");
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 
@@ -239,16 +243,6 @@ describe("MicrosoftGraphPage", () => {
     );
   });
 
-  it("keeps password managers out of the client secret field", async () => {
-    renderPage([createMockCredential()]);
-
-    // A service principal's secret is not a user login, and the field holds a mask rather than the real value, so
-    // neither 1Password nor the browser should offer to fill or save it.
-    const secretField = await screen.findByLabelText("Client secret");
-    expect(secretField).toHaveAttribute("autocomplete", "new-password");
-    expect(secretField).toHaveAttribute("data-1p-ignore");
-  });
-
   it("shows a field error on blur once the field is dirty", async () => {
     const { user } = renderPage([]);
 
@@ -296,7 +290,9 @@ describe("MicrosoftGraphPage", () => {
     expect(
       await screen.findByText("Microsoft Graph rejected the credential.")
     ).toBeInTheDocument();
-    expect(notify.batch).toHaveBeenCalled();
+    expect(notify.batch).toHaveBeenCalledWith([
+      { variant: "error", message: "Microsoft Graph rejected the credential." },
+    ]);
   });
 
   it("clears the secret error when the identity change that required it is reverted", async () => {
@@ -339,13 +335,13 @@ describe("MicrosoftGraphPage", () => {
   it("clears a field error when the field is focused", async () => {
     const { user } = renderPage([]);
 
-    await user.click(await screen.findByRole("button", { name: "Save" }));
+    // Captured before submitting: the error text replaces the label, so findByLabelText cannot reach the field once
+    // the error is showing. It is the same node either way.
+    const tenantField = await screen.findByLabelText("Tenant ID");
+    await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Enter a tenant ID")).toBeInTheDocument();
 
-    // The error replaces the label, so target the input directly.
-    await user.click(
-      document.querySelector("input[name='tenantId']") as HTMLElement
-    );
+    await user.click(tenantField);
     await waitFor(() => {
       expect(screen.queryByText("Enter a tenant ID")).not.toBeInTheDocument();
     });
@@ -356,19 +352,38 @@ describe("MicrosoftGraphPage", () => {
 
     await user.click(await screen.findByRole("button", { name: "Delete" }));
 
-    // Confirm inside the modal, which has its own Delete button. Fleet's Modal sets no dialog role, so scope by class.
-    const modal = await waitFor(() => {
-      const el = document.querySelector(
-        ".delete-microsoft-graph-credential-modal"
-      );
-      if (!el) throw new Error("delete modal not rendered");
-      return el as HTMLElement;
-    });
+    // Confirm inside the modal, which has its own Delete button.
+    const modal = await getOpenModal();
     await user.click(within(modal).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(mockedAPI.deleteCredentials).toHaveBeenCalled();
     });
+  });
+
+  it("locks the form while a save is in flight", async () => {
+    // Definite assignment: a Promise executor runs synchronously, so this is set before the test can use it.
+    let finishSave!: () => void;
+    mockedAPI.applyCredentials.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSave = resolve;
+      })
+    );
+    const { user } = renderPage([createMockCredential()]);
+
+    const tenantField = await screen.findByLabelText("Tenant ID");
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // The request is built from the values at submit time, so editing mid-flight would let the admin believe they saved
+    // something the request never carried.
+    await waitFor(() => expect(tenantField).toBeDisabled());
+    expect(screen.getByLabelText("Client ID")).toBeDisabled();
+    expect(screen.getByLabelText("Client secret")).toBeDisabled();
+    expect(deleteButton).toBeDisabled();
+
+    finishSave();
+    await waitFor(() => expect(tenantField).toBeEnabled());
   });
 
   it("disables the fields and save in GitOps mode", async () => {
@@ -378,5 +393,6 @@ describe("MicrosoftGraphPage", () => {
     expect(screen.getByLabelText("Client ID")).toBeDisabled();
     expect(screen.getByLabelText("Client secret")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
   });
 });

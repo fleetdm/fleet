@@ -43,25 +43,23 @@ const DeleteMicrosoftGraphCredentialModal = ({
       width="medium"
       isContentDisabled={isDeleting}
     >
-      <>
-        <p>
-          Fleet will stop syncing Windows Autopilot devices from this tenant.
-          Devices already synced will remain as pending hosts until they enroll
-          or you delete them.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onDeleteCredential}
-            variant="alert"
-            isLoading={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button onClick={onExit} variant="secondary">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        Fleet will stop syncing Windows Autopilot devices from this tenant.
+        Devices already synced will remain as pending hosts until they enroll or
+        you delete them.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onDeleteCredential}
+          variant="alert"
+          isLoading={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button onClick={onExit} variant="secondary">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

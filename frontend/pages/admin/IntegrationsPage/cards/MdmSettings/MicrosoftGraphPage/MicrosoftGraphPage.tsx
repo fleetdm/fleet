@@ -229,6 +229,12 @@ const MicrosoftGraphPage = () => {
   const onSave = async (evt: React.FormEvent) => {
     evt.preventDefault();
 
+    // Guarded here rather than relying on the disabled button alone: a form submits on Enter too, and a double PUT
+    // would race two declarative writes against each other.
+    if (isSaving) {
+      return;
+    }
+
     const errs = validate();
     setFormErrors(errs);
     if (Object.keys(errs).length > 0) {
@@ -331,7 +337,8 @@ const MicrosoftGraphPage = () => {
           onFocus={onFocusField(field)}
           onBlur={onBlurField(field)}
           inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
-          disabled={disableChildren}
+          // Fields lock during submission.
+          disabled={disableChildren || isSaving}
           {...extra}
         />
       )}
@@ -351,7 +358,7 @@ const MicrosoftGraphPage = () => {
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              disabled={disableChildren}
+              disabled={disableChildren || isSaving}
               isLoading={isSaving}
             >
               Save
@@ -364,7 +371,7 @@ const MicrosoftGraphPage = () => {
               <Button
                 variant="secondary"
                 onClick={() => setShowDeleteModal(true)}
-                disabled={disableChildren}
+                disabled={disableChildren || isSaving}
               >
                 Delete
               </Button>
