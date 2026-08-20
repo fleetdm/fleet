@@ -12154,17 +12154,23 @@ func testListHostSoftwarePackageHasUninstallScript(t *testing.T, ds *Datastore) 
 	// .deb stands in for the msi/pkg/deb/rpm/exe extensions that always
 	// carry a default uninstall script from the upload layer.
 	debID := newInstaller("deb-default", "deb_packages", "deb", "installer.deb", "s-deb", "dpkg -r installer")
-	// Whitespace-only uninstall script (would run as a no-op) — flag should
-	// be false so the UI doesn't surface a misleading Uninstall action.
-	tgzWhitespaceID := newInstaller("tgz-whitespace", "tgz_packages", "tar.gz", "ws-uninst.tar.gz", "s-tgz-ws", "   ")
+	// Whitespace-only uninstall scripts (would run as a no-op) — flag
+	// should be false so the UI doesn't surface a misleading Uninstall
+	// action. Cover spaces, tabs, and newlines since MySQL's TRIM strips
+	// only spaces (we use a whitespace-aware regexp for exactly this).
+	tgzSpacesID := newInstaller("tgz-spaces", "tgz_packages", "tar.gz", "sp-uninst.tar.gz", "s-tgz-sp", "   ")
+	tgzTabsID := newInstaller("tgz-tabs", "tgz_packages", "tar.gz", "tb-uninst.tar.gz", "s-tgz-tb", "\t\t")
+	tgzNewlinesID := newInstaller("tgz-newlines", "tgz_packages", "tar.gz", "nl-uninst.tar.gz", "s-tgz-nl", "\n\n")
 
 	expect := map[uint]bool{
-		tgzNoID:         false,
-		tgzWithID:       true,
-		shNoID:          false,
-		shWithID:        true,
-		debID:           true,
-		tgzWhitespaceID: false,
+		tgzNoID:       false,
+		tgzWithID:     true,
+		shNoID:        false,
+		shWithID:      true,
+		debID:         true,
+		tgzSpacesID:   false,
+		tgzTabsID:     false,
+		tgzNewlinesID: false,
 	}
 	assertFlags := func(t *testing.T, sw []*fleet.HostSoftwareWithInstaller, requireIDs map[uint]bool) {
 		t.Helper()
