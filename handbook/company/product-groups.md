@@ -418,9 +418,9 @@ Features that require changes to both the Fleet server and the agent (fleetd) mu
 - **New server, old agent:** A feature introduced in Fleet server version X that relies on agent version Y must work for hosts running agent version Y or later. Hosts still on older agents will not have the feature, but nothing will break.
 - **Old server, new agent:** A host that upgrades to agent version Y while still connected to server version X-1 must not break. The new feature simply will not work until the server is also upgraded.
 
-Release notes for Fleet server version X must document when a feature requires a minimum agent version Y.
+This applies to the current release and the one immediately before it (e.g., server version X with agent version X or X-1). For long-term version compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy).
 
-See also: [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy) for the agent release sequencing process.
+Release notes for Fleet server version X must document when a feature requires a minimum agent version Y.
 
 
 #### API changes
