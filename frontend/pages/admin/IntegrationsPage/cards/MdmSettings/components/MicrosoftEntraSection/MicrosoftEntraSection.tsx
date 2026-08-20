@@ -61,16 +61,12 @@ const MicrosoftEntraSection = ({
       {!isPremiumTier ? (
         <PremiumFeatureMessage />
       ) : (
-        // Cards render as direct children of SettingsSection so its vertical-card-layout provides the standard
-        // spacing, the same way MdmSettingsSection lays out the Apple/Windows/Android cards.
         <>
           <WindowsAutomaticEnrollmentCard
             windowsMdmEnabled={windowsMdmEnabled}
             tenantAdded={tenantAdded}
             viewDetails={navigateToWindowsEnrollment}
           />
-          {/* Until the query settles, the card cannot tell "no credential" from "not loaded yet", and rendering the
-              Connect state would misreport a configured tenant as disconnected. */}
           {!isLoadingCredentials && (
             <MicrosoftGraphCard
               credentialAdded={!!credential}
