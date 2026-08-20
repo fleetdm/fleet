@@ -23,7 +23,7 @@ if (-not $explorerProcesses) {
     exit 1
 }
 
-$signedInUsers = $explorerProcesses | Select-Object -ExpandProperty UserName -Unique
+$signedInUsers = @($explorerProcesses | Select-Object -ExpandProperty UserName -Unique)
 
 if ($signedInUsers.Count -gt 1) {
     Write-Output "More than one interactive user session was found ($($signedInUsers -join ', ')). Sign out all but the end user's session, then re-run this script."
