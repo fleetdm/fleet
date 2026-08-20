@@ -2,7 +2,7 @@ import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { Colors } from "styles/var/colors";
 
-import { getAutomationNotifiedSentence } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import { getAutomationNotifiedMessage } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
@@ -91,7 +91,7 @@ export const getDetailOutputText = (
     activity.type === ActivityType.NotifiedEndUserBeforePatching &&
     activity.status !== "error"
   ) {
-    return getAutomationNotifiedSentence(activity.details?.time_before);
+    return getAutomationNotifiedMessage(activity.details?.time_before);
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;

@@ -21,7 +21,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
 import {
-  getCaveatSentence,
+  getCaveatMessage,
   EXIT_CODES_NEEDING_EUE_LINK,
   PATCHING_END_USER_EXPERIENCE_URL,
   renderNotifyTitleList,
@@ -67,7 +67,7 @@ const NotifyBeforePatchingDetailsModal = ({
     }
   );
 
-  const explanation = getCaveatSentence(
+  const explanation = getCaveatMessage(
     failed,
     scriptExecutionId,
     scriptResult?.exit_code

@@ -19,8 +19,8 @@ import Icon from "components/Icon";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
-  getCaveatSentence,
-  getAutomationNotifiedSentence,
+  getCaveatMessage,
+  getAutomationNotifiedMessage,
   isNotifyBeforePatchingSkip,
   SKIPPED_INSTALL_NOTIFY_EXPLANATION,
   EXIT_CODES_NEEDING_EUE_LINK,
@@ -74,9 +74,9 @@ const PolicyAutomationActivityDetailsModal = ({
   const renderExplanation = (): string | null => {
     if (isNotify) {
       if (activity.status === "success") {
-        return getAutomationNotifiedSentence(activity.details?.time_before);
+        return getAutomationNotifiedMessage(activity.details?.time_before);
       }
-      return getCaveatSentence(
+      return getCaveatMessage(
         true,
         scriptExecutionId,
         scriptResult?.exit_code

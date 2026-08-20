@@ -28,7 +28,7 @@ export const DEFERRED_SENTENCE =
   "Another notification was displayed. Fleet will try again on the next policy run.";
 
 // Covers both success (exit 0 caveat) and failure sentences.
-export const getCaveatSentence = (
+export const getCaveatMessage = (
   failed: boolean,
   scriptExecutionId?: string,
   exitCode?: number | null
@@ -46,7 +46,7 @@ export const formatNotifyTimeLabel = (timeBefore?: number): string =>
   timeBefore === 300 ? "5 minutes" : "1 hour";
 
 // Longer-form success caveat; intentionally different from COPY_BY_EXIT_CODE[0].
-export const getAutomationNotifiedSentence = (timeBefore?: number): string =>
+export const getAutomationNotifiedMessage = (timeBefore?: number): string =>
   `End user was notified. Patch will be forced in ${formatNotifyTimeLabel(
     timeBefore
   )}. If the host is offline when a patch should be forced, Fleet notifies the end user again when it comes back online and patches it after 1 hour.`;
