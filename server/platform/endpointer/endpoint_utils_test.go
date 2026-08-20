@@ -581,13 +581,13 @@ func TestRequestFieldName(t *testing.T) {
 		Plain     string `json:"plain"`
 		WithOpts  string `json:"with_opts,omitempty"`
 		Skipped   string `json:"-"`
-		OnlyOpts  string `json:","`
+		OnlyOpts  string `json:",omitempty"`
 		EmptyTag  string `json:""`
 		NoJSONTag string
 		OtherTags string `url:"other_tags"`
 	}
 
-	ty := reflect.TypeOf(tagged{})
+	ty := reflect.TypeFor[tagged]()
 
 	for _, tc := range []struct {
 		field string
