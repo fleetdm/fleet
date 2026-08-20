@@ -5,7 +5,7 @@
 ## Key takeaways
 
 - **Shadow AI is already on your endpoints, whether your MDM can see it or not.** Fleet inventories AI tooling, from MCP server configurations to browser extensions and IDE plug-ins, across macOS, Windows, and Linux, so AI governance covers what is actually installed, not just what a SaaS catalog happens to know about.
-- **Vulnerability data means nothing without prioritization or depth.** Fleet matches installed software, down to browser extensions, IDE plug-ins, and certificates, against CVE feeds from NVD, CISA's Known Exploited Vulnerabilities catalog, and EPSS exploit-probability scores, so your team patches what is actually being targeted instead of triaging a shallow, apps-only list by CVSS score.
+- **Vulnerability data means nothing without prioritization or depth.** Fleet matches installed software, down to browser extensions, IDE plug-ins, and developer packages, against CVE feeds from NVD, CISA's Known Exploited Vulnerabilities catalog, and EPSS exploit-probability scores, so your team patches what is actually being targeted instead of triaging a shallow, apps-only list by CVSS score.
 - **You are probably renewing multiple contracts, not one.** Most teams pay for a separate tool per operating system, plus a vulnerability scanner and a compliance reporting tool. Fleet manages macOS, Windows, Linux, iOS, iPadOS, and Android, including devices most MDMs never reach, from one server and one API.
 - **Configuration as code decides what your team can do for the next three years.** With Fleet, every profile, policy, and report lives in Git, gets reviewed in a pull request, and rolls back with one revert. That is also the only safe way to let AI draft changes to your fleet.
 - **You can watch your own bugs and feature requests move, instead of waiting on a ticket number.** Fleet tracks issues and feature requests in public GitHub repos with a quarterly public roadmap, so you see what is being worked on rather than guessing at a support queue's priorities.
@@ -27,7 +27,7 @@ A list of CVEs on a device is not the same as knowing what to fix first. Fleet i
 
 ### Inventory that goes deeper than an app list
 
-Fleet is built on osquery, which means device state is a live, queryable database rather than a periodic snapshot. Beyond the operating system and installed applications, that includes package managers (Homebrew, deb and RPM packages, Python and npm packages), browser extensions across Chrome, Edge, Brave, Firefox, and Safari, with their permissions and whether they came from an official store, IDE extensions and forks like VS Code, Cursor, and Windsurf, installed certificates in both the system and user keychains (or the Windows certificate store), and disk encryption status for FileVault, BitLocker, and Linux LUKS. Any of it is a SQL query away, fleet-wide, in seconds, not a report you schedule and wait on.
+Fleet is built on osquery, which means device state is a live, queryable database rather than a periodic snapshot. Beyond the operating system and installed applications, that includes package managers (Homebrew, deb and RPM packages, Python and npm packages), browser extensions across Chrome, Edge, Brave, Firefox, and Safari, with their permissions and whether they came from an official store, IDE extensions and forks like VS Code, Cursor, and Windsurf, installed certificates in both the system and user keychains (or the Windows certificate store), and disk encryption status for FileVault, BitLocker, and Linux LUKS. Any of it is a query away, fleet-wide, in seconds, not a report you schedule and wait on.
 
 That depth matters because most of a device's real attack surface lives in exactly the categories a slow, apps-only inventory misses: a browser extension with broad permissions, a stale certificate, an unencrypted disk that never got flagged.
 
@@ -79,7 +79,7 @@ Moving management over comes later, on your schedule. For Apple devices, Fleet f
 
 You do not have to switch tools to get value out of a renewal. You do have to ask the questions while somebody has a reason to answer them: show me what you can tell me about AI tooling on my endpoints, show me how you prioritize vulnerabilities, show me the status of my open feature requests, and show me where Linux fits.
 
-If those answers are good, sign with confidence. If they are not, you have just learned what you are paying for, and you have a year to do something about it.
+If those answers are good, sign with confidence. If they are not, you have just learned what you are paying for, and you have time to do something about it.
 
 ## See it live
 
