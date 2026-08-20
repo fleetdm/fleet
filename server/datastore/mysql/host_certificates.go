@@ -474,7 +474,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		// The managed-cert updates above set not_valid_after/serial when a reported cert matched the profile's
 		// renewal-ID marker, so a matched-and-valid managed-cert row is the signal that the certificate landed. Flip
 		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error).
-		if err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID); err != nil {
+		verifiedRows, err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "verify windows scep profiles from observed certs")
 		}
 
@@ -482,8 +483,19 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		// "verifying" forever. Once the grace period has elapsed and this report proves we could read the store
 		// where the certificate belongs but it isn't there, fail it. Runs after the flip above, so anything still
 		// "verifying" here has no observed certificate.
-		if err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved); err != nil {
+		failedRows, err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail stuck windows scep profiles")
+		}
+
+		// Both helpers above rewrite host_mdm_windows_profiles rows, so the per-host rollup that
+		// GetMDMWindowsProfilesSummary reads has to be refreshed on the same transaction. Neither deletes rows, so no
+		// rollup row can be orphaned. Guarded on rows affected because this runs on every certificate ingest, for
+		// every platform, and the overwhelming majority of them touch no Windows profile at all.
+		if verifiedRows+failedRows > 0 {
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after scep reconciliation")
+			}
 		}
 		return nil
 	})
@@ -507,7 +519,7 @@ const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate
 //     can read only while that user is logged in. We fail only when this report includes at least one user
 //     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
 //     ./User Windows profile targets, so we assume the device has one primary user.
-func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) error {
+func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) (int64, error) {
 	caTypes := fleet.ListCATypesWithRenewalIDSupport()
 	caTypeStrs := make([]string, 0, len(caTypes))
 	for _, t := range caTypes {
@@ -557,12 +569,14 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 
 	stmt, inArgs, err := sqlx.In(query, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building windows scep backstop query")
+		return 0, ctxerr.Wrap(ctx, err, "building windows scep backstop query")
 	}
-	if _, err := tx.ExecContext(ctx, stmt, inArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "failing stuck windows scep profiles")
+	res, err := tx.ExecContext(ctx, stmt, inArgs...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "failing stuck windows scep profiles")
 	}
-	return nil
+	rows, _ := res.RowsAffected()
+	return rows, nil
 }
 
 // verifyWindowsSCEPProfilesFromObservedCertsDB flips a host's proxied Windows SCEP install profiles from "verifying" or
@@ -571,7 +585,7 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 // observing that the CA issued a certificate matching this profile's renewal-ID proves the enrollment succeeded, so we
 // mark it verified regardless of the certificate's lifetime. A short-lived certificate that has since expired is a
 // renewal concern (handled by RenewMDMManagedCertificates), not a verification failure.
-func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) (int64, error) {
 	caTypes := fleet.ListCATypesWithRenewalIDSupport()
 	caTypeStrs := make([]string, 0, len(caTypes))
 	for _, t := range caTypes {
@@ -590,12 +604,14 @@ func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.E
 		fleet.MDMDeliveryVerified, hostUUID, fleet.MDMOperationTypeInstall,
 		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed, caTypeStrs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building windows scep verify query")
+		return 0, ctxerr.Wrap(ctx, err, "building windows scep verify query")
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
 	}
-	return nil
+	rows, _ := res.RowsAffected()
+	return rows, nil
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints

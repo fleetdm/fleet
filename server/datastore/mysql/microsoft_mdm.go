@@ -1539,12 +1539,19 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUI
 		SET status = ?, detail = ?
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
 			AND (status IS NULL OR status <> ?)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "set windows host profile failed")
-	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt,
+			fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+		}
+
+		// This path only updates a profile row, so no rollup row can be orphaned.
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after profile failure")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {

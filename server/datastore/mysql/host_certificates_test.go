@@ -356,6 +356,55 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		status, _, _ := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
 	})
+
+	// The SCEP write paths rewrite host_mdm_windows_profiles outside the profile manager, so each has to keep the
+	// per-host rollup that GetMDMWindowsProfilesSummary reads current by itself. Drift here is invisible until the
+	// hourly windows_profiles_status_reconcile cron heals it, so assert equality with a freshly reconciled value
+	// rather than just a non-empty rollup row.
+	t.Run("scep write paths keep the profiles status rollup current", func(t *testing.T) {
+		requireRollupMatchesReconcile := func(t *testing.T, hostUUID string, want fleet.MDMDeliveryStatus) {
+			t.Helper()
+			got := readWindowsProfilesStatusRollup(t, ds)[hostUUID]
+			require.Equal(t, string(want), got)
+			require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+			require.Equal(t, got, readWindowsProfilesStatusRollup(t, ds)[hostUUID],
+				"write path must keep the rollup in sync without a reconcile")
+		}
+
+		t.Run("proxy-observed failure", func(t *testing.T) {
+			h := mkHost(t, "rollup-setfailed")
+			p := "w-rollup-setfailed"
+			upsertWinProfile(t, h, p, "cmd-rollup-setfailed", fleet.MDMDeliveryVerifying, 0)
+
+			require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500"))
+
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryFailed)
+		})
+
+		t.Run("cert observation flip", func(t *testing.T) {
+			h := mkHost(t, "rollup-flip")
+			p := "w-rollup-flip"
+			upsertWinProfile(t, h, p, "cmd-rollup-flip", fleet.MDMDeliveryVerifying, 0)
+			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+			ingest(t, h, certWithRenewalID(t, h, p, 7201))
+
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
+		})
+
+		t.Run("verification backstop", func(t *testing.T) {
+			h := mkHost(t, "rollup-backstop")
+			p := "w-rollup-backstop"
+			upsertWinProfile(t, h, p, "cmd-rollup-backstop", fleet.MDMDeliveryVerifying, 0)
+			insertConfigProfile(t, p, "rollup-backstop", false)
+			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+			backdateProfile(t, h, p, 2*time.Hour)
+
+			ingest(t, h, plainCert(t, h, "rollup-backstop-cert", fleet.SystemHostCertificate, ""))
+
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryFailed)
+		})
+	})
 }
 
 func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
