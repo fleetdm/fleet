@@ -329,18 +329,19 @@ export const HostInstallerActionCell = ({
   });
 
   // Wrap handlers to disable action button(s) immediately, important for slow
-  // connections/APIs. On API failure the parent returns false; clear the
-  // optimistic flag so the row is clickable again instead of stuck until a
-  // page refresh. On success the useEffect above clears the flag once
-  // `status` leaves the pending state.
+  // connections/APIs. Reset only on failure (explicit false OR rejection) so
+  // success stays owned by the status→pending transition — no re-enable
+  // flicker before the parent's refetch propagates.
   const handleInstallClick = async () => {
     if (installDisabled || isInstallUninstallPendingLocal) return;
     setIsInstallUninstallPendingLocal(true);
-    const ok = await onClickInstallAction(
-      id,
-      SCRIPT_PACKAGE_SOURCES.includes(software.source)
-    );
-    if (ok === false) {
+    try {
+      const ok = await onClickInstallAction(
+        id,
+        SCRIPT_PACKAGE_SOURCES.includes(software.source)
+      );
+      if (ok === false) setIsInstallUninstallPendingLocal(false);
+    } catch {
       setIsInstallUninstallPendingLocal(false);
     }
   };
@@ -353,8 +354,10 @@ export const HostInstallerActionCell = ({
     if (!isMyDevicePage) {
       setIsInstallUninstallPendingLocal(true);
     }
-    const ok = await onClickUninstallAction();
-    if (ok === false) {
+    try {
+      const ok = await onClickUninstallAction();
+      if (ok === false) setIsInstallUninstallPendingLocal(false);
+    } catch {
       setIsInstallUninstallPendingLocal(false);
     }
   };
