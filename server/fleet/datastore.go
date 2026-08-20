@@ -2927,6 +2927,15 @@ type Datastore interface {
 	// from prematurely clearing the lock state.
 	CleanAppleMDMLock(ctx context.Context, hostUUID string) error
 
+	// CancelHostMDMCommand cancels a pending Apple MDM command for the host by
+	// deactivating its queue row so it is never delivered, and clears the
+	// matching host_mdm_actions reference (lock/wipe) if any. It returns the
+	// command's request type. It returns a not-found error if the command
+	// doesn't exist for that host or was already canceled, and a bad-request
+	// error if the command's type is not cancelable or the command has already
+	// run on the host.
+	CancelHostMDMCommand(ctx context.Context, host *Host, commandUUID string) (requestType string, err error)
+
 	InsertHostLocationData(ctx context.Context, locData HostLocationData) error
 	// GetHostLocationData gets the given host's location data from the Fleet database, if it exists.
 	GetHostLocationData(ctx context.Context, hostID uint) (*HostLocationData, error)
