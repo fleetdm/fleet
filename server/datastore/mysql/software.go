@@ -5355,13 +5355,10 @@ func hydrateHostSoftwareRecordFromDb(hydrated *hostSoftware, softwareTitle *host
 		platform = *hydrated.PackagePlatform
 	}
 	hydrated.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-		Name:        *hydrated.PackageName,
-		Version:     version,
-		Platform:    platform,
-		SelfService: hydrated.PackageSelfService,
-		// From `hydrated`, not `softwareTitle`: the flag is scanned per-installer
-		// on both the "available" and "installed" SELECTs, not from the last
-		// install/uninstall rows.
+		Name:               *hydrated.PackageName,
+		Version:            version,
+		Platform:           platform,
+		SelfService:        hydrated.PackageSelfService,
 		HasUninstallScript: hydrated.PackageHasUninstallScript,
 	}
 
@@ -7356,8 +7353,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.self_service,
 					software_installers.filename,
 					software_installers.version,
-					software_installers.platform,
-					software_installers.uninstall_script_content_id
+					software_installers.platform
 			`)
 		}
 		if includeVPP {
