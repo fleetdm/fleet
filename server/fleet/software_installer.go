@@ -53,6 +53,9 @@ type SoftwareInstallDetails struct {
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
+
+	AppOpenQuery    string `json:"-" db:"app_open_query"`
+	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
 }
 
 type SoftwareInstallerURL struct {
@@ -144,6 +147,9 @@ type SoftwareInstaller struct {
 
 	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
 	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
+
+	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
+	AppOpenQuery string `json:"-" db:"app_open_query"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -519,10 +525,14 @@ type HostSoftwareInstallerResult struct {
 	// nil = not triggered by a policy
 	// 1,2,3 attempt, 3 being max retries
 	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
+	// PatchWhenClosed is set from the triggering policy; it distinguishes an empty pre-install result
+	// caused by the app being open from an ordinary pre-install-query failure.
+	PatchWhenClosed bool `json:"-" db:"patch_when_closed"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
+	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -547,7 +557,12 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			// For patch-when-closed, an empty result means the app was open, not a query failure.
+			if h.PatchWhenClosed {
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
+			} else {
+				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			}
 			return
 		}
 		*h.PreInstallQueryOutput = SoftwareInstallerQuerySuccessCopy
@@ -659,6 +674,8 @@ type UploadSoftwareInstallerPayload struct {
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
+	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
+	AppOpenQuery string
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -753,6 +770,10 @@ type UpdateSoftwareInstallerPayload struct {
 	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
+	// Patch enables or disables the title's patch policy. FMA-only.
+	Patch *bool
+	// PatchWhenClosed skips the install while the app is open. FMA-only.
+	PatchWhenClosed *bool
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
@@ -760,7 +781,7 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
-		u.PinnedVersion == nil
+		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -843,6 +864,8 @@ func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	switch ext {
 	case "sh", "py":
 		return []string{"darwin", "linux"}
+	case "ipa":
+		return []string{"ios", "ipados"}
 	default:
 		return nil
 	}
@@ -908,8 +931,10 @@ type AutomaticInstallPolicy struct {
 }
 
 type PatchPolicyData struct {
-	ID   uint   `json:"id" db:"id"`
-	Name string `json:"name" db:"name"`
+	ID                           uint   `json:"id" db:"id"`
+	Name                         string `json:"name" db:"name"`
+	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
@@ -986,8 +1011,9 @@ type SoftwarePackageSpec struct {
 	// consistent with the query/policy `platform` field. Additive with
 	// InstallDuringSetup: the native platform is controlled by that bool, the
 	// non-native entries feed the setup_experience_software_installers
-	// cross-table. Only meaningful for packages whose file can run on more than
-	// one platform (today: .sh).
+	// cross-table. Only meaningful for packages that produce more than one
+	// setup experience target: cross-platform scripts (.sh, .py) and .ipa
+	// packages, whose single entry stands for both the iOS and iPadOS titles.
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
@@ -1053,6 +1079,7 @@ type MaintainedAppSpec struct {
 	LabelsExcludeAny        []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll        []string              `json:"labels_include_all"`
 	Categories              optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName             string                `json:"display_name,omitempty"`
 	InstallDuringSetup      optjson.Bool          `json:"setup_experience"`
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
@@ -1074,6 +1101,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		InstallDuringSetup:      spec.InstallDuringSetup,
 		Icon:                    spec.Icon,
 		Categories:              spec.Categories,
+		DisplayName:             spec.DisplayName,
 	}
 }
 

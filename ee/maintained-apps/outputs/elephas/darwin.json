@@ -4,7 +4,8 @@
       "version": "11.8002",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kamban.elephas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kamban.elephas' AND version_compare(bundle_short_version, '11.8002') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kamban.elephas' AND version_compare(bundle_short_version, '11.8002') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.kamban.elephas');"
       },
       "installer_url": "https://assets.elephas.app/Elephas_11.8002.dmg",
       "install_script_ref": "9ed81db6",

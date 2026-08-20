@@ -43,6 +43,8 @@ func TestSetupExperience(t *testing.T) {
 		{"CrossPlatformShScripts", testSetupExperienceCrossPlatformShScripts},
 		{"CrossPlatformPyScripts", testSetupExperienceCrossPlatformPyScripts},
 		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
+		{"InHouseApps", testSetupExperienceInHouseApps},
+		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
 	}
 
 	for _, c := range cases {
@@ -1242,7 +1244,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), sec.VPP)
 	require.Equal(t, uint(0), sec.Scripts)
 
-	// add an ipa installer and check that it isn't listed for setup experience
+	// add an ipa installer: excluded for setup experience on darwin, listed on ios/ipados
 	payload := fleet.UploadSoftwareInstallerPayload{
 		TeamID:           &team1.ID,
 		UserID:           user1.ID,
@@ -1265,11 +1267,200 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "file1", titles[0].Name)
 	require.Equal(t, "vpp_app_1", titles[1].Name)
 
-	// but also not listed for ios
+	// listed for ios alongside the VPP app
 	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	assert.Len(t, titles, 1)
-	require.Equal(t, "vpp_app_2", titles[0].Name)
+	require.Len(t, titles, 2)
+	require.Equal(t, "ipa_test", titles[0].Name)
+	require.Equal(t, "vpp_app_2", titles[1].Name)
+}
+
+func testSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// one .ipa upload creates independent iOS and iPadOS titles
+	iosAppID, iosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "Acme",
+		Filename:         "acme.ipa",
+		BundleIdentifier: "com.acme.app",
+		StorageID:        "acme-storage",
+		Platform:         string(fleet.IOSPlatform),
+		Extension:        "ipa",
+		Version:          "1.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	var ipadosApp struct {
+		ID      uint `db:"id"`
+		TitleID uint `db:"title_id"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &ipadosApp,
+			`SELECT id, title_id FROM in_house_apps WHERE global_or_team_id = ? AND platform = 'ipados'`, team.ID)
+	})
+
+	requireListed := func(platform string, titleID uint, installDuringSetup bool) {
+		titles, count, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, platform, team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
+		require.Equal(t, 1, count)
+		require.Equal(t, titleID, titles[0].ID)
+		require.NotNil(t, titles[0].SoftwarePackage)
+		require.NotNil(t, titles[0].SoftwarePackage.InstallDuringSetup)
+		require.Equal(t, installDuringSetup, *titles[0].SoftwarePackage.InstallDuringSetup)
+	}
+
+	// each platform lists only its own title; macOS keeps excluding in-house apps
+	requireListed("ios", iosTitleID, false)
+	requireListed("ipados", ipadosApp.TitleID, false)
+	titles, count, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, titles)
+	require.Zero(t, count)
+
+	// any platform list that includes a mobile platform surfaces in-house
+	// titles (restricted to their own platforms); desktop-only lists keep
+	// excluding them
+	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios,ipados", team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	titles, _, _, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios,darwin", team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, iosTitleID, titles[0].ID)
+
+	// selecting the iOS title leaves the iPadOS sibling unselected
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team.ID, []uint{iosTitleID})
+	require.NoError(t, err)
+	requireListed("ios", iosTitleID, true)
+	requireListed("ipados", ipadosApp.TitleID, false)
+
+	sec, err := ds.GetSetupExperienceCount(ctx, "ios", &team.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, sec.InHouseApps)
+	sec, err = ds.GetSetupExperienceCount(ctx, "ipados", &team.ID)
+	require.NoError(t, err)
+	require.Zero(t, sec.InHouseApps)
+
+	// a title from the other platform is rejected
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team.ID, []uint{ipadosApp.TitleID})
+	require.ErrorContains(t, err, "invalid platform for requested in-house app title")
+
+	// in-house titles are not available for setup experience on macOS
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{iosTitleID})
+	require.ErrorContains(t, err, "does not exist or is not available for setup experience")
+
+	// deleting a selected app is blocked; the unselected sibling can be deleted
+	err = ds.DeleteInHouseApp(ctx, iosAppID)
+	require.ErrorContains(t, err, "installed during new host setup")
+	requireListed("ios", iosTitleID, true)
+	err = ds.DeleteInHouseApp(ctx, ipadosApp.ID)
+	require.NoError(t, err)
+
+	// unselecting unblocks deletion
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team.ID, nil)
+	require.NoError(t, err)
+	requireListed("ios", iosTitleID, false)
+	err = ds.DeleteInHouseApp(ctx, iosAppID)
+	require.NoError(t, err)
+	err = ds.DeleteInHouseApp(ctx, iosAppID)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testEnqueueSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// .ipa upload creates iOS and iPadOS rows; select only the iOS one
+	iosAppID, iosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "Acme",
+		Filename:         "acme.ipa",
+		BundleIdentifier: "com.acme.app",
+		StorageID:        "acme-storage",
+		Platform:         string(fleet.IOSPlatform),
+		Extension:        "ipa",
+		Version:          "1.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team.ID, []uint{iosTitleID})
+	require.NoError(t, err)
+
+	iphone, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "iphone-test",
+		OsqueryHostID:  new("osquery-iphone"),
+		NodeKey:        new("node-key-iphone"),
+		UUID:           "iphone-uuid",
+		Platform:       "ios",
+		HardwareSerial: "serial-iphone",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipad-test",
+		OsqueryHostID:  new("osquery-ipad"),
+		NodeKey:        new("node-key-ipad"),
+		UUID:           "ipad-uuid",
+		Platform:       "ipados",
+		HardwareSerial: "serial-ipad",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// give the app an include-any label the host does not match, so
+	// IsInHouseAppLabelScoped rejects the host; setup experience must still
+	// enqueue the app — labels don't apply during setup. This assertion fails
+	// if a label join is ever reintroduced in the enqueue query.
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "no-members"})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, 0)`, iosAppID, label.ID)
+		return err
+	})
+	scoped, err := ds.IsInHouseAppLabelScoped(ctx, iosAppID, iphone.ID)
+	require.NoError(t, err)
+	require.False(t, scoped, "precondition: the host must be out of label scope for this test to be meaningful")
+
+	// enrolling iPhone gets exactly one item, the in-house app
+	enqueued, err := ds.EnqueueSetupExperienceItems(ctx, "ios", "ios", "iphone-uuid", team.ID)
+	require.NoError(t, err)
+	require.True(t, enqueued)
+	results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, "iphone-uuid", team.ID)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0].InHouseAppID)
+	require.Equal(t, iosAppID, *results[0].InHouseAppID)
+	require.True(t, results[0].IsForInHouseApp())
+	require.True(t, results[0].IsForSoftware())
+	require.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
+	require.NotNil(t, results[0].SoftwareTitleID)
+	require.Equal(t, iosTitleID, *results[0].SoftwareTitleID)
+	require.NotNil(t, results[0].Source)
+	require.Equal(t, "ios_apps", *results[0].Source)
+	awaitingConfig, err := ds.GetHostAwaitingConfiguration(ctx, "iphone-uuid")
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
+
+	// enrolling iPad gets nothing: only the iOS sibling is selected
+	enqueued, err = ds.EnqueueSetupExperienceItems(ctx, "ipados", "ipados", "ipad-uuid", team.ID)
+	require.NoError(t, err)
+	require.False(t, enqueued)
+	results, err = ds.ListSetupExperienceResultsByHostUUID(ctx, "ipad-uuid", team.ID)
+	require.NoError(t, err)
+	require.Empty(t, results)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {

@@ -54,6 +54,7 @@ describe("PackageForm", () => {
       expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
       expect(screen.queryByLabelText("All hosts")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
     });
 
     it("renders the Target section with the first-added banner once a file is selected", () => {
@@ -65,6 +66,7 @@ describe("PackageForm", () => {
       expect(screen.getByText(TARGET_BANNER_COPY)).toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+      expect(screen.getByText("Self service")).toBeInTheDocument();
     });
 
     it("omits the first-added banner on the Edit flow", () => {
@@ -77,6 +79,27 @@ describe("PackageForm", () => {
       expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+    });
+  });
+
+  describe("Advanced options section", () => {
+    it("reveals install/uninstall scripts when clicked for a .msix package", async () => {
+      renderForm({
+        isEditingSoftware: true,
+        defaultSoftware: createMockSoftwarePackage({ name: "Claude.msix" }),
+        defaultInstallScript: "Add-AppxProvisionedPackage -Online",
+        defaultUninstallScript: "Remove-AppxProvisionedPackage -Online",
+      });
+
+      // Scripts hidden until the reveal button is clicked.
+      expect(screen.queryByText("Install script")).not.toBeInTheDocument();
+
+      await userEvent.click(
+        screen.getByRole("button", { name: /Advanced options/i })
+      );
+
+      expect(screen.getByText("Install script")).toBeInTheDocument();
+      expect(screen.getByText("Uninstall script")).toBeInTheDocument();
     });
   });
 

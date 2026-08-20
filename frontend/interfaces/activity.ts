@@ -327,6 +327,7 @@ export interface IActivityDetails {
   policy_name?: string;
   profile_identifier?: string;
   profile_name?: string;
+  profile_uuid?: string;
   public_ip?: string;
   query_id?: number;
   query_ids?: number[];
@@ -339,6 +340,9 @@ export interface IActivityDetails {
   self_service?: boolean;
   self_service_category_id?: number | null;
   self_service_category_name?: string | null;
+  /** Set on a patch-when-closed skip (the app was open); `status` is then
+   * `failed_install`. */
+  skipped_install?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;

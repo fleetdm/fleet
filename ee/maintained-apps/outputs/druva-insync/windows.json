@@ -4,7 +4,8 @@
       "version": "8.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.' AND version_compare(version, '8.1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.' AND version_compare(version, '8.1.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'druva insync.exe');"
       },
       "installer_url": "https://downloads.druva.com/downloads/inSync/Windows/8.1.3/inSync8.1.3r111021.msi",
       "install_script_ref": "22e48c46",

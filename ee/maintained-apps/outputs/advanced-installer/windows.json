@@ -4,7 +4,8 @@
       "version": "23.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Advanced Installer %' AND publisher = 'Caphyon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Advanced Installer %' AND publisher = 'Caphyon' AND version_compare(version, '23.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Advanced Installer %' AND publisher = 'Caphyon' AND version_compare(version, '23.9') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'advanced installer.exe');"
       },
       "installer_url": "https://storage.advancedupdater.cloud/downloads/23.9/advinst.msi",
       "install_script_ref": "22e48c46",

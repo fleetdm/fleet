@@ -4,7 +4,8 @@
       "version": "2.6.62",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cube Browser (64 bit)' AND publisher = 'Rystad Energy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cube Browser (64 bit)' AND publisher = 'Rystad Energy' AND version_compare(version, '2.6.62') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cube Browser (64 bit)' AND publisher = 'Rystad Energy' AND version_compare(version, '2.6.62') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cube browser.exe');"
       },
       "installer_url": "https://www.datocms-assets.com/75979/1782812533-cubebrowsersetup_x64_2_6_62.exe",
       "install_script_ref": "899a8b79",

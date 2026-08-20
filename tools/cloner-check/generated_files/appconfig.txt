@@ -156,6 +156,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSettings	fleet.MacOSSettings
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Paths	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Activation	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
@@ -194,6 +195,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraClientIDs	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/server/fleet/MDM	MicrosoftGraphCredentialInvalid	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnrollment	optjson.Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsEnrollment]
 github.com/fleetdm/fleet/v4/pkg/optjson/Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsEnrollment]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsEnrollment]	Valid	bool

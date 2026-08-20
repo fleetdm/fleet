@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.112.0.359",
+      "version": "1.115.0.426",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'tv.plex.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'tv.plex.desktop' AND version_compare(bundle_short_version, '1.112.0.359') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'tv.plex.desktop' AND version_compare(bundle_short_version, '1.115.0.426') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'tv.plex.desktop');"
       },
-      "installer_url": "https://downloads.plex.tv/plex-desktop/1.112.0.359-0d79a49f/macos/Plex-1.112.0.359-0d79a49f-universal.zip",
+      "installer_url": "https://downloads.plex.tv/plex-desktop/1.115.0.426-4e960a1d/macos/Plex-1.115.0.426-4e960a1d-universal.zip",
       "install_script_ref": "d6aef39f",
       "uninstall_script_ref": "fcebe9de",
-      "sha256": "9d5fe3143c1d9e4fc1d5385c96213a4a3000ea66054c048b02dc869188bae639",
+      "sha256": "273fbc9b36938772abc5c5579923d758a6c9c158cd1d9c0f0689627d5f1af14f",
       "default_categories": [
         "Productivity"
       ]

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -290,6 +291,89 @@ type TeamWebhookSettings struct {
 	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
 	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	// HostActivitiesWebhook is nil when not provided so partial updates and
+	// team specs can leave the stored value untouched.
+	HostActivitiesWebhook *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
+}
+
+// HostActivitiesWebhookSettings is the per-fleet webhook fired when an
+// activity linked to one of the fleet's hosts is created. The payload has the
+// same format as the global activities webhook (ActivitiesWebhookSettings).
+type HostActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_host_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
+}
+
+// HostActivitiesWebhookLookup is the subset of Datastore reads needed to
+// resolve the host-activities webhooks of the fleets a set of hosts belong to.
+type HostActivitiesWebhookLookup interface {
+	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
+}
+
+// HostActivitiesWebhookDelivery is one fleet's resolved host-activities
+// webhook destination together with the subset of the activity's hosts that
+// belong to that fleet. Payloads are scoped this way so a delivery is always
+// exactly one fleet's subscription — it never mixes fleets' host IDs.
+type HostActivitiesWebhookDelivery struct {
+	DestinationURL string
+	HostIDs        []uint
+}
+
+// ResolveHostActivitiesWebhooks returns one enabled host-activities webhook delivery per fleet the given hosts belong to.
+func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhookLookup, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	hosts, err := ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// fleetKeys keeps delivery order deterministic (map iteration is
+	// randomized). Key 0 is reserved for "Unassigned" hosts (nil TeamID), so
+	// it can't collide with a real fleet.
+	fleetKeys := make([]uint, 0, len(hosts))
+	hostsByFleet := make(map[uint][]uint)
+	for _, host := range hosts {
+		var fleetKey uint
+		if host.TeamID != nil {
+			fleetKey = *host.TeamID
+		}
+		if _, ok := hostsByFleet[fleetKey]; !ok {
+			fleetKeys = append(fleetKeys, fleetKey)
+		}
+		hostsByFleet[fleetKey] = append(hostsByFleet[fleetKey], host.ID)
+	}
+
+	fleets, err := ds.TeamLitesByIDs(ctx, fleetKeys)
+	if err != nil {
+		return nil, err
+	}
+	fleetsByID := make(map[uint]*TeamLite, len(fleets))
+	for _, f := range fleets {
+		fleetsByID[f.ID] = f
+	}
+
+	// Resolve each fleet's webhook into its own delivery.
+	var deliveries []HostActivitiesWebhookDelivery
+	for _, fleetKey := range fleetKeys {
+		team, ok := fleetsByID[fleetKey]
+		if !ok { // deleted fleet
+			continue
+		}
+		webhook := team.Config.WebhookSettings.HostActivitiesWebhook
+		if webhook == nil || !webhook.Enable || webhook.DestinationURL == "" {
+			continue
+		}
+		deliveries = append(deliveries, HostActivitiesWebhookDelivery{
+			DestinationURL: webhook.DestinationURL,
+			HostIDs:        hostsByFleet[fleetKey],
+		})
+	}
+
+	return deliveries, nil
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
@@ -307,6 +391,7 @@ type DefaultTeamConfig struct {
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
 }
 
 // DefaultTeamIntegrations contains only the integrations supported for team ID 0
@@ -508,6 +593,10 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	if t.WebhookSettings.HostStatusWebhook != nil {
 		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
 		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if t.WebhookSettings.HostActivitiesWebhook != nil {
+		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
+		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
 	}
 	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -737,6 +826,7 @@ type TeamSpec struct {
 type TeamSpecWebhookSettings struct {
 	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings  `json:"host_activities_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'
@@ -790,6 +880,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {
 		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+	if t.Config.WebhookSettings.HostActivitiesWebhook != nil {
+		webhookSettings.HostActivitiesWebhook = t.Config.WebhookSettings.HostActivitiesWebhook
 	}
 
 	var integrations TeamSpecIntegrations

@@ -32,6 +32,7 @@ const PKG_TYPE_TO_ID_TEXT = {
   deb: "package name",
   rpm: "package name",
   msi: "product code",
+  msix: "product code or package family name",
   exe: "software name",
   zip: "software name",
   sh: "package name",
@@ -219,6 +220,7 @@ interface IPackageAdvancedOptionsProps {
   /** Currently for editing FMA only, users cannot edit */
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const PackageAdvancedOptions = ({
@@ -236,6 +238,7 @@ const PackageAdvancedOptions = ({
   onChangeUninstallScript,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
+  patchWhenClosed = false,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const name = selectedPackage?.name || "";
@@ -269,6 +272,7 @@ const PackageAdvancedOptions = ({
         onChangeUninstallScript={onChangeUninstallScript}
         gitopsCompatible={gitopsCompatible}
         gitOpsModeEnabled={gitOpsModeEnabled}
+        patchWhenClosed={patchWhenClosed}
       />
     );
   };
@@ -290,10 +294,7 @@ const PackageAdvancedOptions = ({
           requiresAdvancedOptions ? (
             <>Install and uninstall scripts are required for .{ext} packages.</>
           ) : (
-            <>
-              Choose a file to modify <br />
-              advanced options.
-            </>
+            <>Choose a file to modify advanced options.</>
           )
         }
       />

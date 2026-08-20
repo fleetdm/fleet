@@ -17,6 +17,7 @@ import Adguard from "./Adguard";
 import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdobePlugin from "./AdobePlugin";
 import AdvancedInstaller from "./AdvancedInstaller";
 import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
@@ -856,6 +857,7 @@ import RemoteBuddy from "./RemoteBuddy";
 import RemoteDesktopManager from "./RemoteDesktopManager";
 import Reqable from "./Reqable";
 import Requestly from "./Requestly";
+import Resharper from "./Resharper";
 import Retcon from "./Retcon";
 import Retroarch from "./Retroarch";
 import Retrobatch from "./Retrobatch";
@@ -1061,6 +1063,7 @@ import VirtualBox from "./VirtualBox";
 import VirtualBuddy from "./VirtualBuddy";
 import Viscosity from "./Viscosity";
 import VisualParadigm from "./VisualParadigm";
+import VisualStudio2022 from "./VisualStudio2022";
 import VisualStudioCode from "./VisualStudioCode";
 import Vivaldi from "./Vivaldi";
 import VividApp from "./VividApp";
@@ -2026,6 +2029,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "remote desktop manager": RemoteDesktopManager,
   reqable: Reqable,
   requestly: Requestly,
+  resharper: Resharper,
   retcon: Retcon,
   retroarch: Retroarch,
   retrobatch: Retrobatch,
@@ -2231,6 +2235,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   viscosity: Viscosity,
   "visual paradigm": VisualParadigm,
   "visual studio code": VisualStudioCode,
+  "visual studio community 2022": VisualStudio2022,
+  "visual studio enterprise 2022": VisualStudio2022,
+  "visual studio professional 2022": VisualStudio2022,
   vivaldi: Vivaldi,
   vivid: VividApp,
   viz: Viz,
@@ -2351,6 +2358,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   pkg_packages: Package,
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
+  adobe_plugins: AdobePlugin,
 } as const;
 
 /**
@@ -2379,6 +2387,16 @@ const matchStrictNameSourceToIcon = ({
 };
 
 /**
+ * Sources whose own icon wins over any name match, strict or loose, because their names
+ * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
+ * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
+ * so showing the other application's icon would misrepresent the row. Other extension
+ * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
+ * gets the Docker icon.
+ */
+const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+
+/**
  * This returns the icon component for a given software name and source. If a strict match is found,
  * it will be returned, otherwise it will fall back to loose matching on name and source prefixes.
  * If no match is found, the default package icon will be returned.
@@ -2389,11 +2407,21 @@ export const getMatchedSoftwareIcon = ({
 }: Pick<ISoftware, "name" | "source">) => {
   // Strip non-ascii, and non-printable characters
   name = name.replace(/[^\x20-\x7E]/g, "");
-  // first, try strict matching on name and source
-  let Icon = matchStrictNameSourceToIcon({
-    name,
-    source,
-  });
+
+  // for a few sources, the source icon wins over every name match below
+  const overriddenSource = SOURCE_ICON_OVERRIDES_NAME.includes(
+    source.trim().toLowerCase()
+  )
+    ? matchLoosePrefixToKey(SOFTWARE_SOURCE_TO_ICON_MAP, source)
+    : undefined;
+
+  // otherwise, try strict matching on name and source
+  let Icon = overriddenSource
+    ? SOFTWARE_SOURCE_TO_ICON_MAP[overriddenSource]
+    : matchStrictNameSourceToIcon({
+        name,
+        source,
+      });
 
   // if no match, try loose matching on name prefixes
   if (!Icon) {

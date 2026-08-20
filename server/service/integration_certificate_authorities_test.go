@@ -1566,6 +1566,134 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 	}
 }
 
+// TestUpdateNDESCertificateAuthority covers PATCH /certificate_authorities/{id} for the NDES
+// CA. The admin URL, username and password authenticate against NDES as a set, so a change to
+// any of them has to be validated against the NDES server, not just a change to the admin URL.
+func (s *integrationMDMTestSuite) TestUpdateNDESCertificateAuthority() {
+	t := s.T()
+
+	const (
+		ndesUsername    = "ndes-username"
+		ndesPassword    = "ndes-password"
+		newNdesUsername = "new-ndes-username"
+		newNdesPassword = "new-ndes-password" //nolint:gosec // G101: test value, not a real credential
+	)
+
+	scepServer := sceptest.NewTestSCEPServer(t)
+
+	// an NDES admin server that only serves a challenge to the credentials above
+	var authenticatedRequests atomic.Int64
+	ndesAdminServer := sceptest.NewTestNDESAdminServerWithAuth(t, func(username, password string) bool {
+		return (username == ndesUsername || username == newNdesUsername) &&
+			(password == ndesPassword || password == newNdesPassword)
+	}, &authenticatedRequests)
+
+	var createResp createCertificateAuthorityResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", fleet.CertificateAuthorityPayload{
+		NDESSCEPProxy: &fleet.NDESSCEPProxyCA{
+			URL:      scepServer.URL + "/scep",
+			AdminURL: ndesAdminServer.URL + "/mscep_admin/",
+			Username: ndesUsername,
+			Password: ndesPassword,
+		},
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	caPath := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID)
+
+	patchNDES := func(update fleet.NDESSCEPProxyCAUpdatePayload, expectedStatus int) *http.Response {
+		return s.Do("PATCH", caPath, fleet.CertificateAuthorityUpdatePayload{
+			NDESSCEPProxyCAUpdatePayload: &update,
+		}, expectedStatus)
+	}
+
+	requireStoredUsername := func(expected string) {
+		var getResp getCertificateAuthorityResponse
+		s.DoJSON("GET", caPath, getCertificateAuthorityRequest{}, http.StatusOK, &getResp)
+		require.NotNil(t, getResp.Username)
+		require.Equal(t, expected, *getResp.Username)
+	}
+
+	t.Run("username change with invalid credentials is rejected", func(t *testing.T) {
+		// The password has to accompany a username change, so this is the smallest payload
+		// the UI sends when only the username is edited.
+		res := patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			Username: new("wrong-username"),
+			Password: new(ndesPassword),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "Invalid NDES SCEP admin URL or credentials")
+
+		requireStoredUsername(ndesUsername)
+	})
+
+	t.Run("password change with invalid credentials is rejected", func(t *testing.T) {
+		res := patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			Password: new("wrong-password"),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "Invalid NDES SCEP admin URL or credentials")
+	})
+
+	t.Run("unreachable admin URL is reported as a connection problem", func(t *testing.T) {
+		unreachableServer := httptest.NewServer(http.NotFoundHandler())
+		unreachableServer.Close() // closed on purpose so the port refuses connections
+
+		res := patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			AdminURL: new(unreachableServer.URL + "/mscep_admin/"),
+			Password: new(ndesPassword),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "Couldn't connect to NDES SCEP admin URL")
+	})
+
+	t.Run("password change with valid credentials is validated and saved", func(t *testing.T) {
+		before := authenticatedRequests.Load()
+
+		patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			Password: new(newNdesPassword),
+		}, http.StatusOK)
+
+		// The update is only valid because Fleet asked the NDES server about it.
+		require.Greater(t, authenticatedRequests.Load(), before)
+	})
+
+	t.Run("unchanged credentials are saved without asking the NDES server", func(t *testing.T) {
+		before := authenticatedRequests.Load()
+
+		patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			Username: new(ndesUsername),
+			Password: new(newNdesPassword), // saved by the previous subtest
+		}, http.StatusOK)
+
+		require.Equal(t, before, authenticatedRequests.Load())
+	})
+
+	t.Run("username change with valid credentials is validated and saved", func(t *testing.T) {
+		before := authenticatedRequests.Load()
+
+		patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			Username: new(newNdesUsername),
+			Password: new(newNdesPassword),
+		}, http.StatusOK)
+
+		require.Greater(t, authenticatedRequests.Load(), before)
+		requireStoredUsername(newNdesUsername)
+	})
+
+	t.Run("masked password is rejected", func(t *testing.T) {
+		before := authenticatedRequests.Load()
+
+		// The GET endpoint returns the password masked. Changing NDES credentials requires
+		// re-supplying the actual password, so PATCHing the mask back is rejected before
+		// Fleet ever contacts the NDES server.
+		res := patchNDES(fleet.NDESSCEPProxyCAUpdatePayload{
+			Username: new("some-other-username"),
+			Password: new(fleet.MaskedPassword),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "Invalid NDES SCEP password")
+
+		require.Equal(t, before, authenticatedRequests.Load())
+		requireStoredUsername(newNdesUsername) // saved by the previous subtest
+	})
+}
+
 func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() {
 	t := s.T()
 	ctx := context.Background()

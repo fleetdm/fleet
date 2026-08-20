@@ -4,7 +4,8 @@
       "version": "10.5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.telestream.screenflow.globallibrary';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.telestream.screenflow.globallibrary' AND version_compare(bundle_short_version, '10.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.telestream.screenflow.globallibrary' AND version_compare(bundle_short_version, '10.5.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.telestream.screenflow.globallibrary');"
       },
       "installer_url": "https://www.telestream.net/download-files/screenflow/10-5/ScreenFlow-10.5.2.dmg",
       "install_script_ref": "397645f7",

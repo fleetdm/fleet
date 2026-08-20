@@ -4,7 +4,8 @@
       "version": "1.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'lo.cafe.NotchNook';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'lo.cafe.NotchNook' AND version_compare(bundle_short_version, '1.6.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'lo.cafe.NotchNook' AND version_compare(bundle_short_version, '1.6.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'lo.cafe.NotchNook');"
       },
       "installer_url": "https://lo.cafe/notchnook-files/NotchNook-1.6.2.zip",
       "install_script_ref": "53f16462",

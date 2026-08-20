@@ -30,6 +30,11 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
 
   const [deviceType, setDeviceType] = useState<DeviceType>("companyOwned");
 
+  const helpText =
+    "When the end user navigates to this URL, the enrollment profile " +
+    "will download in their browser. End users will have to install the profile " +
+    "to enroll to Fleet.";
+
   if (!config) return null;
 
   if (isMacMdmEnabledAndConfigured) {
@@ -55,7 +60,7 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
               onChange={() => setDeviceType("personalBYOD")}
             />
             <Radio
-              label="Company-owned"
+              label="Company-owned (fully-managed)"
               id="company-owned"
               checked={deviceType === "companyOwned"}
               value="companyOwned"
@@ -70,6 +75,7 @@ const MacosPanel = ({ enrollSecret }: IMacosPanelProps) => {
             enableCopy
             label="Send this to your end users:"
             value={enrollUrl}
+            helpText={helpText}
           />
         </form>
       </div>

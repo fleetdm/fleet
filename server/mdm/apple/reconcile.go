@@ -27,6 +27,10 @@ const HoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 // platform gate, then delegates the team + include/exclude label gates to
 // the platform-neutral dispatcher in server/mdm/reconcile.
 //
+// entityOnHost reports whether the entity currently has an install-operation
+// row on the host (any status); the shared dispatcher uses it to preserve the
+// host's current state when a dynamic label's membership is still unknown.
+//
 // Both the batched profile and declaration reconcilers — and the per-host
 // enrollment path — route through this function. The shared package is
 // the single source of truth for "does this label-gated MDM entity apply
@@ -36,17 +40,32 @@ func EntityAppliesToHost(
 	e fleet.AppleLabeledEntity,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
+	entityOnHost bool,
 ) bool {
 	if !IsEligiblePlatform(host.Platform) {
 		return false
 	}
-	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels)
+	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels, entityOnHost)
 }
 
 // IsEligiblePlatform reports whether the host's platform is one of the
 // Apple platforms this reconciler can manage.
 func IsEligiblePlatform(platform string) bool {
 	return platform == "darwin" || platform == "ios" || platform == "ipados"
+}
+
+// profileChannelKey identifies where a profile is delivered on a host. The same
+// identifier on the system and user channels are independent installs delivered to
+// different enrollment IDs, so a removal on one channel must never be matched by an
+// install on the other.
+type profileChannelKey struct {
+	hostUUID   string
+	identifier string
+	scope      fleet.PayloadScope
+}
+
+func channelKey(p *fleet.MDMAppleProfilePayload) profileChannelKey {
+	return profileChannelKey{hostUUID: p.HostUUID, identifier: p.ProfileIdentifier, scope: p.Scope}
 }
 
 // ComputeReconcileDeltas evaluates desired profile state for each host in
@@ -65,17 +84,23 @@ func ComputeReconcileDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, p := range teamProfiles {
-			if !EntityAppliesToHost(p, host, labelsForHost) {
-				continue
-			}
-			desired[p.ProfileUUID] = p
-		}
-
 		current := currentByHost[host.UUID]
 		currentByProfile := make(map[string]*fleet.MDMAppleProfilePayload, len(current))
 		for _, c := range current {
 			currentByProfile[c.ProfileUUID] = c
+		}
+
+		installingChannels := make(map[profileChannelKey]struct{})
+
+		for _, p := range teamProfiles {
+			onHost := false
+			if c, ok := currentByProfile[p.ProfileUUID]; ok {
+				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			}
+			if !EntityAppliesToHost(p, host, labelsForHost, onHost) {
+				continue
+			}
+			desired[p.ProfileUUID] = p
 		}
 
 		for profUUID, p := range desired {
@@ -107,6 +132,8 @@ func ComputeReconcileDeltas(
 				prevCommandUUID = c.CommandUUID
 			}
 
+			installingChannels[profileChannelKey{hostUUID: host.UUID, identifier: p.ProfileIdentifier, scope: p.Scope}] = struct{}{}
+
 			toInstall = append(toInstall, &fleet.MDMAppleProfilePayload{
 				ProfileUUID:       p.ProfileUUID,
 				ProfileIdentifier: p.ProfileIdentifier,
@@ -125,8 +152,19 @@ func ComputeReconcileDeltas(
 			if _, stillDesired := desired[profUUID]; stillDesired {
 				continue
 			}
+			// A removal already sent to the device is left alone so the reconciler
+			// doesn't queue it a second time. The exception is when the same channel
+			// is being installed again: deleting and re-adding a profile mints a new
+			// profile UUID, so this row is never revisited on its own and its queued
+			// RemoveProfile would strip the profile the admin just asked for. Carry it
+			// through marked cancel-only.
+			var cancelOnly bool
 			if c.OperationType == fleet.MDMOperationTypeRemove && c.Status != nil {
-				continue
+				key := profileChannelKey{hostUUID: host.UUID, identifier: c.ProfileIdentifier, scope: c.Scope}
+				if _, reinstalling := installingChannels[key]; !reinstalling {
+					continue
+				}
+				cancelOnly = true
 			}
 			if IsBrokenProfile(profUUID, profilesWithBrokenLabels) {
 				continue
@@ -147,6 +185,7 @@ func ComputeReconcileDeltas(
 				IgnoreError:       c.IgnoreError,
 				Scope:             c.Scope,
 				DeviceEnrolledAt:  host.DeviceEnrolledAt,
+				CancelOnly:        cancelOnly,
 			})
 		}
 	}
@@ -213,17 +252,21 @@ func ComputeDeclarationDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, d := range teamDecls {
-			if !EntityAppliesToHost(d, host, labelsForHost) {
-				continue
-			}
-			desired[d.DeclarationUUID] = d
-		}
-
 		current := currentByHost[host.UUID]
 		currentByDecl := make(map[string]*fleet.MDMAppleHostDeclaration, len(current))
 		for _, c := range current {
 			currentByDecl[c.DeclarationUUID] = c
+		}
+
+		for _, d := range teamDecls {
+			onHost := false
+			if c, ok := currentByDecl[d.DeclarationUUID]; ok {
+				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			}
+			if !EntityAppliesToHost(d, host, labelsForHost, onHost) {
+				continue
+			}
+			desired[d.DeclarationUUID] = d
 		}
 
 		for declUUID, d := range desired {
@@ -246,6 +289,16 @@ func ComputeDeclarationDeltas(
 				// since we last delivered this declaration to the host. Re-deliver
 				// so the per-host effective token changes and the host re-fetches,
 				// even though the declaration's own content/token is unchanged.
+				needsInstall = true
+			case d.ActivationUpdatedAt != nil && (c.ActivationUpdatedAt == nil || c.ActivationUpdatedAt.Before(*d.ActivationUpdatedAt)):
+				// Same, for an edited custom activation. Editing only its predicate
+				// leaves the declaration's own content untouched.
+				needsInstall = true
+			case d.ActivationUpdatedAt == nil && c.ActivationUpdatedAt != nil:
+				// The custom activation was removed. Unlike an asset reference, it
+				// lives in its own table, so the declaration's token is unchanged and
+				// nothing else here would notice; without this the host keeps the old
+				// activation and its predicate forever.
 				needsInstall = true
 			case c.OperationType == "" || c.OperationType == fleet.MDMOperationTypeRemove:
 				needsInstall = true
@@ -278,6 +331,9 @@ func ComputeDeclarationDeltas(
 			// and no needless re-delivery is triggered.
 			if d.AssetsUpdatedAt != nil {
 				row.AssetsUpdatedAt = d.AssetsUpdatedAt
+			}
+			if d.ActivationUpdatedAt != nil {
+				row.ActivationUpdatedAt = d.ActivationUpdatedAt
 			}
 			declRowsToWrite = append(declRowsToWrite, row)
 			markChanged(host.UUID, desiredScope)
@@ -421,7 +477,9 @@ func ExecuteReconcileBatch(
 
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
-			if (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
+			// Never preserve the state of a cancel-only removal: it would stamp this
+			// install as "removing" and point it at the command we are about to delete.
+			if !pp.CancelOnly && (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
 				hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
@@ -556,7 +614,25 @@ func ExecuteReconcileBatch(
 		}
 	}
 
+	// built from toInstall as it arrives here, i.e. after the callers' platform and
+	// scope filters have already dropped whatever they drop
+	installingChannels := make(map[profileChannelKey]struct{}, len(toInstall))
+	for _, p := range toInstall {
+		installingChannels[channelKey(p)] = struct{}{}
+	}
+
 	for _, p := range toRemove {
+		if p.CancelOnly {
+			// These rows exist only to retract a queued RemoveProfile, so honour that
+			// only while the install justifying it is still in this batch: the filters
+			// above can drop an install after the deltas were computed. Without it,
+			// leave the row untouched rather than queueing a removal for a profile the
+			// host is meant to keep.
+			if _, ok := installingChannels[channelKey(p)]; ok {
+				hostProfilesToCleanup = append(hostProfilesToCleanup, p)
+			}
+			continue
+		}
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
