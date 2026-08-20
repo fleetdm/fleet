@@ -95,8 +95,7 @@ describe("MicrosoftGraphPage", () => {
     expect(screen.getByLabelText("Client ID")).toHaveValue(
       "7f6b1665-51f5-48de-a9b6-ac17539583fb"
     );
-    // The API never returns the secret; the mask signals that one is stored. A service principal's secret is not a user
-    // login and the field holds a mask, so neither 1Password nor the browser should offer to fill or save it.
+    // The API never returns the secret; the mask signals that one is stored.
     const secretField = screen.getByLabelText("Client secret");
     expect(secretField).toHaveValue("********");
     expect(secretField).toHaveAttribute("autocomplete", "new-password");
@@ -167,8 +166,7 @@ describe("MicrosoftGraphPage", () => {
     await user.clear(clientIdField);
     await user.type(clientIdField, "9a2e4d10-3b77-4c58-8e21-1f0c5d6a7b88");
 
-    // The stored secret belongs to the old app registration, so the mask is cleared and re-entry is required. The API
-    // rejects a masked secret alongside a changed ID, so catching it here avoids a round trip.
+    // The stored secret belongs to the old app registration, so the mask is cleared and re-entry is required.
     await waitFor(() => {
       expect(screen.getByLabelText("Client secret")).toHaveValue("");
     });
