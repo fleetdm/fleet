@@ -96,6 +96,8 @@ export default {
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
   HOST_CUSTOM_HOST_VITAL: (hostId: number, vitalId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/custom_host_vitals/${vitalId}`,
+  HOST_CANCEL_MDM_COMMAND: (hostId: number, commandUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/commands/${commandUUID}`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
