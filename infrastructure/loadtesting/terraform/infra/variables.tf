@@ -113,13 +113,13 @@ variable "enable_otel" {
 variable "apple_apns_mock_cpu" {
   description = "Fargate CPU units for each mock APNs task."
   type        = number
-  default     = 2048
+  default     = 1024
 }
 
 variable "apple_apns_mock_memory" {
   description = "Fargate memory (MiB) for each mock APNs task. GOMEMLIMIT is derived from this at 90%."
   type        = number
-  default     = 4096
+  default     = 2048
 }
 
 variable "apple_apns_mock_redis_instance_size" {
