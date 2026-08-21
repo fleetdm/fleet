@@ -65,5 +65,4 @@ Si vous attendez d'être certain que la situation est réelle avant de vous impl
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="publishedOn" value="2026-06-26">
-<meta name="description" value="">
 <meta name="category" value="articles">
