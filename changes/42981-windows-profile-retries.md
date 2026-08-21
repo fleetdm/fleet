@@ -1,1 +1,0 @@
-- Windows configuration profiles now retry up to 3 times before being marked "Failed", matching Apple. Retries cover profiles the host rejects and profiles whose Fleet-proxied SCEP certificate never arrives, and each retry requests a fresh challenge from the certificate authority. A profile stays "Pending" while Fleet retries.
