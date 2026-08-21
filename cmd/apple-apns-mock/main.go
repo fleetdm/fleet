@@ -41,12 +41,11 @@ func run() error {
 
 	flag.Parse()
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: func() slog.Level {
-		if *debug {
-			return slog.LevelDebug
-		}
-		return slog.LevelInfo
-	}()}))
+	level := slog.LevelInfo
+	if *debug {
+		level = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -147,16 +146,11 @@ func resolveNodeID(configured string) string {
 func newMux(coord *coordinator, logger *slog.Logger, keepAlive, writeTimeout time.Duration) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		healthzHandler(w, r)
-	})
+	mux.HandleFunc("GET /healthz", healthzHandler)
+	mux.HandleFunc("GET /memstats", memStatsHandler)
 
 	mux.HandleFunc("GET /stats", func(w http.ResponseWriter, r *http.Request) {
 		statsHandler(w, r, coord)
-	})
-
-	mux.HandleFunc("GET /memstats", func(w http.ResponseWriter, r *http.Request) {
-		memStatsHandler(w, r)
 	})
 
 	mux.HandleFunc("GET /events", func(w http.ResponseWriter, r *http.Request) {

@@ -19,6 +19,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// maxPayloadBytes is the APNs payload limit.
+const maxPayloadBytes = 4096
+
+// validateToken is looser than real APNs on purpose: any even-length hex is
+// accepted, because Apple also enforces a 32-byte length and mdmtest tokens
+// are variable-length.
+func validateToken(token string) *apnsError {
+	if token == "" {
+		return errMissingDeviceToken
+	}
+	if _, err := hex.DecodeString(token); err != nil {
+		return errBadDeviceToken
+	}
+	return nil
+}
+
 // eventsSSEHandler serves GET /events?token=<hex>, the simulated device's
 // stand-in for a real device's APNs courier connection. Pushes arrive as
 // `event: ping`, anything stored while the device was away is written on
@@ -31,22 +47,17 @@ import (
 // handler costs.
 func eventsSSEHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
 	token := r.URL.Query().Get("token")
-	if token == "" {
-		apnsPushError(w, nil, MissingDeviceTokenError())
-		return
-	}
-
-	if _, err := hex.DecodeString(token); err != nil {
-		apnsPushError(w, nil, BadDeviceTokenError())
+	if err := validateToken(token); err != nil {
+		apnsPushError(w, nil, err)
 		return
 	}
 
 	logger.DebugContext(r.Context(), "starting SSE stream", "token", token)
 
+	// Not hijackable: HTTP/2, httptest recorders, or any middleware that wraps
+	// the ResponseWriter without forwarding Hijack.
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		// HTTP/2, httptest recorders, or any middleware that wraps the
-		// ResponseWriter without forwarding Hijack.
 		streamEventsBuffered(w, r, token, c, logger, keepAlive, writeTimeout)
 		return
 	}
@@ -149,7 +160,6 @@ func runStream(ctx context.Context, write func(string) error, done <-chan struct
 	defer c.Unsubscribe(ctx, token, sub)
 
 	if pending != nil {
-		// stored ping delivered immediately on connect
 		if err := write(pingEvent(pending.payload)); err != nil {
 			logger.DebugContext(ctx, "failed to write pending ping", "token", token, "error", err)
 			c.Restore(ctx, token, sub, pending, true)
@@ -176,7 +186,7 @@ func runStream(ctx context.Context, write func(string) error, done <-chan struct
 			return
 		case <-done: // client went away (buffered path only; nil channel never fires)
 			return
-		case <-keepAliveC: // keepalive
+		case <-keepAliveC:
 			if err := write(": keepalive\n\n"); err != nil {
 				logger.DebugContext(ctx, "failed to write keepalive", "token", token, "error", err)
 				return
@@ -204,11 +214,8 @@ func pingEvent(payload []byte) string {
 // pushHandler serves POST /3/device/{token}, the same shape as
 // api.push.apple.com. It accepts what Fleet's buford client sends — a raw JSON
 // body and no apns-* headers — plus the spec headers parsePushHeaders models,
-// and applies APNs payload limits.
-//
-// The payload is forwarded verbatim, not parsed. Token validation is looser
-// than real APNs on purpose: any even-length hex is accepted, because Apple
-// also enforces a 32-byte length and mdmtest tokens are variable-length.
+// and applies APNs payload limits. The payload is forwarded verbatim, not
+// parsed.
 func pushHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger *slog.Logger) {
 	// parsePushHeaders returns its headers even on failure so the error
 	// response echoes the client's apns-id, like real APNS does.
@@ -219,29 +226,22 @@ func pushHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger 
 	}
 
 	token := r.PathValue("token")
-	if token == "" {
-		apnsPushError(w, headers, MissingDeviceTokenError())
+	if err := validateToken(token); err != nil {
+		apnsPushError(w, headers, err)
 		return
 	}
 
-	if _, err := hex.DecodeString(token); err != nil {
-		apnsPushError(w, headers, BadDeviceTokenError())
+	payload, readErr := io.ReadAll(io.LimitReader(r.Body, maxPayloadBytes+1))
+	switch {
+	case readErr != nil:
+		logger.ErrorContext(r.Context(), "failed to read request body", "error", readErr)
+		apnsPushError(w, headers, errInternalServer)
 		return
-	}
-
-	limitedReader := io.LimitReader(r.Body, 4097)
-	payload, err := io.ReadAll(limitedReader)
-	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to read request body", "error", err)
-		apnsPushError(w, headers, InternalServerError())
+	case len(payload) == 0:
+		apnsPushError(w, headers, errPayloadEmpty)
 		return
-	}
-	if len(payload) == 0 {
-		apnsPushError(w, headers, PayloadEmptyError())
-		return
-	}
-	if len(payload) > 4096 {
-		apnsPushError(w, headers, PayloadTooLargeError())
+	case len(payload) > maxPayloadBytes:
+		apnsPushError(w, headers, errPayloadTooLarge)
 		return
 	}
 
@@ -252,7 +252,7 @@ func pushHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger 
 	// A push that cannot be stored or announced was not accepted; saying so
 	// lets Fleet's pending-hosts cron retry it.
 	if err := c.Push(r.Context(), token, payload, expiration); err != nil {
-		apnsPushError(w, headers, ServiceUnavailableError())
+		apnsPushError(w, headers, errServiceUnavailable)
 		return
 	}
 
@@ -275,33 +275,48 @@ type pushHeaders struct {
 // are non-nil even on error, so the caller can echo the client's apns-id the
 // way real APNs does. A malformed apns-id is the exception: the generated one
 // stands.
-func parsePushHeaders(r *http.Request) (*pushHeaders, error) {
-	pushHeaders := &pushHeaders{
-		PushID: uuid.NewString(), // default to random UUID, if provided it will be overwritten.
-	}
+func parsePushHeaders(r *http.Request) (*pushHeaders, *apnsError) {
+	h := &pushHeaders{PushID: uuid.NewString()}
 
 	if pushID := r.Header.Get("apns-id"); pushID != "" {
 		if _, err := uuid.Parse(pushID); err != nil {
-			return pushHeaders, BadMessageIdError()
+			return h, errBadMessageID
 		}
-		pushHeaders.PushID = pushID
+		h.PushID = pushID
 	}
 
-	pushHeaders.PushType = r.Header.Get("apns-push-type")
-	if pushHeaders.PushType != "" && pushHeaders.PushType != "mdm" {
-		return pushHeaders, InvalidPushTypeError()
+	h.PushType = r.Header.Get("apns-push-type")
+	if h.PushType != "" && h.PushType != "mdm" {
+		return h, errInvalidPushType
 	}
 
 	if expiration := r.Header.Get("apns-expiration"); expiration != "" {
-		if ts, err := strconv.ParseInt(expiration, 10, 64); err == nil {
-			t := time.Unix(ts, 0)
-			pushHeaders.Expiration = &t
-		} else {
-			return pushHeaders, BadExpirationDateError()
+		ts, err := strconv.ParseInt(expiration, 10, 64)
+		if err != nil {
+			return h, errBadExpirationDate
 		}
+		// Not new(time.Unix(...)): staticcheck reads the value as unused.
+		t := time.Unix(ts, 0)
+		h.Expiration = &t
 	}
 
-	return pushHeaders, nil
+	return h, nil
+}
+
+// apnsPushError writes the error shape real APNs returns: an apns-id header
+// and a {"reason":...} JSON body. The body is load-bearing — buford's
+// parseErrorResponse surfaces a JSON-decode error instead of the reason on
+// anything else. A 410 Unregistered, if ever modeled, must add a "timestamp"
+// field; Apple omits it on every other error.
+func apnsPushError(w http.ResponseWriter, headers *pushHeaders, err *apnsError) {
+	w.Header().Set("Content-Type", "application/json")
+	if headers != nil {
+		w.Header().Set("apns-id", headers.PushID)
+	}
+	w.WriteHeader(err.status)
+	_ = json.NewEncoder(w).Encode(struct {
+		Reason string `json:"reason"`
+	}{Reason: err.reason})
 }
 
 // healthzHandler serves GET /healthz for infra liveness checks.
@@ -312,8 +327,7 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 
 // nodeStats are one instance's counters. Stored counts pending keys written,
 // and every push writes one, so it tracks pushes rather than offline devices.
-// Discarded replaces the old Expired: a ping that ages out of Redis does so on
-// a TTL nobody observes.
+// Nothing counts expiry: a ping ages out of Redis on a TTL nobody observes.
 type nodeStats struct {
 	ActiveConnections  int64 `json:"active_connections"`
 	TotalPushes        int64 `json:"total_pushes"`
@@ -349,15 +363,7 @@ type statsResponse struct {
 
 // statsHandler serves GET /stats for watching a load test.
 func statsHandler(w http.ResponseWriter, r *http.Request, c *coordinator) {
-	w.Header().Set("Content-Type", "application/json")
-	stats := c.Stats(r.Context())
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	err := enc.Encode(stats)
-	if err != nil {
-		http.Error(w, "Failed to encode stats", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, c.Stats(r.Context()))
 }
 
 // memStatsResponse reports what the Go runtime knows it is using, the only
@@ -366,11 +372,12 @@ func statsHandler(w http.ResponseWriter, r *http.Request, c *coordinator) {
 // which overstated a 40k-connection run by 3x. Divide by active_connections.
 type memStatsResponse struct {
 	Goroutines int    `json:"goroutines"`   // ~1 per live SSE stream, plus a handful of runtime and accept goroutines
-	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage unless ?gc=1
+	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage
 	StackBytes uint64 `json:"stack_bytes"`  // goroutine stacks
 	InUseBytes uint64 `json:"in_use_bytes"` // everything the runtime holds minus what it has released to the OS
 }
 
+// memStatsHandler serves GET /memstats
 func memStatsHandler(w http.ResponseWriter, r *http.Request) {
 	samples := []metrics.Sample{
 		{Name: "/memory/classes/heap/objects:bytes"},
@@ -380,36 +387,19 @@ func memStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	metrics.Read(samples)
 
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(memStatsResponse{
+	writeJSON(w, memStatsResponse{
 		Goroutines: runtime.NumGoroutine(),
 		HeapBytes:  samples[0].Value.Uint64(),
 		StackBytes: samples[1].Value.Uint64(),
 		InUseBytes: samples[2].Value.Uint64() - samples[3].Value.Uint64(),
-	}); err != nil {
-		http.Error(w, "Failed to encode memstats", http.StatusInternalServerError)
-		return
-	}
+	})
 }
 
-// apnsPushError writes the error shape real APNs returns: an apns-id header
-// and a {"reason":...} JSON body. The body is load-bearing — buford's
-// parseErrorResponse surfaces a JSON-decode error instead of the reason on
-// anything else. A 410 Unregistered, if ever modeled, must add a "timestamp"
-// field; Apple omits it on every other error.
-func apnsPushError(w http.ResponseWriter, headers *pushHeaders, err error) {
+func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	if headers != nil {
-		w.Header().Set("apns-id", headers.PushID)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
-	statusCode := http.StatusBadRequest
-	if statuser, ok := err.(Statuser); ok {
-		statusCode = statuser.Status()
-	}
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(struct {
-		Reason string `json:"reason"`
-	}{Reason: err.Error()})
 }

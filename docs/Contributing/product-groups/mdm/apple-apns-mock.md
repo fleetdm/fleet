@@ -1,6 +1,6 @@
 # Mock APNs push server
 
-Fleet disables MDM push notifications during load tests today, so every simulated host checks in on a timer. That hides how Fleet behaves with realistic push-driven check-ins. `cmd/apple-apns-mock` is an in-memory stand-in for Apple's push notification service (APNs) that closes this gap: Fleet pushes to it exactly as it pushes to `api.push.apple.com`, and simulated devices receive wake-ups instead of polling.
+Fleet disables MDM push notifications during load tests today, so every simulated host checks in on a timer. That hides how Fleet behaves with realistic push-driven check-ins. `cmd/apple-apns-mock` is a stand-in for Apple's push notification service (APNs) that closes this gap: Fleet pushes to it exactly as it pushes to `api.push.apple.com`, and simulated devices receive wake-ups instead of polling.
 
 ## Architecture
 
@@ -65,8 +65,6 @@ This is the behavior the old timer-driven setup couldn't model, and the main rea
 
 Expiry is the Redis TTL on the pending key; there is nothing to sweep. Implementation is split between `registry.go` (which tokens an instance holds) and `coordinator.go` (the shared state).
 
-One counter changed meaning with the move: `stored` now counts pending keys written, and every push writes one, so it tracks pushes rather than offline devices. `expired` became `discarded`, counting pushes that arrived already expired — a ping that ages out of Redis does so on a TTL nobody observes.
-
 ## Device tokens
 
 Simulated clients derive their own tokens, so no coordination with the mock is needed: mdmtest clients send `hex("token" + serial)` with PushMagic `"pushmagic" + serial` in their TokenUpdate (`pkg/mdm/mdmtest/apple.go`). Fleet stores these in `nano_enrollments` like real tokens and pushes to them like real tokens.
@@ -95,12 +93,7 @@ This requires Fleet to be started with `--dev`, and does **not** work alongside 
 
 ## Configuring osquery-perf to use custom APNs server
 
-To run osquery-perf with MDM enabled, it is required to set the `mdm_apns_url` flag. osquery-perf runs on a ping channel rather than interval tickers.
-
-For macOS if user enrollments is enabled, it will start two sessions against the APNs server, one for the device channel and one for the user channel.
-
-It should still keep us way below the 8GB limit on osquery-perf containers, even at 5k each.
-
+Set the `mdm_apns_url` flag to the mock's base URL. Simulated hosts then check in on the ping channel instead of interval tickers. On macOS with user enrollments enabled each host opens two streams, one for the device channel and one for the user channel — still well below the 8 GB limit on osquery-perf containers at 5k hosts each.
 
 ## Load testing with mock APNS server
 

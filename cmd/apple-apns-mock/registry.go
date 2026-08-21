@@ -74,8 +74,7 @@ func (r *registry) subscribe(token string, seq int64) (*subscriber, *ping) {
 		replaced: make(chan struct{}),
 	}
 
-	token = strings.ToLower(token)
-	sh := r.shardFor(token)
+	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
 
@@ -101,10 +100,9 @@ func (r *registry) subscribe(token string, seq int64) (*subscriber, *ping) {
 // deferred cleanup cannot evict its replacement. connected always decrements:
 // the handler calls this exactly once per subscribe.
 func (r *registry) unsubscribe(token string, sub *subscriber) *ping {
-	token = strings.ToLower(token)
-
 	r.connected.Add(-1)
-	sh := r.shardFor(token)
+
+	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
 
@@ -112,7 +110,6 @@ func (r *registry) unsubscribe(token string, sub *subscriber) *ping {
 	if e == nil || e.sub != sub {
 		return nil // already replaced; subscribe drained us then
 	}
-	e.sub = nil
 	delete(sh.entries, token)
 	return drain(sub)
 }
@@ -123,8 +120,7 @@ func (r *registry) unsubscribe(token string, sub *subscriber) *ping {
 // one must not evict a newer stream. The evicted handler's deferred
 // unsubscribe finds the entry gone and simply decrements the gauge.
 func (r *registry) evictIfOlder(token string, seq int64) *ping {
-	token = strings.ToLower(token)
-	sh := r.shardFor(token)
+	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
 
@@ -134,7 +130,6 @@ func (r *registry) evictIfOlder(token string, seq int64) *ping {
 	}
 	close(e.sub.replaced)
 	p := drain(e.sub)
-	e.sub = nil
 	delete(sh.entries, token)
 	return p
 }
@@ -162,8 +157,7 @@ const (
 
 // deliver hands a ping to the token's stream without blocking.
 func (r *registry) deliver(token string, p *ping) deliverResult {
-	token = strings.ToLower(token)
-	sh := r.shardFor(token)
+	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
 
@@ -183,8 +177,7 @@ func (r *registry) deliver(token string, p *ping) deliverResult {
 // announced push passes through it, so nodes that don't hold it do no Redis
 // work at all.
 func (r *registry) holds(token string) bool {
-	token = strings.ToLower(token)
-	sh := r.shardFor(token)
+	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
 
@@ -194,8 +187,7 @@ func (r *registry) holds(token string) bool {
 
 // isCurrent reports whether sub is still the token's live subscriber.
 func (r *registry) isCurrent(token string, sub *subscriber) bool {
-	token = strings.ToLower(token)
-	sh := r.shardFor(token)
+	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
 
@@ -220,8 +212,11 @@ func (r *registry) tokens() []string {
 	return out
 }
 
-func (r *registry) shardFor(token string) *shard {
-	return &r.shards[shardIndex(token)]
+// shardFor returns the token's shard along with the canonical (lowercased) key
+// to look it up by: Fleet and the device may disagree on token case.
+func (r *registry) shardFor(token string) (string, *shard) {
+	token = strings.ToLower(token)
+	return token, &r.shards[shardIndex(token)]
 }
 
 // shardIndex is a zero-allocation FNV-1a hash mod 256. FNV-1a spreads

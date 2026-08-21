@@ -130,6 +130,16 @@ func (c *coordinator) storePending(ctx context.Context, token string, p *ping) e
 	return nil
 }
 
+// requeue puts back a ping whose stream ended before it reached the wire, so
+// the device gets it wherever it reconnects.
+func (c *coordinator) requeue(ctx context.Context, token string, p *ping) error {
+	if err := c.storePending(ctx, token, p); err != nil {
+		c.logger.ErrorContext(ctx, "requeue undelivered ping", "token", token, "error", err)
+		return err
+	}
+	return nil
+}
+
 func (c *coordinator) publish(ctx context.Context, msg pushMsg) error {
 	body, err := json.Marshal(msg)
 	if err != nil {
@@ -178,9 +188,7 @@ func (c *coordinator) Subscribe(ctx context.Context, token string) (*subscriber,
 	// picks it up (or a newer push that overwrote it in the meantime).
 	if evicted != nil {
 		c.reg.deliveredLive.Add(-1)
-		if err := c.storePending(ctx, token, evicted); err != nil {
-			c.logger.ErrorContext(ctx, "requeue ping from replaced connection", "token", token, "error", err)
-		}
+		_ = c.requeue(ctx, token, evicted)
 	}
 
 	p := c.claim(ctx, token)
@@ -219,9 +227,7 @@ func (c *coordinator) Unsubscribe(ctx context.Context, token string, sub *subscr
 		return
 	}
 	c.reg.deliveredLive.Add(-1)
-	if err := c.storePending(ctx, token, evicted); err != nil {
-		c.logger.ErrorContext(ctx, "requeue ping from closed connection", "token", token, "error", err)
-	}
+	_ = c.requeue(ctx, token, evicted)
 }
 
 // Restore puts back a ping the handler took but failed to write, unless a
@@ -235,9 +241,7 @@ func (c *coordinator) Restore(ctx context.Context, token string, sub *subscriber
 	} else {
 		c.reg.deliveredLive.Add(-1)
 	}
-	if err := c.storePending(ctx, token, p); err != nil {
-		c.logger.ErrorContext(ctx, "restore undelivered ping", "token", token, "error", err)
-	}
+	_ = c.requeue(ctx, token, p)
 }
 
 // dispatch handles one announcement: a push, or another node taking a token.
@@ -270,9 +274,7 @@ func (c *coordinator) dispatch(ctx context.Context, msg pushMsg) {
 		// The stream closed between holds and deliver. An inline push is
 		// deliver-or-discard, so only a claimed one goes back.
 		if !inline {
-			if err := c.storePending(ctx, msg.Token, p); err != nil {
-				c.logger.ErrorContext(ctx, "return claimed ping after stream closed", "token", msg.Token, "error", err)
-			}
+			_ = c.requeue(ctx, msg.Token, p)
 		}
 	}
 }
@@ -287,7 +289,7 @@ func (c *coordinator) evictTo(ctx context.Context, token, owner string, seq int6
 	}
 	c.logger.DebugContext(ctx, "token taken over by another node", "token", token, "owner", owner)
 	c.reg.deliveredLive.Add(-1)
-	if err := c.storePending(ctx, token, evicted); err != nil {
+	if err := c.requeue(ctx, token, evicted); err != nil {
 		return
 	}
 	if err := c.publish(ctx, pushMsg{Token: token}); err != nil {

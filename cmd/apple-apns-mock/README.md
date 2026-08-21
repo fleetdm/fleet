@@ -113,15 +113,9 @@ every instance          holds the token? -> GETDEL <prefix>pending:<token>
 connect at any instance GETDEL <prefix>pending:<token>, then announce ownership
 ```
 
-Storing before announcing is what makes an offline device a non-event: the key waits until it connects somewhere. `GETDEL` is what keeps delivery exactly-once when two instances briefly hold the same token.
+Keys used: `<prefix>pending:<token>`, `<prefix>stats:<node-id>`, `<prefix>seq`, and the `<prefix>push` channel. A push that has already expired (`apns-expiration: 0`) is never stored: its payload rides inline in the announcement. If Redis is unreachable a push is answered `503 ServiceUnavailable` rather than silently dropped, and Fleet's `apns_push_to_pending_hosts` cron retries it; existing streams keep working.
 
-Connecting also publishes an ownership announcement carrying a Redis-issued sequence number, so a device that reconnects to a different instance takes its token with it and the old stream stands down. Without the sequence an announcement delayed in flight could evict a newer stream.
-
-A push that has already expired (`apns-expiration: 0`) is never stored: its payload rides inline in the announcement, so a connected device still gets it and a disconnected one does not.
-
-Keys used: `<prefix>pending:<token>`, `<prefix>stats:<node-id>`, `<prefix>seq`, and the `<prefix>push` channel.
-
-If Redis is unreachable a push is answered `503 ServiceUnavailable` rather than silently dropped, and Fleet's `apns_push_to_pending_hosts` cron retries it. Existing streams keep working.
+Why it is shaped this way — the store-before-announce ordering, the `GETDEL` claim, the sequence number on ownership announcements — is in [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md#routing-between-instances).
 
 ## Tests
 
@@ -134,18 +128,18 @@ REDIS_TEST=1 go test -race ./cmd/apple-apns-mock/...
 
 ## Differences from real APNs
 
-- Plain HTTP, no client certificate check. Fleet's push client works over HTTP/1.1 and doesn't require HTTP/2 from the server. As we can't validate against the Apple APNs certificate.
+- Plain HTTP/1.1, no client certificate check — there is no Apple APNs certificate to validate against. Fleet's push client doesn't require HTTP/2 from the server.
 - Any even-length hex token is accepted. Real APNs also enforces the 32-byte token length, but mdmtest and osquery-perf derive variable-length tokens (`hex("token" + serial)`).
-- Not all known error codes are exercised. 
+- Not all APNs error codes are exercised.
 
 ## Running at scale
 
-Target is 75k–100k connections per instance. Every push costs two Redis round trips on the receiving instance (`SET` + `PUBLISH`) plus one `GETDEL` on the instance that delivers it, and the announcement fans out to every instance, so size Redis for the push rate rather than the connection count. An instance holds only a handful of Redis connections — one for the subscription plus a small command pool — regardless of how many devices it serves.
+Target is 75k–100k connections per instance, at roughly **8 KB each** — about 2.5 GB for 300k. Measured at 75k live streams on an M-series Mac: 130 MB heap, 295 MB goroutine stacks, 598 MB total. Most of that is goroutine stacks, one per stream at ~4 KB; the `net/http` per-connection buffers that would otherwise dominate are not in the total, because the SSE handler hijacks the connection and returns instead of blocking (see `eventsSSEHandler`).
 
-In the load test the mock runs its own ElastiCache (`cache.m7g.large`, single node) rather than sharing Fleet's, so a full-fleet wave doesn't perturb the system under test.
+Before a big run:
 
-Plan on **~8 KB per connection**, so roughly 2.5 GB for 300k. Measured at 75k live streams on an M-series Mac: 130 MB heap, 295 MB goroutine stacks, 598 MB total. Raise the file descriptor limit to clear the connection count (`ulimit -n 1000000`, and on macOS `kern.maxfilesperproc` too, which caps `ulimit` and defaults to 92160). Set `GOMEMLIMIT` below available memory to keep the garbage collector ahead of the ramp.
+- Raise the file descriptor limit (`ulimit -n 1000000`, and on macOS `kern.maxfilesperproc` too, which caps `ulimit` and defaults to 92160).
+- Set `GOMEMLIMIT` below available memory to keep the garbage collector ahead of the ramp.
+- Size Redis for the push rate rather than the connection count: each push costs two round trips on the receiving instance plus one `GETDEL` on the delivering one, and each announcement fans out to every instance. An instance holds only a handful of Redis connections regardless of how many devices it serves.
 
-`GET /memstats` reports what the Go runtime is actually using, and `?gc=1` forces a collection first so the heap figure is live data. Prefer it to RSS: on macOS, pages the runtime has already released still count against the process, which overstated a 40k-connection run by 3x.
-
-Most of the remaining cost is goroutine stacks — one goroutine per stream, ~4 KB each. The `net/http` per-connection buffers that would otherwise dominate (4 KB read, 4 KB write, 2 KB chunking, none of them tunable through `http.Server`) are not in the total, because the SSE handler hijacks the connection and returns instead of blocking; see `eventsSSEHandler`. `tools/apns-loadgen` is the harness these numbers come from.
+`GET /memstats` reports what the Go runtime is actually using. Prefer it to RSS: on macOS, pages the runtime has already released still count against the process, which overstated a 40k-connection run by 3x. `tools/apns-loadgen` is the harness these numbers come from.
