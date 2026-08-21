@@ -854,6 +854,10 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, a
 // The mapped columns are quoted as identifiers, so an allowlist used here must
 // map to bare column names rather than to a SQL expression.
 func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
+	if allowlist == nil {
+		panic("appendOrderByToSelect: allowlist cannot be nil; use an empty map to disallow all sorting")
+	}
+
 	if opts.OrderKey == "" {
 		return ds, nil
 	}

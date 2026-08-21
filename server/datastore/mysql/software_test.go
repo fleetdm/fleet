@@ -562,6 +562,15 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	}
 }
 
+func TestAppendOrderByToSelectRequiresAllowlist(t *testing.T) {
+	// A missing allowlist is a wiring mistake, not a request that should be
+	// refused, so it fails loudly rather than rejecting every order key.
+	require.Panics(t, func() {
+		//nolint:errcheck // panics before returning
+		appendOrderByToSelect(dialect.From("software"), fleet.ListOptions{OrderKey: "name"}, nil)
+	})
+}
+
 // TestSoftwareOrderKeysCoverListedColumns fails when a column is added to the
 // software list without deciding whether it can be sorted on, so the decision
 // is made deliberately rather than by omission. A column that the list returns
@@ -1117,11 +1126,17 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		// hosts_count is likewise only sortable when the counts are part of the
 		// query. Sorting on it alone is served by the separate query, so this
 		// pairs it with a second key to reach the list, as above.
-		_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "hosts_count,name"},
-		})
-		require.Error(t, err, "hosts_count should be rejected without host counts")
-		require.Contains(t, err.Error(), "invalid order_key")
+		for _, key := range []string{"hosts_count", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "%q should be rejected without host counts", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Not naming an order key still uses the default ordering.
+		_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{})
+		require.NoError(t, err)
 
 		// Whitespace and empty segments around a key are tolerated.
 

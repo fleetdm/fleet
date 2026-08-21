@@ -2053,6 +2053,13 @@ func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
 	// Filters (VulnerableOnly / KnownExploit / MinimumCVSS / MaximumCVSS /
 	// MatchQuery) are now supported in the inner query via EXISTS pushdown —
 	// see buildOptimizedListSoftwareSQL.
+	// Asking to sort on hosts_count only makes sense when the counts are part
+	// of the query. Requests that don't name an order key still come here, so
+	// the default ordering is unchanged.
+	if opts.ListOptions.OrderKey != "" && !opts.WithHostCounts {
+		return false
+	}
+
 	return opts.HostID == nil &&
 		orderKey == "hosts_count" &&
 		!isMultiColumnSort(opts.ListOptions.OrderKey)
