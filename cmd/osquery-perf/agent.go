@@ -382,8 +382,9 @@ type mdmAgent struct {
 // delayCancelableMDMAck holds the fetch→acknowledge window open for
 // cancelable MDM commands (lock, wipe, clear passcode, enable lost mode) so
 // that DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid can be exercised
-// against a command the device has already fetched (#43181). No-op when the
-// delay is 0 or the command is not cancelable.
+// against a command the device has already fetched — Fleet cannot know a
+// command was delivered, so this window is the only way to test that race.
+// No-op when the delay is 0 or the command is not cancelable.
 func delayCancelableMDMAck(delay time.Duration, deviceDesc string, cmd *mdm.Command) {
 	if delay <= 0 || cmd == nil {
 		return
