@@ -460,9 +460,9 @@ func TestValidateIdentifier(t *testing.T) {
 				ChallengeRetrievedAt: &expiredTime,
 			}, nil
 		}
-		// a-profile-uuid is an Apple profile, so the expired-challenge resend
-		// routes through ResendHostCertificateProfile (resets retries + clears
-		// the stale command). Windows/Android profiles use ResendHostMDMProfile.
+		// a-profile-uuid is an Apple profile, so the expired-challenge resend routes through
+		// ResendHostCertificateProfile (resets retries + clears the stale command). Windows profiles use their own
+		// equivalent; Android has no host profile row and falls back to ResendHostMDMProfile.
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)
@@ -476,6 +476,43 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "challenge password has expired")
 		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
 		ds.ResendHostCertificateProfileFuncInvoked = false
+	})
+
+	// The challenge aged out before the device reached PKIOperation, so the host never had a usable profile to
+	// install. Redelivering must hand the profile a full retry budget back, or a slow-syncing host could spend its
+	// retries on deliveries it was never able to act on and end up "failed" without the CA ever being asked.
+	t.Run("NDES challenge expired for a Windows profile resets the retry budget", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep"},
+			}, nil
+		}
+		verifyingStatus := fleet.MDMDeliveryVerifying
+		expiredTime := time.Now().Add(-58 * time.Minute)
+		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &verifyingStatus,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               "NDES",
+				ChallengeRetrievedAt: &expiredTime,
+			}, nil
+		}
+		ds.ResendWindowsHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "w-profile-uuid", profileUUID)
+			return nil
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "NDES", "")
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "challenge password has expired")
+		assert.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
+		assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend preserves retries and must not be used here")
 	})
 
 	t.Run("NDES challenge not expired", func(t *testing.T) {
@@ -798,8 +835,9 @@ func TestValidateIdentifier(t *testing.T) {
 				ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
 					return sql.ErrNoRows // challenge not found
 				}
-				// Windows profiles must be resent through the platform-aware path, not the Apple-only one.
-				ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
+				// Fleet turned this delivery away, so the resend has to give the profile its retries back rather
+				// than spend one on an install the host never attempted.
+				ds.ResendWindowsHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 					assert.Equal(t, "host-uuid", hostUUID)
 					assert.Equal(t, "w-profile-uuid", profileUUID)
 					return nil
@@ -809,8 +847,9 @@ func TestValidateIdentifier(t *testing.T) {
 				_, err := svc.validateIdentifier(ctx, tc.identifier, true)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "custom scep challenge failed")
-				assert.True(t, ds.ResendHostMDMProfileFuncInvoked)
+				assert.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
 				assert.False(t, ds.ResendHostCertificateProfileFuncInvoked, "Windows profiles must not use the Apple-only resend")
+				assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend preserves retries and must not be used here")
 			})
 		}
 
@@ -1270,32 +1309,53 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		var gotDetail string
-		ds.SetMDMWindowsHostProfileFailedFunc = func(_ context.Context, hostUUID, profileUUID, detail string) error {
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, hostUUID, profileUUID, detail string) (bool, error) {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "w-profile-uuid", profileUUID)
 			gotDetail = detail
-			return nil
+			return false, nil
 		}
 		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
-		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
 	})
 
 	t.Run("records with a live context even when the request deadline is exceeded", func(t *testing.T) {
 		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedFunc = func(ctx context.Context, _, _, _ string) error {
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(ctx context.Context, _, _, _ string) (bool, error) {
 			// The write must be detached from the expired request context (WithoutCancel), or it would fail to persist
 			// the failure we just observed. This assertion is what actually guards that detach.
 			assert.NoError(t, ctx.Err())
-			return nil
+			return false, nil
 		}
 		// Deadline already in the past (as after an upstream timeout): ctx.Err() is DeadlineExceeded, which must NOT
 		// skip recording - only true cancellation does.
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 		defer cancel()
 		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", upstreamErr)
-		require.True(t, ds.SetMDMWindowsHostProfileFailedFuncInvoked)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 	})
+
+	// The datastore owns the retry-or-fail decision; the proxy just has to hand the error over and not care which way
+	// it went. A datastore error must not panic or double-report.
+	for _, tc := range []struct {
+		name    string
+		retried bool
+		err     error
+	}{
+		{"another delivery attempt", true, nil},
+		{"a terminal failure", false, nil},
+		{"a datastore error", false, errors.New("write failed")},
+	} {
+		t.Run("hands the error over regardless of "+tc.name, func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string) (bool, error) {
+				return tc.retried, tc.err
+			}
+			newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
+			require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
+		})
+	}
 
 	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
 	canceledCtx, cancelFn := context.WithCancel(context.Background())
@@ -1313,11 +1373,36 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	} {
 		t.Run("skips "+tc.name, func(t *testing.T) {
 			ds := new(mock.DataStore)
-			ds.SetMDMWindowsHostProfileFailedFunc = func(context.Context, string, string, string) error {
+			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string) (bool, error) {
 				t.Fatalf("must not record a failure for %s", tc.name)
-				return nil
+				return false, nil
 			}
 			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", tc.err)
+		})
+	}
+}
+
+// The three classified failures need someone to act before Fleet could succeed, so they fail the profile against the
+// host. Everything else is an unclassified failure talking to the admin URL, which clears on its own, so callers leave
+// the profile queued instead. Keep this in step with TestNDESChallengeErrorToDetail below: they classify the same set.
+func TestIsTerminalNDESChallengeError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"invalid credentials", NewNDESInvalidError("invalid admin URL or credentials"), true},
+		{"password cache full", NewNDESPasswordCacheFullError("the password cache is full"), true},
+		{"insufficient permissions", NewNDESInsufficientPermissionsError("account lacks permissions"), true},
+		{"wrapped terminal error is still terminal", fmt.Errorf("scraping challenge: %w", NewNDESPasswordCacheFullError("full")), true},
+		{"connection refused", errors.New("sending request: dial tcp 10.0.0.10:80: connect: connection refused"), false},
+		{"NDES answered 503", NewNDESTransientError("NDES admin URL returned status 503"), false},
+		{"wrapped transient error is still transient", fmt.Errorf("scraping challenge: %w", NewNDESTransientError("status 502")), false},
+		{"timeout", context.DeadlineExceeded, false},
+		{"truncated response", errors.New("reading response body: unexpected EOF"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, IsTerminalNDESChallengeError(tc.err))
 		})
 	}
 }
@@ -1362,6 +1447,59 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 			for _, notWant := range tc.wantNotContains {
 				assert.NotContains(t, detail, notWant)
 			}
+		})
+	}
+}
+
+// Every non-200 from the NDES admin URL used to collapse into NDESInvalidError, so an IIS restart (503) was
+// indistinguishable from bad credentials and permanently failed every profile the outage touched. 5xx and the
+// throttling/timeout codes are separated out so callers can leave those profiles queued.
+func TestNDESRetryableStatus(t *testing.T) {
+	for _, tc := range []struct {
+		code int
+		want bool
+	}{
+		{http.StatusInternalServerError, true},
+		{http.StatusBadGateway, true},
+		{http.StatusServiceUnavailable, true},
+		{http.StatusGatewayTimeout, true},
+		{http.StatusRequestTimeout, true},
+		{http.StatusTooManyRequests, true},
+		{http.StatusUnauthorized, false},
+		{http.StatusForbidden, false},
+		{http.StatusNotFound, false},
+		{http.StatusBadRequest, false},
+	} {
+		t.Run(http.StatusText(tc.code), func(t *testing.T) {
+			assert.Equal(t, tc.want, ndesRetryableStatus(tc.code))
+		})
+	}
+}
+
+// End to end through GetNDESSCEPChallenge: a 503 must come back as a transient error the classifier calls non-terminal,
+// while a 401 stays terminal with the credentials message.
+func TestGetNDESSCEPChallengeStatusClassification(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		code         int
+		wantTerminal bool
+	}{
+		{"service unavailable is transient", http.StatusServiceUnavailable, false},
+		{"unauthorized is terminal", http.StatusUnauthorized, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.code)
+			}))
+			defer srv.Close()
+
+			timeout := 5 * time.Second
+			svc := NewSCEPConfigService(slog.New(slog.DiscardHandler), &timeout)
+			_, err := svc.GetNDESSCEPChallenge(context.Background(), fleet.NDESSCEPProxyCA{
+				AdminURL: srv.URL, Username: "u", Password: "p",
+			})
+			require.Error(t, err)
+			assert.Equal(t, tc.wantTerminal, IsTerminalNDESChallengeError(err))
 		})
 	}
 }

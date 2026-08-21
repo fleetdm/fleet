@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -474,7 +475,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		// The managed-cert updates above set not_valid_after/serial when a reported cert matched the profile's
 		// renewal-ID marker, so a matched-and-valid managed-cert row is the signal that the certificate landed. Flip
 		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error).
-		if err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID); err != nil {
+		verifiedRows, err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "verify windows scep profiles from observed certs")
 		}
 
@@ -482,8 +484,19 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		// "verifying" forever. Once the grace period has elapsed and this report proves we could read the store
 		// where the certificate belongs but it isn't there, fail it. Runs after the flip above, so anything still
 		// "verifying" here has no observed certificate.
-		if err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved); err != nil {
+		failedRows, err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail stuck windows scep profiles")
+		}
+
+		// Both helpers above rewrite host_mdm_windows_profiles rows, so the per-host rollup that
+		// GetMDMWindowsProfilesSummary reads has to be refreshed on the same transaction. Neither deletes rows, so no
+		// rollup row can be orphaned. Guarded on rows affected because this runs on every certificate ingest, for
+		// every platform, and the overwhelming majority of them touch no Windows profile at all.
+		if verifiedRows+failedRows > 0 {
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after scep reconciliation")
+			}
 		}
 		return nil
 	})
@@ -499,15 +512,20 @@ const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate
 
 // failStuckWindowsSCEPProfilesDB is the verification backstop for proxied Windows SCEP profiles. It runs on certificate
 // ingestion (so an offline host, or one whose agent can't enumerate certificates, never ingests and is never failed)
-// and marks a profile "failed" only when we have positive evidence the certificate is missing:
+// and acts only when we have positive evidence the certificate is missing:
 //
 //   - Device-scoped profiles (SyncML uses the ./Device SCEP node): the LocalMachine store is always readable when
 //     osquery reports, so any ingest past the grace period with the certificate still absent is a genuine failure.
 //   - User-scoped profiles (SyncML uses the ./User SCEP node): the certificate lives in a user's store, which osquery
-//     can read only while that user is logged in. We fail only when this report includes at least one user
+//     can read only while that user is logged in. We act only when this report includes at least one user
 //     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
 //     ./User Windows profile targets, so we assume the device has one primary user.
-func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) error {
+//
+// A certificate that never arrives is a delivery failure like any other, so it spends the profile's retries before it
+// becomes terminal: while retries are left the profile goes back to pending and the profile manager redelivers it with
+// a fresh challenge. Redelivering resets updated_at, so the grace period has to elapse again before this can fire for
+// the same profile, which is what bounds a silently failing SCEP profile to one grace window per attempt.
+func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) (int64, error) {
 	caTypes := fleet.ListCATypesWithRenewalIDSupport()
 	caTypeStrs := make([]string, 0, len(caTypes))
 	for _, t := range caTypes {
@@ -515,54 +533,62 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 	}
 	graceSeconds := int(windowsSCEPVerificationGracePeriod.Seconds())
 
-	var query string
-	var args []any
-	if anyUserCertObserved {
-		// System and user scope observed. No need to inspect the profile's SyncML scope.
-		query = `
-			UPDATE host_mdm_windows_profiles hwmp
+	joins := `
 			JOIN host_mdm_managed_certificates hmmc
-				ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
-			SET hwmp.status = ?, hwmp.detail = ?
+				ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid`
+	where := `
 			WHERE hwmp.host_uuid = ?
 				AND hwmp.operation_type = ?
 				AND hwmp.status = ?
 				AND hmmc.type IN (?)
 				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)`
-		args = []any{
-			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, hostUUID, fleet.MDMOperationTypeInstall,
-			fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds,
-		}
-	} else {
+	whereArgs := []any{hostUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds}
+	if !anyUserCertObserved {
 		// Only the LocalMachine store is provably readable this run. Restrict to device-scoped profiles (SyncML
 		// without a ./User SCEP node); a user-scoped certificate may just be waiting for its user to log in.
-		query = `
-			UPDATE host_mdm_windows_profiles hwmp
-			JOIN host_mdm_managed_certificates hmmc
-				ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
+		joins += `
 			JOIN mdm_windows_configuration_profiles cp
-				ON cp.profile_uuid = hwmp.profile_uuid
-			SET hwmp.status = ?, hwmp.detail = ?
-			WHERE hwmp.host_uuid = ?
-				AND hwmp.operation_type = ?
-				AND hwmp.status = ?
-				AND hmmc.type IN (?)
-				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
+				ON cp.profile_uuid = hwmp.profile_uuid`
+		where += `
 				AND cp.syncml NOT LIKE ?`
-		args = []any{
-			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, hostUUID, fleet.MDMOperationTypeInstall,
-			fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds, "%/User/Vendor/MSFT/ClientCertificateInstall/SCEP%",
-		}
+		whereArgs = append(whereArgs, "%/User/Vendor/MSFT/ClientCertificateInstall/SCEP%")
 	}
 
-	stmt, inArgs, err := sqlx.In(query, args...)
+	update := func(setClause string, setArgs []any, retriesCmp string) (int64, error) {
+		query := `
+			UPDATE host_mdm_windows_profiles hwmp` + joins + `
+			SET ` + setClause + where + `
+				AND hwmp.retries ` + retriesCmp + ` ?`
+		args := make([]any, 0, len(setArgs)+len(whereArgs)+1)
+		args = append(args, setArgs...)
+		args = append(args, whereArgs...)
+		args = append(args, mdm.MaxWindowsProfileRetries)
+
+		stmt, inArgs, err := sqlx.In(query, args...)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "building windows scep backstop query")
+		}
+		res, err := tx.ExecContext(ctx, stmt, inArgs...)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "running windows scep backstop update")
+		}
+		rows, _ := res.RowsAffected()
+		return rows, nil
+	}
+
+	// Terminal first, then the retry. Running them in this order keeps the two sets disjoint twice over: they already
+	// disagree on the retries bound, and by the time the retry update runs the rows the first one touched are no
+	// longer "verifying".
+	failed, err := update(`hwmp.status = ?, hwmp.detail = ?`,
+		[]any{fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail}, ">=")
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building windows scep backstop query")
+		return 0, err
 	}
-	if _, err := tx.ExecContext(ctx, stmt, inArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "failing stuck windows scep profiles")
+	retried, err := update(`hwmp.status = NULL, hwmp.detail = '', hwmp.retries = hwmp.retries + 1`, nil, "<")
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	return failed + retried, nil
 }
 
 // verifyWindowsSCEPProfilesFromObservedCertsDB flips a host's proxied Windows SCEP install profiles from "verifying" or
@@ -571,7 +597,7 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 // observing that the CA issued a certificate matching this profile's renewal-ID proves the enrollment succeeded, so we
 // mark it verified regardless of the certificate's lifetime. A short-lived certificate that has since expired is a
 // renewal concern (handled by RenewMDMManagedCertificates), not a verification failure.
-func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) (int64, error) {
 	caTypes := fleet.ListCATypesWithRenewalIDSupport()
 	caTypeStrs := make([]string, 0, len(caTypes))
 	for _, t := range caTypes {
@@ -590,12 +616,14 @@ func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.E
 		fleet.MDMDeliveryVerified, hostUUID, fleet.MDMOperationTypeInstall,
 		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed, caTypeStrs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building windows scep verify query")
+		return 0, ctxerr.Wrap(ctx, err, "building windows scep verify query")
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
 	}
-	return nil
+	rows, _ := res.RowsAffected()
+	return rows, nil
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints

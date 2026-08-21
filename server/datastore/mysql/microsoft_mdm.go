@@ -1482,6 +1482,10 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 				// and increment the retry count
 				payload.Status = nil
 				hp.Retries++
+				// A NULL status reads as "pending" everywhere it surfaces, so the attempt that just failed must not
+				// leave its error behind in the Details column while Fleet is still retrying. The detail is written
+				// again, for real, if the retries run out. Apple clears it for the same reason in setMDMProfilesRetryDB.
+				payload.Detail = ""
 			}
 		}
 
@@ -1531,20 +1535,133 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	return nil
 }
 
-func (ds *Datastore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for a Windows install profile, which today
+// means an error the SCEP proxy saw from the upstream CA. While the profile has retries left it is put back in the
+// pending state so the profile manager redelivers it on its next tick, with freshly rendered contents (a SCEP profile
+// therefore gets a brand new challenge). Once the retries are exhausted the failure is terminal and the detail is
+// surfaced to the user.
+//
+// Delivery attempts are what the retry counter is meant to bound, not requests: the Windows SCEP CSP retries
+// PKIOperation on its own schedule, so one delivery can produce several upstream errors in quick succession. The
+// "status is not NULL" condition is what keeps those from each consuming a retry. The first error moves the row out of
+// "verifying" and costs one; the rest land on an already-pending row and are ignored, because a delivery is by then
+// already queued and supersedes them. setMDMProfilesRetryDB guards Apple's retry path the same way.
+func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
-	const stmt = `
+	const loadStmt = `
+		SELECT status, retries
+		FROM host_mdm_windows_profiles
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
+		FOR UPDATE`
+
+	const retryStmt = `
+		UPDATE host_mdm_windows_profiles
+		SET status = NULL, detail = '', retries = retries + 1
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+
+	const failStmt = `
 		UPDATE host_mdm_windows_profiles
 		SET status = ?, detail = ?
-		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
-			AND (status IS NULL OR status <> ?)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+
+	var retried bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		retried = false
+
+		var row struct {
+			Status  *fleet.MDMDeliveryStatus `db:"status"`
+			Retries uint                     `db:"retries"`
+		}
+		switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "loading windows host profile to record failure")
+		}
+
+		switch {
+		case row.Status == nil:
+			// A delivery is already queued for this profile, so nothing to record.
+			return nil
+		case *row.Status == fleet.MDMDeliveryVerified:
+			return nil
+		case row.Retries < mdm.MaxWindowsProfileRetries:
+			if _, err := tx.ExecContext(ctx, retryStmt, hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
+				return ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
+			}
+			retried = true
+		default:
+			if _, err := tx.ExecContext(ctx, failStmt,
+				fleet.MDMDeliveryFailed, detail, hostUUID, profileUUID, fleet.MDMOperationTypeInstall,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "set windows host profile failed")
+			}
+		}
+
+		// This path only updates a profile row, so no rollup row can be orphaned.
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after profile failure")
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
 	}
-	return nil
+	return retried, nil
+}
+
+// ResendWindowsHostCertificateProfile queues a Windows certificate profile for redelivery after Fleet turned a SCEP
+// request away: an NDES challenge that aged past its window before the device got to PKIOperation, or a custom SCEP
+// challenge Fleet would not accept. The host never had a usable profile to install, so this is not one of the failures
+// the retry budget exists to bound, and nothing is charged for it. Note that the charge would not happen anyway: a
+// challenge that fails validateIdentifier returns before PKIOperation reaches the CA, so no upstream failure is ever
+// recorded for it.
+//
+// It deliberately does NOT reset the counter, which is where it parts company with the Apple equivalent. The Windows
+// SCEP CSP retries the exchange on its own schedule using the challenge baked into the profile it already holds, so
+// right after a redelivery Fleet reliably sees one of those late requests carrying the superseded challenge and
+// rejects it. Zeroing the counter there would hand the profile a fresh budget on every cycle and it would never reach
+// a terminal state, no matter how many times the CA actually failed. Apple has no equivalent exposure because its
+// profile install is atomic and the device does not re-drive SCEP by itself.
+//
+// Unlike the Apple counterpart there is also no queued command to deactivate: the profile manager writes a new command
+// UUID onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
+//
+// A row that already reached a terminal state ("verified" or "failed", per the status documentation in
+// server/fleet/mdm.go) is left alone. Windows profiles are exempt from the "status must be pending" gate in
+// validateIdentifier, so a straggling SCEP request from the CSP's own retry can arrive long after the row settled.
+// Requeueing then would regress a verified profile and spend another challenge on a certificate the host already has,
+// or quietly resurrect a profile that had already exhausted its retries. An admin-initiated Resend is the supported
+// way out of a terminal state, and it comes through ResendHostMDMProfile instead.
+func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	const stmt = `
+		UPDATE host_mdm_windows_profiles
+		SET status = NULL, detail = ''
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
+			AND (status IS NULL OR status NOT IN (?, ?))`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt, hostUUID, profUUID, fleet.MDMOperationTypeInstall,
+			fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending windows host certificate profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// Expected, not exceptional: the row is already queued with no detail (the common case, since the CSP
+			// re-drives the exchange with the superseded challenge after every redelivery), or it has settled into a
+			// terminal state the guard above protects, or the profile was removed.
+			ds.logger.DebugContext(ctx, "resend windows certificate profile: no row changed",
+				"host_uuid", hostUUID, "profile_uuid", profUUID)
+			return nil
+		}
+
+		// This path only updates a profile row, so no rollup row can be orphaned.
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after certificate profile resend")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {

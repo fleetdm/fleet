@@ -291,8 +291,8 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	return res, nil
 }
 
-// recordWindowsSCEPProxyFailure marks a Windows SCEP profile "failed" when the proxy observes a per-profile upstream
-// error.
+// recordWindowsSCEPProxyFailure records a per-profile upstream error the proxy observed against a Windows SCEP profile.
+// The datastore decides whether that means another delivery attempt or a terminal failure.
 func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
 	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
 	// not an upstream CA failure and must not mark the profile failed. Genuine upstream timeouts arrive as
@@ -310,11 +310,15 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 	// values (tracing, etc.) while dropping the deadline; the write gets its own short timeout.
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), windowsSCEPFailureWriteTimeout)
 	defer cancel()
-	if err := svc.ds.SetMDMWindowsHostProfileFailed(writeCtx, hostUUID, profileUUID, detail); err != nil {
+	retried, err := svc.ds.SetMDMWindowsHostProfileFailedOrRetry(writeCtx, hostUUID, profileUUID, detail)
+	if err != nil {
 		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
 			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)
 		ctxerr.Handle(ctx, err)
+		return
 	}
+	svc.debugLogger.DebugContext(ctx, "recorded Windows SCEP proxy failure",
+		"host_uuid", hostUUID, "profile_uuid", profileUUID, "operation", operation, "will_retry", retried)
 }
 
 // parseHostAndProfileFromSCEPIdentifier extracts the host and profile UUIDs from the SCEP proxy identifier
@@ -536,16 +540,25 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 // resendProfileForExpiredChallenge resends a SCEP profile whose challenge has expired so the
 // reconcile cron regenerates it with a fresh challenge.
 //
-// For Apple profiles we use ResendHostCertificateProfile, which additionally clears the stale
-// in-flight command and resets the retry counter. This matters because an expired challenge is a
-// timing condition, not a host install failure, so it must not consume the host's limited Apple
-// profile retries (and a late failure ACK for the superseded command must not strand the profile
-// as "failed"). ResendHostCertificateProfile only operates on Apple tables, so Windows/Android
-// profiles fall back to the platform-aware ResendHostMDMProfile to avoid silently dropping the
+// An expired challenge is a timing condition, not a host install failure: the device never got the chance to install
+// anything, so the attempt must not consume the host's limited profile retries. The tables are separate, so the
+// platform is picked off the profile UUID prefix; Android has no host profile row at all and falls back to the generic
 // resend.
+//
+// The two platforms deliberately differ in what they do to the retry counter, so do not "align" them:
+//
+//   - Apple RESETS it to zero, and additionally clears the stale in-flight command so a late failure ACK for the
+//     superseded command cannot strand the profile as "failed".
+//   - Windows PRESERVES it. The Windows SCEP CSP re-drives the exchange itself using the challenge in the profile it
+//     already holds, so Fleet sees a rejected superseded challenge shortly after every redelivery. Resetting there
+//     would refill the budget on each cycle and the profile would never reach a terminal state however often the CA
+//     failed. Apple's install is atomic and its device does not re-drive SCEP, so it has no equivalent exposure.
 func (svc *scepProxyService) resendProfileForExpiredChallenge(ctx context.Context, hostUUID, profileUUID string) error {
-	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
 		return svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID)
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return svc.ds.ResendWindowsHostCertificateProfile(ctx, hostUUID, profileUUID)
 	}
 	return svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID)
 }
@@ -566,11 +579,12 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 	var errs []error
 
 	// ResendHostCertificateProfile only touches the Apple tables, so a Windows profile whose challenge was rejected would never be resent
-	// and would stay stuck. Route Windows through the platform-aware resend. (Android resends are a separate pre-existing gap: its SCEP
-	// flow is backed by certificate templates rather than a host profile row, so it is left on the existing path here.)
+	// and would stay stuck. Route Windows through its own equivalent, which likewise gives the profile its retries back: Fleet turned
+	// this delivery away, so it is not one of the failures the retry budget exists to bound. (Android resends are a separate pre-existing
+	// gap: its SCEP flow is backed by certificate templates rather than a host profile row, so it is left on the existing path here.)
 	resendProfile := svc.ds.ResendHostCertificateProfile
 	if strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
-		resendProfile = svc.ds.ResendHostMDMProfile
+		resendProfile = svc.ds.ResendWindowsHostCertificateProfile
 	}
 
 	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
@@ -640,6 +654,13 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			"status_code", resp.StatusCode,
 			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
 		)
+		// A 5xx means NDES answered but could not serve the request, which is the shape an IIS restart or an
+		// overloaded NDES takes; that clears on its own and must not be reported as bad credentials.
+		if ndesRetryableStatus(resp.StatusCode) {
+			return "", ctxerr.Wrap(ctx, NewNDESTransientError(fmt.Sprintf(
+				"NDES admin URL returned status %d; could not retrieve the enrollment challenge password",
+				resp.StatusCode)))
+		}
 		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
@@ -755,6 +776,30 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	return string(b), nil
 }
 
+// NDESTransientError is a challenge-fetch failure where NDES answered but could not serve the request, so it is
+// expected to clear without anyone acting. Kept distinct from NDESInvalidError because every non-200 used to collapse
+// into that type, which made an IIS restart (503) look identical to bad credentials and permanently failed every
+// profile the outage touched.
+type NDESTransientError struct {
+	msg string
+}
+
+func (e NDESTransientError) Error() string {
+	return e.msg
+}
+
+func NewNDESTransientError(msg string) NDESTransientError {
+	return NDESTransientError{msg: msg}
+}
+
+// ndesRetryableStatus reports whether an NDES admin-URL HTTP status is one that clears on its own: any 5xx, plus the
+// request-timeout and rate-limit codes.
+func ndesRetryableStatus(code int) bool {
+	return code >= http.StatusInternalServerError ||
+		code == http.StatusRequestTimeout ||
+		code == http.StatusTooManyRequests
+}
+
 type NDESInvalidError struct {
 	msg string
 }
@@ -791,6 +836,29 @@ func NewNDESInsufficientPermissionsError(msg string) NDESInsufficientPermissions
 	return NDESInsufficientPermissionsError{msg: msg}
 }
 
+// IsTerminalNDESChallengeError reports whether a challenge-fetch failure needs someone to act before Fleet could
+// possibly succeed. The three classified failures all do: bad admin credentials, an exhausted password cache (which
+// only clears when an admin raises the cache size or cached passwords age out after an hour), and an account without
+// SCEP enroll permission.
+//
+// Anything else reaching here is an unclassified failure talking to the admin URL, so a connection refused or reset, a
+// timeout, a TLS error, or a truncated response. Those clear on their own, which is why callers leave the profile
+// queued and try again on a later tick instead of failing it against the host: nothing was delivered, so there is no
+// host-side outcome to report, and marking it failed would make an NDES blip during a rollout permanently strand every
+// profile it touched until an admin resent them one by one.
+//
+// Keep this in step with NDESChallengeErrorToDetail below; they classify the same set.
+func IsTerminalNDESChallengeError(err error) bool {
+	switch {
+	case errors.As(err, &NDESInvalidError{}),
+		errors.As(err, &NDESPasswordCacheFullError{}),
+		errors.As(err, &NDESInsufficientPermissionsError{}):
+		return true
+	default:
+		return false
+	}
+}
+
 // NDESChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
 // for profile failure details. Used by both Apple and Windows NDES profile processing.
 func NDESChallengeErrorToDetail(err error) string {
@@ -805,6 +873,8 @@ func NDESChallengeErrorToDetail(err error) string {
 	case errors.As(err, &NDESInsufficientPermissionsError{}):
 		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
 			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
+	case errors.As(err, &NDESTransientError{}):
+		return fmt.Sprintf("Fleet couldn't reach NDES to populate %s and will try again. %s", varName, err.Error())
 	default:
 		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
 	}

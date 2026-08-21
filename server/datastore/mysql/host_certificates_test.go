@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -106,6 +107,8 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
 	}
 
+	// A NULL status means the profile is queued for (re)delivery, which surfaces as "pending"; it comes back as the
+	// empty status here so callers can assert on it with require.Empty.
 	getProfile := func(t *testing.T, h *fleet.Host, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
 		t.Helper()
 		var row struct {
@@ -114,7 +117,8 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			Retries int                     `db:"retries"`
 		}
 		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
-			`SELECT status, detail, retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, profileUUID))
+			`SELECT COALESCE(status, '') AS status, detail, retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			h.UUID, profileUUID))
 		return row.Status, row.Detail, row.Retries
 	}
 
@@ -243,6 +247,41 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Empty(t, detail)
 	})
 
+	// Redelivery correctness. When a profile is sent again (a retry, an admin Resend, or a renewal) the host is still
+	// carrying the certificate from the previous issuance, and it has the same renewal-ID marker as the one we are
+	// waiting for. Verification therefore has to wait for a genuinely new certificate. Two things make that work, and
+	// this pins both: re-rendering the profile clears the observed certificate off the managed-certificate row, and
+	// the renewal-ID matcher only considers certificates newly reported in this ingest. If either regressed, a
+	// redelivery would report "verified" off the stale certificate and quietly deliver nothing.
+	t.Run("redelivery waits for a new certificate", func(t *testing.T) {
+		h := mkHost(t, "redeliver")
+		p := "w-redeliver"
+		upsertWinProfile(t, h, p, "cmd-redeliver-1", fleet.MDMDeliveryVerifying, 0)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+		// First issuance lands and verifies.
+		firstCert := certWithRenewalID(t, h, p, 7301)
+		ingest(t, h, firstCert)
+		status, _, _ := getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+
+		// Fleet redelivers. The reconciler re-renders the profile, which rewrites the managed-certificate row with a
+		// fresh challenge and no observed certificate, and the host acknowledges the new command.
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		upsertWinProfile(t, h, p, "cmd-redeliver-2", fleet.MDMDeliveryVerifying, 1)
+
+		// The host still reports only the previous certificate: the new exchange has not produced one.
+		ingest(t, h, firstCert)
+		status, _, _ = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status,
+			"a certificate from the previous issuance must not verify a redelivery")
+
+		// The reissued certificate does.
+		ingest(t, h, firstCert, certWithRenewalID(t, h, p, 7302))
+		status, _, _ = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
 	t.Run("no matching cert keeps profile verifying", func(t *testing.T) {
 		h := mkHost(t, "nomatch")
 		p := "w-scep-nomatch"
@@ -270,34 +309,179 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, fleet.MDMDeliveryVerifying, status)
 	})
 
-	t.Run("SetMDMWindowsHostProfileFailed marks failed and preserves retries", func(t *testing.T) {
+	// An upstream CA error is a delivery failure like any other, so it spends the profile's retries before it becomes
+	// terminal. Each retry puts the profile back in the queue, where the profile manager renders it afresh and, for a
+	// SCEP profile, fetches a new challenge.
+	const scepFailDetail = "SCEP PKIOperation failed: HTTP 500"
+	for retries := range mdm.MaxWindowsProfileRetries {
+		t.Run(fmt.Sprintf("proxy failure retries the profile at %d retries", retries), func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("setfailed-retry-%d", retries))
+			p := "w-fail"
+			upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, retries)
+
+			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+			require.NoError(t, err)
+			require.True(t, retried)
+
+			status, detail, gotRetries := getProfile(t, h, p)
+			require.Empty(t, status, "a profile with retries left goes back to pending")
+			require.Empty(t, detail, "a pending profile must not surface the failed attempt's error")
+			require.Equal(t, retries+1, gotRetries)
+		})
+	}
+
+	t.Run("proxy failure is terminal once the retries are spent", func(t *testing.T) {
 		h := mkHost(t, "setfailed")
 		p := "w-fail"
-		upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, 1)
+		upsertWinProfile(t, h, p, "cmd-fail", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
 
-		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500"))
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		require.NoError(t, err)
+		require.False(t, retried)
 
 		status, detail, retries := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryFailed, status)
-		require.Equal(t, "SCEP PKIOperation failed: HTTP 500", detail)
+		require.Equal(t, scepFailDetail, detail)
+		require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+	})
+
+	// The SCEP CSP retries PKIOperation on its own schedule, so one Fleet delivery can produce a burst of upstream
+	// errors. Only the first may cost a retry; the rest arrive when a delivery is already queued and must be dropped,
+	// or a single bad CA would drain the whole budget without Fleet ever redelivering.
+	t.Run("repeated proxy failures within one delivery spend a single retry", func(t *testing.T) {
+		h := mkHost(t, "setfailed-burst")
+		p := "w-fail-burst"
+		upsertWinProfile(t, h, p, "cmd-fail-burst", fleet.MDMDeliveryVerifying, 0)
+
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		require.NoError(t, err)
+		require.True(t, retried)
+
+		for range 3 {
+			retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+			require.NoError(t, err)
+			require.False(t, retried, "a profile already queued for redelivery must not consume another retry")
+		}
+
+		status, detail, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Empty(t, detail)
 		require.Equal(t, 1, retries)
 	})
 
-	t.Run("SetMDMWindowsHostProfileFailed does not clobber verified", func(t *testing.T) {
+	t.Run("proxy failure does not clobber verified", func(t *testing.T) {
 		h := mkHost(t, "setfailed-verified")
 		p := "w-fail-verified"
 		upsertWinProfile(t, h, p, "cmd-fail-verified", fleet.MDMDeliveryVerified, 0)
 
-		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, p, "SCEP GetCACert failed: timeout"))
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP GetCACert failed: timeout")
+		require.NoError(t, err)
+		require.False(t, retried)
 
-		status, _, _ := getProfile(t, h, p)
+		status, _, gotRetries := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
+		require.Equal(t, 0, gotRetries)
 	})
 
-	t.Run("SetMDMWindowsHostProfileFailed no-ops for a removed profile", func(t *testing.T) {
+	// A challenge Fleet turned away (expired NDES password, rejected custom SCEP challenge) is not an install the host
+	// failed, so nothing is charged for it. It must not hand the budget back either: the Windows SCEP CSP re-drives the
+	// exchange on its own using the challenge in the profile it already holds, so Fleet sees a request carrying the
+	// superseded challenge shortly after every redelivery. Resetting there would refill the budget on each cycle and
+	// the profile would never reach a terminal state however often the CA failed. Observed live on a Windows 11 host:
+	// retries went 0 -> 1 -> 0 -> 1 and never converged.
+	t.Run("certificate profile resend neither charges nor refills the retries", func(t *testing.T) {
+		h := mkHost(t, "resend-cert")
+		p := "w-resend-cert"
+		// "verifying" is the realistic state for this path: the host acknowledged the profile and is mid-exchange when
+		// the stale challenge arrives. A terminal row is covered separately below.
+		upsertWinProfile(t, h, p, "cmd-resend-cert", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries-1)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			"SCEP PKIOperation failed: HTTP 500", h.UUID, p)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, p))
+
+		status, detail, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Empty(t, detail)
+		require.Equal(t, mdm.MaxWindowsProfileRetries-1, retries)
+		require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[h.UUID])
+
+		// The budget still runs out. Each step redelivers first (status back to verifying) so the failure is judged on
+		// the retry count and not short-circuited by the already-queued guard.
+		upsertWinProfile(t, h, p, "cmd-resend-cert-2", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries-1)
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		require.NoError(t, err)
+		require.True(t, retried)
+
+		upsertWinProfile(t, h, p, "cmd-resend-cert-3", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
+		retried, err = ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, scepFailDetail)
+		require.NoError(t, err)
+		require.False(t, retried, "a challenge resend must not have refilled the budget")
+		status, detail, _ = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryFailed, status)
+		require.Equal(t, scepFailDetail, detail)
+	})
+
+	// The other half of that contrast, pinned because the two resends now sit next to each other and differ only in
+	// this. An admin hitting Resend gets one more delivery, not a fresh budget.
+	t.Run("admin resend keeps the retries spent", func(t *testing.T) {
+		h := mkHost(t, "resend-admin")
+		p := "w-resend-admin"
+		upsertWinProfile(t, h, p, "cmd-resend-admin", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries)
+
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, h.UUID, p))
+
+		status, _, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+	})
+
+	// Windows profiles are exempt from the "status must be pending" gate in validateIdentifier, so a straggling SCEP
+	// request from the CSP's own retry can reach the resend long after the row settled. Terminal states must survive
+	// it: requeueing a verified profile would spend another challenge on a certificate the host already has, and
+	// requeueing a failed one would quietly resurrect a profile that had already run out of retries.
+	for _, tc := range []struct {
+		name   string
+		status fleet.MDMDeliveryStatus
+	}{
+		{"verified", fleet.MDMDeliveryVerified},
+		{"failed", fleet.MDMDeliveryFailed},
+	} {
+		t.Run("certificate profile resend leaves a "+tc.name+" profile alone", func(t *testing.T) {
+			h := mkHost(t, "resend-terminal-"+tc.name)
+			p := "w-resend-terminal-" + tc.name
+			upsertWinProfile(t, h, p, "cmd-resend-terminal", tc.status, mdm.MaxWindowsProfileRetries)
+			_, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+				"terminal detail", h.UUID, p)
+			require.NoError(t, err)
+
+			require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, p))
+
+			status, detail, retries := getProfile(t, h, p)
+			require.Equal(t, tc.status, status, "a terminal profile must not be requeued by a late SCEP request")
+			require.Equal(t, "terminal detail", detail)
+			require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+		})
+	}
+
+	t.Run("certificate profile resend no-ops for a removed profile", func(t *testing.T) {
+		h := mkHost(t, "resend-cert-missing")
+		require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, "w-missing"))
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, "w-missing"))
+		require.Equal(t, 0, count)
+	})
+
+	t.Run("proxy failure no-ops for a removed profile", func(t *testing.T) {
 		h := mkHost(t, "setfailed-missing")
 		// No profile row exists for this (host, profile): must not error and must not resurrect a row.
-		require.NoError(t, ds.SetMDMWindowsHostProfileFailed(ctx, h.UUID, "w-missing", "SCEP PKIOperation failed: HTTP 403"))
+		retried, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, "w-missing", "SCEP PKIOperation failed: HTTP 403")
+		require.NoError(t, err)
+		require.False(t, retried)
 		var count int
 		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
 			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, "w-missing"))
@@ -308,19 +492,46 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	// but the cert is absent, the profile fails. Device-scoped relies on the always-readable system store; user-scoped
 	// needs a user cert in the report (single-user assumption).
 	for i, tc := range []struct {
-		name       string
-		userScoped bool
-		backdate   time.Duration // 0 = still within the grace window
-		certSource fleet.HostCertificateSource
-		username   string
-		retries    int
-		wantStatus fleet.MDMDeliveryStatus
-		wantDetail string
+		name        string
+		userScoped  bool
+		backdate    time.Duration // 0 = still within the grace window
+		certSource  fleet.HostCertificateSource
+		username    string
+		retries     int
+		wantStatus  fleet.MDMDeliveryStatus // "" means pending, i.e. queued for another delivery
+		wantDetail  string
+		wantRetries int
 	}{
-		{"device-scoped fails past grace when cert absent", false, 2 * time.Hour, fleet.SystemHostCertificate, "", 2, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
-		{"device-scoped stays verifying within grace", false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
-		{"user-scoped stays verifying when no user cert observed", true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, ""},
-		{"user-scoped fails past grace once a user cert is observed", true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail},
+		{
+			"device-scoped retries past grace when cert absent",
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, "", "", 1,
+		},
+		{
+			"device-scoped retries again on its last attempt",
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", mdm.MaxWindowsProfileRetries - 1, "", "", mdm.MaxWindowsProfileRetries,
+		},
+		{
+			"device-scoped fails past grace once the retries are spent",
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", mdm.MaxWindowsProfileRetries,
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries,
+		},
+		{
+			"device-scoped stays verifying within grace",
+			false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0,
+		},
+		{
+			"user-scoped stays verifying when no user cert observed",
+			true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0,
+		},
+		{
+			"user-scoped retries past grace once a user cert is observed",
+			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, "", "", 1,
+		},
+		{
+			"user-scoped fails past grace once the retries are spent",
+			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", mdm.MaxWindowsProfileRetries,
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries,
+		},
 	} {
 		t.Run("backstop: "+tc.name, func(t *testing.T) {
 			h := mkHost(t, fmt.Sprintf("backstop-%d", i))
@@ -338,9 +549,34 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			status, detail, retries := getProfile(t, h, p)
 			require.Equal(t, tc.wantStatus, status)
 			require.Equal(t, tc.wantDetail, detail)
-			require.Equal(t, tc.retries, retries)
+			require.Equal(t, tc.wantRetries, retries)
 		})
 	}
+
+	// Redelivering resets updated_at, so a retried profile is back inside the grace window and the backstop must leave
+	// it alone until the next window elapses. Without this, one ingest per detail cycle would burn the whole budget in
+	// minutes instead of giving each attempt its own grace period.
+	t.Run("backstop: a retried profile is not failed again until the next grace window", func(t *testing.T) {
+		h := mkHost(t, "backstop-regrace")
+		p := "w-backstop-regrace"
+		upsertWinProfile(t, h, p, "cmd-bs-regrace", fleet.MDMDeliveryVerifying, 0)
+		insertConfigProfile(t, p, "bs-regrace", false)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+		backdateProfile(t, h, p, 2*time.Hour)
+
+		ingest(t, h, plainCert(t, h, "regrace-cert", fleet.SystemHostCertificate, ""))
+		status, _, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Equal(t, 1, retries)
+
+		// Simulate the redelivery the retry triggers: back to verifying, with a fresh updated_at.
+		upsertWinProfile(t, h, p, "cmd-bs-regrace-2", fleet.MDMDeliveryVerifying, 1)
+
+		ingest(t, h, plainCert(t, h, "regrace-cert", fleet.SystemHostCertificate, ""))
+		status, _, retries = getProfile(t, h, p)
+		require.Equal(t, fleet.MDMDeliveryVerifying, status)
+		require.Equal(t, 1, retries, "an ingest inside the grace window must not consume a retry")
+	})
 
 	t.Run("observed cert wins over the backstop even past grace", func(t *testing.T) {
 		h := mkHost(t, "backstop-flipwins")
@@ -355,6 +591,76 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 
 		status, _, _ := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
+	})
+
+	// The SCEP write paths rewrite host_mdm_windows_profiles outside the profile manager, so each has to keep the
+	// per-host rollup that GetMDMWindowsProfilesSummary reads current by itself. Drift here is invisible until the
+	// hourly windows_profiles_status_reconcile cron heals it, so assert equality with a freshly reconciled value
+	// rather than just a non-empty rollup row.
+	t.Run("scep write paths keep the profiles status rollup current", func(t *testing.T) {
+		requireRollupMatchesReconcile := func(t *testing.T, hostUUID string, want fleet.MDMDeliveryStatus) {
+			t.Helper()
+			got := readWindowsProfilesStatusRollup(t, ds)[hostUUID]
+			require.Equal(t, string(want), got)
+			require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+			require.Equal(t, got, readWindowsProfilesStatusRollup(t, ds)[hostUUID],
+				"write path must keep the rollup in sync without a reconcile")
+		}
+
+		t.Run("proxy-observed failure", func(t *testing.T) {
+			h := mkHost(t, "rollup-setfailed")
+			p := "w-rollup-setfailed"
+			upsertWinProfile(t, h, p, "cmd-rollup-setfailed", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
+
+			_, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500")
+			require.NoError(t, err)
+
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryFailed)
+		})
+
+		t.Run("proxy-observed failure with retries left", func(t *testing.T) {
+			h := mkHost(t, "rollup-setretry")
+			p := "w-rollup-setretry"
+			upsertWinProfile(t, h, p, "cmd-rollup-setretry", fleet.MDMDeliveryVerifying, 0)
+
+			_, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500")
+			require.NoError(t, err)
+
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryPending)
+		})
+
+		t.Run("cert observation flip", func(t *testing.T) {
+			h := mkHost(t, "rollup-flip")
+			p := "w-rollup-flip"
+			upsertWinProfile(t, h, p, "cmd-rollup-flip", fleet.MDMDeliveryVerifying, 0)
+			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+
+			ingest(t, h, certWithRenewalID(t, h, p, 7201))
+
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
+		})
+
+		for _, tc := range []struct {
+			name    string
+			retries int
+			want    fleet.MDMDeliveryStatus
+		}{
+			{"verification backstop with retries left", 0, fleet.MDMDeliveryPending},
+			{"verification backstop once the retries are spent", mdm.MaxWindowsProfileRetries, fleet.MDMDeliveryFailed},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				h := mkHost(t, fmt.Sprintf("rollup-backstop-%d", tc.retries))
+				p := fmt.Sprintf("w-rollup-backstop-%d", tc.retries)
+				upsertWinProfile(t, h, p, "cmd-rollup-backstop", fleet.MDMDeliveryVerifying, tc.retries)
+				insertConfigProfile(t, p, fmt.Sprintf("rollup-backstop-%d", tc.retries), false)
+				upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+				backdateProfile(t, h, p, 2*time.Hour)
+
+				ingest(t, h, plainCert(t, h, "rollup-backstop-cert", fleet.SystemHostCertificate, ""))
+
+				requireRollupMatchesReconcile(t, h.UUID, tc.want)
+			})
+		}
 	})
 }
 
