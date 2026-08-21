@@ -5823,6 +5823,7 @@ controls:
 func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 	t.Parallel()
 
+	//nolint:gosec // G101: test fixture, not a real credential.
 	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -5841,7 +5842,7 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 	<integer>1</integer>
 </dict>
 </plist>
-` // nolint:gosec // This is a test file, not a real password profile.
+`
 
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
@@ -5860,10 +5861,10 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 controls:
   macos_settings:
     custom_settings:
-      - path: ./lib/password.mobileconfig
+      - path: ./lib/password.MOBILECoNFIG
   windows_settings:
     custom_settings:
-      - path: ./lib/screenlock.xml
+      - path: ./lib/screenlock.XmL
 ` + policies
 
 		yamlPath := filepath.Join(dir, "gitops.yml")
