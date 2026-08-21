@@ -34019,6 +34019,139 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	}, 2*time.Second, 100*time.Millisecond)
 }
 
+// TestPolicyAutomationsPreInstallFailuresDoNotCount checks that a failure before the
+// package is fetched does not count against the install limit. fleetd runs the
+// pre-install query first and stops there when it returns no rows, so nothing was
+// downloaded. Two policies behave this way: a patch-when-closed policy whose managed
+// query means the app is open, and an ordinary policy whose pre-install query fails.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailuresDoNotCount() {
+	t := s.T()
+	ctx := context.Background()
+
+	attemptCounter := redis_install_attempts.New(s.redisPool)
+
+	// Each case gets its own team, host and installer so the counts cannot interact.
+	setupCase := func(name string, patchWhenClosed bool) (*fleet.Host, uint, uint) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("%s-%s", t.Name(), name)})
+		require.NoError(t, err)
+
+		key := fmt.Sprintf("%s-%s", t.Name(), name)
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   new(key),
+			NodeKey:         new(key),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", key),
+			Platform:        "darwin",
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+
+		// The install script would succeed, so a failure can only come from the
+		// pre-install query.
+		s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "echo ok",
+			PreInstallQuery: "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+			Filename:        "dummy_installer.pkg",
+			TeamID:          &team.ID,
+		}, http.StatusOK, "")
+
+		titlesResp := listSoftwareTitlesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+		require.Len(t, titlesResp.SoftwareTitles, 1)
+
+		var installerID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
+		})
+		require.NotZero(t, installerID)
+		require.NoError(t, attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+			Name:                         name,
+			Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+			Platform:                     "darwin",
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+
+		var resp fleet.ModifyTeamPolicyResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titlesResp.SoftwareTitles[0].ID},
+			},
+		}, http.StatusOK, &resp)
+
+		// Set the column directly: patch_when_closed is only accepted on patch
+		// policies, and the install result reads it straight off the policy row.
+		if patchWhenClosed {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`, policy.ID)
+				return err
+			})
+		}
+
+		return host, installerID, policy.ID
+	}
+
+	// More reports than the limit, so a counted failure would stop the installs.
+	const policyReports = 12
+
+	runCase := func(t *testing.T, host *fleet.Host, installerID uint, policyID uint) {
+		for range policyReports {
+			var distributedResp submitDistributedQueryResultsResponse
+			s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+
+			// Report what fleetd reports when the pre-install query returns no rows:
+			// the condition output only, with no install script exit code.
+			for {
+				last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+				require.NoError(t, err)
+				if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+					break
+				}
+				s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+					OrbitNodeKey: *host.OrbitNodeKey,
+					HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+						HostID:                    host.ID,
+						InstallUUID:               last.ExecutionID,
+						PreInstallConditionOutput: new(""),
+					},
+				}, http.StatusNoContent)
+			}
+		}
+
+		count, err := attemptCounter.CountAttempts(ctx, host.ID, installerID)
+		require.NoError(t, err)
+		require.Zero(t, count, "a failure before the package is fetched must not count against the limit")
+
+		var installs, ranInstallScript int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &installs, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &ranInstallScript, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ? AND install_script_exit_code IS NOT NULL`, host.ID, installerID)
+		})
+		require.Zero(t, ranInstallScript, "the install script must never have run")
+		require.Greater(t, installs, fleet.MaxPolicyAutomationInstallAttempts, "installs must keep being queued past the limit")
+	}
+
+	t.Run("app open on a patch when closed policy", func(t *testing.T) {
+		host, installerID, policyID := setupCase("app-open", true)
+		runCase(t, host, installerID, policyID)
+	})
+
+	t.Run("ordinary pre-install query failure", func(t *testing.T) {
+		host, installerID, policyID := setupCase("pre-install", false)
+		runCase(t, host, installerID, policyID)
+	})
+}
+
 // TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit
 // enrolling a Linux or Windows host through the End User Authentication flow
 // must populate host_emails so the hosts list endpoint returns
