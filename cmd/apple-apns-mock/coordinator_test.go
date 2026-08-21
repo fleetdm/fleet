@@ -88,7 +88,7 @@ func TestCoordinatorPushDeliversToLocalStream(t *testing.T) {
 
 	require.NoError(t, c.Push(t.Context(), "aabb01", []byte(`{"mdm":"m"}`), time.Time{}))
 
-	assert.Equal(t, `{"mdm":"m"}`, waitPing(t, sub, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"m"}`, waitPing(t, sub, 5*time.Second))
 	assert.Empty(t, pendingValue(t, c, "aabb01"), "a delivered push must not stay pending")
 	assert.EqualValues(t, 1, c.reg.deliveredLive.Load())
 }
@@ -104,7 +104,7 @@ func TestCoordinatorPushCrossesInstances(t *testing.T) {
 
 	require.NoError(t, pusher.Push(t.Context(), "aabb01", []byte(`{"mdm":"crossed"}`), time.Time{}))
 
-	assert.Equal(t, `{"mdm":"crossed"}`, waitPing(t, sub, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"crossed"}`, waitPing(t, sub, 5*time.Second))
 	assert.EqualValues(t, 1, holder.reg.deliveredLive.Load(), "the holder delivered it")
 	assert.EqualValues(t, 0, pusher.reg.deliveredLive.Load(), "the pusher holds no stream")
 	assert.EqualValues(t, 1, pusher.reg.stored.Load(), "the pusher wrote the pending key")
@@ -122,7 +122,7 @@ func TestCoordinatorOfflinePushClaimedOnConnect(t *testing.T) {
 	_, pending := holder.Subscribe(t.Context(), "aabb01")
 
 	require.NotNil(t, pending)
-	assert.Equal(t, `{"mdm":"waited"}`, string(pending.payload))
+	assert.JSONEq(t, `{"mdm":"waited"}`, string(pending.payload))
 	assert.EqualValues(t, 1, holder.reg.deliveredOnConnect.Load())
 	assert.Empty(t, pendingValue(t, holder, "aabb01"), "claiming clears it")
 }
@@ -136,7 +136,7 @@ func TestCoordinatorOfflinePushesCoalesce(t *testing.T) {
 
 	_, pending := c.Subscribe(t.Context(), "aabb01")
 	require.NotNil(t, pending)
-	assert.Equal(t, `{"mdm":"m3"}`, string(pending.payload), "newest wins, as APNs coalesces")
+	assert.JSONEq(t, `{"mdm":"m3"}`, string(pending.payload), "newest wins, as APNs coalesces")
 	assert.EqualValues(t, 3, c.reg.pushesReceived.Load())
 	assert.EqualValues(t, 1, c.reg.stored.Load())
 	assert.EqualValues(t, 2, c.reg.coalesced.Load())
@@ -153,7 +153,7 @@ func TestCoordinatorExpiredPushIsNeverStored(t *testing.T) {
 
 		require.NoError(t, pusher.Push(t.Context(), "aabb01", []byte(`{"mdm":"now"}`), time.Unix(0, 0)))
 
-		assert.Equal(t, `{"mdm":"now"}`, waitPing(t, sub, 5*time.Second))
+		assert.JSONEq(t, `{"mdm":"now"}`, waitPing(t, sub, 5*time.Second))
 		assert.EqualValues(t, 1, pusher.reg.discarded.Load())
 		assert.EqualValues(t, 0, pusher.reg.stored.Load())
 	})
@@ -188,10 +188,10 @@ func TestCoordinatorClaimIsExactlyOnce(t *testing.T) {
 	for got == 0 {
 		select {
 		case p := <-sub1.ch:
-			assert.Equal(t, `{"mdm":"once"}`, string(p.payload))
+			assert.JSONEq(t, `{"mdm":"once"}`, string(p.payload))
 			got++
 		case p := <-sub2.ch:
-			assert.Equal(t, `{"mdm":"once"}`, string(p.payload))
+			assert.JSONEq(t, `{"mdm":"once"}`, string(p.payload))
 			got++
 		case <-deadline:
 			t.Fatal("neither instance delivered the push")
@@ -224,7 +224,7 @@ func TestCoordinatorReconnectElsewhereMovesToken(t *testing.T) {
 
 	require.NoError(t, first.Push(t.Context(), "aabb01", []byte(`{"mdm":"followed"}`), time.Time{}))
 
-	assert.Equal(t, `{"mdm":"followed"}`, waitPing(t, newSub, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"followed"}`, waitPing(t, newSub, 5*time.Second))
 	assert.EqualValues(t, 1, second.reg.connected.Load())
 }
 
@@ -242,10 +242,10 @@ func TestCoordinatorTakeoverCarriesUndeliveredPing(t *testing.T) {
 	newSub, pending := second.Subscribe(t.Context(), "aabb01")
 
 	if pending != nil {
-		assert.Equal(t, `{"mdm":"inflight"}`, string(pending.payload))
+		assert.JSONEq(t, `{"mdm":"inflight"}`, string(pending.payload))
 		return
 	}
-	assert.Equal(t, `{"mdm":"inflight"}`, waitPing(t, newSub, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"inflight"}`, waitPing(t, newSub, 5*time.Second))
 }
 
 func TestCoordinatorUnsubscribeRequeuesToRedis(t *testing.T) {
@@ -261,7 +261,7 @@ func TestCoordinatorUnsubscribeRequeuesToRedis(t *testing.T) {
 	assert.EqualValues(t, 0, c.reg.deliveredLive.Load(), "it never reached the wire")
 	_, pending := c.Subscribe(t.Context(), "aabb01")
 	require.NotNil(t, pending)
-	assert.Equal(t, `{"mdm":"unread"}`, string(pending.payload))
+	assert.JSONEq(t, `{"mdm":"unread"}`, string(pending.payload))
 }
 
 func TestCoordinatorSubscribeRequeuesEvictedPing(t *testing.T) {
@@ -275,7 +275,7 @@ func TestCoordinatorSubscribeRequeuesEvictedPing(t *testing.T) {
 	_, pending := c.Subscribe(t.Context(), "aabb01")
 
 	require.NotNil(t, pending)
-	assert.Equal(t, `{"mdm":"missed"}`, string(pending.payload))
+	assert.JSONEq(t, `{"mdm":"missed"}`, string(pending.payload))
 }
 
 func TestCoordinatorRestoreOnlyWhenCurrent(t *testing.T) {
@@ -309,7 +309,7 @@ func TestCoordinatorResyncRecoversMissedPushes(t *testing.T) {
 
 	c.resync(t.Context())
 
-	assert.Equal(t, `{"mdm":"missed"}`, waitPing(t, sub, 5*time.Second))
+	assert.JSONEq(t, `{"mdm":"missed"}`, waitPing(t, sub, 5*time.Second))
 }
 
 func TestCoordinatorStatsAggregateAcrossInstances(t *testing.T) {

@@ -562,7 +562,7 @@ func TestE2ECrossInstanceDelivery(t *testing.T) {
 	env := testRedis(t)
 	holder, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
 	pusher, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
-	const token = "aabbccddee10"
+	const token = "aabbccddee10" // nolint:gosec // test token
 
 	c := sseConnect(t, holder.URL, token)
 	waitConnected(t, holder.URL, 1)
@@ -590,7 +590,7 @@ func TestE2ECrossInstanceStoreAndForward(t *testing.T) {
 	env := testRedis(t)
 	pusher, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
 	holder, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
-	const token = "aabbccddee11"
+	const token = "aabbccddee11" // nolint:gosec // test token
 
 	resp := pushRaw(t, pusher.URL, token, []byte(`{"mdm":"waited"}`), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -608,7 +608,7 @@ func TestE2ECrossInstanceReconnectMovesToken(t *testing.T) {
 	env := testRedis(t)
 	first, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
 	second, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
-	const token = "aabbccddee12"
+	const token = "aabbccddee12" // nolint:gosec // test token
 
 	oldConn := sseConnect(t, first.URL, token)
 	waitConnected(t, first.URL, 1)
