@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.181.2",
+      "version": "1.185.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama' AND version_compare(bundle_short_version, '1.181.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama' AND version_compare(bundle_short_version, '1.185.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.grammarly.ProjectLlama');"
       },
-      "installer_url": "https://download-mac.grammarly.com/versions/1.181.2.0/Grammarly.dmg",
+      "installer_url": "https://download-mac.grammarly.com/versions/1.185.0.0/Grammarly.dmg",
       "install_script_ref": "8274b7dd",
       "uninstall_script_ref": "7dff0961",
-      "sha256": "b9042477a8210f723a268d02b43980af562bde66064827f21e4ed5e86bbe5dfe",
+      "sha256": "f0450899a396272d4ac6c277857227026f29ed23ac22bbae96ff6055cb329aee",
       "default_categories": [
         "Productivity"
       ]

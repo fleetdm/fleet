@@ -70,7 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
-	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ENABLE_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
+	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -978,7 +978,7 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 	// (Apple FB24193230). Until that's fixed, uploading an activation takes an
 	// explicit opt-in. Removing a stored activation deliberately doesn't reach
 	// here, so an operator can always undo one.
-	if !svc.config.MDM.EnableCustomActivations {
+	if !svc.config.MDM.AllowCustomActivations {
 		return nil, ctxerr.Wrap(ctx,
 			fleet.NewInvalidArgumentError("activation", ActivationsDisabledErrorMsg),
 			"custom activations are not enabled")
@@ -3093,6 +3093,12 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 	if platform != "darwin" && !isSetMinVersion {
 		svc.logger.InfoContext(ctx, "checking os updates settings for non-macos platform, minimum version not set, skipping version check", logs...)
 		return false, nil
+	}
+
+	// Always check update if latest is configured for each platform.
+	if minVersion == fleet.AppleOSUpdateLatestVersion {
+		svc.logger.InfoContext(ctx, "checking os updates settings, minimum version set to latest, checking available apple updates", logs...)
+		return true, nil
 	}
 
 	if platform == "darwin" {
@@ -5322,7 +5328,22 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					// Then this isn't a VPP install, so no activity generated
+					// Not a VPP install; it may be an in-house app (.ipa) install.
+					inHouseUser, inHouseAct, inHouseErr := svc.ds.GetPastActivityDataForInHouseAppInstall(r.Context, cmdResult)
+					if inHouseErr != nil {
+						if fleet.IsNotFound(inHouseErr) {
+							// Not an in-house install either, so no activity generated
+							return nil, nil
+						}
+						return nil, ctxerr.Wrap(r.Context, inHouseErr, "fetching data for installed in-house app activity")
+					}
+					if inHouseAct == nil {
+						return nil, nil
+					}
+					inHouseAct.FromSetupExperience = fromSetupExperience
+					if err := svc.newActivityFn(r.Context, inHouseUser, inHouseAct); err != nil {
+						return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed in-house app")
+					}
 					return nil, nil
 				}
 
@@ -5512,7 +5533,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		return svc.handleRefetchAppsResults(ctx, host, cmdResult)
 
 	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCertsCommandUUIDPrefix):
-		return svc.handleRefetchCertsResults(ctx, host, cmdResult)
+		return svc.handleRefetchCertsResults(ctx, host, r.EnrollID, cmdResult)
 
 	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix):
 		// for devices added via legacy enrollment flows, we may need to set an enroll reference
@@ -5970,10 +5991,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
 	)
 
-	// 4. Filter out software that already has a pending installation.
+	// 4. Filter out software that already has a pending installation, either activated and
+	// awaiting verification, or still waiting in the host's upcoming activity queue.
+	//
+	// This needs no in-run tracking like the policy loop has, because ListSoftwareAutoUpdateSchedules
+	// filters on the source derived from the host's platform above. A team can hold the same adam_id
+	// as two titles, one per platform, so widening that filter would let one run reach an app twice.
 	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	adamIDsQueuedInstallForHost, err := svc.ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs queued installs for host")
 	}
 	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
 	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateScheduleNoRecentInstalls {
@@ -5987,6 +6017,13 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
 			logger.DebugContext(ctx, "skipping software, pending install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			logger.DebugContext(ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)
@@ -6127,7 +6164,12 @@ func parseHHMM(s string) (hour, min_ int, err error) {
 	return h, m, nil
 }
 
-func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+// handleRefetchCertsResults ingests a CertificateList response. The response
+// only covers the keychain of the channel it was sent to — system on the device
+// channel, the responding user's login keychain on the user channel — so the
+// answering enrollment decides which scope the certs are recorded under and
+// which scope may be reconciled. A nil enrollID reads as the device channel.
+func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx context.Context, host *fleet.Host, enrollID *mdm.EnrollID, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCertsCommandUUIDPrefix) {
 		// Caller should have checked this, but just in case we'll return an error.
 		return nil, ctxerr.New(ctx, fmt.Sprintf("expected REFETCH-CERTS- prefix but got %s", cmdResult.CommandUUID))
@@ -6141,32 +6183,81 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: remove refetch command")
 	}
 
-	// TODO(mna): when we add iOS/iPadOS support for https://github.com/fleetdm/fleet/issues/26913,
-	// this is where we'll need to identify user-keychain certs for iPad/iPhone. For now we set
-	// them all as "system" certificates.
 	var listResp fleet.MDMAppleCertificateListResponse
 	if err := plist.Unmarshal(cmdResult.Raw, &listResp); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: unmarshal certificate list command result")
 	}
+
+	// normalize() gives user-channel enrollments a ParentID; device ones have none.
+	isUserChannel := enrollID != nil && enrollID.ParentID != ""
+	// nano keys its queue and result rows on the answering enrollment, not the host UUID.
+	enrollmentID := host.UUID
+	if enrollID != nil && enrollID.ID != "" {
+		enrollmentID = enrollID.ID
+	}
+
+	// TODO(mna): when we add iOS/iPadOS support for https://github.com/fleetdm/fleet/issues/26913,
+	// this is where we'll need to identify user-keychain certs for iPad/iPhone;
+	// those refetches run on the device channel, so they land here as system.
+	certSource := fleet.SystemHostCertificate
+	var username string
+	if isUserChannel {
+		certSource = fleet.UserHostCertificate
+		var err error
+		username, err = svc.userChannelShortName(ctx, host.UUID, enrollmentID, &listResp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	payload := make([]*fleet.HostCertificateRecord, 0, len(listResp.CertificateList))
 	for _, cert := range listResp.CertificateList {
 		parsed, err := cert.Parse(host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refetch certs: parse certificate")
 		}
+		parsed.Source = certSource
+		parsed.Username = username
 		payload = append(payload, parsed)
 	}
 
-	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginMDM, nil); err != nil {
+	// Reconcile only the keychain this response describes; the other channel's
+	// certs weren't observed and must not be soft-deleted.
+	observedScopes := []fleet.HostCertificateScope{{Source: certSource, Username: username}}
+	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginMDM, observedScopes); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: update host certificates")
 	}
 
 	// Best-effort cleanup of stale refetch commands of the same type.
-	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
-		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch certs commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchCertsCommandUUIDPrefix)
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch certs commands", "err", err, "enrollment_id", enrollmentID, "command_prefix", fleet.RefetchCertsCommandUUIDPrefix)
 	}
 
 	return nil, nil
+}
+
+// userChannelShortName resolves the user whose login keychain a user-channel
+// CertificateList describes, matching the scope osquery reports the same certs
+// under (it derives the username from the keychain path). Falls back to nano's
+// record for devices that omit UserShortName.
+//
+// An unknown user is an error rather than an empty username: certs recorded
+// under an empty user scope reconcile against nothing, so they would pile up
+// beside the real ones instead of replacing them.
+func (svc *MDMAppleCheckinAndCommandService) userChannelShortName(ctx context.Context, hostUUID, enrollmentID string, listResp *fleet.MDMAppleCertificateListResponse) (string, error) {
+	if listResp.UserShortName != "" {
+		return listResp.UserShortName, nil
+	}
+	// nano's record only exposes the host's first active user enrollment, so it
+	// is only usable when that is the enrollment that answered.
+	shortName, userID, err := svc.ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, hostUUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get user enrollment short name")
+	}
+	if shortName == "" || hostUUID+":"+userID != enrollmentID {
+		return "", ctxerr.Errorf(ctx, "no user short name on record for enrollment %s", enrollmentID)
+	}
+	return shortName, nil
 }
 
 // maybeQueueCertificateListForACMEProfile fires a CertificateList MDM command
@@ -6177,9 +6268,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // because IOSiPadOSRefetch already runs CertificateList on a cron.
 //
 // Gating happens server-side in a single indexed query
-// (ProfileHasACMEPayloadForCommand): host platform and ACME payload presence.
-// The hot path early-returns for the common non-ACME / non-darwin cases
-// without parsing the profile or making additional roundtrips.
+// (ProfileHasACMEPayloadForCommand): host platform, ACME payload presence, and
+// the profile's scope. The hot path early-returns for the common non-ACME /
+// non-darwin cases without parsing the profile or making additional roundtrips.
 //
 // We deliberately do NOT dedupe against an in-flight CertificateList: if a
 // previous refetch is still pending when this trigger fires, that earlier
@@ -6201,8 +6292,21 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		return nil
 	}
 
+	// For user-scoped profiles the ACME cert lands in the user's login
+	// keychain. CertificateList on the device channel only returns system-
+	// keychain certs, so send the command to the user enrollment instead.
+	enrollmentID := hostUUID
+	if res.Scope == fleet.PayloadScopeUser {
+		if res.UserEnrollmentID == "" {
+			// Nothing can report the login keychain, and the device channel
+			// would answer about the system keychain instead.
+			return nil
+		}
+		enrollmentID = res.UserEnrollmentID
+	}
+
 	cmdUUID := uuid.NewString()
-	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
 	}
 

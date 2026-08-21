@@ -142,7 +142,7 @@ func TestIngestValidations(t *testing.T) {
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.electron.dockerdesktop", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
+		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.docker.docker", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
 		{"", inputApp{Token: "firefox@developer-edition", UniqueIdentifier: "org.mozilla.firefoxdeveloperedition", InstallerFormat: "dmg", Name: "Mozilla Firefox Developer Edition", Slug: "firefox@developer-edition/darwin"}},
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
@@ -182,9 +182,9 @@ func TestIngestValidations(t *testing.T) {
 
 			switch c.inputApp.Token {
 			case "docker-desktop":
-				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';", out.Queries.Exists)
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "firefox@developer-edition":

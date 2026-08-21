@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "18.10.3",
+      "version": "18.10.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect' AND version_compare(bundle_short_version, '18.10.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect' AND version_compare(bundle_short_version, '18.10.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'gravitational.teleport.connect');"
       },
-      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect-18.10.3.dmg",
+      "installer_url": "https://cdn.teleport.dev/Teleport%20Connect-18.10.7.dmg",
       "install_script_ref": "91382f33",
       "uninstall_script_ref": "b650487b",
-      "sha256": "1545ac527e2b8b46fb76c3090665785e665e320eb07b3b5f82c9212c5b72ed3e",
+      "sha256": "dfbbb3a04189e6cbfd02c1ba256a8a62cff03c913f0fec177d2979b32f3fd4c1",
       "default_categories": [
         "Productivity"
       ]

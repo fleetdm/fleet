@@ -130,7 +130,7 @@ See the [Upload software](https://fleetdm.com/docs/rest-api/rest-api#add-package
 
 Fleet's flexible API and support for a GitOps life cycle means this entire process can be stored and managed in code, further unlocking audibility, collaboration, and security. Know who made changes, when, and why—without being tied to vendor-specific methods. 
 
-For manual policies, nest an **install_software** block in the policy you want to automate and ensure the path to the software matches the same path referenced in the fleet configuration file under the software block. For patch policies, set `type` to `patch` and specify `fleet_maintained_app_slug`. Check out the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for more details.
+For manual policies, nest an **install_software** block in the policy you want to automate and ensure the path to the software matches the same path referenced in the fleet configuration file under the software block. For patch policies, set `type` to `patch` and specify `fleet_maintained_app_slug`. To enable the install automation, set `install_software` to `true`. Check out the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for more details.
 
 ## Want to know more?
 

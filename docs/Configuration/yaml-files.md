@@ -686,7 +686,7 @@ software:
         - Engineering
 ```
 
-#### self_service, labels, categories, and setup_experience
+#### self_service, labels, categories, setup_experience, and display_name
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
@@ -695,13 +695,18 @@ software:
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 - `setup_experience_platform` specifies which platform to target for the `.sh` script-only packages in setup experience. Choices for `platform` are `darwin` and `linux`. If not specified and `setup_experience` is `true`, Linux is the default platform.
+- `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
+  - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
+  - `fleet_maintained_apps`: the Fleet-maintained app name is used.
+  - `app_store_apps`: the App Store or Google Play app name is used.
+
+In all cases, once Fleet collects software inventory, the inventory name is used instead.
 
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (up to 3 attempts). If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `always_download` disables conditional HTTP downloads using ETag headers. By default (`false`), Fleet stores the ETag from the download response and sends it as `If-None-Match` on subsequent GitOps runs. If the server returns 304 Not Modified, the download is skipped entirely. Set to `true` to force Fleet to re-download the package on every GitOps run. Cannot be used together with `hash_sha256` (hash-pinned packages are already cached by hash). Not all servers support ETags correctly; if your download URL returns unreliable ETags, set `always_download: true`.
-- `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -720,7 +725,7 @@ If multiple packages target the same host, Fleet will install the one that was a
 
 > In GitOps, the first package added is the first one in the package YAML file's list on the initial run that adds the title's packages. Reordering the list on a later run doesn't change the order.
 >
-> You can preview the order of the packages in the UI. The first package in the list is always a fallback in case of a conflict.
+> You can preview the order of the packages in the UI. The first package in the list is always a fallback in case multiple packages are scoped to the same host.
 
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
@@ -737,8 +742,8 @@ software:
   install_script:
     path: ../lib/software/santa-install-script.sh
   self_service: true
-  labels_include_all:
-    - macOS
+  labels_exclude_any:
+    - IT test team
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
     path: ../lib/software/santa-install-script.sh
@@ -746,7 +751,6 @@ software:
   categories:
     - "💻 Productivity"
   labels_include_all:
-    - macOS
     - IT test team
 ```
 
