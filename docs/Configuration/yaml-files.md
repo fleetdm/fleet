@@ -153,7 +153,7 @@ To trigger software install, when policy fails, specify one of:
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
-#### Run script
+##### Run script
 
 _Available in Fleet Premium_
 
@@ -163,9 +163,19 @@ To trigger script run, when policy fails, specify:
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
 
-### Example
+##### Resend configuration profile
 
-#### Inline
+_Available in Fleet Premium_
+
+To trigger a configuration profile resend when a policy fails, specify:
+
+- `resend_configuration_profile.name` is the name of the configuration profile to resend. The profile must already be added to the same fleet's **Controls > OS settings > configuration profiles** section.
+
+> When the configuration profile automation is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
+
+##### Example
+
+##### Inline
 
 `default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
@@ -184,7 +194,7 @@ policies:
       - Customer Support
 ```
 
-#### Separate file
+##### Separate file
 
 `lib/policies-name.policies.yml`
 
@@ -197,6 +207,8 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  resend_configuration_profile:
+    name: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -248,6 +260,8 @@ policies:
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
+
+> Currently, the `resend_configuration_profile` policy automation can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The profile must be defined in the same fleet's controls section.
 
 > If using `labels_include_any`/`labels_exclude_any` for targeting, these keys are specified on the individual policies. Specifying at the top level of `policies` will _not_ apply the labels to each policy.
 
