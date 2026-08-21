@@ -22,7 +22,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 ## Changes
 
 ### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. If there are substantial UI changes at one of Fleet's breakpoints (480, 768, 1024, 1280, and 1440px), make sure wireframes show the UI at the relevant breakpoint(s). Put "No changes" if there are no changes to the user interface. -->
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma "Ready" page. If there are substantial UI changes at one of Fleet's breakpoints (480, 768, 1024, 1280, and 1440px), make sure wireframes show the UI at the relevant breakpoint(s). Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
 - [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] REST API changes: TODO <!-- Specify changes as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->

@@ -669,7 +669,7 @@ software:
 - `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
   - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
   - `fleet_maintained_apps`: the Fleet-maintained app name is used.
-  - `app_store_apps`: the App Store app name is used.
+  - `app_store_apps`: the App Store or Google Play app name is used.
 
 In all cases, once Fleet collects software inventory, the inventory name is used instead.
 
@@ -696,7 +696,7 @@ If multiple packages target the same host, Fleet will install the one that was a
 
 > In GitOps, the first package added is the first one in the package YAML file's list on the initial run that adds the title's packages. Reordering the list on a later run doesn't change the order.
 >
-> You can preview the order of the packages in the UI. The first package in the list is always a fallback in case of a conflict.
+> You can preview the order of the packages in the UI. The first package in the list is always a fallback in case multiple packages are scoped to the same host.
 
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
@@ -713,8 +713,8 @@ software:
   install_script:
     path: ../lib/software/santa-install-script.sh
   self_service: true
-  labels_include_all:
-    - macOS
+  labels_exclude_any:
+    - IT test team
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
     path: ../lib/software/santa-install-script.sh
@@ -722,7 +722,6 @@ software:
   categories:
     - "💻 Productivity"
   labels_include_all:
-    - macOS
     - IT test team
 ```
 

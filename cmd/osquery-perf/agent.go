@@ -372,10 +372,29 @@ type mdmAgent struct {
 	strings                    map[string]string
 	softwareVersionMap         map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
 	mdmProfileFailureProb      float64
+	cancelableCmdAckDelay      time.Duration
 	osVersion                  string
 	supplementalOSVersionExtra string
 	isPersonalEnrollment       bool
 	apnsPushURL                string
+}
+
+// delayCancelableMDMAck holds the fetch→acknowledge window open for
+// cancelable MDM commands (lock, wipe, clear passcode, enable lost mode) so
+// that DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid can be exercised
+// against a command the device has already fetched — Fleet cannot know a
+// command was delivered, so this window is the only way to test that race.
+// No-op when the delay is 0 or the command is not cancelable.
+func delayCancelableMDMAck(delay time.Duration, deviceDesc string, cmd *mdm.Command) {
+	if delay <= 0 || cmd == nil {
+		return
+	}
+	if _, ok := fleet.CancelableAppleMDMRequestTypes[cmd.Command.RequestType]; !ok {
+		return
+	}
+	log.Printf("%s: fetched %s command %s, waiting %s before acknowledging (cancel test window)",
+		deviceDesc, cmd.Command.RequestType, cmd.CommandUUID, delay)
+	time.Sleep(delay)
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -589,6 +608,7 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 	mdmProfileFailureProb float64
+	cancelableCmdAckDelay time.Duration
 	OSPatchLevel          int                 // For Linux patches
 	linuxKernels          []map[string]string // Pre-selected kernels for this agent
 	softwareVersionMap    map[rune]int        // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
@@ -719,6 +739,7 @@ func newAgent(
 	linuxUniqueSoftwareTitle bool,
 	commonSoftwareNameSuffix string,
 	mdmProfileFailureProb float64,
+	cancelableCmdAckDelay time.Duration,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
 	psso pssoParams,
@@ -828,6 +849,7 @@ func newAgent(
 		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+		cancelableCmdAckDelay:    cancelableCmdAckDelay,
 		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
 		withholdSCEPCert: agentIndex%20 == 0,
 
@@ -1495,6 +1517,8 @@ func (a *agent) runMacosMDMLoop() {
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
+			delayCancelableMDMAck(a.cancelableCmdAckDelay,
+				fmt.Sprintf("macOS agent %s", a.macMDMClient.SerialNumber), mdmCommandPayload)
 
 			switch mdmCommandPayload.Command.RequestType {
 			case "InstallProfile":
@@ -3486,6 +3510,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
+		hostLabelQueryPrefix  = "fleet_label_query_"
 		liveQueryPrefix       = "fleet_distributed_query_"
 	)
 	statusOK := fleet.StatusOK
@@ -3498,6 +3523,12 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		return true, results, status, message, stats
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
 		return true, a.runPolicy(query), &statusOK, nil, nil
+	case strings.HasPrefix(name, hostLabelQueryPrefix) &&
+		strings.ToLower(strings.TrimRight(strings.TrimSpace(query), ";")) == "select 1":
+		// "select 1;" is the "All hosts" builtin label query. Its label ID varies
+		// across deployments, so the per-ID template lookup below can't be relied
+		// on to match it; always report membership.
+		return true, []map[string]string{{"1": "1"}}, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
@@ -4095,6 +4126,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
+			delayCancelableMDMAck(a.cancelableCmdAckDelay, deviceName, mdmCommandPayload)
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
 				if a.isPersonalEnrollment {
@@ -4296,12 +4328,13 @@ func main() {
 		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
 			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
-		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
-		mdmUserProb           = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
-		mdmAPNSURL            = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
-		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
-		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
-		mdmIOSBYODProb        = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
+		mdmProb                      = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmUserProb                  = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
+		mdmAPNSURL                   = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
+		mdmSCEPChallenge             = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProfileFailureProb        = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
+		mdmCancelableCommandAckDelay = flag.Duration("mdm_cancelable_command_ack_delay", 0, "Delay between fetching a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and acknowledging it, opening a window to test command cancellation")
+		mdmIOSBYODProb               = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
 
 		mdmPSSOProb      = flag.Float64("mdm_psso_prob", 0.0, "Probability of an MDM-enrolled macOS host also simulating Apple Platform SSO [0, 1]. Requires the Fleet server to have account provisioning configured and the PSSO profile assigned to the host")
 		mdmPSSOClientID  = flag.String("mdm_psso_client_id", "", "Apple Platform SSO IdP/extension client ID. Must match the Fleet server's account provisioning config; PSSO is skipped when empty")
@@ -4508,6 +4541,7 @@ func main() {
 				strings:               make(map[string]string),
 				softwareVersionMap:    make(map[rune]int),
 				mdmProfileFailureProb: *mdmProfileFailureProb,
+				cancelableCmdAckDelay: *mdmCancelableCommandAckDelay,
 				apnsPushURL:           *mdmAPNSURL,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
@@ -4614,6 +4648,7 @@ func main() {
 			*linuxUniqueSoftwareTitle,
 			*commonSoftwareNameSuffix,
 			*mdmProfileFailureProb,
+			*mdmCancelableCommandAckDelay,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
 			pssoParams{

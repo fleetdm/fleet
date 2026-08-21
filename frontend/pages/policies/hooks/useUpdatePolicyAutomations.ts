@@ -37,7 +37,7 @@ interface IUseUpdatePolicyAutomationsArgs {
   isGlobalPolicy: boolean;
   automationsConfig: IConfig | ITeamConfig | undefined;
   onSuccess?: () => void;
-  onError?: () => void;
+  onError?: (err: unknown) => void;
 }
 
 /** Saves a single policy's automations: the per-policy fields via the policy
@@ -113,13 +113,13 @@ const useUpdatePolicyAutomations = ({
     },
     {
       onSuccess,
-      onError: () => {
+      onError: (err) => {
         if (isGlobalPolicy) {
           queryClient.invalidateQueries(["config"]);
         } else {
           queryClient.invalidateQueries(["teams", teamIdForApi]);
         }
-        onError?.();
+        onError?.(err);
       },
     }
   );
