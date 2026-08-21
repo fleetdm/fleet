@@ -391,7 +391,6 @@ func (svc *Service) createDeviceSSOSession(ctx context.Context, host *fleet.Host
 	return sessionID, ttl, nil
 }
 
-
 func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
 	// the device middleware already authenticated the host via its device token.
 	svc.authz.SkipAuthorization(ctx)
