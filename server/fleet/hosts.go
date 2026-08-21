@@ -462,6 +462,9 @@ type Host struct {
 	// host_dep_assignments table.
 	DEPAssignedToFleet *bool `json:"dep_assigned_to_fleet,omitempty" db:"dep_assigned_to_fleet" csv:"-"`
 
+	// GroupTag is the Windows Autopilot group tag for a host synced from a tenant's Autopilot registry.
+	GroupTag *string `json:"group_tag,omitempty" db:"group_tag" csv:"-"`
+
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
 
@@ -1171,6 +1174,12 @@ type HostDetail struct {
 
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
+
+	// IDOnly marks a result where the caller was allowed to resolve the host but
+	// not to read it, so only ID is populated. Handlers must render it as an
+	// id-only response rather than a full one with everything zeroed out, which
+	// would advertise fields the caller never had access to.
+	IDOnly bool `json:"-"`
 }
 
 type HostEndUser struct {

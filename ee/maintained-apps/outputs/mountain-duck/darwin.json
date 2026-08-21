@@ -4,7 +4,8 @@
       "version": "5.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck' AND version_compare(bundle_short_version, '5.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck' AND version_compare(bundle_short_version, '5.3.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.mountainduck');"
       },
       "installer_url": "https://dist.mountainduck.io/Mountain%20Duck-5.3.1.29526.zip",
       "install_script_ref": "b1d40229",

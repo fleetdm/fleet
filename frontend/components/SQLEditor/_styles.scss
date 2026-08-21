@@ -1,8 +1,6 @@
 .sql-editor {
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    @include form-label;
 
     &--error {
       color: $core-vibrant-red;

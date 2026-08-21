@@ -4,7 +4,8 @@
       "version": "2026.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.pilotmoon.popclip';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.pilotmoon.popclip' AND version_compare(bundle_short_version, '2026.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.pilotmoon.popclip' AND version_compare(bundle_short_version, '2026.7.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.pilotmoon.popclip');"
       },
       "installer_url": "https://pilotmoon.com/downloads/PopClip-2026.7.1.zip",
       "install_script_ref": "3bbf2467",

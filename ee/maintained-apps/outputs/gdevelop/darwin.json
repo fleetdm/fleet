@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.277",
+      "version": "5.6.280",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gdevelop-app.ide';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gdevelop-app.ide' AND version_compare(bundle_short_version, '5.6.277') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gdevelop-app.ide' AND version_compare(bundle_short_version, '5.6.280') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.gdevelop-app.ide');"
       },
-      "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.277/GDevelop-5-5.6.277-universal.dmg",
+      "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.280/GDevelop-5-5.6.280-universal.dmg",
       "install_script_ref": "6eac5127",
       "uninstall_script_ref": "c1bae326",
-      "sha256": "b7f03c8d6831533899cbf7c3ba9171ed1018733415314814e0379d960c5fb4d2",
+      "sha256": "ae07b5fe765f9eb00409286aade6f563861e9766b1a1493bd1ab9977e8526300",
       "default_categories": [
         "Productivity"
       ]

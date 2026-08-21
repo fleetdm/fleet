@@ -4,7 +4,8 @@
       "version": "5.57",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'edu.uo.texshop.tex';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.uo.texshop.tex' AND version_compare(bundle_short_version, '5.57') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.uo.texshop.tex' AND version_compare(bundle_short_version, '5.57') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'edu.uo.texshop.tex');"
       },
       "installer_url": "https://pages.uoregon.edu/koch/texshop/texshop-64/texshop557.zip",
       "install_script_ref": "5bc23e62",

@@ -4,7 +4,8 @@
       "version": "9.6.1.807",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ImageGlass' AND publisher = 'Duong Dieu Phap';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ImageGlass' AND publisher = 'Duong Dieu Phap' AND version_compare(version, '9.6.1.807') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ImageGlass' AND publisher = 'Duong Dieu Phap' AND version_compare(version, '9.6.1.807') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'imageglass.exe');"
       },
       "installer_url": "https://github.com/d2phap/ImageGlass/releases/download/9.6.1.807/ImageGlass_9.6.1.807_x64.msi",
       "install_script_ref": "72349997",

@@ -4,7 +4,8 @@
       "version": "14.5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.edrawsoft.edrawmax';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.edrawsoft.edrawmax' AND version_compare(bundle_short_version, '14.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.edrawsoft.edrawmax' AND version_compare(bundle_short_version, '14.5.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.edrawsoft.edrawmax');"
       },
       "installer_url": "https://download.edrawsoft.com/cbs_down/edraw-max_full5380.zip",
       "install_script_ref": "a7d3a2a5",

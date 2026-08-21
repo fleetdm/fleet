@@ -3540,3 +3540,75 @@ func TestAuthorizeSoftwareCategory(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: read, allow: true},
 	})
 }
+
+func TestAuthorizeCertificateTemplate(t *testing.T) {
+	t.Parallel()
+
+	noTeam := &fleet.CertificateTemplate{TeamID: 0}
+	fleet1 := &fleet.CertificateTemplate{TeamID: 1}
+	fleet2 := &fleet.CertificateTemplate{TeamID: 2}
+
+	runTestCases(t, []authTestCase{
+		// Anonymous and role-less users are denied.
+		{user: nil, object: fleet1, action: read, allow: false},
+		{user: nil, object: fleet1, action: write, allow: false},
+		{user: nil, object: fleet1, action: list, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: read, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: write, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: list, allow: false},
+
+		// Global admin, maintainer and gitops: full access on any fleet.
+		{user: test.UserAdmin, object: noTeam, action: read, allow: true},
+		{user: test.UserAdmin, object: noTeam, action: write, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: read, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: write, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: list, allow: true},
+		{user: test.UserMaintainer, object: noTeam, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: list, allow: true},
+		{user: test.UserGitOps, object: noTeam, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: list, allow: true},
+
+		// Global read-only roles have no access to certificate templates at all.
+		{user: test.UserObserver, object: fleet1, action: read, allow: false},
+		{user: test.UserObserver, object: fleet1, action: write, allow: false},
+		{user: test.UserObserver, object: fleet1, action: list, allow: false},
+		{user: test.UserObserverPlus, object: fleet1, action: read, allow: false},
+		{user: test.UserObserverPlus, object: fleet1, action: list, allow: false},
+		{user: test.UserTechnician, object: fleet1, action: read, allow: false},
+		{user: test.UserTechnician, object: fleet1, action: list, allow: false},
+
+		// Team roles never reach "No team" (fleet_id=0) templates.
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: noTeam, action: write, allow: false},
+
+		// Team admin, maintainer and gitops: full access on own fleet, denied on other.
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: write, allow: false},
+
+		// "list" is deliberately team-agnostic: it only establishes that the
+		// caller manages certificate templates on some fleet, so that a lookup
+		// can run before the team-scoped check on the loaded template. It must
+		// hold for every role allowed to read or write above, including for a
+		// fleet the caller has no access to.
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: list, allow: true},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: list, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: list, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: list, allow: true},
+
+		// Team read-only roles have no access, including "list".
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: list, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet1, action: list, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: list, allow: false},
+	})
+}

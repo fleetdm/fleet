@@ -4,7 +4,8 @@
       "version": "3.0.53",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop' AND version_compare(bundle_short_version, '3.0.53') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop' AND version_compare(bundle_short_version, '3.0.53') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.filen.desktop');"
       },
       "installer_url": "https://cdn.filen.io/@filen/desktop/release/v3.0.53/Filen_mac_arm64.dmg",
       "install_script_ref": "6dc93d3b",

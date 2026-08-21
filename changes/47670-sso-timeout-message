@@ -1,0 +1,1 @@
+- End users who take too long to sign in during MDM enrollment now see a message saying their session may have timed out, instead of a generic error.

@@ -77,7 +77,7 @@ module.exports = {
         await sails.helpers.flow.build(async ()=>{
           let slugForThisInstance = await sails.helpers.ai.prompt.with({
             prompt: 'You are a creative developer. Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur"). Return only the slug as JSON string.',
-            baseModel:'gpt-5-nano-2025-08-07',
+            baseModel:'claude-haiku-4-5',
             expectJson: true,
           }).retry();
 

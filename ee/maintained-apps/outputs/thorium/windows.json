@@ -4,7 +4,8 @@
       "version": "3.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Thorium' AND publisher = 'EDRLab';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Thorium' AND publisher = 'EDRLab' AND version_compare(version, '3.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Thorium' AND publisher = 'EDRLab' AND version_compare(version, '3.4.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'thorium reader.exe');"
       },
       "installer_url": "https://github.com/edrlab/thorium-reader/releases/download/v3.4.0/Thorium.Setup.3.4.0.exe",
       "install_script_ref": "df65625a",

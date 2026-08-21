@@ -4,7 +4,8 @@
       "version": "25.0.20103.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon DCV Server' AND publisher = 'NICE, an Amazon Web Services company';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon DCV Server' AND publisher = 'NICE, an Amazon Web Services company' AND version_compare(version, '25.0.20103.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon DCV Server' AND publisher = 'NICE, an Amazon Web Services company' AND version_compare(version, '25.0.20103.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon dcv server.exe');"
       },
       "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2025.0/Servers/nice-dcv-server-x64-Release-2025.0-20103.msi",
       "install_script_ref": "22e48c46",

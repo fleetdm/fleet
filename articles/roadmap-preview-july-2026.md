@@ -17,7 +17,7 @@ In the next 3 months, Fleet will ship...
 - 🔄 iOS/iPadOS: Auto-install apps ([#38789](https://github.com/fleetdm/fleet/issues/38789))
 - ⏰ macOS updates: Trigger from critical CVEs or update within a major version ([#45605](https://github.com/fleetdm/fleet/issues/45605), [#45511](https://github.com/fleetdm/fleet/issues/45511))
 - 🧩 Host vitals: Pull any attribute from your IdP and create custom vitals ([#42922](https://github.com/fleetdm/fleet/issues/42922))
-- 🏷️ Labels for mobile devices: Use built-in host vitals (e.g. public IP) to create labels for iOS/iPadOS and Android hosts, then scope profiles, software, and more ([#47956](https://github.com/fleetdm/fleet/issues/47956))
+- 🏷️ Labels for mobile devices: Use built-in host vitals (e.g. public IP) to create labels for iOS/iPadOS and Android hosts, then scope profiles, software, and more ([#39088](https://github.com/fleetdm/fleet/issues/39088))
 - 🔔 Send host activities to log destination ([#40493](https://github.com/fleetdm/fleet/issues/40493))
 - 📢 Auto re-send configuration profiles ([#40637](https://github.com/fleetdm/fleet/issues/40637))
 - 📦 Software inventory: Go binaries, more VS Code extensions, Linux apps, and Adobe plugins ([#44775](https://github.com/fleetdm/fleet/issues/44775), [#47790](https://github.com/fleetdm/fleet/issues/47790), [#47789](https://github.com/fleetdm/fleet/issues/47789), [#45414](https://github.com/fleetdm/fleet/issues/45414))
