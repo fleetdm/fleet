@@ -57,8 +57,11 @@ interface IHostSWLibraryTableHeaders {
     details?: ISWUninstallDetailsParentState
   ) => void;
   onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
-  onClickUninstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
+  onClickUninstallAction: (softwareId: number) => Promise<boolean> | void;
   isHostOnline: boolean;
   hostName: string;
 }

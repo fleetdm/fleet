@@ -53,7 +53,10 @@ export interface ISelfServiceCardProps {
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
   onInstallAllSuccess?: () => void;
 }
 
