@@ -606,6 +606,8 @@ type MDMWindowsProfilePayload struct {
 	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
 	// install is triggered because the profile content changed (a modify, not a fresh install).
 	PreviousInstalledChecksum []byte `db:"-"`
+	// UserChannelRejected is set when building this payload from a device response. Transient, never persisted.
+	UserChannelRejected bool `db:"-"`
 }
 
 // MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile.
@@ -644,6 +646,8 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 	Status        *MDMDeliveryStatus
 	Detail        string
 	Checksum      []byte
+	// HeldForUserContext marks a user-scoped profile the reconciler deliberately did not send because the host has no MDM user context yet.
+	HeldForUserContext bool
 }
 
 type MDMWindowsProfileContents struct {

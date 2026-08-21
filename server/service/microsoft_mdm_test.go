@@ -817,6 +817,21 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
+	// Default every host to a live user context, so the user-scope gate is a no-op unless a test opts in. Only called at
+	// all when a profile in the batch is user-scoped.
+	ds.GetMDMWindowsUserContextByHostUUIDFunc = func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+		out := make(map[string]fleet.WindowsEnrollmentUserContext, len(hostUUIDs))
+		signedIn := fleet.WindowsMDMLoginStatusUser
+		for _, hostUUID := range hostUUIDs {
+			out[hostUUID] = fleet.WindowsEnrollmentUserContext{
+				HostUUID:        hostUUID,
+				EnrollUserID:    "user@example.com",
+				LastLoginStatus: &signedIn,
+			}
+		}
+		return out, nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
@@ -842,6 +857,478 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 	}
 
 	return capturedUpdates, managedCerts
+}
+
+func TestProcessClientEventAlertLoginStatus(t *testing.T) {
+	// alertWithLoginStatus builds the device event alert Windows sends in the first message of every session.
+	alertWithLoginStatus := func(value string) fleet.ProtoCmdOperation {
+		alertType := syncml.AlertTypeLoginStatus
+		return fleet.ProtoCmdOperation{
+			Verb: fleet.CmdAlert,
+			Cmd: fleet.SyncMLCmd{
+				Data: new(syncml.CmdAlertClientEvent),
+				Items: []fleet.CmdItem{{
+					Meta: &fleet.Meta{Type: &fleet.MetaAttr{Content: &alertType}},
+					Data: &fleet.RawXmlData{Content: value},
+				}},
+			},
+		}
+	}
+
+	newSvc := func(t *testing.T) (*mock.Store, *Service) {
+		ds := new(mock.Store)
+		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		value    string
+		expected fleet.WindowsMDMLoginStatus
+	}{
+		{name: "user", value: "user", expected: fleet.WindowsMDMLoginStatusUser},
+		{name: "others (the OOBE value)", value: "others", expected: fleet.WindowsMDMLoginStatusOthers},
+		{name: "none", value: "none", expected: fleet.WindowsMDMLoginStatusNone},
+		{name: "surrounding whitespace and case", value: "  User\n", expected: fleet.WindowsMDMLoginStatusUser},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds, svc := newSvc(t)
+			var recorded *fleet.WindowsMDMLoginStatus
+			ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+				recorded = status
+				return nil
+			}
+
+			device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1"}
+			svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus(tc.value))
+
+			require.True(t, ds.SetMDMWindowsEnrollmentLoginStatusFuncInvoked)
+			require.NotNil(t, recorded)
+			require.Equal(t, tc.expected, *recorded)
+			require.NotNil(t, device.LastLoginStatus, "the in-memory enrollment must reflect the new value")
+			require.Equal(t, tc.expected, *device.LastLoginStatus)
+		})
+	}
+
+	t.Run("unrecognized value clears the observation", func(t *testing.T) {
+		// Ignoring the value would leave a previously stored "user" in place and keep delivering user-scoped profiles
+		// on a stale observation. Clearing reads as "not known to be signed in", so profiles hold instead.
+		ds, svc := newSvc(t)
+		var called bool
+		var recorded *fleet.WindowsMDMLoginStatus
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+			called, recorded = true, status
+			return nil
+		}
+
+		signedIn := fleet.WindowsMDMLoginStatusUser
+		device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1", LastLoginStatus: &signedIn}
+		svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus("superuser"))
+
+		require.True(t, called, "the stale observation must be cleared, not left in place")
+		require.Nil(t, recorded)
+		require.Nil(t, device.LastLoginStatus)
+	})
+
+	t.Run("unchanged value is not rewritten", func(t *testing.T) {
+		// The device reports this on every session, as often as once a minute on the aggressive poll, so re-reporting
+		// the same value must not write.
+		ds, svc := newSvc(t)
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+			return nil
+		}
+
+		signedIn := fleet.WindowsMDMLoginStatusUser
+		device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1", LastLoginStatus: &signedIn}
+		svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus("user"))
+
+		require.False(t, ds.SetMDMWindowsEnrollmentLoginStatusFuncInvoked, "re-reporting the same value must not write")
+		require.NotNil(t, device.LastLoginStatus)
+		require.Equal(t, fleet.WindowsMDMLoginStatusUser, *device.LastLoginStatus)
+	})
+
+	t.Run("other 1224 alert types are ignored", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+			return nil
+		}
+
+		otherType := "com.microsoft/MDM/AADUserToken"
+		cmd := fleet.ProtoCmdOperation{
+			Verb: fleet.CmdAlert,
+			Cmd: fleet.SyncMLCmd{
+				Data: new(syncml.CmdAlertClientEvent),
+				Items: []fleet.CmdItem{{
+					Meta: &fleet.Meta{Type: &fleet.MetaAttr{Content: &otherType}},
+					Data: &fleet.RawXmlData{Content: "a-token"},
+				}},
+			},
+		}
+		svc.processClientEventAlert(t.Context(), &fleet.MDMWindowsEnrolledDevice{ID: 7}, cmd)
+
+		require.False(t, ds.SetMDMWindowsEnrollmentLoginStatusFuncInvoked)
+	})
+
+	t.Run("a write failure does not fail the session", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.SetMDMWindowsEnrollmentLoginStatusFunc = func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+			return errors.New("db is down")
+		}
+
+		device := &fleet.MDMWindowsEnrolledDevice{ID: 7, MDMDeviceID: "device-1"}
+		// Recording user context is best-effort; the device's response must not depend on it.
+		require.NotPanics(t, func() { svc.processClientEventAlert(t.Context(), device, alertWithLoginStatus("user")) })
+		require.Nil(t, device.LastLoginStatus, "a failed write must not leave a phantom value in memory")
+	})
+}
+
+// windowsUserScopeTickResult is what one reconcile tick did with a user-scoped profile: which hosts got a command, and which
+// host rows were written by the final (non-command) upsert pass.
+type windowsUserScopeTickResult struct {
+	enqueuedHosts []string
+	finalUpserts  []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+}
+
+// upsertFor returns the final-pass row written for a host, or nil.
+func (r windowsUserScopeTickResult) upsertFor(hostUUID string) *fleet.MDMWindowsBulkUpsertHostProfilePayload {
+	for _, p := range r.finalUpserts {
+		if p.HostUUID == hostUUID {
+			return p
+		}
+	}
+	return nil
+}
+
+// runWindowsUserScopeTick drives one ReconcileWindowsProfiles tick over a single profile applied to every host in contexts.
+// currentRows is optional: pass the host_mdm_windows_profiles rows the snapshot should report as already present, to exercise
+// what the gate does on a pass after the first.
+// runWindowsUserScopeTickWithExistence is runWindowsUserScopeTick with the profile-existence check overridden, for the
+// deletion-race cases.
+func runWindowsUserScopeTickWithExistence(
+	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	existence func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error),
+) (windowsUserScopeTickResult, *mock.Store) {
+	t.Helper()
+	return runWindowsUserScopeTickOpts(t, syncML, contexts, existence)
+}
+
+func runWindowsUserScopeTick(
+	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	currentRows ...map[string][]*fleet.MDMWindowsProfilePayload,
+) (windowsUserScopeTickResult, *mock.Store) {
+	t.Helper()
+	return runWindowsUserScopeTickOpts(t, syncML, contexts, nil, currentRows...)
+}
+
+func runWindowsUserScopeTickOpts(
+	t *testing.T, syncML string, contexts map[string]fleet.WindowsEnrollmentUserContext,
+	existence func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error),
+	currentRows ...map[string][]*fleet.MDMWindowsProfilePayload,
+) (windowsUserScopeTickResult, *mock.Store) {
+	t.Helper()
+	ctx := t.Context()
+	ds := new(mock.Store)
+
+	profile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "wuser-scope-profile",
+		Name:        "User Scope Profile",
+		SyncML:      []byte(syncML),
+	}
+	hostToProfile := make(map[string]*fleet.MDMWindowsConfigProfile, len(contexts))
+	for hostUUID := range contexts {
+		hostToProfile[hostUUID] = profile
+	}
+	finalUpserts, _ := setupReconcilerTest(ds, hostToProfile)
+	if existence != nil {
+		ds.GetExistingMDMWindowsProfileUUIDsFunc = existence
+	}
+
+	if len(currentRows) > 0 {
+		// Reuse the harness's hosts, profiles, and labels; only swap in the current rows.
+		snapshot := ds.GetWindowsProfileReconcileSnapshotFunc
+		ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+			[]*fleet.WindowsHostReconcileInfo,
+			[]*fleet.WindowsProfileForReconcile,
+			map[uint]map[uint]struct{},
+			map[string][]*fleet.MDMWindowsProfilePayload,
+			error,
+		) {
+			hosts, profiles, labels, _, err := snapshot(ctx, after, batch)
+			if hosts == nil {
+				return nil, nil, nil, nil, err
+			}
+			return hosts, profiles, labels, currentRows[0], err
+		}
+	}
+
+	ds.GetMDMWindowsUserContextByHostUUIDFunc = func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+		out := make(map[string]fleet.WindowsEnrollmentUserContext, len(hostUUIDs))
+		for _, hostUUID := range hostUUIDs {
+			if uc, ok := contexts[hostUUID]; ok {
+				out[hostUUID] = uc
+			}
+		}
+		return out, nil
+	}
+
+	var result windowsUserScopeTickResult
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(
+		ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+	) error {
+		result.enqueuedHosts = append(result.enqueuedHosts, hostUUIDs...)
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	result.finalUpserts = *finalUpserts
+	return result, ds
+}
+
+// userScopedSyncML targets the user channel; deviceScopedSyncML is the control.
+const (
+	userScopedSyncML   = `<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI></Target><Data>0</Data></Item></Replace>`
+	deviceScopedSyncML = `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Data>0</Data></Item></Replace>`
+)
+
+// entraContext is an enrollment that binds a user identity (Autopilot / Entra join), optionally with a reported login status.
+func entraContext(hostUUID string, status *fleet.WindowsMDMLoginStatus) fleet.WindowsEnrollmentUserContext {
+	return fleet.WindowsEnrollmentUserContext{HostUUID: hostUUID, EnrollUserID: "victor@example.com", LastLoginStatus: status}
+}
+
+// programmaticContext is a fleetd enrollment: enroll_user_id is an orbit node key, so no user identity is ever bound.
+func programmaticContext(hostUUID string) fleet.WindowsEnrollmentUserContext {
+	return fleet.WindowsEnrollmentUserContext{HostUUID: hostUUID, EnrollUserID: "rn2rbwjgNQCWVw2lbBn2DxzJ4rs4wcCu"}
+}
+
+// deviceBoundContextWithStatus is a programmatic (device-bound) enrollment with an observed login status.
+func deviceBoundContextWithStatus(hostUUID string, status *fleet.WindowsMDMLoginStatus) fleet.WindowsEnrollmentUserContext {
+	uc := programmaticContext(hostUUID)
+	uc.LastLoginStatus = status
+	return uc
+}
+
+func TestReconcileWindowsProfilesHoldsUserScopedProfilesUntilUserSignsIn(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+	none := fleet.WindowsMDMLoginStatusNone
+
+	// Every one of these means "no MDM user yet". The OOBE value is `others` (the setup account is signed in but has no
+	// MDM account), so a gate that engaged only on `none` would never fire on the flow this fixes.
+	for name, status := range map[string]*fleet.WindowsMDMLoginStatus{
+		"never observed":       nil,
+		"others (during OOBE)": &others,
+		"none":                 &none,
+	} {
+		t.Run(name, func(t *testing.T) {
+			result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+				"host-a": entraContext("host-a", status),
+			})
+
+			require.Empty(t, result.enqueuedHosts, "no command may be sent while the host has no MDM user context")
+
+			row := result.upsertFor("host-a")
+			require.NotNil(t, row, "the hold must be recorded so it is visible rather than silent")
+			require.Nil(t, row.Status, "a held profile stays pending (NULL status) so the reconciler revisits it")
+			require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
+			require.Empty(t, row.CommandUUID, "a held row must not point at a command that was never enqueued")
+		})
+	}
+}
+
+func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnceUserPresent(t *testing.T) {
+	signedIn := fleet.WindowsMDMLoginStatusUser
+	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &signedIn),
+	})
+
+	require.Equal(t, []string{"host-a"}, result.enqueuedHosts)
+	require.Nil(t, result.upsertFor("host-a"), "a delivered profile is written by the enqueue path, not the final pass")
+}
+
+func TestReconcileWindowsProfilesDeliversUserScopedProfilesOnEnrollmentsWithoutUserIdentity(t *testing.T) {
+	// A fleetd enrollment stores an orbit node key rather than a UPN, which says nothing about whether the device's user
+	// channel is writable: it resolves to whoever is signed in. Until the device reports a login status Fleet must not
+	// predict failure from the enrollment type, or it would freeze user-scoped profiles for every pre-existing fleetd
+	// enrollment at upgrade time and forever for a client that never sends the alert.
+	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": programmaticContext("host-a"),
+	})
+
+	require.Equal(t, []string{"host-a"}, result.enqueuedHosts, "enrollments with no bound user and no observation are not gated")
+	require.Nil(t, result.upsertFor("host-a"), "no hold row: the profile went out through the normal enqueue path")
+}
+
+func TestReconcileWindowsProfilesHoldsDeviceBoundEnrollmentsThatReportedNoUser(t *testing.T) {
+	user := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+	none := fleet.WindowsMDMLoginStatusNone
+
+	// A device-bound enrollment that positively reported no usable user context holds, with the wording that matches the
+	// enrollment kind: it waits for anyone to sign in, not for an Entra user.
+	for name, status := range map[string]*fleet.WindowsMDMLoginStatus{
+		"nobody signed in": &none,
+		"others":           &others,
+	} {
+		t.Run(name, func(t *testing.T) {
+			result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+				"host-a": deviceBoundContextWithStatus("host-a", status),
+			})
+
+			require.Empty(t, result.enqueuedHosts, "no command may go out while the device says nobody usable is signed in")
+			row := result.upsertFor("host-a")
+			require.NotNil(t, row, "the hold must be recorded on the host's profile row")
+			require.Nil(t, row.Status)
+			require.Equal(t, fleet.WindowsUserScopeHoldDetailAnyUser, row.Detail,
+				"a device-bound hold waits for any user, so it must not mention Entra")
+			require.Empty(t, row.CommandUUID)
+		})
+	}
+
+	t.Run("delivers once someone signs in", func(t *testing.T) {
+		result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+			"host-a": deviceBoundContextWithStatus("host-a", &user),
+		})
+
+		require.Equal(t, []string{"host-a"}, result.enqueuedHosts,
+			"a reported user releases the hold: the user channel resolves to whoever holds the console")
+		require.Nil(t, result.upsertFor("host-a"))
+	})
+}
+
+func TestReconcileWindowsProfilesHeldModifyKeepsInstalledChecksum(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	// The host has version "installed-checksum" of the profile applied and verified; the profile has since been edited,
+	// so the reconciler triggers a modify. The gate holds it, and the held row must keep recording the version the
+	// device actually has: the preserved checksum is what makes the eventual delivery a modify with its supplemental
+	// <Delete>s, and what keeps the retained prior version alive until then.
+	verified := fleet.MDMDeliveryVerified
+	currentRows := map[string][]*fleet.MDMWindowsProfilePayload{
+		"host-a": {{
+			ProfileUUID:   "wuser-scope-profile",
+			ProfileName:   "User Scope Profile",
+			HostUUID:      "host-a",
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &verified,
+			Checksum:      []byte("installed-checksum"),
+		}},
+	}
+
+	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &others),
+	}, currentRows)
+
+	require.Empty(t, result.enqueuedHosts, "the modify is held: no command may go out")
+	row := result.upsertFor("host-a")
+	require.NotNil(t, row, "the hold must be recorded")
+	require.Nil(t, row.Status)
+	require.Equal(t, []byte("installed-checksum"), row.Checksum,
+		"a held modify keeps the installed version's checksum, not the never-sent edit's")
+}
+
+func TestReconcileWindowsProfilesDropsHeldInstallForDeletedProfile(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	result, ds := runWindowsUserScopeTickWithExistence(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &others),
+	}, func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		// The admin deleted the profile between the reconcile snapshot and the upsert.
+		return map[string]struct{}{}, nil
+	})
+
+	require.Empty(t, result.enqueuedHosts)
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
+		"the deletion-race guard must still see the fully held profile")
+	require.Nil(t, result.upsertFor("host-a"),
+		"no held row may be written for a deleted profile: it would be orphaned with nothing to resolve it")
+}
+
+func TestReconcileWindowsProfilesDoesNotRewriteAnUnchangedHold(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	// heldRow is what the gate wrote on an earlier pass. A held row keeps a NULL status, so it recomputes as work on
+	// every reconcile pass for as long as the hold lasts, which can be days.
+	heldRow := func(detail string) map[string][]*fleet.MDMWindowsProfilePayload {
+		return map[string][]*fleet.MDMWindowsProfilePayload{
+			"host-a": {{
+				ProfileUUID:   "wuser-scope-profile",
+				ProfileName:   "User Scope Profile",
+				HostUUID:      "host-a",
+				OperationType: fleet.MDMOperationTypeInstall,
+				Detail:        detail,
+			}},
+		}
+	}
+
+	t.Run("row already says what the gate would write", func(t *testing.T) {
+		result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+			"host-a": entraContext("host-a", &others),
+		}, heldRow(fleet.WindowsUserScopeHoldDetail))
+
+		require.Empty(t, result.enqueuedHosts, "the profile is still held")
+		require.Nil(t, result.upsertFor("host-a"), "an unchanged hold must not be rewritten every pass")
+	})
+
+	t.Run("row is stale so the hold is written", func(t *testing.T) {
+		// A row reset elsewhere (the SCIM and custom-host-vitals paths both clear status, detail, and command_uuid to
+		// force redelivery) looks held apart from the detail. Skipping that write would leave the hold invisible.
+		result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+			"host-a": entraContext("host-a", &others),
+		}, heldRow(""))
+
+		require.Empty(t, result.enqueuedHosts)
+		row := result.upsertFor("host-a")
+		require.NotNil(t, row, "a row that does not already carry the hold detail must be written")
+		require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
+	})
+}
+
+func TestReconcileWindowsProfilesPartitionsHostsByUserContext(t *testing.T) {
+	signedIn := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	// One command is addressed to many hosts, so the gate has to split the target rather than decide per profile. Only the
+	// host still waiting on first sign-in is held; the fleetd enrollment is not gated at all.
+	result, _ := runWindowsUserScopeTick(t, userScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-ready":  entraContext("host-ready", &signedIn),
+		"host-oobe":   entraContext("host-oobe", &others),
+		"host-fleetd": programmaticContext("host-fleetd"),
+	})
+
+	require.ElementsMatch(t, []string{"host-ready", "host-fleetd"}, result.enqueuedHosts,
+		"only the host awaiting first sign-in is withheld")
+
+	held := result.upsertFor("host-oobe")
+	require.NotNil(t, held)
+	require.Nil(t, held.Status)
+	require.Equal(t, fleet.WindowsUserScopeHoldDetail, held.Detail)
+	require.Nil(t, result.upsertFor("host-fleetd"), "an ungated host has no hold row")
+}
+
+func TestReconcileWindowsProfilesDeviceScopedUnaffectedByUserContext(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+	result, ds := runWindowsUserScopeTick(t, deviceScopedSyncML, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &others),
+		"host-b": programmaticContext("host-b"),
+	})
+
+	require.ElementsMatch(t, []string{"host-a", "host-b"}, result.enqueuedHosts,
+		"device-scoped profiles deliver regardless of user context")
+	require.False(t, ds.GetMDMWindowsUserContextByHostUUIDFuncInvoked,
+		"fleets without user-scoped profiles must not pay for the enrollment lookup")
+}
+
+func TestReconcileWindowsProfilesHoldsMixedScopeProfilesWhole(t *testing.T) {
+	others := fleet.WindowsMDMLoginStatusOthers
+	mixed := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Data>0</Data></Item></Replace>` +
+		`<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI></Target><Data>0</Data></Item></Replace>`
+
+	result, _ := runWindowsUserScopeTick(t, mixed, map[string]fleet.WindowsEnrollmentUserContext{
+		"host-a": entraContext("host-a", &others),
+	})
+
+	require.Empty(t, result.enqueuedHosts, "a mixed-scope profile holds as a unit; its device half must not ship early")
+	row := result.upsertFor("host-a")
+	require.NotNil(t, row)
+	require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
 }
 
 func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
@@ -1101,13 +1588,29 @@ type windowsReconcileSnapshot struct {
 	profiles []*fleet.WindowsProfileForReconcile
 	current  map[string][]*fleet.MDMWindowsProfilePayload
 	contents map[string][]byte
+	// userContexts overrides the harness default of every host having a live user context. Set it to exercise the user-scope gate.
+	userContexts map[string]fleet.WindowsEnrollmentUserContext
 }
 
-// windowsReconcileResult is what the reconciler did with that snapshot: the commands it enqueued and the host rows it deleted.
+// windowsReconcileResult is what the reconciler did with that snapshot: the commands it enqueued, the host rows it deleted, and
+// the rows written by the final (non-command) upsert pass.
 type windowsReconcileResult struct {
-	commands    []*fleet.MDMWindowsCommand
-	deletedRows []*fleet.MDMWindowsProfilePayload
-	deleteCalls int
+	commands     []*fleet.MDMWindowsCommand
+	deletedRows  []*fleet.MDMWindowsProfilePayload
+	deleteCalls  int
+	finalUpserts []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	// deleteCommandHosts are the hosts every <Delete> this tick was addressed to, so a partially held removal can be checked.
+	deleteCommandHosts []string
+}
+
+// upsertFor returns the final-pass row written for a (host, profile) pair, or nil.
+func (r windowsReconcileResult) upsertFor(hostUUID, profileUUID string) *fleet.MDMWindowsBulkUpsertHostProfilePayload {
+	for _, p := range r.finalUpserts {
+		if p.HostUUID == hostUUID && p.ProfileUUID == profileUUID {
+			return p
+		}
+	}
+	return nil
 }
 
 // deletedPairs returns the deleted rows as a set of (host, profile) keys, which is how the tests below assert on them.
@@ -1127,6 +1630,16 @@ func (r windowsReconcileResult) requireNoDeleteCommands(t *testing.T, msg string
 	}
 }
 
+// hasDeleteCommand reports whether the tick sent any <Delete>.
+func (r windowsReconcileResult) hasDeleteCommand() bool {
+	for _, cmd := range r.commands {
+		if strings.Contains(string(cmd.RawCommand), "<Delete") {
+			return true
+		}
+	}
+	return false
+}
+
 const windowsReconcileTestChecksum = "test-checksum"
 
 // runWindowsReconcileOnce drives a single ReconcileWindowsProfiles tick over the given snapshot. The suppressed-remove tests below
@@ -1135,7 +1648,19 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	t.Helper()
 	ctx := t.Context()
 	ds := new(mock.Store)
-	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+	finalUpserts, _ := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
+
+	if snapshot.userContexts != nil {
+		ds.GetMDMWindowsUserContextByHostUUIDFunc = func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+			out := make(map[string]fleet.WindowsEnrollmentUserContext, len(hostUUIDs))
+			for _, hostUUID := range hostUUIDs {
+				if uc, ok := snapshot.userContexts[hostUUID]; ok {
+					out[hostUUID] = uc
+				}
+			}
+			return out, nil
+		}
+	}
 
 	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
 		[]*fleet.WindowsHostReconcileInfo,
@@ -1164,6 +1689,9 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	var result windowsReconcileResult
 	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		result.commands = append(result.commands, cmd)
+		if strings.Contains(string(cmd.RawCommand), "<Delete") {
+			result.deleteCommandHosts = append(result.deleteCommandHosts, hostUUIDs...)
+		}
 		return nil
 	}
 	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
@@ -1177,6 +1705,7 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	}
 
 	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	result.finalUpserts = *finalUpserts
 	return result
 }
 
@@ -1195,6 +1724,12 @@ func installedRow(profileUUID, profileName, hostUUID string) *fleet.MDMWindowsPr
 // windowsTestProfileSyncML returns a single-<Replace> profile targeting the named policy node.
 func windowsTestProfileSyncML(setting string) []byte {
 	return []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/` + setting +
+		`</LocURI></Target><Data>0</Data></Item></Replace>`)
+}
+
+// windowsTestUserProfileSyncML is windowsTestProfileSyncML on the user channel, the scope whose <Delete> needs a user context.
+func windowsTestUserProfileSyncML(setting string) []byte {
+	return []byte(`<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/` + setting +
 		`</LocURI></Target><Data>0</Data></Item></Replace>`)
 }
 
@@ -1324,6 +1859,208 @@ func TestReconcileWindowsProfilesDeletesRemoveRowsWithNoLocURIs(t *testing.T) {
 
 	require.Len(t, result.deletedRows, 1, "a profile with no LocURIs must not stay stuck on the host")
 	require.Contains(t, result.deletedPairs(), hostProfileKey{hostUUID: hostUUID, profileUUID: removedProfile})
+}
+
+// removeGateOutcome is what the user-scope gate does with one host's pending removal.
+type removeGateOutcome int
+
+const (
+	removeSent        removeGateOutcome = iota // the <Delete> goes out
+	removeHeld                                 // no <Delete>; the row is rewritten to record the wait
+	removeHeldQuietly                          // no <Delete>; the row already records the wait, so it is not rewritten
+	removeDropped                              // no <Delete>; the row is deleted because nothing was ever applied to the device
+)
+
+// TestReconcileWindowsProfilesGatesUserScopedRemovals covers the removal half of the user-scope gate. A <Delete> against a
+// "./User/..." node needs the same MDM user context the install needed, and Windows rejecting one is invisible in the ack path:
+// WindowsResponseToDeliveryStatusForRemove reads the codes a missing user context produces as success, which would drop the row
+// as a completed removal while the setting is still applied in a signed-out user's hive.
+func TestReconcileWindowsProfilesGatesUserScopedRemovals(t *testing.T) {
+	const (
+		hostUUID       = "host-a"
+		removedProfile = "removed-profile-uuid"
+		profileName    = "Removed"
+	)
+	teamID := uint(1)
+	signedIn := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+	none := fleet.WindowsMDMLoginStatusNone
+
+	// delivered is the row of a profile already on the host, which is what makes its removal need a user context.
+	delivered := func() *fleet.MDMWindowsProfilePayload {
+		return installedRow(removedProfile, profileName, hostUUID)
+	}
+	// sourceRow covers the other states a pending removal can start from, which installedRow cannot express.
+	sourceRow := func(op fleet.MDMOperationType, status *fleet.MDMDeliveryStatus, detail string) *fleet.MDMWindowsProfilePayload {
+		row := installedRow(removedProfile, profileName, hostUUID)
+		row.OperationType, row.Status, row.Detail = op, status, detail
+		return row
+	}
+
+	userScoped := windowsTestUserProfileSyncML("Experience/AllowTailoredExperiencesWithDiagnosticData")
+
+	for _, tc := range []struct {
+		name    string
+		syncML  []byte
+		row     *fleet.MDMWindowsProfilePayload
+		context *fleet.WindowsEnrollmentUserContext
+		want    removeGateOutcome
+		// wantDetail is the expected hold detail for a removeHeld outcome; empty means the user-bound (Entra) wording.
+		wantDetail string
+	}{
+		{
+			name: "delivered user-scoped profile, host awaiting first sign-in", syncML: userScoped, row: delivered(),
+			context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// A device-bound enrollment that positively reported an empty console holds the removal too, with the
+			// wording that matches: it waits for anyone to sign in, not for an Entra user.
+			name: "delivered user-scoped profile, device-bound enrollment reported nobody signed in", syncML: userScoped,
+			row:     delivered(),
+			context: new(deviceBoundContextWithStatus(hostUUID, &none)), want: removeHeld,
+			wantDetail: fleet.WindowsUserScopeRemoveHoldDetailAnyUser,
+		},
+		{
+			name: "delivered user-scoped profile, user signed in", syncML: userScoped, row: delivered(),
+			context: new(entraContext(hostUUID, &signedIn)), want: removeSent,
+		},
+		{
+			// A fleetd enrollment binds no user identity, which says nothing about whether the user channel is writable.
+			name: "delivered user-scoped profile, enrollment with no bound user identity", syncML: userScoped, row: delivered(),
+			context: new(programmaticContext(hostUUID)), want: removeSent,
+		},
+		{
+			name: "delivered user-scoped profile, host with no enrollment row", syncML: userScoped, row: delivered(),
+			context: nil, want: removeSent,
+		},
+		{
+			name: "delivered device-scoped profile, host awaiting first sign-in", syncML: windowsTestProfileSyncML("Experience/AllowCortana"),
+			row: delivered(), context: new(entraContext(hostUUID, &others)), want: removeSent,
+		},
+		{
+			// Deletes are not wrapped in <Atomic>, so an ungated mixed removal would delete the device nodes, take a
+			// rejection on the user nodes, and still read as a completed removal. Holding keeps the removal whole.
+			name:   "delivered mixed-scope profile, host awaiting first sign-in",
+			syncML: append(windowsTestProfileSyncML("Experience/AllowCortana"), userScoped...),
+			row:    delivered(), context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// The install was held by this same gate and never sent, so there is nothing in any user's hive to delete. This
+			// row shape (NULL status, no command, the hold detail) is the only proof of never-delivered available here.
+			name: "install held by the gate and never sent, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeInstall, nil, fleet.WindowsUserScopeHoldDetail),
+			context: new(entraContext(hostUUID, &others)), want: removeDropped,
+		},
+		{
+			// A failed install is NOT proof that nothing was applied: a non-atomic profile can apply earlier commands before a
+			// later one fails. Dropping the row would leave those settings enforced with nothing tracking them.
+			name: "install failed, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, "some other failure"),
+			context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// The custom-host-vitals and SCIM resend paths set exactly `status = NULL, detail = NULL, command_uuid = ''` on
+			// profiles that ARE installed. That shape must never be mistaken for a profile that never shipped.
+			name: "install reset for resend, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeInstall, nil, ""),
+			context: new(entraContext(hostUUID, &others)), want: removeHeld,
+		},
+		{
+			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.
+			name: "removal already held, host awaiting first sign-in", syncML: userScoped,
+			row:     sourceRow(fleet.MDMOperationTypeRemove, nil, fleet.WindowsUserScopeRemoveHoldDetail),
+			context: new(entraContext(hostUUID, &others)), want: removeHeldQuietly,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			userContexts := map[string]fleet.WindowsEnrollmentUserContext{}
+			if tc.context != nil {
+				userContexts[hostUUID] = *tc.context
+			}
+
+			// No profile is desired for the team, so the host's one row is the pending removal under test.
+			result := runWindowsReconcileOnce(t, windowsReconcileSnapshot{
+				hosts:        []*fleet.WindowsHostReconcileInfo{{HostID: 1, UUID: hostUUID, TeamID: &teamID}},
+				current:      map[string][]*fleet.MDMWindowsProfilePayload{hostUUID: {tc.row}},
+				contents:     map[string][]byte{removedProfile: tc.syncML},
+				userContexts: userContexts,
+			})
+
+			row := result.upsertFor(hostUUID, removedProfile)
+			if tc.want == removeSent {
+				require.True(t, result.hasDeleteCommand(), "the removal must go out")
+				require.Empty(t, result.deletedRows, "a sent removal resolves on the command ack, not here")
+				require.Nil(t, row, "a sent removal is recorded by the enqueue path, not the final pass")
+				return
+			}
+
+			result.requireNoDeleteCommands(t, "no <Delete> may be sent while the host has no MDM user context")
+
+			if tc.want == removeDropped {
+				require.Nil(t, row, "a removal with nothing to delete is resolved, not held")
+				require.Len(t, result.deletedRows, 1,
+					"a profile that never reached the device must have its row dropped rather than wait for a user")
+				require.Contains(t, result.deletedPairs(), hostProfileKey{hostUUID: hostUUID, profileUUID: removedProfile})
+				return
+			}
+
+			require.Empty(t, result.deletedRows, "a held removal keeps its row: the setting may still be on the device")
+			if tc.want == removeHeldQuietly {
+				require.Nil(t, row, "an unchanged hold must not be rewritten every pass")
+				return
+			}
+
+			require.NotNil(t, row, "the hold must be recorded so it is visible rather than silent")
+			require.Nil(t, row.Status, "a held removal stays pending (NULL status) so the reconciler revisits it")
+			require.Equal(t, fleet.MDMOperationTypeRemove, row.OperationType)
+			wantDetail := tc.wantDetail
+			if wantDetail == "" {
+				wantDetail = fleet.WindowsUserScopeRemoveHoldDetail
+			}
+			require.Equal(t, wantDetail, row.Detail)
+			require.Empty(t, row.CommandUUID, "a held row must not point at a command that was never enqueued")
+		})
+	}
+}
+
+// TestReconcileWindowsProfilesPartitionsRemovalsByUserContext covers one removed profile across hosts in different user-context
+// states. A single <Delete> is addressed to many hosts, so the gate has to split the target rather than decide per profile.
+func TestReconcileWindowsProfilesPartitionsRemovalsByUserContext(t *testing.T) {
+	const (
+		removedProfile = "removed-profile-uuid"
+		hostReady      = "host-ready"
+		hostOOBE       = "host-oobe"
+		hostFleetd     = "host-fleetd"
+	)
+	teamID := uint(1)
+	signedIn := fleet.WindowsMDMLoginStatusUser
+	others := fleet.WindowsMDMLoginStatusOthers
+
+	snapshot := windowsReconcileSnapshot{
+		contents: map[string][]byte{removedProfile: windowsTestUserProfileSyncML("Experience/AllowWindowsSpotlight")},
+		current:  map[string][]*fleet.MDMWindowsProfilePayload{},
+		userContexts: map[string]fleet.WindowsEnrollmentUserContext{
+			hostReady:  entraContext(hostReady, &signedIn),
+			hostOOBE:   entraContext(hostOOBE, &others),
+			hostFleetd: programmaticContext(hostFleetd),
+		},
+	}
+	for i, hostUUID := range []string{hostReady, hostOOBE, hostFleetd} {
+		snapshot.hosts = append(snapshot.hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(i + 1), UUID: hostUUID, TeamID: &teamID})
+		snapshot.current[hostUUID] = []*fleet.MDMWindowsProfilePayload{installedRow(removedProfile, "Removed", hostUUID)}
+	}
+
+	result := runWindowsReconcileOnce(t, snapshot)
+
+	require.ElementsMatch(t, []string{hostReady, hostFleetd}, result.deleteCommandHosts,
+		"only the host awaiting first sign-in is withheld from the removal")
+	require.Empty(t, result.deletedRows, "a held removal keeps its row; the hosts that were sent a <Delete> resolve on the ack")
+
+	held := result.upsertFor(hostOOBE, removedProfile)
+	require.NotNil(t, held, "the withheld host must have its wait recorded")
+	require.Equal(t, fleet.WindowsUserScopeRemoveHoldDetail, held.Detail)
+	require.Nil(t, result.upsertFor(hostReady, removedProfile), "a sent removal is recorded by the enqueue path")
+	require.Nil(t, result.upsertFor(hostFleetd, removedProfile), "a sent removal is recorded by the enqueue path")
 }
 
 // TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam covers transferring a host between two teams whose profiles
