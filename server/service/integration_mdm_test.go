@@ -55,6 +55,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 
 	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -19057,6 +19058,20 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
 	require.NoError(t, err)
 	require.True(t, coboHostMDM.Enrolled, "host_mdm.enrolled must stay true until the device acks via Pub/Sub DELETED")
+
+	// Reset between sub-cases.
+	didCallAMAPIDelete = false
+	didCallAMAPIIssueWipe = false
+	issuedCommand = nil
+
+	// BYO host where AMAPI returns 404 (device already removed from Google) -> should succeed (204), not 500.
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, _ string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		didCallAMAPIIssueWipe = true
+		return nil, &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}
+	}
+	byoGoneHostID := createAndroidHostForTest(t, s.ds, nil, false)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", byoGoneHostID), nil, http.StatusNoContent)
+	require.True(t, didCallAMAPIIssueWipe, "expected BYO unenroll to attempt IssueCommand even when device is gone")
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
