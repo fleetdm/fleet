@@ -2507,10 +2507,8 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
-	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given
-	// (hostUUID, profileUUID) Windows profile. While the profile has retries left it goes back to "pending" so the
-	// profile manager redelivers it, and reports retried=true; once they are exhausted the failure is terminal and the
-	// provided detail is surfaced to the user.
+	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given (hostUUID,
+	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending."
 	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
@@ -3487,10 +3485,7 @@ type Datastore interface {
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
 	// ResendWindowsHostCertificateProfile marks the given Windows profile to be resent to the given host after Fleet
-	// turned a SCEP request away (an expired or rejected challenge) rather than the host having failed to install
-	// anything. Nothing is charged against the retry budget, and unlike the Apple counterpart the counter is not reset
-	// either: the Windows SCEP CSP re-drives the exchange on its own with the superseded challenge, so resetting would
-	// stop the profile ever reaching a terminal state.
+	// turned a SCEP request away (an expired or rejected challenge).
 	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////

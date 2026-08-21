@@ -1618,12 +1618,16 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 // challenge that fails validateIdentifier returns before PKIOperation reaches the CA, so no upstream failure is ever
 // recorded for it.
 //
-// It deliberately does NOT reset the counter, which is where it parts company with the Apple equivalent. The Windows
-// SCEP CSP retries the exchange on its own schedule using the challenge baked into the profile it already holds, so
-// right after a redelivery Fleet reliably sees one of those late requests carrying the superseded challenge and
-// rejects it. Zeroing the counter there would hand the profile a fresh budget on every cycle and it would never reach
-// a terminal state, no matter how many times the CA actually failed. Apple has no equivalent exposure because its
-// profile install is atomic and the device does not re-drive SCEP by itself.
+// It deliberately does NOT reset the counter, which is where it parts company with the Apple equivalent. On the custom
+// SCEP proxy path, a delivery whose PKIOperation genuinely fails at the CA has already spent its Fleet one-time
+// challenge getting there (ConsumeChallenge deletes it), and burns a retry. Fleet then queues a redelivery carrying a
+// fresh Fleet challenge, but before it reaches the device the Windows SCEP CSP re-drives the exchange on its own,
+// replaying the profile it still holds and therefore the already-consumed challenge. That replay is rejected and comes
+// through here. Zeroing the counter on it would hand the profile a fresh budget once per genuine CA failure and it
+// would never reach a terminal state, no matter how many times the CA actually failed. Apple has no equivalent
+// exposure because its profile install is atomic and the device does not re-drive SCEP by itself.
+//
+// Note this is the Fleet-issued one-time challenge in the proxy URL, not the SCEP challenge password the CA checks.
 //
 // Unlike the Apple counterpart there is also no queued command to deactivate: the profile manager writes a new command
 // UUID onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
