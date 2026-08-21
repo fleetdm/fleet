@@ -94,6 +94,7 @@ func TestPolicies(t *testing.T) {
 		{"TeamPatchPolicy", testTeamPatchPolicy},
 		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
 		{"ApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery", testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery},
+		{"ApplyPolicySpecsNotifyBeforePatchingRejectsWindows", testApplyPolicySpecsNotifyBeforePatchingRejectsWindows},
 		{"ApplyPolicySpecsRenamePatchPolicyRegression43687", testApplyPolicySpecsRenamePatchPolicyRegression43687},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
@@ -8380,7 +8381,7 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 	})
 	require.NoError(t, err)
 
-	spec := func(patchWhenClosed bool) []*fleet.PolicySpec {
+	spec := func(patchWhenClosed bool, notifyBeforePatching bool) []*fleet.PolicySpec {
 		return []*fleet.PolicySpec{{
 			Name:                   "patch-fma-when-closed",
 			Query:                  "SELECT 1;",
@@ -8388,21 +8389,85 @@ func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds 
 			Type:                   fleet.PolicyTypePatch,
 			FleetMaintainedAppSlug: "maintained2",
 			PatchWhenClosed:        patchWhenClosed,
+			NotifyBeforePatching:   notifyBeforePatching,
 		}}
 	}
 
-	// patch_when_closed is rejected while the package has its own pre-install query.
-	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true))
-	require.ErrorContains(t, err, "pre_install_query can't be set on Fleet-maintained app")
-
 	// The rejected batch wrote nothing.
+	assertNothingWritten := func() {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM policies WHERE name = ?`, "patch-fma-when-closed")
+		})
+		require.Zero(t, count)
+	}
+
+	// patch_when_closed is rejected while the package has its own pre-install query.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true, false))
+	require.ErrorContains(t, err, `pre_install_query can't be set on Fleet-maintained app "maintained2" when patch_when_closed is true`)
+	assertNothingWritten()
+
+	// notify_before_patching is rejected for the same reason, and names itself in the error.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, true))
+	require.ErrorContains(t, err, `pre_install_query can't be set on Fleet-maintained app "maintained2" when notify_before_patching is true`)
+	assertNothingWritten()
+
+	// The same spec applies without patch_when_closed or notify_before_patching.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false, false)))
+}
+
+func testApplyPolicySpecsNotifyBeforePatchingRejectsWindows(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-nbp-windows"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "MaintainedWin",
+		Slug:             "maintained-win",
+		Platform:         "windows",
+		UniqueIdentifier: "fleet.maintainedwin",
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		StorageID:            "storage-nbp-windows",
+		Filename:             "maintained-win",
+		Title:                "MaintainedWin",
+		Version:              "1.0",
+		Source:               "programs",
+		Platform:             "windows",
+		BundleIdentifier:     "fleet.maintainedwin",
+		UserID:               user1.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	spec := func(notifyBeforePatching bool) []*fleet.PolicySpec {
+		return []*fleet.PolicySpec{{
+			Name:                   "patch-fma-notify",
+			Query:                  "SELECT 1;",
+			Team:                   team1.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained-win",
+			NotifyBeforePatching:   notifyBeforePatching,
+		}}
+	}
+
+	// notify_before_patching is macOS-only, so a Windows Fleet-maintained app is rejected.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true))
+	require.ErrorContains(t, err, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error())
+
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM policies WHERE name = ?`, "patch-fma-when-closed")
+		return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM policies WHERE name = ?`, "patch-fma-notify")
 	})
 	require.Zero(t, count)
 
-	// The same spec applies without patch_when_closed.
+	// The same Windows patch policy applies without notify_before_patching.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false)))
 }
 

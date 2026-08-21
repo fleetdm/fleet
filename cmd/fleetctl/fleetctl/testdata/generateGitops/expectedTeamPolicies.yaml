@@ -1,30 +1,41 @@
 - calendar_events_enabled: false
+  conditional_access_enabled: true
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy
   name: Team Policy
   platform: linux,windows
-  query: SELECT * FROM team_policy WHERE id = 1
+  query: "SELECT * FROM team_policy WHERE id = 1"
   resolution: Do a team thing
   run_script:
     path: /path/to/script1.sh
   type: dynamic
-  conditional_access_enabled: true
-  conditional_access_bypass_enabled: true
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
+  conditional_access_enabled: true
   continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
+  fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
+  notify_before_patching: false
   patch_when_closed: true
   platform: linux,windows
-  query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
-  fleet_maintained_app_slug: "foo/darwin"
   type: patch
-  conditional_access_enabled: true
-  conditional_access_bypass_enabled: false
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: true
+  critical: false
+  description: This is a team patch policy that notifies before patching
+  fleet_maintained_app_slug: foo/darwin
+  name: My Notify FMA up to date
+  notify_before_patching: true
+  patch_when_closed: false
+  platform: darwin
+  resolution: Install the latest version from self-service
+  type: patch
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
@@ -35,7 +46,33 @@
     app_store_id: "1234567890"
   name: Team VPP policy
   platform: darwin
-  query: SELECT * FROM team_policy WHERE id = 3
+  query: "SELECT * FROM team_policy WHERE id = 3"
   resolution: Install the app
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: false
+  critical: false
+  description: This is a team policy with FMA install automation
+  install_software:
+    fleet_maintained_app_slug: fma1/darwin
+  name: Team FMA install policy
+  platform: darwin
+  query: "SELECT 1 FROM filevault_status WHERE status LIKE '%on%';"
+  resolution: Install the FMA
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: false
+  critical: false
+  description: This is a team policy with custom package install automation
+  install_software:
+    hash_sha256: team-software-hash __TEAM_SOFTWARE_COMMENT_TOKEN__
+  name: Team package install policy
+  platform: linux,windows
+  query: "SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL) / blocks > 0.10;"
+  resolution: Install the package
   type: dynamic
   webhooks_and_tickets_enabled: false
