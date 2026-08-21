@@ -1012,10 +1012,17 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 const dueHostsChunkSize = 1000
 
 // ListHostIDsDueForDistributedRead returns the subset of hostIDs whose next
-// distributed/read would include interval work, keyed by host ID with the
-// reason it is due. It reuses the same staleness gates as the read path
-// (shouldUpdate, including the per-host jitter tables), so notification and
-// read decisions agree by construction.
+// distributed/read would include interval work or an unanswered live query
+// campaign, keyed by host ID with the reason it is due. It reuses the same
+// staleness gates as the read path (shouldUpdate, including the per-host
+// jitter tables), so notification and read decisions agree by construction.
+//
+// The live query check makes the pub/sub wake-up (NotifyAgentsForLiveQuery) a
+// latency optimization only: a campaign created while a host's connection was
+// down, or whose one-shot wake-up was lost anywhere along the way (pub/sub,
+// send-buffer overflow, failed write), is recovered within one interval check
+// tick. Hosts stop being re-notified once they answer, because answering
+// clears their targeting in the store (QueryCompletedByHost).
 //
 // Known limitation (ADR-0011 POC): when async task processing is enabled, the
 // label/policy reported-at timestamps may be fresher in Redis (see
@@ -1028,6 +1035,15 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 	// user-facing endpoint.
 	svc.authz.SkipAuthorization(ctx)
 
+	// With no active campaigns (the common case) the per-host live query check
+	// below is skipped entirely; the names are served from the store's
+	// in-memory cache. Errors are non-fatal so interval-work notification never
+	// depends on the live query store being reachable.
+	activeCampaigns, err := svc.liveQueryStore.LoadActiveQueryNames()
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load active query names for distributed read due check", "err", err)
+	}
+
 	due := make(map[uint]string)
 	for start := 0; start < len(hostIDs); start += dueHostsChunkSize {
 		end := min(start+dueHostsChunkSize, len(hostIDs))
@@ -1038,10 +1054,43 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 		for _, host := range hosts {
 			if reason := svc.hostDueForDistributedRead(host); reason != "" {
 				due[host.ID] = reason
+				continue
+			}
+			// Only hosts with no interval work are checked: a host notified for
+			// interval work performs a full distributed/read, which serves any
+			// live query targeting it anyway.
+			if len(activeCampaigns) > 0 {
+				if reason := svc.hostDueForLiveQuery(ctx, host.ID); reason != "" {
+					due[host.ID] = reason
+				}
 			}
 		}
 	}
 	return due, nil
+}
+
+// hostDueForLiveQuery returns a live-<campaign ID> reason when an active live
+// query campaign targets the host and the host has not answered it yet, or ""
+// otherwise. Errors are logged and treated as not due: the check re-runs on
+// the next interval check tick.
+//
+// Cost: one pipelined Redis lookup per host per tick while a campaign is
+// active — the same lookup a polling host's distributed/read performs today,
+// at a lower frequency. Batching across hosts is a possible optimization; see
+// the interval check job design notes in ADR-0011.
+func (svc *Service) hostDueForLiveQuery(ctx context.Context, hostID uint) string {
+	queries, err := svc.liveQueryStore.QueriesForHost(hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "list live queries for distributed read due check",
+			"host_id", hostID, "err", err)
+		return ""
+	}
+	// The reason is informational only, so when several campaigns target the
+	// host any one of them will do.
+	for name := range queries {
+		return fleet.AgentWSReasonLiveQueryName(name)
+	}
+	return ""
 }
 
 // hostDueForDistributedRead mirrors the gates of detailQueriesForHost,

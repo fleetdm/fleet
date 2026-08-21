@@ -8,9 +8,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// DueLister lists which of the given hosts are due for a distributed read,
-// keyed by host ID with the reason it is due (see the fleet.AgentWSReason
-// constants). It is satisfied by fleet.Service.
+// DueLister lists which of the given hosts are due for a distributed read —
+// interval work or an unanswered live query campaign — keyed by host ID with
+// the reason it is due (see the fleet.AgentWSReason constants and
+// fleet.AgentWSReasonLiveQuery). It is satisfied by fleet.Service.
 type DueLister interface {
 	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 }
@@ -21,10 +22,12 @@ type DueLister interface {
 const chunkPacingDelay = 100 * time.Millisecond
 
 // IntervalChecker is the per-instance job that periodically notifies connected
-// agents with due interval work (labels, policies, host vitals). Each server
-// instance runs its own checker over only the WebSocket connections it holds,
-// so the work is naturally sharded across instances with no coordination —
-// this is intentionally NOT a cluster-wide locked cron job.
+// agents with due work: interval work (labels, policies, host vitals) and
+// unanswered live query campaigns whose one-shot pub/sub wake-up was missed
+// (host mid-reconnect at campaign creation, lost message, dropped buffer
+// entry). Each server instance runs its own checker over only the WebSocket
+// connections it holds, so the work is naturally sharded across instances with
+// no coordination — this is intentionally NOT a cluster-wide locked cron job.
 //
 // In steady state hosts' updated-at timestamps are naturally spread out, so
 // each tick finds only a small slice due. The one case where everything looks
@@ -54,12 +57,13 @@ func (c *IntervalChecker) Run(ctx context.Context) {
 }
 
 func (c *IntervalChecker) checkOnce(ctx context.Context) {
-	// Every held connection is checked against the database on every tick: the
-	// hosts table is the single source of truth for due-ness. A due host stays
-	// due until its results are ingested, so it is re-notified each tick until
-	// then — the agent coalesces triggers into one read+write iteration at a
-	// time (see orbit/pkg/wstransport), which bounds the cost of re-notifying
-	// to one cheap follow-up read per iteration.
+	// Every held connection is checked on every tick: the hosts table is the
+	// single source of truth for interval due-ness, and the live query store
+	// for unanswered campaigns. A due host stays due until its results are
+	// ingested (or, for a live query, until it answers), so it is re-notified
+	// each tick until then — the agent coalesces triggers into one read+write
+	// iteration at a time (see orbit/pkg/wstransport), which bounds the cost
+	// of re-notifying to one cheap follow-up read per iteration.
 	hostIDs := c.Hub.HeldHostIDs()
 
 	notified := 0

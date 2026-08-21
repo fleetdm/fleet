@@ -161,9 +161,9 @@ func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(Age
 // (see live_query.NewRedisLiveQuery): an agent connected over the WebSocket
 // transport performs its distributed/read within milliseconds of a
 // notification, and a read served from a cache snapshot loaded just before
-// the campaign was stored does not include the campaign — and live query
-// notifications are one-shot, so the campaign would be missed entirely.
-// Delaying the notification by at least the cache TTL guarantees every
+// the campaign was stored does not include the campaign. The interval check
+// job would recover the miss, but only a full check interval later; delaying
+// the notification by at least the cache TTL instead guarantees every
 // instance's cache snapshot predating the campaign has expired by the time a
 // notified agent reads.
 type DelayedAgentNotifier struct {

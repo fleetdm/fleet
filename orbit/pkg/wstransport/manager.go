@@ -109,9 +109,9 @@ const (
 // one distributed read iteration (see iterState) whose queries go into the
 // cache for osquery's next local poll. There is deliberately no warm-up
 // period and no catch-up read on connect: a notification lost around a
-// (re)connect delays interval work by at most one interval-check re-notify,
-// and missing a live query on a host that was mid-reconnect is accepted (same
-// outcome as the host being offline). The remaining exposure is a half-open
+// (re)connect — interval work or a live query — is recovered by the server's
+// interval check job, which re-notifies until the work is done (results
+// ingested, or the live query answered). The remaining exposure is a half-open
 // connection, which is bounded by the keepalive read deadline for the
 // connection's whole lifetime — a warm-up window would only have narrowed its
 // first minute. When both the WebSocket and HTTP fail, the server (or the

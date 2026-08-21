@@ -41,7 +41,14 @@ const (
 // AgentWSReasonLiveQuery is the reason for a distributed/read notification
 // triggered by a live query campaign targeting the host.
 func AgentWSReasonLiveQuery(campaignID uint) string {
-	return fmt.Sprintf("live-%d", campaignID)
+	return AgentWSReasonLiveQueryName(fmt.Sprint(campaignID))
+}
+
+// AgentWSReasonLiveQueryName is the AgentWSReasonLiveQuery variant for callers
+// holding the campaign's live query store name, which is its ID in decimal
+// (see the LiveQueryStore.RunQuery callers).
+func AgentWSReasonLiveQueryName(name string) string {
+	return "live-" + name
 }
 
 // AgentCheckInNotifier publishes cross-instance wake-ups for connected agents.
