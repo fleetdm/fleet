@@ -250,7 +250,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
-  | ActivityType.ReleasedDeviceFromAB;
+  | ActivityType.ReleasedDeviceFromAB
+  | ActivityType.ResentConfigurationProfile;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
