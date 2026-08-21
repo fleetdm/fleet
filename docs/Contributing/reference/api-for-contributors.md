@@ -3415,6 +3415,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
+- [Send APNs ping to device](#send-apns-ping-to-device)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
@@ -4039,6 +4040,32 @@ with the download option.
   "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
 }
 ```
+
+---
+
+#### Send APNs ping to device
+
+Sends an APNs push notification to the current device, prompting it to check in with the Fleet server and pick up any pending MDM commands or configuration profiles. Used by the **My device** page when the user refetches.
+
+This is intentionally separate from the refetch endpoint so that programmatic refetches don't each trigger an APNs push.
+
+The device must be an Apple host with MDM turned on. The request has no body. If the device is offline, the push notification will be delivered when the device comes back online.
+
+`POST /api/v1/fleet/device/{token}/apns_ping`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/apns_ping`
+
+##### Default response
+
+`Status: 204`
 
 ---
 
