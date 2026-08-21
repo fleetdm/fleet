@@ -120,7 +120,7 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 // source (issue #49914: duplicate device mapping after EACS wipe and ADE
 // re-enrollment).
 func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	idpAccount := &fleet.MDMIdPAccount{
 		Username: "sso.user",
