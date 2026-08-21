@@ -1,6 +1,6 @@
 # La IA no solo reemplaza empleos, reescribe la descripción del puesto
 
-*La IA no está borrando el trabajo de IT, más bien está redibujando quién está en posición de hacerlo. La línea divisoria atraviesa a los equipos de IT, y los datos muestran dónde.*
+*La IA no está borrando el trabajo de IT, más bien está redibujando quién está en posición de hacerlo. La línea divisoria atraviesa directamente a los equipos de IT, y los datos muestran dónde.*
 
 ## Conclusiones clave
 
