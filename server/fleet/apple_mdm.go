@@ -1713,6 +1713,15 @@ const (
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
 
+// CancelableAppleMDMRequestTypes are the request types of Apple MDM commands
+// that can be canceled while they are still pending delivery to the device.
+var CancelableAppleMDMRequestTypes = map[string]struct{}{
+	"DeviceLock":          {},
+	"EraseDevice":         {},
+	"ClearPasscode":       {},
+	EnableLostModeCmdName: {},
+}
+
 // PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
 // Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
 // if `SetPrimarySetupAccountAsRegularUser` or `SkipPrimarySetupAccountCreation` is true, you must configure a local admin account.

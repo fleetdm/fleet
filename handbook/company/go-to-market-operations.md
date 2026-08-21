@@ -516,7 +516,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 > 
 > DRI: @Sampfluger88 (`@`-mention the DRI in [#help-gtm-ops](https://fleetdm.slack.com/archives/C08BTMFTUCR))
 > - Does the Eventbrite page have an "order form" attached? If so, remove it! « This breaks the flow by adding another required form submission not tied to the `New Attendee Registered` action. Attendee name and email will be returned as "Info Requested".
-> - Does the SFDC campaign exists?
+> - Does the SFDC campaign exist?
 > - Is the `Event_key` populated correctly on the corresponding SFDC campaign?
 
 
@@ -960,7 +960,7 @@ The attribution system is driven by a single trigger: **when Most Recent Campaig
 
 **Step 4 — Populate Opportunity on creation.** When an opportunity is created, the Most Recent Channel, Most Recent Channel Detail, and Most Recent Campaign values are copied to the Converting fields on the Opportunity record, capturing the converting-touch at that exact moment.
 
-Note: The Most Recent values on the contact are updated with each engagemet with the contact, overwriting historical values.
+Note: The Most Recent values on the contact are updated with each engagement with the contact, overwriting historical values.
 
 ## SFDC campaign hierarchy
 

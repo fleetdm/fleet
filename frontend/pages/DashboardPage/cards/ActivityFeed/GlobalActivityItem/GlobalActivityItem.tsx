@@ -1438,13 +1438,11 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
-    const actor = activity.actor_full_name
-      ? activity.actor_full_name
-      : "An end user";
+    const actor = activity.actor_full_name ? activity.actor_full_name : "Fleet";
     return (
       <>
-        <b>{actor}</b> resent {activity.details?.profile_name} configuration
-        profile to {activity.details?.host_display_name}.
+        <b>{actor}</b> resent <b>{activity.details?.profile_name}</b> to{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -2274,6 +2272,21 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
     );
   },
+  addedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> added Microsoft Graph credential{suffix}.</>;
+  },
+  editedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> edited Microsoft Graph credential{suffix}.</>;
+  },
+  deletedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> deleted Microsoft Graph credential{suffix}.</>;
+  },
   addedMicrosoftEntraClientId: (activity: IActivity) => {
     const clientId = activity.details?.client_id;
     return (
@@ -2813,6 +2826,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraClientId: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
+    }
+    case ActivityType.AddedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.addedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.EditedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.editedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.DeletedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.deletedMicrosoftGraphCredential(activity);
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);

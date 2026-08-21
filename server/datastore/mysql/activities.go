@@ -36,6 +36,7 @@ var policyAutomationSuccessActivityTypes = []string{
 	"ran_automation_ticket",
 	"ran_automation_calendar_event",
 	"ran_automation_conditional_access",
+	"resent_configuration_profile",
 }
 
 var policyAutomationActivityTypes = func() []string {
