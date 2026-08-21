@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/ci/apiparamcheck
 
-go 1.26.6
+go 1.26.7
 
 require (
 	github.com/golangci/plugin-module-register v0.1.2

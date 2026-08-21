@@ -918,6 +918,31 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return err
 	}
+
+	if fromEnroll {
+		// Clear the state the re-enrolled device no longer has (dynamic labels, pending
+		// commands and software installs) before anything below writes this enrollment's
+		// data, so the reset cannot undo the writes below and cannot fail installs after
+		// verifyDeviceSoftware has just verified them.
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config for android reenroll reset")
+		}
+		users, acts, err := svc.ds.AndroidResetOnReenrollment(ctx, host.Host.ID, host.Host.UUID,
+			appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reset state on android reenroll")
+		}
+		if len(users) != len(acts) {
+			return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+		}
+		for i, act := range acts {
+			if err := svc.newActivity(ctx, users[i], act); err != nil {
+				return ctxerr.Wrap(ctx, err, "create failed app install activity on android reenroll")
+			}
+		}
+	}
+
 	if device.AppliedPolicyName != "" {
 		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {

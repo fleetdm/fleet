@@ -356,6 +356,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:15:39
 
+### [CVE-2026-56865](https://nvd.nist.gov/vuln/detail/CVE-2026-56865)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56865 (GO-2026-6179) is in golang.org/x/mod/sumdb/tlog (tileHashReader.ReadHashes): a malicious GOPROXY could forge sumdb tiles to bypass the GOSUMDB check and persist attacker-controlled module content to the local Go module cache. This code path is only used when downloading Go modules (e.g. by the go command). fleetctl only imports golang.org/x/mod/semver (version string parsing); the vulnerable sumdb packages are not compiled into the fleetctl binary and fleetctl never downloads or verifies Go modules at runtime.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/mod`
+- **Justification:** `vulnerable_code_not_present`
+- **Timestamp:** 2026-08-20 09:04:44
+
+### [CVE-2026-56864](https://nvd.nist.gov/vuln/detail/CVE-2026-56864)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56864 (GO-2026-6180) is in golang.org/x/mod/sumdb (Client.Lookup): a malicious GOSUMDB could serve arbitrary module content not contained within the transparency log. This code path is only used when downloading Go modules (e.g. by the go command). fleetctl only imports golang.org/x/mod/semver (version string parsing); the vulnerable sumdb packages are not compiled into the fleetctl binary and fleetctl never downloads or verifies Go modules at runtime.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/mod`
+- **Justification:** `vulnerable_code_not_present`
+- **Timestamp:** 2026-08-20 09:04:35
+
 ### [CVE-2026-56862](https://nvd.nist.gov/vuln/detail/CVE-2026-56862)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`

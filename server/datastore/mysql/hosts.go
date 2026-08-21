@@ -3861,40 +3861,17 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	FROM policies p
 	LEFT JOIN policy_membership pm ON (p.id=pm.policy_id AND host_id=?)
 	LEFT JOIN users u ON p.author_id = u.id
-	LEFT JOIN (
-		SELECT pl.policy_id,
-			-- 1 if this policy has any include_any labels
-			MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 THEN 1 ELSE 0 END) AS has_include_any,
-			-- 1 if this host is a member of at least one include_any label
-			MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_include_any,
-			-- count of include_all labels on this policy
-			SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS include_all_count,
-			-- count of include_all labels this host is a member of
-			SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
-			-- 1 if this host is a member of at least one exclude_any label
-			MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude_any,
-			-- count of exclude_all labels on this policy
-			SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS exclude_all_count,
-			-- count of exclude_all labels this host is a member of
-			SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_exclude_all_count
-		FROM policy_labels pl
-		LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
-		GROUP BY pl.policy_id
+	LEFT JOIN (` + policyLabelScopeSubquery + `
 	) pl_agg ON pl_agg.policy_id = p.id
 	WHERE (p.team_id IS NULL OR p.team_id = COALESCE((SELECT team_id FROM hosts WHERE id = ?), 0))
 	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
-	-- Policy has no include_any labels, or host is in at least one
-	AND (COALESCE(pl_agg.has_include_any, 0) = 0 OR pl_agg.host_in_include_any = 1)
-	-- Policy has no include_all labels, or host is in all of them
-	AND (COALESCE(pl_agg.include_all_count, 0) = 0 OR pl_agg.host_include_all_count = pl_agg.include_all_count)
-	-- Host is not in any exclude_any label
-	AND COALESCE(pl_agg.host_in_exclude_any, 0) = 0
-	-- Policy has no exclude_all labels, or host is not in all of them
-	AND (COALESCE(pl_agg.exclude_all_count, 0) = 0 OR pl_agg.host_exclude_all_count < pl_agg.exclude_all_count)
+	AND` + policyLabelScopeWhere + `
 	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, host.ID, host.ID, host.ID, host.FleetPlatform()); err != nil {
+	args := append([]any{host.ID}, policyLabelScopeArgs(host)...)
+	args = append(args, host.ID, host.FleetPlatform())
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

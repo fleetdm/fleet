@@ -57,9 +57,9 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
-/charts/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
-/terraform/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
+/infrastructure/ @rfairburn @ksatter @georgekarrv @ddribeiro
+/charts/ @rfairburn @ksatter @georgekarrv @ddribeiro
+/terraform/ @rfairburn @ksatter @georgekarrv @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -74,9 +74,9 @@ go.mod @fleetdm/go
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
-/render.yaml                                            @edwardsb
+/render.yaml                                            @rfairburn
 /it-and-security                                        @allenhouchins
-/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
+/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn # « Infra: active notification of changes to IP Allowlists
 /openspec                                               @lukeheath
 /website/package-lock.json                              @eashaw
 
