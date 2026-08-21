@@ -541,10 +541,18 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 // reconcile cron regenerates it with a fresh challenge.
 //
 // An expired challenge is a timing condition, not a host install failure: the device never got the chance to install
-// anything, so the attempt must not consume the host's limited profile retries (and for Apple, a late failure ACK for
-// the superseded command must not strand the profile as "failed"). Both platforms therefore use their retry-resetting
-// resend. The tables are separate, so the platform is picked off the profile UUID prefix; Android has no host profile
-// row at all and falls back to the generic resend.
+// anything, so the attempt must not consume the host's limited profile retries. The tables are separate, so the
+// platform is picked off the profile UUID prefix; Android has no host profile row at all and falls back to the generic
+// resend.
+//
+// The two platforms deliberately differ in what they do to the retry counter, so do not "align" them:
+//
+//   - Apple RESETS it to zero, and additionally clears the stale in-flight command so a late failure ACK for the
+//     superseded command cannot strand the profile as "failed".
+//   - Windows PRESERVES it. The Windows SCEP CSP re-drives the exchange itself using the challenge in the profile it
+//     already holds, so Fleet sees a rejected superseded challenge shortly after every redelivery. Resetting there
+//     would refill the budget on each cycle and the profile would never reach a terminal state however often the CA
+//     failed. Apple's install is atomic and its device does not re-drive SCEP, so it has no equivalent exposure.
 func (svc *scepProxyService) resendProfileForExpiredChallenge(ctx context.Context, hostUUID, profileUUID string) error {
 	switch {
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
@@ -646,6 +654,13 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			"status_code", resp.StatusCode,
 			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
 		)
+		// A 5xx means NDES answered but could not serve the request, which is the shape an IIS restart or an
+		// overloaded NDES takes; that clears on its own and must not be reported as bad credentials.
+		if ndesRetryableStatus(resp.StatusCode) {
+			return "", ctxerr.Wrap(ctx, NewNDESTransientError(fmt.Sprintf(
+				"NDES admin URL returned status %d; could not retrieve the enrollment challenge password",
+				resp.StatusCode)))
+		}
 		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
@@ -761,6 +776,30 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	return string(b), nil
 }
 
+// NDESTransientError is a challenge-fetch failure where NDES answered but could not serve the request, so it is
+// expected to clear without anyone acting. Kept distinct from NDESInvalidError because every non-200 used to collapse
+// into that type, which made an IIS restart (503) look identical to bad credentials and permanently failed every
+// profile the outage touched.
+type NDESTransientError struct {
+	msg string
+}
+
+func (e NDESTransientError) Error() string {
+	return e.msg
+}
+
+func NewNDESTransientError(msg string) NDESTransientError {
+	return NDESTransientError{msg: msg}
+}
+
+// ndesRetryableStatus reports whether an NDES admin-URL HTTP status is one that clears on its own: any 5xx, plus the
+// request-timeout and rate-limit codes.
+func ndesRetryableStatus(code int) bool {
+	return code >= http.StatusInternalServerError ||
+		code == http.StatusRequestTimeout ||
+		code == http.StatusTooManyRequests
+}
+
 type NDESInvalidError struct {
 	msg string
 }
@@ -834,6 +873,8 @@ func NDESChallengeErrorToDetail(err error) string {
 	case errors.As(err, &NDESInsufficientPermissionsError{}):
 		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
 			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
+	case errors.As(err, &NDESTransientError{}):
+		return fmt.Sprintf("Fleet couldn't reach NDES to populate %s and will try again. %s", varName, err.Error())
 	default:
 		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
 	}

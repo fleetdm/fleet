@@ -1396,6 +1396,8 @@ func TestIsTerminalNDESChallengeError(t *testing.T) {
 		{"insufficient permissions", NewNDESInsufficientPermissionsError("account lacks permissions"), true},
 		{"wrapped terminal error is still terminal", fmt.Errorf("scraping challenge: %w", NewNDESPasswordCacheFullError("full")), true},
 		{"connection refused", errors.New("sending request: dial tcp 10.0.0.10:80: connect: connection refused"), false},
+		{"NDES answered 503", NewNDESTransientError("NDES admin URL returned status 503"), false},
+		{"wrapped transient error is still transient", fmt.Errorf("scraping challenge: %w", NewNDESTransientError("status 502")), false},
 		{"timeout", context.DeadlineExceeded, false},
 		{"truncated response", errors.New("reading response body: unexpected EOF"), false},
 	} {
@@ -1445,6 +1447,59 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 			for _, notWant := range tc.wantNotContains {
 				assert.NotContains(t, detail, notWant)
 			}
+		})
+	}
+}
+
+// Every non-200 from the NDES admin URL used to collapse into NDESInvalidError, so an IIS restart (503) was
+// indistinguishable from bad credentials and permanently failed every profile the outage touched. 5xx and the
+// throttling/timeout codes are separated out so callers can leave those profiles queued.
+func TestNDESRetryableStatus(t *testing.T) {
+	for _, tc := range []struct {
+		code int
+		want bool
+	}{
+		{http.StatusInternalServerError, true},
+		{http.StatusBadGateway, true},
+		{http.StatusServiceUnavailable, true},
+		{http.StatusGatewayTimeout, true},
+		{http.StatusRequestTimeout, true},
+		{http.StatusTooManyRequests, true},
+		{http.StatusUnauthorized, false},
+		{http.StatusForbidden, false},
+		{http.StatusNotFound, false},
+		{http.StatusBadRequest, false},
+	} {
+		t.Run(http.StatusText(tc.code), func(t *testing.T) {
+			assert.Equal(t, tc.want, ndesRetryableStatus(tc.code))
+		})
+	}
+}
+
+// End to end through GetNDESSCEPChallenge: a 503 must come back as a transient error the classifier calls non-terminal,
+// while a 401 stays terminal with the credentials message.
+func TestGetNDESSCEPChallengeStatusClassification(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		code         int
+		wantTerminal bool
+	}{
+		{"service unavailable is transient", http.StatusServiceUnavailable, false},
+		{"unauthorized is terminal", http.StatusUnauthorized, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.code)
+			}))
+			defer srv.Close()
+
+			timeout := 5 * time.Second
+			svc := NewSCEPConfigService(slog.New(slog.DiscardHandler), &timeout)
+			_, err := svc.GetNDESSCEPChallenge(context.Background(), fleet.NDESSCEPProxyCA{
+				AdminURL: srv.URL, Username: "u", Password: "p",
+			})
+			require.Error(t, err)
+			assert.Equal(t, tc.wantTerminal, IsTerminalNDESChallengeError(err))
 		})
 	}
 }

@@ -392,7 +392,9 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	t.Run("certificate profile resend neither charges nor refills the retries", func(t *testing.T) {
 		h := mkHost(t, "resend-cert")
 		p := "w-resend-cert"
-		upsertWinProfile(t, h, p, "cmd-resend-cert", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries-1)
+		// "verifying" is the realistic state for this path: the host acknowledged the profile and is mid-exchange when
+		// the stale challenge arrives. A terminal row is covered separately below.
+		upsertWinProfile(t, h, p, "cmd-resend-cert", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries-1)
 		_, err := ds.writer(ctx).ExecContext(ctx,
 			`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
 			"SCEP PKIOperation failed: HTTP 500", h.UUID, p)
@@ -435,6 +437,35 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Empty(t, status)
 		require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
 	})
+
+	// Windows profiles are exempt from the "status must be pending" gate in validateIdentifier, so a straggling SCEP
+	// request from the CSP's own retry can reach the resend long after the row settled. Terminal states must survive
+	// it: requeueing a verified profile would spend another challenge on a certificate the host already has, and
+	// requeueing a failed one would quietly resurrect a profile that had already run out of retries.
+	for _, tc := range []struct {
+		name   string
+		status fleet.MDMDeliveryStatus
+	}{
+		{"verified", fleet.MDMDeliveryVerified},
+		{"failed", fleet.MDMDeliveryFailed},
+	} {
+		t.Run("certificate profile resend leaves a "+tc.name+" profile alone", func(t *testing.T) {
+			h := mkHost(t, "resend-terminal-"+tc.name)
+			p := "w-resend-terminal-" + tc.name
+			upsertWinProfile(t, h, p, "cmd-resend-terminal", tc.status, mdm.MaxWindowsProfileRetries)
+			_, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_mdm_windows_profiles SET detail = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+				"terminal detail", h.UUID, p)
+			require.NoError(t, err)
+
+			require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, p))
+
+			status, detail, retries := getProfile(t, h, p)
+			require.Equal(t, tc.status, status, "a terminal profile must not be requeued by a late SCEP request")
+			require.Equal(t, "terminal detail", detail)
+			require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+		})
+	}
 
 	t.Run("certificate profile resend no-ops for a removed profile", func(t *testing.T) {
 		h := mkHost(t, "resend-cert-missing")

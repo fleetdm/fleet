@@ -1627,20 +1627,31 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 //
 // Unlike the Apple counterpart there is also no queued command to deactivate: the profile manager writes a new command
 // UUID onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
+//
+// A row that already reached a terminal state ("verified" or "failed", per the status documentation in
+// server/fleet/mdm.go) is left alone. Windows profiles are exempt from the "status must be pending" gate in
+// validateIdentifier, so a straggling SCEP request from the CSP's own retry can arrive long after the row settled.
+// Requeueing then would regress a verified profile and spend another challenge on a certificate the host already has,
+// or quietly resurrect a profile that had already exhausted its retries. An admin-initiated Resend is the supported
+// way out of a terminal state, and it comes through ResendHostMDMProfile instead.
 func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	const stmt = `
 		UPDATE host_mdm_windows_profiles
 		SET status = NULL, detail = ''
-		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
+		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?
+			AND (status IS NULL OR status NOT IN (?, ?))`
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt, hostUUID, profUUID, fleet.MDMOperationTypeInstall)
+		res, err := tx.ExecContext(ctx, stmt, hostUUID, profUUID, fleet.MDMOperationTypeInstall,
+			fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resending windows host certificate profile")
 		}
 		if rows, _ := res.RowsAffected(); rows == 0 {
-			// this should never happen, log for debugging
-			ds.logger.DebugContext(ctx, "resend windows certificate profile status not updated",
+			// Expected, not exceptional: the row is already queued with no detail (the common case, since the CSP
+			// re-drives the exchange with the superseded challenge after every redelivery), or it has settled into a
+			// terminal state the guard above protects, or the profile was removed.
+			ds.logger.DebugContext(ctx, "resend windows certificate profile: no row changed",
 				"host_uuid", hostUUID, "profile_uuid", profUUID)
 			return nil
 		}
