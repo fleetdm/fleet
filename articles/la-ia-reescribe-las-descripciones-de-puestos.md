@@ -62,8 +62,8 @@ Si estás esperando a involucrarte hasta estar seguro de que esto es real: la br
 *¿Listo para construir la superficie basada en código que la IA necesita? [Mira el flujo de trabajo GitOps de Fleet](https://fleetdm.com/docs/configuration/yaml-files) o [pide una demo](https://fleetdm.com/contact).*
 
 <meta name="articleTitle" value="La IA no solo reemplaza empleos, reescribe la descripción del puesto">
-<meta name="authorFullName" value="Matías Spinarolli">
-<meta name="authorGitHubUsername" value="jbelbo">
+<meta name="authorFullName" value="Kitzy">
+<meta name="authorGitHubUsername" value="kitzy">
 <meta name="publishedOn" value="2026-08-20">
 <meta name="description" value="La IA no elimina los empleos de IT. Cambia cómo se trabaja, y la brecha que abre atraviesa los equipos de IT. Esto es lo que muestran los datos.">
 <meta name="category" value="articles">
