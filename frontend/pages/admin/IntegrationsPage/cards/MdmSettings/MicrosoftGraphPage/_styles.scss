@@ -2,16 +2,12 @@
   @include vertical-page-layout;
 
   &__content-container {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xlarge;
+    @include flex-column-32px-gap;
     max-width: $settings-form-max-width;
   }
 
   &__sync-status {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
+    @include flex-column-8px-gap;
   }
 
   &__sync-error {

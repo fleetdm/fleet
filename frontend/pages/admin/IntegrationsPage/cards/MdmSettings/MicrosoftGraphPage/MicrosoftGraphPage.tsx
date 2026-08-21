@@ -35,8 +35,9 @@ import DeleteMicrosoftGraphCredentialModal from "./DeleteMicrosoftGraphCredentia
 
 const baseClass = "microsoft-graph-page";
 
-// Entra IDs and secrets are stored in varchar(255) columns.
-const FIELD_MAX_LENGTH = 255;
+// The two IDs are Entra GUIDs held in varchar(255) columns. The secret bound below is only a sanity limit, far above any secret Entra issues.
+const ID_MAX_LENGTH = 255;
+const SECRET_MAX_LENGTH = 1024;
 
 // The API never returns a stored secret, so the field shows this placeholder to signal one exists. It doubles as the
 // "unchanged" sentinel: the secret is only sent when the value differs from it. Aliased to the shared constant so the
@@ -120,8 +121,7 @@ const MicrosoftGraphPage = () => {
   );
 
   // Fleet stores at most one credential.
-  const storedCredential =
-    credentialsResponse?.microsoft_graph_credentials?.[0];
+  const storedCredential = credentialsResponse?.microsoft_graph_credentials[0];
 
   // Seed the form from the stored credential. Leaving the secret field untouched keeps the stored secret.
   useEffect(() => {
@@ -348,7 +348,10 @@ const MicrosoftGraphPage = () => {
           error={formErrors[field]}
           onFocus={onFocusField(field)}
           onBlur={onBlurField(field)}
-          inputOptions={{ maxLength: FIELD_MAX_LENGTH }}
+          inputOptions={{
+            maxLength:
+              field === "clientSecret" ? SECRET_MAX_LENGTH : ID_MAX_LENGTH,
+          }}
           // Fields lock during submission.
           disabled={disableChildren || isSaving}
           {...extra}

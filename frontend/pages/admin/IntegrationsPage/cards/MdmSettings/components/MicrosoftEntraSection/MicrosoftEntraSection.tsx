@@ -46,7 +46,7 @@ const MicrosoftEntraSection = ({
   );
 
   // Fleet stores at most one credential.
-  const credential = credentialsResponse?.microsoft_graph_credentials?.[0];
+  const credential = credentialsResponse?.microsoft_graph_credentials[0];
 
   const navigateToWindowsEnrollment = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS);
@@ -65,14 +65,14 @@ const MicrosoftEntraSection = ({
           <WindowsAutomaticEnrollmentCard
             windowsMdmEnabled={windowsMdmEnabled}
             tenantAdded={tenantAdded}
-            viewDetails={navigateToWindowsEnrollment}
+            onViewDetails={navigateToWindowsEnrollment}
           />
           {!isLoadingCredentials && (
             <MicrosoftGraphCard
               credentialAdded={!!credential}
               credentialInvalid={!!credential?.credential_invalid}
               credentialStatusUnavailable={isCredentialsError}
-              viewDetails={navigateToMicrosoftGraph}
+              onViewDetails={navigateToMicrosoftGraph}
             />
           )}
         </>

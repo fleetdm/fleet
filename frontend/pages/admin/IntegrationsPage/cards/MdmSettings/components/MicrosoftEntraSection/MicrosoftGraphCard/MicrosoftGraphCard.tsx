@@ -11,7 +11,7 @@ interface IMicrosoftGraphCardProps {
   credentialInvalid: boolean;
   /** Whether the credential lookup failed, so connection state is unknown rather than absent. */
   credentialStatusUnavailable?: boolean;
-  viewDetails: () => void;
+  onViewDetails: () => void;
 }
 
 /** Every state that has a credential to talk about differs only by icon and copy. */
@@ -40,12 +40,12 @@ const MicrosoftGraphCard = ({
   credentialAdded,
   credentialInvalid,
   credentialStatusUnavailable = false,
-  viewDetails,
+  onViewDetails,
 }: IMicrosoftGraphCardProps) => {
   // A failed lookup is not the same as no credential; saying "Connect" here would misreport a configured tenant.
   if (credentialStatusUnavailable) {
     return (
-      <StoredCredentialCard iconName="warning" editCredential={viewDetails}>
+      <StoredCredentialCard iconName="warning" editCredential={onViewDetails}>
         Couldn&apos;t load the Microsoft Graph connection status.
       </StoredCredentialCard>
     );
@@ -55,7 +55,7 @@ const MicrosoftGraphCard = ({
     return (
       <SectionCard
         header="Microsoft Graph"
-        cta={<Button onClick={viewDetails}>Connect</Button>}
+        cta={<Button onClick={onViewDetails}>Connect</Button>}
       >
         Add a Microsoft Entra app registration to sync Windows Autopilot devices
         to Fleet as pending hosts.
@@ -65,7 +65,7 @@ const MicrosoftGraphCard = ({
 
   if (credentialInvalid) {
     return (
-      <StoredCredentialCard iconName="error" editCredential={viewDetails}>
+      <StoredCredentialCard iconName="error" editCredential={onViewDetails}>
         Microsoft Graph credential is invalid. Windows Autopilot devices
         won&apos;t sync to Fleet as pending hosts.
       </StoredCredentialCard>
@@ -73,7 +73,7 @@ const MicrosoftGraphCard = ({
   }
 
   return (
-    <StoredCredentialCard iconName="success" editCredential={viewDetails}>
+    <StoredCredentialCard iconName="success" editCredential={onViewDetails}>
       Microsoft Graph connected.
     </StoredCredentialCard>
   );

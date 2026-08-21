@@ -17,14 +17,14 @@ const COPY = {
 const renderCard = (
   props: Partial<React.ComponentProps<typeof MicrosoftGraphCard>> = {}
 ) => {
-  const viewDetails = jest.fn();
+  const onViewDetails = jest.fn();
   return {
-    viewDetails,
+    onViewDetails,
     ...renderWithSetup(
       <MicrosoftGraphCard
         credentialAdded={false}
         credentialInvalid={false}
-        viewDetails={viewDetails}
+        onViewDetails={onViewDetails}
         {...props}
       />
     ),
@@ -33,19 +33,19 @@ const renderCard = (
 
 describe("MicrosoftGraphCard", () => {
   it("prompts to connect when no credential is stored", async () => {
-    const { user, viewDetails } = renderCard();
+    const { user, onViewDetails } = renderCard();
 
     expect(screen.getByText(COPY.connect)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Connect" }));
-    expect(viewDetails).toHaveBeenCalled();
+    expect(onViewDetails).toHaveBeenCalled();
   });
 
   it("renders the connected state when a healthy credential is stored", async () => {
-    const { user, viewDetails } = renderCard({ credentialAdded: true });
+    const { user, onViewDetails } = renderCard({ credentialAdded: true });
 
     expect(screen.getByText(COPY.connected)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Edit" }));
-    expect(viewDetails).toHaveBeenCalled();
+    expect(onViewDetails).toHaveBeenCalled();
   });
 
   it("calls out an invalid credential rather than showing it as connected", () => {

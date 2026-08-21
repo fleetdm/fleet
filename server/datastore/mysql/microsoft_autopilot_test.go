@@ -237,6 +237,11 @@ func testGraphCredentialSecretEncryptedAtRest(t *testing.T, ds *Datastore) {
 func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
+	empty, err := ds.ListMicrosoftGraphCredentialMetadata(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, empty, "an empty read must return an empty slice, not nil")
+	require.Empty(t, empty)
+
 	seedGraphCredential(t, ds, testTenantA)
 	require.NoError(t, ds.SetMicrosoftGraphCredentialInvalid(ctx, testTenantA, true))
 

@@ -19,8 +19,7 @@ export interface IMicrosoftGraphCredential {
  * A credential being written. The API is declarative: send the full list, and an empty list clears the credential.
  * Omitting `client_secret`, or sending the masked placeholder, means "keep the stored secret".
  */
-export interface IMicrosoftGraphCredentialFormData {
-  tenant_id: string;
-  client_id: string;
+export interface IMicrosoftGraphCredentialFormData
+  extends Pick<IMicrosoftGraphCredential, "tenant_id" | "client_id"> {
   client_secret?: string;
 }
