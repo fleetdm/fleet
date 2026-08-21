@@ -32,8 +32,8 @@ const prefix = "install_attempts:"
 // KEYS[1]: $prefix$hostID:$softwareInstallerID (value integer)
 // ARGV[1]: key TTL in seconds
 //
-// The TTL is refreshed on every failure, so the count clears once a host has gone
-// a full window without failing this installer.
+// One script keeps the INCR and the EXPIRE together, so a key can never be left
+// without a TTL.
 const recordAttemptScript = `
 local count = redis.call("INCR", KEYS[1])
 redis.call("EXPIRE", KEYS[1], ARGV[1])
@@ -45,14 +45,14 @@ func (r *redisInstallAttemptCounter) key(hostID uint, softwareInstallerID uint) 
 }
 
 func (r *redisInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
-	window time.Duration,
+	expireIn time.Duration,
 ) (int, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
 	count, err := redigo.Int(conn.Do("EVAL", recordAttemptScript, 1,
 		r.key(hostID, softwareInstallerID),
-		int(window.Seconds()),
+		int(expireIn.Seconds()),
 	))
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "redis record software install attempt")

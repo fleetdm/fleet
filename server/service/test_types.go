@@ -208,7 +208,7 @@ func memInstallAttemptKey(hostID uint, softwareInstallerID uint) string {
 }
 
 func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
-	window time.Duration,
+	expireIn time.Duration,
 ) (int, error) {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()

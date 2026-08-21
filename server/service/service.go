@@ -72,8 +72,7 @@ type Service struct {
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
-	keyValueStore fleet.KeyValueStore
-
+	keyValueStore         fleet.KeyValueStore
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter
 
 	androidSvc android.Service

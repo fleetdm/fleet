@@ -33931,8 +33931,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	orbitKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &orbitKey
 
-	// An installer that can never succeed, standing in for the per-user installer on a
-	// host with no logged-in user from the report.
+	// An installer that can never succeed, standing in for the per-user installer on a host with no logged-in user from the report.
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "exit 1",
 		Filename:      "dummy_installer.pkg",
@@ -33940,23 +33939,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	}, http.StatusOK, "")
 
 	titlesResp := listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
-		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
-	)
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	titleID := titlesResp.SoftwareTitles[0].ID
 
 	var installerID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &installerID,
-			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
-			team.ID, "dummy_installer.pkg",
-		)
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
 	})
 	require.NotZero(t, installerID)
 
-	// Host IDs restart once the suite truncates tables, so a count left in Redis by an
-	// earlier run would apply to this host.
+	// Host IDs restart once the suite truncates tables, so a count left in Redis by an earlier run would apply to this host.
 	require.NoError(t, redis_install_attempts.New(s.redisPool).ResetAttempts(ctx, host.ID, installerID))
 
 	policyIDs := make([]uint, 0, 2)
@@ -33978,57 +33971,46 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 		policyIDs = append(policyIDs, policy.ID)
 	}
 
-	// Distributed writes carry a result for every policy in scope for the host, the way
-	// osquery reports them together from one distributed read.
+	// Distributed writes carry a result for every policy in scope for the host, the way osquery reports them together from one distributed read.
 	submitPolicyResults := func(passes bool) {
 		results := make(map[uint]*bool, len(policyIDs))
 		for _, policyID := range policyIDs {
 			results[policyID] = new(passes)
 		}
 		var distributedResp submitDistributedQueryResultsResponse
-		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write",
-			genDistributedReqWithPolicyResults(host, results), http.StatusOK, &distributedResp)
-	}
-
-	failPendingInstall := func() bool {
-		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
-		require.NoError(t, err)
-		if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
-			return false
-		}
-		s.Do("POST", "/api/fleet/orbit/software_install/result",
-			json.RawMessage(fmt.Sprintf(`{
-				"orbit_node_key": %q,
-				"install_uuid": %q,
-				"install_script_exit_code": 1,
-				"install_script_output": "fail"
-			}`, *host.OrbitNodeKey, last.ExecutionID)),
-			http.StatusNoContent)
-		return true
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, results), http.StatusOK, &distributedResp)
 	}
 
 	countInstalls := func() int {
 		var count int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &count, `
-				SELECT COUNT(*) FROM host_software_installs
-				WHERE host_id = ? AND software_installer_id = ?
-			`, host.ID, installerID)
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
 		})
 		return count
 	}
 
-	// Each report is one osquery check-in reporting both policies as failing. Ten of
-	// them is well past the limit: without one, every report queues an install and its
-	// retries.
+	// Each report is one osquery check-in reporting both policies as failing. Ten of them is well past the limit: without one, every report queues an install and its retries.
 	for range 10 {
 		submitPolicyResults(false)
-		for failPendingInstall() {
+		for {
+			last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+			require.NoError(t, err)
+			if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+				break
+			}
+			s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+				OrbitNodeKey: *host.OrbitNodeKey,
+				HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+					HostID:                host.ID,
+					InstallUUID:           last.ExecutionID,
+					InstallScriptExitCode: new(int(1)),
+					InstallScriptOutput:   new("fail"),
+				},
+			}, http.StatusNoContent)
 		}
 	}
 
-	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, countInstalls(),
-		"installs must stop once the host has failed this installer %d times", fleet.MaxPolicyAutomationInstallAttempts)
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, countInstalls(), "installs must stop once the host has failed this installer %d times", fleet.MaxPolicyAutomationInstallAttempts)
 
 	// Further failing reports queue nothing.
 	submitPolicyResults(false)

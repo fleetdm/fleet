@@ -171,8 +171,8 @@ const MaxPolicyAutomationRetries = 3
 // automation fires again, so it bounds an install that never makes its policy pass.
 const MaxPolicyAutomationInstallAttempts = 10
 
-// Time a host must go without failing an installer before its count clears.
-const PolicyAutomationInstallAttemptWindow = 24 * time.Hour
+// TTL of the install attempt counter key when it is not updated again.
+const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {

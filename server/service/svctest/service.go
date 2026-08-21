@@ -82,8 +82,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
-
-		installAttemptCounter fleet.SoftwareInstallAttemptCounter = service.NewMemSoftwareInstallAttemptCounter()
+		installAttemptCounter  fleet.SoftwareInstallAttemptCounter = service.NewMemSoftwareInstallAttemptCounter()
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {

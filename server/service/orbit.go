@@ -1964,7 +1964,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					}
 				case status == fleet.SoftwareInstallFailed && !isAppOpenSkip && !preInstallConditionFailed:
 					if _, err := svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID,
-						fleet.PolicyAutomationInstallAttemptWindow); err != nil {
+						fleet.PolicyAutomationInstallAttemptExpiry); err != nil {
 						svc.logger.ErrorContext(ctx, "failed to record policy automation install attempt",
 							"host_id", host.ID,
 							"software_installer_id", *hsi.SoftwareInstallerID,
@@ -2059,7 +2059,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
 	attempts, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
 	if err != nil {
-		// Leave installs working without the limit rather than stopping them.
+		// A Redis error is treated the same as a count of 0, so the install goes ahead.
 		svc.logger.ErrorContext(ctx, "failed to count policy automation install failures",
 			"host_id", hostID,
 			"software_installer_id", softwareInstallerID,
@@ -2092,9 +2092,10 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 
 	currentAttempt := *hsi.AttemptNumber
 
-	if hsi.SoftwareInstallerID != nil &&
-		svc.installFailureLimitReached(ctx, host.ID, *hsi.SoftwareInstallerID, *hsi.PolicyID) {
-		return false, nil
+	if hsi.SoftwareInstallerID != nil {
+		if svc.installFailureLimitReached(ctx, host.ID, *hsi.SoftwareInstallerID, *hsi.PolicyID) {
+			return false, nil
+		}
 	}
 
 	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
