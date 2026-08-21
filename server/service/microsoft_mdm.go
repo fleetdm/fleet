@@ -2538,7 +2538,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 		// A user-scoped profile held for a missing user context is deliberately pending and cannot reach a terminal
 		// state until a user signs in, which cannot happen until the ESP releases the device.
-		heldForUserContext := microsoft_mdm.WindowsUserContextState(device) == fleet.WindowsUserContextCanArrive
+		heldForUserContext := microsoft_mdm.WindowsUserContextStateFromDevice(device) == fleet.WindowsUserContextCanArrive
 		for _, p := range profiles {
 			if p.OperationType != fleet.MDMOperationTypeInstall {
 				continue
