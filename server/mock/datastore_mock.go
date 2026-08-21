@@ -340,6 +340,8 @@ type GetHostMDMCommandsFunc func(ctx context.Context, hostID uint) (commands []f
 
 type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCommand) error
 
+type RemoveHostMDMCommandsFunc func(ctx context.Context, hostIDs []uint, commandType string) error
+
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
@@ -2798,6 +2800,9 @@ type DataStore struct {
 
 	RemoveHostMDMCommandFunc        RemoveHostMDMCommandFunc
 	RemoveHostMDMCommandFuncInvoked bool
+
+	RemoveHostMDMCommandsFunc        RemoveHostMDMCommandsFunc
+	RemoveHostMDMCommandsFuncInvoked bool
 
 	CleanupHostMDMCommandsFunc        CleanupHostMDMCommandsFunc
 	CleanupHostMDMCommandsFuncInvoked bool
@@ -6882,6 +6887,13 @@ func (s *DataStore) RemoveHostMDMCommand(ctx context.Context, command fleet.Host
 	s.RemoveHostMDMCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.RemoveHostMDMCommandFunc(ctx, command)
+}
+
+func (s *DataStore) RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error {
+	s.mu.Lock()
+	s.RemoveHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveHostMDMCommandsFunc(ctx, hostIDs, commandType)
 }
 
 func (s *DataStore) CleanupHostMDMCommands(ctx context.Context) error {

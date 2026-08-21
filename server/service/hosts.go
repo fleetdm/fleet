@@ -1628,40 +1628,61 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "get host MDM info")
 		}
 
-		hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3)
+		// Each tracking row is written BEFORE its command is enqueued so a fast
+		// device ack can't race the insert and leave an orphaned row that would
+		// block future refetches. The nano enqueue is a single transaction, so
+		// on enqueue failure nothing was queued and the row is removed again;
+		// if only the APNs notification failed the command is durably queued
+		// and the row must stay.
+		trackAndSend := func(commandType, wrapMsg string, enqueue func() error) error {
+			hostCmd := fleet.HostMDMCommand{
+				HostID:      host.ID,
+				CommandType: commandType,
+			}
+			if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd}); err != nil {
+				return ctxerr.Wrap(ctx, err, "add host mdm command")
+			}
+			if err := enqueue(); err != nil {
+				var notifErr *apple_mdm.NotificationFailedError
+				if !errors.As(err, &notifErr) {
+					if rmErr := svc.ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
+						svc.logger.ErrorContext(ctx, "untrack host mdm command after enqueue failure",
+							"err", rmErr, "host_id", host.ID, "command_type", commandType)
+					}
+				}
+				return ctxerr.Wrap(ctx, err, wrapMsg)
+			}
+			return nil
+		}
+
 		cmdUUID := uuid.NewString()
 		if doAppRefetch {
 			isBYOD := !hostMDM.InstalledFromDep
-			err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
-			}
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      host.ID,
-				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+			err = trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, "refetch apps with MDM", func() error {
+				return svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD)
 			})
+			if err != nil {
+				return err
+			}
 		}
 
 		if doCertsRefetch {
-			if err := svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "refetch certs with MDM")
-			}
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      host.ID,
-				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+			err = trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, "refetch certs with MDM", func() error {
+				return svc.mdmAppleCommander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID)
 			})
+			if err != nil {
+				return err
+			}
 		}
 
 		if doDeviceInfoRefetch {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
-			err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID, hostMDM.IsPersonalEnrollment)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "refetch host with MDM")
-			}
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      host.ID,
-				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+			err = trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, "refetch host with MDM", func() error {
+				return svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID, hostMDM.IsPersonalEnrollment)
 			})
+			if err != nil {
+				return err
+			}
 		}
 
 		adeData, err := svc.ds.GetHostDEPAssignment(ctx, host.ID)
@@ -1679,12 +1700,6 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
 			}
-		}
-
-		// Add commands to the database to track the commands sent
-		err = svc.ds.AddHostMDMCommands(ctx, hostMDMCommands)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "add host mdm commands")
 		}
 	}
 

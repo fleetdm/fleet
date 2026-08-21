@@ -6948,7 +6948,7 @@ func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.Ho
 
 	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
 		start := i
-		end := i + hostIssuesInsertBatchSize
+		end := i + addHostMDMCommandsBatchSize
 		if end > len(commands) {
 			end = len(commands)
 		}
@@ -6987,6 +6987,22 @@ func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.Hos
 		WHERE host_id = ? AND command_type = ?`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+	}
+	return nil
+}
+
+func (ds *Datastore) RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`
+		DELETE FROM host_mdm_commands
+		WHERE host_id IN (?) AND command_type = ?`, hostIDs, commandType)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build delete from host_mdm_commands")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch delete from host_mdm_commands")
 	}
 	return nil
 }

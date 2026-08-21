@@ -1695,105 +1695,115 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	logger.InfoContext(ctx, "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
 
-	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
-	installedAppsUUIDs := struct {
-		ManagedOnly []string
-		All         []string
-	}{}
-	for _, device := range devices {
-		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
-			if isBYODDevice := !device.InstalledFromDEP; isBYODDevice {
-				installedAppsUUIDs.ManagedOnly = append(installedAppsUUIDs.ManagedOnly, device.UUID)
-			} else {
-				installedAppsUUIDs.All = append(installedAppsUUIDs.All, device.UUID)
-			}
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      device.HostID,
-				CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+	type deviceGroup struct {
+		hostIDs []uint
+		uuids   []string
+	}
+
+	// trackAndSend records the tracking rows BEFORE enqueueing so that a device
+	// acknowledging the command right after the APNs push can't race the
+	// insert and leave behind a row that no result will ever clear. The nano
+	// enqueue is a single transaction, so on enqueue failure nothing was
+	// queued and the rows are removed again; if only the notification failed
+	// the command is durably queued and the rows must stay.
+	trackAndSend := func(commandType string, group deviceGroup, wrapMsg string, enqueue func() error) error {
+		rows := make([]fleet.HostMDMCommand, 0, len(group.hostIDs))
+		for _, hostID := range group.hostIDs {
+			rows = append(rows, fleet.HostMDMCommand{
+				HostID:      hostID,
+				CommandType: commandType,
 			})
 		}
-	}
-	if len(installedAppsUUIDs.ManagedOnly)+len(installedAppsUUIDs.All) > 0 {
-		for i, uuids := range [][]string{installedAppsUUIDs.ManagedOnly, installedAppsUUIDs.All} {
-			managedOnly := i == 0
-			if len(uuids) == 0 {
-				continue
+		if err := ds.AddHostMDMCommands(ctx, rows); err != nil {
+			return ctxerr.Wrap(ctx, err, "add host mdm commands")
+		}
+		err := enqueue()
+		if err != nil {
+			var notifErr *NotificationFailedError
+			if !errors.As(err, &notifErr) {
+				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType); rmErr != nil {
+					logger.ErrorContext(ctx, "untrack host mdm commands after enqueue failure",
+						"err", rmErr, "command_type", commandType)
+				}
 			}
-
-			commandUUID := uuid.NewString()
-			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
 			turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
 			if turnedOffError != nil {
 				return turnedOffError
 			}
-			if err != nil && !turnedOff {
-				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			if !turnedOff {
+				return ctxerr.Wrap(ctx, err, wrapMsg)
 			}
 		}
+		return nil
 	}
 
-	certsListUUIDs := make([]string, 0, len(devices))
-	for _, device := range devices {
-		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchCertsCommandUUIDPrefix) {
-			certsListUUIDs = append(certsListUUIDs, device.UUID)
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      device.HostID,
-				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
-			})
-		}
-	}
-	if len(certsListUUIDs) > 0 {
-		commandUUID := uuid.NewString()
-		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
-		if turnedOffError != nil {
-			return turnedOffError
-		}
-		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
-		}
-	}
-
-	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoUUIDs := struct {
-		Personal []string
-		Other    []string
-	}{}
-	for _, device := range devices {
-		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
-			if device.IsPersonalEnrollment {
-				deviceInfoUUIDs.Personal = append(deviceInfoUUIDs.Personal, device.UUID)
-			} else {
-				deviceInfoUUIDs.Other = append(deviceInfoUUIDs.Other, device.UUID)
+	groupDevices := func(commandType string, split func(device fleet.AppleDevicesToRefetch) bool) (in, out deviceGroup) {
+		for _, device := range devices {
+			if slices.Contains(device.CommandsAlreadySent, commandType) {
+				continue
 			}
-			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
-				HostID:      device.HostID,
-				CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
-			})
+			g := &out
+			if split(device) {
+				g = &in
+			}
+			g.hostIDs = append(g.hostIDs, device.HostID)
+			g.uuids = append(g.uuids, device.UUID)
 		}
+		return in, out
 	}
-	for i, uuids := range [][]string{deviceInfoUUIDs.Personal, deviceInfoUUIDs.Other} {
-		isPersonalEnrollment := i == 0
-		if len(uuids) == 0 {
+
+	appsManagedOnly, appsAll := groupDevices(fleet.RefetchAppsCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
+		isBYODDevice := !device.InstalledFromDEP
+		return isBYODDevice
+	})
+	for i, group := range []deviceGroup{appsManagedOnly, appsAll} {
+		managedOnly := i == 0
+		if len(group.uuids) == 0 {
 			continue
 		}
 
 		commandUUID := uuid.NewString()
-		err := commander.DeviceInformation(ctx, uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger, newActivityFn)
-		if turnedOffError != nil {
-			return turnedOffError
-		}
-		if err != nil && !turnedOff {
-			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, group,
+			"send InstalledApplicationList commands to ios and ipados devices", func() error {
+				return commander.InstalledApplicationList(ctx, group.uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, managedOnly)
+			})
+		if err != nil {
+			return err
 		}
 	}
 
-	// Add commands to the database to track the commands sent
-	err = ds.AddHostMDMCommands(ctx, hostMDMCommands)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add host mdm commands")
+	certs, _ := groupDevices(fleet.RefetchCertsCommandUUIDPrefix, func(fleet.AppleDevicesToRefetch) bool { return true })
+	if len(certs.uuids) > 0 {
+		commandUUID := uuid.NewString()
+		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
+			"send CertificateList commands to ios and ipados devices", func() error {
+				return commander.CertificateList(ctx, certs.uuids, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+			})
+		if err != nil {
+			return err
+		}
 	}
+
+	// DeviceInformation is last because the refetch response clears the refetch_requested flag
+	deviceInfoPersonal, deviceInfoOther := groupDevices(fleet.RefetchDeviceCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
+		return device.IsPersonalEnrollment
+	})
+	for i, group := range []deviceGroup{deviceInfoPersonal, deviceInfoOther} {
+		isPersonalEnrollment := i == 0
+		if len(group.uuids) == 0 {
+			continue
+		}
+
+		commandUUID := uuid.NewString()
+		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, group,
+			"send DeviceInformation commands to ios and ipados devices", func() error {
+				return commander.DeviceInformation(ctx, group.uuids, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID, isPersonalEnrollment)
+			})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

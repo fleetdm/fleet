@@ -6207,19 +6207,30 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		return nil
 	}
 
-	cmdUUID := uuid.NewString()
-	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
-	}
-
-	// Track after the commander call so a CertificateList enqueue failure
-	// doesn't leave a stale tracking row that would suppress future
-	// triggers. Matches the iOS/iPadOS pattern in IOSiPadOSRefetch.
-	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+	// Track before the commander call so a fast device ack can't race the
+	// insert and leave an orphaned row that would suppress future triggers.
+	// Matches the iOS/iPadOS pattern in IOSiPadOSRefetch. On enqueue failure
+	// nothing was queued (the nano enqueue is transactional) and the row is
+	// removed again; if only the APNs notification failed the command is
+	// durably queued and the row must stay.
+	hostCmd := fleet.HostMDMCommand{
 		HostID:      res.HostID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
-	}}); err != nil {
+	}
+	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd}); err != nil {
 		return ctxerr.Wrap(ctx, err, "track refetch certs command")
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+		var notifErr *apple_mdm.NotificationFailedError
+		if !errors.As(err, &notifErr) {
+			if rmErr := svc.ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
+				svc.logger.ErrorContext(ctx, "untrack refetch certs command after enqueue failure",
+					"err", rmErr, "host_uuid", hostUUID)
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
 	}
 	return nil
 }

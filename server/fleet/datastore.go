@@ -449,6 +449,8 @@ type Datastore interface {
 	GetHostMDMCommands(ctx context.Context, hostID uint) (commands []HostMDMCommand, err error)
 	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
+	// RemoveHostMDMCommands removes the MDM command of the given type from all the provided hosts.
+	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error
 	// CleanupHostMDMCommands removes invalid and stale MDM commands sent to hosts.
 	CleanupHostMDMCommands(ctx context.Context) error
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
