@@ -1,6 +1,12 @@
 # =============================================================================
 # Restore BitLocker protection on an already-encrypted Windows host
 #
+# Which protector this ends up with:
+#   - A host that already has any TPM-family protector (TPM, TPM+PIN, TPM+StartupKey, TPM+PIN+StartupKey) keeps it
+#     untouched; only protection is re-enabled.
+#   - A host with no TPM-family protector gets a TPM-only protector, which is what restores unattended boot.
+#   - A startup PIN is never enrolled, because a PIN has to be chosen by the end user.
+#
 # Non-destructive: never decrypts, never removes a protector, never reboots.
 #
 # Exit codes:
@@ -142,8 +148,13 @@ if ($tpmCount -eq 0) {
         Write-Output "step 1: a TPM protector already exists (added between the check and this call); continuing"
     } elseif ($r.ReturnValue -ne 0) {
         Write-Output ("FAIL: ProtectKeyWithTPM returned 0x{0:X8}." -f $r.ReturnValue)
-        Write-Output "      0x80310061 = FVE_E_POLICY_STARTUP_PIN_REQUIRED (policy requires a startup PIN;"
-        Write-Output "                   a TPM-only protector is not allowed, so a PIN must be enrolled instead)."
+        Write-Output "      0x80310066 = FVE_E_POLICY_STARTUP_TPM_NOT_ALLOWED (verified: this is what a"
+        Write-Output "                   require-startup-PIN policy returns) and"
+        Write-Output "      0x80310061 = FVE_E_POLICY_STARTUP_PIN_REQUIRED both mean policy forbids a"
+        Write-Output "                   TPM-only protector, for example when Fleet's disk encryption"
+        Write-Output "                   setting windows_require_bitlocker_pin is enabled for this host's"
+        Write-Output "                   team. A startup PIN has to be enrolled by the end user; an"
+        Write-Output "                   unattended script cannot choose one, so this needs an admin."
         Write-Output "      NOT calling EnableKeyProtectors: enabling protectors with no auto-unlock protector"
         Write-Output "      present would cause a recovery prompt at the next boot."
         exit 1
