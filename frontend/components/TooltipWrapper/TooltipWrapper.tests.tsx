@@ -66,6 +66,26 @@ describe("TooltipWrapper", () => {
     expect(element).toHaveClass("component__tooltip-wrapper__underline");
   });
 
+  it("does not apply underline class when tipContent is empty", () => {
+    render(
+      <TooltipWrapper tipContent="">
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+    const element = screen.getByText("Hover me").parentElement;
+    expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
+  });
+
+  it("does not apply underline class when disableTooltip is true", () => {
+    render(
+      <TooltipWrapper tipContent="Tooltip text" disableTooltip>
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+    const element = screen.getByText("Hover me").parentElement;
+    expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
+  });
+
   it("does not apply underline class when underline is false", () => {
     render(
       <TooltipWrapper tipContent="Tooltip text" underline={false}>
