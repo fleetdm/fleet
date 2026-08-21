@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 
@@ -28,7 +29,7 @@ func init() {
 func Up_20260821095408(tx *sql.Tx) error {
 	// app config
 	var raw []byte
-	err := tx.QueryRow(`SELECT json_value FROM app_config_json LIMIT 1`).Scan(&raw)
+	err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1`).Scan(&raw)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		// fresh install, nothing to rewrite
@@ -89,7 +90,11 @@ func Up_20260821095408(tx *sql.Tx) error {
 // it, so they never legitimately diverged).
 func fanOutDiskEncryptionSetting(raw []byte) ([]byte, error) {
 	var config map[string]any
-	if err := json.Unmarshal(raw, &config); err != nil {
+	// UseNumber so integers above 2^53 elsewhere in the config (e.g. agent
+	// options) survive the re-marshal unchanged
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&config); err != nil {
 		return nil, errors.Wrap(err, "unmarshal config")
 	}
 	if config == nil {

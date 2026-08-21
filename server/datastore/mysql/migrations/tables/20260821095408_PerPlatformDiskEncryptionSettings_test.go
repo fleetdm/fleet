@@ -9,6 +9,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFanOutDiskEncryptionSetting(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"true", `{"mdm": {"enable_disk_encryption": true}}`, true},
+		{"false", `{"mdm": {"enable_disk_encryption": false}}`, false},
+		{"absent", `{"mdm": {}}`, false},
+		{"no mdm object", `{}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := fanOutDiskEncryptionSetting([]byte(tc.in))
+			require.NoError(t, err)
+			var cfg map[string]any
+			require.NoError(t, json.Unmarshal(out, &cfg))
+			mdm := cfg["mdm"].(map[string]any)
+			require.Equal(t, tc.want, mdm["macos_settings"].(map[string]any)["enable_disk_encryption"])
+			require.Equal(t, tc.want, mdm["macos_settings"].(map[string]any)["enable_escrow_disk_encryption_key"])
+			require.Equal(t, tc.want, mdm["windows_settings"].(map[string]any)["enable_disk_encryption"])
+			require.Equal(t, tc.want, mdm["linux_settings"].(map[string]any)["enable_escrow_disk_encryption_key"])
+		})
+	}
+
+	t.Run("large integers elsewhere survive the rewrite", func(t *testing.T) {
+		out, err := fanOutDiskEncryptionSetting([]byte(`{"agent_options": {"big": 9007199254740993}, "mdm": {"enable_disk_encryption": true}}`))
+		require.NoError(t, err)
+		require.Contains(t, string(out), "9007199254740993")
+	})
+}
+
 func TestUp_20260821095408(t *testing.T) {
 	db := applyUpToPrev(t)
 
