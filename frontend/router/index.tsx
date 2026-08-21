@@ -29,6 +29,7 @@ import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import MfaPage from "pages/MfaPage";
 import CoreLayout from "layouts/CoreLayout";
 import DashboardPage from "pages/DashboardPage";
+import DeviceNotificationPage from "pages/DeviceNotificationPage";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
@@ -456,6 +457,13 @@ const routes = (
       </Route>
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
+        {/* Standalone toast route — kept outside the DeviceUserPage wrapper so
+        the Fleet Desktop notification window doesn't inherit the My device
+        header, nav, or chrome. */}
+        <Route
+          path=":device_auth_token/notifications/:notification_uuid"
+          component={DeviceNotificationPage}
+        />
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />
