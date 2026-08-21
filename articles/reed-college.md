@@ -121,7 +121,7 @@ Asked what they'd tell a peer at another institution weighing the move, the answ
 <meta name="authorGitHubUsername" value="n/a">
 <meta name="authorFullName" value="Fleetdm">
 
-<meta name="companyLogoFilename" value="reed-college-logo-152x40@2x.png">
+<meta name="companyLogoFilename" value="reed-college-logo-133x40@2x.png">
 <meta name="quoteAuthorImageFilename" value="mason-peressini-120x120@2x.png">
 <meta name="quoteAuthorName" value="Mason Peressini">
 <meta name="quoteAuthorJobTitle" value="Sr Systems Support Specialist, Reed College">
