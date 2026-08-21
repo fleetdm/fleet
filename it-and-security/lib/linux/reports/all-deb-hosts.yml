@@ -1,9 +1,9 @@
 - name: All debian hosts
   automations_enabled: false
-  description: Collects all debian-based hosts.
+  description: Collects all Debian-based hosts, including Ubuntu and its derivatives.
   discard_data: false
   interval: 300
   logging: snapshot
   observer_can_run: true
   platform: linux
-  query: SELECT * FROM os_version WHERE platform = 'debian';
+  query: SELECT * FROM os_version WHERE platform = 'debian' OR platform_like LIKE '%debian%' OR platform_like LIKE '%ubuntu%';

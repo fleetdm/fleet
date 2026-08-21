@@ -575,3 +575,83 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 		assert.Equal(t, int64(42), ple.MaxRequestSize, "MaxRequestSize from inner error must be preserved")
 	})
 }
+
+func TestRequestFieldName(t *testing.T) {
+	type tagged struct {
+		Plain     string `json:"plain"`
+		WithOpts  string `json:"with_opts,omitempty"`
+		Skipped   string `json:"-"`
+		OnlyOpts  string `json:",omitempty"`
+		EmptyTag  string `json:""`
+		NoJSONTag string
+		OtherTags string `url:"other_tags"`
+	}
+
+	ty := reflect.TypeFor[tagged]()
+
+	for _, tc := range []struct {
+		field string
+		want  string
+	}{
+		{field: "Plain", want: "plain"},
+		{field: "WithOpts", want: "with_opts"},
+		// The rest have no name a client could have sent, so the Go field name
+		// is all that's left to report.
+		{field: "Skipped", want: "Skipped"},
+		{field: "OnlyOpts", want: "OnlyOpts"},
+		{field: "EmptyTag", want: "EmptyTag"},
+		{field: "NoJSONTag", want: "NoJSONTag"},
+		{field: "OtherTags", want: "OtherTags"},
+	} {
+		t.Run(tc.field, func(t *testing.T) {
+			sf, ok := ty.FieldByName(tc.field)
+			require.True(t, ok)
+			assert.Equal(t, tc.want, requestFieldName(sf))
+		})
+	}
+}
+
+type premiumGatedRequest struct {
+	Critical    bool   `json:"critical,omitempty" premium:"true"`
+	ProfileUUID string `json:"profile_uuid" premium:"true"`
+	Untagged    string `premium:"true"`
+	Free        string `json:"free"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
+	decode := MakeDecoder(premiumGatedRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	// No license in the context, so these decode as free-tier requests.
+	decodeBody := func(t *testing.T, body string) error {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/", strings.NewReader(body))
+		_, err := decode(t.Context(), r)
+		return err
+	}
+
+	t.Run("names the field as the caller wrote it", func(t *testing.T) {
+		for _, tc := range []struct {
+			body string
+			want string
+		}{
+			{body: `{"critical":true}`, want: "option critical requires a premium license"},
+			{body: `{"profile_uuid":"abc"}`, want: "option profile_uuid requires a premium license"},
+		} {
+			err := decodeBody(t, tc.body)
+			require.Error(t, err)
+			// Naming the Go field sends the caller looking for a key that isn't
+			// in the payload they sent.
+			require.ErrorContains(t, err, tc.want)
+		}
+	})
+
+	t.Run("falls back to the Go field name when there is no json tag", func(t *testing.T) {
+		err := decodeBody(t, `{"Untagged":"x"}`)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "option Untagged requires a premium license")
+	})
+
+	t.Run("a field that is not premium gated still decodes", func(t *testing.T) {
+		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
+	})
+}

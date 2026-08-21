@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.6.4",
+      "version": "3.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.6.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.7.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.jetbrains.toolbox');"
       },
-      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.6.4.86641-arm64.dmg",
+      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.7.1.87197-arm64.dmg",
       "install_script_ref": "18687029",
       "uninstall_script_ref": "118b704f",
-      "sha256": "8cf9582e229a6d57b0d64c5df932745b45ae4fcd91d29fb22003f1b885446110",
+      "sha256": "30d1c5b89d1236c67bbefc9defb707d4ac499867dbd553f417e47dcbd15f6f25",
       "default_categories": [
         "Developer tools"
       ]
