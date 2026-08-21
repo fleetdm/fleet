@@ -3464,6 +3464,7 @@ None.
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
 - [Wipe host](#wipe-host)
+- [Send APNs ping to host](#send-apns-ping-to-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
@@ -5915,10 +5916,10 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 #### Parameters
 
-| Name     | Type              | In   | Description                                                                                                                                                                                                          |
-|----------| ----------------- | ---- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id       | integer | path | **Required**. ID of the host to be wiped.                                                                                                                                                                            |
-| windows  | object | body | Optional metadata used when wiping Windows hosts. The object includes a `wipe_type` property that can be used for specifying what type of remote wipe to perform. Allowed values are `"doWipe"` and `"doWipeProtected"`. |
+| Name         | Type       | In   | Description                                                                                          |
+|--------------| ---------- | ---- |------------------------------------------------------------------------------------------------------|
+| id           | integer    | path | **Required**. ID of the host to be wiped. |
+| windows      | object     | body | Optional metadata used when wiping Windows hosts. The object includes a `wipe_type` property that can be used for specifying what type of remote wipe to perform. Allowed values are `"doWipe"` and `"doWipeProtected"`. |
 
 #### Example
 
@@ -5943,6 +5944,30 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 ```
 
 > To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+
+### Send APNs ping to host
+
+_Available in Fleet Free and Fleet Premium_
+
+Sends an APNs push notification to the specified macOS, iOS, or iPadOS host. This prompts the device to check in with the Fleet server and pick up any pending MDM commands or configuration profiles.
+
+The host must have MDM turned on and be enrolled via Apple MDM. If the host is offline, the push notification will be delivered when the device comes back online.
+
+`POST /api/v1/fleet/hosts/:id/apns_ping`
+
+#### Parameters {#parameters-apns-ping}
+| Name         | Type       | In   | Description                                                                                          |
+|--------------| ---------- | ---- |------------------------------------------------------------------------------------------------------|
+| id           | integer    | path | **Required**. ID of the host to send the APNs ping to. |
+
+#### Example
+`POST /api/v1/fleet/hosts/123/apns_ping`
+
+##### Default response
+
+`Status: 200`
+
+> This endpoint sends a blank APNs push notification. It does not enqueue an MDM command. To verify the host checked in after receiving the ping, use the Get host endpoint to check the host's `last_seen_at` timestamp.
 
 ### Get host's past activity
 
