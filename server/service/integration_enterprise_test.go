@@ -5913,6 +5913,55 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTea
 	require.NotNil(t, resp.User)
 }
 
+func (s *integrationEnterpriseTestSuite) TestDeviceSSOWithoutAppleMDM() {
+	t := s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.EnabledAndConfigured)
+	originalServerURL := acResp.ServerSettings.ServerURL
+
+	createHostAndDeviceToken(t, s.ds, "device-sso-no-apple-mdm-token")
+
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"server_settings": { "server_url": "https://localhost:8080" },
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "mdm.test.com",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "%s"
+			}
+		},
+		"fleet_desktop": { "sso_enabled": true, "alternative_browser_host": "" }
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.Empty(t, acResp.FleetDesktop.AlternativeBrowserHost)
+
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"server_settings": { "server_url": %q },
+			"fleet_desktop": { "sso_enabled": false },
+			"mdm": { "end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "" } }
+		}`, originalServerURL)), http.StatusOK, &appConfigResponse{})
+	})
+
+	res := s.LoginDeviceSSOUser("sso_user", "user123#", "device-sso-no-apple-mdm-token")
+	require.Equal(t, "https://localhost:8080/device/device-sso-no-apple-mdm-token", res.Header.Get("Location"))
+
+	var sessionCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == cookieNameDeviceSSOSession {
+			sessionCookie = c
+		}
+	}
+	require.NotNil(t, sessionCookie, "expected a device SSO session even without Apple MDM configured")
+	require.NotEmpty(t, sessionCookie.Value)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 

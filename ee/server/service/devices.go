@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -13,6 +16,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
@@ -352,5 +356,114 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	return &fleet.DeviceSetupExperienceStatusPayload{
 		Software: software,
 		Scripts:  scripts,
+	}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// My Device SSO Flow
+/////////////////////////////////////////////////////////////////////////////////
+
+const deviceSSOSessionKeyPrefix = "device_sso_session:"
+const deviceSSOSessionIDLength = 24
+
+// createDeviceSSOSession mints a new device SSO session for host.
+func (svc *Service) createDeviceSSOSession(ctx context.Context, host *fleet.Host, idpAccountUUID string) (sessionID string, ttl time.Duration, err error) {
+	sessionID, err = server.GenerateRandomURLSafeText(deviceSSOSessionIDLength)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "generate device sso session id")
+	}
+
+	ttl = svc.config.Session.Duration
+	session := fleet.DeviceSSOSession{
+		HostID:         host.ID,
+		IdPAccountUUID: idpAccountUUID,
+		ExpiresAt:      svc.clock.Now().Add(ttl),
+	}
+	b, err := json.Marshal(session)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "marshal device sso session")
+	}
+
+	if err := svc.keyValueStore.Set(ctx, deviceSSOSessionKeyPrefix+sessionID, string(b), ttl); err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "store device sso session")
+	}
+
+	return sessionID, ttl, nil
+}
+
+func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+	// the device middleware already authenticated the host via its device token.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	if !appConfig.FleetDesktop.SSOEnabled {
+		err := &fleet.BadRequestError{Message: "Single sign-on for Fleet Desktop is not enabled."}
+		return nil, ctxerr.Wrap(ctx, err, "initiate device sso")
+	}
+
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	if mdmSSOSettings.IsEmpty() {
+		err := &fleet.BadRequestError{Message: "Couldn't initiate single sign-on for Fleet Desktop because no IdP is configured for end user authentication."}
+		return nil, ctxerr.Wrap(ctx, err, "initiate device sso")
+	}
+
+	// The ACS base must match what the IdP app has registered,
+	// will be ServerURL if none currently set.
+	acsBase, err := url.Parse(appConfig.MDMUrl())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "invalid MDM URL")
+	}
+
+	browserBase, err := appConfig.FleetDesktopBrowserUrl()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "invalid server URL")
+	}
+
+	// SSO cookies are __Host- prefixed, so each is pinned to one host name.
+	// The handshake cookie is set on the browser's host but read on the ACS, and
+	// the session cookie the other way around: if those hosts differ, neither
+	// arrives and the end user loops.
+	if !strings.EqualFold(browserBase.Hostname(), acsBase.Hostname()) {
+		err := &fleet.BadRequestError{
+			Message: "Fleet Desktop single sign-on requires the device page and the SAML callback on the same host.",
+		}
+		return nil, ctxerr.Wrap(ctx, err, "initiate device sso")
+	}
+
+	acsURL := sso.CallbackURL(acsBase, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback").String()
+
+	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx, mdmSSOSettings.EntityID, acsURL, &mdmSSOSettings)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+	}
+
+	sessionDuration := svc.config.Auth.SsoSessionValidityPeriod
+	sessionID, idpURL, err := sso.CreateAuthorizationRequest(ctx,
+		samlProvider,
+		svc.ssoSessionStore,
+		sso.URLWithPrefix(browserBase, svc.config.Server.URLPrefix, deviceURL).String(),
+		uint(sessionDuration.Seconds()), //nolint:gosec // dismiss G115
+		sso.SSORequestData{
+			HostUUID:  host.UUID,
+			Initiator: fleet.SSOInitiatorFleetDesktop,
+		},
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "InitiateDeviceSSO creating authorization")
+	}
+
+	return &fleet.DeviceSSOInitiation{
+		IdPURL:          idpURL,
+		SessionID:       sessionID,
+		SessionDuration: sessionDuration,
 	}, nil
 }

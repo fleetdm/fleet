@@ -938,6 +938,30 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
 
+	// Rate limiters shared across the login/SSO endpoints.
+	limiter := ratelimit.NewMiddleware(limitStore)
+
+	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
+	// own rate limit bucket.
+	loginRateLimit := throttled.PerMin(10)
+	if extra.loginRateLimit != nil {
+		loginRateLimit = *extra.loginRateLimit
+	}
+	loginLimiter := limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})
+	mdmSsoLimiter := loginLimiter
+	if extra.mdmSsoRateLimit != nil {
+		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
+	}
+	// The SSO callback gets its own dedicated bucket (separate from the login
+	// bucket) so a flood on the unauthenticated callback can't exhaust the
+	// rate-limit budget that legitimate password logins depend on. The rate
+	// defaults to the login rate unless explicitly overridden.
+	ssoRateLimit := loginRateLimit
+	if extra.ssoRateLimit != nil {
+		ssoRateLimit = *extra.ssoRateLimit
+	}
+	ssoLimiter := limiter.Limit("sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
+
 	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
@@ -962,6 +986,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+
+	// Device-authenticated, so unlike the unauthenticated SSO routes this needs no
+	// pre-auth flood guard. It is quota-limited for amplification instead: each
+	// successful call refetches the IdP metadata, so one leaked device token could
+	// drive sustained outbound traffic at the customer's IdP from Fleet's own IP,
+	// and errorLimiter cannot see it because those requests succeed. Own bucket so
+	// device traffic cannot exhaust the budget logins and enrollments depend on,
+	// at the same rate as the other end-user-facing SSO path, so
+	// auth.sso_rate_limit_per_minute tunes both.
+	deviceSsoLimiter := limiter.Limit("device_sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
+	de.WithCustomMiddleware(errorLimiter, deviceSsoLimiter).POST("/api/_version_/fleet/device/{token}/sso", initiateDeviceSSOEndpoint, initiateDeviceSSORequest{})
 	// Device authenticated, Apple MDM endpoints.
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
@@ -1193,32 +1228,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	)
 	ne.WithCustomMiddleware(orgLogoLimiter).
 		GET("/api/_version_/fleet/logo", getOrgLogoEndpoint, getOrgLogoRequest{})
-
-	// Rate limiters shared across the login/SSO endpoints. These are defined
-	// here (ahead of the password-login registrations below) so the
-	// unauthenticated SSO callback can reuse the same login bucket.
-	limiter := ratelimit.NewMiddleware(limitStore)
-
-	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
-	// own rate limit bucket.
-	loginRateLimit := throttled.PerMin(10)
-	if extra.loginRateLimit != nil {
-		loginRateLimit = *extra.loginRateLimit
-	}
-	loginLimiter := limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})
-	mdmSsoLimiter := loginLimiter
-	if extra.mdmSsoRateLimit != nil {
-		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
-	}
-	// The SSO callback gets its own dedicated bucket (separate from the login
-	// bucket) so a flood on the unauthenticated callback can't exhaust the
-	// rate-limit budget that legitimate password logins depend on. The rate
-	// defaults to the login rate unless explicitly overridden.
-	ssoRateLimit := loginRateLimit
-	if extra.ssoRateLimit != nil {
-		ssoRateLimit = *extra.ssoRateLimit
-	}
-	ssoLimiter := limiter.Limit("sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
 
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	// The SSO callback is unauthenticated and internet-reachable. Rate-limit it

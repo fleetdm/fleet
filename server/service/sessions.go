@@ -426,9 +426,15 @@ func deleteSSOCookie(w http.ResponseWriter) {
 	})
 }
 
-func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds int) {
+const cookieNameDeviceSSOSession = "__Host-FLEET_DESKTOP_SESSION"
+
+// setHostPrefixedCookie sets a __Host- session cookie: pinned to this host,
+// SameSite=Lax. Lax is safe here, because none of these has to ride the cross-site POST
+// from the IdP -- only the safe-method navigation the SSO callback redirects to,
+// and the page's own requests afterwards.
+func setHostPrefixedCookie(w http.ResponseWriter, name, value string, cookieDurationSeconds int) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     shared_mdm.BYODIdpCookieName,
+		Name:     name,
 		Value:    value,
 		Path:     "/",
 		MaxAge:   cookieDurationSeconds,
@@ -436,6 +442,14 @@ func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds in
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func setDeviceSSOSessionCookie(w http.ResponseWriter, sessionID string, cookieDurationSeconds int) {
+	setHostPrefixedCookie(w, cookieNameDeviceSSOSession, sessionID, cookieDurationSeconds)
+}
+
+func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds int) {
+	setHostPrefixedCookie(w, shared_mdm.BYODIdpCookieName, value, cookieDurationSeconds)
 }
 
 func (r initiateSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {

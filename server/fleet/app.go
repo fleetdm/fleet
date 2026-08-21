@@ -343,6 +343,23 @@ func (c *AppConfig) MDMUrl() string {
 	return c.MDM.AppleServerURL
 }
 
+// FleetDesktopBrowserUrl returns the base URL an end user's browser reaches
+// Fleet on, which is the server URL unless fleet_desktop.alternative_browser_host
+// overrides its host.
+func (c *AppConfig) FleetDesktopBrowserUrl() (*url.URL, error) {
+	base, err := url.Parse(c.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
+	if altHost := c.FleetDesktop.AlternativeBrowserHost; altHost != "" {
+		if parsed, err := url.Parse(altHost); err == nil && parsed.Host != "" {
+			altHost = parsed.Host
+		}
+		base.Host = altHost
+	}
+	return base, nil
+}
+
 func (c *AppConfigUrls) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL

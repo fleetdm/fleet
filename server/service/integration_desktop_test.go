@@ -552,6 +552,12 @@ func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
 	require.NoError(t, res.Body.Close())
 	require.Equal(t, acResp.FleetDesktop.AlternativeBrowserHost, getDesktopResp.AlternativeBrowserHost)
 
+	originalHost := acResp.FleetDesktop.AlternativeBrowserHost
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(
+			`{"fleet_desktop": {"alternative_browser_host": %q}}`, originalHost)), http.StatusOK, &appConfigResponse{})
+	})
+
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)

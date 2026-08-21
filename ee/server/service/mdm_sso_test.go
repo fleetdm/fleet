@@ -120,3 +120,14 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestDeviceSSOErrorURL(t *testing.T) {
+	require.Equal(t,
+		"https://fleet.example.com/device/abc123?sso_error=sso_disabled",
+		deviceSSOErrorURL("https://fleet.example.com/device/abc123", "sso_disabled"))
+
+	// an existing query string is preserved
+	require.Equal(t,
+		"https://fleet.example.com/device/abc123?setup_only=1&sso_error=sso_disabled",
+		deviceSSOErrorURL("https://fleet.example.com/device/abc123?setup_only=1", "sso_disabled"))
+}
