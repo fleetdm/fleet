@@ -1048,6 +1048,39 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 			isValid: false,
 		},
 		{
+			name: "start time unpadded hour accepted",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   new(true),
+					AutoUpdateStartTime: new("1:00"),
+					AutoUpdateEndTime:   new("15:30"),
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "end time unpadded hour accepted",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   new(true),
+					AutoUpdateStartTime: new("14:30"),
+					AutoUpdateEndTime:   new("1:00"),
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "start time with space rejected",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   new(true),
+					AutoUpdateStartTime: new("20: 00"),
+					AutoUpdateEndTime:   new("22:00"),
+				},
+			},
+			isValid: false,
+		},
+		{
 			name: "window is less than one hour",
 			schedule: SoftwareAutoUpdateSchedule{
 				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
