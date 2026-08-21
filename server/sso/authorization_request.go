@@ -29,12 +29,17 @@ func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
 // It will generate and return the session identifier.
 // (the IdP will send it again to Fleet in the callback, and that's how Fleet will authenticate the session).
 // If sessionTTLSeconds is 0 then a default of 5 minutes of TTL is used.
+//
+// relayState is echoed back unchanged by the IdP, so it is the only thing that
+// survives a callback whose session cannot be loaded. It must never carry a
+// secret: it travels through the IdP's request logs. Pass "" to leave it off.
 func CreateAuthorizationRequest(
 	ctx context.Context,
 	samlProvider *saml.ServiceProvider,
 	sessionStore SessionStore,
 	originalURL string,
 	sessionTTLSeconds uint,
+	relayState string,
 	requestData SSORequestData,
 ) (sessionID string, idpURL string, err error) {
 	idpURL, err = getDestinationURL(samlProvider.IDPMetadata)
@@ -83,7 +88,6 @@ func CreateAuthorizationRequest(
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
-	relayState := "" // Fleet currently doesn't use/set RelayState
 	idpRedirectURL, err := samlAuthRequest.Redirect(relayState, samlProvider)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")

@@ -27,6 +27,23 @@ describe("DeviceUserError", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders SSO failure copy, and its action, ahead of the authentication error", () => {
+    render(
+      <DeviceUserError
+        isAuthenticationError
+        ssoError="initiate_failed"
+        action={<button type="button">Sign in again</button>}
+      />
+    );
+    expect(screen.getByText("Couldn't start signing in.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign in again" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("This URL is invalid or expired.")
+    ).not.toBeInTheDocument();
+  });
+
   it("renders authentication error message on mobile device", () => {
     render(<DeviceUserError isAuthenticationError isMobileDevice />);
     expect(

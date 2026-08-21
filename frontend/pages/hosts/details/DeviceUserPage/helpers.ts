@@ -77,3 +77,54 @@ export const isIPad = (navigator: Navigator) =>
 export const isMac = (navigator: Navigator) =>
   (/Macintosh/i.test(navigator.userAgent) && !isIPad) ||
   /Mac OS X/i.test(navigator.userAgent);
+
+/** The shape `sendRequest` rejects with: the Axios *response*, so the API's
+ * error body sits on `data`. */
+interface IDeviceAPIError {
+  status?: number;
+  data?: { sso_required?: boolean };
+}
+
+/** With Fleet Desktop SSO on, the device API answers 401 both for a stale
+ * device token and for a request carrying no IdP session. Only the second sets
+ * `sso_required`, and only it should send the end user to the IdP: the initiate
+ * endpoint authenticates with the device token too, so a round-trip cannot fix
+ * the first. */
+export const isSSORequiredError = (error: unknown): boolean => {
+  const response = error as IDeviceAPIError | null | undefined;
+  return response?.status === 401 && response?.data?.sso_required === true;
+};
+
+const ssoAttemptKey = (deviceAuthToken: string) =>
+  `fleet-device-sso-attempt:${deviceAuthToken}`;
+
+/** One automatic trip to the IdP per token. Coming back still unauthenticated
+ * means the session cookie never stuck (blocked cookies, clock skew), and
+ * initiating again would bounce the end user between Fleet and the IdP forever.
+ *
+ * Reads and writes are guarded because browsers configured to block site data
+ * throw on access; losing the flag costs the loop guard, which is not worth
+ * taking the page down for. */
+export const hasAttemptedDeviceSSO = (deviceAuthToken: string): boolean => {
+  try {
+    return sessionStorage.getItem(ssoAttemptKey(deviceAuthToken)) !== null;
+  } catch {
+    return false;
+  }
+};
+
+export const recordDeviceSSOAttempt = (deviceAuthToken: string) => {
+  try {
+    sessionStorage.setItem(ssoAttemptKey(deviceAuthToken), "1");
+  } catch {
+    // see hasAttemptedDeviceSSO
+  }
+};
+
+export const clearDeviceSSOAttempt = (deviceAuthToken: string) => {
+  try {
+    sessionStorage.removeItem(ssoAttemptKey(deviceAuthToken));
+  } catch {
+    // see hasAttemptedDeviceSSO
+  }
+};

@@ -69,6 +69,24 @@ const (
 	// error gives the end user nothing to act on.
 	FleetUISSOCallbackSessionExpired = FleetUISSOCallbackError + "&reason=session_expired"
 
+	// FleetUIDeviceSSOErrorPath is the front-end route the Fleet Desktop SSO
+	// flow falls back to when the callback fails before it can load the SSO
+	// session, which is where the device page URL lives. The end user came from
+	// the "My device" page, so the admin-facing callback error route would leave
+	// them with no way back. It carries no device token: all the callback knows
+	// at that point is the initiator, echoed back by the IdP in RelayState.
+	FleetUIDeviceSSOErrorPath = "/device/sso-error"
+
+	// FleetUIDeviceSSOError redirects to the device SSO error route's generic
+	// message.
+	FleetUIDeviceSSOError = FleetUIDeviceSSOErrorPath + "?reason=error"
+
+	// FleetUIDeviceSSOErrorSessionExpired redirects to the device SSO error
+	// route and asks it for the timed-out message. The handshake window spans a
+	// human step -- an MFA push, a password manager -- so it runs out in
+	// ordinary use, and the generic error gives the end user nothing to act on.
+	FleetUIDeviceSSOErrorSessionExpired = FleetUIDeviceSSOErrorPath + "?reason=session_expired"
+
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"

@@ -517,6 +517,11 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 		svc.ssoSessionStore,
 		sso.URLWithPrefix(browserBase, svc.config.Server.URLPrefix, deviceURL).String(),
 		uint(sessionDuration.Seconds()), //nolint:gosec // dismiss G115
+		// The initiator, and nothing more: a callback that fails before it can
+		// load the session has only this to tell it the end user came from the
+		// device page. The device URL cannot go here -- it carries the device
+		// auth token, and relay state is logged by the IdP.
+		fleet.SSOInitiatorFleetDesktop,
 		sso.SSORequestData{
 			HostUUID:  host.UUID,
 			Initiator: fleet.SSOInitiatorFleetDesktop,

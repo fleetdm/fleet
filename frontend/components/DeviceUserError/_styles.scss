@@ -38,6 +38,10 @@
       bottom: 1px;
     }
   }
+  &__action {
+    display: flex;
+    justify-content: center;
+  }
   &__description {
     display: block;
     color: $core-fleet-black;

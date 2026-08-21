@@ -8,7 +8,9 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
 
-import { IGetSetupExperienceStatusesResponse } from "services/entities/device_user";
+import deviceUserAPI, {
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
 
 import { IHostPolicy } from "interfaces/policy";
 
@@ -18,6 +20,8 @@ import {
   defaultDeviceHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
+  ssoRequiredDeviceHandler,
+  unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -690,5 +694,112 @@ describe("Device User Page", () => {
         { timeout: 4000 }
       );
     }, 10000);
+  });
+});
+
+describe("Device User Page - Fleet Desktop SSO", () => {
+  let initiateDeviceSSO: jest.SpyInstance;
+
+  // JSDOM implements no navigation and won't let window.location be stubbed, so
+  // the flow's last step (`window.location.href = url`) is unobservable here.
+  // Resolving the initiate call would only log a jsdom navigation error, so hold
+  // it pending instead: everything under test happens before it settles.
+  const pendingInitiation = () => new Promise<{ url: string }>(() => undefined);
+
+  const renderPage = (
+    query: Record<string, string> = {},
+    token = "testToken"
+  ) => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: token }}
+        location={{
+          ...mockLocation,
+          query: { ...mockLocation.query, ...query },
+        }}
+      />
+    );
+  };
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    initiateDeviceSSO = jest
+      .spyOn(deviceUserAPI, "initiateDeviceSSO")
+      .mockImplementation(pendingInitiation);
+  });
+
+  it("initiates SSO when a device call reports sso_required", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+
+    renderPage();
+
+    expect(
+      await screen.findByText(/Redirecting to your organization/)
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).toHaveBeenCalledWith("testToken");
+  });
+
+  it("renders the invalid URL error, and starts no SSO flow, for a 401 with no marker", async () => {
+    mockServer.use(unauthorizedDeviceHandler);
+
+    renderPage();
+
+    expect(
+      await screen.findByText("This URL is invalid or expired.")
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("does not initiate a second time after a round-trip that left no session", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+    window.sessionStorage.setItem("fleet-device-sso-attempt:testToken", "1");
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: "Sign in again" })
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-initiate when the callback reported a failure", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+
+    renderPage({ sso_error: "server_error" });
+
+    expect(
+      await screen.findByRole("button", { name: "Sign in again" })
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-initiate during Setup Experience", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+
+    renderPage({ setup_only: "1" });
+
+    expect(
+      await screen.findByRole("button", { name: "Sign in again" })
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).not.toHaveBeenCalled();
+  });
+
+  it("renders a retryable error when the initiate call fails", async () => {
+    mockServer.use(ssoRequiredDeviceHandler);
+    initiateDeviceSSO.mockRejectedValueOnce(new Error("nope"));
+
+    const { user } = renderPage();
+
+    const retry = await screen.findByRole("button", { name: "Sign in again" });
+    expect(initiateDeviceSSO).toHaveBeenCalledTimes(1);
+
+    await user.click(retry);
+
+    expect(
+      await screen.findByText(/Redirecting to your organization/)
+    ).toBeInTheDocument();
+    expect(initiateDeviceSSO).toHaveBeenCalledTimes(2);
   });
 });

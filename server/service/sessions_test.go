@@ -752,7 +752,7 @@ func TestDecodeCallbackRequestSAMLResponseSizeCap(t *testing.T) {
 		oversized := strings.Repeat("A", int(fleet.MaxSSOCallbackSize)+1)
 		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+oversized, nil)
 
-		_, _, err := decodeCallbackRequest(t.Context(), r)
+		_, _, _, err := decodeCallbackRequest(t.Context(), r)
 		require.Error(t, err)
 		var bre *fleet.BadRequestError
 		require.ErrorAs(t, err, &bre)
@@ -765,8 +765,43 @@ func TestDecodeCallbackRequestSAMLResponseSizeCap(t *testing.T) {
 		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback", strings.NewReader(form.Encode()))
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-		_, decoded, err := decodeCallbackRequest(t.Context(), r)
+		_, decoded, _, err := decodeCallbackRequest(t.Context(), r)
 		require.NoError(t, err)
 		require.Equal(t, "<x/>", string(decoded))
+	})
+}
+
+func TestDecodeCallbackRequestRelayState(t *testing.T) {
+	decode := func(t *testing.T, relayState string) string {
+		t.Helper()
+		form := url.Values{
+			"SAMLResponse": {base64.StdEncoding.EncodeToString([]byte("<x/>"))},
+			"RelayState":   {relayState},
+		}
+		r := httptest.NewRequest("POST", "/api/v1/fleet/mdm/sso/callback", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		_, _, decoded, err := decodeCallbackRequest(t.Context(), r)
+		require.NoError(t, err)
+		return decoded
+	}
+
+	require.Equal(t, fleet.SSOInitiatorFleetDesktop, decode(t, fleet.SSOInitiatorFleetDesktop))
+
+	// Anything Fleet did not put there is dropped, so the callback falls back to
+	// the behavior it had before relay state existed.
+	require.Empty(t, decode(t, ""))
+	require.Empty(t, decode(t, "https://evil.example.com"))
+	require.Empty(t, decode(t, "fleet_desktop\x00"))
+	require.Empty(t, decode(t, strings.Repeat("a", 4096)))
+
+	t.Run("absent RelayState decodes to empty", func(t *testing.T) {
+		form := url.Values{"SAMLResponse": {base64.StdEncoding.EncodeToString([]byte("<x/>"))}}
+		r := httptest.NewRequest("POST", "/api/v1/fleet/mdm/sso/callback", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		_, _, relayState, err := decodeCallbackRequest(t.Context(), r)
+		require.NoError(t, err)
+		require.Empty(t, relayState)
 	})
 }

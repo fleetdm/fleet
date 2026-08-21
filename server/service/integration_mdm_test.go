@@ -7142,6 +7142,34 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 		s.CompleteDeviceSSO(disabledClient, disabledIdPURL, "sso_user", "user123#"),
 		thirdToken, "sso_disabled", "feature disabled mid-flow",
 	)
+
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": true }
+	}`), http.StatusOK, &appConfigResponse{})
+
+	// A handshake that ran out before the IdP posted back cannot be traced to a
+	// device page -- the original URL lives in the session that just failed to
+	// load. Relay state is what is left, and it has to be enough to keep the end
+	// user off the admin-facing callback error route.
+	_, fourthToken := newHostWithToken("-d")
+	expiredClient := s.newSSOTestClient()
+	expiredIdPURL := s.InitiateDeviceSSO(expiredClient, fourthToken)
+	s.ExpireSSOHandshake(expiredClient)
+	expiredRes := s.CompleteDeviceSSO(expiredClient, expiredIdPURL, "sso_user", "user123#")
+	require.Equal(t, "/device/sso-error?reason=session_expired", expiredRes.Header.Get("Location"))
+	for _, c := range expiredRes.Cookies() {
+		require.NotEqual(t, cookieNameDeviceSSOSession, c.Name)
+	}
+
+	// Relay state Fleet did not set falls back to the behavior the callback had
+	// before relay state existed, rather than redirecting anywhere new.
+	_, fifthToken := newHostWithToken("-e")
+	forgedRelayClient := s.newSSOTestClient()
+	forgedRelayIdPURL := s.InitiateDeviceSSO(forgedRelayClient, fifthToken)
+	s.ExpireSSOHandshake(forgedRelayClient)
+	forgedRelayRes := s.CompleteDeviceSSOWithRelayState(forgedRelayClient, forgedRelayIdPURL,
+		"sso_user", "user123#", "https://evil.example.com")
+	require.Equal(t, "/mdm/sso/callback?error=true&reason=session_expired", forgedRelayRes.Header.Get("Location"))
 }
 
 // TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for

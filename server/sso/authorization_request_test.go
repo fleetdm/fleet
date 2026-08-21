@@ -47,6 +47,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		0,
+		"",
 		SSORequestData{
 			HostUUID:  "host-uuid-123",
 			Initiator: "test_initiator",
@@ -85,6 +86,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		store,
 		"/redir",
 		sessionTTL,
+		"",
 		SSORequestData{},
 	)
 	require.NoError(t, err)
@@ -137,4 +139,49 @@ func (s *mockStore) expire(sessionID string) error {
 
 func (s *mockStore) Fullfill(sessionID string) (*Session, error) {
 	return s.session, nil
+}
+
+func TestCreateAuthorizationRequestRelayState(t *testing.T) {
+	metadata, err := xml.Marshal(&saml.EntityDescriptor{
+		EntityID: "test",
+		IDPSSODescriptors: []saml.IDPSSODescriptor{
+			{
+				SingleSignOnServices: []saml.Endpoint{
+					{Binding: saml.HTTPRedirectBinding, Location: "http://example.com"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	samlProvider, err := SAMLProviderFromConfiguredMetadata(context.Background(),
+		"issuer",
+		"http://localhost:8001/api/v1/fleet/sso/callback",
+		&fleet.SSOProviderSettings{
+			IDPName:  "Fleet",
+			Metadata: string(metadata),
+		},
+	)
+	require.NoError(t, err)
+
+	relayStateFor := func(t *testing.T, relayState string) string {
+		t.Helper()
+		_, idpURL, err := CreateAuthorizationRequest(context.Background(),
+			samlProvider,
+			&mockStore{},
+			"/redir",
+			0,
+			relayState,
+			SSORequestData{},
+		)
+		require.NoError(t, err)
+		parsed, err := url.Parse(idpURL)
+		require.NoError(t, err)
+		return parsed.Query().Get("RelayState")
+	}
+
+	// An empty relay state is left off the AuthnRequest entirely, which is what
+	// every flow but Fleet Desktop passes.
+	assert.Empty(t, relayStateFor(t, ""))
+	assert.Equal(t, fleet.SSOInitiatorFleetDesktop, relayStateFor(t, fleet.SSOInitiatorFleetDesktop))
 }
