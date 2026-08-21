@@ -10409,8 +10409,8 @@ _Available in Fleet Premium_
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| fleet_id            | integer | path  | **Required.** Defines what fleet ID to operate on                                                                            |
-| policy_id                 | integer | path | **Required.** The policy's ID.                                                                                |
+| fleet_id           | integer | path  | **Required.** Defines what fleet ID to operate on                                                            |
+| policy_id          | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -10456,6 +10456,10 @@ _Available in Fleet Premium_
     "run_script": {
       "name": "Enable gatekeeper",
       "id": 1337
+    },
+    "resend_configuration_profile": {
+      "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+      "name": "Passcode requirements"
     }
   }
 }
@@ -10560,6 +10564,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
+| profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
@@ -10622,6 +10627,10 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "run_script": {
       "name": "Enable gatekeeper",
       "id": 1337
+    },
+    "resend_configuration_profile": {
+      "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+      "name": "Passcode requirements"
     }
   }
 }
@@ -10791,6 +10800,7 @@ _Available in Fleet Premium_
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
+| profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. |
@@ -10856,6 +10866,10 @@ Setting `patch_when_closed` or `notify_before_patching` to `false` after it was 
     "run_script": {
       "name": "Enable gatekeeper",
       "id": 1337
+    },
+    "resend_configuration_profile": {
+      "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
+      "name": "Passcode requirements"
     }
   }
 }
