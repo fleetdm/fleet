@@ -189,6 +189,48 @@ slate for orbit to attempt to encrypt the disk again:
 
 `manage-bde -off C:`
 
+#### BitLocker PIN entry (TPM+PIN)
+
+When a Windows host has a TPM+PIN protector requirement (configured via MDM profile),
+the end user must create a PIN that is required at boot to unlock the disk. Fleet
+Desktop collects the PIN from the end user and hands it to a privileged fleetd
+component, which applies it to the volume by adding a TPM+PIN protector using the
+[Win32_EncryptableVolume](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume)
+class. The privileged component runs elevated on behalf of the logged-in user,
+regardless of whether the user has local admin rights.
+
+After the PIN is applied, fleetd reports the completion to the server, which generates
+a `created_disk_encryption_pin` audit activity. The server detects whether a TPM+PIN
+protector is set via the `tpm_pin_set_verify` vital query, which checks
+`bitlocker_key_protectors` for protector types 4 (TPM+PIN) and 6 (TPM+PIN+startup key).
+
+```mermaid
+sequenceDiagram
+        actor Admin
+        participant fleet as Fleet server
+        participant host as Windows Host
+        participant fleetd as orbit
+        participant desktop as Fleet Desktop
+        actor user as End User
+        Admin->>fleet: Enable disk encryption with TPM+PIN
+        host->>fleet: Enroll in Fleet MDM
+        fleet->>host: Orbit/osquery installed
+        fleetd->>fleet: request vitals queries
+        fleet->>fleetd: Return reports including encryption status
+        fleetd->>fleet: return report data (encrypted, no PIN set)
+        fleetd->>desktop: Trigger PIN entry dialog
+        desktop->>user: Prompt user to create PIN
+        user->>desktop: Enter PIN
+        desktop->>fleetd: Send PIN to privileged fleetd component
+        fleetd->>host: Add TPM+PIN protector to volume
+        fleetd->>fleet: Report PIN creation
+        fleet->>fleet: Generate created_disk_encryption_pin activity
+        fleetd->>fleet: request vitals reports
+        fleet->>fleetd: Return vitals reports including tpm_pin_set_verify
+        fleetd->>fleetd: execute reports
+        fleetd->>fleet: return report data (PIN is set)
+```
+
 ### LUKS (Linux)
 Fleet can escrow disk encryption keys for Ubuntu, Kubuntu, and Fedora Linux hosts that had LUKS2
 encryption enabled during installation. Fleet will only initiate the escrow process on hosts running
