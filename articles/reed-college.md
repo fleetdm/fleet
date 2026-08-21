@@ -1,6 +1,6 @@
 # How Reed College gained visibility into 300 unmanaged PCs and reclaimed 20 hours a week
 
-## The challenge: no central tooling for Windows
+## The challenge
 
 Reed College's IT team supports faculty, staff, and students across more than 1,500 devices. As that environment grew, the team lacked the centralized tooling it needed to manage and report on the Windows fleet.
 
@@ -10,9 +10,6 @@ Reed had access to Microsoft Intune through its existing Microsoft licensing. Af
 
 *We had Intune through our E3 licensing, but when we dug in, the complexity and learning curve were steep enough that the team agreed it wasn't going to work for us.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 Those unmanaged devices had an immediate impact on the security team's goals. The team wanted stronger visibility into software update status and device compliance to support evolving security requirements.
@@ -21,9 +18,6 @@ Those unmanaged devices had an immediate impact on the security team's goals. Th
 
 *I didn't want to keep losing sleep over what would happen if an unmanaged PC with proprietary research data on it was stolen.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 The search for something better picked up momentum when a former colleague posted about their own migration to Fleet. The Reed team attended a GitOps workshop, brought in director-level stakeholders, and moved into a hands-on evaluation.
@@ -36,9 +30,6 @@ For Reed, there was a cultural dimension to deciding which solution would work b
 
 *Open source was a huge draw. Reed has a long history with open source. We build a lot of our own tools in house and open source what we can. That ethos fits education. We're strong believers in equal opportunity for learning, and Fleet's open source philosophy lines up with that.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 That openness turned out to be practical, not just philosophical. During the evaluation the team ran into a capability they wanted that didn't exist yet. Instead of filing a ticket into a black box, they could see exactly where it stood.
@@ -47,9 +38,6 @@ That openness turned out to be practical, not just philosophical. During the eva
 
 *I could just search the public GitHub issues, found that it was already being worked on, and I could even see which sprint it was landing in. That kind of transparency told me this was a product team that actually listens to what customers are asking for.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 Reed also chose Fleet's managed cloud. The college was already working to reduce the number of on-premises servers it ran, and standing up another one for device management would have moved in the wrong direction.
@@ -66,9 +54,6 @@ By the end of the evaluation, Fleet made the decision easy for Reed College. The
 
 *With Intune, I struggled to navigate it to answer simple questions, like what software is on this device, and is that software actually up to date? Now I just set up policies or use a live query and get an answer immediately. Targeting devices with fleets and labels is genuinely easy. Visibility and taking action were both time-consuming before. Now they're not.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 **Compliance the security team can see.** The security team defines the policies. The IT team monitors policy failures and remediates them, with standardized controls like CIS benchmarks on the roadmap. Logs ship to Security Onion, where the team pulls the dashboards leadership relies on to understand Reed's security posture.
@@ -83,9 +68,6 @@ The most immediate change was time.
 
 *I'm spending about 20 hours a week less on managing PCs than I was with Intune.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 The bigger shift was visibility.
@@ -94,9 +76,6 @@ The bigger shift was visibility.
 
 *We had very limited insight into PC compliance before. Now I've got dashboards and reports to prove that we're at 90% device compliance, with 95% in our sights.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 And the worst case that used to loom over the unmanaged fleet now has an answer.
@@ -105,9 +84,6 @@ And the worst case that used to loom over the unmanaged fleet now has an answer.
 
 *Being able to reliably lock and wipe a device remotely is real peace of mind. I don't lie awake wondering what happens to research data on a stolen PC anymore.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 With Fleet, Reed College has:
@@ -135,9 +111,6 @@ Asked what they'd tell a peer at another institution weighing the move, the answ
 
 *The transparency and the customer support. I can't say enough about how supported we felt throughout the whole process. There wasn't a moment when we didn't feel like Fleet had our back.*
 
-**Mason Peressini**
-
-Sr Systems Support Specialist, Reed College
 </div>
 
 <meta name="category" value="case study">
