@@ -20,6 +20,25 @@ describe("TooltipWrapper", () => {
     });
   });
 
+  it("does not render tooltip when tipContent is empty", async () => {
+    // Guarantees callers can pass a conditional/empty tipContent without
+    // the tooltip's empty background flashing on hover.
+    const { user } = renderWithSetup(
+      <TooltipWrapper tipContent="">
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+
+    const anchor = screen.getByText("Hover me");
+    await user.hover(anchor);
+
+    // The tooltip's root gets role="tooltip"; hovering an empty-content wrapper
+    // must not mount one.
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
+  });
+
   it("does not render tooltip when disableTooltip is true", async () => {
     const { user } = renderWithSetup(
       <TooltipWrapper tipContent="Tooltip text" disableTooltip>

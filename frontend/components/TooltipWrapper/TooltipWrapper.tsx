@@ -205,7 +205,7 @@ const TooltipWrapper = ({
       >
         {children}
       </div>
-      {!disableTooltip && (
+      {!disableTooltip && !!tipContent && (
         <ReactTooltip5
           className={tipClassNames}
           id={tipId}
