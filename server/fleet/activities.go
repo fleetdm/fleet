@@ -770,6 +770,18 @@ func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
 }
 
+type ActivityTypeEnabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeEnabledSSOFleetDesktop) ActivityName() string {
+	return "enabled_sso_fleet_desktop"
+}
+
+type ActivityTypeDisabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeDisabledSSOFleetDesktop) ActivityName() string {
+	return "disabled_sso_fleet_desktop"
+}
+
 // ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
 // provisioning (Platform SSO) settings actually change. It carries no details:
 // the settings are global-only and the IdP client secret must never be logged.

@@ -8994,6 +8994,40 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp)
 }
 
+// Free tier must not expose or accept fleet_desktop.sso_enabled, and must not
+// let a value stored under a premium license (before a downgrade) block
+// unrelated config changes.
+func (s *integrationTestSuite) TestFleetDesktopSSOFreeTier() {
+	t := s.T()
+	ctx := t.Context()
+
+	// PATCH attempting to enable it is rejected with the license error
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing or invalid license")
+
+	// seed a value as if it had been set while premium, then downgraded
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.FleetDesktop.SSOEnabled = true
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+
+	// GET /config rebuilds FleetDesktopSettings field by field and premium-gates
+	// the values, so the stored flag must read back as false here
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+
+	// an unrelated PATCH still succeeds and resets the stored value rather than
+	// failing on a premium-only setting left over from the downgrade
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"host_expiry_settings":{"host_expiry_enabled":false}}`), http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+
+	appCfg, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, appCfg.FleetDesktop.SSOEnabled)
+}
+
 func (s *integrationTestSuite) TestAppConfig() {
 	t := s.T()
 	ctx := context.Background()

@@ -5209,6 +5209,95 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsAlternativeBrow
 	require.Equal(t, "example.com", acResp.FleetDesktop.AlternativeBrowserHost)
 }
 
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsSSOEnabled() {
+	t := s.T()
+
+	t.Cleanup(func() {
+		var acResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"fleet_desktop": {"sso_enabled": false},
+			"mdm": {"end_user_authentication": {"entity_id": "", "idp_name": "", "metadata": "", "metadata_url": ""}}
+		}`), http.StatusOK, &acResp)
+	})
+
+	// The suite shares app config across tests, so start from a known
+	// unconfigured state instead of relying on test order.
+	appCfg, err := s.ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	appCfg.FleetDesktop.SSOEnabled = false
+	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
+
+	// enabling without a configured IdP is rejected, naming the offending field
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusUnprocessableEntity)
+	name, reason := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "fleet_desktop.sso_enabled", name)
+	require.Contains(t, reason, "Please configure it and try again.")
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+
+	// setting the IdP and the flag in the same payload succeeds, since the
+	// prerequisite is checked against the merged config
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": {"sso_enabled": true},
+		"mdm": {"end_user_authentication": {
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "https://idp.example.com/metadata"
+		}}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+
+	// the GET response rebuilds FleetDesktopSettings field by field, so verify
+	// the flag survives that path and not just the PATCH echo
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+
+	s.lastActivityMatches(fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName(), "", 0)
+	lastID := s.lastActivityMatches("", "", 0)
+
+	// a PATCH omitting sso_enabled leaves it on and emits no activity
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"org_info":{"org_name":"Fleet Desktop SSO"}}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.Equal(t, lastID, s.lastActivityMatches("", "", 0))
+
+	// re-asserting the same value emits no activity either
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.Equal(t, lastID, s.lastActivityMatches("", "", 0))
+
+	// reverse guard: the IdP can't be cleared while SSO is enabled
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"end_user_authentication": {"entity_id": "", "idp_name": "", "metadata": "", "metadata_url": ""}}
+	}`), http.StatusUnprocessableEntity)
+	name, reason = extractServerErrorNameReason(res.Body)
+	require.Equal(t, "mdm.end_user_authentication", name)
+	require.Contains(t, reason, "Please disable it and try again.")
+
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+	require.False(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+
+	// disabling emits the disabled activity, and then the IdP can be cleared
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":false}}`), http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+	s.lastActivityMatches(fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName(), "", 0)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {"end_user_authentication": {"entity_id": "", "idp_name": "", "metadata": "", "metadata_url": ""}}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EndUserAuthentication.IsEmpty())
+}
+
 func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	t := s.T()
 

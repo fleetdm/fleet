@@ -199,9 +199,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if lic.IsPremium() {
 		alternativeBrowserHost = appConfig.FleetDesktop.AlternativeBrowserHost
 	}
+	// Fleet Premium license is required for Fleet Desktop SSO
+	ssoEnabled := lic.IsPremium() && appConfig.FleetDesktop.SSOEnabled
+
 	fleetDesktop := fleet.FleetDesktopSettings{
 		TransparencyURL:        transparencyURL,
 		AlternativeBrowserHost: alternativeBrowserHost,
+		SSOEnabled:             ssoEnabled,
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
@@ -682,6 +686,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Features = newAppConfig.Features
 		appConfig.SSOSettings = newAppConfig.SSOSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
+		appConfig.FleetDesktop.SSOEnabled = newAppConfig.FleetDesktop.SSOEnabled
 	}
 
 	// We apply the config that is incoming to the old one
@@ -1074,6 +1079,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// ignore MDM.MicrosoftGraphCredentialInvalid because the server recomputes it from the credentials table
 	appConfig.MDM.MicrosoftGraphCredentialInvalid = oldAppConfig.MDM.MicrosoftGraphCredentialInvalid
 
+	// fleet_desktop.sso_enabled requires a configured IdP.
+	// Only enforced on premium: the setting is a no-op on Free.
+	if lic.IsPremium() && appConfig.FleetDesktop.SSOEnabled && appConfig.MDM.EndUserAuthentication.IsEmpty() {
+		// These deliberately don't name a Settings page: the same error reaches
+		// GitOps runs, where those pages are read-only.
+		if oldAppConfig.FleetDesktop.SSOEnabled {
+			// IdP is being cleared while the feature is on
+			return nil, fleet.NewInvalidArgumentError("mdm.end_user_authentication",
+				"Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
+		}
+		return nil, fleet.NewInvalidArgumentError("fleet_desktop.sso_enabled",
+			"Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
+	}
+
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
 	// to do in dry-run mode).
@@ -1192,6 +1211,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+		appConfig.FleetDesktop.SSOEnabled = false
 		// Clear a premium-only host name template so a value set while premium isn't
 		// retained (and enforced by the cron, which gates on MDM.EnabledAndConfigured
 		// rather than the license) on Free. Only touch it when non-empty so a no-op
@@ -1228,6 +1248,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if aapChanged {
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())
+		}
+	}
+
+	if oldAppConfig.FleetDesktop.SSOEnabled != appConfig.FleetDesktop.SSOEnabled {
+		var act fleet.ActivityDetails
+		if appConfig.FleetDesktop.SSOEnabled {
+			act = fleet.ActivityTypeEnabledSSOFleetDesktop{}
+		} else {
+			act = fleet.ActivityTypeDisabledSSOFleetDesktop{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
 
@@ -1808,6 +1840,7 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
 	alternativeBrowserHostModified := newAppConfig.FleetDesktop.AlternativeBrowserHost != ""
+	ssoEnabledModified := newAppConfig.FleetDesktop.SSOEnabled
 
 	fleetDesktopSettingsInvalidErr := &fleet.InvalidArgumentError{}
 	if !lic.IsPremium() {
@@ -1816,6 +1849,9 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 		}
 		if alternativeBrowserHostModified {
 			fleetDesktopSettingsInvalidErr.Append("alternative_browser_host", ErrMissingLicense.Error())
+		}
+		if ssoEnabledModified {
+			fleetDesktopSettingsInvalidErr.Append("sso_enabled", ErrMissingLicense.Error())
 		}
 		// No point in performing further validations if the license is not premium
 		return fleetDesktopSettingsInvalidErr

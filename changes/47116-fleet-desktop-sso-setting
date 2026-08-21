@@ -1,0 +1,1 @@
+- Added the `fleet_desktop.sso_enabled` (Fleet Premium) config setting, along with `enabled_sso_fleet_desktop`/`disabled_sso_fleet_desktop` activities and a `fleetDesktopSSOEnabled` usage statistic.
