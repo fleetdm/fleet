@@ -149,6 +149,16 @@ type Service interface {
 	// GetFleetDesktopSummary returns a summary of the host used by Fleet Desktop to operate.
 	GetFleetDesktopSummary(ctx context.Context) (DesktopSummary, error)
 
+	// InitiateDeviceSSO starts the SAML authentication flow for the Fleet
+	// Desktop "My device" page, bound to the host resolved from the
+	// initiating device token.
+	InitiateDeviceSSO(ctx context.Context, deviceURL string) (*DeviceSSOInitiation, error)
+
+	// RequireDeviceSSOSession enforces the Fleet Desktop SSO gate for the given host.
+	// When fleet_desktop.sso_enabled is off it allows the request; when it is on,
+	// sessionID must identify a live device SSO session minted for that host.
+	RequireDeviceSSOSession(ctx context.Context, host *Host, sessionID string) error
+
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.
 	//
@@ -241,7 +251,12 @@ type Service interface {
 	// MDMSSOCallback handles the IdP SAMLResponse and ensures the
 	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
-	MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string)
+	//
+	// deviceSSOSessionID and deviceSSOSessionDurationSeconds are set when the
+	// callback was initiated by the Fleet Desktop device SSO flow
+	// (SSOInitiatorFleetDesktop), so the caller can set the device SSO session
+	// cookie.
+	MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int)
 
 	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
 	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error)

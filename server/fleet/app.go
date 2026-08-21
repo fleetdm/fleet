@@ -574,6 +574,23 @@ func (c *AppConfig) MDMUrl() string {
 	return c.MDM.AppleServerURL
 }
 
+// FleetDesktopBrowserUrl returns the base URL an end user's browser reaches
+// Fleet on, which is the server URL unless fleet_desktop.alternative_browser_host
+// overrides its host.
+func (c *AppConfig) FleetDesktopBrowserUrl() (*url.URL, error) {
+	base, err := url.Parse(c.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
+	if altHost := c.FleetDesktop.AlternativeBrowserHost; altHost != "" {
+		if parsed, err := url.Parse(altHost); err == nil && parsed.Host != "" {
+			altHost = parsed.Host
+		}
+		base.Host = altHost
+	}
+	return base, nil
+}
+
 func (c *AppConfigUrls) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
@@ -1994,6 +2011,9 @@ type FleetDesktopSettings struct {
 	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
 	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
 	AlternativeBrowserHost string `json:"alternative_browser_host"`
+	// SSOEnabled requires end users to authenticate with the IdP configured in
+	// mdm.end_user_authentication, which must be set before this can be enabled.
+	SSOEnabled bool `json:"sso_enabled"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
