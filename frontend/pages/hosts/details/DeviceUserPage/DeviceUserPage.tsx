@@ -34,6 +34,7 @@ import { ISetupStep } from "interfaces/setup";
 
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 
+import Button from "components/buttons/Button";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -61,12 +62,16 @@ import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
 import {
+  clearDeviceSSOAttempt,
   getErrorMessage,
+  hasAttemptedDeviceSSO,
   hasRemainingSetupSteps,
   isSoftwareScriptSetup,
   isIPhone,
   isIPad,
   isRecentlyEnrolled,
+  isSSORequiredError,
+  recordDeviceSSOAttempt,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -129,6 +134,8 @@ interface IDeviceUserPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       setup_only?: string;
+      /** Set by the SSO callback when it could not mint a device session. */
+      sso_error?: string;
     };
     search?: string;
   };
@@ -211,6 +218,7 @@ const DeviceUserPage = ({
     data: deviceCertificates,
     isLoading: isLoadingDeviceCertificates,
     isError: isErrorDeviceCertificates,
+    error: deviceCertificatesError,
     refetch: refetchDeviceCertificates,
   } = useQuery<
     IGetDeviceCertificatesResponse,
@@ -413,6 +421,7 @@ const DeviceUserPage = ({
     data: setupStepStatuses,
     isLoading: isLoadingSetupSteps,
     isError: isErrorSetupSteps,
+    error: setupStepsError,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     AxiosError,
@@ -460,6 +469,61 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  // Any of the page's device calls can be the one refused: the first paint hits
+  // the details call, and a session that lapses mid-visit hits whichever call
+  // fires next.
+  const isSSORequired = [
+    isDupDetailsError,
+    deviceCertificatesError,
+    setupStepsError,
+    mdmManualEnrollUrlError,
+  ].some(isSSORequiredError);
+
+  const [isRedirectingToSSO, setIsRedirectingToSSO] = useState(false);
+  const [didSSOInitiateFail, setDidSSOInitiateFail] = useState(false);
+  const [hasAttemptedSSO, setHasAttemptedSSO] = useState(() =>
+    hasAttemptedDeviceSSO(deviceAuthToken)
+  );
+
+  const startDeviceSSO = useCallback(async () => {
+    setDidSSOInitiateFail(false);
+    setIsRedirectingToSSO(true);
+    setHasAttemptedSSO(true);
+    recordDeviceSSOAttempt(deviceAuthToken);
+    try {
+      const { url } = await deviceUserAPI.initiateDeviceSSO(deviceAuthToken);
+      window.location.href = url;
+    } catch {
+      setIsRedirectingToSSO(false);
+      setDidSSOInitiateFail(true);
+    }
+  }, [deviceAuthToken]);
+
+  // The callback flags its own failures on the way back here. Initiating again
+  // on that signal loops the end user between this page and the IdP, so the
+  // remaining attempts have to be theirs to make.
+  const canAutoInitiateSSO =
+    !hasAttemptedSSO &&
+    !location.query.sso_error &&
+    // The server exempts hosts still in Setup Experience; this keeps an IdP
+    // prompt out of Setup Assistant even if that exemption ever misses.
+    !location.query.setup_only;
+
+  useEffect(() => {
+    if (isSSORequired && canAutoInitiateSSO && !isRedirectingToSSO) {
+      startDeviceSSO();
+    }
+  }, [isSSORequired, canAutoInitiateSSO, isRedirectingToSSO, startDeviceSSO]);
+
+  useEffect(() => {
+    // A page that loaded has a working session, so the next expiry gets its own
+    // automatic attempt.
+    if (dupDetails) {
+      clearDeviceSSOAttempt(deviceAuthToken);
+      setHasAttemptedSSO(false);
+    }
+  }, [dupDetails, deviceAuthToken]);
 
   const { bypassConditionalAccess } = deviceUserAPI;
 
@@ -962,6 +1026,29 @@ const DeviceUserPage = ({
     );
   };
 
+  const renderDeviceSSOState = () => {
+    // canAutoInitiateSSO covers the render between the refusal arriving and the
+    // effect below firing, so the end user never sees the terminal state flash
+    // on the way to the IdP.
+    if (isRedirectingToSSO || canAutoInitiateSSO) {
+      return (
+        <div className={`${baseClass}__sso-redirect`}>
+          <Spinner {...(isMobileView && { variant: "mobile" })} />
+          <span>Redirecting to your organization’s sign-in page…</span>
+        </div>
+      );
+    }
+
+    return (
+      <DeviceUserError
+        isMobileView={isMobileView}
+        isMobileDevice={isMobileDevice}
+        ssoError={didSSOInitiateFail ? "initiate_failed" : "not_signed_in"}
+        action={<Button onClick={startDeviceSSO}>Sign in again</Button>}
+      />
+    );
+  };
+
   const coreWrapperClassnames = classNames("core-wrapper", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
@@ -969,6 +1056,26 @@ const DeviceUserPage = ({
   const siteNavContainerClassnames = classNames("site-nav-container", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
+
+  // The SSO branch has to come first: a refused device call is an error to
+  // every query on the page, but one the end user can act on by signing in.
+  const renderDeviceUserBody = () => {
+    if (isSSORequired) {
+      return renderDeviceSSOState();
+    }
+    if (isDupDetailsError || enrollUrlError) {
+      return (
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
+          isAuthenticationError={!!isAuthenticationError}
+        />
+      );
+    }
+    return (
+      <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
+    );
+  };
 
   return (
     <div className="app-wrap">
@@ -1001,15 +1108,7 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDupDetailsError || enrollUrlError ? (
-        <DeviceUserError
-          isMobileView={isMobileView}
-          isMobileDevice={isMobileDevice}
-          isAuthenticationError={!!isAuthenticationError}
-        />
-      ) : (
-        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
-      )}
+      {renderDeviceUserBody()}
       {showInfoModal && (
         <InfoModal
           onCancel={toggleInfoModal}

@@ -131,3 +131,90 @@ func TestDeviceSSOErrorURL(t *testing.T) {
 		"https://fleet.example.com/device/abc123?setup_only=1&sso_error=sso_disabled",
 		deviceSSOErrorURL("https://fleet.example.com/device/abc123?setup_only=1", "sso_disabled"))
 }
+
+func TestMDMSSOCallbackEarlyFailureRedirects(t *testing.T) {
+	// Failures before the SSO session loads can't know the initiator or the
+	// original URL -- both live in the session -- so the only signal left is the
+	// relay state the IdP echoed back.
+	newSvc := func(t *testing.T, idpConfigured bool) *Service {
+		t.Helper()
+
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+
+		appConfig := &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+		}
+		if idpConfigured {
+			appConfig.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+				EntityID: "fleet",
+				IDPName:  "TestIDP",
+				Metadata: mdmSSOTestMetadata,
+			}
+		}
+
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return appConfig, nil }
+
+		return &Service{
+			ds:     ds,
+			logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+			authz:  authorizer,
+			config: config.TestConfig(),
+			// Nothing was ever stored, so Fullfill fails exactly as it does once
+			// the handshake session has expired.
+			ssoSessionStore: sso.NewSessionStore(redistest.NopRedis()),
+		}
+	}
+
+	testCases := []struct {
+		name          string
+		relayState    string
+		idpConfigured bool
+		wantRedirect  string
+	}{
+		{
+			name:          "fleet desktop, expired handshake",
+			relayState:    fleet.SSOInitiatorFleetDesktop,
+			idpConfigured: true,
+			wantRedirect:  "/device/sso-error?reason=session_expired",
+		},
+		{
+			name:          "fleet desktop, other failure",
+			relayState:    fleet.SSOInitiatorFleetDesktop,
+			idpConfigured: false,
+			wantRedirect:  "/device/sso-error?reason=error",
+		},
+		{
+			name:          "no relay state keeps the admin callback route",
+			relayState:    "",
+			idpConfigured: true,
+			wantRedirect:  "/mdm/sso/callback?error=true&reason=session_expired",
+		},
+		{
+			name:          "enrollment initiator keeps the admin callback route",
+			relayState:    fleet.SSOInitiatorAppleMDMSSO,
+			idpConfigured: true,
+			wantRedirect:  "/mdm/sso/callback?error=true&reason=session_expired",
+		},
+		{
+			name:          "no relay state, other failure",
+			relayState:    "",
+			idpConfigured: false,
+			wantRedirect:  "/mdm/sso/callback?error=true",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := newSvc(t, tc.idpConfigured)
+			redirectURL, byodCookie, deviceSessionID, deviceSessionDuration := svc.MDMSSOCallback(
+				t.Context(), "does-not-exist", tc.relayState, []byte("<x/>"))
+
+			require.Equal(t, tc.wantRedirect, redirectURL)
+			require.Empty(t, byodCookie)
+			require.Empty(t, deviceSessionID)
+			require.Zero(t, deviceSessionDuration)
+		})
+	}
+}

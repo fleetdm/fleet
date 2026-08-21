@@ -17,6 +17,18 @@
   }
 }
 
+// Rendered as a sibling of .core-wrapper, so it is not nested under .device-user.
+.device-user__sso-redirect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $pad-large;
+  margin: $pad-xxxlarge 0;
+  color: $core-fleet-black;
+  font-size: $x-small;
+  text-align: center;
+}
+
 // styles specific to DeviceUserPage
 // for styles that should apply to both DeviceUserPage and HostDetailsPage (most of them),
 // update frontend/pages/hosts/details/_styles.scss/ `.host-details, .device-user {...}`

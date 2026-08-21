@@ -1178,6 +1178,7 @@ The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for MDM SSO login request
 | Name                     | Type   | In     | Description                                                                                                         |
 | ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
 | SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| RelayState               | string | body   | The relay state Fleet sent with the SAML request, echoed back unchanged by the identity provider. Set only for flows that need to be identified when the SSO session can no longer be loaded; any value Fleet did not send is ignored. |
 | __Host-FLEETSSOSESSIONID | string | cookie | **Required**. HTTP Cookie returned in the `POST /api/v1/fleet/mdm/sso` request.                                     |
 
 #### Example

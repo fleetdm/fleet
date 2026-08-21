@@ -6,15 +6,18 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/stretchr/testify/require"
 )
 
@@ -391,4 +394,40 @@ func TestRequireDeviceSSOSessionStoreFailure(t *testing.T) {
 	require.ErrorContains(t, err, "redis is down")
 	var ssoRequired *fleet.DeviceSSORequiredError
 	require.NotErrorAs(t, err, &ssoRequired, "a broken session store must not read as a prompt to sign in")
+}
+
+func TestInitiateDeviceSSORelayState(t *testing.T) {
+	const deviceToken = "device-auth-token-abc123" //nolint:gosec // not a credential, a test fixture
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		var ac fleet.AppConfig
+		ac.FleetDesktop.SSOEnabled = true
+		ac.ServerSettings.ServerURL = "https://fleet.example.com"
+		ac.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+			EntityID: "fleet",
+			IDPName:  "TestIDP",
+			Metadata: mdmSSOTestMetadata,
+		}
+		return &ac, nil
+	}
+
+	svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
+	svc.ssoSessionStore = sso.NewSessionStore(redistest.NopRedis())
+
+	ctx := hostctx.NewContext(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"})
+	initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+deviceToken)
+	require.NoError(t, err)
+
+	idpURL, err := url.Parse(initiation.IdPURL)
+	require.NoError(t, err)
+
+	// The initiator, and only the initiator: relay state reaches the IdP in the
+	// redirect query and comes back in the callback POST, so it lands in IdP
+	// request logs. The device auth token is the bearer credential for the whole
+	// device API and must not go there.
+	relayState := idpURL.Query().Get("RelayState")
+	require.Equal(t, fleet.SSOInitiatorFleetDesktop, relayState)
+	require.NotContains(t, relayState, deviceToken)
+	require.NotContains(t, idpURL.RawQuery, deviceToken)
 }

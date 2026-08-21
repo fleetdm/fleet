@@ -540,6 +540,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(
 		ctx, samlProvider, svc.ssoSessionStore, redirectURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		"",                           // admin login SSO has no initiator to carry back
 		sso.SSORequestData{},
 	)
 	if err != nil {
@@ -559,7 +560,8 @@ type callbackSSORequest struct {
 }
 
 func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
+	// Admin login SSO doesn't set relay state, so there is none to read back.
+	sessionID, samlResponse, _, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -569,9 +571,13 @@ func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	}, nil
 }
 
+// decodeCallbackRequest decodes the parts of an SSO callback that the admin and
+// MDM callbacks share. relayState is the initiator Fleet asked the IdP to echo
+// back, empty unless the flow set one and the IdP returned it intact.
 func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	sessionID string,
 	decodedSAMLResponse []byte,
+	relayState string,
 	err error,
 ) {
 	cs, err := r.Cookie(cookieNameSSOSession)
@@ -581,13 +587,13 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	case errors.Is(err, http.ErrNoCookie):
 		// SessionID cookie will be empty on IdP-initiated logins.
 	default:
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "failed to read SSO cookie session ID",
 		}, "cookie session ID in SSO callback")
 	}
 
 	if err := r.ParseForm(); err != nil {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to parse form",
 			InternalErr: err,
 		}, "parse form in SSO callback")
@@ -595,7 +601,7 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 
 	samlResponseValue := r.FormValue("SAMLResponse")
 	if samlResponseValue == "" {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "missing SAMLResponse",
 		}, "missing SAMLResponse in SSO callback")
 	}
@@ -606,18 +612,18 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	// ?SAMLResponse= query argument. This guards both the regular and MDM SSO
 	// callbacks, which share this decoder.
 	if int64(len(samlResponseValue)) > fleet.MaxSSOCallbackSize {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "SAMLResponse too large",
 		}, "SAMLResponse exceeds maximum size in SSO callback")
 	}
 	decodedSAMLResponseValue, err := sso.DecodeSAMLResponse(samlResponseValue)
 	if err != nil {
-		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", nil, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to decode SAMLResponse",
 			InternalErr: err,
 		}, "decode SAMLResponse in SSO callback")
 	}
-	return sessionID, decodedSAMLResponseValue, nil
+	return sessionID, decodedSAMLResponseValue, fleet.SSORelayStateInitiator(r.FormValue("RelayState")), nil
 }
 
 type callbackSSOResponse struct {

@@ -252,11 +252,15 @@ type Service interface {
 	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
 	//
+	// relayState is the initiator the IdP echoed back, and is the only thing the
+	// callback knows about the flow when the SSO session itself cannot be
+	// loaded. It is empty for the flows that don't set it.
+	//
 	// deviceSSOSessionID and deviceSSOSessionDurationSeconds are set when the
 	// callback was initiated by the Fleet Desktop device SSO flow
 	// (SSOInitiatorFleetDesktop), so the caller can set the device SSO session
 	// cookie.
-	MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int)
+	MDMSSOCallback(ctx context.Context, sessionID, relayState string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int)
 
 	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
 	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context, enrollmentToken string) (string, error)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -846,4 +847,28 @@ func TestFilterOutUserScopedProfiles(t *testing.T) {
 	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
 
 	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
+}
+
+func TestSSORelayStateInitiator(t *testing.T) {
+	for _, initiator := range []string{
+		fleet.SSOInitiatorOTAEnroll,
+		fleet.SSOInitiatorOrbitSetupExperience,
+		fleet.SSOInitiatorAccountDrivenEnroll,
+		fleet.SSOInitiatorAppleMDMSSO,
+		fleet.SSOInitiatorFleetDesktop,
+	} {
+		require.Equal(t, initiator, fleet.SSORelayStateInitiator(initiator))
+	}
+
+	for _, unknown := range []string{
+		"",
+		"FLEET_DESKTOP",
+		"fleet_desktop ",
+		"/device/abc123",
+		// The SAML bindings cap relay state at 80 bytes; a longer value is not
+		// something a conformant IdP echoed back.
+		strings.Repeat("a", 81),
+	} {
+		require.Empty(t, fleet.SSORelayStateInitiator(unknown), unknown)
+	}
 }

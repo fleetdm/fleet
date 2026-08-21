@@ -921,6 +921,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		"",                           // enrollment flows recover from a lost session on their own error page
 		sso.SSORequestData{
 			HostUUID:  hostUUID,
 			Initiator: initiator,
@@ -946,7 +947,7 @@ func deviceSSOErrorURL(originalURL, reason string) string {
 	return u.String()
 }
 
-func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int) {
+func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID, relayState string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the MDM SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -956,6 +957,16 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
+		// The initiator and the device page URL both live inside the SSO session
+		// that just failed to load, so relay state is all that is left to tell
+		// where the end user came from. Without it, a Fleet Desktop end user whose
+		// handshake timed out lands on the admin callback error page.
+		if relayState == fleet.SSOInitiatorFleetDesktop {
+			if errors.Is(err, sso.ErrSessionNotFound) {
+				return apple_mdm.FleetUIDeviceSSOErrorSessionExpired, "", "", 0
+			}
+			return apple_mdm.FleetUIDeviceSSOError, "", "", 0
+		}
 		if errors.Is(err, sso.ErrSessionNotFound) {
 			return apple_mdm.FleetUISSOCallbackSessionExpired, "", "", 0
 		}
