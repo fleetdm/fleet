@@ -1,6 +1,6 @@
 # =============================================================================
 # Restore BitLocker protection on an already-encrypted Windows host
-##
+#
 # Non-destructive: never decrypts, never removes a protector, never reboots.
 #
 # Exit codes:
@@ -9,38 +9,80 @@
 #   2 = a restart is pending; deliberately did NOT call EnableKeyProtectors
 # =============================================================================
 
+#Requires -RunAsAdministrator
+
 $ErrorActionPreference = 'Continue'
 
+$BL_NAMESPACE = 'root\CIMV2\Security\MicrosoftVolumeEncryption'
+
 function Get-Vol {
-    Get-WmiObject -Namespace 'root\CIMV2\Security\MicrosoftVolumeEncryption' `
-        -Class Win32_EncryptableVolume -Filter "DriveLetter='$($env:SystemDrive)'"
+    Get-CimInstance -Namespace $BL_NAMESPACE -ClassName Win32_EncryptableVolume `
+        -Filter "DriveLetter='$($env:SystemDrive)'"
 }
 
-# TPM-family protector types: 1=TPM, 4=TPM+PIN, 5=TPM+StartupKey, 6=TPM+PIN+StartupKey.
-# Any of these lets the volume unseal at boot without human input (PIN variants
-# prompt for a PIN, which is by design and still not a recovery prompt).
+# A null return from CIM means the lookup failed, which is NOT evidence about the volume's actual state, so it must
+# stop the script rather than be read as "no protectors" or "not encrypted".
+function Get-VolOrFail {
+    $v = Get-Vol
+    if (-not $v) {
+        Write-Output "FAIL: CIM returned no Win32_EncryptableVolume for $env:SystemDrive."
+        Write-Output "      Either the volume is not BitLocker-capable or the CIM query failed."
+        Write-Output "      Not treating this as a statement about the volume's state. Escalate."
+        exit 1
+    }
+    return $v
+}
+
+# Re-reads the volume on every call so state is never stale, and fails loudly if either the lookup or the method
+# call itself produces nothing.
+function Invoke-VolumeMethod {
+    param(
+        [Parameter(Mandatory = $true)][string] $MethodName,
+        [hashtable] $Arguments
+    )
+    $v = Get-VolOrFail
+    if ($Arguments) {
+        $r = Invoke-CimMethod -InputObject $v -MethodName $MethodName -Arguments $Arguments
+    } else {
+        $r = Invoke-CimMethod -InputObject $v -MethodName $MethodName
+    }
+    if ($null -eq $r) {
+        Write-Output "FAIL: $MethodName returned no result (CIM method call failed). Escalate."
+        exit 1
+    }
+    return $r
+}
+
+# TPM-family protector types: 1=TPM, 4=TPM+PIN, 5=TPM+StartupKey, 6=TPM+PIN+StartupKey. Any of these lets the
+# volume unseal at boot without human input (PIN variants prompt for a PIN, which is by design and still not a
+# recovery prompt).
 $TPM_FAMILY = 1, 4, 5, 6
 
-function Get-TpmProtectorCount {
-    $v = Get-Vol
-    $n = 0
-    foreach ($t in $TPM_FAMILY) {
-        $p = $v.GetKeyProtectors($t)
-        if ($p.ReturnValue -eq 0 -and $p.VolumeKeyProtectorID) { $n += @($p.VolumeKeyProtectorID).Count }
+function Get-ProtectorIdCount {
+    param([Parameter(Mandatory = $true)][int] $Type)
+    $r = Invoke-VolumeMethod -MethodName 'GetKeyProtectors' -Arguments @{ KeyProtectorType = [uint32]$Type }
+    if ($r.ReturnValue -ne 0) {
+        Write-Output ("FAIL: GetKeyProtectors($Type) returned 0x{0:X8}; cannot enumerate protectors. Escalate." -f $r.ReturnValue)
+        exit 1
     }
+    return @($r.VolumeKeyProtectorID).Count
+}
+
+function Get-TpmProtectorCount {
+    $n = 0
+    foreach ($t in $TPM_FAMILY) { $n += Get-ProtectorIdCount -Type $t }
     return $n
 }
 
-$vol = Get-Vol
-if (-not $vol) { Write-Output "FAIL: no encryptable volume for $env:SystemDrive"; exit 1 }
-
-$conv = $vol.GetConversionStatus().ConversionStatus   # 1 = FullyEncrypted
-$prot = $vol.GetProtectionStatus().ProtectionStatus   # 0 = off, 1 = on
+$conv = (Invoke-VolumeMethod -MethodName 'GetConversionStatus').ConversionStatus   # 1 = FullyEncrypted
+$prot = (Invoke-VolumeMethod -MethodName 'GetProtectionStatus').ProtectionStatus   # 0 = off, 1 = on
 $tpmCount = Get-TpmProtectorCount
-$npCount = @((Get-Vol).GetKeyProtectors(3).VolumeKeyProtectorID).Count
+$npCount = Get-ProtectorIdCount -Type 3
+# Protector type 0 means "every type"
+$allCount = Get-ProtectorIdCount -Type 0
 
-# Raw manage-bde is the only place the suspend reboot-count is exposed. The text
-# is localized, so only the parenthesised digit is parsed.
+# Raw manage-bde is the only place the suspend reboot-count is exposed. The text is localized, so only the
+# parenthesised digit is parsed.
 $statusRaw = (manage-bde -status $env:SystemDrive 2>&1 | Out-String)
 $rebootCount = if ($statusRaw -match '\(\s*(\d+)\s') { [int]$matches[1] } else { $null }
 
@@ -49,6 +91,7 @@ Write-Output "conversionStatus  : $conv (1 = FullyEncrypted)"
 Write-Output "protectionStatus  : $prot (0 = off, 1 = on)"
 Write-Output "tpmProtectors     : $tpmCount"
 Write-Output "recoveryPasswords : $npCount"
+Write-Output "allProtectors     : $allCount (every protector type)"
 Write-Output "suspendRebootCount: $(if ($null -ne $rebootCount) { $rebootCount } else { 'none (indefinite suspend, or protection is on)' })"
 
 if ($conv -ne 1) {
@@ -66,15 +109,15 @@ if ($prot -eq 1 -and $tpmCount -eq 0) {
     Write-Output "WARN: protection is on but NO TPM protector exists. This host will prompt for the recovery key at next boot."
 }
 
-if ($npCount -eq 0 -and $tpmCount -eq 0) {
-    Write-Output "FAIL: no key protectors at all. Escalate; do not attempt automated repair."
+if ($allCount -eq 0) {
+    Write-Output "FAIL: no key protectors of any type. Escalate; do not attempt automated repair."
     exit 1
 }
 
 # Step 1: ensure an auto-unlock protector exists BEFORE EnableKeyProtectors.
 if ($tpmCount -eq 0) {
     Write-Output "step 1: no TPM-family protector -> adding a TPM protector"
-    $r = (Get-Vol).ProtectKeyWithTPM()
+    $r = Invoke-VolumeMethod -MethodName 'ProtectKeyWithTPM'
     if ($r.ReturnValue -ne 0) {
         Write-Output ("FAIL: ProtectKeyWithTPM returned 0x{0:X8}." -f $r.ReturnValue)
         Write-Output "      0x80310061 = FVE_E_POLICY_STARTUP_PIN_REQUIRED (policy requires a startup PIN;"
@@ -111,7 +154,7 @@ Write-Output "step 2: no pending restart"
 # Step 3: enable the key protectors.
 if ($prot -ne 1) {
     Write-Output "step 3: calling EnableKeyProtectors to protect the key again"
-    $r = (Get-Vol).EnableKeyProtectors()
+    $r = Invoke-VolumeMethod -MethodName 'EnableKeyProtectors'
     if ($r.ReturnValue -ne 0) {
         Write-Output ("FAIL: EnableKeyProtectors returned 0x{0:X8}" -f $r.ReturnValue)
         exit 1
@@ -121,8 +164,7 @@ if ($prot -ne 1) {
 }
 
 Start-Sleep -Seconds 5
-$vol = Get-Vol
-$protAfter = $vol.GetProtectionStatus().ProtectionStatus
+$protAfter = (Invoke-VolumeMethod -MethodName 'GetProtectionStatus').ProtectionStatus
 $tpmAfter = Get-TpmProtectorCount
 Write-Output "result: protectionStatus=$protAfter tpmProtectors=$tpmAfter"
 
