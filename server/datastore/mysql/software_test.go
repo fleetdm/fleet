@@ -573,7 +573,7 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 		"last_opened_at": {},
 	}
 
-	sortable := softwareOrderKeys(true)
+	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
 	typ := reflect.TypeOf(fleet.Software{})
 	for i := range typ.NumField() {
 		field := typ.Field(i)
@@ -1112,6 +1112,24 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			})
 			require.Error(t, err, "order key %q should be rejected without CVE scores", key)
 			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// hosts_count is likewise only sortable when the counts are part of the
+		// query. Sorting on it alone is served by the separate query, so this
+		// pairs it with a second key to reach the list, as above.
+		_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "hosts_count,name"},
+		})
+		require.Error(t, err, "hosts_count should be rejected without host counts")
+		require.Contains(t, err.Error(), "invalid order_key")
+
+		// Whitespace and empty segments around a key are tolerated.
+
+		for _, key := range []string{" name , version ", "name,", ",name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
 		}
 
 		// ...and keys that don't depend on them work either way.

@@ -860,15 +860,19 @@ func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allow
 
 	// An order key may name more than one column, e.g. "name,version".
 	for _, key := range strings.Split(opts.OrderKey, ",") {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
 		column, ok := allowlist[key]
 		if !ok {
 			return nil, common_mysql.InvalidOrderKeyError{Key: key, Allowed: allowlist.AllowedKeys()}
 		}
 		sanitized := common_mysql.SanitizeColumn(column)
 		if sanitized == "" {
-			// Only reachable if an allowlist maps a key to something that
-			// isn't a column name at all.
-			continue
+			// The allowlist maps this key to something that isn't a column
+			// name, which would silently drop it from the ordering.
+			return nil, fmt.Errorf("order key %q maps to an invalid column %q", key, column)
 		}
 
 		var orderedExpr exp.OrderedExpression

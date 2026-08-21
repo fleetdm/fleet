@@ -2485,7 +2485,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	// Pagination is a bit more complex here due to the join with software_cve table and aggregated columns from cve_meta table.
 	// Apply order by again after joining on sub query
-	allowedOrderKeys := softwareOrderKeys(opts.IncludeCVEScores)
+	allowedOrderKeys := softwareOrderKeys(opts)
 	ds, err := appendListOptionsToSelect(ds, opts.ListOptions, allowedOrderKeys)
 	if err != nil {
 		return "", nil, err
@@ -5472,8 +5472,11 @@ var softwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"application_id":    "application_id",
 	"upgrade_code":      "upgrade_code",
 	"generated_cpe":     "generated_cpe",
-	// hosts_count is only part of the query when host counts are requested,
-	// which the endpoints always do.
+}
+
+// softwareHostCountAllowedOrderKeys may only be sorted on when host counts are
+// requested, since that is when the query selects the column.
+var softwareHostCountAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"hosts_count": "hosts_count",
 }
 
@@ -5487,15 +5490,22 @@ var softwareCVEAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 }
 
 // softwareOrderKeys returns the keys the software list may be sorted by for the
-// given options. The result is only read, and may be the package-level list
+// given options, which decide whether the columns behind some of them are part
+// of the query. The result is only read, and may be the package-level list
 // itself, so callers must not modify it.
-func softwareOrderKeys(includeCVEScores bool) common_mysql.OrderKeyAllowlist {
-	if !includeCVEScores {
+func softwareOrderKeys(opts fleet.SoftwareListOptions) common_mysql.OrderKeyAllowlist {
+	if !opts.IncludeCVEScores && !opts.WithHostCounts {
 		return softwareAllowedOrderKeys
 	}
-	keys := make(common_mysql.OrderKeyAllowlist, len(softwareAllowedOrderKeys)+len(softwareCVEAllowedOrderKeys))
+	keys := make(common_mysql.OrderKeyAllowlist,
+		len(softwareAllowedOrderKeys)+len(softwareCVEAllowedOrderKeys)+len(softwareHostCountAllowedOrderKeys))
 	maps.Copy(keys, softwareAllowedOrderKeys)
-	maps.Copy(keys, softwareCVEAllowedOrderKeys)
+	if opts.IncludeCVEScores {
+		maps.Copy(keys, softwareCVEAllowedOrderKeys)
+	}
+	if opts.WithHostCounts {
+		maps.Copy(keys, softwareHostCountAllowedOrderKeys)
+	}
 	return keys
 }
 
