@@ -232,6 +232,14 @@ license:
   enforce_host_limit: false
 ```
 
+### FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL
+
+When set to a duration such as 1m(1 minute), this enables legacy APNS pusher behavior and configure the interval at which it runs. When this is not defined, Fleet uses a fleet-wide sweep where inactive devices are sent APNS pushes daily and any pushes that fail to send during routine command enqueuing are retried automatically over several minutes. When this setting is enabled, Fleet instead attempts to send APNS pushes to devices with active commands. This has the potential to significantly increase database load on large Apple MDM deployments, particularly when the interval is set very low. The legacy APNS pusher behavior is deprecated and will be completely removed in a future release.
+
+This is only supported as an environment variable.
+
+- Environment variable: `FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL=1m`
+
 ## YAML files
 
 ### features.detail_query_overrides
