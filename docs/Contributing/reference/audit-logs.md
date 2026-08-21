@@ -1356,18 +1356,35 @@ This activity contains the following fields:
 
 ## edited_windows_profile
 
-Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Windows profile via the edit profile endpoint.
+Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Windows profile via the edit profile endpoint, or edits a batch set of Windows profiles via the batch set endpoint.
 
 This activity contains the following fields:
-- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_name": Name of the edited profile. Only present when a single profile was edited via the edit profile endpoint; omitted for fleetctl/GitOps batch edits.
+- "added_profiles": List of names of profiles that were added. Only present for fleetctl/GitOps batch edits that added profiles.
+- "modified_profiles": List of names of profiles that were modified. Only present for fleetctl/GitOps batch edits that modified profiles.
+- "removed_profiles": List of names of profiles that were removed. Only present for fleetctl/GitOps batch edits that removed profiles.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
-#### Example
+#### Example (single profile edit)
 
 ```json
 {
   "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+#### Example (batch set edit)
+
+```json
+{
+  "added_profiles": ["Custom settings 2"],
+  "modified_profiles": ["Custom settings 1"],
+  "removed_profiles": ["Custom settings 3"],
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
