@@ -337,6 +337,9 @@ var matchFlushSize = 100_000
 // across chunks the inserts are upserts on the unique key. Insert errors are
 // logged and sticky so callers can skip the stale-row deletes for the cycle.
 type vulnSink struct {
+	// mu guards every field below and is held for the datastore flush itself.
+	// This is intentional backpressure so matcher workers block while a
+	// chunk is being written instead of buffering ahead of a slow insert.
 	mu        sync.Mutex
 	ds        fleet.Datastore
 	logger    *slog.Logger
@@ -351,6 +354,12 @@ type vulnSink struct {
 }
 
 type vulnSinkResult struct {
+	// collected is only complete for a single successful process lifetime: if
+	// a previous run was killed after a chunk was inserted but before it
+	// returned, that chunk's pairs are already in the datastore and will be
+	// classified as not-new on the next run, so their automations are never
+	// retried. Same tradeoff as a mid-corpus feed error, just with no error to
+	// react to — accepted as out of scope for this run-scoped sink.
 	collected     []fleet.SoftwareVulnerability
 	totalSoftware int
 	totalOS       int
