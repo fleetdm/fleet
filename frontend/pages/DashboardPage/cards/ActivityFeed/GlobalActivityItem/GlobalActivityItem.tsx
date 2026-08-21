@@ -1102,6 +1102,10 @@ const TAGGED_TEMPLATES = {
   },
   enabledGitOpsMode: () => "enabled GitOps mode in the UI.",
   disabledGitOpsMode: () => "disabled GitOps mode in the UI.",
+  enabledSSOFleetDesktop: () =>
+    "enabled single sign-on (SSO) for Fleet Desktop.",
+  disabledSSOFleetDesktop: () =>
+    "disabled single sign-on (SSO) for Fleet Desktop.",
   enabledGitOpsException: (activity: IActivity) => {
     const exception = activity.details?.exception ?? "";
     return `enabled the ${exception} exception for GitOps.`;
@@ -2545,6 +2549,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledGitOpsMode: {
       return TAGGED_TEMPLATES.disabledGitOpsMode();
+    }
+    case ActivityType.EnabledSSOFleetDesktop: {
+      return TAGGED_TEMPLATES.enabledSSOFleetDesktop();
+    }
+    case ActivityType.DisabledSSOFleetDesktop: {
+      return TAGGED_TEMPLATES.disabledSSOFleetDesktop();
     }
     case ActivityType.EnabledGitOpsException: {
       return TAGGED_TEMPLATES.enabledGitOpsException(activity);

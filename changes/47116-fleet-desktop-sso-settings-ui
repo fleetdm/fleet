@@ -1,0 +1,1 @@
+- Added an "End user authentication" setting to Settings > Organization settings > Fleet Desktop (Fleet Premium) to require end users to sign in via SSO before accessing the "My device" page, instead of relying on hourly token rotation.
