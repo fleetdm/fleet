@@ -3503,9 +3503,9 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3591,8 +3591,8 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte(emptyMCProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3687,7 +3687,7 @@ func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
 	t.Run("macos updates configured with non-conflicting profile is allowed", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -4282,7 +4282,7 @@ func TestControlsNewKeyNames(t *testing.T) {
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -4350,7 +4350,7 @@ org_settings:
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -5841,7 +5841,7 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 	<integer>1</integer>
 </dict>
 </plist>
-`
+` // nolint:gosec // This is a test file, not a real password profile.
 
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
@@ -5887,10 +5887,10 @@ policies:
 `)
 		require.NoError(t, err)
 		require.Len(t, got.Policies, 3)
-		require.Equal(t, ptr.String("Password policy"), got.Policies[0].ResendConfigurationProfileName)
-		require.Equal(t, ptr.String("screenlock"), got.Policies[1].ResendConfigurationProfileName)
+		require.Equal(t, new("Password policy"), got.Policies[0].ResendConfigurationProfileName)
+		require.Equal(t, new("screenlock"), got.Policies[1].ResendConfigurationProfileName)
 		// Policies without the key get an empty name so the server unsets any existing profile.
-		require.Equal(t, ptr.String(""), got.Policies[2].ResendConfigurationProfileName)
+		require.Equal(t, new(""), got.Policies[2].ResendConfigurationProfileName)
 	})
 
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
@@ -5915,3 +5915,16 @@ policies:
 		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
 	})
 }
+
+const emptyMCProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Empty Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>empty-profile-identifier</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+</dict>
+</plist>`

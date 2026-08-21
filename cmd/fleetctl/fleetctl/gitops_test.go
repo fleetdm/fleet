@@ -9321,9 +9321,9 @@ policies:
 
 	require.Len(t, appliedSpecs, 2)
 	require.Equal(t, "Resend policy", appliedSpecs[0].Name)
-	require.Equal(t, ptr.String(macProfileUUID), appliedSpecs[0].ProfileUUID)
+	require.Equal(t, new(macProfileUUID), appliedSpecs[0].ProfileUUID)
 	// A policy without the key sends an empty UUID, which unsets any profile
 	// previously associated with it.
 	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
-	require.Equal(t, ptr.String(""), appliedSpecs[1].ProfileUUID)
+	require.Equal(t, new(""), appliedSpecs[1].ProfileUUID)
 }
