@@ -8850,6 +8850,7 @@ Only `DeviceLock`, `EraseDevice`, `ClearPasscode`, and `EnableLostMode` command 
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
 - [List Microsoft Graph credentials](#list-microsoft-graph-credentials)
 - [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials)
 
@@ -9147,6 +9148,38 @@ Fleet currently supports one Microsoft Graph credential.
 This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
 
 ---
+
+### Get Android zero-touch enrollment configuration
+
+_Available in Fleet Premium_
+
+Get Fleet's Android zero-touch DCP extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled.
+
+`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "dpc_extras": {
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver",
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": "I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg",
+    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+      "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "b1RlNGZYcVpvS3g3TnZD"
+    }
+  }
+}
+```
 
 ## SCIM
 
