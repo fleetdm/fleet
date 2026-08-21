@@ -34102,7 +34102,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 	// More reports than the limit, so a counted failure would stop the installs.
 	const policyReports = 12
 
-	runCase := func(t *testing.T, host *fleet.Host, installerID uint, policyID uint) {
+	runCase := func(t *testing.T, host *fleet.Host, installerID uint, policyID uint, appOpenSkip bool) {
 		for range policyReports {
 			var distributedResp submitDistributedQueryResultsResponse
 			s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
@@ -34130,25 +34130,36 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 		require.NoError(t, err)
 		require.Zero(t, count, "a failure before the package is fetched must not count against the limit")
 
-		var installs, ranInstallScript int
+		var installs, ranInstallScript, maxAttemptNumber int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if err := sqlx.GetContext(ctx, q, &installs, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID); err != nil {
 				return err
 			}
-			return sqlx.GetContext(ctx, q, &ranInstallScript, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ? AND install_script_exit_code IS NOT NULL`, host.ID, installerID)
+			if err := sqlx.GetContext(ctx, q, &ranInstallScript, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ? AND install_script_exit_code IS NOT NULL`, host.ID, installerID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &maxAttemptNumber, `SELECT COALESCE(MAX(attempt_number), 0) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
 		})
 		require.Zero(t, ranInstallScript, "the install script must never have run")
 		require.Greater(t, installs, fleet.MaxPolicyAutomationInstallAttempts, "installs must keep being queued past the limit")
+
+		// The two cases differ in whether the attempt consumes a slot in the retry
+		// sequence, which is what separates an app-open skip from an ordinary failure.
+		if appOpenSkip {
+			require.Zero(t, maxAttemptNumber, "an app open skip must not consume a retry sequence slot")
+		} else {
+			require.Positive(t, maxAttemptNumber, "an ordinary pre-install failure still consumes a retry sequence slot")
+		}
 	}
 
 	t.Run("app open on a patch when closed policy", func(t *testing.T) {
 		host, installerID, policyID := setupCase("app-open", true)
-		runCase(t, host, installerID, policyID)
+		runCase(t, host, installerID, policyID, true)
 	})
 
 	t.Run("ordinary pre-install query failure", func(t *testing.T) {
 		host, installerID, policyID := setupCase("pre-install", false)
-		runCase(t, host, installerID, policyID)
+		runCase(t, host, installerID, policyID, false)
 	})
 }
 

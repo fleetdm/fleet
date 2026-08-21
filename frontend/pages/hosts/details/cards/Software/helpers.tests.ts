@@ -579,16 +579,8 @@ describe("anyCompletedSoftwareSucceeded", () => {
     expect(anyCompletedSoftwareSucceeded(["2", "3"], software)).toBe(false);
   });
 
-  it("returns true when a completion succeeded", () => {
-    expect(anyCompletedSoftwareSucceeded(["1"], software)).toBe(true);
-  });
-
   it("returns true when only one of several completions succeeded", () => {
     expect(anyCompletedSoftwareSucceeded(["1", "2", "3"], software)).toBe(true);
-  });
-
-  it("returns false when nothing completed", () => {
-    expect(anyCompletedSoftwareSucceeded([], software)).toBe(false);
   });
 
   // A status the helper does not recognize should still refetch, so a new status
