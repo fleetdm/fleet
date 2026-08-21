@@ -2084,7 +2084,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			// windows profile names come from the file name without the extension
-			definedProfileNames[strings.TrimSuffix(filepath.Base(item.Path), ".xml")] = struct{}{}
+			base := filepath.Base(item.Path)
+			definedProfileNames[strings.TrimSuffix(base, filepath.Ext(base))] = struct{}{}
 		}
 	}
 
