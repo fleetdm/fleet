@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -380,11 +381,12 @@ func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
 	return nil
 }
 
-// parseAutoUpdateHHMM parses a zero-padded 24-hour "HH:MM" window boundary.
-// time.Parse("15:04", ...) alone accepts unpadded values like "1:00", so the
-// five-character shape is enforced before parsing.
+var autoUpdateHHMMPattern = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
+
+// parseAutoUpdateHHMM validates the 24-hour time shape and parses it. Unpadded hours
+// ("1:00") are accepted because the cron reader (isTimezoneInWindow) tolerates them.
 func parseAutoUpdateHHMM(s string) (time.Time, error) {
-	if len(s) != 5 || s[2] != ':' {
+	if !autoUpdateHHMMPattern.MatchString(s) {
 		return time.Time{}, errors.New("must be HH:MM")
 	}
 	return time.Parse("15:04", s)
