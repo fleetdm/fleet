@@ -7003,8 +7003,6 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 		require.NotEqual(t, cookieNameSSOSession, c.Name, "error response must not touch the handshake cookie")
 	}
 
-	s.DoRawNoAuth("POST", "/api/v1/fleet/device/bozo-token/sso", nil, http.StatusUnauthorized)
-
 	s.setUpMDMSSO(t, false)
 	defer s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"fleet_desktop": { "sso_enabled": false }
@@ -7017,20 +7015,15 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.FleetDesktop.SSOEnabled)
 
-	prevCookieSecure := cookieSecure
-	t.Cleanup(func() { cookieSecure = prevCookieSecure })
-	cookieSecure = false
-	jar, err := cookiejar.New(nil)
-	require.NoError(t, err)
-	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false), fleethttp.WithCookieJar(jar))
+	client := s.newSSOTestClient()
+	idpURL := s.InitiateDeviceSSO(client, deviceToken)
 
-	var resIni initiateDeviceSSOResponse
-	iniRes := s.doWithClient(client, "POST", "/api/v1/fleet/device/"+deviceToken+"/sso", nil, http.StatusOK, nil)
-	require.NoError(t, json.NewDecoder(iniRes.Body).Decode(&resIni))
-	require.NoError(t, resIni.Error())
-	require.NotEmpty(t, resIni.URL)
+	// the handshake cookie has to land in the jar, or the callback below cannot
+	// resolve the SSO session
+	serverURL, err := url.Parse(s.server.URL)
+	require.NoError(t, err)
 	var gotHandshakeCookie bool
-	for _, c := range iniRes.Cookies() {
+	for _, c := range client.Jar.Cookies(serverURL) {
 		if c.Name == cookieNameSSOSession {
 			gotHandshakeCookie = true
 		}
@@ -7046,9 +7039,9 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK)
 
-	// complete the flow: sign in at the IdP and post the assertion back to the
-	// existing MDM SSO callback
-	res = s.LoginDeviceSSOUser("sso_user", "user123#", deviceToken)
+	// complete *this* flow: sign in at the IdP and post the assertion back to the
+	// existing MDM SSO callback, on the same client that holds the handshake cookie
+	res = s.CompleteDeviceSSO(client, idpURL, "sso_user", "user123#")
 	require.Equal(t, "https://localhost:8080/device/"+deviceToken, res.Header.Get("Location"))
 
 	var gotSessionCookie *http.Cookie

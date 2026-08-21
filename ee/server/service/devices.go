@@ -450,7 +450,7 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 	sessionID, idpURL, err := sso.CreateAuthorizationRequest(ctx,
 		samlProvider,
 		svc.ssoSessionStore,
-		browserBase.JoinPath(deviceURL).String(),
+		sso.URLWithPrefix(browserBase, svc.config.Server.URLPrefix, deviceURL).String(),
 		uint(sessionDuration.Seconds()), //nolint:gosec // dismiss G115
 		sso.SSORequestData{
 			HostUUID:  host.UUID,

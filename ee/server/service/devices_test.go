@@ -53,56 +53,108 @@ func TestCreateDeviceSSOSession(t *testing.T) {
 }
 
 func TestInitiateDeviceSSOGuards(t *testing.T) {
-	host := &fleet.Host{ID: 1, UUID: "host-uuid-1"}
+	idpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(idpSrv.Close)
 
-	ssoSettings := fleet.SSOProviderSettings{
-		EntityID:    "mdm.test.com",
-		IDPName:     "SimpleSAML",
-		MetadataURL: "https://idp.example.com/metadata",
+	idp := func(ac *fleet.AppConfig) {
+		ac.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+			EntityID:    "mdm.test.com",
+			IDPName:     "SimpleSAML",
+			MetadataURL: idpSrv.URL,
+		}
 	}
 
 	cases := []struct {
 		name      string
-		appConfig func() fleet.AppConfig
 		wantErr   string
+		appConfig func() fleet.AppConfig
 	}{
 		{
 			name:      "sso disabled",
-			appConfig: func() fleet.AppConfig { return fleet.AppConfig{} },
 			wantErr:   "is not enabled",
+			appConfig: func() fleet.AppConfig { return fleet.AppConfig{} },
 		},
 		{
-			name: "sso enabled but no IdP configured",
+			name:    "sso enabled but no IdP configured",
+			wantErr: "no IdP is configured",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
 				return ac
 			},
-			wantErr: "no IdP is configured",
 		},
 		{
-			name: "alternative browser host differs from the ACS host",
+			name:    "alternative browser host differs from the ACS host",
+			wantErr: "same host",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
 				ac.FleetDesktop.AlternativeBrowserHost = "proxy.example.com"
 				ac.ServerSettings.ServerURL = "https://fleet.example.com"
-				ac.MDM.EndUserAuthentication.SSOProviderSettings = ssoSettings
+				idp(&ac)
 				return ac
 			},
-			wantErr: "same host",
 		},
 		{
-			name: "custom Apple MDM URL differs from the server URL",
+			name:    "custom Apple MDM URL differs from the server URL",
+			wantErr: "same host",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
 				ac.ServerSettings.ServerURL = "https://fleet.example.com"
 				ac.MDM.AppleServerURL = "https://mdm.example.com"
-				ac.MDM.EndUserAuthentication.SSOProviderSettings = ssoSettings
+				idp(&ac)
 				return ac
 			},
-			wantErr: "same host",
+		},
+		{
+			name:    "no alternative browser host",
+			wantErr: "metadata",
+			appConfig: func() fleet.AppConfig {
+				var ac fleet.AppConfig
+				ac.FleetDesktop.SSOEnabled = true
+				ac.ServerSettings.ServerURL = "https://fleet.example.com"
+				idp(&ac)
+				return ac
+			},
+		},
+		{
+			name:    "alternative browser host equals the server host",
+			wantErr: "metadata",
+			appConfig: func() fleet.AppConfig {
+				var ac fleet.AppConfig
+				ac.FleetDesktop.SSOEnabled = true
+				ac.FleetDesktop.AlternativeBrowserHost = "fleet.example.com"
+				ac.ServerSettings.ServerURL = "https://fleet.example.com"
+				idp(&ac)
+				return ac
+			},
+		},
+		{
+			name:    "alternative browser host differs only by port",
+			wantErr: "metadata",
+			appConfig: func() fleet.AppConfig {
+				var ac fleet.AppConfig
+				ac.FleetDesktop.SSOEnabled = true
+				ac.FleetDesktop.AlternativeBrowserHost = "fleet.example.com:8443"
+				ac.ServerSettings.ServerURL = "https://fleet.example.com"
+				idp(&ac)
+				return ac
+			},
+		},
+		{
+			name:    "apple server url equals the server url",
+			wantErr: "metadata",
+			appConfig: func() fleet.AppConfig {
+				var ac fleet.AppConfig
+				ac.FleetDesktop.SSOEnabled = true
+				ac.ServerSettings.ServerURL = "https://fleet.example.com"
+				ac.MDM.AppleServerURL = "https://fleet.example.com"
+				idp(&ac)
+				return ac
+			},
 		},
 	}
 
@@ -116,56 +168,16 @@ func TestInitiateDeviceSSOGuards(t *testing.T) {
 
 			svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
 
-			ctx := hostctx.NewContext(t.Context(), host)
-			_, err := svc.InitiateDeviceSSO(ctx, "/device/some-token")
-			require.Error(t, err)
-			require.Contains(t, err.Error(), c.wantErr)
-
-			var badReq *fleet.BadRequestError
-			require.ErrorAs(t, err, &badReq)
-		})
-	}
-}
-
-func TestInitiateDeviceSSOAllowsMatchingHosts(t *testing.T) {
-	idpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	t.Cleanup(idpSrv.Close)
-
-	for _, c := range []struct {
-		name                   string
-		alternativeBrowserHost string
-		appleServerURL         string
-	}{
-		{name: "no alternative browser host"},
-		{name: "alternative browser host equals the server host", alternativeBrowserHost: "fleet.example.com"},
-		{name: "alternative browser host differs only by port", alternativeBrowserHost: "fleet.example.com:8443"},
-		{name: "apple server url equals the server url", appleServerURL: "https://fleet.example.com"},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				var ac fleet.AppConfig
-				ac.FleetDesktop.SSOEnabled = true
-				ac.FleetDesktop.AlternativeBrowserHost = c.alternativeBrowserHost
-				ac.ServerSettings.ServerURL = "https://fleet.example.com"
-				ac.MDM.AppleServerURL = c.appleServerURL
-				ac.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
-					EntityID:    "mdm.test.com",
-					IDPName:     "SimpleSAML",
-					MetadataURL: idpSrv.URL,
-				}
-				return &ac, nil
-			}
-
-			svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
-
 			ctx := hostctx.NewContext(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"})
 			_, err := svc.InitiateDeviceSSO(ctx, "/device/some-token")
-
 			require.Error(t, err)
-			require.ErrorContains(t, err, "metadata")
+			require.ErrorContains(t, err, c.wantErr)
+
+			// Guard refusals are client errors; reaching the metadata fetch is not.
+			var badReq *fleet.BadRequestError
+			if c.wantErr != "metadata" {
+				require.ErrorAs(t, err, &badReq)
+			}
 		})
 	}
 }
