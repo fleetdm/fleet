@@ -117,7 +117,9 @@ describe("AddHostsModal", () => {
 
     await user.click(screen.getByRole("tab", { name: "macOS" }));
     expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Company-owned")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/Send this to your end users:/i)
     ).toBeInTheDocument();

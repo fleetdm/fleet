@@ -2613,11 +2613,11 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				nil,
 				nil,
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2635,11 +2635,11 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 5,
 			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
@@ -2656,11 +2656,11 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 6,
 			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2678,8 +2678,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 2,
 			wantNames: []string{"in-house2", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
@@ -2696,7 +2696,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 1,
 			wantNames: []string{"foo"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
 			},
 		},
 		{
@@ -2713,8 +2713,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 2,
 			wantNames: []string{"in-house1", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
 			},
 		},
 		{
@@ -2731,10 +2731,10 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 5,
 			wantNames: []string{"in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2898,7 +2898,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing start time")
+	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
@@ -2909,7 +2909,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing end time")
+	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
 
 	// Attempt to enable auto-update with less than an hour between start and end time.
 	startTime = "12:00"

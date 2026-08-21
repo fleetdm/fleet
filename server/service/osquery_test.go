@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -726,6 +728,17 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 	}
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		// Mirrors the IDs returned by QueryByNameFunc above. Team 1 queries are never
+		// scheduled here because no host in this test belongs to team 1.
+		if teamID != nil && *teamID == 2 {
+			return []uint{4343}, nil
+		}
+		return []uint{
+			uint('t'), uint('s'), uint('e'), uint('h'), // time, system_info, encrypted, hosts
+			123, 444, 555, 777, 1234,
+		}, nil
+	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
@@ -855,7 +868,17 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	}
 	err = serv.SubmitResultLogs(ctx, validAndInvalidResults)
 	require.NoError(t, err)
-	assert.Equal(t, validResults, testLogger.logs)
+
+	// Results naming a team 1 query are dropped before reaching the logging destination:
+	// this host is global, so Fleet never put that query on its schedule.
+	var expectedLogs []json.RawMessage
+	for _, result := range validResults {
+		if !strings.Contains(string(result), "team-1") {
+			expectedLogs = append(expectedLogs, result)
+		}
+	}
+	require.Len(t, expectedLogs, len(validResults)-2)
+	assert.Equal(t, expectedLogs, testLogger.logs)
 
 	//
 	// Run a similar test but now with a team host.
@@ -1000,6 +1023,10 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		}, nil
 	}
 
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return []uint{1}, nil
+	}
+
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
@@ -1051,6 +1078,10 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		}, nil
 	}
 
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return []uint{1}, nil
+	}
+
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
@@ -1066,6 +1097,137 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 	err = svc.SubmitResultLogs(ctx, results)
 	require.NoError(t, err)
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
+	const (
+		reportQueryID = 42
+		hostID        = 999
+	)
+
+	// A forged result log naming a real global report, submitted by a host that was
+	// never scheduled to run it.
+	//
+	// Built fresh per subtest because preProcessOsqueryResults rewrites the raw log in
+	// place to inject query_id, which would otherwise leak into later subtests.
+	newResults := func() []json.RawMessage {
+		return []json.RawMessage{
+			json.RawMessage(`{"action":"snapshot","name":"pack/Global/report_query","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"snapshot":[{"forged":"true"}]}`),
+		}
+	}
+
+	setUp := func(t *testing.T, scheduledForHost bool) (*Service, context.Context, *mock.Store, *testJSONLogger) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+			return &fleet.Query{
+				ID:                 reportQueryID,
+				Name:               name,
+				Logging:            fleet.LoggingSnapshot,
+				AutomationsEnabled: true,
+			}, nil
+		}
+		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+			if !scheduledForHost {
+				return nil, nil
+			}
+			return []uint{reportQueryID}, nil
+		}
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+			return len(rows), nil
+		}
+
+		logDestination := &testJSONLogger{}
+		serv := ((svc.(validationMiddleware)).Service).(*Service)
+		serv.osqueryLogWriter = &OsqueryLogger{Result: logDestination}
+		return serv, ctx, ds, logDestination
+	}
+
+	t.Run("query not scheduled for the host", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, false)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, newResults()))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		// Dropped before automations too, so the results never reach the log destination
+		// even though the query has automations enabled.
+		assert.Empty(t, logDestination.logs)
+	})
+
+	t.Run("query scheduled for the host", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, true)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
+
+		results := newResults()
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		assert.Equal(t, results, logDestination.logs)
+	})
+
+	t.Run("host missing from context fails closed", func(t *testing.T) {
+		// Not reachable in production: both callers authenticate the host before this point.
+		// ctx deliberately carries no host.
+		svc, ctx, ds, logDestination := setUp(t, true)
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, newResults()))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		assert.Empty(t, logDestination.logs)
+	})
+
+	t.Run("query Fleet does not know is passed through", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, false)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
+		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+			return nil, newNotFoundError()
+		}
+
+		results := newResults()
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		// Supports osquery nodes that load their config from outside Fleet.
+		assert.Equal(t, results, logDestination.logs)
+	})
+
+	// Query reports being disabled removes the report destination but not the log one, so
+	// an unscheduled result must not reach automations there either.
+	t.Run("query reports disabled and query not scheduled for the host", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, false)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
+		}
+
+		require.NoError(t, svc.SubmitResultLogs(ctx, newResults()))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		assert.Empty(t, logDestination.logs)
+	})
+
+	t.Run("query reports disabled and query scheduled for the host", func(t *testing.T) {
+		svc, ctx, ds, logDestination := setUp(t, true)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportsDisabled: true}}, nil
+		}
+
+		results := newResults()
+		require.NoError(t, svc.SubmitResultLogs(ctx, results))
+
+		assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
+		// Resolving the query to check the schedule must not change the payload reaching the
+		// logging destination: query_id is only injected when reports are enabled.
+		assert.Equal(t, results, logDestination.logs)
+		require.Len(t, logDestination.logs, 1)
+		assert.NotContains(t, string(logDestination.logs[0]), "query_id")
+	})
 }
 
 type failingLogger struct{}
@@ -1108,6 +1270,9 @@ func TestSubmitResultLogsFail(t *testing.T) {
 			AutomationsEnabled: true,
 			Name:               name,
 		}, nil
+	}
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return []uint{1}, nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
@@ -3815,6 +3980,12 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		recordedResults = results
 		return nil, nil
 	}
+	// A failing policy on a macOS host reaches the profile resend automation, which is not what
+	// this test is about. The other automations skip this host on their own (no orbit node key,
+	// no license, no enterprise overrides); this one has no such gate.
+	ds.GetPoliciesWithAssociatedProfileFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+		return nil, nil
+	}
 
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -4060,6 +4231,12 @@ func TestPolicyWebhooks(t *testing.T) {
 		ID:       5,
 		Platform: "darwin",
 		Hostname: "test.hostname",
+	}
+
+	// A newly-failing policy on a macOS host reaches the profile resend automation, which this
+	// test isn't about.
+	ds.GetPoliciesWithAssociatedProfileFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+		return nil, nil
 	}
 
 	lq.On("QueriesForHost", uint(5)).Return(map[string]string{}, nil)
@@ -5730,5 +5907,274 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		}
 		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
 		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
+	})
+}
+
+// TestProcessProfileResendsForNewlyFailingPolicies covers the policy automation that resends a
+// configuration profile when its policy fails on a host: which policies trigger a resend, and the
+// activity recorded for each one. The activity is the only record of an automated resend, so it
+// must carry the host, the profile and the policy that triggered it.
+func TestProcessProfileResendsForNewlyFailingPolicies(t *testing.T) {
+	const (
+		applePolicyID = uint(1)
+		winPolicyID   = uint(2)
+		noProfPolicy  = uint(3)
+	)
+	appleProfUUID := fleet.MDMAppleProfileUUIDPrefix + "apple-prof"
+	winProfUUID := fleet.MDMWindowsProfileUUIDPrefix + "windows-prof"
+
+	appleData := fleet.PolicyProfileData{
+		PolicyID:    applePolicyID,
+		PolicyName:  "apple policy",
+		ProfileUUID: appleProfUUID,
+		ProfileName: "apple profile",
+	}
+	winData := fleet.PolicyProfileData{
+		PolicyID:    winPolicyID,
+		PolicyName:  "windows policy",
+		ProfileUUID: winProfUUID,
+		ProfileName: "windows profile",
+	}
+
+	darwinHost := &fleet.Host{ID: 42, UUID: "host-uuid", Platform: "darwin", ComputerName: "Nancy's MacBook", Hostname: "nancy-mbp"}
+	windowsHost := &fleet.Host{ID: 43, UUID: "win-host-uuid", Platform: "windows", ComputerName: "WIN-BOX", Hostname: "win-box"}
+
+	// harness wires a service to a mock datastore reporting the given policy/profile associations,
+	// and records the resends performed and the activities logged.
+	type harness struct {
+		svc *Service
+		ctx context.Context
+		// statusFor decides what GetHostMDMProfileInstallStatus reports per profile UUID; a
+		// missing entry means the profile is not assigned to the host.
+		statusFor  map[string]fleet.MDMDeliveryStatus
+		resendErr  error
+		resent     []string
+		activities []fleet.ActivityTypeResentConfigurationProfile
+	}
+	setup := func(t *testing.T, assoc []fleet.PolicyProfileData) *harness {
+		t.Helper()
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, opts)
+		h := &harness{
+			svc:       svc.(validationMiddleware).Service.(*Service),
+			ctx:       ctx,
+			statusFor: map[string]fleet.MDMDeliveryStatus{appleProfUUID: fleet.MDMDeliveryVerified, winProfUUID: fleet.MDMDeliveryVerified},
+		}
+
+		// Mirrors the real query's `id IN (?)`, so a policy the caller filtered out before the
+		// lookup can't come back from the mock anyway.
+		ds.GetPoliciesWithAssociatedProfileFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+			var out []fleet.PolicyProfileData
+			for _, a := range assoc {
+				if slices.Contains(policyIDs, a.PolicyID) {
+					out = append(out, a)
+				}
+			}
+			return out, nil
+		}
+		ds.GetHostMDMProfileInstallStatusFunc = func(ctx context.Context, hostUUID, profUUID string) (fleet.MDMDeliveryStatus, error) {
+			status, ok := h.statusFor[profUUID]
+			if !ok {
+				return "", &notFoundErr{}
+			}
+			return status, nil
+		}
+		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
+			if h.resendErr != nil {
+				return h.resendErr
+			}
+			h.resent = append(h.resent, profUUID)
+			return nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, act activity_api.ActivityDetails) error {
+			// Fleet performs the resend, not a user.
+			require.Nil(t, user)
+			resentAct, ok := act.(*fleet.ActivityTypeResentConfigurationProfile)
+			require.True(t, ok, "unexpected activity type %T", act)
+			h.activities = append(h.activities, *resentAct)
+			return nil
+		}
+		return h
+	}
+
+	t.Run("failing policy resends its profile and records the activity", func(t *testing.T) {
+		h := setup(t, []fleet.PolicyProfileData{appleData})
+
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
+
+		require.Equal(t, []string{appleProfUUID}, h.resent)
+		require.Len(t, h.activities, 1)
+		require.Equal(t, fleet.ActivityTypeResentConfigurationProfile{
+			HostID:          new(darwinHost.ID),
+			HostDisplayName: new("Nancy's MacBook"),
+			ProfileName:     "apple profile",
+			ProfileUUID:     appleProfUUID,
+			PolicyID:        new(applePolicyID),
+			PolicyName:      new("apple policy"),
+		}, h.activities[0])
+		// The activity reports as automation-driven, which is what marks it Fleet-initiated
+		// rather than attributing it to a user.
+		require.True(t, h.activities[0].WasFromAutomation())
+	})
+
+	t.Run("policy that was already failing resends nothing", func(t *testing.T) {
+		// Only a pass→fail transition triggers a resend. A policy that keeps failing reports a
+		// failure on every run, so acting on those would resend once per policy run for as long
+		// as the host stays out of compliance.
+		h := setup(t, []fleet.PolicyProfileData{appleData})
+
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{}))
+
+		require.Empty(t, h.resent)
+		require.Empty(t, h.activities)
+	})
+
+	t.Run("only the newly failing policy of several resends", func(t *testing.T) {
+		otherAppleData := fleet.PolicyProfileData{
+			PolicyID:    winPolicyID,
+			PolicyName:  "second apple policy",
+			ProfileUUID: fleet.MDMAppleProfileUUIDPrefix + "apple-prof-2",
+			ProfileName: "second apple profile",
+		}
+		h := setup(t, []fleet.PolicyProfileData{appleData, otherAppleData})
+		h.statusFor[otherAppleData.ProfileUUID] = fleet.MDMDeliveryVerified
+
+		// Both policies report a failure, but only the second one just flipped.
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(false), winPolicyID: new(false)},
+			map[uint]struct{}{winPolicyID: {}}))
+
+		require.Equal(t, []string{otherAppleData.ProfileUUID}, h.resent)
+		require.Len(t, h.activities, 1)
+		require.Equal(t, new(winPolicyID), h.activities[0].PolicyID)
+	})
+
+	t.Run("passing and erroring policies resend nothing", func(t *testing.T) {
+		h := setup(t, []fleet.PolicyProfileData{appleData})
+
+		// A passing policy, and a policy whose query failed to execute (nil result).
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(true), winPolicyID: nil}, map[uint]struct{}{}))
+
+		require.Empty(t, h.resent)
+		require.Empty(t, h.activities)
+	})
+
+	t.Run("policy with no associated profile resends nothing", func(t *testing.T) {
+		h := setup(t, nil)
+
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{noProfPolicy: new(false)}, map[uint]struct{}{noProfPolicy: {}}))
+
+		require.Empty(t, h.resent)
+		require.Empty(t, h.activities)
+	})
+
+	t.Run("profile the host doesn't have is skipped and records no activity", func(t *testing.T) {
+		// A policy can target more platforms than the profile it resends, so a Windows host can
+		// report a failure for a policy holding an Apple profile. The host has no row for that
+		// profile, so the resend is rejected as not-found and only the Windows profile goes out.
+		h := setup(t, []fleet.PolicyProfileData{appleData, winData})
+		delete(h.statusFor, appleProfUUID)
+
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, windowsHost,
+			map[uint]*bool{applePolicyID: new(false), winPolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}, winPolicyID: {}}))
+
+		require.Equal(t, []string{winProfUUID}, h.resent)
+		require.Len(t, h.activities, 1)
+		require.Equal(t, winProfUUID, h.activities[0].ProfileUUID)
+		require.Equal(t, new(winPolicyID), h.activities[0].PolicyID)
+	})
+
+	t.Run("delivery already in flight is skipped and records no activity", func(t *testing.T) {
+		// A resend from an earlier run leaves the profile pending, and the policy keeps failing
+		// until the profile is delivered and re-verified. Resending again would be pointless and
+		// would log a resend per policy run.
+		for _, status := range []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying} {
+			t.Run(string(status), func(t *testing.T) {
+				h := setup(t, []fleet.PolicyProfileData{appleData})
+				h.statusFor[appleProfUUID] = status
+
+				require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+					map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
+
+				require.Empty(t, h.resent)
+				require.Empty(t, h.activities)
+			})
+		}
+	})
+
+	t.Run("failed profile is resent", func(t *testing.T) {
+		h := setup(t, []fleet.PolicyProfileData{appleData})
+		h.statusFor[appleProfUUID] = fleet.MDMDeliveryFailed
+
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
+
+		require.Equal(t, []string{appleProfUUID}, h.resent)
+		require.Len(t, h.activities, 1)
+	})
+
+	t.Run("no activity when the resend fails", func(t *testing.T) {
+		h := setup(t, []fleet.PolicyProfileData{appleData})
+		h.resendErr = errors.New("resend boom")
+
+		// A failed resend is logged, not returned: one bad profile must not abort the rest of
+		// the distributed query results processing.
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
+
+		require.Empty(t, h.resent)
+		require.Empty(t, h.activities)
+	})
+
+	t.Run("one failing profile does not stop the others", func(t *testing.T) {
+		// Two Apple profiles resent for the same host in one run, the first of which can't be
+		// resent. Each successful resend gets its own activity, attributing every profile to the
+		// policy that triggered it.
+		otherAppleData := fleet.PolicyProfileData{
+			PolicyID:    winPolicyID,
+			PolicyName:  "second apple policy",
+			ProfileUUID: fleet.MDMAppleProfileUUIDPrefix + "apple-prof-2",
+			ProfileName: "second apple profile",
+		}
+		h := setup(t, []fleet.PolicyProfileData{appleData, otherAppleData})
+		h.statusFor[otherAppleData.ProfileUUID] = fleet.MDMDeliveryVerified
+		delete(h.statusFor, appleProfUUID)
+
+		require.NoError(t, h.svc.processProfileResendsForNewlyFailingPolicies(h.ctx, darwinHost,
+			map[uint]*bool{applePolicyID: new(false), winPolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}, winPolicyID: {}}))
+
+		require.Equal(t, []string{otherAppleData.ProfileUUID}, h.resent)
+		require.Len(t, h.activities, 1)
+		require.NotNil(t, h.activities[0].PolicyName)
+		require.Equal(t, "second apple policy", *h.activities[0].PolicyName)
+	})
+
+	t.Run("host in no team looks up policies under the no-team ID", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, opts)
+		svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+		var gotTeamID uint
+		ds.GetPoliciesWithAssociatedProfileFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+			gotTeamID = teamID
+			return nil, nil
+		}
+
+		require.NoError(t, svcImpl.processProfileResendsForNewlyFailingPolicies(ctx,
+			&fleet.Host{ID: 1, UUID: "u", Platform: "darwin"},
+			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
+		require.Equal(t, fleet.PolicyNoTeamID, gotTeamID)
+
+		teamID := uint(7)
+		require.NoError(t, svcImpl.processProfileResendsForNewlyFailingPolicies(ctx,
+			&fleet.Host{ID: 1, UUID: "u", Platform: "darwin", TeamID: &teamID},
+			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
+		require.Equal(t, teamID, gotTeamID)
 	})
 }

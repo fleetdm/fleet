@@ -1750,7 +1750,14 @@ SELECT
 	h.id                  AS host_id,
 	h.platform            AS platform,
 	hmap.profile_uuid     AS profile_uuid,
-	hmap.has_acme_payload AS has_acme_payload
+	hmap.has_acme_payload AS has_acme_payload,
+	hmap.scope            AS scope,
+	CASE WHEN hmap.scope = ? THEN COALESCE((
+		SELECT ne.id
+		FROM nano_enrollments ne
+		WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = h.uuid
+		ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1
+	), '') ELSE '' END AS user_enrollment_id
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
@@ -1758,7 +1765,7 @@ WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
 	var dest fleet.ProfileACMECommandResult
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, fleet.PayloadScopeUser, commandUUID, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
@@ -2230,8 +2237,9 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 
 func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 	var (
-		appleUUIDs []any
-		winUUIDs   []any
+		appleUUIDs   []any
+		winUUIDs     []any
+		androidUUIDs []any
 	)
 
 	res := make(map[string]bool, len(hosts))
@@ -2241,6 +2249,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
+		case "android":
+			androidUUIDs = append(androidUUIDs, h.UUID)
 		}
 		res[h.UUID] = false
 	}
@@ -2298,6 +2308,17 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	    AND hm.enrolled = 1
 	`
 	if err := setConnectedUUIDs(winStmt, winUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	const androidStmt = `
+	  SELECT h.uuid
+	  FROM hosts h
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.uuid IN (?)
+	    AND hm.enrolled = 1
+	`
+	if err := setConnectedUUIDs(androidStmt, androidUUIDs, res); err != nil {
 		return nil, err
 	}
 

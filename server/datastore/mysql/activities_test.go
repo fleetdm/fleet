@@ -2908,6 +2908,53 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		}
 	})
 
+	t.Run("profile resends appear, manual resends do not", func(t *testing.T) {
+		// A policy-triggered resend carries details.policy_id and is linked to the host, so it
+		// shows in the feed as a success. A manual resend records the same activity type with a
+		// null policy_id and must not appear under any policy.
+		resendPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "resend-policy", Query: "SELECT 3"})
+		require.NoError(t, err)
+
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name: fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+			details: map[string]any{
+				"host_id":      h1.ID,
+				"profile_uuid": "a-profile-uuid",
+				"profile_name": "a profile",
+				"policy_id":    resendPolicy.ID,
+				"policy_name":  "resend-policy",
+			},
+			hostIDs: []uint{h1.ID},
+		}))
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name: fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+			details: map[string]any{
+				"host_id":      h1.ID,
+				"profile_uuid": "a-profile-uuid",
+				"profile_name": "a profile",
+				"policy_id":    nil,
+				"policy_name":  nil,
+			},
+			hostIDs: []uint{h1.ID},
+		}))
+
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, resendPolicy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1, "the manual resend must not be attributed to a policy")
+		require.Equal(t, fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(), activities[0].Type)
+		require.Equal(t, h1.ID, activities[0].HostID)
+		require.Equal(t, "success", activities[0].Status)
+
+		// It is a success, so it is absent from the error-filtered feed.
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, resendPolicy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Empty(t, activities)
+
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, resendPolicy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+	})
+
 	t.Run("pagination", func(t *testing.T) {
 		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3}), "")
 		require.NoError(t, err)

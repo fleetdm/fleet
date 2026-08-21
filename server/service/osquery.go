@@ -396,6 +396,157 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 	return config, nil
 }
 
+// packConfigCacheKey returns a cache key for the pack config cache
+// keyed by (teamID, queryReportsDisabled).
+func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
+	tid := "global"
+	if teamID != nil {
+		tid = fmt.Sprintf("%d", *teamID)
+	}
+	qrd := "0"
+	if queryReportsDisabled {
+		qrd = "1"
+	}
+	return "pack_config:" + tid + ":" + qrd
+}
+
+// getPackConfig returns the marshaled pack config JSON for the host.
+// It uses a cache for hosts without legacy packs and without label-scoped queries,
+// keyed by (teamID, queryReportsDisabled).
+func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.RawMessage, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetch app config")
+	}
+	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
+
+	// Check for legacy packs assigned to this specific host. Legacy packs are per-host, thus not cached.
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list packs for host")
+	}
+
+	// Fast path: if no legacy packs and no label-scoped queries, try the cached pack config.
+	// The scheduled queries pack config is identical for all hosts in the
+	// same team ONLY when no queries have label targeting. When labels are
+	// involved, ListScheduledQueriesForAgents filters per host, so the
+	// result varies per host and cannot be cached at the team level.
+	useLegacyPacks := len(packs) > 0
+	canUseCache := !useLegacyPacks && svc.packConfigCache != nil
+	if canUseCache {
+		// Check (with caching) whether any scheduled queries have label targeting.
+		// This is cached separately from the pack config itself to avoid a DB
+		// query on every request for the common case (no label-scoped queries).
+		// Note: if labels are added to a query mid-cache, the stale "false" entry
+		// lets the pack config cache serve the old team-wide result until the TTL
+		// expires. This is the same staleness window as any other query change
+		// (1 minute default) and is an accepted trade-off to avoid explicit
+		// invalidation across the datastore/service boundary.
+		labelCacheKey := "has_label_scoped:" + packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		if cached, found := svc.packConfigCache.Get(labelCacheKey); found {
+			if hasLabels, ok := cached.(bool); ok && hasLabels {
+				canUseCache = false
+			}
+		} else {
+			hasLabelScoped, err := svc.ds.HasLabelScopedScheduledQueries(ctx, host.TeamID, queryReportsDisabled)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check label-scoped scheduled queries")
+			}
+			svc.packConfigCache.SetDefault(labelCacheKey, hasLabelScoped)
+			if hasLabelScoped {
+				canUseCache = false
+			}
+		}
+	}
+	if canUseCache {
+		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		if cached, found := svc.packConfigCache.Get(cacheKey); found {
+			// cached may be nil (negative cache: no queries for this team)
+			// or a json.RawMessage with the marshaled pack config.
+			raw, _ := cached.(json.RawMessage)
+			return raw, nil
+		}
+	}
+
+	// Cache miss, label-scoped queries present, or legacy packs: build pack config from DB.
+	packConfig := fleet.Packs{}
+
+	for _, pack := range packs {
+		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
+		}
+
+		configQueries := fleet.Queries{}
+		for _, query := range queries {
+			queryContent := fleet.QueryContent{
+				Query:    query.Query,
+				Interval: query.Interval,
+				Platform: query.Platform,
+				Version:  query.Version,
+				Removed:  query.Removed,
+				Shard:    query.Shard,
+				Denylist: query.Denylist,
+			}
+
+			if query.Removed != nil {
+				queryContent.Removed = query.Removed
+			}
+
+			if query.Snapshot != nil && *query.Snapshot {
+				queryContent.Snapshot = query.Snapshot
+			}
+
+			configQueries[query.Name] = queryContent
+		}
+
+		packConfig[pack.Name] = fleet.PackContent{
+			Platform: pack.Platform,
+			Queries:  configQueries,
+		}
+	}
+
+	globalQueries, err := svc.getScheduledQueries(ctx, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get global scheduled queries")
+	}
+	if len(globalQueries) > 0 {
+		packConfig["Global"] = fleet.PackContent{
+			Queries: globalQueries,
+		}
+	}
+
+	if host.TeamID != nil {
+		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team scheduled queries")
+		}
+		if len(teamQueries) > 0 {
+			packName := fmt.Sprintf("team-%d", *host.TeamID)
+			packConfig[packName] = fleet.PackContent{
+				Queries: teamQueries,
+			}
+		}
+	}
+
+	var raw json.RawMessage
+	if len(packConfig) > 0 {
+		packJSON, err := json.Marshal(packConfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
+		}
+		raw = json.RawMessage(packJSON)
+	}
+
+	// Cache the result (including empty) for future requests (only when safe to cache).
+	if canUseCache {
+		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		svc.packConfigCache.SetDefault(cacheKey, raw)
+	}
+
+	return raw, nil
+}
+
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -425,81 +576,12 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 		}
 	}
 
-	packConfig := fleet.Packs{}
-
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
+	packConfigJSON, err := svc.getPackConfig(ctx, host)
 	if err != nil {
-		return nil, newOsqueryError("database error: " + err.Error())
+		return nil, newOsqueryError("internal error: build pack config: " + err.Error())
 	}
-	for _, pack := range packs {
-		// first, we must figure out what queries are in this pack
-		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
-		if err != nil {
-			return nil, newOsqueryError("database error: " + err.Error())
-		}
-
-		// the serializable osquery config struct expects content in a
-		// particular format, so we do the conversion here
-		configQueries := fleet.Queries{}
-		for _, query := range queries {
-			queryContent := fleet.QueryContent{
-				Query:    query.Query,
-				Interval: query.Interval,
-				Platform: query.Platform,
-				Version:  query.Version,
-				Removed:  query.Removed,
-				Shard:    query.Shard,
-				Denylist: query.Denylist,
-			}
-
-			if query.Removed != nil {
-				queryContent.Removed = query.Removed
-			}
-
-			if query.Snapshot != nil && *query.Snapshot {
-				queryContent.Snapshot = query.Snapshot
-			}
-
-			configQueries[query.Name] = queryContent
-		}
-
-		// finally, we add the pack to the client config struct with all of
-		// the pack's queries
-		packConfig[pack.Name] = fleet.PackContent{
-			Platform: pack.Platform,
-			Queries:  configQueries,
-		}
-	}
-
-	globalQueries, err := svc.getScheduledQueries(ctx, nil)
-	if err != nil {
-		return nil, newOsqueryError("database error: " + err.Error())
-	}
-	if len(globalQueries) > 0 {
-		packConfig["Global"] = fleet.PackContent{
-			Queries: globalQueries,
-		}
-	}
-
-	if host.TeamID != nil {
-		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
-		if err != nil {
-			return nil, newOsqueryError("database error: " + err.Error())
-		}
-		if len(teamQueries) > 0 {
-			packName := fmt.Sprintf("team-%d", *host.TeamID)
-			packConfig[packName] = fleet.PackContent{
-				Queries: teamQueries,
-			}
-		}
-	}
-
-	if len(packConfig) > 0 {
-		packJSON, err := json.Marshal(packConfig)
-		if err != nil {
-			return nil, newOsqueryError("internal error: marshal pack JSON: " + err.Error())
-		}
-		config["packs"] = json.RawMessage(packJSON)
+	if packConfigJSON != nil {
+		config["packs"] = packConfigJSON
 	}
 
 	// Save interval values if they have been updated.
@@ -930,6 +1012,26 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 // A host in setup experience is sent a subset of its in-scope policies, but it is checked against the full set: those
 // policies are legitimately the host's, so a result for one of them is worth keeping even if setup experience had not
 // asked for it yet.
+// summarizePolicyResults splits policy results into failing, passing and did-not-execute policy
+// IDs, sorted, so they can be logged readably: the results map holds *bool, which renders as
+// pointer addresses.
+func summarizePolicyResults(policyResults map[uint]*bool) (failing, passing, notExecuted []uint) {
+	for policyID, result := range policyResults {
+		switch {
+		case result == nil:
+			notExecuted = append(notExecuted, policyID)
+		case *result:
+			passing = append(passing, policyID)
+		default:
+			failing = append(failing, policyID)
+		}
+	}
+	for _, ids := range [][]uint{failing, passing, notExecuted} {
+		slices.Sort(ids)
+	}
+	return failing, passing, notExecuted
+}
+
 func (svc *Service) discardOutOfScopePolicyResults(ctx context.Context, host *fleet.Host, policyResults map[uint]*bool) error {
 	candidateIDs := make([]uint, 0, len(policyResults))
 	for policyID := range policyResults {
@@ -1299,6 +1401,16 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// Keep separate from the block below: this can empty policyResults, and an empty (rather than absent) result set
 	// makes RecordPolicyQueryExecutions treat every stored policy_membership row for the host as stale.
 	if len(policyResults) > 0 {
+		failing, passing, notExecuted := summarizePolicyResults(policyResults)
+		svc.logger.DebugContext(ctx, "received policy results",
+			"host_id", host.ID,
+			"host_platform", host.Platform,
+			"team_id", ptr.ValOrZero(host.TeamID),
+			"failing", failing,
+			"passing", passing,
+			"not_executed", notExecuted,
+		)
+
 		if err := svc.discardOutOfScopePolicyResults(ctx, host, policyResults); err != nil {
 			// Drop this cycle's policy results instead of failing the whole write: the host reports them again on
 			// its next check-in, whereas the detail and additional results from this same payload are only written
@@ -1324,6 +1436,14 @@ func (svc *Service) SubmitDistributedQueryResults(
 		for _, id := range newFailing {
 			newFailingSet[id] = struct{}{}
 		}
+		// The automations below act on transitions, not on the raw results, so this is the line to
+		// check first when one of them doesn't fire for a policy that is reporting a failure.
+		svc.logger.DebugContext(ctx, "computed policy transitions",
+			"host_id", host.ID,
+			"new_failing", newFailing,
+			"new_passing", newPassing,
+			"results_in_scope", len(policyResults),
+		)
 
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
@@ -1335,6 +1455,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		if host.Platform == "darwin" || host.Platform == "windows" {
 			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
+
+			if err := svc.processProfileResendsForNewlyFailingPolicies(ctx, host, policyResults, newFailingSet); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -2492,6 +2616,100 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	return nil
 }
 
+func (svc *Service) processProfileResendsForNewlyFailingPolicies(
+	ctx context.Context,
+	host *fleet.Host,
+	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
+) error {
+	// While it's gated outside, we gate in here as well to avoid future callers not gating.
+	if host.Platform != "darwin" && host.Platform != "windows" {
+		return nil
+	}
+
+	var policyTeamID uint
+	if host.TeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *host.TeamID
+	}
+
+	// Only trigger resend on pass->fail or fresh failures.
+	var newlyFailingPolicyIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult == nil || *policyResult {
+			continue
+		}
+		if _, newlyFailing := newFailingSet[policyID]; !newlyFailing {
+			continue
+		}
+		newlyFailingPolicyIDs = append(newlyFailingPolicyIDs, policyID)
+	}
+	if len(newlyFailingPolicyIDs) == 0 {
+		return nil
+	}
+
+	policiesWithProfile, err := svc.ds.GetPoliciesWithAssociatedProfile(ctx, policyTeamID, newlyFailingPolicyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with associated profile")
+	}
+	svc.logger.DebugContext(ctx, "looked up profiles to resend for newly failing policies",
+		"host_id", host.ID,
+		"team_id", policyTeamID,
+		"newly_failing", newlyFailingPolicyIDs,
+		"with_profile", len(policiesWithProfile),
+	)
+	if len(policiesWithProfile) == 0 {
+		return nil
+	}
+
+	for _, profile := range policiesWithProfile {
+		var reported bool
+		onError := func(innerErr error, rejected bool) {
+			reported = true
+			if rejected {
+				svc.logger.DebugContext(ctx, "skipping resend of MDM profile for host",
+					"host_id", host.ID,
+					"host_platform", host.Platform,
+					"policy_id", profile.PolicyID,
+					"profile_uuid", profile.ProfileUUID,
+					"err", innerErr,
+				)
+				return
+			}
+			svc.logger.ErrorContext(ctx, "failed to resend MDM profile for host",
+				"host_id", host.ID,
+				"policy_id", profile.PolicyID,
+				"profile_uuid", profile.ProfileUUID,
+				"err", innerErr,
+			)
+		}
+		svc.logger.DebugContext(ctx, "attempting resend of MDM profile for newly failing policy",
+			"host_id", host.ID,
+			"host_uuid", host.UUID,
+			"policy_id", profile.PolicyID,
+			"policy_name", profile.PolicyName,
+			"profile_uuid", profile.ProfileUUID,
+			"profile_name", profile.ProfileName,
+		)
+		checkAndResendHostMDMProfile(ctx, svc, host, onError, profile.ProfileUUID, profile.ProfileName, &checkAndResendPolicyArgs{
+			PolicyID:   profile.PolicyID,
+			PolicyName: profile.PolicyName,
+		})
+		if !reported {
+			// Nothing went to onError, so the profile is queued for the profile schedule to pick up
+			// and the activity is recorded.
+			svc.logger.DebugContext(ctx, "queued MDM profile for resend",
+				"host_id", host.ID,
+				"policy_id", profile.PolicyID,
+				"profile_uuid", profile.ProfileUUID,
+			)
+		}
+	}
+
+	return nil
+}
+
 func (svc *Service) processScriptsForNewlyFailingPolicies(
 	ctx context.Context,
 	hostID uint,
@@ -3069,7 +3287,10 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 //     `osqueryResults` item could not be unmarshaled.
 //   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
 //
-// If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
+// Results are resolved to their DB query regardless of queryReportsDisabled, because the caller
+// needs the query IDs to check them against the host's schedule either way. queryReportsDisabled
+// only suppresses injecting `query_id` into the raw logs, to keep the payload reaching the logging
+// destination unchanged for deployments that disable reports.
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
 	osqueryResults []json.RawMessage,
@@ -3104,10 +3325,6 @@ func (svc *Service) preProcessOsqueryResults(
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
 
-	if queryReportsDisabled {
-		return unmarshaledResults, nil
-	}
-
 	queriesDBData = make(map[string]*fleet.Query)
 	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
@@ -3134,6 +3351,10 @@ func (svc *Service) preProcessOsqueryResults(
 			}
 			queriesDBData[queryResult.QueryName] = query
 			existingQuery = query
+		}
+
+		if queryReportsDisabled {
+			continue
 		}
 
 		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
@@ -3192,14 +3413,23 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "getting app config", "err", err)
-		// If we fail to load the app config we assume the flag to be disabled
-		// to not perform extra processing in that scenario.
+		// If we fail to load the app config we assume the flag to be disabled so that
+		// results are not stored as reports in that scenario. The schedule check below
+		// still runs, since it does not depend on the app config.
 		queryReportsDisabled = true
 	} else {
 		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
+
+	// A host is the only source of its own results, so Fleet cannot tell truthful rows
+	// from forged ones. What it can require is that it asked this host for them, which
+	// happens here so that results for queries missing from the host's schedule reach
+	// neither a report nor a log destination. Query reports being disabled removes the
+	// report destination but not the log one, so the check applies either way.
+	svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
+
 	if !queryReportsDisabled {
 		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
@@ -3208,12 +3438,14 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	var filteredLogs []json.RawMessage
 	for i, unmarshaledResult := range unmarshaledResults {
 		if unmarshaledResult == nil {
-			// Ignore results that could not be unmarshaled.
+			// Ignore results that could not be unmarshaled, and those dropped above for not
+			// being on the host's schedule.
 			continue
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without any extra processing.
+			// If query_reports_disabled=true we write the logs to the logging destination without
+			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write
 			// the results for it here. Eventually the query will be removed from the host schedule
@@ -3258,6 +3490,60 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		return osqueryErr
 	}
 	return nil
+}
+
+// dropResultsNotScheduledForHost sets to nil the results whose query Fleet knows but did
+// not put on the submitting host's schedule. Entries are nilled in place rather than
+// removed because the caller pairs them positionally with the raw logs.
+func (svc *Service) dropResultsNotScheduledForHost(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+) {
+	if len(queriesDBData) == 0 {
+		return
+	}
+
+	// Neither failure below stops the loop: they leave the schedule empty, which makes it
+	// drop every result that resolved to a Fleet query. With no host or no schedule, no
+	// result can be shown to have been asked for.
+	var hostID uint
+	var scheduledQueryIDs []uint
+	// ok is true for a nil host, so check both.
+	if host, ok := hostctx.FromContext(ctx); !ok || host == nil {
+		svc.logger.ErrorContext(ctx, "getting host from context")
+	} else {
+		hostID = host.ID
+		var err error
+		if scheduledQueryIDs, err = svc.ds.QueriesPerHost(ctx, host.ID, host.TeamID); err != nil {
+			svc.logger.ErrorContext(ctx, "getting queries scheduled for host", "err", err, "host_id", host.ID)
+		}
+	}
+
+	scheduled := make(map[uint]struct{}, len(scheduledQueryIDs))
+	for _, queryID := range scheduledQueryIDs {
+		scheduled[queryID] = struct{}{}
+	}
+
+	for i, result := range unmarshaledResults {
+		if result == nil {
+			continue
+		}
+		dbQuery, ok := queriesDBData[result.QueryName]
+		if !ok {
+			// Fleet doesn't know this query, so it has no schedule to check it against. Those
+			// results are passed through to support osquery nodes configured outside of Fleet.
+			continue
+		}
+		if _, ok := scheduled[dbQuery.ID]; !ok {
+			// The query is not on the host's schedule (no interval, another team, or scoped to
+			// labels the host is not a member of), so the results are either forged or stale
+			// from before a scoping change.
+			svc.logger.DebugContext(ctx, "ignoring results for query not scheduled for host",
+				"query_id", dbQuery.ID, "host_id", hostID)
+			unmarshaledResults[i] = nil
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -8738,6 +8738,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8945,6 +8946,24 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Delete Android Enterprise
+
+Delete Android Enterprise that's connected to Fleet. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
