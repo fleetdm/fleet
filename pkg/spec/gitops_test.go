@@ -1259,13 +1259,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "policy name cannot be empty")
+				require.ErrorContains(t, err, "policy name cannot be empty")
 
 				// Policy query missing
 				config = getConfig([]string{"policies"})
 				config += "policies:\n  - name: Test Policy\n"
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "policy query cannot be empty")
+				require.ErrorContains(t, err, "policy query cannot be empty")
 
 				// Invalid reports
 				config = getConfig([]string{"reports"})

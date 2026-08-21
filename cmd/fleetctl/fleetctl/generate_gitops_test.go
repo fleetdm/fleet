@@ -2792,7 +2792,7 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, generatedPolicies)
+	require.Equal(t, expectedTeamPolicies, generatedTeamPolicies)
 }
 
 func TestGenerateQueries(t *testing.T) {
