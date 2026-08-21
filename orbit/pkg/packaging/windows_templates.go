@@ -597,7 +597,6 @@ function Force-Remove-Orbit {
         return
       }
     }
-
   }
   catch {
     Write-Host "There was a problem running Force-Remove-Orbit" -ForegroundColor Red
