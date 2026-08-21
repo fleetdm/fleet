@@ -2291,6 +2291,125 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
+// .py packages are stored with platform='linux'. The uninstall gate has to
+// honour the same unix-like exception as the install gate, or a package that
+// installed fine on a darwin host can never be removed through Fleet.
+func TestUninstallPyScriptOnUnixLike(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"linux", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           1,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     platform,
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return nil, nil
+			}
+
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{
+					InstallerID:              10,
+					Name:                     "script.py",
+					Extension:                "py",
+					Platform:                 "linux",
+					TeamID:                   new(uint(1)),
+					TitleID:                  new(uint(100)),
+					UninstallScriptContentID: 20,
+				}, nil
+			}
+			mockSoftwarePackagesFromMetadata(ds)
+
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return true, nil
+			}
+
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+
+			ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("script"), nil
+			}
+
+			ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
+				return nil
+			}
+
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+				User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			})
+
+			err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+			require.NoError(t, err, ".py uninstall on %s should succeed", platform)
+			require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should be created")
+		})
+	}
+}
+
+func TestUninstallPyScriptOnWindowsFails(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:              10,
+			Name:                     "script.py",
+			Extension:                "py",
+			Platform:                 "linux",
+			TeamID:                   new(uint(1)),
+			TitleID:                  new(uint(100)),
+			UninstallScriptContentID: 20,
+		}, nil
+	}
+	mockSoftwarePackagesFromMetadata(ds)
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+	require.Error(t, err, ".py uninstall on windows should fail")
+
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
+	require.NotNil(t, bre)
+	// The message has to name both platforms, the way the install path does.
+	require.Contains(t, bre.Message, "can be uninstalled only on macOS and Linux hosts")
+	require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should not be created")
+}
+
 // .py packages are stored with platform='linux'; the self-service install path
 // must still allow them on darwin hosts via the unix-like exception.
 func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
