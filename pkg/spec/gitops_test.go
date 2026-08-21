@@ -5848,8 +5848,8 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.mobileconfig"), []byte(passwordProfile), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.xml"), []byte("<Replace></Replace>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
 
 		exclude := []string{"controls", "policies"}
 		config := getTeamConfig(exclude)

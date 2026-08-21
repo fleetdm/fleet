@@ -3607,9 +3607,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			if teamProfiles != nil {
 				return nil
 			}
+
 			profiles, err := c.ListConfigurationProfiles(teamID)
 			if err != nil {
-				return fmt.Errorf("error listing configuration profiles for team %d: %w", *teamID, err)
+				return fmt.Errorf("error listing configuration profiles: %w", err)
 			}
 			teamProfiles = make(map[string]string, len(profiles))
 			for _, profile := range profiles {
@@ -3627,7 +3628,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 
 			if err := hydrateProfiles(); err != nil {
-				return fmt.Errorf("error hydrating configuration profiles for team %d: %w", *teamID, err)
+				return fmt.Errorf("error hydrating configuration profiles: %w", err)
 			}
 
 			profileUUID, ok := teamProfiles[*config.Policies[i].ResendConfigurationProfileName]

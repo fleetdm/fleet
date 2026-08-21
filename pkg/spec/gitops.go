@@ -2028,11 +2028,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		for _, item := range macOSSettings.CustomSettings {
 			// each entry has already been expanded so we can expect a single path
 			if item.Path == "" {
-				multiError = multierror.Append(multiError, errors.New("macos_settings.configuration_profiles[]: path is required for each profile"))
+				multiError = multierror.Append(multiError, errors.New("controls.macos_settings.configuration_profiles[]: path is required for each profile"))
 				continue
 			}
 
-			if !strings.HasSuffix(item.Path, ".mobileconfig") {
+			if !strings.EqualFold(filepath.Ext(item.Path), ".mobileconfig") {
 				// no-op and skip silently
 				continue
 			}
@@ -2065,11 +2065,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		for _, item := range windowsSettings.CustomSettings.Value {
 			// each entry has already been expanded so we can expect a single path
 			if item.Path == "" {
-				multiError = multierror.Append(multiError, errors.New("windows_settings.configuration_profiles[]: path is required for each profile"))
+				multiError = multierror.Append(multiError, errors.New("controls.windows_settings.configuration_profiles[]: path is required for each profile"))
 				continue
 			}
 
-			if !strings.HasSuffix(item.Path, ".xml") {
+			if !strings.EqualFold(filepath.Ext(item.Path), ".xml") {
 				// no-op and skip silently
 				continue
 			}
@@ -2129,6 +2129,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 							}
 							if err := parsePolicyRunScript(filepath.Dir(*item.Path), parentFilePath, result.TeamName, pp, result.Controls.Scripts); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
+								continue
+							}
+							if err := parsePolicyResendConfigurationProfile(filepath.Dir(*item.Path), parentFilePath, result.TeamName, pp, definedProfileNames); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", pp.Name, err))
 								continue
 							}
 							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
@@ -2257,15 +2261,20 @@ func parsePolicyResendConfigurationProfile(baseDir string, parentFilePath string
 		return nil
 	}
 
-	if policy.ResendConfigurationProfile.Name != "" && teamName == nil {
+	if teamName == nil {
 		return errors.New("resend_configuration_profile can only be set on team policies")
 	}
 
-	if _, ok := definedProfiles[policy.ResendConfigurationProfile.Name]; !ok {
-		return fmt.Errorf("configuration profile %q was not defined in controls in %s", policy.ResendConfigurationProfile.Name, filepath.Base(parentFilePath))
+	name := strings.TrimSpace(policy.ResendConfigurationProfile.Name)
+	if name == "" {
+		return errors.New("resend_configuration_profile.name is required")
 	}
 
-	policy.ResendConfigurationProfileName = &policy.ResendConfigurationProfile.Name
+	if _, ok := definedProfiles[name]; !ok {
+		return fmt.Errorf("configuration profile %q was not defined in controls in %s", name, filepath.Base(parentFilePath))
+	}
+
+	policy.ResendConfigurationProfileName = &name
 
 	return nil
 }
