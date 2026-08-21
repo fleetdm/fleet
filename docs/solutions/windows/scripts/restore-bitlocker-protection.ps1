@@ -53,18 +53,37 @@ function Invoke-VolumeMethod {
     return $r
 }
 
+# For read-only status calls, any non-zero ReturnValue means the answer is unusable. Acting on an unreadable state
+# is the exact failure this script exists to avoid, so stop rather than guess.
+function Invoke-VolumeQuery {
+    param(
+        [Parameter(Mandatory = $true)][string] $MethodName,
+        [hashtable] $Arguments
+    )
+    if ($Arguments) {
+        $r = Invoke-VolumeMethod -MethodName $MethodName -Arguments $Arguments
+    } else {
+        $r = Invoke-VolumeMethod -MethodName $MethodName
+    }
+    if ($r.ReturnValue -ne 0) {
+        Write-Output ("FAIL: $MethodName returned 0x{0:X8}; volume state is unreadable. Escalate." -f $r.ReturnValue)
+        exit 1
+    }
+    return $r
+}
+
 # TPM-family protector types: 1=TPM, 4=TPM+PIN, 5=TPM+StartupKey, 6=TPM+PIN+StartupKey. Any of these lets the
 # volume unseal at boot without human input (PIN variants prompt for a PIN, which is by design and still not a
 # recovery prompt).
 $TPM_FAMILY = 1, 4, 5, 6
 
+# Returned by ProtectKeyWithTPM when the protector is already present, which for this script's purposes means
+# success, not failure.
+$FVE_E_PROTECTOR_EXISTS = 0x80310031L
+
 function Get-ProtectorIdCount {
     param([Parameter(Mandatory = $true)][int] $Type)
-    $r = Invoke-VolumeMethod -MethodName 'GetKeyProtectors' -Arguments @{ KeyProtectorType = [uint32]$Type }
-    if ($r.ReturnValue -ne 0) {
-        Write-Output ("FAIL: GetKeyProtectors($Type) returned 0x{0:X8}; cannot enumerate protectors. Escalate." -f $r.ReturnValue)
-        exit 1
-    }
+    $r = Invoke-VolumeQuery -MethodName 'GetKeyProtectors' -Arguments @{ KeyProtectorType = [uint32]$Type }
     return @($r.VolumeKeyProtectorID).Count
 }
 
@@ -74,8 +93,8 @@ function Get-TpmProtectorCount {
     return $n
 }
 
-$conv = (Invoke-VolumeMethod -MethodName 'GetConversionStatus').ConversionStatus   # 1 = FullyEncrypted
-$prot = (Invoke-VolumeMethod -MethodName 'GetProtectionStatus').ProtectionStatus   # 0 = off, 1 = on
+$conv = (Invoke-VolumeQuery -MethodName 'GetConversionStatus').ConversionStatus   # 1 = FullyEncrypted
+$prot = (Invoke-VolumeQuery -MethodName 'GetProtectionStatus').ProtectionStatus   # 0 = off, 1 = on
 $tpmCount = Get-TpmProtectorCount
 $npCount = Get-ProtectorIdCount -Type 3
 # Protector type 0 means "every type"
@@ -84,7 +103,7 @@ $allCount = Get-ProtectorIdCount -Type 0
 # Raw manage-bde is the only place the suspend reboot-count is exposed. The text is localized, so only the
 # parenthesised digit is parsed.
 $statusRaw = (manage-bde -status $env:SystemDrive 2>&1 | Out-String)
-$rebootCount = if ($statusRaw -match '\(\s*(\d+)\s') { [int]$matches[1] } else { $null }
+$rebootCount = if ($statusRaw -match '\(\s*(\d+)') { [int]$matches[1] } else { $null }
 
 Write-Output "volume            : $env:SystemDrive"
 Write-Output "conversionStatus  : $conv (1 = FullyEncrypted)"
@@ -118,16 +137,19 @@ if ($allCount -eq 0) {
 if ($tpmCount -eq 0) {
     Write-Output "step 1: no TPM-family protector -> adding a TPM protector"
     $r = Invoke-VolumeMethod -MethodName 'ProtectKeyWithTPM'
-    if ($r.ReturnValue -ne 0) {
+    if ($r.ReturnValue -eq $FVE_E_PROTECTOR_EXISTS) {
+        # The desired state is already satisfied.
+        Write-Output "step 1: a TPM protector already exists (added between the check and this call); continuing"
+    } elseif ($r.ReturnValue -ne 0) {
         Write-Output ("FAIL: ProtectKeyWithTPM returned 0x{0:X8}." -f $r.ReturnValue)
         Write-Output "      0x80310061 = FVE_E_POLICY_STARTUP_PIN_REQUIRED (policy requires a startup PIN;"
         Write-Output "                   a TPM-only protector is not allowed, so a PIN must be enrolled instead)."
-        Write-Output "      0x80310031 = FVE_E_PROTECTOR_EXISTS (already present)."
         Write-Output "      NOT calling EnableKeyProtectors: enabling protectors with no auto-unlock protector"
         Write-Output "      present would cause a recovery prompt at the next boot."
         exit 1
+    } else {
+        Write-Output ("step 1: TPM protector added: {0}" -f $r.VolumeKeyProtectorID)
     }
-    Write-Output ("step 1: TPM protector added: {0}" -f $r.VolumeKeyProtectorID)
 } else {
     Write-Output "step 1: TPM-family protector already present ($tpmCount)"
 }
@@ -164,7 +186,7 @@ if ($prot -ne 1) {
 }
 
 Start-Sleep -Seconds 5
-$protAfter = (Invoke-VolumeMethod -MethodName 'GetProtectionStatus').ProtectionStatus
+$protAfter = (Invoke-VolumeQuery -MethodName 'GetProtectionStatus').ProtectionStatus
 $tpmAfter = Get-TpmProtectorCount
 Write-Output "result: protectionStatus=$protAfter tpmProtectors=$tpmAfter"
 
