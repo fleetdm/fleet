@@ -65,6 +65,8 @@ type GetFleetDesktopSummaryFunc func(ctx context.Context) (fleet.DesktopSummary,
 
 type InitiateDeviceSSOFunc func(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error)
 
+type RequireDeviceSSOSessionFunc func(ctx context.Context, host *fleet.Host, sessionID string) error
+
 type SetEnterpriseOverridesFunc func(overrides fleet.EnterpriseOverrides)
 
 type CreateUserFromInviteFunc func(ctx context.Context, p fleet.UserPayload) (user *fleet.User, err error)
@@ -1069,6 +1071,9 @@ type Service struct {
 
 	InitiateDeviceSSOFunc        InitiateDeviceSSOFunc
 	InitiateDeviceSSOFuncInvoked bool
+
+	RequireDeviceSSOSessionFunc        RequireDeviceSSOSessionFunc
+	RequireDeviceSSOSessionFuncInvoked bool
 
 	SetEnterpriseOverridesFunc        SetEnterpriseOverridesFunc
 	SetEnterpriseOverridesFuncInvoked bool
@@ -2632,6 +2637,13 @@ func (s *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fle
 	s.InitiateDeviceSSOFuncInvoked = true
 	s.mu.Unlock()
 	return s.InitiateDeviceSSOFunc(ctx, deviceURL)
+}
+
+func (s *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
+	s.mu.Lock()
+	s.RequireDeviceSSOSessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.RequireDeviceSSOSessionFunc(ctx, host, sessionID)
 }
 
 func (s *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {

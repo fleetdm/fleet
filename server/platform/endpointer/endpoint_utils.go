@@ -1056,6 +1056,14 @@ func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Midd
 	return &ae
 }
 
+// AppendCustomMiddlewareAfterAuth adds to the after-auth middleware already set
+// on the endpointer instead of replacing it.
+func (e *CommonEndpointer[H]) AppendCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddlewareAfterAuth = append(slices.Clone(ae.CustomMiddlewareAfterAuth), mws...)
+	return &ae
+}
+
 func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 	ae := *e
 	ae.usePathPrefix = true

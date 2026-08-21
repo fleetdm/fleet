@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/devicesso"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/osqueryauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -37,6 +38,16 @@ func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.C
 	}
 
 	return certserial.NewContext(ctx, serial)
+}
+
+// extractDeviceSSOSessionFromCookie stashes the Fleet Desktop device SSO session
+// ID in the context.
+func extractDeviceSSOSessionFromCookie(ctx context.Context, r *http.Request) context.Context {
+	cookie, err := r.Cookie(cookieNameDeviceSSOSession)
+	if err != nil {
+		return ctx
+	}
+	return devicesso.NewContext(ctx, cookie.Value)
 }
 
 func logJSON(ctx context.Context, logger *slog.Logger, v any, key string) {
@@ -66,7 +77,7 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 // provided in the request, and attaches the corresponding host to the
 // context for the request.
 func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+	authDeviceFunc := func(ctx context.Context, request any) (any, error) {
 		identifier, err := getDeviceAuthToken(request)
 		if err != nil {
 			return nil, err
@@ -124,6 +135,31 @@ func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.E
 		return resp, nil
 	}
 	return middleware_log.Logged(authDeviceFunc)
+}
+
+// requireDeviceSSOSession enforces the Fleet Desktop SSO gate. It runs after
+// authenticatedDevice, so it applies however the host was identified: token,
+// client certificate or device UUID in the URL.
+//
+// Rejections count toward the device routes' error limiter like any other
+// failure. A browser only sees one before it starts the SSO flow, so sustained
+// volume here is a scanner rather than an end user.
+func requireDeviceSSOSession(svc fleet.Service) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request any) (any, error) {
+			host, ok := hostctx.FromContext(ctx)
+			if !ok {
+				return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+			}
+
+			sessionID, _ := devicesso.FromContext(ctx)
+			if err := svc.RequireDeviceSSOSession(ctx, host, sessionID); err != nil {
+				logging.WithErr(ctx, err)
+				return nil, err
+			}
+			return next(ctx, request)
+		}
+	}
 }
 
 func getDeviceAuthToken(r interface{}) (string, error) {
