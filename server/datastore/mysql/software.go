@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"regexp"
 	"sort"
 	"strconv"
@@ -2484,7 +2485,11 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	// Pagination is a bit more complex here due to the join with software_cve table and aggregated columns from cve_meta table.
 	// Apply order by again after joining on sub query
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+	allowedOrderKeys := softwareOrderKeys(opts.IncludeCVEScores)
+	ds, err := appendListOptionsToSelect(ds, opts.ListOptions, allowedOrderKeys)
+	if err != nil {
+		return "", nil, err
+	}
 
 	// join on software_cve and cve_meta after apply pagination using the sub-query above
 	ds = dialect.From(ds.As("s")).
@@ -2540,7 +2545,10 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		)
 	}
 
-	ds = appendOrderByToSelect(ds, opts.ListOptions)
+	ds, err = appendOrderByToSelect(ds, opts.ListOptions, allowedOrderKeys)
+	if err != nil {
+		return "", nil, err
+	}
 
 	return ds.ToSQL()
 }
@@ -5437,6 +5445,58 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
 		}
 	}
+}
+
+// softwareAllowedOrderKeys are the keys the software list may be sorted by. They
+// are columns the list returns, so ordering on one can't reveal anything the
+// response doesn't already carry; the columns it omits are deliberately absent., mapped to the column each one orders on. Ordering is
+// validated against this list so that a caller can't sort by a column the
+// response doesn't return and read its values back through the ordering.
+// The keys match the documented sort fields, plus id and version which are
+// used for stable ordering.
+// The columns are unqualified because the ordering is applied at two levels of
+// the query, which reach the same output column through different aliases; the
+// output name resolves at both. They must also stay bare column names, since
+// this path quotes them as identifiers and would mangle a SQL expression.
+var softwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                "id",
+	"name":              "name",
+	"version":           "version",
+	"source":            "source",
+	"bundle_identifier": "bundle_identifier",
+	"extension_id":      "extension_id",
+	"extension_for":     "extension_for",
+	"release":           "release",
+	"vendor":            "vendor",
+	"arch":              "arch",
+	"application_id":    "application_id",
+	"upgrade_code":      "upgrade_code",
+	"generated_cpe":     "generated_cpe",
+	// hosts_count is only part of the query when host counts are requested,
+	// which the endpoints always do.
+	"hosts_count": "hosts_count",
+}
+
+// softwareCVEAllowedOrderKeys may only be sorted on when vulnerability details
+// are included, since that is when the query selects those columns.
+var softwareCVEAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"cve_published":      "cve_published",
+	"cvss_score":         "cvss_score",
+	"epss_probability":   "epss_probability",
+	"cisa_known_exploit": "cisa_known_exploit",
+}
+
+// softwareOrderKeys returns the keys the software list may be sorted by for the
+// given options. The result is only read, and may be the package-level list
+// itself, so callers must not modify it.
+func softwareOrderKeys(includeCVEScores bool) common_mysql.OrderKeyAllowlist {
+	if !includeCVEScores {
+		return softwareAllowedOrderKeys
+	}
+	keys := make(common_mysql.OrderKeyAllowlist, len(softwareAllowedOrderKeys)+len(softwareCVEAllowedOrderKeys))
+	maps.Copy(keys, softwareAllowedOrderKeys)
+	maps.Copy(keys, softwareCVEAllowedOrderKeys)
+	return keys
 }
 
 // hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".

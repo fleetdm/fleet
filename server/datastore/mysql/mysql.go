@@ -836,36 +836,52 @@ func (ds *Datastore) Close() error {
 }
 
 // appendListOptionsToSelect will apply the given list options to ds and
-// return the new select dataset.
-//
-// NOTE: This is a copy of appendListOptionsToSQL that uses the goqu package.
-func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
-	ds = appendOrderByToSelect(ds, opts)
+// return the new select dataset. Order keys are validated against allowlist.
+func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
+	ds, err := appendOrderByToSelect(ds, opts, allowlist)
+	if err != nil {
+		return nil, err
+	}
 	ds = appendLimitOffsetToSelect(ds, opts)
-	return ds
+	return ds, nil
 }
 
-func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
-	if opts.OrderKey != "" {
-		ordersKeys := strings.Split(opts.OrderKey, ",")
-		for _, key := range ordersKeys {
-			sanitized := common_mysql.SanitizeColumn(key)
-			if sanitized == "" {
-				continue
-			}
-
-			var orderedExpr exp.OrderedExpression
-			if opts.OrderDirection == fleet.OrderDescending {
-				orderedExpr = goqu.L(sanitized).Desc()
-			} else {
-				orderedExpr = goqu.L(sanitized).Asc()
-			}
-
-			ds = ds.OrderAppend(orderedExpr)
-		}
+// appendOrderByToSelect appends the requested ordering to ds. The order key is
+// validated against allowlist, which maps the keys a caller may sort by to the
+// column each one orders on, so that a caller can't sort by an arbitrary column
+// and read it back through the resulting order.
+//
+// The mapped columns are quoted as identifiers, so an allowlist used here must
+// map to bare column names rather than to a SQL expression.
+func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
+	if opts.OrderKey == "" {
+		return ds, nil
 	}
 
-	return ds
+	// An order key may name more than one column, e.g. "name,version".
+	for _, key := range strings.Split(opts.OrderKey, ",") {
+		column, ok := allowlist[key]
+		if !ok {
+			return nil, common_mysql.InvalidOrderKeyError{Key: key, Allowed: allowlist.AllowedKeys()}
+		}
+		sanitized := common_mysql.SanitizeColumn(column)
+		if sanitized == "" {
+			// Only reachable if an allowlist maps a key to something that
+			// isn't a column name at all.
+			continue
+		}
+
+		var orderedExpr exp.OrderedExpression
+		if opts.OrderDirection == fleet.OrderDescending {
+			orderedExpr = goqu.L(sanitized).Desc()
+		} else {
+			orderedExpr = goqu.L(sanitized).Asc()
+		}
+
+		ds = ds.OrderAppend(orderedExpr)
+	}
+
+	return ds, nil
 }
 
 func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
