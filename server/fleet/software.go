@@ -361,12 +361,11 @@ func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
 		return NewInvalidArgumentError("auto_update_window", "Start and end time must both be set")
 	}
-	// Parsing as 15:04 also enforces hours 0-23 and minutes 0-59.
-	startDuration, err := time.Parse("15:04", *s.AutoUpdateStartTime)
+	startDuration, err := parseAutoUpdateHHMM(*s.AutoUpdateStartTime)
 	if err != nil {
 		return NewInvalidArgumentError("auto_update_window_start", "must be in HH:MM (24-hour) format")
 	}
-	endDuration, err := time.Parse("15:04", *s.AutoUpdateEndTime)
+	endDuration, err := parseAutoUpdateHHMM(*s.AutoUpdateEndTime)
 	if err != nil {
 		return NewInvalidArgumentError("auto_update_window_end", "must be in HH:MM (24-hour) format")
 	}
@@ -379,6 +378,16 @@ func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
 	}
 
 	return nil
+}
+
+// parseAutoUpdateHHMM parses a zero-padded 24-hour "HH:MM" window boundary.
+// time.Parse("15:04", ...) alone accepts unpadded values like "1:00", so the
+// five-character shape is enforced before parsing.
+func parseAutoUpdateHHMM(s string) (time.Time, error) {
+	if len(s) != 5 || s[2] != ':' {
+		return time.Time{}, errors.New("must be HH:MM")
+	}
+	return time.Parse("15:04", s)
 }
 
 type SoftwareAutoUpdateScheduleFilter struct {

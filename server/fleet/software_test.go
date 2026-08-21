@@ -1048,6 +1048,28 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 			isValid: false,
 		},
 		{
+			name: "start time unpadded hour",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("1:00"),
+					AutoUpdateEndTime:   ptr.String("15:30"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "end time unpadded hour",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   ptr.Bool(true),
+					AutoUpdateStartTime: ptr.String("14:30"),
+					AutoUpdateEndTime:   ptr.String("1:00"),
+				},
+			},
+			isValid: false,
+		},
+		{
 			name: "window is less than one hour",
 			schedule: SoftwareAutoUpdateSchedule{
 				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
