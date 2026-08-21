@@ -3762,6 +3762,24 @@ Hosts that already enrolled before end user authentication was enabled are alway
     allow_orbit_end_user_auth_bypass: false
   ```
 
+### mdm.enable_managed_apple_id_restriction
+
+*Available in Fleet Premium.*
+
+When enabled, Fleet restricts iCloud sign-in with Managed Apple IDs to only devices enrolled in Fleet. This uses Apple's [GetToken](https://developer.apple.com/documentation/devicemanagement/get_token) check-in message for the `com.apple.maid` service type to verify that the device is enrolled before allowing the sign-in. Devices not enrolled in Fleet will be blocked from signing in with a Managed Apple ID.
+
+- Default value: `true` for new Fleet instances; `false` for instances upgraded from a previous version.
+- Environment variable: `FLEET_MDM_ENABLE_MANAGED_APPLE_ID_RESTRICTION`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_managed_apple_id_restriction: true
+  ```
+  
+> The `false` default for upgraded instances should be handled via a database migration, not the env var itself (the env var overrides both defaults).
+
+> If there's a contributor-facing equivalent in [configuration-for-contributors.md](https://github.com/fleetdm/fleet/blob/HEAD/docs/Contributing/reference/configuration-for-contributors.md), add a matching entry there too.
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
