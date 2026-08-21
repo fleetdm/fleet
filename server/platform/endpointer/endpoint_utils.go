@@ -85,6 +85,27 @@ func allFields(ifv reflect.Value) []fieldPair {
 	return fields
 }
 
+// requestFieldName returns the name a client uses for a struct field, so that
+// an error about a request refers to something the caller can find in the
+// payload they sent rather than to Fleet's internal Go field name.
+//
+// Falls back to the Go field name when the field carries no usable json tag,
+// which is the best available name in that case.
+func requestFieldName(sf reflect.StructField) string {
+	jsonTag, ok := sf.Tag.Lookup("json")
+	if !ok {
+		return sf.Name
+	}
+
+	// Strip options such as ",omitempty".
+	name, _, _ := strings.Cut(jsonTag, ",")
+	if name == "" || name == "-" {
+		return sf.Name
+	}
+
+	return name
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -743,7 +764,7 @@ func MakeDecoder(
 					if val && !fp.V.IsZero() {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							fp.Sf.Name,
+							requestFieldName(fp.Sf),
 						)}
 					}
 					continue

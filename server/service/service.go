@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	gocache "github.com/patrickmn/go-cache"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -25,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	gocache "github.com/patrickmn/go-cache"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -73,8 +74,6 @@ type Service struct {
 
 	keyValueStore fleet.KeyValueStore
 
-	packConfigCache *gocache.Cache
-
 	androidSvc android.Service
 
 	// activitySvc is the activity bounded context service for write operations.
@@ -85,6 +84,10 @@ type Service struct {
 
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
+
+	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
+	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	packConfigCache *gocache.Cache
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -198,9 +201,9 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
-		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
+		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

@@ -4,7 +4,8 @@
       "version": "9.1.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.p5sys.jump.mac.viewer.web';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.p5sys.jump.mac.viewer.web' AND version_compare(bundle_short_version, '9.1.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.p5sys.jump.mac.viewer.web' AND version_compare(bundle_short_version, '9.1.9') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.p5sys.jump.mac.viewer.web');"
       },
       "installer_url": "https://mirror.jumpdesktop.com/downloads/jdm/JumpDesktopMac-90109.zip",
       "install_script_ref": "5ddfa84f",

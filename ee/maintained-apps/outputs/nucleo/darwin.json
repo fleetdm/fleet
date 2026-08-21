@@ -4,7 +4,8 @@
       "version": "4.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.ambercreative.nucleo';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.ambercreative.nucleo' AND version_compare(bundle_short_version, '4.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.ambercreative.nucleo' AND version_compare(bundle_short_version, '4.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'co.ambercreative.nucleo');"
       },
       "installer_url": "https://downloads.nucleoapp.com/mac-silicon/Nucleo_4.2.0.zip",
       "install_script_ref": "95dcc47c",

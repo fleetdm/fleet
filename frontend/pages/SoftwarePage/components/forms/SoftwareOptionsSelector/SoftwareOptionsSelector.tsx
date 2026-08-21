@@ -219,8 +219,8 @@ const SoftwareOptionsSelector = ({
         <Slider
           value={formData.selfService}
           onChange={onToggleSelfService}
-          inactiveText="Self-service"
-          activeText="Self-service"
+          inactiveText="Self service"
+          activeText="Self service"
           labelTooltip={selfServiceLabelTooltip}
           className={`${baseClass}__self-service-slider`}
           disabled={isSelfServiceDisabled}

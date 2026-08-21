@@ -1701,6 +1701,24 @@ scan:
 			break scan
 		}
 	}
+	// An Autopilot-registered device supplies its ZTDID at enrollment. Try it first, and fall back to the serial for
+	// devices that are not Autopilot-registered or that enrolled before the ZTDID was captured.
+	if enrolledDevice.ZTDRegistrationID != "" {
+		hostID, err := svc.ds.HostIDByAutopilotDeviceID(ctx, enrolledDevice.ZTDRegistrationID)
+		switch {
+		case err == nil:
+			svc.logger.DebugContext(ctx, "windows mdm: linking pending autopilot host by ZTDID",
+				"device_id", enrolledDevice.MDMDeviceID, "ztd_registration_id", enrolledDevice.ZTDRegistrationID,
+				"had_serial", serial != "")
+			return svc.linkWindowsHostMDMEnrollmentByHostID(ctx, enrolledDevice, hostID)
+		case !fleet.IsNotFound(err):
+			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by ZTDID failed",
+				"err", err, "device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+		}
+		// Not found means the Autopilot sync has not created the pending host yet, so fall through to the serial.
+	}
+
 	if serial == "" {
 		return false
 	}
@@ -1731,6 +1749,34 @@ scan:
 		return false
 	}
 	// Always refresh in-memory HostUUID after a successful link attempt.
+	enrolledDevice.HostUUID = host.UUID
+	return updated
+}
+
+// linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.
+func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) bool {
+	// RequirePrimary because orbit just enrolled, and we want to make sure we get latest data.
+	host, err := svc.ds.HostLite(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: loading host for autopilot link failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	// Linking is keyed on the host UUID, and a pending Autopilot host has none until fleetd enrolls and supplies one.:
+	// The enrollment stays unlinked, so this path runs again on every management session. Wait for the UUID instead of proceeding.
+	if host.UUID == "" {
+		svc.logger.DebugContext(ctx, "windows mdm: autopilot host has no uuid yet, deferring link until fleetd enrolls",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		return false
+	}
+
+	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: autopilot link failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
 	enrolledDevice.HostUUID = host.UUID
 	return updated
 }
@@ -2978,6 +3024,8 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 		return "", nil, err
 	}
 
+	logAutopilotEnrollmentContext(ctx, svc.logger, secTokenMsg, reqDeviceID, reqHWDeviceID)
+
 	// Getting the BinarySecurityToken from the RequestSecurityToken msg
 	binSecurityTokenData, err := secTokenMsg.GetBinarySecurityTokenData()
 	if err != nil {
@@ -3114,8 +3162,12 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		svc.logger.InfoContext(ctx, "ESP: device enrolled in OOBE, activating setup experience", "device_id", reqDeviceID)
 	}
 
+	// Present only when the device is Autopilot-registered. Absence is normal and never fails an enrollment.
+	ztdRegistrationID, _ := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		ZTDRegistrationID:       ztdRegistrationID,
 		MDMDeviceID:             reqDeviceID,
 		MDMHardwareID:           reqHWDevID,
 		MDMDeviceState:          microsoft_mdm.MDMDeviceStateEnrolled,
@@ -4297,6 +4349,10 @@ func executeWindowsProfileReconcileBatch(
 		return uris
 	}
 
+	// Host rows for removes whose <Delete> was fully suppressed by LocURI protection, accumulated across every removed profile in
+	// this batch and deleted in one call below.
+	var suppressedRemoveRows []*fleet.MDMWindowsProfilePayload
+
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
 			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
@@ -4379,7 +4435,17 @@ func executeWindowsProfileReconcileBatch(
 				continue
 			}
 			if command == nil {
-				// Every LocURI of the removed profile is still enforced by another profile on these hosts; nothing to send.
+				// Every LocURI of the removed profile is still enforced by another profile on these hosts, so there is no
+				// <Delete> to send and no command ack will ever arrive to clean these rows up. Collect the rows and delete
+				// them after the loop.
+				for _, hostUUID := range g.hostUUIDs {
+					suppressedRemoveRows = append(suppressedRemoveRows, &fleet.MDMWindowsProfilePayload{
+						ProfileUUID: profUUID,
+						HostUUID:    hostUUID,
+					})
+				}
+				logger.DebugContext(ctx, "removed profile fully protected by other profiles, deleting host rows",
+					"profile_uuid", profUUID, "host_count", len(g.hostUUIDs))
 				continue
 			}
 
@@ -4408,6 +4474,12 @@ func executeWindowsProfileReconcileBatch(
 			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
 			}
+		}
+	}
+
+	if len(suppressedRemoveRows) > 0 {
+		if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, suppressedRemoveRows); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting host profiles whose remove command was fully suppressed")
 		}
 	}
 
@@ -4640,4 +4712,30 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// logAutopilotEnrollmentContext records the Autopilot identifiers an enrolling device supplies. The ZTDID is consumed
+// for real by the enrollment link path; this line stays at debug level as a diagnostic for enrollments that do not link
+// as expected, and covers the absent case so a device that sends nothing is distinguishable from one that was never
+// asked. Both context items are optional, so their absence is normal and never fails an enrollment.
+func logAutopilotEnrollmentContext(
+	ctx context.Context,
+	logger *slog.Logger,
+	secTokenMsg *fleet.RequestSecurityToken,
+	deviceID, hardwareID string,
+) {
+	// Logged on every Windows MDM enrollment, including when both items are absent. A line that only appeared when the
+	// items were present could not distinguish "Windows did not send them" from "this code did not run", and the
+	// enrollment needed to find out is expensive to repeat.
+	ztdID, ztdErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
+	offlineCorrelator, offlineErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemOfflineAutopilotCorrelator)
+
+	logger.DebugContext(ctx, "windows mdm enrollment autopilot context",
+		"zero_touch_provisioning_present", ztdErr == nil,
+		"zero_touch_provisioning_guid", ztdID,
+		"offline_autopilot_correlator_present", offlineErr == nil,
+		"offline_autopilot_correlator", offlineCorrelator,
+		"mdm_device_id", deviceID,
+		"mdm_hardware_id", hardwareID,
+	)
 }

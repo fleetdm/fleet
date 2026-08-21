@@ -4,7 +4,8 @@
       "version": "1.18.8",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL' AND version_compare(version, '1.18.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL' AND version_compare(version, '1.18.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aptakube.exe');"
       },
       "installer_url": "https://releases.aptakube.com/Aptakube_1.18.8_x64_en-US.msi",
       "install_script_ref": "22e48c46",

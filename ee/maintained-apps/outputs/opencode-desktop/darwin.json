@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.15",
+      "version": "1.18.19",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop' AND version_compare(bundle_short_version, '1.18.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop' AND version_compare(bundle_short_version, '1.18.19') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'ai.opencode.desktop');"
       },
-      "installer_url": "https://github.com/anomalyco/opencode/releases/download/v1.18.15/opencode-desktop-mac-arm64.dmg",
+      "installer_url": "https://github.com/anomalyco/opencode/releases/download/v1.18.19/opencode-desktop-mac-arm64.dmg",
       "install_script_ref": "d2ce7b1a",
       "uninstall_script_ref": "99fcb3f1",
-      "sha256": "2b29de799c37ec7466ba066d291addd7fa49bb45815cad10538adcd4d79aee96",
+      "sha256": "870a30960c6b5508bc2101e8bf4926b8da55ee845c8e89c8b3a3b38a69108b11",
       "default_categories": [
         "Productivity"
       ]

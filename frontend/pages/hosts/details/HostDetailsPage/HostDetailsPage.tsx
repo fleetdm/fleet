@@ -1,4 +1,10 @@
-import React, { useContext, useState, useCallback, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+} from "react";
 import { timeAgo } from "utilities/date_format";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
@@ -129,7 +135,12 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import OSSettingsModal from "../OSSettingsModal";
+import ControlsCard from "../cards/Controls";
+import { shouldShowControlsTab } from "../cards/Controls/helpers";
+import {
+  countFailedControls,
+  generateTableData,
+} from "../cards/Controls/OSSettingsTableConfig";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
@@ -231,7 +242,6 @@ const HostDetailsPage = ({
   const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [
@@ -690,10 +700,6 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
-
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
@@ -1009,6 +1015,12 @@ const HostDetailsPage = ({
     refetchUpcomingActivities();
   }, [refetchPastActivities, refetchUpcomingActivities]);
 
+  // Memoized so the table keeps a stable `data` reference across renders.
+  const controls = useMemo(
+    () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
+    [host]
+  );
+
   const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
@@ -1198,12 +1210,35 @@ const HostDetailsPage = ({
     !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
   const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
 
+  const failedControlsCount = countFailedControls(controls);
+
+  const showControlsTab = shouldShowControlsTab({
+    platform: host.platform,
+    osVersion: host.os_version,
+    enrollmentStatus: host.mdm?.enrollment_status ?? null,
+    hasControls: controls.length > 0,
+    isPlatformMdmEnabled:
+      (isAppleDeviceHost && !!config?.mdm.enabled_and_configured) ||
+      (isWindowsHost && !!config?.mdm.windows_enabled_and_configured) ||
+      (isAndroidHost && !!config?.mdm.android_enabled_and_configured),
+  });
+
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",
       title: "details",
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
+    ...(showControlsTab
+      ? [
+          {
+            name: "Controls",
+            title: "controls",
+            pathname: PATHS.HOST_CONTROLS(hostIdFromURL),
+            count: failedControlsCount,
+          },
+        ]
+      : []),
     {
       name: "Software",
       title: "software",
@@ -1302,6 +1337,15 @@ const HostDetailsPage = ({
     isHostTeamObserverPlus;
 
   const canManagePolicies =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
+
+  // Technicians can open /controls but can't add anything once there — both
+  // configuration profiles and the script library hide their add actions for
+  // them — so the empty state's CTA would land them on a read-only page.
+  const canAddControls =
     isGlobalAdmin ||
     isGlobalMaintainer ||
     isHostTeamAdmin ||
@@ -1470,6 +1514,7 @@ const HostDetailsPage = ({
               diskIsEncrypted={host?.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
               lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
+              detailUpdatedAt={host?.detail_updated_at}
             />
           )}
           <div className={`${baseClass}__header-links`}>
@@ -1516,10 +1561,7 @@ const HostDetailsPage = ({
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
-                  toggleOSSettingsModal={toggleOSSettingsModal}
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-                  hostSettings={host?.mdm.profiles ?? []}
-                  osSettings={host?.mdm.os_settings}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
@@ -1663,6 +1705,31 @@ const HostDetailsPage = ({
                   />
                 )}
               </TabPanel>
+              {showControlsTab && (
+                <TabPanel>
+                  <ControlsCard
+                    controls={controls}
+                    hostDisplayName={host.display_name}
+                    canResendProfiles={canResendProfiles}
+                    canRotateRecoveryLockPassword={
+                      isGlobalAdmin ||
+                      isGlobalMaintainer ||
+                      isHostTeamAdmin ||
+                      isHostTeamMaintainer
+                    }
+                    canResendHostNameTemplate={canResendProfiles}
+                    canAddControls={canAddControls}
+                    isConnectedToFleetMdm={!!host.mdm?.connected_to_fleet}
+                    teamId={host.team_id}
+                    resendRequest={resendProfile}
+                    resendCertificateRequest={resendCertificate}
+                    rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+                    resendHostNameTemplate={resendHostNameTemplate}
+                    onProfileResent={refetchHostDetails}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
               <TabPanel>
                 <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
@@ -1783,26 +1850,6 @@ const HostDetailsPage = ({
               }}
             />
           )}
-          {showOSSettingsModal && (
-            <OSSettingsModal
-              canResendProfiles={canResendProfiles}
-              canRotateRecoveryLockPassword={
-                isGlobalAdmin ||
-                isGlobalMaintainer ||
-                isHostTeamAdmin ||
-                isHostTeamMaintainer
-              }
-              canResendHostNameTemplate={canResendProfiles}
-              platform={host.platform}
-              hostMDMData={host.mdm}
-              onClose={toggleOSSettingsModal}
-              resendRequest={resendProfile}
-              resendCertificateRequest={resendCertificate}
-              rotateRecoveryLockPassword={rotateRecoveryLockPassword}
-              resendHostNameTemplate={resendHostNameTemplate}
-              onProfileResent={refetchHostDetails}
-            />
-          )}
           {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
             <UnenrollMdmModal
               hostId={host.id}
@@ -1810,6 +1857,14 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
+              onSuccess={() => {
+                // The server marks the host unenrolled immediately, so refresh
+                // to drop the action from the dropdown. Otherwise it stays
+                // offered until the window regains focus, and each extra
+                // confirmation queues another unenroll.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
             />
           )}
           {showDiskEncryptionModal && host && (

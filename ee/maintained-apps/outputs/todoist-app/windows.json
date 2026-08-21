@@ -4,7 +4,8 @@
       "version": "9.30.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Todoist' AND publisher = 'Doist';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Todoist' AND publisher = 'Doist' AND version_compare(version, '9.30.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Todoist' AND publisher = 'Doist' AND version_compare(version, '9.30.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'todoist.exe');"
       },
       "installer_url": "https://electron-dl.todoist.net/windows/Todoist-win32-9.30.0-x64-latest.exe",
       "install_script_ref": "7ad1f815",

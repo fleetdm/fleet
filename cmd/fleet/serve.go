@@ -72,6 +72,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -579,7 +580,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			} else {
 				softwareInstallStore = store
 				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for production use", "directory",
+					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
 					installerDir)
 			}
 
@@ -621,6 +622,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			androidSvc,
 			hydrantService,
 			psso.NewRedisNonceStore(redisPool),
+			msgraph.NewClient,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")

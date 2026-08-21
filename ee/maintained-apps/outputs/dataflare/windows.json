@@ -4,7 +4,8 @@
       "version": "3.1.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare' AND version_compare(version, '3.1.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dataflare' AND publisher = 'Dataflare' AND version_compare(version, '3.1.9') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dataflare.exe');"
       },
       "installer_url": "https://assets.dataflare.app/release/windows/x86_64/Dataflare-Setup-3.1.9.exe",
       "install_script_ref": "a5276316",

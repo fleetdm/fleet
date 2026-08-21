@@ -4,7 +4,8 @@
       "version": "4.19.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cribl Edge' AND publisher = 'Cribl, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cribl Edge' AND publisher = 'Cribl, Inc.' AND version_compare(version, '4.19.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cribl Edge' AND publisher = 'Cribl, Inc.' AND version_compare(version, '4.19.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cribl edge.exe');"
       },
       "installer_url": "https://cdn.cribl.io/dl/4.19.0/cribl-4.19.0-0fbd6d34-win32-x64.msi",
       "install_script_ref": "22e48c46",

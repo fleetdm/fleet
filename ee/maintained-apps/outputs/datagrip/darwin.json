@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.3",
+      "version": "2026.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip' AND version_compare(bundle_short_version, '2026.2.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.datagrip' AND version_compare(bundle_short_version, '2026.2.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.jetbrains.datagrip');"
       },
-      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.4-aarch64.dmg",
       "install_script_ref": "5f954355",
       "uninstall_script_ref": "ae9af028",
-      "sha256": "26848a74d856691682a4681302d1a711246145c1563d093997535ab4df88767e",
+      "sha256": "9376c602f08619fb30a3d2c292609b6aa73c653ab771d7e3d93ef7f9e573c56f",
       "default_categories": [
         "Developer tools"
       ]

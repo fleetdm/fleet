@@ -1,0 +1,31 @@
+name: touchid_system_config
+platforms:
+  - darwin
+description: Machine-wide Touch ID and Secure Enclave configuration, including whether a usable fingerprint sensor (built-in or an attached Touch ID accessory) is present. Apple Silicon only. Requires root.
+columns:
+  - name: touchid_compatible
+    type: integer
+    required: false
+    description: Value is 1 if the Mac supports Secure Enclave biometrics. This is 1 on every Apple Silicon Mac, even those without a fingerprint sensor; use `touchid_sensor_present` to detect an actual sensor.
+  - name: secure_enclave
+    type: text
+    required: false
+    description: Hardware model identifier (e.g. Mac16,5).
+  - name: touchid_enabled
+    type: integer
+    required: false
+    description: Value is 1 if Touch ID is enabled on this Mac.
+  - name: touchid_unlock
+    type: integer
+    required: false
+    description: Value is 1 if Touch ID can be used to unlock the Mac.
+  - name: touchid_builtin
+    type: integer
+    required: false
+    description: Value is 1 if the Mac has a built-in Touch ID fingerprint sensor (laptops).
+  - name: touchid_sensor_present
+    type: integer
+    required: false
+    description: Value is 1 if a usable fingerprint sensor is present, either built-in or an attached Touch ID accessory (e.g. a Magic Keyboard with Touch ID).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+evented: false

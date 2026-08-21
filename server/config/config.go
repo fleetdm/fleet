@@ -141,6 +141,7 @@ type ServerConfig struct {
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	VPPInstallReapTimeout            time.Duration `yaml:"vpp_install_reap_timeout"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
@@ -1001,6 +1002,10 @@ type MDMConfig struct {
 	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
+	// AllowCustomActivations opts in to custom DDM activations. Off by default
+	// because a predicate Fleet cannot validate can wedge a host's MDM
+	// subsystem beyond remote recovery -- see Apple FB24193230 and #50764.
+	AllowCustomActivations bool `yaml:"allow_custom_activations"`
 
 	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
 	// not complete end user authentication is allowed to enroll into a team that
@@ -1514,6 +1519,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
@@ -1916,6 +1923,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2046,6 +2054,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			VPPInstallReapTimeout:            man.getConfigDuration("server.vpp_install_reap_timeout"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
@@ -2278,6 +2287,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),

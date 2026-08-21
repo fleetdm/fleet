@@ -106,4 +106,30 @@ describe("ConfigurationProfiles Profiles-tab header", () => {
       screen.queryByRole("button", { name: /Add profile$/i })
     ).not.toBeInTheDocument();
   });
+
+  it("renders the EmptyState heading without Add profile for technicians when there are no profiles", async () => {
+    mockServer.use(emptyProfilesHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalTechnician: true,
+          config: mdmEnabledConfig,
+        },
+      },
+    });
+
+    render(<ConfigurationProfiles {...baseProps} />);
+
+    expect(
+      await screen.findByRole("heading", { name: /No configuration profiles/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No configuration profiles have been added\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add profile$/i })
+    ).not.toBeInTheDocument();
+  });
 });
