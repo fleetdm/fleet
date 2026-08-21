@@ -16,6 +16,7 @@ import { IConfig } from "interfaces/config";
 import { IPolicy } from "interfaces/policy";
 import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
 import { QueryablePlatform } from "interfaces/platform";
+import { ProfilePlatform } from "interfaces/mdm";
 
 import permissions from "utilities/permissions";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -43,7 +44,11 @@ import { IPolicyAutomationUpdate } from "pages/policies/hooks";
 
 import { IAutomationCheckboxRow } from "./types";
 import { useProfiles, useScripts, useSoftwareTitles } from "./hooks";
-import { filterValidProfiles, rewriteProfilePlatform } from "./helpers";
+import {
+  filterValidProfiles,
+  rewriteProfilePlatform,
+  VALID_PROFILE_PLATFORMS,
+} from "./helpers";
 
 const baseClass = "policy-automations-fields";
 
@@ -96,8 +101,8 @@ interface IPolicyAutomationsFieldsProps {
   /** Rendered between the automation types and the continuous-automation
    *  checkbox — the edit-policy Patch radios (owned by PolicyForm). */
   patchSlot?: React.ReactNode;
-  /** The platform of the updated policy, used to filter automation fields by platform */
-  selectedPlatform: QueryablePlatform[];
+  /** The platforms of the updated policy, used to filter automation fields by platform */
+  selectedPlatforms: QueryablePlatform[];
 }
 
 const PolicyAutomationsFields = forwardRef<
@@ -114,7 +119,7 @@ const PolicyAutomationsFields = forwardRef<
       fleetName,
       patchOption,
       patchSlot,
-      selectedPlatform,
+      selectedPlatforms,
     },
     ref
   ) => {
@@ -225,8 +230,8 @@ const PolicyAutomationsFields = forwardRef<
     const [profileUUID, setProfileUUID] = useState<string | null>(
       policy.resend_configuration_profile?.profile_uuid ?? null
     );
-    const hasProfilePlatform = selectedPlatform.some(
-      (p) => p === "darwin" || p === "windows"
+    const hasProfilePlatform = selectedPlatforms.some((p) =>
+      VALID_PROFILE_PLATFORMS.includes(p as ProfilePlatform)
     );
     const resendProfileDisabled = !hasProfilePlatform;
 
@@ -246,7 +251,7 @@ const PolicyAutomationsFields = forwardRef<
     // An empty selection means the platform checkboxes haven't hydrated yet
     // (they mount unchecked and are filled in by an effect), so it can't be
     // read as "no profile platform" without wiping a stored selection.
-    const hasPlatformSelection = selectedPlatform.length > 0;
+    const hasPlatformSelection = selectedPlatforms.length > 0;
     useEffect(() => {
       if (hasPlatformSelection && !hasProfilePlatform) {
         setProfileUUID(null);

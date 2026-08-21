@@ -774,7 +774,7 @@ const PolicyForm = ({
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
                 patchSlot={patchOptions}
-                selectedPlatform={getSelectedPlatforms()}
+                selectedPlatforms={getSelectedPlatforms()}
               />
             </div>
           )}

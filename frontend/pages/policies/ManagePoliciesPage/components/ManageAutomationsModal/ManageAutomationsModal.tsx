@@ -131,7 +131,7 @@ const ManageAutomationsModal = ({
               automationsConfig={automationsConfig}
               globalConfig={globalConfig}
               fleetName={fleetName}
-              selectedPlatform={policyPlatforms}
+              selectedPlatforms={policyPlatforms}
             />
           </section>
         </div>

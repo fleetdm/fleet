@@ -182,7 +182,7 @@ const renderWithHandle = (
       automationsConfig={undefined}
       globalConfig={undefined}
       fleetName="Test Fleet"
-      selectedPlatform={["darwin"]}
+      selectedPlatforms={["darwin"]}
       {...componentProps}
     />
   );
@@ -523,7 +523,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
   });
 
   it("is enabled for platforms that support configuration profiles", () => {
-    renderWithHandle(undefined, undefined, { selectedPlatform: ["windows"] });
+    renderWithHandle(undefined, undefined, { selectedPlatforms: ["windows"] });
 
     expect(
       screen.getByRole("checkbox", { name: "resend_configuration_profile" })
@@ -531,7 +531,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
   });
 
   it("is disabled for platforms without configuration profiles", () => {
-    renderWithHandle(undefined, undefined, { selectedPlatform: ["linux"] });
+    renderWithHandle(undefined, undefined, { selectedPlatforms: ["linux"] });
 
     expect(
       screen.getByRole("checkbox", { name: "resend_configuration_profile" })
@@ -562,7 +562,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
         },
       },
       undefined,
-      { selectedPlatform: [] }
+      { selectedPlatforms: [] }
     );
 
     rerender(
@@ -578,7 +578,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
         automationsConfig={undefined}
         globalConfig={undefined}
         fleetName="Test Fleet"
-        selectedPlatform={["darwin"]}
+        selectedPlatforms={["darwin"]}
       />
     );
 
@@ -593,7 +593,7 @@ describe("PolicyAutomationsFields — Resend configuration profile row", () => {
       current: null,
     };
     const { user } = renderWithHandle(undefined, handleRef, {
-      selectedPlatform: ["darwin"],
+      selectedPlatforms: ["darwin"],
     });
 
     await user.click(
