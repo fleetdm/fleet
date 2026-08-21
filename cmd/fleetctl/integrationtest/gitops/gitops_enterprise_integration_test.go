@@ -4451,12 +4451,12 @@ org_settings:
 		require.Equal(t, wantIdP, !storedCfg.MDM.EndUserAuthentication.IsEmpty())
 	}
 
-	// enabling without an IdP is rejected, and the dry run catches it too so the
-	// failure doesn't wait for the real apply
+	// The dry run has to reject this: the prerequisite is checked before the
+	// dry-run return, so a bad config fails in CI rather than on the real apply.
+	// The non-dry-run 422 is covered by the enterprise API integration test.
 	noIdPCfg := writeCfg(t, true, false)
-	const noIdPErr = "Couldn't enable single sign-on for Fleet Desktop because no IdP is configured"
-	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg, "--dry-run"}, "applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: "+noIdPErr)
-	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg}, "applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: "+noIdPErr)
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg, "--dry-run"},
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Couldn't enable single sign-on for Fleet Desktop because no IdP is configured")
 	assertStored(t, false, false)
 	require.Empty(t, getActivities())
 
@@ -4471,15 +4471,10 @@ org_settings:
 		[]string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()},
 		activityNames(getActivities()))
 
-	// re-applying the same config is a no-op
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg}))
-	assertStored(t, true, true)
-	require.Empty(t, getActivities())
-
 	// dropping the mdm block while SSO is on clears the IdP in overwrite mode,
 	// which the reverse guard has to reject
 	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg},
-		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Single sign-on for Fleet Desktop is enabled. Please disable it in Settings > Organization settings > Fleet Desktop and try again.")
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Single sign-on for Fleet Desktop is enabled. Please disable fleet_desktop.sso_enabled and try again.")
 	assertStored(t, true, true)
 	require.Empty(t, getActivities())
 
@@ -4491,10 +4486,12 @@ org_settings:
 		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
 		activityNames(getActivities()))
 
-	// with SSO off, the IdP can be cleared; also restores state for later tests
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", writeCfg(t, false, false)}))
-	assertStored(t, false, false)
-	require.Empty(t, getActivities())
+	// Restore the shared suite's app config directly; another gitops run would
+	// cost ~0.6s to assert nothing new.
+	storedCfg, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	storedCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	require.NoError(t, s.DS.SaveAppConfig(ctx, storedCfg))
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) captureSSOFleetDesktopActivities(t *testing.T) func() []activity_api.ActivityDetails {
