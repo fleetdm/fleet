@@ -44,7 +44,10 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
-import { getUiStatus } from "../Software/helpers";
+import {
+  anyCompletedSoftwareSucceeded,
+  getUiStatus,
+} from "../Software/helpers";
 import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
 
 const baseClass = "host-software-library-card";
@@ -259,7 +262,9 @@ const HostSoftwareLibrary = ({
           // Refetch host details to:
           // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
           // - Update the software inventory of any changes to software detected by software inventory
-          refetchHostDetails();
+          if (anyCompletedSoftwareSucceeded(completedIds, response.software)) {
+            refetchHostDetails();
+          }
         }
 
         // Compare new set with the previous set

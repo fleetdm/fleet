@@ -501,3 +501,23 @@ export const getSoftwareSubheader = ({
     ? "Software installed on your device."
     : "Software installed on this host.";
 };
+
+/**
+ * Reports whether any of the software that just left a pending state finished
+ * successfully.
+ *
+ * Callers use this to decide whether to refetch host details after installs or
+ * uninstalls complete. A failure changes nothing on the host, so there is no new
+ * inventory to read back, and the refetch makes the host re-run its policies, which
+ * re-triggers the policy automation that queued the failed install.
+ */
+export const anyCompletedSoftwareSucceeded = (
+  completedIds: string[],
+  software: IHostSoftware[]
+): boolean =>
+  completedIds.some((completedId) => {
+    const status = software.find(
+      (softwareItem) => String(softwareItem.id) === completedId
+    )?.status;
+    return status !== "failed_install" && status !== "failed_uninstall";
+  });
