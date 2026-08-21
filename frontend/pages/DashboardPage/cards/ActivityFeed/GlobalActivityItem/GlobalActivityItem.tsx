@@ -20,6 +20,11 @@ import {
 } from "interfaces/software";
 import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
+  renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
@@ -49,6 +54,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
   ActivityType.FailedEnrollmentProfileRenewal,
+  ActivityType.NotifiedEndUserBeforePatching,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -2309,6 +2315,32 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  notifiedEndUserBeforePatching: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const {
+      host_display_name: hostName,
+      software_titles: titles = [],
+      status,
+      time_before: timeBefore,
+    } = details;
+    const timeLabel = formatNotifyTimeLabel(timeBefore);
+    const failed = isNotifyFailure(status);
+    const verb = failed ? "failed to notify" : "notified";
+
+    const titleList = renderNotifyTitleList(titles);
+
+    return (
+      <>
+        {" "}
+        {verb} end user {timeLabel} before patching
+        {titleList && <> {titleList}</>} on{" "}
+        <strong>{hostName || "the host"}</strong>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2822,6 +2854,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
+    }
+    case ActivityType.NotifiedEndUserBeforePatching: {
+      return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

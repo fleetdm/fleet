@@ -39,6 +39,8 @@ import CustomLink from "components/CustomLink";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
+import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
+
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   getInstallDetailsStatusPredicate,
@@ -147,6 +149,11 @@ export const StatusMessage = ({
     : "";
 
   if (skippedInstall && status === "failed_install") {
+    // Notify variant appends "Fleet notifies the end user..." to
+    // pre_install_query_output; patch_when_closed doesn't.
+    const isNotifyVariant = isNotifyBeforePatchingSkip(
+      installResult.pre_install_query_output
+    );
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -156,8 +163,10 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}. The app was open. It will update once the user
-            closes it and policy runs again, or update via self service.
+            {displayTimeStamp}. The app was open.{" "}
+            {isNotifyVariant
+              ? "Fleet notifies the end user 1 hour before the patch is forced."
+              : "It will update once the user closes it and policy runs again, or update via self service."}
           </span>
         }
       />
@@ -317,9 +326,11 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: detailsFromProps.skipped_install
-          ? "Query didn't return result or failed\nThe app was open"
-          : swInstallResult?.pre_install_query_output,
+        value:
+          swInstallResult?.pre_install_query_output ||
+          (detailsFromProps.skipped_install
+            ? "Query didn't return result or failed\nThe app was open."
+            : undefined),
       },
       {
         label: "Install script output:",

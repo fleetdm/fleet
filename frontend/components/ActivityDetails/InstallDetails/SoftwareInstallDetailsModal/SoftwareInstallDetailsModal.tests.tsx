@@ -11,6 +11,7 @@ import {
   getSoftwareInstallHandlerWithPreInstall,
   getSoftwareInstallHandlerOnlyPreInstallOutput,
   getSoftwareInstallHandlerAppOpen,
+  getSoftwareInstallHandlerNotifyBeforePatchingSkip,
   getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
@@ -136,12 +137,14 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
     });
 
-    it("renders app-open skipped copy instead of generic failed-install copy", () => {
+    it("renders app-open skipped copy for a patch_when_closed variant", () => {
       render(
         <StatusMessage
           softwareName="CoolApp"
           installResult={createMockSoftwareInstallResult({
             status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open.",
           })}
           isMyDevicePage={false}
           skippedInstall
@@ -155,10 +158,40 @@ describe("SoftwareInstallDetailsModal", () => {
           /It will update once the user closes it and policy runs again, or update via self service\./
         )
       ).toBeInTheDocument();
+      // Notify sentence must not leak into the patch_when_closed path.
+      expect(
+        screen.queryByText(/Fleet notifies the end user/)
+      ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
       // Grey "!" (error-outline), not the red failure icon.
       expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
       expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+    });
+
+    it("renders the notify-variant trailing sentence when pre-install output carries the notify marker", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Fleet notifies the end user 1 hour before the patch is forced\./
+        )
+      ).toBeInTheDocument();
+      // patch_when_closed copy is misleading here and must not render.
+      expect(
+        screen.queryByText(/It will update once the user closes it/)
+      ).not.toBeInTheDocument();
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
@@ -336,7 +369,7 @@ describe("SoftwareInstallDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("renders the app-open pre-install output for a skipped install", async () => {
+    it("renders the app-open pre-install output for a patch_when_closed skip", async () => {
       mockServer.use(getSoftwareInstallHandlerAppOpen);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
       const { user } = renderWithServer(
@@ -353,14 +386,39 @@ describe("SoftwareInstallDetailsModal", () => {
       await user.click(screen.getByRole("button", { name: /Details/i }));
 
       expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
-      // Figma: the code block shows both the generic no-result line and the
-      // app-open reason (label stays "Pre-install query output:").
       expect(
         screen.getByText(
-          /Query didn't return result or failed\s+The app was open/
+          /Query didn't return result or failed\s+The app was open\./
         )
       ).toBeInTheDocument();
-      expect(screen.queryByText("Install stopped")).not.toBeInTheDocument();
+      // patch_when_closed has no notify sentence.
+      expect(
+        screen.queryByText(/Fleet notifies the end user/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the notify-before-patching sentence in the pre-install output when the payload carries it", async () => {
+      mockServer.use(getSoftwareInstallHandlerNotifyBeforePatchingSkip);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      await user.click(screen.getByRole("button", { name: /Details/i }));
+
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Query didn't return result or failed\s+The app was open\. Fleet notifies the end user 1 hour before the patch is forced\./
+        )
+      ).toBeInTheDocument();
     });
 
     it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {

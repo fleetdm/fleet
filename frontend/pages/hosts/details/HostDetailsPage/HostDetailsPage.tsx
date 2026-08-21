@@ -33,7 +33,11 @@ import {
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
+import {
+  ActivityType,
+  IActivityDetails,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -88,6 +92,7 @@ import {
   SoftwareIpaInstallDetailsModal,
   ISoftwareIpaInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
@@ -312,6 +317,10 @@ const HostDetailsPage = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -922,6 +931,12 @@ const HostDetailsPage = ({
           });
           break;
         }
+        case ActivityType.NotifiedEndUserBeforePatching:
+          setNotifyBeforePatchingDetails({
+            ...details,
+            host_display_name: host?.display_name || details?.host_display_name,
+          });
+          break;
         default: // do nothing
       }
     },
@@ -1887,6 +1902,12 @@ const HostDetailsPage = ({
             <SoftwareInstallDetailsModal
               details={packageInstallDetails}
               onCancel={onCancelSoftwareInstallDetailsModal}
+            />
+          )}
+          {notifyBeforePatchingDetails && (
+            <NotifyBeforePatchingDetailsModal
+              details={notifyBeforePatchingDetails}
+              onCancel={() => setNotifyBeforePatchingDetails(null)}
             />
           )}
           {scriptPackageDetails && (
