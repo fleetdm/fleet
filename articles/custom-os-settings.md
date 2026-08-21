@@ -175,6 +175,42 @@ In versions older than 4.71.0, Fleet always delivered configuration profiles to 
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
 
+### Self-service
+
+_Available in Fleet Premium_
+
+By default, configuration profiles are enforced — Fleet automatically installs and removes them on targeted hosts. You can instead make a profile **self-service** (opt-in), so it appears on the end user's **Fleet Desktop > Self-service** page and is only installed when the user chooses to install it.
+
+Self-service profiles are available for `.mobileconfig` profiles (macOS, iOS, iPadOS). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
+
+When a profile is self-service:
+- Fleet does **not** automatically install it on targeted hosts.
+- The end user sees the profile on **Fleet Desktop > Self-service** and can install or uninstall it on demand.
+- Label scoping still controls which hosts *see* the profile in self-service, but does not force-install it.
+- When the user uninstalls a self-service profile, Fleet sends the appropriate removal command (e.g., `RemoveProfile` on Apple platforms).
+
+Fleet UI: on the **Add profile** modal, check **Self-service** in the **Options** section.
+
+GitOps: set `self_service: true` on the profile:
+
+```yaml
+controls:
+  macos_settings:
+    configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+```
+
+Fleet API: pass `"self_service": true` to the Create configuration profile endpoint.
+
+#### Hidden profiles
+
+You can also mark an enforced (`self_service: false`) profile as hidden. Hidden profiles are installed automatically but are hidden from the end user on Fleet Desktop by default. End users can toggle "Show hidden profiles" in the UI to view them, but these profiles do not require the end user to take any action.
+
+`self_service` must be `false` to use hidden.
+
+GitOps: set `hidden: true` on the profile. Fleet API: pass `"hidden": true`.
+
 ## See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
