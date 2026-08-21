@@ -8635,7 +8635,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 > `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command) is available for the deprecated endpoint.
 
-This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, or Windows hosts the next time they come online.
+This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, Android, or Windows hosts the next time they come online.
 
 > This endpoint accepts a maximum request body size of 2MiB.
 
@@ -8645,10 +8645,10 @@ This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
+| command                   | string | json  | Windows and Apple accept a Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) and [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). For Android, Fleet accepts an encoded JSON for commands (see [Android's documentation](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand)). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
 | host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
 
-Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+_Available in Fleet Premium only:_ `EraseDevice` and `DeviceLock` for Apple, `LOCK`, and `RESET_PASSWORD` for Android.
 
 #### Example
 
