@@ -1081,20 +1081,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// fleet_desktop.sso_enabled requires a configured IdP.
 	// Only enforced on premium: the setting is a no-op on Free.
 	if lic.IsPremium() && appConfig.FleetDesktop.SSOEnabled && appConfig.MDM.EndUserAuthentication.IsEmpty() {
-		viaGitOps := applyOpts.Overwrite
+		// These deliberately don't name a Settings page: the same error reaches
+		// GitOps runs, where those pages are read-only.
 		if oldAppConfig.FleetDesktop.SSOEnabled {
 			// IdP is being cleared while the feature is on
-			msg := "Single sign-on for Fleet Desktop is enabled. Please disable it in Settings > Organization settings > Fleet Desktop and try again."
-			if viaGitOps {
-				msg = "Single sign-on for Fleet Desktop is enabled. Please set fleet_desktop.sso_enabled to false and try again."
-			}
-			return nil, fleet.NewInvalidArgumentError("mdm.end_user_authentication", msg)
+			return nil, fleet.NewInvalidArgumentError("mdm.end_user_authentication",
+				"Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
 		}
-		msg := "Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Configure it in Settings > Integrations > Authentication (SSO) > End users and try again."
-		if viaGitOps {
-			msg = "Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please set mdm.end_user_authentication and try again."
-		}
-		return nil, fleet.NewInvalidArgumentError("fleet_desktop.sso_enabled", msg)
+		return nil, fleet.NewInvalidArgumentError("fleet_desktop.sso_enabled",
+			"Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
 	}
 
 	// do not send a test email in dry-run mode, so this is a good place to stop

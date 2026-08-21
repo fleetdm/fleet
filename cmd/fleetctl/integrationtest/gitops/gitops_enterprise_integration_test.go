@@ -4456,7 +4456,7 @@ org_settings:
 	// The non-dry-run 422 is covered by the enterprise API integration test.
 	noIdPCfg := writeCfg(t, true, false)
 	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg, "--dry-run"},
-		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please set mdm.end_user_authentication and try again.")
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
 	assertStored(t, false, false)
 	require.Empty(t, getActivities())
 
@@ -4474,7 +4474,7 @@ org_settings:
 	// dropping the mdm block while SSO is on clears the IdP in overwrite mode,
 	// which the reverse guard has to reject
 	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg},
-		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Single sign-on for Fleet Desktop is enabled. Please set fleet_desktop.sso_enabled to false and try again.")
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
 	assertStored(t, true, true)
 	require.Empty(t, getActivities())
 
