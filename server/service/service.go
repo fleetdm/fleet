@@ -74,7 +74,7 @@ type Service struct {
 
 	keyValueStore fleet.KeyValueStore
 
-	installAttempts fleet.SoftwareInstallAttemptStore
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter
 
 	androidSvc android.Service
 
@@ -163,7 +163,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
-	installAttempts fleet.SoftwareInstallAttemptStore,
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	androidSvc android.Service,
 	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
@@ -204,7 +204,7 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
-		installAttempts:                 installAttempts,
+		installAttemptCounter:           installAttemptCounter,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),

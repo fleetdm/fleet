@@ -188,18 +188,18 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 	return policyIDs, nil
 }
 
-// memSoftwareInstallAttemptStore is an in-memory fleet.SoftwareInstallAttemptStore used by tests.
-type memSoftwareInstallAttemptStore struct {
+// memSoftwareInstallAttemptCounter is an in-memory fleet.SoftwareInstallAttemptCounter used by tests.
+type memSoftwareInstallAttemptCounter struct {
 	mMu sync.RWMutex
-	m   map[string]map[string]time.Time
+	m   map[string]int
 }
 
-var _ fleet.SoftwareInstallAttemptStore = (*memSoftwareInstallAttemptStore)(nil)
+var _ fleet.SoftwareInstallAttemptCounter = (*memSoftwareInstallAttemptCounter)(nil)
 
-// NewMemSoftwareInstallAttemptStore returns a new in-memory SoftwareInstallAttemptStore.
-func NewMemSoftwareInstallAttemptStore() *memSoftwareInstallAttemptStore {
-	return &memSoftwareInstallAttemptStore{
-		m: make(map[string]map[string]time.Time),
+// NewMemSoftwareInstallAttemptCounter returns a new in-memory SoftwareInstallAttemptCounter.
+func NewMemSoftwareInstallAttemptCounter() *memSoftwareInstallAttemptCounter {
+	return &memSoftwareInstallAttemptCounter{
+		m: make(map[string]int),
 	}
 }
 
@@ -207,46 +207,25 @@ func memInstallAttemptKey(hostID uint, softwareInstallerID uint) string {
 	return fmt.Sprintf("%d:%d", hostID, softwareInstallerID)
 }
 
-// RecordAttempt records an attempt and returns how many fall within the window.
-func (m *memSoftwareInstallAttemptStore) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
-	executionID string, now time.Time, window time.Duration,
+func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
+	window time.Duration,
 ) (int, error) {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
 	key := memInstallAttemptKey(hostID, softwareInstallerID)
-	if m.m[key] == nil {
-		m.m[key] = make(map[string]time.Time)
-	}
-	cutoff := now.Add(-window)
-	for execID, at := range m.m[key] {
-		if !at.After(cutoff) {
-			delete(m.m[key], execID)
-		}
-	}
-	m.m[key][executionID] = now
-	return len(m.m[key]), nil
+	m.m[key]++
+	return m.m[key], nil
 }
 
-// CountAttempts returns how many recorded attempts fall within the window.
-func (m *memSoftwareInstallAttemptStore) CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint,
-	now time.Time, window time.Duration,
-) (int, error) {
+func (m *memSoftwareInstallAttemptCounter) CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error) {
 	m.mMu.RLock()
 	defer m.mMu.RUnlock()
 
-	cutoff := now.Add(-window)
-	var count int
-	for _, at := range m.m[memInstallAttemptKey(hostID, softwareInstallerID)] {
-		if at.After(cutoff) {
-			count++
-		}
-	}
-	return count, nil
+	return m.m[memInstallAttemptKey(hostID, softwareInstallerID)], nil
 }
 
-// ClearAttempts drops every recorded attempt for this host and installer.
-func (m *memSoftwareInstallAttemptStore) ClearAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+func (m *memSoftwareInstallAttemptCounter) ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 

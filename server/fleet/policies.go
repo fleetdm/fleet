@@ -166,14 +166,12 @@ const PolicyNoTeamID = uint(0)
 // Max times a policy automation will be retried on failure.
 const MaxPolicyAutomationRetries = 3
 
-// Max failed install attempts a policy automation makes for one host and
-// installer within PolicyAutomationInstallAttemptWindow. This bounds an install
-// that can never make its policy pass, which the per-sequence retry cap above
-// does not, because a continuous automation starts a new retry sequence on every
-// failing policy result.
+// Max failed installs a policy automation makes for one host and installer before
+// it stops. Unlike MaxPolicyAutomationRetries, this is not reset when a continuous
+// automation fires again, so it bounds an install that never makes its policy pass.
 const MaxPolicyAutomationInstallAttempts = 10
 
-// Rolling window that MaxPolicyAutomationInstallAttempts is counted over.
+// Time a host must go without failing an installer before its count clears.
 const PolicyAutomationInstallAttemptWindow = 24 * time.Hour
 
 // Verify verifies the policy payload is valid.

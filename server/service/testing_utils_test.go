@@ -167,7 +167,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
 
-		installAttempts fleet.SoftwareInstallAttemptStore = NewMemSoftwareInstallAttemptStore()
+		installAttemptCounter fleet.SoftwareInstallAttemptCounter = NewMemSoftwareInstallAttemptCounter()
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -204,7 +204,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
-			installAttempts = redis_install_attempts.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
 			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
@@ -319,7 +319,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
-		installAttempts,
+		installAttemptCounter,
 		androidService,
 		orgLogoStore,
 	)

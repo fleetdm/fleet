@@ -1950,23 +1950,21 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 
-			// Keep the count of failures for this host and installer. Only an attempt that
-			// downloaded and ran the installer counts, so an app-open skip or a pre-install
-			// query that did not pass records nothing. A success clears the count, so a host
-			// that installs and later regresses starts over.
+			// Only an attempt that downloaded and ran the installer counts, so an app-open
+			// skip or a pre-install query that did not pass records nothing.
 			if hsi.SoftwareInstallerID != nil {
 				switch {
 				case status == fleet.SoftwareInstalled:
-					if err := svc.installAttempts.ClearAttempts(ctx, host.ID, *hsi.SoftwareInstallerID); err != nil {
-						svc.logger.ErrorContext(ctx, "failed to clear policy automation install attempts",
+					if err := svc.installAttemptCounter.ResetAttempts(ctx, host.ID, *hsi.SoftwareInstallerID); err != nil {
+						svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts",
 							"host_id", host.ID,
 							"software_installer_id", *hsi.SoftwareInstallerID,
 							"err", err,
 						)
 					}
 				case status == fleet.SoftwareInstallFailed && !isAppOpenSkip && !preInstallConditionFailed:
-					if _, err := svc.installAttempts.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID, result.InstallUUID,
-						svc.clock.Now(), fleet.PolicyAutomationInstallAttemptWindow); err != nil {
+					if _, err := svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID,
+						fleet.PolicyAutomationInstallAttemptWindow); err != nil {
 						svc.logger.ErrorContext(ctx, "failed to record policy automation install attempt",
 							"host_id", host.ID,
 							"software_installer_id", *hsi.SoftwareInstallerID,
@@ -2048,11 +2046,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
-		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery.
-		// Only a successful install does this. A refetch makes the host re-run policies
-		// immediately, bypassing the policy update interval, which is the loop
-		// continuousAutomationOnCooldown throttles. A failed install queues no refetch, so
-		// it re-fires no faster than the policy update interval.
+		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
 		if status == fleet.SoftwareInstalled {
 			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
@@ -2062,21 +2056,10 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	return nil
 }
 
-// installFailureLimitReached reports whether this host has failed
-// MaxPolicyAutomationInstallAttempts installs of this installer within
-// PolicyAutomationInstallAttemptWindow.
-//
-// This is a different question from attempt_number vs MaxPolicyAutomationRetries.
-// attempt_number counts attempts since the last reset, and a continuous automation
-// resets it on every failing policy result, so it only bounds one policy result's
-// worth of retries. This count is keyed on the host and installer, is not reset by a
-// re-fire, and so bounds an install that never succeeds.
-//
-// A count Fleet cannot read reports false, so a Redis failure leaves installs
-// working without the limit rather than stopping them.
 func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
-	attempts, err := svc.installAttempts.CountAttempts(ctx, hostID, softwareInstallerID, svc.clock.Now(), fleet.PolicyAutomationInstallAttemptWindow)
+	attempts, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
 	if err != nil {
+		// Leave installs working without the limit rather than stopping them.
 		svc.logger.ErrorContext(ctx, "failed to count policy automation install failures",
 			"host_id", hostID,
 			"software_installer_id", softwareInstallerID,
