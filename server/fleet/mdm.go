@@ -1465,6 +1465,32 @@ const (
 	SSOInitiatorFleetDesktop = "fleet_desktop"
 )
 
+// maxSSORelayStateLen is the cap the SAML 2.0 HTTP bindings put on RelayState.
+const maxSSORelayStateLen = 80
+
+// SSORelayState is a value Fleet asks the IdP to echo back with the SAML
+// assertion. It survives a callback whose SSO session can no longer be loaded
+type SSORelayState string
+
+// SSORelayStateNone leaves RelayState off the AuthnRequest entirely.
+const SSORelayStateNone = SSORelayState("")
+
+// ParseSSORelayState turns the raw RelayState an IdP posted back into the
+// initiator Fleet sent, or SSORelayStateNone when it echoed back nothing Fleet
+// recognizes.
+func ParseSSORelayState(raw string) SSORelayState {
+	if len(raw) > maxSSORelayStateLen {
+		return SSORelayStateNone
+	}
+	switch raw {
+	case SSOInitiatorOTAEnroll, SSOInitiatorOrbitSetupExperience,
+		SSOInitiatorAccountDrivenEnroll, SSOInitiatorAppleMDMSSO, SSOInitiatorFleetDesktop:
+		return SSORelayState(raw)
+	default:
+		return SSORelayStateNone
+	}
+}
+
 // DeviceSSOInitiation is what a device needs to start the Fleet Desktop SSO
 // flow: the IdP URL to navigate to, plus the handshake session that ties the
 // eventual SAML callback back to this request.

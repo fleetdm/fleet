@@ -1752,10 +1752,8 @@ type FleetDesktopSettings struct {
 	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
 	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
 	AlternativeBrowserHost string `json:"alternative_browser_host"`
-	// SSOEnabled records that end users should authenticate with the IdP
-	// configured in mdm.end_user_authentication, which must be set before this can
-	// be enabled. Nothing enforces it yet: the setting is only persisted and
-	// reported.
+	// SSOEnabled requires end users to authenticate with the IdP configured in
+	// mdm.end_user_authentication, which must be set before this can be enabled.
 	SSOEnabled bool `json:"sso_enabled"`
 }
 

@@ -921,6 +921,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		fleet.SSORelayStateNone,
 		sso.SSORequestData{
 			HostUUID:  hostUUID,
 			Initiator: initiator,
@@ -965,7 +966,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	if !strings.HasPrefix(originalURL, "/enroll?") &&
 		ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience &&
 		ssoRequestData.Initiator != fleet.SSOInitiatorFleetDesktop {
-		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
+		// For flows other than the /enroll BYOD, we have to ensure that Apple MDM
 		// is enabled (this was previously done in a middleware on the route, but
 		// we do it here now so the middleware is disabled for the BYOD flow, which
 		// handles the MDM not enabled differently, via a custom error page, as it

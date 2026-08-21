@@ -517,6 +517,7 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 		svc.ssoSessionStore,
 		sso.URLWithPrefix(browserBase, svc.config.Server.URLPrefix, deviceURL).String(),
 		uint(sessionDuration.Seconds()), //nolint:gosec // dismiss G115
+		fleet.SSORelayState(fleet.SSOInitiatorFleetDesktop),
 		sso.SSORequestData{
 			HostUUID:  host.UUID,
 			Initiator: fleet.SSOInitiatorFleetDesktop,

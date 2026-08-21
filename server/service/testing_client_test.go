@@ -569,7 +569,22 @@ func (ts *withServer) InitiateDeviceSSO(client *http.Client, deviceToken string)
 func (ts *withServer) CompleteDeviceSSO(client *http.Client, idpURL, username, password string) *http.Response {
 	samlResponse := ts.completeSAMLLogin(client, idpURL, username, password)
 	return ts.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
-		"SAMLResponse", samlResponse)
+		"SAMLResponse", samlResponse, "RelayState", fleet.SSOInitiatorFleetDesktop)
+}
+
+func (ts *withServer) CompleteDeviceSSOWithRelayState(client *http.Client, idpURL, username, password, relayState string) *http.Response {
+	samlResponse := ts.completeSAMLLogin(client, idpURL, username, password)
+	return ts.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
+		"SAMLResponse", samlResponse, "RelayState", relayState)
+}
+
+func (ts *withServer) ExpireSSOHandshake(client *http.Client) {
+	t := ts.s.T()
+	serverURL, err := url.Parse(ts.server.URL)
+	require.NoError(t, err)
+	client.Jar.SetCookies(serverURL, []*http.Cookie{
+		{Name: cookieNameSSOSession, Value: "expired-handshake-session-id", Path: "/"},
+	})
 }
 
 // LoginDeviceSSOUser drives the whole Fleet Desktop "My device" page SSO flow:

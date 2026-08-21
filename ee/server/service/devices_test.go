@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,25 +84,29 @@ func TestDeviceSSOSessionUnknownIDNotFound(t *testing.T) {
 	}
 }
 
-func TestInitiateDeviceSSOGuards(t *testing.T) {
-	idpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	t.Cleanup(idpSrv.Close)
+func TestInitiateDeviceSSO(t *testing.T) {
+	const devTok = "device-auth-token-abc123"
 
 	idp := func(ac *fleet.AppConfig) {
 		ac.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
-			EntityID:    "mdm.test.com",
-			IDPName:     "SimpleSAML",
-			MetadataURL: idpSrv.URL,
+			EntityID: "fleet",
+			IDPName:  "TestIDP",
+			Metadata: mdmSSOTestMetadata,
 		}
 	}
 
 	cases := []struct {
 		name      string
-		wantErr   string
+		noHost    bool
 		appConfig func() fleet.AppConfig
+		wantErr   string
 	}{
+		{
+			name:      "no host resolved from the device token",
+			noHost:    true,
+			wantErr:   "Authentication required",
+			appConfig: func() fleet.AppConfig { return fleet.AppConfig{} },
+		},
 		{
 			name:      "sso disabled",
 			wantErr:   "is not enabled",
@@ -141,8 +146,7 @@ func TestInitiateDeviceSSOGuards(t *testing.T) {
 			},
 		},
 		{
-			name:    "no alternative browser host",
-			wantErr: "metadata",
+			name: "no alternative browser host",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
@@ -152,8 +156,7 @@ func TestInitiateDeviceSSOGuards(t *testing.T) {
 			},
 		},
 		{
-			name:    "alternative browser host equals the server host",
-			wantErr: "metadata",
+			name: "alternative browser host equals the server host",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
@@ -164,8 +167,7 @@ func TestInitiateDeviceSSOGuards(t *testing.T) {
 			},
 		},
 		{
-			name:    "alternative browser host differs only by port",
-			wantErr: "metadata",
+			name: "alternative browser host differs only by port",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
@@ -176,8 +178,7 @@ func TestInitiateDeviceSSOGuards(t *testing.T) {
 			},
 		},
 		{
-			name:    "apple server url equals the server url",
-			wantErr: "metadata",
+			name: "apple server url equals the server url",
 			appConfig: func() fleet.AppConfig {
 				var ac fleet.AppConfig
 				ac.FleetDesktop.SSOEnabled = true
@@ -198,26 +199,40 @@ func TestInitiateDeviceSSOGuards(t *testing.T) {
 			}
 
 			svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
+			svc.ssoSessionStore = sso.NewSessionStore(redistest.NopRedis())
 
-			ctx := hostctx.NewContext(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"})
-			_, err := svc.InitiateDeviceSSO(ctx, "/device/some-token")
-			require.Error(t, err)
-			require.ErrorContains(t, err, c.wantErr)
-
-			// Guard refusals are client errors; reaching the metadata fetch is not.
-			var badReq *fleet.BadRequestError
-			if c.wantErr != "metadata" {
-				require.ErrorAs(t, err, &badReq)
+			ctx := t.Context()
+			if !c.noHost {
+				ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, UUID: "host-uuid-1"})
 			}
+
+			initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+devTok)
+
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+				if c.noHost {
+					var authRequired *fleet.AuthRequiredError
+					require.ErrorAs(t, err, &authRequired)
+				} else {
+					var badReq *fleet.BadRequestError
+					require.ErrorAs(t, err, &badReq)
+				}
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotEmpty(t, initiation.IdPURL)
+
+			idpURL, err := url.Parse(initiation.IdPURL)
+			require.NoError(t, err)
+
+			require.Equal(t,
+				string(fleet.SSORelayState(fleet.SSOInitiatorFleetDesktop)),
+				idpURL.Query().Get("RelayState"))
+			require.NotContains(t, idpURL.RawQuery, devTok)
 		})
 	}
-}
-
-func TestInitiateDeviceSSOMissingHostInContext(t *testing.T) {
-	svc, _, _ := newDeviceSSOTestService(t, new(mock.Store), time.Hour)
-
-	_, err := svc.InitiateDeviceSSO(t.Context(), "/device/some-token")
-	require.Error(t, err)
 }
 
 func TestRequireDeviceSSOSession(t *testing.T) {

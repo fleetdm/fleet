@@ -68,6 +68,7 @@ import {
   isIPad,
   isRecentlyEnrolled,
 } from "./helpers";
+import useDeviceSSO from "./useDeviceSSO";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
@@ -129,6 +130,7 @@ interface IDeviceUserPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       setup_only?: string;
+      sso_error?: string;
     };
     search?: string;
   };
@@ -211,6 +213,7 @@ const DeviceUserPage = ({
     data: deviceCertificates,
     isLoading: isLoadingDeviceCertificates,
     isError: isErrorDeviceCertificates,
+    error: deviceCertificatesError,
     refetch: refetchDeviceCertificates,
   } = useQuery<
     IGetDeviceCertificatesResponse,
@@ -271,7 +274,7 @@ const DeviceUserPage = ({
   const {
     data: dupDetails,
     isLoading: isLoadingDupDetails,
-    error: isDupDetailsError,
+    error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
     ["host", deviceAuthToken],
@@ -364,7 +367,7 @@ const DeviceUserPage = ({
   );
 
   const isAuthenticationError =
-    isDupDetailsError && isDupDetailsError.status === 401;
+    dupDetailsError && dupDetailsError.status === 401;
 
   const {
     host,
@@ -413,6 +416,7 @@ const DeviceUserPage = ({
     data: setupStepStatuses,
     isLoading: isLoadingSetupSteps,
     isError: isErrorSetupSteps,
+    error: setupStepsError,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     AxiosError,
@@ -460,6 +464,23 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  const {
+    isSSORequired,
+    isRedirecting: isRedirectingToSSO,
+    retry: retryDeviceSSO,
+  } = useDeviceSSO({
+    deviceAuthToken,
+    errors: [
+      dupDetailsError,
+      deviceCertificatesError,
+      setupStepsError,
+      mdmManualEnrollUrlError,
+    ],
+    ssoErrorParam: location.query.sso_error,
+    isSetupOnly: !!location.query.setup_only,
+    hasSession: !!dupDetails,
+  });
 
   const { bypassConditionalAccess } = deviceUserAPI;
 
@@ -962,6 +983,26 @@ const DeviceUserPage = ({
     );
   };
 
+  const renderDeviceSSOState = () => {
+    if (isRedirectingToSSO) {
+      return (
+        <div className={`${baseClass}__sso-redirect`} role="status">
+          <Spinner {...(isMobileView && { variant: "mobile" })} />
+          <span>Redirecting to your organization’s sign-in page…</span>
+        </div>
+      );
+    }
+
+    return (
+      <DeviceUserError
+        isMobileView={isMobileView}
+        isMobileDevice={isMobileDevice}
+        ssoError="sign_in_failed"
+        onRetry={retryDeviceSSO}
+      />
+    );
+  };
+
   const coreWrapperClassnames = classNames("core-wrapper", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
@@ -969,6 +1010,26 @@ const DeviceUserPage = ({
   const siteNavContainerClassnames = classNames("site-nav-container", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
+
+  // The SSO branch has to come first: a refused device call is an error to
+  // every query on the page, but one the end user can act on by signing in.
+  const renderDeviceUserBody = () => {
+    if (isSSORequired) {
+      return renderDeviceSSOState();
+    }
+    if (dupDetailsError || enrollUrlError) {
+      return (
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
+          isAuthenticationError={!!isAuthenticationError}
+        />
+      );
+    }
+    return (
+      <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
+    );
+  };
 
   return (
     <div className="app-wrap">
@@ -1001,15 +1062,7 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDupDetailsError || enrollUrlError ? (
-        <DeviceUserError
-          isMobileView={isMobileView}
-          isMobileDevice={isMobileDevice}
-          isAuthenticationError={!!isAuthenticationError}
-        />
-      ) : (
-        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
-      )}
+      {renderDeviceUserBody()}
       {showInfoModal && (
         <InfoModal
           onCancel={toggleInfoModal}

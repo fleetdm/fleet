@@ -4192,6 +4192,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 
 type callbackMDMSSORequest struct {
 	sessionID    string
+	relayState   fleet.SSORelayState
 	samlResponse []byte
 }
 
@@ -4200,12 +4201,13 @@ type callbackMDMSSORequest struct {
 // rare enough (malformed data coming from the SSO provider) so they shouldn't
 // affect many users.
 func (callbackMDMSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
+	sessionID, samlResponse, relayState, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
 	}
 	return &callbackMDMSSORequest{
 		sessionID:    sessionID,
+		relayState:   relayState,
 		samlResponse: samlResponse,
 	}, nil
 }
@@ -4240,6 +4242,18 @@ func (r callbackMDMSSOResponse) Error() error { return nil }
 func callbackMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMSSORequest)
 	redirectURL, byodCookieValue, deviceSSOSessionID, deviceSSOSessionDuration := svc.MDMSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+
+	// Relay state is carried by the browser through the IdP and back, is used
+	// for distinguishing users comming from "My device".
+	if callbackRequest.relayState == fleet.SSOInitiatorFleetDesktop {
+		switch redirectURL {
+		case apple_mdm.FleetUISSOCallbackSessionExpired:
+			redirectURL = apple_mdm.FleetUIDeviceSSOErrorSessionExpired
+		case apple_mdm.FleetUISSOCallbackError:
+			redirectURL = apple_mdm.FleetUIDeviceSSOError
+		}
+	}
+
 	return callbackMDMSSOResponse{
 		redirectURL:              redirectURL,
 		byodEnrollCookieValue:    byodCookieValue,
