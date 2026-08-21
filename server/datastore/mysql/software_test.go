@@ -9247,10 +9247,12 @@ func testListHostSoftwareSearchByBundleAndDisplayName(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 
 	// Look up the title id for the target software so we can attach a custom display name.
+	// Filter by host so a duplicate name from a future test edit won't return the wrong row.
 	var targetTitleID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &targetTitleID,
-			`SELECT title_id FROM software WHERE name = ?`, "acme-secure-client")
+			`SELECT s.title_id FROM software s INNER JOIN host_software hs ON hs.software_id = s.id WHERE hs.host_id = ? AND s.name = ? LIMIT 1`,
+			host.ID, "acme-secure-client")
 	})
 	require.NotZero(t, targetTitleID)
 
