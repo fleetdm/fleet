@@ -110,11 +110,11 @@ To automatically patch the app when this policy fails, whether or not the app is
 
 To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`.
 
-To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires Fleet Desktop app (available as Fleet-maintained app).
+To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
-Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, the `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled.. 
+Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled.. 
 
-Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
+The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
