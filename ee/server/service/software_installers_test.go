@@ -2356,6 +2356,8 @@ func TestUninstallPyScriptOnUnixLike(t *testing.T) {
 	}
 }
 
+// The unix-like exception must not loosen the gate for platforms a script
+// package genuinely can't run on.
 func TestUninstallPyScriptOnWindowsFails(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
