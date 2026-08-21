@@ -4027,6 +4027,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "Harmony SASE",
+      "slug": "harmony-sase/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.safervpn.osx.smb",
+      "description": "Harmony SASE is a zero trust network access platform, formerly Perimeter 81."
+    },
+    {
       "name": "Hazel",
       "slug": "hazel/darwin",
       "platform": "darwin",
