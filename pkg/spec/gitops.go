@@ -2055,20 +2055,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// Make sure team name is correct, and do additional validation
 	var patchSlugs []string
 	for _, item := range result.Policies {
-		if item.Name == "" {
-			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
-		} else {
-			item.Name = norm.NFC.String(item.Name)
-		}
+		item.Name = norm.NFC.String(item.Name)
 		// Reconcile the shadow value into the embedded field the apply path reads.
 		if item.ContinuousAutomations.Valid {
 			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
 		}
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
-		}
-		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
-			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
 		}
 		if item.Type == fleet.PolicyTypePatch {
 			if _, ok := fmasBySlug[item.FleetMaintainedAppSlug]; !ok {
@@ -2104,8 +2097,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 						item.Name, item.FleetMaintainedAppSlug, patchOption))
 				}
 			}
-		} else if item.FleetMaintainedAppSlug != "" {
-			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -2114,6 +2105,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
 			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies included in `%s`: %q", filepath.Base(parentFilePath), item.Name))
+		}
+		if err := item.Verify(); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("Couldn't apply policy %q: %w", item.Name, err))
 		}
 	}
 	duplicates := getDuplicateNames(
