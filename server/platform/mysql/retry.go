@@ -134,6 +134,8 @@ func RetryableError(err error) bool {
 		// Consider lock related errors to be retryable
 		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
 			return true
+		case mysqlerr.ER_NEED_REPREPARE:
+			return true
 		}
 	}
 	if errors.Is(err, DoRetryErr) {

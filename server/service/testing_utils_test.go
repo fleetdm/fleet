@@ -493,14 +493,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		logger = opts[0].Logger
 	}
 
+	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
+
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].AndroidModule))
+	} else {
+		// No opts (mock-backed tests): android routes aren't wired into the handler,
+		// but the endpointer only dereferences the android module when an endpoint is
+		// actually served, so surface a path-only stub to apiendpoints.Validate.
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(android_service.GetRoutes(svc, nil)))
 	}
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
 	// the main handler. Otherwise, build a path-only stub from the same registration
 	// code and surface it to apiendpoints.Validate for catalog validation only.
-	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
