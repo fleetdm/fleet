@@ -50,6 +50,12 @@ func PayloadTooLargeError() *apnsError {
 	return newAPNSError("PayloadTooLarge", http.StatusRequestEntityTooLarge)
 }
 
+// ServiceUnavailableError is what APNs returns when it cannot take a push
+// right now. Used when Redis is unreachable.
+func ServiceUnavailableError() *apnsError {
+	return newAPNSError("ServiceUnavailable", http.StatusServiceUnavailable)
+}
+
 func InternalServerError() *apnsError {
 	return newAPNSError("InternalServerError", http.StatusInternalServerError)
 }

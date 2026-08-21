@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -21,15 +22,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	bufordpush "github.com/RobotsAndPencils/buford/push"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testTTL = time.Hour
 
 func newTestServer(t *testing.T) *httptest.Server {
 	return newTestServerWithKeepAlive(t, 30*time.Second)
@@ -41,10 +48,61 @@ func newTestServerWithKeepAlive(t *testing.T, keepAlive time.Duration) *httptest
 
 func newTestServerWithTimeouts(t *testing.T, keepAlive, writeTimeout time.Duration) *httptest.Server {
 	t.Helper()
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	srv := httptest.NewServer(newMux(newStore(testTTL, logger), logger, keepAlive, writeTimeout))
-	t.Cleanup(srv.Close)
+	srv, _ := newTestServerOnRedis(t, testRedis(t), keepAlive, writeTimeout)
 	return srv
+}
+
+// newTestServerOnRedis starts one instance against a given Redis, so a test
+// can stand up two of them sharing state.
+func newTestServerOnRedis(t *testing.T, r testRedisEnv, keepAlive, writeTimeout time.Duration) (*httptest.Server, *coordinator) {
+	t.Helper()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	coord := newCoordinator(r.pool, newRegistry(), logger, coordinatorConfig{
+		NodeID:     fmt.Sprintf("node%d", r.nextNode()),
+		KeyPrefix:  r.prefix,
+		DefaultTTL: testTTL,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go coord.Run(ctx, 50*time.Millisecond)
+	waitSubscribed(t, coord)
+
+	srv := httptest.NewServer(newMux(coord, logger, keepAlive, writeTimeout))
+	t.Cleanup(srv.Close)
+	return srv, coord
+}
+
+// testRedisEnv is one test's isolated slice of Redis. The package runs with
+// -parallel 8 and redistest cleans by key prefix, so each test gets its own.
+type testRedisEnv struct {
+	pool   fleet.RedisPool
+	prefix string
+	nodes  *atomic.Int64
+}
+
+func (e testRedisEnv) nextNode() int64 { return e.nodes.Add(1) }
+
+func testRedis(t *testing.T) testRedisEnv {
+	t.Helper()
+	prefix := "apnsmock:" + strings.ReplaceAll(t.Name(), "/", "_") + ":"
+	return testRedisEnv{
+		pool:   redistest.SetupRedis(t, prefix, false, false, false),
+		prefix: prefix,
+		nodes:  new(atomic.Int64),
+	}
+}
+
+// waitSubscribed blocks until the subscription is live. Publishing before
+// then is a message nobody receives, which would just make tests flaky.
+func waitSubscribed(t *testing.T, coord *coordinator) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		conn := coord.pool.Get()
+		defer conn.Close()
+		counts, err := redigo.IntMap(conn.Do("PUBSUB", "NUMSUB", coord.channel()))
+		return err == nil && counts[coord.channel()] > 0
+	}, 5*time.Second, 10*time.Millisecond, "pub/sub subscription never became active")
 }
 
 // --- SSE test client -------------------------------------------------------
@@ -229,11 +287,11 @@ func getStats(t *testing.T, baseURL string) statsResponse {
 // connected. Subscription happens after the SSE response headers are sent,
 // so a connect immediately followed by a push can race it; tests that need
 // the live-delivery path synchronize here.
-func waitConnected(t *testing.T, baseURL string, want int) {
+func waitConnected(t *testing.T, baseURL string, want int64) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if getStats(t, baseURL).ActiveConnections == want {
+		if getStats(t, baseURL).Node.ActiveConnections == want {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -257,9 +315,11 @@ func TestE2EPushDeliveredToConnectedClient(t *testing.T) {
 	assert.JSONEq(t, `{"mdm":"magic1"}`, nextPing(t, c, 5*time.Second))
 
 	stats := getStats(t, srv.URL)
-	assert.Equal(t, 1, stats.TotalPushes)
-	assert.Equal(t, 1, stats.DeliveredLive)
-	assert.Equal(t, 0, stats.Stored)
+	assert.EqualValues(t, 1, stats.Node.TotalPushes)
+	assert.EqualValues(t, 1, stats.Node.DeliveredLive)
+	// Every push is written to Redis before it is announced, even when the
+	// device is connected and claims it a moment later.
+	assert.EqualValues(t, 1, stats.Node.Stored)
 }
 
 func TestE2EOfflinePushDeliveredOnConnect(t *testing.T) {
@@ -273,8 +333,8 @@ func TestE2EOfflinePushDeliveredOnConnect(t *testing.T) {
 	assert.JSONEq(t, `{"mdm":"magic2"}`, nextPing(t, c, 5*time.Second))
 
 	stats := getStats(t, srv.URL)
-	assert.Equal(t, 1, stats.Stored)
-	assert.Equal(t, 1, stats.DeliveredOnConnect)
+	assert.EqualValues(t, 1, stats.Node.Stored)
+	assert.EqualValues(t, 1, stats.Node.DeliveredOnConnect)
 }
 
 func TestE2EOfflinePushesCoalesceToLatest(t *testing.T) {
@@ -291,9 +351,9 @@ func TestE2EOfflinePushesCoalesceToLatest(t *testing.T) {
 	expectNoPing(t, c, 200*time.Millisecond)
 
 	stats := getStats(t, srv.URL)
-	assert.Equal(t, 3, stats.TotalPushes)
-	assert.Equal(t, 1, stats.Stored)
-	assert.Equal(t, 2, stats.Coalesced)
+	assert.EqualValues(t, 3, stats.Node.TotalPushes)
+	assert.EqualValues(t, 1, stats.Node.Stored)
+	assert.EqualValues(t, 2, stats.Node.Coalesced)
 }
 
 func TestE2EPushWithPastExpirationDiscarded(t *testing.T) {
@@ -309,8 +369,8 @@ func TestE2EPushWithPastExpirationDiscarded(t *testing.T) {
 	expectNoPing(t, c, 300*time.Millisecond)
 
 	stats := getStats(t, srv.URL)
-	assert.Equal(t, 0, stats.Stored)
-	assert.Equal(t, 1, stats.Expired)
+	assert.EqualValues(t, 0, stats.Node.Stored)
+	assert.EqualValues(t, 1, stats.Node.Discarded)
 }
 
 func TestE2EPushWithFutureExpirationStored(t *testing.T) {
@@ -496,6 +556,72 @@ func TestE2EReconnectReplacesOlderConnection(t *testing.T) {
 	assert.JSONEq(t, `{"mdm":"m"}`, nextPing(t, newConn, 5*time.Second))
 }
 
+func TestE2ECrossInstanceDelivery(t *testing.T) {
+	// The reason Redis is here at all: the ALB gives a device's stream to one
+	// instance and Fleet's push to another.
+	env := testRedis(t)
+	holder, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	pusher, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	const token = "aabbccddee10"
+
+	c := sseConnect(t, holder.URL, token)
+	waitConnected(t, holder.URL, 1)
+
+	resp := pushRaw(t, pusher.URL, token, []byte(`{"mdm":"crossed"}`), nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	assert.JSONEq(t, `{"mdm":"crossed"}`, nextPing(t, c, 5*time.Second))
+
+	// Either instance answers with the same cluster-wide totals.
+	require.Eventually(t, func() bool {
+		return getStats(t, pusher.URL).Nodes == 2 && getStats(t, holder.URL).Nodes == 2
+	}, 5*time.Second, 20*time.Millisecond)
+	for _, url := range []string{holder.URL, pusher.URL} {
+		stats := getStats(t, url)
+		assert.EqualValues(t, 1, stats.Cluster.ActiveConnections, url)
+		assert.EqualValues(t, 1, stats.Cluster.TotalPushes, url)
+		assert.EqualValues(t, 1, stats.Cluster.DeliveredLive, url)
+	}
+}
+
+func TestE2ECrossInstanceStoreAndForward(t *testing.T) {
+	// A push to a device that is not connected anywhere waits in Redis, and
+	// the device collects it wherever it turns up next.
+	env := testRedis(t)
+	pusher, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	holder, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	const token = "aabbccddee11"
+
+	resp := pushRaw(t, pusher.URL, token, []byte(`{"mdm":"waited"}`), nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	c := sseConnect(t, holder.URL, token)
+
+	assert.JSONEq(t, `{"mdm":"waited"}`, nextPing(t, c, 5*time.Second))
+	assert.EqualValues(t, 1, getStats(t, holder.URL).Node.DeliveredOnConnect)
+	assert.EqualValues(t, 1, getStats(t, pusher.URL).Node.Stored)
+}
+
+func TestE2ECrossInstanceReconnectMovesToken(t *testing.T) {
+	// A device that reconnects to a different instance takes its token with
+	// it: pushes follow the newest connection.
+	env := testRedis(t)
+	first, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	second, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	const token = "aabbccddee12"
+
+	oldConn := sseConnect(t, first.URL, token)
+	waitConnected(t, first.URL, 1)
+	newConn := sseConnect(t, second.URL, token)
+	waitConnected(t, second.URL, 1)
+
+	resp := pushRaw(t, first.URL, token, []byte(`{"mdm":"followed"}`), nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	assert.JSONEq(t, `{"mdm":"followed"}`, nextPing(t, newConn, 5*time.Second))
+	expectNoPing(t, oldConn, 300*time.Millisecond)
+}
+
 func TestE2EHealthz(t *testing.T) {
 	srv := newTestServer(t)
 	resp, err := http.Get(srv.URL + "/healthz")
@@ -506,7 +632,13 @@ func TestE2EHealthz(t *testing.T) {
 
 func TestE2EStatsStartAtZero(t *testing.T) {
 	srv := newTestServer(t)
-	assert.Equal(t, statsResponse{}, getStats(t, srv.URL))
+
+	stats := getStats(t, srv.URL)
+
+	assert.Equal(t, nodeStats{}, stats.Node)
+	assert.Equal(t, nodeStats{}, stats.Cluster)
+	assert.NotEmpty(t, stats.NodeID)
+	assert.Equal(t, 1, stats.Nodes)
 }
 
 func TestE2EKeepalive(t *testing.T) {
