@@ -6,6 +6,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
 import validUrl from "components/forms/validators/valid_url";
 import validHostname from "components/forms/validators/valid_hostname";
 
@@ -15,9 +16,17 @@ import CustomLink from "components/CustomLink";
 import { DEFAULT_TRANSPARENCY_URL, IAppConfigFormProps } from "../constants";
 import TooltipWrapper from "../../../../../components/TooltipWrapper";
 
+const endUserAuthLabelId = "end-user-authentication-label";
+
+enum EndUserAuthType {
+  TOKEN_ROTATION = "token_rotation",
+  SSO = "sso",
+}
+
 interface IFleetDesktopFormData {
   transparencyURL: string;
   alternativeBrowserHost: string;
+  ssoEnabled: boolean;
 }
 interface IFleetDesktopFormErrors {
   transparencyURL?: string | null;
@@ -37,6 +46,7 @@ const FleetDesktop = ({
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
     alternativeBrowserHost:
       appConfig.fleet_desktop?.alternative_browser_host || "",
+    ssoEnabled: appConfig.fleet_desktop?.sso_enabled ?? false,
   });
 
   const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
@@ -51,6 +61,15 @@ const FleetDesktop = ({
       delete newErrors[name as keyof IFleetDesktopFormErrors];
       return newErrors;
     });
+  };
+
+  // The radios don't go through onInputChange: it stringifies its value, which
+  // would store the truthy "false".
+  const onEndUserAuthChange = (value: string) => {
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      ssoEnabled: value === EndUserAuthType.SSO,
+    }));
   };
 
   const validateForm = () => {
@@ -92,6 +111,7 @@ const FleetDesktop = ({
       fleet_desktop: {
         transparency_url: formData.transparencyURL,
         alternative_browser_host: formData.alternativeBrowserHost,
+        sso_enabled: formData.ssoEnabled,
       },
     };
 
@@ -102,16 +122,17 @@ const FleetDesktop = ({
     return <></>;
   }
 
+  const endUserAuth = appConfig.mdm?.end_user_authentication;
+  const isIdPConfigured =
+    !!endUserAuth?.entity_id &&
+    !!endUserAuth?.idp_name &&
+    (!!endUserAuth?.metadata_url || !!endUserAuth?.metadata);
+
   return (
     <SettingsSection title="Fleet Desktop">
       <PageDescription
         variant="right-panel"
-        content={
-          <>
-            Override the default transparency URL or browser host to customize
-            Fleet Desktop experience.
-          </>
-        }
+        content="Customize the Fleet Desktop experience."
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
         <InputField
@@ -153,6 +174,37 @@ const FleetDesktop = ({
           disabled={gitOpsModeEnabled}
           helpText="If not set, Fleet Desktop uses your Fleet web address."
         />
+        <fieldset className="form-field" aria-labelledby={endUserAuthLabelId}>
+          <div className="form-field__label" id={endUserAuthLabelId}>
+            End user authentication
+          </div>
+          <Radio
+            label="Hourly token rotation"
+            id="end-user-auth-token-rotation"
+            name="end-user-authentication"
+            value={EndUserAuthType.TOKEN_ROTATION}
+            checked={!formData.ssoEnabled}
+            disabled={gitOpsModeEnabled}
+            onChange={onEndUserAuthChange}
+          />
+          <Radio
+            label="Single sign-on (SSO)"
+            id="end-user-auth-sso"
+            name="end-user-authentication"
+            value={EndUserAuthType.SSO}
+            checked={formData.ssoEnabled}
+            disabled={gitOpsModeEnabled || !isIdPConfigured}
+            tooltip={
+              isIdPConfigured ? undefined : (
+                <>
+                  This setting requires an IdP configured in Settings &gt;
+                  Integrations &gt; Authentication (SSO) &gt; End users.
+                </>
+              )
+            }
+            onChange={onEndUserAuthChange}
+          />
+        </fieldset>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

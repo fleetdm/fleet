@@ -2429,6 +2429,26 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an enabled_sso_fleet_desktop activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledSSOFleetDesktop,
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("enabled single sign-on (SSO) for Fleet Desktop.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders a disabled_sso_fleet_desktop activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledSSOFleetDesktop,
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("disabled single sign-on (SSO) for Fleet Desktop.")
+    ).toBeInTheDocument();
+  });
+
   it("renders a created_label activity for a global label", () => {
     const activity = createMockActivity({
       type: ActivityType.CreatedLabel,
