@@ -47,6 +47,19 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
+### Re-enrolling Android hosts
+
+An Android host re-enrolls after a wipe, or after an end user removes and re-adds the work profile. When it does, Fleet automatically:
+  - Cancels pending MDM commands
+  - Marks pending software installs as failed
+  - Clears dynamic label membership
+
+Manual, built-in, and host vitals labels stay in place, because they aren't tied to the previous enrollment. The re-enrollment reports the host's disk and operating system vitals again, so Fleet doesn't clear those either.
+
+This means you don't need to delete an Android host from Fleet before re-enrolling it.
+
+Fleet also clears the host's past activities. To keep them, turn on **Preserve host activities on re-enrollment** in **Settings > Organization settings > Advanced options**.
+
 ## Migration
 
 To migrate personal (BYOD) Android hosts from other MDM solution, first unenroll the host from your old solution. Then, share the enrollment page with your end users so they can enroll to Fleet. Unenrolling BYOD hosts will only remove/wipe the work profile (company data). Personal data won't be removed.
