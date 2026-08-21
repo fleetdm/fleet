@@ -4421,9 +4421,9 @@ org_settings:
       idp_name: Okta
       entity_id: fleet
       metadata_url: https://idp.example.com/metadata
-{{ end }}  fleet_desktop:
+{{ end }}{{ if .FleetDesktop }}  fleet_desktop:
     sso_enabled: {{ .SSOEnabled }}
-`)
+{{ end }}`)
 	require.NoError(t, err)
 
 	t.Setenv("FLEET_URL", s.Server.URL)
@@ -4431,13 +4431,7 @@ org_settings:
 
 	writeCfg := func(t *testing.T, ssoEnabled, idp bool) string {
 		t.Helper()
-		f, err := os.CreateTemp(t.TempDir(), "*.yml")
-		require.NoError(t, err)
-		require.NoError(t, globalCfgTpl.Execute(f, struct {
-			SSOEnabled bool
-			IdP        bool
-		}{SSOEnabled: ssoEnabled, IdP: idp}))
-		return f.Name()
+		return writeCfgOpts(t, globalCfgTpl, ssoEnabled, idp, true)
 	}
 
 	// captured activities are drained on every read
@@ -4486,12 +4480,41 @@ org_settings:
 		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
 		activityNames(getActivities()))
 
+	// GitOps is declarative: re-enable, then apply a config that keeps the IdP
+	// but drops fleet_desktop entirely. The setting has to go back to false.
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg}))
+	assertStored(t, true, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	omittedCfg := writeCfgOpts(t, globalCfgTpl, false, true, false)
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", omittedCfg}))
+	assertStored(t, false, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
 	// Restore the shared suite's app config directly; another gitops run would
 	// cost ~0.6s to assert nothing new.
 	storedCfg, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	storedCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
 	require.NoError(t, s.DS.SaveAppConfig(ctx, storedCfg))
+}
+
+// writeCfgOpts renders the SSO gitops template. Pass fleetDesktop=false to leave
+// the fleet_desktop block out of the file entirely.
+func writeCfgOpts(t *testing.T, tpl *template.Template, ssoEnabled, idp, fleetDesktop bool) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	require.NoError(t, tpl.Execute(f, struct {
+		SSOEnabled   bool
+		IdP          bool
+		FleetDesktop bool
+	}{SSOEnabled: ssoEnabled, IdP: idp, FleetDesktop: fleetDesktop}))
+	return f.Name()
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) captureSSOFleetDesktopActivities(t *testing.T) func() []activity_api.ActivityDetails {

@@ -1118,6 +1118,23 @@ func TestModifyAppConfigFleetDesktopSSOActivities(t *testing.T) {
 		require.Equal(t, []string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
 	})
 
+	t.Run("gitops omitting sso_enabled turns it off", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+		dsAppConfig.FleetDesktop.TransparencyURL = "https://kept.example.com"
+
+		raw := []byte(`{"org_info":{"org_name":"Test"}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{Overwrite: true})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		// Overwrite also replaces Features, which emits its own activities here,
+		// so assert on the SSO ones rather than the whole list.
+		require.Contains(t, *firedActivities, fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName())
+		require.NotContains(t, *firedActivities, fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName())
+		// The reset is scoped to sso_enabled: siblings still preserve on omit.
+		require.Equal(t, "https://kept.example.com", dsAppConfig.FleetDesktop.TransparencyURL)
+	})
+
 	t.Run("free tier reset fires no activity when already disabled", func(t *testing.T) {
 		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierFree, false, fleet.MDMEndUserAuthentication{})
 
