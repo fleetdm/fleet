@@ -90,6 +90,7 @@ export default {
       patch_software_title_id,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
@@ -110,6 +111,7 @@ export default {
       patch_software_title_id,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -127,6 +129,7 @@ export default {
       conditional_access_enabled,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
       software_title_id,
       software_installer_id,
       script_id,
@@ -149,6 +152,7 @@ export default {
       conditional_access_enabled,
       continuous_automations_enabled,
       patch_when_closed,
+      notify_before_patching,
       software_title_id,
       software_installer_id,
       script_id,

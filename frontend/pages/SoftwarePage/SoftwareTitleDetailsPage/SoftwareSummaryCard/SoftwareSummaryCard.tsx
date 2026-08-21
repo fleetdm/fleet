@@ -364,7 +364,7 @@ const SoftwareSummaryCard = ({
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
-          patchWhenClosed={
+          preInstallQueryLocked={
             softwareTitle.software_package?.patch_policy?.patch_when_closed
           }
         />

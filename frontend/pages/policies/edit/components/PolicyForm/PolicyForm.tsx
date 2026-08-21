@@ -59,6 +59,7 @@ import PolicyAutomationsFields, {
 } from "pages/policies/components/PolicyAutomationsFields";
 import { PatchAutomationCta } from "pages/policies/components";
 import {
+  EndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   PatchOptionSelector,
@@ -142,8 +143,12 @@ const PolicyForm = ({
   const isPatchPolicy = storedPolicy?.type === "patch";
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
   const [patchOption, setPatchOption] = useState<PatchOption>("manual");
+  const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
+    "immediate"
+  );
   const storedPatchPolicyId = storedPolicy?.id;
   const storedPatchWhenClosed = storedPolicy?.patch_when_closed;
+  const storedNotifyBeforePatching = storedPolicy?.notify_before_patching;
   const storedInstallSoftwareId =
     storedPolicy?.install_software?.software_title_id;
 
@@ -156,10 +161,12 @@ const PolicyForm = ({
       nextPatchOption = "force";
     }
     setPatchOption(nextPatchOption);
+    setEndUserExperience(storedNotifyBeforePatching ? "notify" : "immediate");
   }, [
     isPatchPolicy,
     storedPatchPolicyId,
     storedPatchWhenClosed,
+    storedNotifyBeforePatching,
     storedInstallSoftwareId,
   ]);
 
@@ -445,7 +452,7 @@ const PolicyForm = ({
               patchOption === "manual"
                 ? null
                 : storedPolicy?.patch_software?.software_title_id ?? null,
-            ...getPatchPolicyFlags(patchOption),
+            ...getPatchPolicyFlags(patchOption, endUserExperience),
           },
         };
       }
@@ -711,6 +718,9 @@ const PolicyForm = ({
             <PatchOptionSelector
               patchOption={patchOption}
               onSelectPatchOption={setPatchOption}
+              platform={storedPolicy?.platform}
+              endUserExperience={endUserExperience}
+              onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren}
             />
           )}
@@ -769,6 +779,9 @@ const PolicyForm = ({
                 fleetName={automationsFleetName}
                 patchOption={
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
+                }
+                endUserExperience={
+                  isPremiumTier && isPatchPolicy ? endUserExperience : undefined
                 }
                 patchSlot={patchOptions}
               />

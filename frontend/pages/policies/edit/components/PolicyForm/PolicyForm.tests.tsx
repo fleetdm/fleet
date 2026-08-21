@@ -938,10 +938,80 @@ describe("PolicyForm - component", () => {
             team_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
+            notify_before_patching: false,
             continuous_automations_enabled: false,
           })
         );
         expect(onUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it("shows Patch when app is closed (not Force + Notify) for a legacy policy with both flags set", () => {
+        // Invariant violation guard: if a policy somehow stored both
+        // patch_when_closed:true AND notify_before_patching:true, the radio
+        // must show Patch when app is closed and the dropdown must be
+        // hidden. Otherwise the notify state would leak the moment the
+        // user picked Force patch.
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: {
+                name: "Firefox",
+                software_title_id: 42,
+              },
+              patch_when_closed: true,
+              notify_before_patching: true,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Patch when app is closed" })
+        ).toBeChecked();
+        expect(
+          screen.queryByRole("combobox", { name: /End user experience/i })
+        ).not.toBeInTheDocument();
+      });
+
+      it("does not carry notify_before_patching for a Windows patch policy", async () => {
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const windowsPatchPolicy = {
+          ...patchPolicy,
+          team_id: 1,
+          platform: "windows" as const,
+          patch_when_closed: false,
+          notify_before_patching: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={windowsPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(
+            windowsPatchPolicy.id,
+            expect.objectContaining({
+              notify_before_patching: false,
+              continuous_automations_enabled: false,
+            })
+          )
+        );
+        // Dropdown never renders for a Windows patch policy.
+        expect(
+          screen.queryByRole("combobox", { name: /End user experience/i })
+        ).not.toBeInTheDocument();
       });
 
       it("selects End user initiated when both stored policy flags are false", () => {

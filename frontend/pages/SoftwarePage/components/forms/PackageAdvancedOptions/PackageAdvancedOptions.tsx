@@ -220,7 +220,7 @@ interface IPackageAdvancedOptionsProps {
   /** Currently for editing FMA only, users cannot edit */
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
-  patchWhenClosed?: boolean;
+  preInstallQueryLocked?: boolean;
 }
 
 const PackageAdvancedOptions = ({
@@ -238,7 +238,7 @@ const PackageAdvancedOptions = ({
   onChangeUninstallScript,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
-  patchWhenClosed = false,
+  preInstallQueryLocked = false,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const name = selectedPackage?.name || "";
@@ -272,7 +272,7 @@ const PackageAdvancedOptions = ({
         onChangeUninstallScript={onChangeUninstallScript}
         gitopsCompatible={gitopsCompatible}
         gitOpsModeEnabled={gitOpsModeEnabled}
-        patchWhenClosed={patchWhenClosed}
+        preInstallQueryLocked={preInstallQueryLocked}
       />
     );
   };

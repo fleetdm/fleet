@@ -71,6 +71,7 @@ export interface ISoftwarePatchPolicy {
   name: string;
   patch_when_closed: boolean;
   continuous_automations_enabled: boolean;
+  notify_before_patching?: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -355,6 +356,16 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   go_binaries: null,
   adobe_plugins: null,
 } as const;
+
+/** Look up an installable source's platform, normalizing the mapping's
+ * `null` entries to `undefined` so callers can treat the return as an
+ * optional `string`. */
+export const getInstallablePlatform = (
+  source?: SoftwareSource
+): string | undefined => {
+  if (!source) return undefined;
+  return INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] ?? undefined;
+};
 
 export const SCRIPT_PACKAGE_SOURCES = [
   "sh_packages",
