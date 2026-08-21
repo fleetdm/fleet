@@ -78,6 +78,8 @@ type PolicyPayload struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	NotifyBeforePatching bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -133,6 +135,8 @@ type NewTeamPolicyPayload struct {
 	ContinuousAutomationsEnabled bool
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	NotifyBeforePatching bool
 }
 
 var (
@@ -151,6 +155,8 @@ var (
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
+	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\" or \"notify_before_patching\" can be set to true")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -163,6 +169,12 @@ const MaxPolicyAutomationRetries = 3
 func (p PolicyPayload) Verify() error {
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchWhenClosed && p.NotifyBeforePatching {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
@@ -360,12 +372,17 @@ type ModifyPolicyPayload struct {
 	Type string `json:"-"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
 	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching != nil && *p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
 	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
@@ -467,6 +484,8 @@ type PolicyData struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 
 	UpdateCreateTimestamps
 }

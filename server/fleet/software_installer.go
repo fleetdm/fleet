@@ -54,8 +54,9 @@ type SoftwareInstallDetails struct {
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
 
-	AppOpenQuery    string `json:"-" db:"app_open_query"`
-	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
+	AppOpenQuery         string `json:"-" db:"app_open_query"`
+	PatchWhenClosed      bool   `json:"-" db:"patch_when_closed"`
+	NotifyBeforePatching bool   `json:"-" db:"notify_before_patching"`
 }
 
 type SoftwareInstallerURL struct {
@@ -528,11 +529,15 @@ type HostSoftwareInstallerResult struct {
 	// PatchWhenClosed is set from the triggering policy; it distinguishes an empty pre-install result
 	// caused by the app being open from an ordinary pre-install-query failure.
 	PatchWhenClosed bool `json:"-" db:"patch_when_closed"`
+	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
+	// empty pre-install result as the app being open rather than a query failure.
+	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
+	SoftwareInstallerAppOpenNotifyCopy      = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch is forced."
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -557,10 +562,14 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			// For patch-when-closed, an empty result means the app was open, not a query failure.
-			if h.PatchWhenClosed {
+			// For patch-when-closed and notify-before-patching, an empty result means the app was
+			// open, not a query failure.
+			switch {
+			case h.NotifyBeforePatching:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
+			case h.PatchWhenClosed:
 				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
-			} else {
+			default:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
 			}
 			return
@@ -774,6 +783,9 @@ type UpdateSoftwareInstallerPayload struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. FMA-only.
 	PatchWhenClosed *bool
+	// NotifyBeforePatching skips the install while the app is open and notifies the end user an
+	// hour before the patch is forced. FMA-only.
+	NotifyBeforePatching *bool
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
@@ -781,7 +793,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
-		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil
+		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil &&
+		u.NotifyBeforePatching == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -934,6 +947,7 @@ type PatchPolicyData struct {
 	ID                           uint   `json:"id" db:"id"`
 	Name                         string `json:"name" db:"name"`
 	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	NotifyBeforePatching         bool   `json:"notify_before_patching" db:"notify_before_patching"`
 	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 

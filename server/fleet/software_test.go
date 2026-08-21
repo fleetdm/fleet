@@ -140,6 +140,17 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			name: "notify-before-patching empty pre-install output shows the notify copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				PreInstallQueryOutput: new(""),
+				NotifyBeforePatching:  true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenNotifyCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-managed empty pre-install output shows generic query-fail copy",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,

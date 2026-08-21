@@ -759,3 +759,277 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 		require.NoError(t, err)
 	}
 }
+
+func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
+	const (
+		teamID               = uint(1)
+		policyID             = uint(42)
+		patchSoftwareTitleID = uint(401)
+	)
+	patchType := fleet.PolicyTypePatch
+
+	freshPatchPolicy := func() *fleet.Policy {
+		tID := teamID
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:                   policyID,
+				TeamID:               &tID,
+				Name:                 "macOS - App up to date",
+				Platform:             "darwin",
+				Type:                 fleet.PolicyTypePatch,
+				PatchSoftwareTitleID: new(patchSoftwareTitleID),
+			},
+		}
+	}
+
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	setupDS := func(installerPlatform string) *mock.Store {
+		ds := new(mock.Store)
+		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+			return freshPatchPolicy(), nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{
+				TitleID:       new(patchSoftwareTitleID),
+				SoftwareTitle: "App",
+				DisplayName:   "App",
+				Platform:      installerPlatform,
+			}, nil
+		}
+		ds.ClearPreInstallQueryForTitleFunc = func(ctx context.Context, teamID uint, titleID uint) error {
+			return nil
+		}
+		return ds
+	}
+
+	// Every create-path rejection, with the message checked character for character.
+	t.Run("create rejections", func(t *testing.T) {
+		cases := []struct {
+			name              string
+			installerPlatform string
+			payload           fleet.NewTeamPolicyPayload
+			wantErr           string
+		}{
+			{
+				name:              "non-patch policy",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Name:  "dynamic policy",
+					Query: "SELECT 1;",
+					// Continuous automations must be on, otherwise that check rejects it first.
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `"notify_before_patching" is only supported for patch policies`,
+			},
+			{
+				name:              "both patch options",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					PatchWhenClosed:              true,
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`,
+			},
+			{
+				name:              "windows app",
+				installerPlatform: "windows",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `"notify_before_patching" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
+			},
+			{
+				name:              "continuous automations off",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                 &patchType,
+					PatchSoftwareTitleID: new(patchSoftwareTitleID),
+					NotifyBeforePatching: true,
+				},
+				wantErr: `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+		}
+
+		for _, c := range cases {
+			ds := setupDS(c.installerPlatform)
+			svc, baseCtx := newTestService(t, ds, nil, nil)
+			_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, c.payload)
+			require.Error(t, err, c.name)
+			require.ErrorContains(t, err, c.wantErr, c.name)
+		}
+	})
+
+	t.Run("modify rejections", func(t *testing.T) {
+		cases := []struct {
+			name           string
+			storedType     string
+			storedPWC      bool
+			storedPlatform string
+			payload        fleet.ModifyPolicyPayload
+			wantErr        string
+		}{
+			{
+				name:    "continuous automations off",
+				payload: fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true), ContinuousAutomationsEnabled: new(false)},
+				wantErr: `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+			{
+				name:       "non-patch policy",
+				storedType: fleet.PolicyTypeDynamic,
+				payload:    fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
+				wantErr:    `"notify_before_patching" is only supported for patch policies`,
+			},
+			{
+				// The payload carries only the delta, so the stored flag has to count.
+				name:      "stored patch_when_closed",
+				storedPWC: true,
+				payload:   fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
+				wantErr:   `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`,
+			},
+			{
+				name:           "windows policy",
+				storedPlatform: "windows",
+				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
+				wantErr:        `"notify_before_patching" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
+			},
+		}
+
+		for _, c := range cases {
+			storedType, storedPWC, storedPlatform := c.storedType, c.storedPWC, c.storedPlatform
+			ds := setupDS("darwin")
+			ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+				stored := freshPatchPolicy()
+				stored.PatchWhenClosed = storedPWC
+				if storedType != "" {
+					stored.Type = storedType
+				}
+				if stored.Type != fleet.PolicyTypePatch {
+					stored.PatchSoftwareTitleID = nil
+				}
+				if storedPlatform != "" {
+					stored.Platform = storedPlatform
+				}
+				return stored, nil
+			}
+			svc, baseCtx := newTestService(t, ds, nil, nil)
+			_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, c.payload)
+			require.Error(t, err, c.name)
+			require.ErrorContains(t, err, c.wantErr, c.name)
+		}
+	})
+
+	// Creating a notify-before-patching policy clears the title's managed pre-install query, the
+	// same as patch_when_closed does.
+	t.Run("create notify-before-patching policy", func(t *testing.T) {
+		ds := setupDS("darwin")
+		var captured fleet.PolicyPayload
+		ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+			captured = args
+			created := freshPatchPolicy()
+			created.NotifyBeforePatching = true
+			return created, nil
+		}
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Type:                         &patchType,
+			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			NotifyBeforePatching:         true,
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+		assert.True(t, captured.NotifyBeforePatching)
+		assert.False(t, captured.PatchWhenClosed)
+		assert.True(t, captured.ContinuousAutomationsEnabled)
+		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
+	})
+
+	// Enabling notify_before_patching on modify forces continuous automations on.
+	t.Run("modify auto-sets continuous automations", func(t *testing.T) {
+		ds := setupDS("darwin")
+		var saved *fleet.Policy
+		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
+			saved = p
+			return nil
+		}
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, fleet.ModifyPolicyPayload{
+			NotifyBeforePatching: new(true),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, saved)
+		assert.True(t, saved.NotifyBeforePatching)
+		assert.True(t, saved.ContinuousAutomationsEnabled)
+		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
+	})
+
+	// Turning it off leaves continuous automations at whatever the caller asked for.
+	// Turning the flag off stops forcing continuous automations on, without changing the value
+	// itself: omitted keeps whatever the policy carried, explicit false is honored.
+	t.Run("modify off stops forcing continuous automations on", func(t *testing.T) {
+		cases := []struct {
+			name           string
+			payload        fleet.ModifyPolicyPayload
+			wantContinuous bool
+		}{
+			{
+				name:           "continuous omitted keeps the stored value",
+				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false)},
+				wantContinuous: true,
+			},
+			{
+				name: "explicit false is honored once the flag is off",
+				payload: fleet.ModifyPolicyPayload{
+					NotifyBeforePatching:         new(false),
+					ContinuousAutomationsEnabled: new(false),
+				},
+				wantContinuous: false,
+			},
+		}
+
+		for _, c := range cases {
+			ds := setupDS("darwin")
+			ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+				stored := freshPatchPolicy()
+				stored.NotifyBeforePatching = true
+				stored.ContinuousAutomationsEnabled = true
+				return stored, nil
+			}
+			var saved *fleet.Policy
+			ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
+				saved = p
+				return nil
+			}
+			opts := &TestServerOpts{}
+			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+				return nil
+			}
+
+			_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, c.payload)
+			require.NoError(t, err, c.name)
+			require.NotNil(t, saved, c.name)
+			assert.False(t, saved.NotifyBeforePatching, c.name)
+			assert.Equal(t, c.wantContinuous, saved.ContinuousAutomationsEnabled, c.name)
+		}
+	})
+}

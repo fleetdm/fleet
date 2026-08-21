@@ -76,6 +76,7 @@ spec:
     fleet_id: 1
     id: 1
     name: query1
+    notify_before_patching: false
     patch_when_closed: false
     platform: ""
     query: select 1 from osquery_info where start_time > 1;
@@ -96,6 +97,7 @@ spec:
     fleet_id: null
     id: 2
     name: query2
+    notify_before_patching: false
     patch_when_closed: false
     platform: ""
     query: select 1 from osquery_info where start_time > 1;

@@ -30759,6 +30759,96 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 	})
+
+	t.Run("notify_before_patching", func(t *testing.T) {
+		resp := teamResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: new("notify_before_patching_team")},
+		}, http.StatusOK, &resp)
+		teamID := resp.Team.ID
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        &teamID,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+		// Own Fleet-maintained app rather than the one an earlier subtest inserts, so this doesn't
+		// depend on subtest order or on what the batch subtests leave behind.
+		fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             "DummyApp",
+			Slug:             "notify-dummy/darwin",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.example.dummy",
+		})
+		require.NoError(t, err)
+		updateInstallerFMAID(fma.ID, teamID, titleID)
+
+		policyPath := func(policyID uint) string {
+			return fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", teamID, policyID)
+		}
+
+		// Creating with the flag forces continuous automations on without the request saying so.
+		policyResp := fleet.TeamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), fleet.TeamPolicyRequest{
+			Type:                         new("patch"),
+			PatchSoftwareTitleID:         &titleID,
+			NotifyBeforePatching:         true,
+			ContinuousAutomationsEnabled: true,
+		}, http.StatusOK, &policyResp)
+		policyID := policyResp.Policy.ID
+		require.True(t, policyResp.Policy.NotifyBeforePatching)
+		require.False(t, policyResp.Policy.PatchWhenClosed)
+		require.True(t, policyResp.Policy.ContinuousAutomationsEnabled)
+
+		// The flag survives a round trip through the wire, not just the create response.
+		getPolicyResp := fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
+
+		// The title reports the flag and shows Fleet's managed app open query read-only, which is
+		// what the End user experience dropdown reads back on load.
+		titleResp := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(teamID))
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy)
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.NotifyBeforePatching)
+
+		// A modify payload carries only the delta, so the stored flag still conflicts.
+		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		res.Body.Close()
+
+		// An explicit continuous_automations_enabled false is rejected while the flag is on.
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`)
+		res.Body.Close()
+
+		// Omitting continuous automations on modify still auto-sets it.
+		s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false, "notify_before_patching": false}, http.StatusOK).Body.Close()
+		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusOK).Body.Close()
+
+		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
+		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+
+		// The flag is only for patch policies.
+		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), map[string]any{
+			"name":                           "dynamic-notify",
+			"query":                          "SELECT 1;",
+			"notify_before_patching":         true,
+			"continuous_automations_enabled": true,
+		}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `"notify_before_patching" is only supported for patch policies`)
+		res.Body.Close()
+	})
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {

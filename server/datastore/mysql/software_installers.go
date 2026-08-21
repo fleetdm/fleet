@@ -70,6 +70,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
     COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+    COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -104,6 +105,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
     COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+    COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -140,8 +142,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 
-	// A patch-when-closed policy install uses the installer's app open query as its pre-install condition.
-	if result.PatchWhenClosed {
+	// A patch-when-closed or notify-before-patching policy install uses the installer's app open
+	// query as its pre-install condition.
+	if result.PatchWhenClosed || result.NotifyBeforePatching {
 		result.PreInstallCondition = result.AppOpenQuery
 	}
 
@@ -2272,7 +2275,8 @@ SELECT
 	hsi.updated_at as updated_at,
 	st.source,
 	hsi.attempt_number,
-	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
+	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+	COALESCE(p.notify_before_patching, 0) AS notify_before_patching
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
@@ -2307,7 +2311,8 @@ SELECT
 	ua.updated_at as updated_at,
 	st.source,
 	NULL AS attempt_number,
-	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
+	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+	COALESCE(p.notify_before_patching, 0) AS notify_before_patching
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua

@@ -504,8 +504,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.InstallerID = existingInstaller.InstallerID
 
 	// The patch controls only apply to Fleet-maintained apps.
-	if (payload.Patch != nil || payload.PatchWhenClosed != nil) && existingInstaller.FleetMaintainedAppID == nil {
-		return nil, &fleet.BadRequestError{Message: `"patch" and "patch_when_closed" are only available for Fleet-maintained apps.`}
+	if (payload.Patch != nil || payload.PatchWhenClosed != nil || payload.NotifyBeforePatching != nil) && existingInstaller.FleetMaintainedAppID == nil {
+		return nil, &fleet.BadRequestError{Message: `"patch", "patch_when_closed" and "notify_before_patching" are only available for Fleet-maintained apps.`}
 	}
 
 	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
@@ -833,14 +833,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	var shouldDoSideEffects bool
 
 	var existingPolicy *fleet.PatchPolicyData
-	var patchFlag, patchWhenClosedFlag bool
+	var patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag bool
 
 	if existingInstaller.FleetMaintainedAppID != nil {
 		existingPolicy, err = svc.ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "getting patch policy")
 		}
-		patchFlag, patchWhenClosedFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
+		patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
 		if err != nil {
 			return nil, err
 		}
@@ -975,13 +975,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			Type:                 &patchType,
 			PatchSoftwareTitleID: &payload.TitleID,
 			PatchWhenClosed:      patchWhenClosedFlag,
-			// patch_when_closed requires continuous automations on; the create rejects it otherwise.
-			ContinuousAutomationsEnabled: patchWhenClosedFlag,
+			NotifyBeforePatching: notifyBeforePatchingFlag,
+			// both patch options require continuous automations on.
+			ContinuousAutomationsEnabled: patchWhenClosedFlag || notifyBeforePatchingFlag,
 		}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 		}
-	case patchFlag && existingPolicy != nil && patchWhenClosedFlag != existingPolicy.PatchWhenClosed:
-		if _, err := svc.ModifyTeamPolicy(ctx, patchTeamID, existingPolicy.ID, fleet.ModifyPolicyPayload{PatchWhenClosed: &patchWhenClosedFlag}); err != nil {
+	case patchFlag && existingPolicy != nil &&
+		(patchWhenClosedFlag != existingPolicy.PatchWhenClosed || notifyBeforePatchingFlag != existingPolicy.NotifyBeforePatching):
+		if _, err := svc.ModifyTeamPolicy(ctx, patchTeamID, existingPolicy.ID, fleet.ModifyPolicyPayload{
+			PatchWhenClosed:      &patchWhenClosedFlag,
+			NotifyBeforePatching: &notifyBeforePatchingFlag,
+		}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "modifying patch policy")
 		}
 	}
@@ -1002,14 +1007,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return updatedInstaller, nil
 }
 
-func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *fleet.SoftwareInstaller, existingPolicy *fleet.PatchPolicyData) (patchFlag bool, patchWhenClosedFlag bool, err error) {
+func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *fleet.SoftwareInstaller, existingPolicy *fleet.PatchPolicyData) (patchFlag bool, patchWhenClosedFlag bool, notifyBeforePatchingFlag bool, err error) {
 	// Only the Fleet-maintained package has a managed pre-install query; patch controls on any other
 	// package are rejected by the caller.
 	if installer.FleetMaintainedAppID == nil {
-		return false, false, nil
+		return false, false, false, nil
 	}
 
-	// Resolve both optional flags into plain bools so the logic below never touches the pointers.
+	// Resolve the optional flags into plain bools so the logic below never touches the pointers.
 	// An omitted patch keeps the current state.
 	if payload.Patch == nil {
 		if existingPolicy != nil {
@@ -1018,27 +1023,50 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 	} else {
 		patchFlag = *payload.Patch
 	}
-	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy.
-	if payload.PatchWhenClosed == nil {
+	if payload.NotifyBeforePatching == nil {
 		if existingPolicy != nil {
+			notifyBeforePatchingFlag = existingPolicy.NotifyBeforePatching
+		}
+	} else {
+		notifyBeforePatchingFlag = *payload.NotifyBeforePatching
+	}
+	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy. The
+	// default yields to an explicit notify_before_patching, since the two are mutually exclusive.
+	if payload.PatchWhenClosed == nil {
+		switch {
+		case existingPolicy != nil:
 			patchWhenClosedFlag = existingPolicy.PatchWhenClosed
-		} else {
+		case !notifyBeforePatchingFlag:
 			patchWhenClosedFlag = true
 		}
 	} else {
 		patchWhenClosedFlag = *payload.PatchWhenClosed
 	}
 
-	// patch_when_closed is only meaningful with patch enabled (in this request or already on the title).
-	if payload.PatchWhenClosed != nil && !patchFlag {
-		return false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
+	if patchWhenClosedFlag && notifyBeforePatchingFlag {
+		return false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()}
 	}
 
-	// The pre-install query is read-only only while patch_when_closed will actually be in effect.
-	if patchFlag && patchWhenClosedFlag && payload.PreInstallQuery != nil {
-		return false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
+	// The patch options are only meaningful with patch enabled (in this request or already on the title).
+	if payload.PatchWhenClosed != nil && !patchFlag {
+		return false, false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
 	}
-	return patchFlag, patchWhenClosedFlag, nil
+	if payload.NotifyBeforePatching != nil && !patchFlag {
+		return false, false, false, &fleet.BadRequestError{Message: `If "notify_before_patching" is set, "patch" must be true.`}
+	}
+
+	if notifyBeforePatchingFlag && installer.Platform != "darwin" {
+		return false, false, false, &fleet.BadRequestError{Message: `"notify_before_patching" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`}
+	}
+
+	// The pre-install query is read-only only while a patch option will actually be in effect.
+	if patchFlag && patchWhenClosedFlag && payload.PreInstallQuery != nil {
+		return false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
+	}
+	if patchFlag && notifyBeforePatchingFlag && payload.PreInstallQuery != nil {
+		return false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "notify_before_patching" is enabled.`}
+	}
+	return patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, nil
 }
 
 func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,

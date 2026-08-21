@@ -8082,6 +8082,20 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, p4.ID, data.ID)
 	require.Equal(t, p4.Name, data.Name)
+	require.False(t, data.NotifyBeforePatching)
+
+	// notify_before_patching round-trips through SavePolicy and both read paths.
+	p4.NotifyBeforePatching = true
+	require.NoError(t, ds.SavePolicy(ctx, p4, false, false))
+
+	reloaded, err := ds.Policy(ctx, p4.ID)
+	require.NoError(t, err)
+	require.True(t, reloaded.NotifyBeforePatching)
+	require.False(t, reloaded.PatchWhenClosed)
+
+	data, err = ds.GetPatchPolicy(ctx, &team1.ID, titleID)
+	require.NoError(t, err)
+	require.True(t, data.NotifyBeforePatching)
 
 	payload2 := &fleet.UploadSoftwareInstallerPayload{
 		Filename:        "bar",
