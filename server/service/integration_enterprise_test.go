@@ -5232,7 +5232,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsSSOEnabled() {
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusUnprocessableEntity)
 	name, reason := extractServerErrorNameReason(res.Body)
 	require.Equal(t, "fleet_desktop.sso_enabled", name)
-	require.Contains(t, reason, "no IdP is configured")
+	require.Contains(t, reason, "Configure it in Settings > Integrations > Authentication (SSO) > End users")
 
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -5278,7 +5278,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetDesktopSettingsSSOEnabled() {
 	}`), http.StatusUnprocessableEntity)
 	name, reason = extractServerErrorNameReason(res.Body)
 	require.Equal(t, "mdm.end_user_authentication", name)
-	require.Contains(t, reason, "Single sign-on for Fleet Desktop is enabled")
+	require.Contains(t, reason, "Please disable it in Settings > Organization settings > Fleet Desktop")
 
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
