@@ -31,7 +31,6 @@ func TestStatistics(t *testing.T) {
 		{"ConditionalAccessStatistics", testConditionalAccessStatistics},
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
 		{"GitOpsModeStatistics", testGitOpsModeStatistics},
-		{"FleetDesktopSSOStatistics", testFleetDesktopSSOStatistics},
 		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
 	}
 	for _, c := range cases {
@@ -836,6 +835,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	cfg.GitOpsConfig.Exceptions.Labels = false
 	cfg.GitOpsConfig.Exceptions.Software = false
 	cfg.GitOpsConfig.Exceptions.Secrets = false
+	cfg.FleetDesktop.SSOEnabled = true
 	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
 
 	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
@@ -843,39 +843,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.GitOpsModeEnabled)
 	assert.Equal(t, []string{}, stats.GitOpsModeExceptions)
-}
-
-func testFleetDesktopSSOStatistics(t *testing.T, ds *Datastore) {
-	eh := ctxerr.MockHandler{}
-	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
-		return nil, nil
-	}
-	ctx := ctxerr.NewContext(t.Context(), eh)
-
-	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
-	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
-
-	_, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
-		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURL: "localhost:8080/logo.png"},
-	})
-	require.NoError(t, err)
-
-	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	require.NoError(t, err)
-	require.True(t, shouldSend)
-	require.False(t, stats.FleetDesktopSSOEnabled)
-
-	markStatisticsStale(t, ctx, ds)
-
-	cfg, err := ds.AppConfig(ctx)
-	require.NoError(t, err)
-	cfg.FleetDesktop.SSOEnabled = true
-	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
-
-	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	require.NoError(t, err)
-	require.True(t, shouldSend)
-	require.True(t, stats.FleetDesktopSSOEnabled)
+	assert.True(t, stats.FleetDesktopSSOEnabled)
 }
 
 func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
