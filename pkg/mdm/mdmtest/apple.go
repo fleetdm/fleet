@@ -12,6 +12,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -1415,16 +1416,9 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 }
 
 func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, certTemplates []*x509.Certificate) (*mdm.Command, error) {
-	var certList []fleet.MDMAppleCertificateListItem
-	for _, cert := range certTemplates {
-		b, _, err := mysqltest.GenerateTestCertBytes(cert)
-		if err != nil {
-			return nil, err
-		}
-		certList = append(certList, fleet.MDMAppleCertificateListItem{
-			CommonName: cert.Subject.CommonName,
-			Data:       b,
-		})
+	certList, err := buildCertificateList(certTemplates)
+	if err != nil {
+		return nil, err
 	}
 	cmd := map[string]any{
 		"CommandUUID":     cmdUUID,
@@ -1434,6 +1428,51 @@ func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, ce
 	}
 
 	return c.sendAndDecodeCommandResponse(cmd)
+}
+
+// AcknowledgeUserCertificateList acknowledges a CertificateList command on the
+// user channel, reporting the simulated user's login keychain. UserEnroll must
+// have been called first: the UserID and UserShortName keys are how the server
+// tells a login-keychain cert apart from a system-keychain one.
+func (c *TestAppleMDMClient) AcknowledgeUserCertificateList(cmdUUID string, certTemplates []*x509.Certificate) (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for a user channel certificate list")
+	}
+	certList, err := buildCertificateList(certTemplates)
+	if err != nil {
+		return nil, err
+	}
+	cmd := map[string]any{
+		"CommandUUID":     cmdUUID,
+		"UDID":            c.UUID,
+		"UserID":          c.UserUUID,
+		"UserShortName":   c.Username,
+		"Status":          "Acknowledged",
+		"CertificateList": certList,
+	}
+
+	return c.sendAndDecodeCommandResponse(cmd)
+}
+
+// buildCertificateList issues a certificate per template, shaped the way a
+// device reports them. Data must be DER: a PEM block fails to parse on ingest.
+func buildCertificateList(certTemplates []*x509.Certificate) ([]fleet.MDMAppleCertificateListItem, error) {
+	var certList []fleet.MDMAppleCertificateListItem
+	for _, cert := range certTemplates {
+		certPEM, _, err := mysqltest.GenerateTestCertBytes(cert)
+		if err != nil {
+			return nil, err
+		}
+		block, _ := pem.Decode(certPEM)
+		if block == nil {
+			return nil, fmt.Errorf("decoding generated certificate for %q", cert.Subject.CommonName)
+		}
+		certList = append(certList, fleet.MDMAppleCertificateListItem{
+			CommonName: cert.Subject.CommonName,
+			Data:       block.Bytes,
+		})
+	}
+	return certList, nil
 }
 
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
