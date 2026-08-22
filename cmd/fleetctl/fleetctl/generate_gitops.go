@@ -279,6 +279,20 @@ type GenerateGitopsCommand struct {
 	ScriptList   map[uint]string
 }
 
+var (
+	emptyVal      = regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
+	emptyControls = regexp.MustCompile(`(?m)^controls:\s*\{\}\s*$`)
+)
+
+func replaceEmptyGitOpsValues(b []byte) []byte {
+	// Preserve an empty controls map: GitOps requires controls to be an object,
+	// whereas the generic empty-value rewrite would turn it into YAML null.
+	b = emptyControls.ReplaceAll(b, []byte("controls: ___GITOPS_EMPTY_CONTROLS___"))
+	// Replace any other empty values with a blank.
+	b = emptyVal.ReplaceAll(b, []byte(":"))
+	return bytes.ReplaceAll(b, []byte("controls: ___GITOPS_EMPTY_CONTROLS___"), []byte("controls: {}"))
+}
+
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "generate-gitops",
@@ -564,15 +578,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate controls.
-		// Only do this on the global team if we're on the free tier.
-		if teamToProcess.ID != nil || !cmd.AppConfig.License.IsPremium() {
-			controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for %s: %s\n", teamFileName, err)
-				return ErrGeneric
-			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
+		controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for %s: %s\n", teamFileName, err)
+			return ErrGeneric
 		}
+		cmd.FilesToWrite[fileName].(map[string]any)["controls"] = controls
 
 		// Generate software.
 		if team != nil {
@@ -662,7 +673,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
-	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
 	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
@@ -684,8 +694,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 					)
 				}
 			}
-			// Replace any empty values with a blank.
-			b = emptyVal.ReplaceAll(b, []byte(":"))
+			b = replaceEmptyGitOpsValues(b)
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
 			// Keep software versions quoted so YAML treats them as strings (e.g. "10.0" must not become a float).
@@ -1523,12 +1532,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				})
 			}
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
-		}
+		if teamId == nil || *teamId == 0 {
+			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+				result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
+			}
 
-		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
-			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
+			if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+				result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
+			}
 		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
