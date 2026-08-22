@@ -192,6 +192,16 @@ func TestInitiateOTAEnrollSSOPersistsQueryParams(t *testing.T) {
 			query:        "byod=true&fully_managed=true",
 			wantContains: []string{"&byod=true", "&fully_managed=true"},
 		},
+		{
+			name:         "platform is persisted",
+			query:        "platform=android",
+			wantContains: []string{"&platform=android"},
+		},
+		{
+			name:         "platform absent is not added",
+			query:        "",
+			wantExcludes: []string{"platform"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			svc := &ssoURLCaptureService{}

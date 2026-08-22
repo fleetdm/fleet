@@ -124,16 +124,20 @@ describe("AddHostsModal", () => {
       screen.getByText(/Send this to your end users:/i)
     ).toBeInTheDocument();
 
-    // Company-owned is selected by default — URL has no byod param
+    // Company-owned is selected by default — URL has no byod param, but
+    // always carries platform=macos so the enrollment page never has to
+    // guess this link's platform from the opening device's user agent.
     const urlInput = screen.getByDisplayValue(
-      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&platform=macos$`)
     );
     expect(urlInput).toBeInTheDocument();
 
     // Switching to Personal (BYOD) appends byod=true
     await user.click(screen.getByLabelText("Personal (BYOD)"));
     const byodUrlInput = screen.getByDisplayValue(
-      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true`)
+      new RegExp(
+        `/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true&platform=macos$`
+      )
     );
     expect(byodUrlInput).toBeInTheDocument();
   });

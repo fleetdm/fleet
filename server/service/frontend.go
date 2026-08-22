@@ -269,6 +269,13 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	if r.URL.Query().Get("byod") == "true" {
 		requestURL += "&byod=true"
 	}
+	// Pass through the platform hint set by the Add hosts modal so the
+	// enrollment page still knows which platform's instructions to render
+	// after the IdP redirect round-trip, instead of falling back to guessing
+	// from the user agent.
+	if platform := r.URL.Query().Get("platform"); platform != "" {
+		requestURL += "&platform=" + url.QueryEscape(platform)
+	}
 	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), fleet.SSOInitiatorOTAEnroll, requestURL, "")
 	if err != nil {
 		return err
