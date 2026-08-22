@@ -411,6 +411,15 @@ For product changes that cause breaking API or configuration changes or major im
 All of the steps above happen prior to any breaking changes to stable features being prioritized for implementation.
 
 
+### Server and agent compatibility
+
+When a feature requires changes to both the Fleet server and the agent (fleetd), updating one component without the other must not break anything. The feature will not be available until both are updated, but hosts that have not yet upgraded continue to work as before.
+
+This covers the current release and the one before it (for example, server version S with agent version A-1, or agent version A with server version S-1). For long-term compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy).
+
+Server release notes must document when a feature requires a minimum agent version.
+
+
 #### API changes
 
 To maintain consistency, ensure perspective, and provide a single pair of eyes in the design of Fleet's REST API and API documentation, there is a single Directly Responsible Individual (DRI). The API design DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints.
