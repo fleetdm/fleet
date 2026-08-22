@@ -2533,8 +2533,13 @@ func (c *Client) DoGitOps(
 
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 
-		// we want to apply the EULA only for the global settings
-		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
+		// we want to apply the EULA only for the global settings. Gated on any MDM
+		// platform rather than Apple specifically, matching the EULA routes.
+		anyMDMConfigured := appConfig.MDM.EnabledAndConfigured ||
+			appConfig.MDM.WindowsEnabledAndConfigured ||
+			appConfig.MDM.AndroidEnabledAndConfigured
+		switch {
+		case appConfig.License.IsPremium() && anyMDMConfigured:
 			if eulaPath != "" {
 				eulaPath = resolveApplyRelativePath(baseDir, eulaPath)
 			}
@@ -2542,6 +2547,12 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, err
 			}
+		// The remaining cases can't apply the EULA, but say so rather than
+		// skipping it silently the way this used to.
+		case eulaPath != "" && !appConfig.License.IsPremium():
+			logFn("[!] skipping end_user_license_agreement: requires Fleet Premium\n")
+		case eulaPath != "":
+			logFn("[!] skipping end_user_license_agreement: requires MDM to be turned on\n")
 		}
 
 		// Custom host vitals are global-only and fully declarative: an absent

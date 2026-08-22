@@ -31,6 +31,12 @@ const MdmSettings = ({
   isPremiumTier = false,
 }: IMdmSettingsProps) => {
   const isMdmEnabled = !!appConfig?.mdm.enabled_and_configured;
+  // The EULA endpoints are gated on any MDM platform rather than Apple, so the
+  // EULA section follows the same rule.
+  const isAnyMdmEnabled =
+    isMdmEnabled ||
+    !!appConfig?.mdm.windows_enabled_and_configured ||
+    !!appConfig?.mdm.android_enabled_and_configured;
 
   // Currently the status of this API call is what determines various UI states on
   // this page. Because of this we will not render any of this components UI until this API
@@ -74,12 +80,12 @@ const MdmSettings = ({
     error: eulaError,
     refetch: refetchEulaMetadata,
   } = useQuery<IEulaMetadataResponse, AxiosError>(
-    ["eula-metadata", { isMdmEnabled }],
+    ["eula-metadata", { isAnyMdmEnabled }],
     () => mdmAPI.getEULAMetadata(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      enabled: isPremiumTier && isMdmEnabled,
+      enabled: isPremiumTier && isAnyMdmEnabled,
     }
   );
 
@@ -129,19 +135,20 @@ const MdmSettings = ({
             tenantAdded={!!appConfig?.mdm.windows_entra_tenant_ids?.length}
             isPremiumTier={isPremiumTier}
           />
+          {/* The EULA is part of the setup experience beyond Apple, so it is
+           * gated on any MDM platform rather than on Apple specifically. */}
+          {isPremiumTier && isAnyMdmEnabled && (
+            <EulaSection
+              eulaMetadata={eulaMetadata}
+              isEulaUploaded={!noEulaUploaded}
+              onUpload={refetchEulaMetadata}
+              onDelete={refetchEulaMetadata}
+            />
+          )}
+          {/* Migration is macOS-only, so it keeps the Apple gating. */}
           {isPremiumTier &&
             !!appConfig?.mdm.apple_bm_enabled_and_configured &&
-            isMdmEnabled && (
-              <>
-                <EulaSection
-                  eulaMetadata={eulaMetadata}
-                  isEulaUploaded={!noEulaUploaded}
-                  onUpload={refetchEulaMetadata}
-                  onDelete={refetchEulaMetadata}
-                />
-                <EndUserMigrationSection router={router} />
-              </>
-            )}
+            isMdmEnabled && <EndUserMigrationSection router={router} />}
         </>
       )}
     </div>

@@ -6030,6 +6030,164 @@ org_settings:
 	}
 }
 
+// TestGitOpsEULAMDMPlatforms covers #50757: `fleetctl gitops` used to apply
+// `end_user_license_agreement` only when Apple MDM was configured, silently
+// skipping it otherwise. The EULA belongs to the setup experience, which is not
+// Apple-only, so it applies whenever any MDM platform is configured.
+func TestGitOpsEULAMDMPlatforms(t *testing.T) {
+	pdfPath := writeTempEULA(t)
+
+	cases := []struct {
+		name                    string
+		apple, windows, android bool
+		wantApplied             bool
+	}{
+		// The configuration every pre-existing EULA test ran under.
+		{name: "apple only", apple: true, wantApplied: true},
+		// The reported bug.
+		{name: "windows only", windows: true, wantApplied: true},
+		{name: "android only", android: true, wantApplied: true},
+		{name: "all platforms", apple: true, windows: true, android: true, wantApplied: true},
+		// With no MDM platform the EULA endpoints are unavailable, so gitops
+		// reports that rather than skipping silently.
+		{name: "no mdm configured"},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+			// SetupFullGitOpsPremiumServer turns Apple and Android MDM on by
+			// default, which is why the other combinations were never exercised.
+			(*savedAppConfig).MDM.EnabledAndConfigured = tt.apple
+			(*savedAppConfig).MDM.WindowsEnabledAndConfigured = tt.windows
+			(*savedAppConfig).MDM.AndroidEnabledAndConfigured = tt.android
+
+			ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				return nil, &notFoundError{} // no EULA uploaded yet
+			}
+			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+				return nil
+			}
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
+				return nil
+			}
+
+			cfgPath := writeEULAGitOpsConfig(t, tt.windows, fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath))
+
+			if !tt.wantApplied {
+				out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+				require.NoError(t, err)
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+				assert.Contains(t, out.String(),
+					"skipping end_user_license_agreement: requires MDM to be turned on")
+				return
+			}
+
+			// Dry run must report the intent without writing.
+			out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath, "--dry-run"})
+			require.NoError(t, err)
+			assert.Contains(t, out.String(), "[+] would've applied EULA")
+			assert.False(t, ds.MDMInsertEULAFuncInvoked, "dry run must not upload")
+
+			out, err = runAppNoChecks([]string{"gitops", "-f", cfgPath})
+			require.NoError(t, err)
+			assert.True(t, ds.MDMInsertEULAFuncInvoked, "EULA should be uploaded")
+			assert.Contains(t, out.String(), "[+] applied EULA")
+		})
+	}
+}
+
+// TestGitOpsEULADeletedWhenAbsentWithoutAppleMDM covers the declarative half of
+// #50757: dropping the key must delete the EULA on a non-Apple server too.
+func TestGitOpsEULADeletedWhenAbsentWithoutAppleMDM(t *testing.T) {
+	ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+	(*savedAppConfig).MDM.EnabledAndConfigured = false
+	(*savedAppConfig).MDM.WindowsEnabledAndConfigured = true
+
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+		return &fleet.MDMEULA{Token: "existing-token", Name: "eula.pdf"}, nil
+	}
+	ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
+		assert.Equal(t, "existing-token", token)
+		return nil
+	}
+
+	cfgPath := writeEULAGitOpsConfig(t, true, "")
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+	require.NoError(t, err)
+	assert.True(t, ds.MDMDeleteEULAFuncInvoked, "absent EULA key should delete the existing EULA")
+}
+
+// TestGitOpsEULAFreeTierWarns asserts the EULA is not applied without Premium,
+// but that gitops says so instead of skipping silently (#50757).
+func TestGitOpsEULAFreeTierWarns(t *testing.T) {
+	pdfPath := writeTempEULA(t)
+
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+		return nil, &notFoundError{}
+	}
+	ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+		return nil
+	}
+
+	cfgPath := writeEULAGitOpsConfig(t, false, fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath))
+
+	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+	require.NoError(t, err)
+	assert.False(t, ds.MDMInsertEULAFuncInvoked)
+	assert.Contains(t, out.String(), "skipping end_user_license_agreement: requires Fleet Premium")
+}
+
+// writeTempEULA writes a minimal valid PDF and returns its absolute path.
+func writeTempEULA(t *testing.T) string {
+	t.Helper()
+	tmpPDF, err := os.CreateTemp(t.TempDir(), "*.pdf")
+	require.NoError(t, err)
+	_, err = tmpPDF.Write([]byte("%PDF-1\npdf-test"))
+	require.NoError(t, err)
+	path, err := filepath.Abs(tmpPDF.Name())
+	require.NoError(t, err)
+	return path
+}
+
+// writeEULAGitOpsConfig writes a minimal global gitops file and returns its path.
+// mdmSetting is injected under org_settings.mdm; pass "" to omit the EULA key.
+func writeEULAGitOpsConfig(t *testing.T, windowsMDM bool, mdmSetting string) string {
+	t.Helper()
+	cfg := fmt.Sprintf(`
+controls:
+  windows_enabled_and_configured: %t
+queries:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: "https://foo.example.com"
+  org_info:
+    org_name: GitOps Test
+  secrets:
+    - secret: "global"
+  mdm:
+    %s
+`, windowsMDM, mdmSetting)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(cfg)
+	require.NoError(t, err)
+	return tmpFile.Name()
+}
+
 // setupAndroidCertificatesTestMocks sets up common mocks for Android certificate GitOps tests
 func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.CertificateAuthority {
 	// Set up certificate authority mocks

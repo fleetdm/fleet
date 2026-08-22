@@ -1269,8 +1269,13 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 		}
 		result[jsonFieldName(t, "VolumePurchasingProgram")] = vppConfig
 
+		// Exported whenever any MDM platform is configured, not just Apple.
+		// Gating this on Apple exported an empty path from a Windows server, and
+		// a later gitops run of those files would delete the EULA.
 		var eulaPath string
-		if cmd.AppConfig.MDM.EnabledAndConfigured {
+		if cmd.AppConfig.MDM.EnabledAndConfigured ||
+			cmd.AppConfig.MDM.WindowsEnabledAndConfigured ||
+			cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
 			var err error
 			eulaPath, err = cmd.generateEULA()
 			if err != nil {
