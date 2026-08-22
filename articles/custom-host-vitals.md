@@ -2,7 +2,7 @@
 
 Custom host vitals let you define your own host fields, set a value for each host, and reference those values as variables (prefixed with `$FLEET_HOST_VITAL_`) in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). You can also use a custom host vital's value to target hosts with a [Host vitals label](https://fleetdm.com/guides/managing-labels-in-fleet).
 
-Unlike [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`), which hold a single value shared across all hosts, a custom host vital can hold a different value per host. For example, an "Asset tag" vital can resolve to a different asset tag on every device. Support for custom host vitals in [Android configuration profiles](https://github.com/fleetdm/fleet/issues/49421) and [host name templates](https://github.com/fleetdm/fleet/issues/49489) is coming in Fleet 4.91.
+Unlike [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`), which hold a single value shared across all hosts, a custom host vital can hold a **different value per host**. For example, an "Asset tag" vital can resolve to a different asset tag on every device. Custom host vital values are **not** hidden in the UI or API — don't use them for secrets.
 
 ## Prerequisites
 
@@ -84,11 +84,15 @@ For example, a configuration profile that writes the host's asset tag (defined a
 <string>$FLEET_HOST_VITAL_1</string>
 ```
 
-> **Note:** Referencing a `$FLEET_HOST_VITAL_<id>` that doesn't exist (for example, a typo like `$FLEET_HOST_VITAL_asset_tag`) is rejected when the script or profile is added.
+When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, iPadOS), Windows, and Android configuration profiles that reference the vital, so each device receives its updated value.
 
-> **Note:** Custom host vitals can't be used in certificate authority (SCEP/ACME/DigiCert) payloads. Those fields accept [built-in variables](https://fleetdm.com/guides/fleet-variables) only.
+A custom host vital can also be referenced in a host name template (Fleet Premium), for example `WS-$FLEET_HOST_VITAL_1`. When a host's value changes, Fleet automatically re-applies its resolved name.
 
-When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles that reference the vital, so each device receives its updated value.
+> **Caveats:**
+> - Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
+> - A custom host vital **can't be deleted while it's referenced** by a script, configuration profile, or host name template. Edit or delete the reference first, then delete the vital.
+> - Referencing a `$FLEET_HOST_VITAL_<id>` that doesn't exist (for example, a typo like `$FLEET_HOST_VITAL_asset_tag`) is rejected when the script, profile, or host name template is saved.
+> - Custom host vitals can't be used in certificate authority (SCEP/ACME/DigiCert) payloads; those fields accept [built-in variables](https://fleetdm.com/guides/fleet-variables) only.
 
 ## Filter hosts by a custom host vital
 
