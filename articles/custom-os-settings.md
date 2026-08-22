@@ -157,6 +157,8 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
+Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
+
 #### Upgrading from below 4.71.0
 
 Fleet added support for user-scoped macOS configuration profiles in Fleet 4.71.0. If you're upgrading Fleet from a version below 4.71.0, here's how to prepare your already enrolled hosts for macOS user-scoped configuration profiles:

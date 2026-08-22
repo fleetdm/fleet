@@ -140,7 +140,15 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+
+To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`.
+
+To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+
+Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled.. 
+
+The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
@@ -237,6 +245,13 @@ policies:
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
   install_software: true
+- name: 1Password up to date
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: 1password/darwin
+  install_software: true
+  notify_before_patching: true
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleet/unassigned.yml`
@@ -382,12 +397,14 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
-- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
+- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Can only be configured for "All fleets" (default.yml).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 - `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
 - `android_enabled_and_configured` specifies whether or not to turn on Android MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
+
+> `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
+
 
 #### Example
 
@@ -405,7 +422,6 @@ controls:
     - 8c8e3fd4-9b2c-4d3e-8f10-2233445566aa
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
-  enable_disk_encryption: true # Available in Fleet Premium
   apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
   name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL" # Available in Fleet Premium
@@ -426,6 +442,8 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
+    enable_disk_encryption: true # Available in Fleet Premium
+    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
       - path: ../lib/macos/profiles/my-declaration.json
     assets:
       - path: ../lib/macos/assets/my-asset.json
@@ -437,6 +455,9 @@ controls:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+    enable_disk_encryption: true # Available in Fleet Premium
+  linux_settings:
+    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
     managed_local_account_settings:
       - enabled: true   
   android_settings:
@@ -486,16 +507,22 @@ controls:
 
 ### apple_settings and windows_settings
 
-Both `apple_settings` and `windows_settings` support the following:
+#### apple_settings
+- `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig/.json) or declaration profiles (.json). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
+  - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `enable_disk_encryption` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
+- `managed_local_account_settings` are settings for the managed local account.
+  - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
 
-- `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
+#### windows_settings
+- `configuration_profiles` is a list of Windows configuration profiles (.xml). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
 - `managed_local_account_settings` are settings for the managed local account.
   - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
 
-Only `apple_settings` supports the following:
-
-- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
-
+#### Referencing and targeting configuration profiles
 Each entry can use either `path:` or `paths:`:
 
 - **`path:`** references a single file. Filenames must not contain `*`, `?`, `[`, or `{`.
@@ -503,7 +530,8 @@ Each entry can use either `path:` or `paths:`:
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
-In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
+### linux_settings
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
 
 ### android_settings
 
@@ -663,7 +691,7 @@ software:
   - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
-- `setup_experience_platform` specifies which platform to target for the `.sh` script-only packages in setup experience. Choices for `platform` are `darwin` and `linux`. If not specified and `setup_experience` is `true`, Linux is the default platform.
+- `setup_experience_platform` specifies which platform to target for the `.sh` script-only packages and `.ipa` packages in setup experience. Choices for `platform` are `darwin` and `linux` for `.sh` and `ios` and `ipados` for `.ipa`. If not specified and `setup_experience` is `true`, Linux is the default platform for `.sh` and `ios` is the default for `.ipa`.
 - `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
   - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
   - `fleet_maintained_apps`: the Fleet-maintained app name is used.
@@ -806,7 +834,7 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).  If a [patch policy](#patch-policy) has `patch_when_closed` or `notify_before_patching` set to `true`, Fleet manages this query and rejects this field.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under **Actions > Versions**. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
@@ -830,9 +858,10 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
-  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
+  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
 - `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
   - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+  - `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
   - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
   - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
   - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
@@ -861,6 +890,8 @@ org_settings:
         - office
         - adobe
       has_known_exploit: true
+      cvss_min: 9
+      cvss_max: 10
       epss_min: 0
       epss_max: 100
       exclude_vulnerabilities:
@@ -1229,6 +1260,36 @@ Can only be configured for "All fleets" (`org_settings`).
 - `challenge_url` is the **Webhook URL** from Smallstep.
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
+
+Can only be configured for "All fleets" (`org_settings`).
+
+### microsoft_graph_credentials
+
+_Available in Fleet Premium._
+
+This section lets you connect Fleet to the Microsoft Graph API so that [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) devices appear in Fleet as pending hosts before they enroll.
+
+The app registration needs the `DeviceManagementServiceConfig.Read.All` application permission, with admin consent granted for your tenant. Fleet currently supports one credential.
+
+#### Example
+
+`default.yml`
+
+```yaml
+org_settings:
+  microsoft_graph_credentials:
+    - tenant_id: 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
+      client_id: 122349c0-9b2c-4d3e-8f10-aabbccddeeff
+      client_secret: $MICROSOFT_GRAPH_CLIENT_SECRET
+```
+
+- `tenant_id` is the Microsoft Entra tenant ID. Find your **Tenant ID** on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
+- `client_id` is the Microsoft Entra application (client) ID. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
+- `client_secret` is the client secret for the app registration. Required when you add a credential, and when you change an existing credential's `tenant_id` or `client_id`. Omit it to keep the secret Fleet already stores. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**.
+
+Fleet verifies each credential against Microsoft Graph before saving it, so GitOps fails with an error if the credential is wrong. Re-applying an unchanged credential makes no request to Microsoft and changes nothing in Fleet.
+
+This section is declarative. Removing a credential from the list deletes it, and omitting `microsoft_graph_credentials` entirely deletes any credentials Fleet has stored.
 
 Can only be configured for "All fleets" (`org_settings`).
 
