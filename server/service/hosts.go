@@ -1635,6 +1635,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	var host *fleet.Host
+	var platform string
 	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop,
 	// so we don't handle that case
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
@@ -1656,22 +1657,28 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return err
 		}
 
-		// Android hosts report their data through AMAPI whenever it changes, so there is
-		// nothing to refetch on demand. The Host details page hides the Refetch button for
-		// them; reject the request here too so API callers get an explanation instead of a
-		// success response that never refetches anything.
-		if fleet.IsAndroidPlatform(host.Platform) {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.",
-			})
-		}
+		platform = host.Platform
+	} else if deviceHost, ok := hostctx.FromContext(ctx); ok {
+		// The device-authenticated routes resolve the host during authentication and
+		// leave it here, so the platform is available without another read. It is kept
+		// out of `host` so the iOS MDM commands below stay off the device path.
+		platform = deviceHost.Platform
+	}
+
+	// Android hosts report their data through AMAPI whenever it changes, so there is
+	// nothing to refetch on demand. The Host details page hides the Refetch button for
+	// them; reject the request here too so API callers get an explanation instead of a
+	// success response that never refetches anything.
+	if fleet.IsAndroidPlatform(platform) {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.",
+		})
 	}
 
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
-	// TODO(android): add android to this list?
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
 		// Get MDM commands already sent
 		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)

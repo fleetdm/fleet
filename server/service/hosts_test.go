@@ -3377,7 +3377,15 @@ func TestRefetchHostAndroidNotSupported(t *testing.T) {
 	require.Error(t, err)
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre)
-	require.ErrorContains(t, err, "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.")
+	require.ErrorContains(t, err, "Refetch is not supported for Android hosts")
+
+	// A device token can be minted for an Android host, so the device-authenticated
+	// route reaches RefetchHost with no host loaded and the platform has to come from
+	// the request context.
+	err = svc.RefetchHost(test.HostContext(ctx, host), host.ID)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &bre)
+	require.ErrorContains(t, err, "Refetch is not supported for Android hosts")
 
 	// the refetch flag must not be set for a host that can't be refetched
 	assert.True(t, ds.HostLiteFuncInvoked)
