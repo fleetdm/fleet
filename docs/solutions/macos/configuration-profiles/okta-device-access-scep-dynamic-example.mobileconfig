@@ -26,7 +26,7 @@
 						</array>
 						<array>
 							<string>OU</string>
-							<string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
 						</array>
 					</array>
 				</array>
