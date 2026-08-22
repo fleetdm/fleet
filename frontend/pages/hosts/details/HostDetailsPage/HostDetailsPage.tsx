@@ -1110,6 +1110,9 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
         }
+        recoveryLockPasswordStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
+        }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
             ? mdmConfig?.windows_settings?.managed_local_account_settings
