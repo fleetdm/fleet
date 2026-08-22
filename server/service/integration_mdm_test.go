@@ -13004,6 +13004,22 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 	require.Len(t, assoc, 0)
 
+	// An iPhone-only app can be explicitly associated with iPadOS because
+	// iPadOS installs it using compatibility mode. This is the request shape
+	// used by GitOps when platform is set to ipados.
+	ipadOnlyMetadata := s.appleVPPProxySrvData["3"]
+	t.Cleanup(func() { s.appleVPPProxySrvData["3"] = ipadOnlyMetadata })
+	s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "iPhone-only App", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`
+	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: "3", Platform: fleet.IPadOSPlatform},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
+	s.appleVPPProxySrvData["3"] = ipadOnlyMetadata
+	require.Len(t, batchAssociateResponse.Apps, 1)
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 1)
+	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: "3", Platform: fleet.IPadOSPlatform})
+
 	// Associating an app we own
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
@@ -14198,17 +14214,23 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			LatestVersion:    "2.0.0",
 		}
 
+		// App 3 is iPhone-only in Apple's metadata for this subtest. Fleet
+		// should still make it installable on iPadOS via compatibility mode.
+		originalApp3Metadata := s.appleVPPProxySrvData["3"]
+		s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`
+		t.Cleanup(func() { s.appleVPPProxySrvData["3"] = originalApp3Metadata })
+
 		iPadOSApp := fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
+					AdamID:   "3",
 					Platform: fleet.IPadOSPlatform,
 				},
 			},
-			Name:             "App 2",
-			BundleIdentifier: "b-2",
-			IconURL:          "https://example.com/images/2/512x512.png",
-			LatestVersion:    "2.0.0",
+			Name:             "App 3",
+			BundleIdentifier: "c-3",
+			IconURL:          "https://example.com/images/3/512x512.png",
+			LatestVersion:    "3.0.0",
 		}
 
 		testCases := []struct {
@@ -20035,9 +20057,21 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
 		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
-	app1 := appResp.AppStoreApps[0]
-	app2 := appResp.AppStoreApps[1]
-	app3 := appResp.AppStoreApps[2]
+	require.Len(t, appResp.AppStoreApps, 4)
+	var app1, app2, app3 *fleet.VPPApp
+	for _, app := range appResp.AppStoreApps {
+		switch {
+		case app.AdamID == "1" && app.Platform == fleet.MacOSPlatform:
+			app1 = app
+		case app.AdamID == "2" && app.Platform == fleet.IOSPlatform:
+			app2 = app
+		case app.AdamID == "3" && app.Platform == fleet.IPadOSPlatform:
+			app3 = app
+		}
+	}
+	require.NotNil(t, app1)
+	require.NotNil(t, app2)
+	require.NotNil(t, app3)
 
 	// Add 3 apps: 2 will have version changes, the 3rd will not
 	var addAppResp addAppStoreAppResponse
@@ -20113,7 +20147,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 
 	// Set up app with adamID 1 with iOS, iPadOS, macOS (e.g. WhatsApp).
 	// Set up app with adamID 2 with iOS and iPadOS.
-	// Set up app with adamID 3 with iOS.
+	// Set up app with adamID 3 with iOS and iPadOS compatibility mode.
 	s.appleVPPProxySrvData = map[string]string{
 		"1": `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.2.3"}}, "ios": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.3.0"}}}, "deviceFamilies": ["mac", "iphone", "ipad"]}}`,
 		"2": `{"id": "2", "attributes": {"name": "App 2", "platformAttributes": {"ios": {"bundleId": "d-2", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`,
@@ -20149,7 +20183,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
 		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
-	require.Len(t, appResp.AppStoreApps, 6)
+	require.Len(t, appResp.AppStoreApps, 7)
 
 	var (
 		allApps    = appResp.AppStoreApps
@@ -20159,6 +20193,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		app2IOS    *fleet.VPPApp
 		app2IPadOS *fleet.VPPApp
 		app3IOS    *fleet.VPPApp
+		app3IPadOS *fleet.VPPApp
 	)
 	for _, app := range appResp.AppStoreApps {
 		switch {
@@ -20174,6 +20209,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 			app2IPadOS = app
 		case app.AdamID == "3" && app.Platform == "ios":
 			app3IOS = app
+		case app.AdamID == "3" && app.Platform == "ipados":
+			app3IPadOS = app
 		}
 	}
 	require.NotNil(t, app1MacOS)
@@ -20182,6 +20219,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	require.NotNil(t, app2IOS)
 	require.NotNil(t, app2IPadOS)
 	require.NotNil(t, app3IOS)
+	require.NotNil(t, app3IPadOS)
 
 	// Add all apps (three adam IDs with different platforms) to the team.
 	for _, app := range allApps {
@@ -20204,6 +20242,8 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 			app2IPadOS.TitleID = addAppResp.TitleID
 		case app.AdamID == "3" && app.Platform == "ios":
 			app3IOS.TitleID = addAppResp.TitleID
+		case app.AdamID == "3" && app.Platform == "ipados":
+			app3IPadOS.TitleID = addAppResp.TitleID
 		}
 	}
 
@@ -20215,6 +20255,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		app2IOS.TitleID:    "2.0.0",
 		app2IPadOS.TitleID: "2.0.0",
 		app3IOS.TitleID:    "3.0.0",
+		app3IPadOS.TitleID: "3.0.0",
 	} {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
@@ -20237,6 +20278,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		app2IOS.TitleID:    "10.10.10",
 		app2IPadOS.TitleID: "10.10.10",
 		app3IOS.TitleID:    "3.0.0",
+		app3IPadOS.TitleID: "3.0.0",
 	} {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
@@ -20258,6 +20300,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		app2IOS.TitleID:    "10.10.10",
 		app2IPadOS.TitleID: "10.10.10",
 		app3IOS.TitleID:    "11.11.11",
+		app3IPadOS.TitleID: "11.11.11",
 	} {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
