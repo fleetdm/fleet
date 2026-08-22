@@ -899,6 +899,7 @@ type PolicyAutomationType string
 
 const (
 	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypePatch             PolicyAutomationType = "patch"
 	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
 	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
 	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"

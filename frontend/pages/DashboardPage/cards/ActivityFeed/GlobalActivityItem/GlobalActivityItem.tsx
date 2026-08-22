@@ -1829,6 +1829,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  canceledMdmCommand: (activity: IActivity) => {
+    const { command_type: commandType, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled the pending <b>{commandType}</b> command on <b>{hostName}</b>.
+      </>
+    );
+  },
   canceledInstallSoftware: (activity: IActivity) => {
     const {
       software_title: title,
@@ -2271,6 +2281,21 @@ const TAGGED_TEMPLATES = {
     return (
       <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
     );
+  },
+  addedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> added Microsoft Graph credential{suffix}.</>;
+  },
+  editedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> edited Microsoft Graph credential{suffix}.</>;
+  },
+  deletedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> deleted Microsoft Graph credential{suffix}.</>;
   },
   addedMicrosoftEntraClientId: (activity: IActivity) => {
     const clientId = activity.details?.client_id;
@@ -2721,6 +2746,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CanceledRunScript: {
       return TAGGED_TEMPLATES.canceledRunScript(activity);
     }
+    case ActivityType.CanceledMdmCommand: {
+      return TAGGED_TEMPLATES.canceledMdmCommand(activity);
+    }
     case ActivityType.CanceledInstallSoftware:
     case ActivityType.CanceledInstallAppStoreApp: {
       return TAGGED_TEMPLATES.canceledInstallSoftware(activity);
@@ -2811,6 +2839,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraClientId: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
+    }
+    case ActivityType.AddedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.addedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.EditedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.editedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.DeletedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.deletedMicrosoftGraphCredential(activity);
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);

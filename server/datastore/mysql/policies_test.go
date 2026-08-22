@@ -9547,14 +9547,26 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, "software", "")
 	require.NoError(t, err)
-	require.Len(t, merged, 3)
+	require.Len(t, merged, 2)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
-	assert.Equal(t, teamPatchPolicy.ID, merged[2].ID)
 
 	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "software", "")
 	require.NoError(t, err)
-	assert.Equal(t, 3, mergedCount)
+	assert.Equal(t, 2, mergedCount)
+
+	// Test patch
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "patch", "")
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, teamPatchPolicy.ID, merged[0].ID)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "patch", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
 
 	// Test scripts
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -9614,14 +9626,26 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, fleet.ListOptions{}, "software", "")
 	require.NoError(t, err)
-	require.Len(t, policies, 3)
+	require.Len(t, policies, 2)
 	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
-	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
 
 	mergedCount, err = ds.CountPolicies(ctx, new(uint(0)), "", "software", "")
 	require.NoError(t, err)
-	assert.Equal(t, 3, mergedCount)
+	assert.Equal(t, 2, mergedCount)
+
+	// Test not merged patch
+	policies, _, err = ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, fleet.ListOptions{}, "patch", "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, teamPatchPolicy.ID, policies[0].ID)
+
+	mergedCount, err = ds.CountPolicies(ctx, new(uint(0)), "", "patch", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
 }
 
 // testApplyPolicySpecNoSpuriousStatsReset verifies that re-applying a team

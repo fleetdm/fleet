@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/VividCortex/mysqlerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	gmysql "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -139,6 +141,28 @@ func TestTransactionReadOnlyTriggersFatalError(t *testing.T) {
 			assert.True(t, IsReadOnlyError(err))
 			assert.True(t, handlerCalled.Load())
 			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestRetryableError(t *testing.T) {
+	cases := []struct {
+		name      string
+		err       error
+		retryable bool
+	}{
+		{"deadlock", &gmysql.MySQLError{Number: mysqlerr.ER_LOCK_DEADLOCK}, true},
+		{"lock wait timeout", &gmysql.MySQLError{Number: mysqlerr.ER_LOCK_WAIT_TIMEOUT}, true},
+		{"needs reprepare", &gmysql.MySQLError{Number: mysqlerr.ER_NEED_REPREPARE}, true},
+		{"needs reprepare wrapped by the datastore", ctxerr.Wrap(context.Background(), &gmysql.MySQLError{Number: mysqlerr.ER_NEED_REPREPARE}, "activate next activity"), true},
+		{"read only", readOnlyErr(), false},
+		{"duplicate entry", &gmysql.MySQLError{Number: mysqlerr.ER_DUP_ENTRY}, false},
+		{"not a mysql error", errors.New("some other failure"), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.retryable, RetryableError(c.err))
 		})
 	}
 }

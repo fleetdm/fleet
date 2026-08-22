@@ -144,6 +144,7 @@ export enum ActivityType {
   EditedActivityAutomations = "edited_activity_automations",
   DisabledActivityAutomations = "disabled_activity_automations",
   CanceledRunScript = "canceled_run_script",
+  CanceledMdmCommand = "canceled_mdm_command",
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
@@ -180,6 +181,9 @@ export enum ActivityType {
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
   AddedMicrosoftEntraClientId = "added_microsoft_entra_client_id",
   DeletedMicrosoftEntraClientId = "deleted_microsoft_entra_client_id",
+  AddedMicrosoftGraphCredential = "added_microsoft_graph_credential",
+  EditedMicrosoftGraphCredential = "edited_microsoft_graph_credential",
+  DeletedMicrosoftGraphCredential = "deleted_microsoft_graph_credential",
   ClearedPasscode = "cleared_passcode",
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
@@ -228,6 +232,7 @@ export type IHostPastActivityType =
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp
   | ActivityType.CanceledRunScript
+  | ActivityType.CanceledMdmCommand
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
   | ActivityType.CanceledUninstallSoftware
@@ -296,6 +301,8 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  /** The raw MDM request type of a canceled command, e.g. "DeviceLock" */
+  command_type?: string;
   host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
@@ -418,6 +425,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_digicert: "Added certificate authority (CA): DigiCert",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
   added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
+  added_microsoft_graph_credential: "Added Microsoft Graph credential",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
   added_software: "Added software",
@@ -430,6 +438,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Canceled activity: install App Store (VPP) app",
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
+  canceled_mdm_command: "Canceled activity: MDM command",
   canceled_uninstall_software: "Canceled activity: uninstall software",
   canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
@@ -454,6 +463,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
   deleted_microsoft_entra_client_id: "Deleted Microsoft Entra client ID",
+  deleted_microsoft_graph_credential: "Deleted Microsoft Graph credential",
   deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
   deleted_org_logo: "Deleted organization logo",
@@ -491,6 +501,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
   edited_macos_profile: "Edited configuration profiles: Apple",
+  edited_microsoft_graph_credential: "Edited Microsoft Graph credential",
   edited_ndes_scep_proxy: "Edited certificate authority (CA): NDES",
   edited_pack: "Edited pack",
   edited_policy: "Edited policy",
