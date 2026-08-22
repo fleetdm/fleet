@@ -1,0 +1,12 @@
+<Replace>
+  <!-- CIS 18.10.10.4 (BL) Ensure 'Disable new DMA devices when this computer is locked' is set to 'Enabled' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DataProtection/AllowDirectMemoryAccess</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
