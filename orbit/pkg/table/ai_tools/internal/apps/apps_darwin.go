@@ -9,7 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
-	"howett.net/plist"
+	"github.com/micromdm/plist"
 )
 
 type infoPlist struct {
@@ -74,6 +74,6 @@ func readInfoPlist(appPath string) infoPlist {
 	if err != nil {
 		return info
 	}
-	_, _ = plist.Unmarshal(b, &info)
+	_ = plist.Unmarshal(b, &info)
 	return info
 }

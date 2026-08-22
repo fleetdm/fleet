@@ -6,8 +6,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
+	"github.com/micromdm/plist"
 	"github.com/pkg/errors"
-	"howett.net/plist"
 )
 
 func init() {
@@ -22,7 +22,7 @@ func init() {
 // unmarshalling and marshalling the profile without making additional changes.
 func setBypassAttemptsToFileVaultProfile(original []byte) ([]byte, error) {
 	var configuration map[string]interface{}
-	if _, err := plist.Unmarshal(original, &configuration); err != nil {
+	if err := plist.Unmarshal(original, &configuration); err != nil {
 		return nil, fmt.Errorf("unmarshalling configuration profile: %w", err)
 	}
 
@@ -42,7 +42,7 @@ func setBypassAttemptsToFileVaultProfile(original []byte) ([]byte, error) {
 		}
 	}
 
-	out, err := plist.Marshal(configuration, plist.XMLFormat)
+	out, err := plist.Marshal(configuration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal new payload: %w", err)
 	}

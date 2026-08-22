@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/micromdm/plist"
 	"github.com/osquery/osquery-go/plugin/table"
-	"howett.net/plist"
 )
 
 type ListCmdResult struct {
@@ -148,7 +148,7 @@ func LogicalVolumesGenerate(ctx context.Context, queryContext table.QueryContext
 
 func parseDiskutilLogicalVolumes(out []byte) ([]map[string]string, error) {
 	var m ListCmdResult
-	if _, err := plist.Unmarshal(out, &m); err != nil {
+	if err := plist.Unmarshal(out, &m); err != nil {
 		return nil, fmt.Errorf("parse diskutil coreStorage list -plist output: %w", err)
 	}
 	rows := make([]map[string]string, 0)
@@ -248,7 +248,7 @@ func LogicalVolumeFamiliesGenerate(ctx context.Context, queryContext table.Query
 
 func parseDiskutilLogicalVolumeFamilies(out []byte) ([]map[string]string, error) {
 	var m ListCmdResult
-	if _, err := plist.Unmarshal(out, &m); err != nil {
+	if err := plist.Unmarshal(out, &m); err != nil {
 		return nil, fmt.Errorf("parse diskutil coreStorage list -plist output: %w", err)
 	}
 	rows := make([]map[string]string, 0)
@@ -297,7 +297,7 @@ func runDiskutilInfo[T interface{}](uuid string) (*T, error) {
 		return nil, fmt.Errorf("coreStorage info failed: %w", err)
 	}
 
-	_, err = plist.Unmarshal(out, &result)
+	err = plist.Unmarshal(out, &result)
 	if err != nil {
 		return nil, fmt.Errorf("coreStorage info parse failed: %w", err)
 	}

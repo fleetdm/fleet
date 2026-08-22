@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"howett.net/plist"
+	"github.com/micromdm/plist"
 )
 
 type mdmProxy struct {
@@ -248,7 +248,7 @@ func udidFromRequestBody(body []byte) (string, error) {
 		UDID string `plist:""`
 	}
 	var req mdmRequest
-	_, err := plist.Unmarshal(body, &req)
+	err := plist.Unmarshal(body, &req)
 	if err != nil {
 		return "", fmt.Errorf("unmarshal request: %w body: %s", err, string(body))
 	}

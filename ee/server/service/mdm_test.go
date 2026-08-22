@@ -25,9 +25,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanolib/log/stdlogfmt"
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"howett.net/plist"
 )
 
 func setup(t *testing.T) (*mock.Store, *Service) {
@@ -57,7 +57,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 		var payload struct {
 			PayloadContent []map[string]interface{}
 		}
-		_, err := plist.Unmarshal(mc, &payload)
+		err := plist.Unmarshal(mc, &payload)
 		require.NoError(t, err)
 
 		for _, p := range payload.PayloadContent {
@@ -699,6 +699,7 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
 	})
 }
+
 func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 	ctx := context.Background()
 	teamID := uint(1)

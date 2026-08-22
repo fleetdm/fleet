@@ -15,8 +15,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/micromdm/plist"
 	"golang.org/x/crypto/pbkdf2"
-	"howett.net/plist"
 )
 
 // Note Apple rejects CSRs if the key size is not 2048.
@@ -233,7 +233,7 @@ func GenerateSaltedSHA512PBKDF2Hash(password string) ([]byte, error) {
 		},
 	}
 
-	data, err := plist.Marshal(hashPlist, plist.XMLFormat)
+	data, err := plist.Marshal(hashPlist)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling PBKDF2 hash plist: %w", err)
 	}

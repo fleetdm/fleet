@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/variables"
 
-	"howett.net/plist"
+	"github.com/micromdm/plist"
 )
 
 const (
@@ -112,7 +112,7 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 		return nil, errors.New("signed profiles are not supported")
 	}
 	var p Parsed
-	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
+	if err := plist.Unmarshal(mcBytes, &p); err != nil {
 		if strings.Contains(err.Error(), "illegal base64 data") || strings.Contains(err.Error(), "invalid character entity") || strings.Contains(err.Error(), "expected attribute name in element") {
 			return nil, errors.New("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again.")
 		}
@@ -166,7 +166,7 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 		PayloadContent []map[string]interface{}
 		PayloadType    string
 	}
-	_, err := plist.Unmarshal(mcBytes, &tlo)
+	err := plist.Unmarshal(mcBytes, &tlo)
 	if err != nil {
 		if strings.Contains(err.Error(), "illegal base64 data") || strings.Contains(err.Error(), "invalid character entity") || strings.Contains(err.Error(), "expected attribute name in element") {
 			return nil, errors.New("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again.")

@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/micromdm/plist"
 	"github.com/osquery/osquery-go/plugin/table"
-	"howett.net/plist"
 )
 
 type CmdResult struct {
@@ -87,7 +87,7 @@ func VolumesGenerate(ctx context.Context, queryContext table.QueryContext) ([]ma
 
 func parseDiskutilVolumes(out []byte) ([]map[string]string, error) {
 	var m CmdResult
-	if _, err := plist.Unmarshal(out, &m); err != nil {
+	if err := plist.Unmarshal(out, &m); err != nil {
 		return nil, fmt.Errorf("parse diskutil apfs list -plist output: %w", err)
 	}
 	rows := make([]map[string]string, 0)
@@ -157,7 +157,7 @@ func PhysicalStoresGenerate(ctx context.Context, queryContext table.QueryContext
 
 func parseDiskutilPhysicalStores(out []byte) ([]map[string]string, error) {
 	var m CmdResult
-	if _, err := plist.Unmarshal(out, &m); err != nil {
+	if err := plist.Unmarshal(out, &m); err != nil {
 		return nil, err
 	}
 	rows := make([]map[string]string, 0)

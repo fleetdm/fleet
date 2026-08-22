@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"howett.net/plist"
+	"github.com/micromdm/plist"
 )
 
 // ExtractZIPMetadata extracts the metadata from a zip file for an Apple app
@@ -48,7 +48,7 @@ func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, err = plist.Unmarshal(rawData, &plistData)
+			err = plist.Unmarshal(rawData, &plistData)
 			if err != nil {
 				return nil, err
 			}

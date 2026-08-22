@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/require"
-	"howett.net/plist"
 )
 
 func TestFleetdProfileTemplate(t *testing.T) {
@@ -23,7 +23,7 @@ func TestFleetdProfileTemplate(t *testing.T) {
 
 		// unmarshal plist and check values
 		var out map[string]any
-		_, err = plist.Unmarshal(prof.Bytes(), &out)
+		err = plist.Unmarshal(prof.Bytes(), &out)
 		require.NoError(t, err)
 		contents, ok := out["PayloadContent"].([]any)
 		require.True(t, ok)
