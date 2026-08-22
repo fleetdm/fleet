@@ -2407,6 +2407,11 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Don't attempt another install for this policy if the retry limit is reached.
+		if svc.installFailureLimitReached(ctx, hostID, installerMetadata.InstallerID, policyID) {
+			continue
+		}
+
 		// On a continuous re-fire (policy still failing), reset prior
 		// attempt_number values for this host/policy to 0 so the new attempt
 		// restarts the retry sequence at 1 instead of inheriting the cap from

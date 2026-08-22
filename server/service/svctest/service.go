@@ -31,6 +31,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -81,6 +82,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
+		installAttemptCounter  fleet.SoftwareInstallAttemptCounter = service.NewMemSoftwareInstallAttemptCounter()
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -113,6 +115,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -225,6 +228,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
+		installAttemptCounter,
 		androidService,
 		orgLogoStore,
 	)

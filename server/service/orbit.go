@@ -1860,12 +1860,16 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
+	// A pre-install query that returned no result stops fleetd before it downloads the
+	// package, so no attempt against the installer was made.
+	preInstallConditionFailed := result.Status() == fleet.SoftwareInstallFailed &&
+		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == ""
+
 	// A patch-when-closed policy install whose managed app-open query returned no result means the
 	// app was open: a skip, not a failure. Key on the policy flag, not empty output, so an ordinary
 	// empty pre_install_query on a non-managed policy still fails and counts toward the retry cap.
 	isAppOpenSkip := false
-	if result.Status() == fleet.SoftwareInstallFailed &&
-		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {
+	if preInstallConditionFailed {
 		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
 			isAppOpenSkip = cur.PolicyID != nil && cur.PatchWhenClosed
 		}
@@ -1944,6 +1948,30 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		if hsi.PolicyID != nil {
 			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil && policy != nil {
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
+			}
+
+			// Only an attempt that downloaded and ran the installer counts, so an app-open
+			// skip or a pre-install query that did not pass records nothing.
+			if hsi.SoftwareInstallerID != nil {
+				switch {
+				case status == fleet.SoftwareInstalled:
+					if err := svc.installAttemptCounter.ResetAttempts(ctx, host.ID, *hsi.SoftwareInstallerID); err != nil {
+						svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts",
+							"host_id", host.ID,
+							"software_installer_id", *hsi.SoftwareInstallerID,
+							"err", err,
+						)
+					}
+				case status == fleet.SoftwareInstallFailed && !isAppOpenSkip && !preInstallConditionFailed:
+					if _, err := svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID,
+						fleet.PolicyAutomationInstallAttemptExpiry); err != nil {
+						svc.logger.ErrorContext(ctx, "failed to record policy automation install attempt",
+							"host_id", host.ID,
+							"software_installer_id", *hsi.SoftwareInstallerID,
+							"err", err,
+						)
+					}
+				}
 			}
 
 			// Skip the immediate-retry ladder for app-open skips; the next continuous run re-fires.
@@ -2028,6 +2056,32 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	return nil
 }
 
+func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
+	attempts, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
+	if err != nil {
+		// A Redis error is treated the same as a count of 0, so the install goes ahead.
+		svc.logger.ErrorContext(ctx, "failed to count policy automation install failures",
+			"host_id", hostID,
+			"software_installer_id", softwareInstallerID,
+			"err", err,
+		)
+		return false
+	}
+
+	if attempts < fleet.MaxPolicyAutomationInstallAttempts {
+		return false
+	}
+
+	svc.logger.WarnContext(ctx, "policy automation install has failed too many times for this host and installer",
+		"host_id", hostID,
+		"policy_id", policyID,
+		"software_installer_id", softwareInstallerID,
+		"failures", attempts,
+		"max_failures", fleet.MaxPolicyAutomationInstallAttempts,
+	)
+	return true
+}
+
 // shouldRetryPolicyAutomationSoftwareInstall checks if a failed policy automation software install should be retried.
 // Returns true if retry should be queued
 func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
@@ -2037,6 +2091,12 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 	}
 
 	currentAttempt := *hsi.AttemptNumber
+
+	if hsi.SoftwareInstallerID != nil {
+		if svc.installFailureLimitReached(ctx, host.ID, *hsi.SoftwareInstallerID, *hsi.PolicyID) {
+			return false, nil
+		}
+	}
 
 	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
 		return false, nil

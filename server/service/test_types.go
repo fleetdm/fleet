@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -184,4 +186,49 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 		policyIDs = append(policyIDs, policyID)
 	}
 	return policyIDs, nil
+}
+
+// memSoftwareInstallAttemptCounter is an in-memory fleet.SoftwareInstallAttemptCounter used by tests.
+type memSoftwareInstallAttemptCounter struct {
+	mMu sync.RWMutex
+	m   map[string]int
+}
+
+var _ fleet.SoftwareInstallAttemptCounter = (*memSoftwareInstallAttemptCounter)(nil)
+
+// NewMemSoftwareInstallAttemptCounter returns a new in-memory SoftwareInstallAttemptCounter.
+func NewMemSoftwareInstallAttemptCounter() *memSoftwareInstallAttemptCounter {
+	return &memSoftwareInstallAttemptCounter{
+		m: make(map[string]int),
+	}
+}
+
+func memInstallAttemptKey(hostID uint, softwareInstallerID uint) string {
+	return fmt.Sprintf("%d:%d", hostID, softwareInstallerID)
+}
+
+func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
+	expireIn time.Duration,
+) (int, error) {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	key := memInstallAttemptKey(hostID, softwareInstallerID)
+	m.m[key]++
+	return m.m[key], nil
+}
+
+func (m *memSoftwareInstallAttemptCounter) CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error) {
+	m.mMu.RLock()
+	defer m.mMu.RUnlock()
+
+	return m.m[memInstallAttemptKey(hostID, softwareInstallerID)], nil
+}
+
+func (m *memSoftwareInstallAttemptCounter) ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	delete(m.m, memInstallAttemptKey(hostID, softwareInstallerID))
+	return nil
 }

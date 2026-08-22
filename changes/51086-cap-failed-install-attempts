@@ -1,0 +1,2 @@
+- Fixed the total amount of retries of a failing software install automation across policy runs not being limited
+- Fixed the My Device page refetching host details when an install failed instead of only on success
