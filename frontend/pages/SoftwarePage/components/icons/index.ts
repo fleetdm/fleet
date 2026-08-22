@@ -1351,6 +1351,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "cisco webex recorder and player": CiscoWebexRecorderAndPlayer,
   "citrix workspace": CitrixWorkspace,
+  "citrix workspace ltsr": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
   cleanclip: Cleanclip,

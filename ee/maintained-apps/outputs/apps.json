@@ -1675,6 +1675,13 @@
       "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
     },
     {
+      "name": "Citrix Workspace LTSR",
+      "slug": "citrix-workspace-ltsr/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace LTSR is the long-term servicing release of Citrix's unified workspace client, delivering secure access to virtual apps, desktops, and content."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
