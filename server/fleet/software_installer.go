@@ -56,6 +56,14 @@ type SoftwareInstallDetails struct {
 
 	AppOpenQuery    string `json:"-" db:"app_open_query"`
 	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
+
+	// FleetVariables holds resolved Fleet variables (keyed by their full
+	// FLEET_VAR_* name) that the agent must expose to the install, post-install,
+	// and uninstall scripts as environment variables at execution time. Values
+	// are end-user-influenced (IdP data), so they are delivered out-of-band
+	// rather than substituted into the script text, letting the interpreter
+	// expand them without re-parsing the value.
+	FleetVariables map[string]string `json:"fleet_variables,omitempty" db:"-"`
 }
 
 type SoftwareInstallerURL struct {

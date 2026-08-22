@@ -75,7 +75,8 @@ func TestRunInstallScript(t *testing.T) {
 	installerDir := t.TempDir()
 	installerPath := filepath.Join(installerDir, "installer.pkg")
 
-	output, exitCode, err := r.runInstallerScript(context.Background(), "hello", installerPath, "foo")
+	output, exitCode, err := r.runInstallerScript(context.Background(), "hello", installerPath, "foo",
+		map[string]string{"FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT": "Engineering`id`"})
 
 	require.Equal(t, executedScriptPath, filepath.Join(installerDir, "foo"))
 	require.Contains(t, executedScriptPath, installerDir)
@@ -85,6 +86,8 @@ func TestRunInstallScript(t *testing.T) {
 	require.Equal(t, "bye", output)
 	require.Equal(t, 2, exitCode)
 	require.Contains(t, executedEnv, "INSTALLER_PATH="+installerPath)
+	// Fleet variables are delivered as env vars, verbatim (never spliced into the script)
+	require.Contains(t, executedEnv, "FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT=Engineering`id`")
 }
 
 func TestPreconditionCheck(t *testing.T) {

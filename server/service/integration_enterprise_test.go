@@ -35682,7 +35682,13 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptContents: contents}, http.StatusAccepted, &runResp)
 
 			fetched := orbitFetchScript(t, h, runResp.ExecutionID)
-			require.Equal(t, fmt.Sprintf("echo serial=%s uuid=%s plat=ubuntu", h.HardwareSerial, h.UUID), fetched.ScriptContents)
+			// tokens stay in the body; the values are delivered as env vars
+			require.Equal(t, contents, fetched.ScriptContents)
+			require.Equal(t, map[string]string{
+				"FLEET_VAR_HOST_HARDWARE_SERIAL": h.HardwareSerial,
+				"FLEET_VAR_HOST_UUID":            h.UUID,
+				"FLEET_VAR_HOST_PLATFORM":        "ubuntu",
+			}, fetched.FleetVariables)
 			require.Nil(t, fetched.ExitCode)
 
 			// stored contents stay unexpanded
@@ -35768,7 +35774,14 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 
 		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
 		require.Nil(t, fetched.ExitCode)
-		require.Equal(t, "user=jane.doe@example.com ($FLEET_SECRET_INJECTED) local=user_jane.doe@corp.com dept=Engineering", fetched.ScriptContents)
+		// tokens stay in the body; the IdP values (including secret-shaped text)
+		// ride along as env vars, delivered literally and never re-expanded
+		require.Equal(t, "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", fetched.ScriptContents)
+		require.Equal(t, map[string]string{
+			"FLEET_VAR_HOST_END_USER_IDP_USERNAME":            "jane.doe@example.com ($FLEET_SECRET_INJECTED)",
+			"FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART": "jane.doe",
+			"FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+		}, fetched.FleetVariables)
 	})
 
 	t.Run("sync run surfaces the resolution failure", func(t *testing.T) {
