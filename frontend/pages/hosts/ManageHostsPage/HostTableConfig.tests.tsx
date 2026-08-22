@@ -1,7 +1,210 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
+import { Column } from "react-table";
 
-import { generateAvailableTableHeaders } from "./HostTableConfig";
+import { IHost } from "interfaces/host";
+
+import {
+  generateAvailableTableHeaders,
+  getPrimaryDeviceUser,
+} from "./HostTableConfig";
+
+describe("getPrimaryDeviceUser", () => {
+  it("returns no primary email, no suffix, and no tooltip lines when there are no emails", () => {
+    expect(getPrimaryDeviceUser([])).toEqual({
+      primaryEmail: undefined,
+      suffixCount: 0,
+      tooltipLines: [],
+    });
+  });
+
+  it("returns the single email as primary with no suffix and no tooltip lines when there is exactly one", () => {
+    expect(
+      getPrimaryDeviceUser([{ email: "solo@acmecorp.com", source: "custom" }])
+    ).toEqual({
+      primaryEmail: "solo@acmecorp.com",
+      suffixCount: 0,
+      tooltipLines: [],
+    });
+  });
+
+  it("prioritizes the IdP-sourced email over chrome/custom, regardless of array order", () => {
+    const { primaryEmail, suffixCount } = getPrimaryDeviceUser([
+      { email: "custom1@acmecorp.com", source: "custom" },
+      { email: "chrome@acmecorp.com", source: "google_chrome_profiles" },
+      { email: "idp.user@acmecorp.com", source: "mdm_idp_accounts" },
+      { email: "custom2@acmecorp.com", source: "custom" },
+    ]);
+    expect(primaryEmail).toBe("idp.user@acmecorp.com");
+    expect(suffixCount).toBe(3);
+  });
+
+  it("treats `idp` and `mdm_idp_accounts` as equivalent primary sources", () => {
+    const { primaryEmail } = getPrimaryDeviceUser([
+      { email: "custom@acmecorp.com", source: "custom" },
+      { email: "chrome@acmecorp.com", source: "google_chrome_profiles" },
+      { email: "idp.user@acmecorp.com", source: "idp" },
+    ]);
+    expect(primaryEmail).toBe("idp.user@acmecorp.com");
+  });
+
+  it("falls back to the first chrome profile email when no IdP email is present", () => {
+    const { primaryEmail, suffixCount } = getPrimaryDeviceUser([
+      { email: "custom1@acmecorp.com", source: "custom" },
+      { email: "chrome@acmecorp.com", source: "google_chrome_profiles" },
+    ]);
+    expect(primaryEmail).toBe("chrome@acmecorp.com");
+    expect(suffixCount).toBe(1);
+  });
+
+  it("falls back to the first available email when neither IdP nor chrome sources are present", () => {
+    const { primaryEmail, suffixCount } = getPrimaryDeviceUser([
+      { email: "custom1@acmecorp.com", source: "custom" },
+      { email: "custom2@acmecorp.com", source: "custom" },
+    ]);
+    expect(primaryEmail).toBe("custom1@acmecorp.com");
+    expect(suffixCount).toBe(1);
+  });
+
+  it("lists the primary email first in tooltipLines, followed by the rest", () => {
+    const { tooltipLines } = getPrimaryDeviceUser([
+      { email: "custom1@acmecorp.com", source: "custom" },
+      { email: "idp.user@acmecorp.com", source: "mdm_idp_accounts" },
+    ]);
+    expect(tooltipLines).toEqual([
+      "idp.user@acmecorp.com",
+      "custom1@acmecorp.com",
+    ]);
+  });
+
+  it("shows the first 5 emails then a '+N more' line when the remainder is 2 or more", () => {
+    const users = Array.from({ length: 7 }, (_, i) => ({
+      email: `user${i}@acmecorp.com`,
+      source: "custom",
+    }));
+    const { suffixCount, tooltipLines } = getPrimaryDeviceUser(users);
+    expect(suffixCount).toBe(6);
+    expect(tooltipLines).toEqual([
+      "user0@acmecorp.com",
+      "user1@acmecorp.com",
+      "user2@acmecorp.com",
+      "user3@acmecorp.com",
+      "user4@acmecorp.com",
+      "+2 more",
+    ]);
+  });
+
+  it("shows all 6 emails inline instead of collapsing a single remainder into '+1 more'", () => {
+    const users = Array.from({ length: 6 }, (_, i) => ({
+      email: `user${i}@acmecorp.com`,
+      source: "custom",
+    }));
+    const { tooltipLines } = getPrimaryDeviceUser(users);
+    expect(tooltipLines).toHaveLength(6);
+    expect(tooltipLines.some((line) => line.includes("more"))).toBe(false);
+  });
+
+  it("does not append a '+N more' line when the total is exactly the cap", () => {
+    const users = Array.from({ length: 5 }, (_, i) => ({
+      email: `user${i}@acmecorp.com`,
+      source: "custom",
+    }));
+    const { tooltipLines } = getPrimaryDeviceUser(users);
+    expect(tooltipLines).toHaveLength(5);
+    expect(tooltipLines.some((line) => line.includes("more"))).toBe(false);
+  });
+
+  it("dedupes identical emails that appear under multiple sources", () => {
+    const { primaryEmail, suffixCount, tooltipLines } = getPrimaryDeviceUser([
+      { email: "shared@acmecorp.com", source: "mdm_idp_accounts" },
+      { email: "shared@acmecorp.com", source: "custom" },
+      { email: "chrome@acmecorp.com", source: "google_chrome_profiles" },
+    ]);
+    expect(primaryEmail).toBe("shared@acmecorp.com");
+    expect(suffixCount).toBe(1);
+    expect(tooltipLines).toEqual([
+      "shared@acmecorp.com",
+      "chrome@acmecorp.com",
+    ]);
+  });
+
+  it("still picks the IdP email as primary when its `custom` duplicate is ordered first (backend sorts by email, source)", () => {
+    // Regression: with a naive "first occurrence wins" dedupe, the
+    // `custom` row would drop the `mdm_idp_accounts` row for the same
+    // address, leaving no IdP source in the deduped list and demoting
+    // primary to an unrelated address.
+    const { primaryEmail, suffixCount } = getPrimaryDeviceUser([
+      { email: "alice@acmecorp.com", source: "custom" },
+      { email: "bob@acmecorp.com", source: "custom" },
+      { email: "bob@acmecorp.com", source: "mdm_idp_accounts" },
+    ]);
+    expect(primaryEmail).toBe("bob@acmecorp.com");
+    expect(suffixCount).toBe(1);
+  });
+});
+
+describe("HostTableConfig - User email column", () => {
+  const getDeviceMappingColumn = () => {
+    const columns = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    });
+    const column = columns.find(
+      (c) => (c as Column<IHost>).id === "device_mapping"
+    ) as Column<IHost> | undefined;
+    if (!column) throw new Error("device_mapping column not found");
+    return column;
+  };
+
+  const renderCell = (value: Array<{ email: string; source: string }>) => {
+    const Cell = getDeviceMappingColumn().Cell as React.ElementType;
+    return render(<Cell cell={{ value }} />);
+  };
+
+  it("renders the default empty value with no suffix when there are no emails", () => {
+    const { container } = renderCell([]);
+    const textEl = container.querySelector(
+      ".data-table__tooltip-truncated-text"
+    );
+    expect(textEl?.textContent).toBe("---");
+    expect(
+      container.querySelector(".data-table__suffix")
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the primary email with a '+N' suffix and enables the tooltip when there are multiple emails", () => {
+    const { container } = renderCell([
+      { email: "custom1@acmecorp.com", source: "custom" },
+      { email: "idp.user@acmecorp.com", source: "mdm_idp_accounts" },
+    ]);
+    const textEl = container.querySelector(
+      ".data-table__tooltip-truncated-text"
+    );
+    const suffixEl = container.querySelector(".data-table__suffix");
+    const tooltipTrigger = container.querySelector(
+      ".data-table__tooltip-truncated-text-container"
+    );
+
+    expect(textEl?.textContent).toBe("idp.user@acmecorp.com");
+    expect(suffixEl?.textContent).toBe("+1");
+    // Tooltip should be enabled here even though the primary email isn't
+    // long enough to be visually truncated, because a suffix is present.
+    expect(tooltipTrigger?.getAttribute("data-tip-disable")).toBe("false");
+  });
+
+  it("does not render a suffix or force the tooltip open for a single, untruncated email", () => {
+    const { container } = renderCell([
+      { email: "solo@acmecorp.com", source: "custom" },
+    ]);
+    expect(
+      container.querySelector(".data-table__suffix")
+    ).not.toBeInTheDocument();
+    const tooltipTrigger = container.querySelector(
+      ".data-table__tooltip-truncated-text-container"
+    );
+    expect(tooltipTrigger?.getAttribute("data-tip-disable")).toBe("true");
+  });
+});
 
 describe("HostTableConfig - Serial number column", () => {
   const headers = generateAvailableTableHeaders({
@@ -9,7 +212,9 @@ describe("HostTableConfig - Serial number column", () => {
     isOnlyObserver: false,
   });
 
-  const serialColumn = headers.find((h) => h.id === "hardware_serial") as any;
+  const serialColumn = headers.find(
+    (h) => (h as Column<IHost>).id === "hardware_serial"
+  ) as Column<IHost> | undefined;
 
   if (!serialColumn || typeof serialColumn.Cell !== "function") {
     throw new Error("hardware_serial column or Cell not found");
@@ -17,7 +222,7 @@ describe("HostTableConfig - Serial number column", () => {
 
   const Cell = serialColumn.Cell as React.ElementType;
 
-  const renderCell = (
+  const renderSerialCell = (
     serial: string,
     platform: string,
     mdm?: { enrollment_status: string }
@@ -36,37 +241,47 @@ describe("HostTableConfig - Serial number column", () => {
     );
 
   it("shows the serial number for a macOS host", () => {
-    renderCell("ABC123", "darwin", { enrollment_status: "On (automatic)" });
+    renderSerialCell("ABC123", "darwin", {
+      enrollment_status: "On (automatic)",
+    });
     expect(screen.getByText("ABC123")).toBeInTheDocument();
     expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
   });
 
   it("shows the serial number for a managed Android host", () => {
-    renderCell("PIXEL10A", "android", { enrollment_status: "On (automatic)" });
+    renderSerialCell("PIXEL10A", "android", {
+      enrollment_status: "On (automatic)",
+    });
     expect(screen.getByText("PIXEL10A")).toBeInTheDocument();
     expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
   });
 
   it("shows the serial number for an Android host with no mdm data", () => {
     // Regression guard: the cell must not crash dereferencing a missing `mdm`.
-    renderCell("PIXEL10A", "android", undefined);
+    renderSerialCell("PIXEL10A", "android", undefined);
     expect(screen.getByText("PIXEL10A")).toBeInTheDocument();
     expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
   });
 
   it("shows the serial number for a managed (ADE) iPadOS host", () => {
-    renderCell("IPAD123", "ipados", { enrollment_status: "On (automatic)" });
+    renderSerialCell("IPAD123", "ipados", {
+      enrollment_status: "On (automatic)",
+    });
     expect(screen.getByText("IPAD123")).toBeInTheDocument();
     expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
   });
 
   it("shows 'Not supported' for a personal (BYOD) Android host", () => {
-    renderCell("", "android", { enrollment_status: "On (manual - personal)" });
+    renderSerialCell("", "android", {
+      enrollment_status: "On (manual - personal)",
+    });
     expect(screen.getByText("Not supported")).toBeInTheDocument();
   });
 
   it("shows 'Not supported' for a personal (BYOD) iOS host", () => {
-    renderCell("", "ios", { enrollment_status: "On (manual - personal)" });
+    renderSerialCell("", "ios", {
+      enrollment_status: "On (manual - personal)",
+    });
     expect(screen.getByText("Not supported")).toBeInTheDocument();
   });
 });
