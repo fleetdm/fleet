@@ -37,7 +37,7 @@ func mdmRunCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "run-command",
 		Aliases: []string{"run_command"},
-		Usage:   "Run a custom MDM command on macOS and Windows hosts.",
+		Usage:   "Run a custom MDM command on macOS, Windows, and Android hosts.",
 		Flags: []cli.Flag{
 			contextFlag(),
 			debugFlag(),
@@ -48,7 +48,7 @@ func mdmRunCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "payload",
-				Usage:    "A path to an XML file containing the raw MDM request payload.",
+				Usage:    "A path to a file containing the raw MDM request payload (XML for macOS/Windows, JSON for Android).",
 				Required: true,
 			},
 		},
@@ -91,7 +91,7 @@ func mdmRunCommand() *cli.Command {
 			var (
 				hostUUIDs     []string
 				notFoundCount int
-				mdmPlatform   string // "darwin" or "windows"
+				mdmPlatform   string // "darwin", "windows", or "android"
 			)
 			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
@@ -112,8 +112,11 @@ func mdmRunCommand() *cli.Command {
 				}
 
 				mdmHostPlatform := fleet.ClassicMDMPlatform(host.Platform)
+				if mdmHostPlatform == "" && fleet.IsAndroidPlatform(host.Platform) {
+					mdmHostPlatform = "android"
+				}
 				if mdmHostPlatform != mdmPlatform && mdmPlatform != "" {
-					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS or all Windows hosts.`)
+					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS, all Windows, or all Android hosts.`)
 				}
 				mdmPlatform = mdmHostPlatform
 
@@ -133,6 +136,9 @@ func mdmRunCommand() *cli.Command {
 			if err != nil {
 				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "windows" {
 					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
+				}
+				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "android" {
+					return errors.New("This command requires a Fleet Premium license.")
 				}
 
 				var sce kithttp.StatusCoder

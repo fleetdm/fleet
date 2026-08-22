@@ -990,9 +990,7 @@ func (svc *Service) getMDMCommandResults(ctx context.Context, commandUUID string
 	case "windows":
 		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID, hostUUID)
 	case "android":
-		// TODO(mna): maybe in the future we'll store responses from AMAPI commands, but for
-		// now we don't (they are very large), just return an empty list.
-		results = []*fleet.MDMCommandResult{}
+		results, err = svc.ds.GetMDMAndroidCommandResults(ctx, commandUUID, hostUUID)
 	default:
 		// this should never happen, but just in case
 		svc.logger.DebugContext(ctx, "unknown MDM command platform", "platform", p)

@@ -4116,6 +4116,10 @@ type AndroidDatastore interface {
 	// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
 	InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
+	// GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
+	// If hostUUID is non-empty, results are filtered to that host.
+	GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
+
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.
 	ClearHostMDMActions(ctx context.Context, hostID uint) error

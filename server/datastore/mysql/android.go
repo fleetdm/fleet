@@ -1325,6 +1325,34 @@ func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *f
 	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
 }
 
+// GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
+// If hostUUID is non-empty, results are filtered to that host.
+func (ds *Datastore) GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	query := `
+		SELECT
+			c.host_uuid,
+			c.command_uuid,
+			c.status,
+			c.updated_at,
+			c.command_type AS request_type,
+			c.raw_command  AS payload,
+			c.raw_result   AS result
+		FROM mdm_android_commands c
+		WHERE c.command_uuid = ?
+	`
+	args := []any{commandUUID}
+	if hostUUID != "" {
+		query += ` AND c.host_uuid = ?`
+		args = append(args, hostUUID)
+	}
+
+	var results []*fleet.MDMCommandResult
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get android command results")
+	}
+	return results, nil
+}
+
 // InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
 // Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
 func (ds *Datastore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
