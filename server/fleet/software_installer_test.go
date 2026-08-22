@@ -475,3 +475,77 @@ func TestValidateTitlePackages(t *testing.T) {
 		})
 	}
 }
+
+func TestHostSoftwareInstallOptionsIsFleetInitiated(t *testing.T) {
+	// PolicyID, ForScheduledUpdates and ForSetupExperience are the three
+	// fleet-driven entry points, and every call site that sets one of them also
+	// sets SelfService: false.
+	//
+	// UserID is independent of all three: InsertSoftwareInstallRequest writes
+	// user_id and fleet_initiated as separate columns, so an install can carry
+	// an explicit user and still be Fleet-initiated. Only SelfService takes an
+	// install back out of the fleet-initiated set.
+	cases := []struct {
+		name string
+		opts HostSoftwareInstallOptions
+		want bool
+	}{
+		{
+			name: "host details install by an admin",
+			opts: HostSoftwareInstallOptions{},
+			want: false,
+		},
+		{
+			name: "self-service install by the end user",
+			opts: HostSoftwareInstallOptions{SelfService: true},
+			want: false,
+		},
+		{
+			name: "policy automation",
+			opts: HostSoftwareInstallOptions{PolicyID: ptr.Uint(1)},
+			want: true,
+		},
+		{
+			name: "iOS/iPadOS scheduled update",
+			opts: HostSoftwareInstallOptions{ForScheduledUpdates: true},
+			want: true,
+		},
+		{
+			name: "setup experience",
+			opts: HostSoftwareInstallOptions{ForSetupExperience: true},
+			want: true,
+		},
+		{
+			name: "setup experience install retried with an explicit user id",
+			opts: HostSoftwareInstallOptions{ForSetupExperience: true, UserID: ptr.Uint(2), WithRetries: true},
+			want: true,
+		},
+		{
+			name: "self-service wins over every fleet-driven flag",
+			opts: HostSoftwareInstallOptions{
+				SelfService:         true,
+				PolicyID:            ptr.Uint(1),
+				ForScheduledUpdates: true,
+				ForSetupExperience:  true,
+			},
+			want: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.opts.IsFleetInitiated())
+		})
+	}
+
+	// Priority() reads ForSetupExperience on its own; IsFleetInitiated() reads it
+	// and also excludes self-service. So the two agree on a setup-experience
+	// install Fleet enqueues, and diverge on a self-service one -- which is
+	// intended: it keeps its place in the queue and still renders under the user.
+	setupExp := HostSoftwareInstallOptions{ForSetupExperience: true}
+	require.Equal(t, 100, setupExp.Priority())
+	require.True(t, setupExp.IsFleetInitiated())
+
+	selfServiceSetupExp := HostSoftwareInstallOptions{ForSetupExperience: true, SelfService: true}
+	require.Equal(t, 100, selfServiceSetupExp.Priority())
+	require.False(t, selfServiceSetupExp.IsFleetInitiated())
+}

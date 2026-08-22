@@ -1390,10 +1390,12 @@ type HostSoftwareInstallOptions struct {
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy are fleet-initiated (and we also
-// make sure SelfService is false, as this case is always user-initiated).
+// Policy automations, iOS/iPadOS scheduled updates and the setup experience are
+// all enqueued by Fleet rather than by a person, so all three are
+// fleet-initiated (and we also make sure SelfService is false, as this case is
+// always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this
