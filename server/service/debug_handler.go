@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -92,7 +94,7 @@ func jsonHandler(
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore, agentWSHub *agentws.Hub) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -108,6 +110,69 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 		return ds.GetTraceSamplerSettings(ctx)
 	})).Methods(http.MethodGet)
 	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
+	// Agent WebSocket transport observability (ADR-0011): a point-in-time view
+	// of the connections held by THIS server instance (each instance holds its
+	// own; in a multi-instance deployment, query each instance directly).
+	// Byte/read metrics are collected only when debug logging is enabled (see
+	// metrics_enabled), so production servers don't pay for them.
+	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
+		if agentWSHub == nil {
+			return map[string]any{"enabled": false}, nil
+		}
+		connections := agentWSHub.Snapshot()
+		readStats := agentWSHub.ReadStats()
+		payload := map[string]any{
+			"enabled":         true,
+			"metrics_enabled": config.Logging.Debug,
+			"connections":     connections,
+			"read_stats":      readStats,
+		}
+		// Interval check job timing, for the dashboard's "next sync" countdown.
+		// Remaining time is computed server-side so client clock skew doesn't
+		// matter; zero until the job records its first tick.
+		if next := agentWSHub.NextCheck(); !next.IsZero() {
+			payload["check_interval_seconds"] = config.WebSocket.CheckInterval.Seconds()
+			payload["next_check_in_ms"] = max(0, time.Until(next).Milliseconds())
+		}
+
+		// Resolve hostnames for read-stats hosts with no connection (their
+		// snapshot carries no host info). Stale enrollments whose host was
+		// deleted simply don't resolve.
+		connected := make(map[uint]struct{}, len(connections))
+		for _, c := range connections {
+			connected[c.HostID] = struct{}{}
+		}
+		var unresolved []uint
+		for _, s := range readStats {
+			if _, ok := connected[s.HostID]; !ok {
+				unresolved = append(unresolved, s.HostID)
+			}
+		}
+		if len(unresolved) > 0 {
+			hostnames := make(map[uint]string, len(unresolved))
+			hosts, err := ds.ListHostsLiteByIDs(ctx, unresolved)
+			if err != nil {
+				logger.ErrorContext(ctx, "resolve hostnames for /debug/agentws", "err", err)
+			} else {
+				for _, h := range hosts {
+					hostnames[h.ID] = h.Hostname
+				}
+			}
+			payload["hostnames"] = hostnames
+		}
+		// Global host counts (every host, WebSocket-connected or not), scoped
+		// to the authenticated admin attached by the debug middleware.
+		if vc, ok := viewer.FromContext(ctx); ok {
+			summary, err := ds.GenerateHostStatusStatistics(ctx, fleet.TeamFilter{User: vc.User}, time.Now(), nil, nil)
+			if err != nil {
+				logger.ErrorContext(ctx, "generate host status statistics for /debug/agentws", "err", err)
+			} else if summary != nil {
+				payload["online_hosts"] = summary.OnlineCount
+				payload["total_hosts"] = summary.TotalsHostsCount
+			}
+		}
+		return payload, nil
+	})).Methods(http.MethodGet)
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

@@ -79,6 +79,20 @@ type OrbitConfig struct {
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
 	// nil = no opinion (orbit keeps its current level); true/false sets it.
 	DebugLogging *bool `json:"debug_logging,omitempty"`
+	// WebSocketTransport, when set with Enabled=true, directs fleetd to open a
+	// persistent WebSocket connection to the server and use it as a check-in
+	// notification channel instead of relying solely on osquery's
+	// distributed/read polling (ADR-0011). Absent (nil) means disabled; old
+	// orbit versions ignore the field entirely.
+	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+}
+
+// OrbitWebSocketTransportConfig is the WebSocket transport directive delivered
+// to fleetd via the orbit config (ADR-0011). It is a struct rather than a bare
+// bool so future hints (endpoint path, ping interval, backoff tuning) can ride
+// along without breaking older agents.
+type OrbitWebSocketTransportConfig struct {
+	Enabled bool `json:"enabled"`
 }
 
 type OrbitConfigReceiver interface {

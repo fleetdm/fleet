@@ -85,6 +85,10 @@ type Service struct {
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
 
+	// agentNotifier publishes check-in wake-ups for agents connected over the
+	// WebSocket transport (ADR-0011). Nil when the transport is disabled.
+	agentNotifier fleet.AgentCheckInNotifier
+
 	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
 	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
 	packConfigCache *gocache.Cache
@@ -222,6 +226,14 @@ func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 // This should be called after NewService to inject the ACME service dependency.
 func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	svc.acmeSvc = acmeSvc
+}
+
+// SetAgentCheckInNotifier sets the notifier used to wake up agents connected
+// over the WebSocket transport (ADR-0011). This should be called after
+// NewService when the transport is enabled; when unset, no notifications are
+// published.
+func (svc *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
+	svc.agentNotifier = notifier
 }
 
 type validationMiddleware struct {

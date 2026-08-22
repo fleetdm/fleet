@@ -259,7 +259,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := service.MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := service.MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", service.ServeEndUserEnrollOTA(svc, "", ds, logger, false))
 

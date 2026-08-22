@@ -37,6 +37,8 @@ type SubmitResultLogsFunc func(ctx context.Context, logs []json.RawMessage) (err
 
 type YaraRuleByNameFunc func(ctx context.Context, name string) (*fleet.YaraRule, error)
 
+type ListHostIDsDueForDistributedReadFunc func(ctx context.Context, hostIDs []uint) (map[uint]string, error)
+
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error)
 
 type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
@@ -412,6 +414,8 @@ type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, apply
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
 type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
+
+type SetAgentCheckInNotifierFunc func(notifier fleet.AgentCheckInNotifier)
 
 type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string) (string, error)
 
@@ -1026,6 +1030,9 @@ type Service struct {
 	YaraRuleByNameFunc        YaraRuleByNameFunc
 	YaraRuleByNameFuncInvoked bool
 
+	ListHostIDsDueForDistributedReadFunc        ListHostIDsDueForDistributedReadFunc
+	ListHostIDsDueForDistributedReadFuncInvoked bool
+
 	ListUsersFunc        ListUsersFunc
 	ListUsersFuncInvoked bool
 
@@ -1589,6 +1596,9 @@ type Service struct {
 
 	SetACMEServiceFunc        SetACMEServiceFunc
 	SetACMEServiceFuncInvoked bool
+
+	SetAgentCheckInNotifierFunc        SetAgentCheckInNotifierFunc
+	SetAgentCheckInNotifierFuncInvoked bool
 
 	NewACMEEnrollmentFunc        NewACMEEnrollmentFunc
 	NewACMEEnrollmentFuncInvoked bool
@@ -2529,6 +2539,13 @@ func (s *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraR
 	s.YaraRuleByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.YaraRuleByNameFunc(ctx, name)
+}
+
+func (s *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
+	s.mu.Lock()
+	s.ListHostIDsDueForDistributedReadFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostIDsDueForDistributedReadFunc(ctx, hostIDs)
 }
 
 func (s *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) (users []*fleet.User, err error) {
@@ -3845,6 +3862,13 @@ func (s *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	s.SetACMEServiceFuncInvoked = true
 	s.mu.Unlock()
 	s.SetACMEServiceFunc(acmeSvc)
+}
+
+func (s *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
+	s.mu.Lock()
+	s.SetAgentCheckInNotifierFuncInvoked = true
+	s.mu.Unlock()
+	s.SetAgentCheckInNotifierFunc(notifier)
 }
 
 func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error) {

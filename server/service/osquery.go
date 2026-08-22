@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -59,7 +60,23 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+		// Fall back to the orbit node key: when the WebSocket transport is
+		// active (ADR-0011), orbit itself calls the distributed endpoints on
+		// behalf of osquery, and orbit only has its own node key. Both keys
+		// resolve to the same host row, so authorization is unchanged. The
+		// fallback lookup only runs on an osquery-key miss, keeping the hot
+		// path (real osquery traffic) at a single query.
+		host, err = svc.ds.LoadHostByOrbitNodeKey(ctx, nodeKey)
+		switch {
+		case err == nil:
+			// OK
+		case fleet.IsNotFound(err):
+			return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+		case errors.Is(err, context.Canceled):
+			return nil, false, err
+		default:
+			return nil, false, newOsqueryError("authentication error: " + err.Error())
+		}
 	case errors.Is(err, context.Canceled):
 		// Most likely client disconnected, so we treat this as a client error.
 		return nil, false, err
@@ -576,6 +593,20 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 		}
 	}
 
+	// When the WebSocket transport is enabled (ADR-0011), orbit points osquery
+	// at its own distributed plugin via the command line. Fleet's default agent
+	// options include `distributed_plugin: tls` as a config option, which
+	// osquery applies at runtime and which would silently flip the host back to
+	// TLS polling on its first config refresh. Strip the key: agents get their
+	// distributed plugin from the fleetd-managed command line either way (tls
+	// for old agents, orbit's plugin for WebSocket-enabled ones), so the config
+	// option is redundant at best and harmful here.
+	if svc.config.WebSocket.TransportEnabled {
+		if opts, ok := config["options"].(map[string]any); ok {
+			delete(opts, "distributed_plugin")
+		}
+	}
+
 	packConfigJSON, err := svc.getPackConfig(ctx, host)
 	if err != nil {
 		return nil, newOsqueryError("internal error: build pack config: " + err.Error())
@@ -680,6 +711,24 @@ type getDistributedQueriesResponse struct {
 }
 
 func (r getDistributedQueriesResponse) Error() error { return r.Err }
+
+// recordDistributedReadStats wraps the distributed/read endpoint to count
+// requests per host in the agent WebSocket hub, split by request path: the
+// /api/v1/... alias is what osqueryd's built-in tls plugin polls (legacy),
+// while orbit's WebSocket-driven client uses /api/osquery/... — the split
+// makes hosts that are still polling visible on /debug/agentws (ADR-0011).
+func recordDistributedReadStats(
+	hub *agentws.Hub,
+	next func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error),
+) func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	return func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+		if host, ok := hostctx.FromContext(ctx); ok {
+			path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+			hub.RecordDistributedRead(host.ID, strings.HasPrefix(path, "/api/v1/"))
+		}
+		return next(ctx, request, svc)
+	}
+}
 
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
@@ -956,6 +1005,114 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 		return nil, ctxerr.Wrap(ctx, err, "retrieve label queries")
 	}
 	return labelQueries, nil
+}
+
+// dueHostsChunkSize bounds the number of host IDs per ListHostsLiteByIDs
+// query when checking which hosts are due for a distributed read.
+const dueHostsChunkSize = 1000
+
+// ListHostIDsDueForDistributedRead returns the subset of hostIDs whose next
+// distributed/read would include interval work or an unanswered live query
+// campaign, keyed by host ID with the reason it is due. It reuses the same
+// staleness gates as the read path (shouldUpdate, including the per-host
+// jitter tables), so notification and read decisions agree by construction.
+//
+// The live query check makes the pub/sub wake-up (NotifyAgentsForLiveQuery) a
+// latency optimization only: a campaign created while a host's connection was
+// down, or whose one-shot wake-up was lost anywhere along the way (pub/sub,
+// send-buffer overflow, failed write), is recovered within one interval check
+// tick. Hosts stop being re-notified once they answer, because answering
+// clears their targeting in the store (QueryCompletedByHost).
+//
+// Known limitation (ADR-0011 POC): when async task processing is enabled, the
+// label/policy reported-at timestamps may be fresher in Redis (see
+// Task.GetHostLabelReportedAt / GetHostPolicyReportedAt) than the hosts table
+// columns used here. This can only over-notify (the resulting distributed/read
+// returns no work), never miss due work, and costs at most one cheap empty
+// read per interval check tick until the async timestamps are flushed.
+func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
+	// skipauth: internal caller (the per-instance interval check job), not a
+	// user-facing endpoint.
+	svc.authz.SkipAuthorization(ctx)
+
+	// With no active campaigns (the common case) the per-host live query check
+	// below is skipped entirely; the names are served from the store's
+	// in-memory cache. Errors are non-fatal so interval-work notification never
+	// depends on the live query store being reachable.
+	activeCampaigns, err := svc.liveQueryStore.LoadActiveQueryNames()
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load active query names for distributed read due check", "err", err)
+	}
+
+	due := make(map[uint]string)
+	for start := 0; start < len(hostIDs); start += dueHostsChunkSize {
+		end := min(start+dueHostsChunkSize, len(hostIDs))
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs[start:end])
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list hosts due for distributed read")
+		}
+		for _, host := range hosts {
+			if reason := svc.hostDueForDistributedRead(host); reason != "" {
+				due[host.ID] = reason
+				continue
+			}
+			// Only hosts with no interval work are checked: a host notified for
+			// interval work performs a full distributed/read, which serves any
+			// live query targeting it anyway.
+			if len(activeCampaigns) > 0 {
+				if reason := svc.hostDueForLiveQuery(ctx, host.ID); reason != "" {
+					due[host.ID] = reason
+				}
+			}
+		}
+	}
+	return due, nil
+}
+
+// hostDueForLiveQuery returns a live-<campaign ID> reason when an active live
+// query campaign targets the host and the host has not answered it yet, or ""
+// otherwise. Errors are logged and treated as not due: the check re-runs on
+// the next interval check tick.
+//
+// Cost: one pipelined Redis lookup per host per tick while a campaign is
+// active — the same lookup a polling host's distributed/read performs today,
+// at a lower frequency. Batching across hosts is a possible optimization; see
+// the interval check job design notes in ADR-0011.
+func (svc *Service) hostDueForLiveQuery(ctx context.Context, hostID uint) string {
+	queries, err := svc.liveQueryStore.QueriesForHost(hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "list live queries for distributed read due check",
+			"host_id", hostID, "err", err)
+		return ""
+	}
+	// The reason is informational only, so when several campaigns target the
+	// host any one of them will do.
+	for name := range queries {
+		return fleet.AgentWSReasonLiveQueryName(name)
+	}
+	return ""
+}
+
+// hostDueForDistributedRead mirrors the gates of detailQueriesForHost,
+// labelQueriesForHost and policyQueriesForHost: any single gate being due
+// means the host's next distributed/read carries work. It returns the reason
+// of the first due gate ("" when none is due); the reason is informational
+// only, so ties are not enumerated.
+func (svc *Service) hostDueForDistributedRead(host *fleet.Host) string {
+	switch {
+	case host.RefetchRequested:
+		return fleet.AgentWSReasonRefetch
+	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
+		return fleet.AgentWSReasonRefetch
+	case svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID):
+		return fleet.AgentWSReasonDetail
+	case svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID):
+		return fleet.AgentWSReasonLabel
+	case svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID):
+		return fleet.AgentWSReasonPolicy
+	default:
+		return ""
+	}
 }
 
 func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
