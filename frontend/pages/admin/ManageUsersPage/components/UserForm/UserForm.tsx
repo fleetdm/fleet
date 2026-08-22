@@ -1,4 +1,4 @@
-import React, { FormEvent, useState, useEffect, useContext } from "react";
+import React, { useContext, useEffect, useId } from "react";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -6,19 +6,14 @@ import { PRIMO_TOOLTIP } from "utilities/constants";
 import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors, UserRole } from "interfaces/user";
-import { IInputFieldParseTarget } from "interfaces/form_field";
+import { UserRole } from "interfaces/user";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import ModalFooter from "components/ModalFooter";
-import { notify } from "components/ToastNotification";
-import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email";
-// @ts-ignore
-import validPassword from "components/forms/validators/valid_password";
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
@@ -28,19 +23,24 @@ import TooltipWrapper from "components/TooltipWrapper";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
+import {
+  isPasswordShown,
+  NewUserType,
+  UserFormState,
+  validateUserForm,
+} from "./helpers";
+
+// Re-exported so existing importers of NewUserType from this module keep working.
+export { NewUserType } from "./helpers";
 
 const baseClass = "user-form";
-
-export enum NewUserType {
-  AdminInvited = "ADMIN_INVITED",
-  AdminCreated = "ADMIN_CREATED",
-}
 
 enum UserTeamType {
   GlobalUser = "GLOBAL_USER",
   AssignTeams = "ASSIGN_TEAMS",
 }
 
+/** What this form submits. Shaped for the users/invites APIs. */
 export interface IUserFormData {
   email: string;
   name: string;
@@ -59,7 +59,7 @@ export interface IUserFormData {
 interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
-  onSubmit: (formData: IUserFormData) => void;
+  onSubmit: (formData: IUserFormData) => void | Promise<unknown>;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
@@ -77,54 +77,9 @@ interface IUserFormProps {
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
-  ancestorErrors: IUserFormErrors;
+  serverErrors: IFormErrors;
   isUpdatingUsers?: boolean;
 }
-
-const validate = (
-  formData: IUserFormData,
-  canUseSso: boolean,
-  isNewUser: boolean,
-  isSsoEnabled: boolean,
-  initiallyPasswordAuth: boolean
-) => {
-  const newErrors: IUserFormErrors = {};
-
-  const { name, email, newUserType, sso_enabled, password } = formData;
-
-  if (!validatePresence(name)) {
-    newErrors.name = "Name field must be completed";
-  }
-  if (!validatePresence(email)) {
-    newErrors.email = "Email field must be completed";
-  } else if (!validEmail(email)) {
-    newErrors.email = "Email is not a valid email";
-  }
-
-  const isNewAdminCreatedUserWithoutSSO =
-    isNewUser && newUserType === NewUserType.AdminCreated && !sso_enabled;
-
-  // force to password auth if SSO is disabled globally but was enabled on the form
-  const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
-
-  // password required when creating a user with SSO disabled and when changing a user from SSO to
-  // password authentication, though not when inviting a user
-  if (
-    isNewAdminCreatedUserWithoutSSO ||
-    isExistingUserForcedToPasswordAuth ||
-    (!initiallyPasswordAuth && !sso_enabled)
-  ) {
-    const { isValid, error } = validPassword(password || "");
-    if (password !== null && !isValid) {
-      newErrors.password = error;
-    }
-    if (!validatePresence(password)) {
-      newErrors.password = "Password field must be completed";
-    }
-  }
-
-  return newErrors;
-};
 
 const UserForm = ({
   availableTeams,
@@ -147,23 +102,57 @@ const UserForm = ({
   isApiOnly,
   isNewUser = false,
   isInvitePending,
-  ancestorErrors,
+  serverErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
   const { config } = useContext(AppContext);
   const priMode = config?.partnerships?.enable_primo;
 
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
-  const [formData, setFormData] = useState<IUserFormData>({
-    email: defaultEmail || "",
-    name: defaultName || "",
-    newUserType: isNewUser ? NewUserType.AdminCreated : null,
-    password: "",
-    sso_enabled: isSsoEnabled || false,
-    mfa_enabled: isMfaEnabled || false,
-    global_role: defaultGlobalRole || null,
-    teams: defaultTeams || [],
-    currentUserId,
+  // The submit button lives in a ModalFooter outside the <form>, so it reaches
+  // the form's onSubmit through this id rather than through its own onClick.
+  // Per instance, so two forms on one page can't collide on the id.
+  const formId = useId();
+
+  // Editing an email requires SMTP/SES to send the confirmation, so without one
+  // the field renders read-only — and a field the user can't edit must never
+  // hold an error that blocks submit.
+  const isEmailReadOnly = !isNewUser && !(smtpConfigured || sesConfigured);
+
+  const validationContext = {
+    isNewUser,
+    isInvitePending,
+    isSsoEnabled,
+    isPremiumTier,
+    isEmailReadOnly,
+  };
+
+  const validate = (data: UserFormState) =>
+    validateUserForm(data, validationContext);
+
+  const {
+    formData,
+    setField,
+    commitFields,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<UserFormState>({
+    initialFormData: {
+      email: defaultEmail || "",
+      name: defaultName || "",
+      newUserType: isNewUser ? NewUserType.AdminCreated : null,
+      password: "",
+      sso_enabled: isSsoEnabled || false,
+      mfa_enabled: isMfaEnabled || false,
+      global_role: defaultGlobalRole || null,
+      teams: defaultTeams || [],
+    },
+    validate,
+    serverErrors,
+    isSubmitting: isUpdatingUsers,
+    skipTrim: ["password"],
   });
 
   const isGlobalUser = formData.global_role !== null;
@@ -171,192 +160,76 @@ const UserForm = ({
   // watch for population from context, set state
   useEffect(() => {
     if (priMode) {
-      setFormData((prevFormData) => ({
-        ...prevFormData,
-        global_role: "observer",
-        teams: [],
-      }));
+      commitFields({ global_role: "observer", teams: [] });
     }
-  }, [priMode]);
-
-  const initiallyPasswordAuth = !isSsoEnabled;
-
-  useEffect(() => {
-    setFormErrors((curErrs) => ({ ...curErrs, ...ancestorErrors }));
-  }, [ancestorErrors]);
+  }, [priMode, commitFields]);
 
   useEffect(() => {
     // If SSO is globally disabled but user previously signed in via SSO,
     // require password is automatically selected on first render
     if (!canUseSso && !isNewUser && isSsoEnabled) {
-      setFormData({ ...formData, sso_enabled: false });
+      commitFields({ sso_enabled: false });
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    const newErrs = validate(
-      newFormData,
-      canUseSso,
-      isNewUser,
-      !!isSsoEnabled,
-      initiallyPasswordAuth
-    );
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
-  };
-
-  const onInputBlur = (evt: React.FocusEvent<HTMLElement>) => {
-    // Validate only the field being blurred, not the whole form — otherwise
-    // blurring the autofocused Name field would surface errors on Email and
-    // Password before the user has touched them (#40410). Controls without a
-    // named target (e.g. the MFA checkbox wrapper) have nothing to validate.
-    const name = (evt.target as HTMLInputElement).name;
-    if (!name) {
-      return;
+  const onGlobalUserRoleChange = (selected: SingleValue<CustomOptionType>) => {
+    if (selected) {
+      commitFields({ global_role: selected.value as UserRole });
     }
-    const newErrs = validate(
-      formData,
-      canUseSso,
-      isNewUser,
-      !!isSsoEnabled,
-      initiallyPasswordAuth
-    );
-    setFormErrors((curErrs) => {
-      const next = { ...curErrs };
-      // @ts-ignore — dynamic field key (matches onInputChange above)
-      if (newErrs[name]) {
-        // @ts-ignore
-        next[name] = newErrs[name];
-      } else {
-        // @ts-ignore
-        delete next[name];
-      }
-      return next;
-    });
-  };
-
-  const onRadioChange = (formField: string): ((evt: string) => void) => {
-    // TODO - make these work similarly to onInputChange
-    return (value: string) => {
-      setFormErrors({
-        ...formErrors,
-        [formField]: null,
-      });
-      setFormData({
-        ...formData,
-        [formField]: value,
-      });
-    };
   };
 
   const onIsGlobalUserChange = (value: string): void => {
-    setFormData({
-      ...formData,
+    commitFields({
       global_role: value === UserTeamType.GlobalUser ? "observer" : null,
     });
   };
 
-  const onGlobalUserRoleChange = (value: UserRole): void => {
-    setFormData({
-      ...formData,
-      global_role: value,
-    });
-  };
-
-  const onSsoChange = (value: boolean): void => {
-    const newFormData = { ...formData, sso_enabled: value };
-    setFormData(newFormData);
-    if (value) {
-      // clears password error when enabling sso, allowing submission even if password is invalid
-      setFormErrors(
-        validate(
-          newFormData,
-          canUseSso,
-          isNewUser,
-          !!isSsoEnabled,
-          initiallyPasswordAuth
-        )
-      );
-    }
-  };
-
-  const onSelectedTeamChange = (teams: ITeam[]): void => {
-    setFormData({
-      ...formData,
-      teams,
-    });
-  };
-
-  const onTeamRoleChange = (teams: ITeam[]): void => {
-    setFormData({
-      ...formData,
-      teams,
-    });
-  };
-
-  // UserForm component can be used to add a new user or edit an existing user so submitData will be assembled accordingly
-  const addSubmitData = (): IUserFormData => {
-    const submitData = formData;
+  // UserForm can add a new user or edit an existing one, so the payload is
+  // assembled accordingly.
+  const buildSubmitData = (data: UserFormState): IUserFormData => {
+    const submitData: IUserFormData = {
+      email: data.email,
+      name: data.name,
+      newUserType: data.newUserType,
+      password: data.password,
+      sso_enabled: data.sso_enabled,
+      mfa_enabled: data.mfa_enabled,
+      global_role: data.global_role,
+      teams: data.teams,
+      currentUserId,
+    };
 
     if (!isNewUser && !isInvitePending) {
       // if a new password is being set for an existing user, the API expects `new_password` rather than `password`
-      submitData.new_password = formData.password;
+      submitData.new_password = data.password;
       submitData.password = null;
       delete submitData.newUserType; // this field will not be submitted when form is used to edit an existing user
       // if an existing user is converted to sso, the API expects `new_password` to be null
-      if (formData.sso_enabled) {
+      if (data.sso_enabled) {
         submitData.new_password = null;
-        submitData.mfa_enabled = false; // Edge case a user sets mfa, and then sets sso, we need to remove mfa
       }
     }
 
     if (
       submitData.sso_enabled ||
-      formData.newUserType === NewUserType.AdminInvited
+      data.newUserType === NewUserType.AdminInvited
     ) {
       submitData.password = null; // this field will not be submitted with the form
     }
 
-    return isGlobalUser
-      ? { ...submitData, global_role: formData.global_role, teams: [] }
-      : { ...submitData, global_role: null, teams: formData.teams };
+    // Turning SSO on hides the MFA checkbox but keeps its value, so a user who
+    // ticked it first would otherwise submit sso_enabled with mfa_enabled.
+    if (submitData.sso_enabled) {
+      submitData.mfa_enabled = false;
+    }
+
+    return data.global_role !== null
+      ? { ...submitData, global_role: data.global_role, teams: [] }
+      : { ...submitData, global_role: null, teams: data.teams };
   };
 
-  const onFormSubmit = (evt: FormEvent): void => {
-    evt.preventDefault();
-
-    // Validate all fields on submit so every field error is surfaced at once.
-    // (Field errors otherwise only appear on that field's blur — #40410.)
-    const errs = validate(
-      formData,
-      canUseSso,
-      isNewUser,
-      !!isSsoEnabled,
-      initiallyPasswordAuth
-    );
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-    // separate from `validate` function as it renders a toast notification, incompatible with
-    // pure `validate` function
-    if (!formData.global_role && !formData.teams.length) {
-      notify.error(`Please select at least one fleet for this user.`);
-      return;
-    }
-    onSubmit(addSubmitData());
-  };
+  const onValidSubmit = (data: UserFormState) =>
+    onSubmit(buildSubmitData(data));
 
   const renderGlobalRoleForm = (): JSX.Element => {
     return (
@@ -381,12 +254,9 @@ const UserForm = ({
           className={`${baseClass}__global-role-dropdown`}
           options={roleOptions({ isPremiumTier, isApiOnly })}
           value={formData.global_role || "Observer"}
-          onChange={(selectedOption: SingleValue<CustomOptionType>) => {
-            if (selectedOption) {
-              onGlobalUserRoleChange(selectedOption.value as UserRole);
-            }
-          }}
+          onChange={onGlobalUserRoleChange}
           isSearchable={false}
+          isDisabled={isSubmitting}
         />
       </>
     );
@@ -436,8 +306,9 @@ const UserForm = ({
               <SelectedTeamsForm
                 availableTeams={availableTeams}
                 usersCurrentTeams={formData.teams}
-                onFormChange={onSelectedTeamChange}
+                onFormChange={(teams: ITeam[]) => commitFields({ teams })}
                 isApiOnly={isApiOnly}
+                disabled={isSubmitting}
               />
             </>
           ) : (
@@ -445,10 +316,16 @@ const UserForm = ({
               currentTeam={currentTeam || formData.teams[0]}
               teams={formData.teams}
               defaultTeamRole={defaultTeamRole || "Observer"}
-              onFormChange={onTeamRoleChange}
+              onFormChange={(teams: ITeam[]) => commitFields({ teams })}
               isApiOnly={isApiOnly}
+              disabled={isSubmitting}
             />
           ))}
+        {getError("teams") && (
+          <div className="form-field__label form-field__label--error">
+            {getError("teams")}
+          </div>
+        )}
         {!availableTeams.length && renderNoTeamsMessage()}
       </>
     );
@@ -473,17 +350,22 @@ const UserForm = ({
             checked={formData.newUserType !== NewUserType.AdminInvited}
             value={NewUserType.AdminCreated}
             name="new-user-type"
-            onChange={onRadioChange("newUserType")}
+            onChange={(value: string) =>
+              commitFields({ newUserType: value as NewUserType })
+            }
+            disabled={isSubmitting}
           />
           <Radio
             className={`${baseClass}__radio-input`}
             label="Invite user"
             id="invite-user"
-            disabled={!(smtpConfigured || sesConfigured)}
+            disabled={isSubmitting || !(smtpConfigured || sesConfigured)}
             checked={formData.newUserType === NewUserType.AdminInvited}
             value={NewUserType.AdminInvited}
             name="new-user-type"
-            onChange={onRadioChange("newUserType")}
+            onChange={(value: string) =>
+              commitFields({ newUserType: value as NewUserType })
+            }
             tooltip={
               smtpConfigured || sesConfigured ? (
                 ""
@@ -515,28 +397,30 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        error={formErrors.name}
+        error={getError("name")}
         name="name"
-        onChange={onInputChange}
-        onBlur={onInputBlur}
+        onChange={(value: string) => setField("name", value)}
+        onFocus={() => clearFieldError("name")}
+        onBlur={() => validateField("name")}
         placeholder="Full name"
-        value={formData.name || ""}
+        value={formData.name}
+        disabled={isSubmitting}
         inputOptions={{
           maxLength: 80,
         }}
-        parseTarget
       />
       <InputField
         label="Email"
-        error={formErrors.email}
+        error={getError("email")}
         name="email"
         type="email"
-        onChange={onInputChange}
-        onBlur={onInputBlur}
-        parseTarget
+        onChange={(value: string) => setField("email", value)}
+        onFocus={() => clearFieldError("email")}
+        onBlur={() => validateField("email")}
         placeholder="Email"
-        value={formData.email || ""}
-        readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
+        value={formData.email}
+        disabled={isSubmitting}
+        readOnly={isEmailReadOnly}
         tooltip={
           <>
             Editing an email address requires that SMTP or SES is configured in
@@ -576,8 +460,8 @@ const UserForm = ({
         checked={!!formData.sso_enabled}
         value="true"
         name="authentication-type"
-        onChange={() => onSsoChange(true)}
-        disabled={!canUseSso}
+        onChange={() => commitFields({ sso_enabled: true })}
+        disabled={isSubmitting || !canUseSso}
       />
       <Radio
         className={`${baseClass}__radio-input`}
@@ -588,7 +472,8 @@ const UserForm = ({
         checked={!formData.sso_enabled}
         value="false"
         name="authentication-type"
-        onChange={() => onSsoChange(false)}
+        onChange={() => commitFields({ sso_enabled: false })}
+        disabled={isSubmitting}
       />
     </div>
   );
@@ -597,14 +482,15 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        error={formErrors.password}
+        error={getError("password")}
         name="password"
-        onChange={onInputChange}
-        onBlur={onInputBlur}
-        parseTarget
+        onChange={(value: string) => setField("password", value)}
+        onFocus={() => clearFieldError("password")}
+        onBlur={() => validateField("password")}
         placeholder={isNewUser ? "Password" : "••••••••"}
-        value={formData.password || ""}
+        value={formData.password}
         type="password"
+        disabled={isSubmitting}
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
         blockAutoComplete
         tooltip={
@@ -632,13 +518,11 @@ const UserForm = ({
       )}
       <Checkbox
         name="mfa_enabled"
-        onChange={onInputChange}
-        onBlur={onInputBlur}
+        onChange={(value: boolean) => commitFields({ mfa_enabled: value })}
         value={formData.mfa_enabled}
         wrapperClassName={`${baseClass}__2fa`}
         helpText="User will be asked to authenticate with a magic link that will be sent to their email."
-        disabled={!smtpConfigured && !sesConfigured}
-        parseTarget
+        disabled={isSubmitting || (!smtpConfigured && !sesConfigured)}
       >
         {smtpConfigured || sesConfigured ? (
           "Enable two-factor authentication (email)"
@@ -704,6 +588,7 @@ const UserForm = ({
           value={UserTeamType.GlobalUser}
           name="user-team-type"
           onChange={onIsGlobalUserChange}
+          disabled={isSubmitting}
         />
         <Radio
           className={`${baseClass}__radio-input`}
@@ -713,7 +598,7 @@ const UserForm = ({
           value={UserTeamType.AssignTeams}
           name="user-team-type"
           onChange={onIsGlobalUserChange}
-          disabled={!availableTeams.length}
+          disabled={isSubmitting || !availableTeams.length}
         />
       </>
     );
@@ -736,13 +621,15 @@ const UserForm = ({
   const renderFormContent = () => {
     return (
       <div className={baseClass}>
-        <form autoComplete="off">
+        <form
+          autoComplete="off"
+          id={formId}
+          onSubmit={handleSubmit(onValidSubmit)}
+        >
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
           {renderAuthenticationSection()}
-          {((isNewUser && formData.newUserType !== NewUserType.AdminInvited) ||
-            (!isNewUser && !isInvitePending)) &&
-            !formData.sso_enabled &&
+          {isPasswordShown(formData, validationContext) &&
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
@@ -762,10 +649,11 @@ const UserForm = ({
           </Button>
           <Button
             type="submit"
-            onClick={onFormSubmit}
+            formId={formId}
             className={`${isNewUser ? "add" : "save"}-loading
           `}
-            isLoading={isUpdatingUsers}
+            isLoading={isSubmitting}
+            disabled={isSubmitting}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>
