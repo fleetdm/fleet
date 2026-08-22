@@ -6351,6 +6351,13 @@
       "description": "OpenRefine is a tool for working with messy data (previously Google Refine)."
     },
     {
+      "name": "Open Sound Meter",
+      "slug": "opensoundmeter/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.opensoundmeter.OpenSoundMeter",
+      "description": "Open Sound Meter is a sound measurement app for tuning audio systems in real time."
+    },
+    {
       "name": "OpenToonz",
       "slug": "opentoonz/darwin",
       "platform": "darwin",
