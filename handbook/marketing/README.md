@@ -415,6 +415,12 @@ Although details on how to format and meta tag a blog are in [the writing handbo
     - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
 11. When ready, submit a PR to get it reviewed and merged
 
+## Update competitor database
+
+To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
+
+1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidaries, parent companies, and which category this company competes in.
+2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](TODO) and then reupload it to the [matched audience for competitors](TODO).
 
 
 ## Rituals
