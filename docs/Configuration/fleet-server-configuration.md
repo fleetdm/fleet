@@ -3645,7 +3645,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
+Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a team with disk encryption turned off, then move them back.
 
 ### mdm.windows_wstep_identity_key_bytes
 
