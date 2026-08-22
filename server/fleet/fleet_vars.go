@@ -12,9 +12,20 @@ const (
 // ContainsPrefixVars scans a string for variables in the form of $VAR
 // and ${VAR} that begin with prefix, and return an array of those
 // variables with the prefix removed.
+//
+// A token that is exactly the prefix, such as a bare "$FLEET_SECRET_" written as
+// prose in a comment, is not a reference and is skipped: getShellName stops at the
+// first non-word byte, so the name left after the prefix is empty and no secret or
+// Fleet variable can be named "". Without this, the empty name reaches callers that
+// treat the result as the set of variables a document embeds, and they then look up
+// and report a nameless one. nameTemplateSecretRegexp already encodes the same rule
+// by requiring `\w+` after the prefix.
 func ContainsPrefixVars(text, prefix string) []string {
 	vars := []string{}
 	gather := func(variable string) string {
+		if variable == prefix {
+			return ""
+		}
 		if strings.HasPrefix(variable, prefix) {
 			vars = append(vars, strings.TrimPrefix(variable, prefix))
 		}

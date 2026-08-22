@@ -190,6 +190,15 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
 		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, `environment variable "foo" not set; if you intended the literal string ${foo} then please escape it as \${foo}.`)},
 		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
+		// A bare "$FLEET_SECRET_" is prose, not a misplaced secret reference: it is
+		// left alone rather than rejected as "only allowed in profiles and scripts".
+		{map[string]string{}, `# $FLEET_SECRET_ is the prefix`, `# $FLEET_SECRET_ is the prefix`, nil},
+		{map[string]string{}, `${FLEET_SECRET_}`, `${FLEET_SECRET_}`, nil},
+		{
+			map[string]string{},
+			`$FLEET_SECRET_ but $FLEET_SECRET_REAL is a reference`, ``,
+			checkMultiErrors(t, `environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_REAL"`),
+		},
 		{
 			map[string]string{"foo": "BAR"},
 			`\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
@@ -240,6 +249,15 @@ func TestLookupEnvSecrets(t *testing.T) {
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
 		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&123"}, nil},
+		// A bare "$FLEET_SECRET_" names no secret and must not be looked up.
+		{map[string]string{}, `$FLEET_SECRET_`, map[string]string{}, nil},
+		{map[string]string{}, `${FLEET_SECRET_}`, map[string]string{}, nil},
+		{
+			map[string]string{"FLEET_SECRET_foo": "1"},
+			"<!-- $FLEET_SECRET_ is the prefix -->\n<Data>$FLEET_SECRET_foo</Data>",
+			map[string]string{"FLEET_SECRET_foo": "1"},
+			nil,
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -256,6 +274,36 @@ func TestLookupEnvSecrets(t *testing.T) {
 		}
 		require.Equal(t, tc.expResult, secretsMap)
 	}
+}
+
+// TestBareSecretPrefixInComment walks the three functions a `fleetctl gitops` run
+// applies to a profile, in the order server/service/client.go applies them, over a
+// document that mentions the secret prefix in a comment and uses a real, registered
+// secret in the same file. Before the fix LookupEnvSecrets rejected the run with
+// `environment variable "FLEET_SECRET_" not set` and ContainsPrefixVars reported an
+// unnamed secret alongside the real one.
+func TestBareSecretPrefixInComment(t *testing.T) {
+	const doc = `<!-- Delivered via $FLEET_SECRET_ (registered via gitops, kept out of git). -->
+<Data>$FLEET_SECRET_MY_REAL_SECRET</Data>`
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	require.NoError(t, os.Setenv("FLEET_SECRET_MY_REAL_SECRET", "s3kr1t"))
+
+	// 1. Secrets are collected from the raw file. The comment is not a reference.
+	secretsMap := make(map[string]string)
+	require.NoError(t, LookupEnvSecrets(doc, secretsMap))
+	require.Equal(t, map[string]string{"FLEET_SECRET_MY_REAL_SECRET": "s3kr1t"}, secretsMap)
+
+	// 2. Non-secret expansion runs over the whole file and leaves both alone.
+	expanded, err := ExpandEnvBytesIgnoreSecrets([]byte(doc))
+	require.NoError(t, err)
+	require.Equal(t, doc, string(expanded))
+
+	// 3. The set of secrets the server is asked to resolve carries no empty name.
+	require.Equal(t,
+		[]string{"MY_REAL_SECRET"},
+		fleet.ContainsPrefixVars(string(expanded), fleet.ServerSecretPrefix))
 }
 
 // TestExpandEnvBytesIncludingSecrets tests that FLEET_SECRET_ variables are expanded when using ExpandEnvBytesIncludingSecrets

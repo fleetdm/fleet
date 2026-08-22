@@ -352,6 +352,12 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 		switch {
 		case strings.HasPrefix(env, preventEscapingPrefix):
 			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
+		case env == fleet.ServerSecretPrefix:
+			// A bare "$FLEET_SECRET_" names no secret, so it is documentation prose
+			// rather than a reference. Expansion runs over the whole file and has no
+			// notion of comments, so this must be left untouched here: rejecting it
+			// fails a gitops run over a sentence, and there is nothing to expand.
+			return "", false
 		case strings.HasPrefix(strings.ToUpper(env), fleet.ServerVarPrefix):
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
@@ -459,7 +465,9 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
-		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
+		// env == ServerSecretPrefix is a bare "$FLEET_SECRET_" with an empty name
+		// after the prefix — prose, not a reference. See ContainsPrefixVars.
+		if strings.HasPrefix(env, fleet.ServerSecretPrefix) && env != fleet.ServerSecretPrefix {
 			// lookup the secret and save it, but don't replace
 			v, ok := lookupEnv(env)
 			if !ok {
