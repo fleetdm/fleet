@@ -10288,6 +10288,21 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		require.ErrorContains(t, err, "should include valid JSON")
 	})
 
+	t.Run("activation with a malformed predicate is rejected", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.TierPremium)
+		activation := []byte(`{
+			"Type": "com.apple.activation.simple",
+			"Identifier": "com.fleet.actD1",
+			"Payload": {
+				"StandardConfigurations": ["com.fleet.configD1"],
+				"Predicate": "@status(os.version.major) >="
+			}
+		}`)
+
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
+		require.ErrorContains(t, err, "invalid predicate")
+	})
+
 	t.Run("activation on a management declaration is rejected", func(t *testing.T) {
 		svc, ctx := setup(t, fleet.TierPremium)
 		// Management declarations are never activated, so attaching one is
@@ -10314,7 +10329,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 			"Identifier": "com.fleet.actD1",
 			"Payload": {
 				"StandardConfigurations": ["com.fleet.configD1"],
-				"Predicate": "$FLEET_VAR_HOST_UUID"
+				"Predicate": "@property(host_uuid) == '$FLEET_VAR_HOST_UUID'"
 			}
 		}`)
 
@@ -10331,7 +10346,7 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 			"Identifier": "com.fleet.actD1",
 			"Payload": {
 				"StandardConfigurations": ["com.fleet.configD1"],
-				"Predicate": "$FLEET_VAR_BOZO"
+				"Predicate": "@property(host_uuid) == '$FLEET_VAR_BOZO'"
 			}
 		}`)
 
