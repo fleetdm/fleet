@@ -27,7 +27,7 @@ When generating or modifying configuration profiles:
 - **Windows CSPs** (`.xml`) — validate CSP paths, formats, and allowed values against Microsoft's MDM protocol reference:
   - https://learn.microsoft.com/en-us/windows/client-management/mdm/
 - **Android profiles** (`.json`) — validate keys and values against the Android Management API `enterprises.policies` reference:
-  - https://developers.google.com/android/management/reference/rest/v1/enterprises.policies
+  - https://androidmanagement.googleapis.com/$discovery/rest?version=v1
 
 ## Software
 
