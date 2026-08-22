@@ -1466,12 +1466,23 @@ func TestAuthorizeQuery(t *testing.T) {
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}},
 		Query:       globalQuery,
 	}
+	// An explicitly empty team list means the same thing as omitting it: no
+	// teams were selected. It must therefore behave exactly like the "no
+	// targets" fixtures above, rather than passing the target check vacuously.
+	globalQueryEmptyTeamTargets := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       globalQuery,
+	}
 
 	globalObserverQuery := &fleet.Query{
 		ObserverCanRun: true,
 	}
 	globalObserverQueryEmptyTargets := &fleet.TargetedQuery{
 		Query: globalObserverQuery,
+	}
+	globalObserverQueryEmptyTeamTargets := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       globalObserverQuery,
 	}
 	globalObserverQueryTargetedToTeam1 := &fleet.TargetedQuery{
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
@@ -1501,6 +1512,14 @@ func TestAuthorizeQuery(t *testing.T) {
 		AuthorID:       new(teamMaintainer.ID),
 		ObserverCanRun: false,
 		TeamID:         new(uint(1)),
+	}
+
+	// Team-scoped, non-observers-can-run report with an explicitly empty team
+	// selection. Running it is gated on holding a qualifying role on the
+	// report's own team, whether the selection is empty or omitted.
+	teamMaintQueryEmptyTeamTargets := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       teamMaintQuery,
 	}
 	globalAdminQuery := &fleet.Query{ID: 3, AuthorID: new(test.UserAdmin.ID), ObserverCanRun: false}
 	globalGitOpsQuery := &fleet.Query{ID: 4, AuthorID: new(test.UserGitOps.ID), ObserverCanRun: false}
@@ -1581,6 +1600,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserNoRoles, object: globalQuery, action: write, allow: false},
 				{user: test.UserNoRoles, object: teamAdminQuery, action: write, allow: false},
 				{user: test.UserNoRoles, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalQueryEmptyTeamTargets, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQueryEmptyTeamTargets, action: run, allow: false},
 				{user: test.UserNoRoles, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: test.UserNoRoles, object: globalQuery, action: runNew, allow: false},
 				{user: test.UserNoRoles, object: globalObserverQuery, action: read, allow: false},
@@ -1690,6 +1711,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserAdmin, object: teamMaintQuery, action: write, allow: true},
 				{user: test.UserAdmin, object: globalAdminQuery, action: write, allow: true},
 				{user: test.UserAdmin, object: globalQueryNoTargets, action: run, allow: true},
+				{user: test.UserAdmin, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: test.UserAdmin, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: test.UserAdmin, object: globalQueryTargetedToTeam1, action: run, allow: true},
 				{user: test.UserAdmin, object: globalQuery, action: runNew, allow: true},
 				{user: test.UserAdmin, object: globalObserverQuery, action: read, allow: true},
@@ -1725,6 +1748,11 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team observer can read and run observer_can_run only",
 			testCases: []authTestCase{
 				{user: teamObserver, object: globalQuery, action: read, allow: true},
+				// An empty team selection behaves the same as omitting it: it grants no
+				// extra reach, so it still requires a role that may run a global query.
+				{user: teamObserver, object: globalQueryEmptyTeamTargets, action: run, allow: false},
+				{user: teamObserver, object: teamMaintQueryEmptyTeamTargets, action: run, allow: false},
+				{user: teamObserver, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamObserver, object: globalQuery, action: write, allow: false},
 				{user: teamObserver, object: teamAdminQuery, action: write, allow: false},
 				{user: teamObserver, object: globalQueryNoTargets, action: run, allow: false},
@@ -1751,6 +1779,8 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team observer+ can read all queries, not write them, and can run any query",
 			testCases: []authTestCase{
 				{user: teamObserverPlus, object: globalQuery, action: read, allow: true},
+				{user: teamObserverPlus, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamObserverPlus, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamObserverPlus, object: globalQuery, action: write, allow: false},
 				{user: teamObserverPlus, object: teamAdminQuery, action: write, allow: false},
 				{user: teamObserverPlus, object: globalQueryNoTargets, action: run, allow: true},
@@ -1779,6 +1809,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamTechnician, object: globalQuery, action: write, allow: false},
 				{user: teamTechnician, object: teamAdminQuery, action: write, allow: false},
 				{user: teamTechnician, object: globalQueryNoTargets, action: run, allow: true},
+				{user: teamTechnician, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamTechnician, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamTechnician, object: globalQueryTargetedToTeam1, action: run, allow: true},
 				{user: teamTechnician, object: globalQuery, action: runNew, allow: true},
 				{user: teamTechnician, object: globalObserverQuery, action: read, allow: true},
@@ -1801,6 +1833,9 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team maintainer can read/write/run queries filtered on their team(s)",
 			testCases: []authTestCase{
 				{user: teamMaintainer, object: globalQuery, action: read, allow: true},
+				{user: teamMaintainer, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamMaintainer, object: teamMaintQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamMaintainer, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamMaintainer, object: globalQuery, action: write, allow: false}, // query belongs to global domain.
 				{user: teamMaintainer, object: teamMaintQuery, action: write, allow: true},
 				{user: teamMaintainer, object: teamAdminQuery, action: write, allow: true},
@@ -1829,6 +1864,9 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team admin can read/write their own queries/run queries filtered on their team(s)",
 			testCases: []authTestCase{
 				{user: teamAdmin, object: globalQuery, action: read, allow: true},
+				{user: teamAdmin, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamAdmin, object: teamMaintQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamAdmin, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamAdmin, object: globalQuery, action: write, allow: false}, // query belongs to global domain.
 				{user: teamAdmin, object: teamAdminQuery, action: write, allow: true},
 				{user: teamAdmin, object: teamMaintQuery, action: write, allow: true},
@@ -1863,9 +1901,12 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamGitOps, object: teamGitOpsQuery, action: write, allow: true},
 				{user: teamGitOps, object: globalGitOpsQuery, action: write, allow: false}, // cannot write a global query
 				{user: teamGitOps, object: globalQueryNoTargets, action: run, allow: false},
+				{user: teamGitOps, object: globalQueryEmptyTeamTargets, action: run, allow: false},
+				{user: teamGitOps, object: teamMaintQueryEmptyTeamTargets, action: run, allow: false},
 				{user: teamGitOps, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: teamGitOps, object: globalQuery, action: runNew, allow: false},
 				{user: teamGitOps, object: globalObserverQueryEmptyTargets, action: run, allow: false},
+				{user: teamGitOps, object: globalObserverQueryEmptyTeamTargets, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
