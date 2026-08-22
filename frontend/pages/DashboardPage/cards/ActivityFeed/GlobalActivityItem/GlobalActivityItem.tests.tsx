@@ -1962,6 +1962,25 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/\(self service\)\./)).toBeInTheDocument();
   });
 
+  it("attributes VPP auto-update installs to Fleet even when the payload carries a stale actor", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_id: 1,
+      actor_full_name: "Some Admin",
+      fleet_initiated: false,
+      details: {
+        software_title: "Google Meet",
+        host_display_name: "iPad",
+        status: "installed",
+        from_auto_update: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.queryByText("Some Admin")).toBeNull();
+  });
+
   it("renders script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,

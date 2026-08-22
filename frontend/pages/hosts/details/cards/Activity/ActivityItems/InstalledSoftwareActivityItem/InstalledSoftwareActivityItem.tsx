@@ -26,6 +26,7 @@ const InstalledSoftwareActivityItem = ({
     software_title: title,
     source,
     from_setup_experience,
+    from_auto_update,
   } = details;
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
@@ -81,6 +82,12 @@ const InstalledSoftwareActivityItem = ({
       status === "pending_uninstall" ? "will uninstall" : "will install";
   }
 
+  // Auto-update installs are always Fleet-initiated even when the payload
+  // carries a stale actor (e.g. a pre-fix retry that re-attributed to the
+  // admin who set up the schedule). Overriding here keeps rendering consistent
+  // with WasFromAutomation() on the backend.
+  const actor = from_auto_update ? "Fleet" : actorName ?? "Fleet";
+
   return (
     <ActivityItem
       className={baseClass}
@@ -90,8 +97,7 @@ const InstalledSoftwareActivityItem = ({
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
     >
-      <b>{actorName ?? "Fleet"}</b> {installedSoftwarePrefix} <b>{title}</b> on
-      this host
+      <b>{actor}</b> {installedSoftwarePrefix} <b>{title}</b> on this host
       {from_setup_experience ? " during setup experience" : ""}.
     </ActivityItem>
   );

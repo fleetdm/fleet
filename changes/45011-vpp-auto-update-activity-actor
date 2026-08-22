@@ -1,0 +1,1 @@
+- Fixed activity feed attributing iPad VPP auto-update installs to an end user or admin instead of Fleet when the install terminally failed after all retries.

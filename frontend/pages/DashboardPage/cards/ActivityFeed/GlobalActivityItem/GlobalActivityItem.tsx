@@ -2901,7 +2901,12 @@ const GlobalActivityItem = ({
         // Self-service activities render as a passive-voice sentence in the
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
-        return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+        if (activity.details?.self_service) return null;
+        // Auto-update installs are Fleet-initiated even if the stored actor
+        // says otherwise (e.g. legacy rows written before the fleet_initiated
+        // flag was wired up).
+        if (activity.details?.from_auto_update) return <b>Fleet </b>;
+        return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.
         return null;
