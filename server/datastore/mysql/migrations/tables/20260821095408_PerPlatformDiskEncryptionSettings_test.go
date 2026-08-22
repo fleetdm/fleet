@@ -9,37 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFanOutDiskEncryptionSetting(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		in   string
-		want bool
-	}{
-		{"true", `{"mdm": {"enable_disk_encryption": true}}`, true},
-		{"false", `{"mdm": {"enable_disk_encryption": false}}`, false},
-		{"absent", `{"mdm": {}}`, false},
-		{"no mdm object", `{}`, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			out, err := fanOutDiskEncryptionSetting([]byte(tc.in))
-			require.NoError(t, err)
-			var cfg map[string]any
-			require.NoError(t, json.Unmarshal(out, &cfg))
-			mdm := cfg["mdm"].(map[string]any)
-			require.Equal(t, tc.want, mdm["macos_settings"].(map[string]any)["enable_disk_encryption"])
-			require.Equal(t, tc.want, mdm["macos_settings"].(map[string]any)["enable_escrow_disk_encryption_key"])
-			require.Equal(t, tc.want, mdm["windows_settings"].(map[string]any)["enable_disk_encryption"])
-			require.Equal(t, tc.want, mdm["linux_settings"].(map[string]any)["enable_escrow_disk_encryption_key"])
-		})
-	}
-
-	t.Run("large integers elsewhere survive the rewrite", func(t *testing.T) {
-		out, err := fanOutDiskEncryptionSetting([]byte(`{"agent_options": {"big": 9007199254740993}, "mdm": {"enable_disk_encryption": true}}`))
-		require.NoError(t, err)
-		require.Contains(t, string(out), "9007199254740993")
-	})
-}
-
 func TestUp_20260821095408(t *testing.T) {
 	db := applyUpToPrev(t)
 
@@ -51,12 +20,14 @@ func TestUp_20260821095408(t *testing.T) {
 		'$.mdm.windows_settings', CAST('{"custom_settings": [{"path": "a.xml"}]}' AS JSON)
 	) WHERE id = 1`)
 
-	// one team per legacy state: true, false, absent; the true team also
-	// carries the legacy macos_settings alias the old code persisted
+	// one team per legacy state: true, false, absent, and no mdm object at
+	// all; the true team also carries the legacy macos_settings alias the old
+	// code persisted, plus a large integer that must survive the rewrite
 	execNoErr(t, db, `INSERT INTO teams (name, config) VALUES
-		('enabled',  '{"mdm": {"enable_disk_encryption": true, "macos_settings": {"custom_settings": [], "enable_disk_encryption": true}}}'),
+		('enabled',  '{"agent_options": {"big": 9007199254740993}, "mdm": {"enable_disk_encryption": true, "macos_settings": {"custom_settings": [], "enable_disk_encryption": true}}}'),
 		('disabled', '{"mdm": {"enable_disk_encryption": false}}'),
-		('absent',   '{"mdm": {}}')`)
+		('absent',   '{"mdm": {}}'),
+		('nomdm',    '{}')`)
 
 	// a FileVault profile that must come out of the migration byte-identical
 	execNoErr(t, db, `INSERT INTO mdm_apple_configuration_profiles
@@ -104,6 +75,7 @@ func TestUp_20260821095408(t *testing.T) {
 		{"enabled", true},
 		{"disabled", false},
 		{"absent", false},
+		{"nomdm", false},
 	} {
 		t.Run(fmt.Sprintf("team %s", tc.team), func(t *testing.T) {
 			var raw json.RawMessage
@@ -111,6 +83,11 @@ func TestUp_20260821095408(t *testing.T) {
 			assertDiskEncryptionKeys(t, raw, tc.want)
 		})
 	}
+
+	// large integers elsewhere in the config survive the rewrite
+	var bigNumber string
+	require.NoError(t, sqlx.Get(db, &bigNumber, `SELECT config->>'$.agent_options.big' FROM teams WHERE name = 'enabled'`))
+	require.Equal(t, "9007199254740993", bigNumber)
 
 	// the FileVault profile row is byte-identical: no content, checksum, or
 	// uploaded_at change means nothing is re-sent to hosts
