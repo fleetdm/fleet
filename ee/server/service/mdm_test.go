@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -813,5 +814,58 @@ func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 				require.Equal(t, p.declName, got.deleted)
 			})
 		}
+	})
+}
+
+// stubProfileMatcher is a minimal fleet.ProfileMatcher for exercising
+// MDMApplePreassignProfile without a real Redis-backed implementation.
+type stubProfileMatcher struct {
+	preassignProfileCalled bool
+}
+
+func (s *stubProfileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
+	s.preassignProfileCalled = true
+	return nil
+}
+
+func (s *stubProfileMatcher) RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (fleet.MDMApplePreassignHostProfiles, error) {
+	return fleet.MDMApplePreassignHostProfiles{}, nil
+}
+
+func TestMDMApplePreassignProfileSizeLimit(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+
+	t.Run("oversized profile is rejected", func(t *testing.T) {
+		matcher := &stubProfileMatcher{}
+		svc := &Service{authz: authorizer, profileMatcher: matcher}
+
+		oversized := bytes.Repeat([]byte("a"), int(fleet.MaxProfileSize)+1)
+		err := svc.MDMApplePreassignProfile(ctx, fleet.MDMApplePreassignProfilePayload{
+			ExternalHostIdentifier: "test",
+			HostUUID:               "test",
+			Profile:                oversized,
+		})
+
+		require.Error(t, err)
+		var invalidArg *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArg)
+		require.Contains(t, err.Error(), fleet.MaxProfileSizeErrMsg)
+		require.False(t, matcher.preassignProfileCalled, "should reject before reaching the profile matcher")
+	})
+
+	t.Run("profile within the limit is accepted", func(t *testing.T) {
+		matcher := &stubProfileMatcher{}
+		svc := &Service{authz: authorizer, profileMatcher: matcher}
+
+		err := svc.MDMApplePreassignProfile(ctx, fleet.MDMApplePreassignProfilePayload{
+			ExternalHostIdentifier: "test",
+			HostUUID:               "test",
+			Profile:                []byte("<plist></plist>"),
+		})
+
+		require.NoError(t, err)
+		require.True(t, matcher.preassignProfileCalled)
 	})
 }

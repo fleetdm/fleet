@@ -70,6 +70,7 @@ const (
 	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 	ActivationEmptyFileErrorMsg             = "Activation must contain a declaration. To remove the activation, send an empty activation field."
 	ActivationConflictingPartsErrorMsg      = "Send either an activation file to replace it or an empty activation field to remove it, not both."
+	ActivationTooLargeErrorMsg              = "Maximum activation file size is 1 MB."
 	ActivationsDisabledErrorMsg             = "Custom activations aren't available. Set FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS=1 on the Fleet server to turn them on."
 )
 
@@ -3464,7 +3465,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
-		if len(prof) > 1024*1024 {
+		if len(prof) > int(fleet.MaxProfileSize) {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fleet.MaxProfileSizeErrMsg),
 			)
