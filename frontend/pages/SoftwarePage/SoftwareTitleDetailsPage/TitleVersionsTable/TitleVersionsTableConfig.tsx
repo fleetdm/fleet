@@ -8,9 +8,10 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { CellProps } from "react-table";
+import { CellProps, HeaderProps } from "react-table";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
@@ -25,6 +26,7 @@ type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
 type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
 type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
+type IVersionHeaderProps = HeaderProps<ISoftwareTitleVersion>;
 
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
@@ -33,9 +35,16 @@ const generateSoftwareTitleVersionsTableConfig = ({
   const tableHeaders = [
     {
       title: "Version",
-      Header: "Version",
-      disableSortBy: true,
+      Header: (cellProps: IVersionHeaderProps) => (
+        <HeaderCell
+          value="Version"
+          disableSortBy={false}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
       accessor: "version",
+      sortType: "version",
       Cell: (cellProps: IVersionCellProps): JSX.Element => {
         if (!cellProps.cell.value) {
           // renders desired empty state
