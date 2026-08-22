@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.0",
+      "version": "1.18.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.localsend.localsendApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.localsend.localsendApp' AND version_compare(bundle_short_version, '1.18.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.localsend.localsendApp' AND version_compare(bundle_short_version, '1.18.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.localsend.localsendApp');"
       },
-      "installer_url": "https://github.com/localsend/localsend/releases/download/v1.18.0/LocalSend-1.18.0.dmg",
+      "installer_url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2.dmg",
       "install_script_ref": "f3e3757e",
       "uninstall_script_ref": "59b942e3",
-      "sha256": "93ab884c2703a0fabd72611097b2616c0def86c4256cea2add7a0ff36dd76b3a",
+      "sha256": "126860d56f6f49b11845f601aac51de27a49b16d2b48102415da91e0e37e5155",
       "default_categories": [
         "Productivity"
       ]
