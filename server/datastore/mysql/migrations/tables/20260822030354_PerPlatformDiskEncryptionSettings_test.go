@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260821095408(t *testing.T) {
+func TestUp_20260822030354(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// global config: legacy toggle on, with an existing windows_settings object

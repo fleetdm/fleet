@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260821095408, Down_20260821095408)
+	MigrationClient.AddMigration(Up_20260822030354, Down_20260822030354)
 }
 
 // Up_20260821095408 splits the single mdm.enable_disk_encryption toggle into
@@ -25,7 +25,7 @@ func init() {
 // deliberately does NOT touch mdm_apple_configuration_profiles: the both-on
 // state renders the exact same FileVault profile, so no profile bytes,
 // checksums, or uploaded_at change and nothing is re-sent to hosts.
-func Up_20260821095408(tx *sql.Tx) error {
+func Up_20260822030354(tx *sql.Tx) error {
 	// the legacy toggle as a JSON boolean; absent or non-boolean means false
 	const legacyValueTpl = `IF(JSON_EXTRACT(%[1]s, '$.mdm.enable_disk_encryption') = CAST('true' AS JSON), CAST('true' AS JSON), CAST('false' AS JSON))`
 
@@ -62,6 +62,6 @@ func Up_20260821095408(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260821095408(tx *sql.Tx) error {
+func Down_20260822030354(tx *sql.Tx) error {
 	return nil
 }
