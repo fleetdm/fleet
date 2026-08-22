@@ -28,7 +28,9 @@ func Up_20260626120000(tx *sql.Tx) error {
 		backfill := incrementalMigrationStep(
 			func(tx *sql.Tx) (uint64, error) {
 				var total uint64
-				err := tx.QueryRow(`SELECT COUNT(*) FROM windows_mdm_responses WHERE raw_response_gz IS NULL`).Scan(&total)
+				err := retryOnNeedReprepare(func() error {
+					return tx.QueryRow(`SELECT COUNT(*) FROM windows_mdm_responses WHERE raw_response_gz IS NULL`).Scan(&total)
+				})
 				return total, err
 			},
 			backfillWindowsMDMResponsesGz,
@@ -77,10 +79,21 @@ func backfillWindowsMDMResponsesGz(tx *sql.Tx, increment incrementCountFn) error
 			ID          uint64 `db:"id"`
 			RawResponse []byte `db:"raw_response"`
 		}
-		if err := txx.Select(&batch,
-			`SELECT id, raw_response FROM windows_mdm_responses
+		// Both statements in this loop run against windows_mdm_responses, whose
+		// metadata this very migration has just altered, so either can come back
+		// with ER_NEED_REPREPARE (#51707). Neither aborts the transaction, so both
+		// are re-executed in place rather than failing the upgrade.
+		if err := retryOnNeedReprepare(func() error {
+			// sqlx.Select appends, so a retry must not build on whatever the
+			// previous attempt left behind. ER_NEED_REPREPARE is raised before any
+			// row comes back, so today this only ever resets an empty slice; it is
+			// here so the closure stays safe to re-run if the retry set widens.
+			batch = batch[:0]
+			return txx.Select(&batch,
+				`SELECT id, raw_response FROM windows_mdm_responses
 			 WHERE id > ? AND raw_response_gz IS NULL
-			 ORDER BY id LIMIT ?`, lastID, batchSize); err != nil {
+			 ORDER BY id LIMIT ?`, lastID, batchSize)
+		}); err != nil {
 			return fmt.Errorf("selecting batch starting after id %d: %w", lastID, err)
 		}
 		if len(batch) == 0 {
@@ -96,7 +109,10 @@ func backfillWindowsMDMResponsesGz(tx *sql.Tx, increment incrementCountFn) error
 			if err := gw.Close(); err != nil {
 				return fmt.Errorf("closing gzip writer for response id %d: %w", row.ID, err)
 			}
-			if _, err := txx.Exec(`UPDATE windows_mdm_responses SET raw_response_gz = ? WHERE id = ?`, buf.Bytes(), row.ID); err != nil {
+			if err := retryOnNeedReprepare(func() error {
+				_, err := txx.Exec(`UPDATE windows_mdm_responses SET raw_response_gz = ? WHERE id = ?`, buf.Bytes(), row.ID)
+				return err
+			}); err != nil {
 				return fmt.Errorf("storing compressed response id %d: %w", row.ID, err)
 			}
 			increment()

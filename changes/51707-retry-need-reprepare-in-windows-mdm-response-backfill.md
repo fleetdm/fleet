@@ -1,0 +1,1 @@
+- Fixed an upgrade to 4.89.x aborting with `Error 1615 (HY000): Prepared statement needs to be re-prepared` while backfilling `windows_mdm_responses.raw_response_gz`. MySQL documents 1615 as the client's to re-execute, and it leaves the migration's transaction open, so the statement is now retried in place instead of failing the migration.
