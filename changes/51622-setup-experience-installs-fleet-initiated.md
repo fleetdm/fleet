@@ -1,0 +1,1 @@
+- Fixed software that Fleet installs during the setup experience being attributed to a user instead of to Fleet in the host's upcoming and past activities.
