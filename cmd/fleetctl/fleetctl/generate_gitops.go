@@ -281,11 +281,13 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "generate-gitops",
-		Hidden:      true,
-		Usage:       "Generate GitOps configuration files for Fleet.",
-		Description: "This command generates GitOps configuration files for Fleet.",
-		Action:      createGenerateGitopsAction(nil),
+		Name:  "generate-gitops",
+		Usage: "Migrate an existing Fleet instance's configuration to GitOps YAML files",
+		Description: "Exports an existing Fleet's configuration " +
+			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
+			"YAML files. Use this to migrate an existing Fleet to GitOps.\n\n" +
+			"If you're getting started with GitOps, use `fleetctl new` instead",
+		Action: createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -1990,7 +1992,11 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 	const perPage = 1000
 	var titles []fleet.SoftwareTitleListResult
 	for page := 0; ; page++ {
-		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d", teamID, perPage, page)
+		// order_key is load-bearing here, not cosmetic: the default order is by
+		// hosts_count, which changes as hosts install and uninstall software. An
+		// unstable order across a paginated read can duplicate or skip titles, and it
+		// makes every regenerated file differ from the last for no config reason.
+		query := fmt.Sprintf("available_for_install=1&fleet_id=%d&per_page=%d&page=%d&order_key=name", teamID, perPage, page)
 		pageTitles, err := client.ListSoftwareTitles(query)
 		if err != nil {
 			return nil, nil, nil, err
@@ -2078,7 +2084,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, nil // software is premium-only
 	}
 
-	query := fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID)
+	// Sorted by name so regenerating an unchanged config produces an unchanged file.
+	// The default order is by hosts_count, so the software list reshuffles whenever a
+	// host installs or uninstalls something, which shows up as a diff with no
+	// configuration change behind it.
+	query := fmt.Sprintf("available_for_install=1&fleet_id=%d&order_key=name", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
@@ -2102,10 +2112,18 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
 		return nil, err
 	}
+	// Each .ipa produces one title per platform but is deduplicated to a single
+	// YAML entry below, so collect its selections keyed by filename and emit
+	// them as setup_experience_platform instead of the setup_experience boolean.
+	inHouseSetupPlatformsByFilename := make(map[string][]string)
 	for _, software := range setupSoftware {
 		pkg := software.SoftwarePackage
 		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			if filepath.Ext(pkg.Name) == ".ipa" {
+				inHouseSetupPlatformsByFilename[pkg.Name] = append(inHouseSetupPlatformsByFilename[pkg.Name], pkg.Platform)
+			} else {
+				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			}
 		}
 		if software.AppStoreApp != nil {
 			appStoreApp := software.AppStoreApp
@@ -2449,6 +2467,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
 				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
+			}
+			// Never set together with the cross-selection emission above: .ipa
+			// titles can't be cross-selected because the setup experience listing
+			// excludes them for any non-mobile target platform.
+			if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[sp.Name]; ok && len(inHousePlatforms) > 0 {
+				slices.Sort(inHousePlatforms)
+				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
 			}
 		} else {
 			app := softwareTitle.AppStoreApp

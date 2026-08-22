@@ -17,6 +17,7 @@ import { GlobalPoliciesAutomationType } from "./global_policies";
 export type AutomationType =
   | "software"
   | "scripts"
+  | "profiles"
   | "calendar"
   | "conditional_access"
   | "other";
@@ -130,6 +131,7 @@ export default {
       software_title_id,
       software_installer_id,
       script_id,
+      profile_uuid,
       labels_include_any,
       labels_include_all,
       labels_exclude_any,
@@ -152,6 +154,7 @@ export default {
       software_title_id,
       software_installer_id,
       script_id,
+      profile_uuid,
       labels_include_any,
       labels_include_all,
       labels_exclude_any,

@@ -2892,16 +2892,16 @@ FROM (
 			COUNT(*) AS count_installer_labels,
 			COUNT(lm.label_id) AS count_host_labels,
 			SUM(
+				-- only dynamic labels (membership type 0) need to wait for the host to report label
+				-- results; manual and host vitals membership is populated by the server, so it is
+				-- known as soon as the label exists.
 				CASE WHEN lbl.created_at IS NOT NULL
-					AND lbl.label_membership_type = 0
-					AND(
-						SELECT
-							label_updated_at FROM hosts
-						WHERE
-							id = ?) >= lbl.created_at THEN
-					1
-				WHEN lbl.created_at IS NOT NULL
-					AND lbl.label_membership_type = 1 THEN
+					AND(lbl.label_membership_type <> 0
+						OR(
+							SELECT
+								label_updated_at FROM hosts
+							WHERE
+								id = ?) >= lbl.created_at) THEN
 					1
 				ELSE
 					0

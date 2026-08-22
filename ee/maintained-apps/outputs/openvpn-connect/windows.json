@@ -7,7 +7,7 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'OpenVPN Connect %' AND publisher = 'OpenVPN Inc.' AND version_compare(version, '3.9.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'openvpn connect.exe');"
       },
-      "installer_url": "https://packages.openvpn.net/connect/v3/openvpn-connect-3.9.0.5008_signed.msi",
+      "installer_url": "https://packages.openv.pn/connect/v3/openvpn-connect-3.9.0.5008_signed.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "9f994a0b",
       "sha256": "31347812dd37dbbb69bc47de842eb179827266e9dfb45e7f6ce10c5d71a5bad6",

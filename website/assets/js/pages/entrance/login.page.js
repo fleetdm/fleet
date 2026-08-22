@@ -95,7 +95,7 @@ parasails.registerPage('login', {
       }
     },
 
-    submittedSignupForm: async function(){
+    submittedSignupForm: async function(cloudResponse){
       this.syncing = true;
       // Track a "key event" in Google Analytics.
       // > Naming convention:  (like sails config)
@@ -108,6 +108,27 @@ parasails.registerPage('login', {
           'value': 1.0,
           'currency': 'USD'
         });
+        // Track a second key event depending the type of Fleet Premium trial they received.
+        if(cloudResponse.isIcpUser) {
+          // For users with a hosted Render trial
+          window.gtag('event','fleet_website__sign_up__icp');
+          // Additional conversion tracking
+          window.gtag('event', 'conversion', {
+            'send_to': 'AW-10788733823/aMyECLupkeUcEP-GvJgo',
+            'value': 1.0,
+            'currency': 'USD'
+          });
+
+        } else {
+          // For users with a local Fleet Premium trial.
+          window.gtag('event','fleet_website__sign_up__non_icp');
+          // Additional conversion tracking
+          window.gtag('event', 'conversion', {
+            'send_to': 'AW-10788733823/pk3BCK_XjuUcEP-GvJgo',
+            'value': 1.0,
+            'currency': 'USD'
+          });
+        }
       }
 
       // Track a "conversion" in LinkedIn Campaign Manager.

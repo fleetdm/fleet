@@ -235,9 +235,11 @@ const (
 	// Provisioning Doc Certificate Renewal Period (365 days)
 	WstepCertRenewalPeriodInDays = "365"
 
-	// Provisioning Doc Server supports ROBO auto certificate renewal
-	// TODO: Add renewal support
-	WstepROBOSupport = "true"
+	// WstepROBOSupport tells Windows whether Fleet supports ROBO auto
+	// certificate renewal. Set to "false" because Fleet does not implement
+	// the renewal endpoint. Advertising "true" causes Windows to attempt
+	// renewal, fail, and set EnrollmentState=3 on the host. See #50611.
+	WstepROBOSupport = "false"
 
 	// Provisioning Doc Server retry interval
 	WstepRenewRetryInterval = "4"
@@ -290,6 +292,15 @@ const (
 	ReqSecTokenContextItemApplicationVersion   = "ApplicationVersion"
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
+
+	// ReqSecTokenContextItemZeroTouchProvisioning carries the Autopilot ZTDID, ZTD being Microsoft's codename for
+	// Windows Autopilot. It is present only when the enrolling device is registered with Autopilot.
+	ReqSecTokenContextItemZeroTouchProvisioning = "ZeroTouchProvisioning"
+
+	// ReqSecTokenContextItemOfflineAutopilotCorrelator is a second Autopilot identifier that can accompany the item
+	// above. Fleet does not consume it and nothing links on it; it is logged as a diagnostic so that a device supplying
+	// this instead of a ZTDID is distinguishable from one that supplied nothing.
+	ReqSecTokenContextItemOfflineAutopilotCorrelator = "OfflineAutoPilotEnrollmentCorrelator"
 
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"

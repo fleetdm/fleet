@@ -250,7 +250,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
-  | ActivityType.ReleasedDeviceFromAB;
+  | ActivityType.ReleasedDeviceFromAB
+  | ActivityType.ResentConfigurationProfile;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -312,7 +313,6 @@ export interface IActivityDetails {
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
-  install_skipped_when_app_open?: boolean;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
@@ -341,6 +341,9 @@ export interface IActivityDetails {
   self_service?: boolean;
   self_service_category_id?: number | null;
   self_service_category_name?: string | null;
+  /** Set on a patch-when-closed skip (the app was open); `status` is then
+   * `failed_install`. */
+  skipped_install?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;

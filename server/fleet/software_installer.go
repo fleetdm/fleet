@@ -864,6 +864,8 @@ func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	switch ext {
 	case "sh", "py":
 		return []string{"darwin", "linux"}
+	case "ipa":
+		return []string{"ios", "ipados"}
 	default:
 		return nil
 	}
@@ -946,12 +948,17 @@ type SoftwarePackageOrApp struct {
 	// installed automatically with a policy.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
-	Version       string                 `json:"version"`
-	Platform      string                 `json:"platform"`
-	SelfService   *bool                  `json:"self_service,omitempty"`
-	LastInstall   *HostSoftwareInstall   `json:"last_install"`
-	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
-	PackageURL    *string                `json:"package_url"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+	SelfService *bool  `json:"self_service,omitempty"`
+	// HasUninstallScript indicates whether the installer has a non-empty
+	// uninstall script configured. Absent for VPP and in-house apps (the
+	// key is dropped via omitempty on a nil pointer), and absent on
+	// /software/titles responses; only host software responses set it.
+	HasUninstallScript *bool                  `json:"has_uninstall_script,omitempty"`
+	LastInstall        *HostSoftwareInstall   `json:"last_install"`
+	LastUninstall      *HostSoftwareUninstall `json:"last_uninstall"`
+	PackageURL         *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
 	InstallDuringSetup      *bool                    `json:"install_during_setup,omitempty" db:"install_during_setup"`
@@ -1009,8 +1016,9 @@ type SoftwarePackageSpec struct {
 	// consistent with the query/policy `platform` field. Additive with
 	// InstallDuringSetup: the native platform is controlled by that bool, the
 	// non-native entries feed the setup_experience_software_installers
-	// cross-table. Only meaningful for packages whose file can run on more than
-	// one platform (today: .sh).
+	// cross-table. Only meaningful for packages that produce more than one
+	// setup experience target: cross-platform scripts (.sh, .py) and .ipa
+	// packages, whose single entry stands for both the iOS and iPadOS titles.
 	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
 	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
