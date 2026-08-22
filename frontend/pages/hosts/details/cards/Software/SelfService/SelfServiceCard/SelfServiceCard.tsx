@@ -261,10 +261,11 @@ const SelfServiceCard = ({
     );
   }
 
-  // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
-  const filteredSoftware = isMobileView
-    ? softwareInSelectedCategoryMatchingQuery
-    : softwareInSelectedCategory;
+  // Apply the search-query filter for both desktop and mobile so the client-side
+  // match spans name, bundle_identifier, and display_name — the same columns the
+  // backend MatchQuery searches. TableContainer's built-in searchQueryColumn is
+  // single-column, so we pre-filter here instead.
+  const filteredSoftware = softwareInSelectedCategoryMatchingQuery;
 
   // The button is shown on desktop ONLY when a specific category is selected
   // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
