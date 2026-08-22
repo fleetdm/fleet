@@ -2407,7 +2407,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
-		// Checked before the reset below so the skipped host keeps its attempt numbers.
+		// Don't attempt another install for this policy if the retry limit is reached.
 		if svc.installFailureLimitReached(ctx, hostID, installerMetadata.InstallerID, policyID) {
 			continue
 		}

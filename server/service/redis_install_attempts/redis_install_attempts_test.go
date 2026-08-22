@@ -111,16 +111,17 @@ func testCountsAreScopedToHostAndInstaller(t *testing.T, counter *redisInstallAt
 		require.NoError(t, err)
 	}
 
-	// A different installer on the same host, and the same installer on a different
-	// host, each count separately.
+	// A different installer on the same host counts separately.
 	count, err := counter.CountAttempts(ctx, 10, 21)
 	require.NoError(t, err)
 	require.Zero(t, count)
 
+	// So does the same installer on a different host.
 	count, err = counter.CountAttempts(ctx, 11, 20)
 	require.NoError(t, err)
 	require.Zero(t, count)
 
+	// The host and installer that recorded the attempts keeps its own count.
 	count, err = counter.CountAttempts(ctx, 10, 20)
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
