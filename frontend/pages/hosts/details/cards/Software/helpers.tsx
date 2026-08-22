@@ -502,15 +502,9 @@ export const getSoftwareSubheader = ({
     : "Software installed on this host.";
 };
 
-/**
- * Reports whether any of the software that just left a pending state finished
- * successfully.
- *
- * Callers use this to decide whether to refetch host details after installs or
- * uninstalls complete. A failure changes nothing on the host, so there is no new
- * inventory to read back, and the refetch makes the host re-run its policies, which
- * re-triggers the policy automation that queued the failed install.
- */
+// Reports whether any of the software that just left a pending state finished
+// successfully. A failure leaves the host unchanged, so there is no new inventory to
+// refetch.
 export const anyCompletedSoftwareSucceeded = (
   completedIds: string[],
   software: IHostSoftware[]
