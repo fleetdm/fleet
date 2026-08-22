@@ -332,6 +332,15 @@ The arrangement between groups can be a mutual trade (your group covers reviews 
 
 The goal is to keep pull requests moving. A brief async message to arrange coverage is far cheaper than a week of blocked PRs.
 
+
+### Unfinished pull requests during time off
+
+A pull request is marked ready for review, but the author is away and the change isn't finished. Completing someone else's change is not review, and it costs the group more than the author would have spent.
+
+1. **Move it back to draft.** If the change isn't ready, put the pull request in draft and comment saying what's missing. This isn't a rejection, and it doesn't need the author's permission. It also stops the next reviewer from spending a pass on it.
+2. **Don't adopt it by default.** Finishing someone else's pull request is real work. Bring it to your Engineering Manager (EM), who decides whether it's worth doing now or when the author is back.
+3. **Point the author to the expectations.** Contributors from outside the product group may not know what Fleet expects. Link them to [pull request etiquette](https://fleetdm.com/handbook/engineering#pull-request-etiquette) rather than assuming they knew.
+
 ### Daily standup (30 minutes)
 
 By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review reviewed. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
