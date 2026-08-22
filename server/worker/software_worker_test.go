@@ -455,3 +455,42 @@ func TestQueueMakeAndroidAppUnavailableJobChunking(t *testing.T) {
 	}
 	require.Equal(t, 5, totalHosts)
 }
+
+func TestBuildApplicationPolicyWithConfig(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("app with full configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"managedConfiguration": {"key": "value"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "com.example.app", policies[0].PackageName)
+		require.Equal(t, "AVAILABLE", policies[0].InstallType)
+		require.JSONEq(t, `{"key": "value"}`, string(policies[0].ManagedConfiguration))
+		require.Equal(t, "WORK_PROFILE_WIDGETS_ALLOWED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("app without configuration clears previously applied settings", func(t *testing.T) {
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, nil, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Empty(t, policies[0].ManagedConfiguration)
+		require.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", policies[0].CredentialProviderPolicy)
+	})
+
+	t.Run("partial configuration leaves other fields unset", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "FORCE_INSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
+		require.Empty(t, policies[0].WorkProfileWidgets)
+		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
+	})
+}
