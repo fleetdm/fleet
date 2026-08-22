@@ -143,20 +143,44 @@ else
   done
 fi
 
+# Lookback hours per file, used to normalize count metrics (request totals,
+# 5xx, evictions, error counts) to per-hour rates. Runs are collected with
+# different intervals (16h vs 20h etc.), so raw sums aren't comparable.
+interval_hours() {
+  local iv="$1"
+  if [[ "$iv" =~ ^([0-9]+)m$ ]]; then
+    awk -v n="${BASH_REMATCH[1]}" 'BEGIN { printf "%.4f", n / 60 }'
+  elif [[ "$iv" =~ ^([0-9]+)h?$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+  else
+    echo 1
+  fi
+}
+
+FILE_HOURS=()
+INTERVALS_DIFFER=false
 echo "Comparing ${#ORDERED_FILES[@]} runs (oldest → newest):"
 echo ""
 for f in "${ORDERED_FILES[@]}"; do
   ws=$(jq -r '.metadata.workspace' "$f")
   ts=$(jq -r '.metadata.collected_at' "$f")
-  interval=$(jq -r '.metadata.interval' "$f")
+  interval=$(jq -r '.metadata.interval // "1h"' "$f")
+  FILE_HOURS+=("$(interval_hours "$interval")")
   printf "  %s  (%s, %s)\n" "$(basename "$f")" "$ws" "$interval"
 done
+if [[ "$(printf '%s\n' "${FILE_HOURS[@]}" | sort -u | wc -l)" -gt 1 ]]; then
+  INTERVALS_DIFFER=true
+fi
+echo ""
+echo "Count metrics (…/h) are normalized by each run's lookback interval."
+[[ "$INTERVALS_DIFFER" == true ]] && echo "Note: runs have DIFFERENT intervals — un-normalized sums would not be comparable."
+echo "Delta and Status compare the two most recent runs."
 echo ""
 
 # ---------------------------------------------------------------------------
 # Metric definitions: JSON path, display name, format, thresholds
 #
-# Format: path|name|unit|warn_pct|alert_pct|zero_alert|abs_op|abs_threshold
+# Format: path|name|unit|warn_pct|alert_pct|zero_alert|abs_op|abs_threshold|rate
 #   - warn_pct:       percentage change (delta) that triggers a ⚠️  warning
 #   - alert_pct:      percentage change (delta) that triggers a 🔴 alert
 #   - zero_alert:     "true" if going from 0 to non-zero is always an alert
@@ -165,62 +189,94 @@ echo ""
 #   - abs_threshold:  the absolute threshold value. Each individual column value
 #                     is checked against this — a 🔴 appears inline next to any
 #                     value that violates. Delta/Status only reflects relative change.
+#   - rate:           "rate" to divide the value by the run's interval hours before
+#                     display/comparison. Use for window-length-dependent counters
+#                     (sums) so runs with different intervals stay comparable.
+#   - min_grade:      minimum absolute |new − old| change (in the metric's own
+#                     unit) required before WARN/ALERT grading kicks in. Guards
+#                     against huge-percentage noise on near-zero values (e.g.
+#                     read IOPS going 1.2 → 5.1 is +197% but meaningless on an
+#                     instance rated for 15000+). Empty = always grade.
 # ---------------------------------------------------------------------------
-METRIC_DEFS=(
-  # Fleet Server
-  ".fleet_server.cpu_utilization.Average|Fleet CPU|%|15|30|false|lt|80"
-  ".fleet_server.cpu_utilization.Maximum|Fleet CPU (max)|%|20|40|false||"
-  ".fleet_server.memory_utilization.Average|Fleet Memory|%|15|30|false|lt|80"
-
-  # RDS Writer
-  ".rds_writer.cpu_utilization.Average|RDS Writer CPU|%|15|30|false|lt|80"
-  ".rds_writer.database_connections.Average|RDS Writer Conns||50|100|false||"
-  ".rds_writer.read_iops.Average|RDS Writer Read IOPS||50|100|false||"
-  ".rds_writer.write_iops.Average|RDS Writer Write IOPS||50|100|false||"
-  ".rds_writer.deadlocks.Sum|RDS Deadlocks||0|0|true|eq|0"
-
-  # Redis (first node)
-  ".redis[0].cpu_utilization.Average|Redis CPU|%|20|40|false|lt|80"
-  ".redis[0].memory_utilization.Average|Redis Memory|%|15|30|false|lt|70"
+FLEET_DEFS=(
+  ".fleet_server.cpu_utilization.Average|Fleet CPU|%|10|30|false|lt|80||5"
+  ".fleet_server.cpu_utilization.Maximum|Fleet CPU (max)|%|20|40|false||||5"
+  ".fleet_server.memory_utilization.Average|Fleet Memory|%|15|30|false|lt|80||5"
+  ".fleet_server.task_counts.runningCount|Fleet Containers||0|0|false||||"
 )
 
-# ALB metrics
+# Loadtest containers — context for everything else: server-side numbers only
+# compare cleanly when the simulated-host load was equivalent.
+LOADTEST_DEFS=(
+  ".loadtest_containers.cpu_utilization.Average|Loadtest CPU|%|20|40|false|lt|90||5"
+  ".loadtest_containers.memory_utilization.Average|Loadtest Memory|%|20|40|false|lt|90||5"
+  ".loadtest_containers.task_counts.runningCount|Loadtest Containers||0|0|false||||"
+)
+
+RDS_WRITER_DEFS=(
+  ".rds_writer.cpu_utilization.Average|RDS Writer CPU|%|15|30|false|lt|80||5"
+  ".rds_writer.database_connections.Average|RDS Writer Conns||50|100|false||||50"
+  ".rds_writer.read_iops.Average|RDS Writer Read IOPS||50|100|false||||200"
+  # Historically very stable (≤4% release-over-release) and proportional to
+  # workload volume, so graded tighter than the other IOPS metrics.
+  ".rds_writer.write_iops.Average|RDS Writer Write IOPS||20|40|false||||300"
+  ".rds_writer.deadlocks.Sum|RDS Deadlocks||0|0|true|eq|0||"
+)
+
+REDIS_DEFS=(
+  ".redis[0].cpu_utilization.Average|Redis CPU|%|20|40|false|lt|80||5"
+  ".redis[0].memory_utilization.Average|Redis Memory|%|15|30|false|lt|70||5"
+)
+
+# ALB metrics. Percentiles only exist in runs collected after they were added;
+# older runs show N/A. (Note: pre-existing runs also recorded ALB Latency avg
+# as 0 due to an over-aggressive rounding bug in collect-metrics.sh — treat
+# their averages as missing, and lean on p95/p99 going forward.)
 ALB_DEFS=(
-  ".alb.target_response_time.Average|ALB Latency|s|50|100|false||"
-  ".alb.target_response_time.Maximum|ALB Latency (max)|s|50|100|false||"
-  ".alb.http_5xx_count.Sum|ALB 5xx Errors||0|0|true|eq|0"
-  ".alb.request_count.Sum|ALB Requests||0|0|false||"
+  ".alb.target_response_time.Average|ALB Latency (avg)|s|50|100|false||||0.05"
+  ".alb.target_response_time_percentiles.p95|ALB Latency (p95)|s|50|100|false||||0.1"
+  ".alb.target_response_time_percentiles.p99|ALB Latency (p99)|s|50|100|false||||0.25"
+  ".alb.target_response_time.Maximum|ALB Latency (max)|s|50|100|false||||2"
+  ".alb.http_5xx_count.Sum|ALB Target 5xx/h||0|0|true|eq|0|rate|"
+  ".alb.http_elb_5xx_count.Sum|ALB ELB 5xx/h||0|0|true|eq|0|rate|"
+  ".alb.request_count.Sum|ALB Requests/h||0|0|false|||rate|"
+  ".alb.processed_bytes.Sum|ALB Traffic/h|bytes|0|0|false|||rate|"
 )
 
 # RDS Writer extended
 RDS_WRITER_EXT_DEFS=(
-  ".rds_writer_extended.buffer_cache_hit_ratio.Average|RDS Cache Hit Ratio|%|1|3|false||"
-  ".rds_writer_extended.freeable_memory.Average|RDS Freeable Memory|bytes|15|30|false||"
-  ".rds_writer_extended.select_latency.Average|RDS Select Latency|ms|50|100|false||"
-  ".rds_writer_extended.insert_latency.Average|RDS Insert Latency|ms|50|100|false||"
-  ".rds_writer_extended.dml_latency.Average|RDS DML Latency|ms|50|100|false||"
-  ".rds_writer_extended.iops_utilization.utilization_pct|IOPS Utilization|%|15|30|false|lt|80"
+  ".rds_writer_extended.buffer_cache_hit_ratio.Average|RDS Cache Hit Ratio|%|1|3|false||||0.5"
+  ".rds_writer_extended.freeable_memory.Average|RDS Freeable Memory|bytes|15|30|false||||1073741824"
+  ".rds_writer_extended.select_latency.Average|RDS Select Latency|ms|50|100|false||||2"
+  # Fleet's write path (host check-ins, inventory) — historically ≤10% noise,
+  # so graded tighter than SELECT latency, which swings much more run-to-run.
+  ".rds_writer_extended.insert_latency.Average|RDS Insert Latency|ms|25|50|false||||2"
+  ".rds_writer_extended.dml_latency.Average|RDS DML Latency|ms|25|50|false||||2"
+  ".rds_writer_extended.threads_running.average|RDS Writer Active Sessions||25|50|false||||2"
+  ".rds_writer_extended.iops_utilization.utilization_pct|IOPS Utilization|%|15|30|false|lt|80||5"
 )
 
 # RDS Reader extended (first reader)
 RDS_READER_EXT_DEFS=(
-  ".rds_readers_extended[0].aurora_replica_lag.Average|Aurora Replica Lag|ms|50|100|false||"
-  ".rds_readers_extended[0].buffer_cache_hit_ratio.Average|Reader Cache Hit Ratio|%|1|3|false||"
-  ".rds_readers_extended[0].iops_utilization.utilization_pct|Reader IOPS Utilization|%|15|30|false|lt|80"
+  ".rds_readers_extended[0].aurora_replica_lag.Average|Aurora Replica Lag|ms|50|100|false||||5"
+  ".rds_readers_extended[0].buffer_cache_hit_ratio.Average|Reader Cache Hit Ratio|%|1|3|false||||0.5"
+  ".rds_readers_extended[0].iops_utilization.utilization_pct|Reader IOPS Utilization|%|15|30|false|lt|80||5"
 )
 
 # Redis extended (first node)
 REDIS_EXT_DEFS=(
-  ".redis_extended[0].curr_connections.Average|Redis Connections||50|100|false||"
-  ".redis_extended[0].evictions.Sum|Redis Evictions||0|0|true|eq|0"
-  ".redis_extended[0].cache_hit_rate.Average|Redis Cache Hit Rate|%|5|15|false||"
+  ".redis_extended[0].curr_connections.Average|Redis Connections||50|100|false||||50"
+  ".redis_extended[0].evictions.Sum|Redis Evictions/h||0|0|true|eq|0|rate|"
+  ".redis_extended[0].cache_hit_rate.Average|Redis Cache Hit Rate|%|5|15|false||||5"
 )
 
 # Other
 OTHER_DEFS=(
-  ".fleet_server_errors.error_count|Fleet Server Errors||0|0|true|eq|0"
-  ".container_health.abnormal_stops|Container Stops||0|0|true|eq|0"
-  ".container_health.start_spread_min|Container Start Spread|min|5|10|false|lt|10"
+  ".fleet_server_errors.error_count|Fleet Errors/h||0|0|true|eq|0|rate|"
+  ".container_health.abnormal_stops|Container Stops||0|0|true|eq|0||"
+  ".container_health.fleet_abnormal_stops|Fleet Container Stops||0|0|true|eq|0||"
+  ".container_health.failed_health_checks|Failed Health Checks||0|0|true|eq|0||"
+  ".container_health.unable_to_place|Placement Failures||0|0|true|eq|0||"
 )
 
 # ---------------------------------------------------------------------------
@@ -258,7 +314,15 @@ fmt_val() {
     s)  printf "%.3fs" "$val" ;;
     ms) printf "%.1fms" "$val" ;;
     min) printf "%.1fmin" "$val" ;;
-    *)  printf "%.1f" "$val" ;;
+    *)
+      # Show extra precision for small nonzero values so e.g. a deadlock sum
+      # of 0.002 doesn't render as a self-contradictory "0.0 🔴".
+      awk -v v="$val" 'BEGIN {
+        av = (v < 0) ? -v : v
+        if (av != 0 && av < 0.1) printf "%.4f", v
+        else printf "%.1f", v
+      }'
+      ;;
   esac
 }
 
@@ -303,6 +367,14 @@ status_icon() {
       echo "  ALERT"
       return
     fi
+  fi
+
+  # old == 0, new != 0 on a non-zero-alert metric: the percentage is undefined
+  # (pct_change returns the 999 sentinel), so don't grade — 0 usually means the
+  # metric wasn't captured in the older run rather than a real regression.
+  if [[ "$change" == "999" ]]; then
+    echo "  —"
+    return
   fi
 
   # For inverted metrics (higher is better, like cache hit ratio),
@@ -356,6 +428,12 @@ check_abs_threshold() {
   fi
 }
 
+# below_min_grade <prev> <last> <floor> — true when |last − prev| is under the
+# metric's materiality floor, i.e. the change is too small to grade.
+below_min_grade() {
+  awk -v a="$1" -v b="$2" -v m="$3" 'BEGIN { d = b - a; if (d < 0) d = -d; exit !(d < m) }'
+}
+
 # ---------------------------------------------------------------------------
 # Compare metrics across all files
 # ---------------------------------------------------------------------------
@@ -377,6 +455,8 @@ log_alert() {
   fi
 }
 
+LOW_COVERAGE_SEEN=false
+
 compare_metric_set() {
   local label="$1"
   shift
@@ -385,16 +465,34 @@ compare_metric_set() {
   local section_output=""
 
   for def in "${defs[@]}"; do
-    IFS='|' read -r path name unit warn alert zero_alert abs_op abs_threshold <<< "$def"
+    IFS='|' read -r path name unit warn alert zero_alert abs_op abs_threshold rate min_grade <<< "$def"
 
-    # Check if this metric exists in at least the last two files
-    local last_file
-    last_file=$(arr_last "${ORDERED_FILES[@]}")
-    local prev_file
-    prev_file=$(arr_prev "${ORDERED_FILES[@]}")
+    # Sibling data_coverage path for CloudWatch-statistic values. A value with
+    # low coverage was averaged over only part of the window — mark it.
+    local cov_path=""
+    case "$path" in
+      *.Average|*.Maximum|*.Minimum|*.Sum) cov_path="${path%.*}.data_coverage" ;;
+    esac
+
+    # Extract (and rate-normalize) the value from every file up front.
+    local vals=() covs=() i
+    for (( i=0; i<${#ORDERED_FILES[@]}; i++ )); do
+      local val
+      val=$(get_val "${ORDERED_FILES[$i]}" "$path")
+      if [[ "$rate" == "rate" && "$val" != "null" ]]; then
+        val=$(awk -v v="$val" -v h="${FILE_HOURS[$i]}" 'BEGIN { printf "%.4f", v / h }')
+      fi
+      vals+=("$val")
+      if [[ -n "$cov_path" ]]; then
+        covs+=("$(get_val "${ORDERED_FILES[$i]}" "$cov_path")")
+      else
+        covs+=("null")
+      fi
+    done
+
     local last_val prev_val
-    last_val=$(get_val "$last_file" "$path")
-    prev_val=$(get_val "$prev_file" "$path")
+    last_val=$(arr_last "${vals[@]}")
+    prev_val=$(arr_prev "${vals[@]}")
 
     if [[ "$last_val" == "null" && "$prev_val" == "null" ]]; then
       continue
@@ -403,11 +501,11 @@ compare_metric_set() {
 
     # Determine grading direction:
     #   invert — decrease is the regression (higher is better)
-    #   info   — throughput counters that grow run-to-run; show the delta but never grade it
+    #   info   — context values (throughput, container counts); shown but never graded
     local direction="normal"
     case "$name" in
       *"Cache Hit"*|*"Freeable Memory"*) direction="invert" ;;
-      *"Requests"*) direction="info" ;;
+      *"Requests"*|*"Traffic"*|*"Containers"*) direction="info" ;;
     esac
 
     # Build the row: name, then value for each file, then delta + status
@@ -415,24 +513,32 @@ compare_metric_set() {
     row=$(printf "  %-28s" "$name")
 
     # Values for each file — check each against absolute threshold
-    for f in "${ORDERED_FILES[@]}"; do
-      local val ws_name
-      val=$(get_val "$f" "$path")
-      ws_name=$(jq -r '.metadata.workspace' "$f")
+    for (( i=0; i<${#ORDERED_FILES[@]}; i++ )); do
+      local val="${vals[$i]}" ws_name display
+      ws_name=$(jq -r '.metadata.workspace' "${ORDERED_FILES[$i]}")
+      display=$(fmt_val "$val" "$unit")
+      # Mark values whose underlying datapoint coverage was < 75% of the window
+      if [[ "${covs[$i]}" != "null" ]] && awk -v c="${covs[$i]}" 'BEGIN { exit !(c < 0.75) }'; then
+        display+="*"
+        LOW_COVERAGE_SEEN=true
+      fi
       local abs_icon
       abs_icon=$(check_abs_threshold "$val" "$abs_op" "$abs_threshold")
       if [[ -n "$abs_icon" ]]; then
-        row+=$(printf "  %9s%s" "$(fmt_val "$val" "$unit")" "$abs_icon")
-        log_alert 1 "$name" "$(fmt_val "$val" "$unit") in $ws_name (threshold: ${abs_op} ${abs_threshold})"
+        row+=$(printf "  %9s%s" "$display" "$abs_icon")
+        log_alert 1 "$name" "$display in $ws_name (threshold: ${abs_op} ${abs_threshold})"
       else
-        row+=$(printf "  %12s" "$(fmt_val "$val" "$unit")")
+        row+=$(printf "  %12s" "$display")
       fi
     done
 
     # Delta between last two
     local change
     change=$(pct_change "$prev_val" "$last_val")
-    if [[ "$change" != "null" ]]; then
+    if [[ "$change" == "999" ]]; then
+      # old value was 0 — percentage undefined
+      row+=$(printf "  %9s" "0→new")
+    elif [[ "$change" != "null" ]]; then
       local sign=""
       local is_positive
       is_positive=$(awk -v c="$change" 'BEGIN { print (c > 0) ? "true" : "false" }')
@@ -442,9 +548,17 @@ compare_metric_set() {
       row+=$(printf "  %9s" "—")
     fi
 
-    # Status (relative change)
+    # Status (relative change). Skip grading when the absolute change is below
+    # the metric's materiality floor — percentage deltas on near-zero values
+    # are noise, not regressions. Zero-alert metrics are exempt from the floor
+    # so a 0 → non-zero regression can never be suppressed by one.
     local icon
-    icon=$(status_icon "$change" "$warn" "$alert" "$zero_alert" "$prev_val" "$last_val" "$direction")
+    if [[ -n "$min_grade" && "$zero_alert" != "true" && "$prev_val" != "null" && "$last_val" != "null" && "$direction" != "info" ]] && \
+       below_min_grade "$prev_val" "$last_val" "$min_grade"; then
+      icon="  ok"
+    else
+      icon=$(status_icon "$change" "$warn" "$alert" "$zero_alert" "$prev_val" "$last_val" "$direction")
+    fi
     row+="$icon"
 
     case "$icon" in
@@ -475,9 +589,10 @@ separator=""
 for (( i=0; i < ${#header}; i++ )); do separator+="-"; done
 echo "$separator"
 
-compare_metric_set "Fleet Server" "${METRIC_DEFS[@]:0:3}"
-compare_metric_set "RDS Writer" "${METRIC_DEFS[@]:3:5}"
-compare_metric_set "Redis" "${METRIC_DEFS[@]:8:2}"
+compare_metric_set "Fleet Server" "${FLEET_DEFS[@]}"
+compare_metric_set "Loadtest Containers" "${LOADTEST_DEFS[@]}"
+compare_metric_set "RDS Writer" "${RDS_WRITER_DEFS[@]}"
+compare_metric_set "Redis" "${REDIS_DEFS[@]}"
 compare_metric_set "ALB" "${ALB_DEFS[@]}"
 compare_metric_set "RDS Writer (extended)" "${RDS_WRITER_EXT_DEFS[@]}"
 compare_metric_set "Aurora Replication" "${RDS_READER_EXT_DEFS[@]}"
@@ -506,10 +621,10 @@ if [[ "$has_readers" == true ]]; then
     fi
 
     for metric_pair in \
-      "cpu_utilization.Average|Reader $((idx+1)) CPU|%|15|30|lt|90" \
-      "database_connections.Average|Reader $((idx+1)) Conns||50|100||" \
-      "read_iops.Average|Reader $((idx+1)) Read IOPS||50|100||"; do
-      IFS='|' read -r mpath mname munit mwarn malert mabs_op mabs_threshold <<< "$metric_pair"
+      "cpu_utilization.Average|Reader $((idx+1)) CPU|%|15|30|lt|90|5" \
+      "database_connections.Average|Reader $((idx+1)) Conns||50|100|||50" \
+      "read_iops.Average|Reader $((idx+1)) Read IOPS||50|100|||200"; do
+      IFS='|' read -r mpath mname munit mwarn malert mabs_op mabs_threshold mmin_grade <<< "$metric_pair"
       full_path=".rds_readers[$idx].$mpath"
 
       row=$(printf "  %-28s" "$mname")
@@ -539,7 +654,12 @@ if [[ "$has_readers" == true ]]; then
         row+=$(printf "  %9s" "—")
       fi
 
-      icon=$(status_icon "$change" "$mwarn" "$malert" "false" "$prev_val" "$last_val")
+      if [[ -n "$mmin_grade" && "$prev_val" != "null" && "$last_val" != "null" ]] && \
+         below_min_grade "$prev_val" "$last_val" "$mmin_grade"; then
+        icon="  ok"
+      else
+        icon=$(status_icon "$change" "$mwarn" "$malert" "false" "$prev_val" "$last_val")
+      fi
       row+="$icon"
       case "$icon" in
         *ALERT*) log_alert 1 "$mname" "delta ${change}% (threshold: ${malert}%)" ;;
@@ -551,6 +671,99 @@ if [[ "$has_readers" == true ]]; then
   echo ""
 fi
 
+
+# ---------------------------------------------------------------------------
+# Top SQL comparison (Performance Insights, load by average active sessions)
+# ---------------------------------------------------------------------------
+# The historical expectation is "same as previous load test": the set of top
+# statements should stay stable release over release. A NEW statement entering
+# the top-N, or a large load increase for an existing one, usually points at a
+# query regression or a new hot code path.
+#
+# Statements are matched across runs by their full tokenized SQL text (stable
+# because Performance Insights normalizes literals to placeholders). Rows are
+# ordered by the newest run's ranking, then statements only seen in older runs.
+print_top_sql_section() {
+  local label="$1" src="$2"
+
+  # One jq pass over all files. TSV rows: flag, delta, sql, then one
+  # "load #rank" cell per run ("—" when the statement isn't in that run's top-N).
+  local tsv
+  tsv=$(jq -s -r --arg src "$src" '
+    [ .[] | (if $src == "writer"
+             then .rds_performance_insights.writer
+             else .rds_performance_insights.readers[0].top_sql
+             end) // [] ] as $runs
+    | ($runs | length) as $n
+    | $runs[$n-1] as $newest
+    | $runs[$n-2] as $prev
+    | if ($newest | length) == 0 or ($prev | length) == 0 then empty
+      else
+        ( ($newest + ($runs | add)) | map(.sql)
+          | reduce .[] as $s ([]; if index($s) then . else . + [$s] end)
+        ) as $keys
+        | $keys[] as $sql
+        | [ $runs[] | (map(select(.sql == $sql)) | .[0]) ] as $entries
+        | $entries[$n-1] as $ne
+        | $entries[$n-2] as $pe
+        | ( if $ne == null or $pe == null or ($pe.load_avg // 0) <= 0 then null
+            else (($ne.load_avg - $pe.load_avg) / $pe.load_avg * 100 * 10 | round / 10)
+            end ) as $delta
+        | ( if $ne != null and $pe == null then "NEW"
+            elif $ne == null then "-"
+            elif $delta == null then "ok"
+            elif $delta >= 100 then "ALERT"
+            elif $delta >= 50 then "WARN"
+            else "ok" end ) as $flag
+        | [ $flag,
+            (if $flag == "NEW" then "new"
+             elif $delta == null then "-"
+             else (if $delta > 0 then "+" else "" end) + ($delta | tostring) + "%" end),
+            ($sql | gsub("\\s+"; " ") | .[0:44]),
+            ($entries[] | if . then "\(.load_avg) #\(.rank)" else "-" end)
+          ] | @tsv
+      end
+  ' "${ORDERED_FILES[@]}" 2>/dev/null) || tsv=""
+  [[ -z "$tsv" ]] && return
+
+  echo "$label (load by AAS; matched on full tokenized SQL)"
+  local hdr f
+  hdr=$(printf "  %-46s" "Statement")
+  for f in "${ORDERED_FILES[@]}"; do
+    hdr+=$(printf "  %13s" "$(jq -r '.metadata.workspace' "$f")")
+  done
+  hdr+=$(printf "  %8s  %s" "Delta" "Status")
+  echo "$hdr"
+
+  local line
+  while IFS= read -r line; do
+    local fields
+    IFS=$'\t' read -r -a fields <<< "$line"
+    local flag="${fields[0]}" delta="${fields[1]}" sql="${fields[2]}"
+    local row
+    row=$(printf "  %-46s" "$sql")
+    local i
+    for (( i=3; i<${#fields[@]}; i++ )); do
+      row+=$(printf "  %13s" "${fields[$i]}")
+    done
+    row+=$(printf "  %8s  %s" "$delta" "$flag")
+    echo "$row"
+    case "$flag" in
+      ALERT) log_alert 1 "$label" "load delta ${delta} for: ${sql}" ;;
+      WARN)  log_alert 2 "$label" "load delta ${delta} for: ${sql}" ;;
+      NEW)   log_alert 2 "$label" "new statement in top-N: ${sql}" ;;
+    esac
+  done <<< "$tsv"
+  echo ""
+}
+
+print_top_sql_section "Top SQL — RDS Writer" writer
+print_top_sql_section "Top SQL — RDS Reader 1" reader
+
+if [[ "$LOW_COVERAGE_SEEN" == true ]]; then
+  echo "* value had <75% datapoint coverage in that run's window — treat with caution"
+  echo ""
+fi
 
 # ---------------------------------------------------------------------------
 # Synopsis — all alerts and warnings sorted by severity (highest first)

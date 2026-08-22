@@ -7,8 +7,20 @@ against each other to catch regressions release-over-release.
 - `collect-metrics.sh` — discovers a load test environment's AWS resources from its
   Terraform workspace name, pulls CloudWatch metrics averaged over a lookback interval,
   and writes a `.json` data file plus a human-readable `.md` synopsis (with threshold alerts).
+  Covers ECS (Fleet server + loadtest containers), RDS writer/readers (including
+  Performance Insights top SQL and active sessions), Redis, ALB (avg/p95/p99 latency,
+  target and ELB 5xx, request/traffic volume), Fleet server log errors, and container
+  restart health. Each CloudWatch metric records a `data_coverage` ratio (fraction of
+  the window with datapoints) so partial-window runs are detectable.
 - `compare-metrics.sh` — diffs two or more runs side by side and flags deltas as
-  `ok` / `WARN` / `ALERT`.
+  `ok` / `WARN` / `ALERT`. Count metrics (requests, 5xx, evictions, log errors) are
+  normalized to per-hour rates using each run's interval, so runs with different
+  lookback windows compare fairly. Grading has per-metric materiality floors —
+  large percentage swings on near-zero values are not flagged. Values collected
+  with <75% datapoint coverage are marked with `*`. Performance Insights top SQL
+  is diffed across runs (matched on the full tokenized statement): new statements
+  entering the top-N are flagged `NEW`, and load increases ≥50%/≥100% for an
+  existing statement are graded WARN/ALERT.
 
 ## Requirements
 
@@ -93,12 +105,26 @@ The category subfolder is purely for human organization; the scripts don't depen
 Keeping workspace names to these conventions is what makes `--filter` a reliable category
 selector.
 
+## Known caveats in historical runs
+
+Runs collected before August 2026 (≤ 4.89) have two data quirks from since-fixed
+collection bugs:
+
+- `alb.target_response_time.Average` is `0` — an over-aggressive rounding step
+  flattened seconds-scale averages. Use p95/p99 (present in newer runs) going forward.
+- `container_health` start-spread/uptime fields are `null`/empty, and on macOS the
+  `fleet_server_errors` window was shifted by the collector's UTC offset.
+
 ## Submitting results
 
 After a load test, commit the run so the history stays useful for future comparisons:
 
 1. Collect with the right category so the files land in the correct folder, e.g.
    `./collect-metrics.sh --workspace 486loadtest --category baseline`.
-2. Commit both the `.json` (data) and `.md` (synopsis) for the run under `runs/<category>/<workspace>/`.
+2. **Review `fleet_server_errors.sample_messages` in the `.json` before committing.**
+   These are raw server log lines headed for a public repo. The collector redacts
+   token-like strings automatically, but eyeball them anyway — don't commit
+   anything that looks like a secret, customer data, or an internal URL.
+3. Commit both the `.json` (data) and `.md` (synopsis) for the run under `runs/<category>/<workspace>/`.
    For multi-step tests (e.g. MDM), a short `REPORT.md` summarizing the runs is welcome too.
-3. Open a PR against `main` with the new files. Keep it to the run artifacts — no script changes.
+4. Open a PR against `main` with the new files. Keep it to the run artifacts — no script changes.
