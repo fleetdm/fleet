@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules openapi help
 
 export GO111MODULE=on
 
@@ -296,6 +296,12 @@ lint: lint-$(ARG1)
 else
 lint: lint-go lint-js
 endif
+
+# Generate (and validate) the OpenAPI spec from docs/REST API/rest-api.md.
+# Used by CI on PRs that touch the REST API docs or the tool.
+# See tools/openapi/DESIGN.md and #45279.
+openapi:
+	cd tools/openapi && go run . generate
 
 .help-short--test-schema:
 	@echo "Update schema.sql from current migrations"
