@@ -491,9 +491,10 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{
-			LastMDMEnrollmentTime: &ts1,
-			LastMDMSeenTime:       &ts2,
-			HardwareAttested:      false,
+			LastMDMEnrollmentTime:  &ts1,
+			LastMDMSeenTime:        &ts2,
+			HardwareAttested:       false,
+			BootstrapTokenEscrowed: true,
 		}, nil
 	}
 
@@ -532,6 +533,12 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				assert.False(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
+			}
+			if testcase.platform == "darwin" {
+				require.NotNil(t, hostDetail.MDM.BootstrapTokenEscrowed)
+				assert.True(t, *hostDetail.MDM.BootstrapTokenEscrowed)
+			} else {
+				assert.Nil(t, hostDetail.MDM.BootstrapTokenEscrowed)
 			}
 		})
 	}
