@@ -43,8 +43,9 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 	return e.message
 }
 
-// MicrosoftProfileTransientError indicates that rendering could not complete for a reason that clears on its own, so
-// the profile must be left queued and rendered again on a later tick rather than reported as failed against the host.
+// MicrosoftProfileTransientError indicates that preprocessing (substituting this host's Fleet variables into the
+// profile) could not complete for a reason that clears on its own, so the profile must be left queued and preprocessed
+// again on a later tick rather than reported as failed against the host.
 // Nothing was delivered in this case, so there is no host-side outcome to report.
 type MicrosoftProfileTransientError struct {
 	message string

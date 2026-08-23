@@ -4276,20 +4276,20 @@ func executeWindowsProfileReconcileBatch(
 					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
 					string(p.SyncML),
 				)
-				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
-				var profileTransientError *microsoft_mdm.MicrosoftProfileTransientError
+				// AsType reports false for a nil error, so these double as the "no error" check.
+				transientErr, isTransient := errors.AsType[*microsoft_mdm.MicrosoftProfileTransientError](err)
+				processingErr, isProcessing := errors.AsType[*microsoft_mdm.MicrosoftProfileProcessingError](err)
 				switch {
-				case err != nil && errors.As(err, &profileTransientError):
-					// Rendering hit something that clears on its own, so nothing was delivered and there is no
-					// host-side outcome to report. Leave the row untouched: it still has a NULL status, so the next
-					// tick picks it up again. Failing it here would strand every profile the outage touched until
-					// someone resent them by hand.
-					logger.WarnContext(ctx, "skipping Windows profile install; profile could not be rendered yet, will retry on a later tick",
-						"err", profileTransientError.Error(), "profile_uuid", profUUID, "host_uuid", hostUUID)
+				case isTransient:
+					// Preprocessing hit something that clears on its own, so no profile was ever built for this host and
+					// nothing was delivered, so there is no host-side outcome to report. Leave the row untouched: it
+					// still has a NULL status, so the next tick picks it up again.
+					logger.WarnContext(ctx, "skipping Windows profile install; profile variables could not be substituted yet, will retry on a later tick",
+						"err", transientErr.Error(), "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
-				case err != nil && errors.As(err, &profileProcessingError):
+				case isProcessing:
 					hp.Status = &fleet.MDMDeliveryFailed
-					hp.Detail = profileProcessingError.Error()
+					hp.Detail = processingErr.Error()
 					continue
 				case err != nil:
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)

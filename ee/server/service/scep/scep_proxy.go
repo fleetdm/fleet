@@ -840,14 +840,10 @@ func NewNDESInsufficientPermissionsError(msg string) NDESInsufficientPermissions
 //
 // Keep this in step with NDESChallengeErrorToDetail below; they classify the same set.
 func IsTerminalNDESChallengeError(err error) bool {
-	switch {
-	case errors.As(err, &NDESInvalidError{}),
-		errors.As(err, &NDESPasswordCacheFullError{}),
-		errors.As(err, &NDESInsufficientPermissionsError{}):
-		return true
-	default:
-		return false
-	}
+	_, invalid := errors.AsType[NDESInvalidError](err)
+	_, cacheFull := errors.AsType[NDESPasswordCacheFullError](err)
+	_, noPermissions := errors.AsType[NDESInsufficientPermissionsError](err)
+	return invalid || cacheFull || noPermissions
 }
 
 // NDESChallengeErrorToDetail translates NDES-specific error types into user-friendly messages

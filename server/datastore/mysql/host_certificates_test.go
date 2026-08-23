@@ -250,8 +250,8 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	// Redelivery correctness. When a profile is sent again (a retry, an admin Resend, or a renewal) the host is still
 	// carrying the certificate from the previous issuance, and it has the same renewal-ID marker as the one we are
 	// waiting for. Verification therefore has to wait for a genuinely new certificate. Two things make that work, and
-	// this pins both: re-rendering the profile clears the observed certificate off the managed-certificate row, and
-	// the renewal-ID matcher only considers certificates newly reported in this ingest. If either regressed, a
+	// this pins both: preprocessing the profile again clears the observed certificate off the managed-certificate row,
+	// and the renewal-ID matcher only considers certificates newly reported in this ingest. If either regressed, a
 	// redelivery would report "verified" off the stale certificate and quietly deliver nothing.
 	t.Run("redelivery waits for a new certificate", func(t *testing.T) {
 		h := mkHost(t, "redeliver")
@@ -265,7 +265,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		status, _, _ := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
 
-		// Fleet redelivers. The reconciler re-renders the profile, which rewrites the managed-certificate row with a
+		// Fleet redelivers. The reconciler preprocesses the profile again, which rewrites the managed-certificate row with a
 		// fresh challenge and no observed certificate, and the host acknowledges the new command.
 		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
 		upsertWinProfile(t, h, p, "cmd-redeliver-2", fleet.MDMDeliveryVerifying, 1)
@@ -310,7 +310,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	})
 
 	// An upstream CA error is a delivery failure like any other, so it spends the profile's retries before it becomes
-	// terminal. Each retry puts the profile back in the queue, where the profile manager renders it afresh and, for a
+	// terminal. Each retry puts the profile back in the queue, where the profile manager preprocesses it afresh and, for a
 	// SCEP profile, fetches a new challenge.
 	const scepFailDetail = "SCEP PKIOperation failed: HTTP 500"
 	for retries := range mdm.MaxWindowsProfileRetries {

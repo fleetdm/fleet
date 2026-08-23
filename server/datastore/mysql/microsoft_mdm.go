@@ -1537,7 +1537,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 // SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for a Windows install profile, which today
 // means an error the SCEP proxy saw from the upstream CA. While the profile has retries left it is put back in the
-// pending state so the profile manager redelivers it on its next tick, with freshly rendered contents (a SCEP profile
+// pending state so the profile manager redelivers it on its next tick, with freshly preprocessed contents (a SCEP profile
 // therefore gets a brand new challenge). Once the retries are exhausted the failure is terminal and the detail is
 // surfaced to the user.
 //
