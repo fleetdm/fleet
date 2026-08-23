@@ -1052,8 +1052,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// Normalize the stored JSON to the canonical fleet name when one was resolved.
-	if windowsEnrollmentDefined && windowsEnrollmentFleetName != "" {
+	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
+	if windowsEnrollmentDefined {
 		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
 			Set: true, Valid: true,
 			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
@@ -2371,7 +2371,7 @@ func (svc *Service) validateWindowsEnrollment(
 	}
 
 	name := newMDM.WindowsEnrollment.Value.DefaultFleet
-	if name == "" {
+	if name == "" || fleet.IsUnassignedFleetName(name) {
 		// Explicitly clearing the default; allowed on any tier.
 		return true, nil, "", nil
 	}

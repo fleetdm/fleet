@@ -4711,12 +4711,13 @@ software:
 	workstations := team("💻 Workstations")
 
 	cases := []struct {
-		name             string
-		cfgs             []string
-		extraArgs        []string
-		seedTeamName     string
-		dryRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
-		realRunAssertion func(t *testing.T, out string, defaultTeamID *uint, err error)
+		name              string
+		cfgs              []string
+		extraArgs         []string
+		seedTeamName      string
+		seedTeamIsDefault bool
+		dryRunAssertion   func(t *testing.T, out string, defaultTeamID *uint, err error)
+		realRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
 	}{
 		{
 			name: "delete-other-fleets cannot delete the default fleet",
@@ -4787,6 +4788,28 @@ software:
 			},
 		},
 		{
+			name: "Unassigned is accepted and clears",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "Unassigned"`),
+				workstations,
+			},
+			seedTeamName:      "Seeded fleet",
+			seedTeamIsDefault: true,
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.NotNil(t, defaultTeamID, "dry run must not clear the default fleet")
+				assert.NotContains(t, out, "would apply Windows enrollment default fleet",
+					"Unassigned names no fleet, so the apply must not be deferred")
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, defaultTeamID)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
 			name: "omitted key is a no-op",
 			cfgs: []string{
 				global(""),
@@ -4840,13 +4863,16 @@ software:
 				return nil
 			}
 
+			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
+			var defaultTeamID *uint
+
 			if tt.seedTeamName != "" {
 				seeded := &fleet.Team{ID: 99, Name: tt.seedTeamName}
 				savedTeams[tt.seedTeamName] = &seeded
+				if tt.seedTeamIsDefault {
+					defaultTeamID = &seeded.ID
+				}
 			}
-
-			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
-			var defaultTeamID *uint
 			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				if defaultTeamID == nil {
 					return nil, "", nil
