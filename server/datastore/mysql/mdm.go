@@ -38,12 +38,13 @@ SELECT CASE
 	WHEN EXISTS (SELECT 1 FROM nano_commands WHERE command_uuid = ?) THEN 'darwin'
 	WHEN EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?) THEN 'windows'
 	WHEN EXISTS (SELECT 1 FROM mdm_android_commands WHERE command_uuid = ?) THEN 'android'
+	WHEN EXISTS (SELECT 1 FROM host_vpp_software_installs WHERE command_uuid = ? AND platform = 'android') THEN 'android'
 	ELSE ''
 END AS platform
 `
 
 	var p string
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &p, stmt, commandUUID, commandUUID, commandUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &p, stmt, commandUUID, commandUUID, commandUUID, commandUUID); err != nil {
 		return "", err
 	}
 	if p == "" {
@@ -333,9 +334,13 @@ WHERE ` + whereTeam
 		)
 	}
 
-	if (dest[0].Platform == "windows" || fleet.IsAndroidPlatform(dest[0].Platform)) && len(listOpts.Filters.CommandStatuses) > 0 {
-		return nil, nil, nil, &fleet.BadRequestError{
-			Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
+	if len(listOpts.Filters.CommandStatuses) > 0 {
+		for _, h := range dest {
+			if !fleet.ClassicMDMSupported(h.Platform) || h.Platform == "windows" {
+				return nil, nil, nil, &fleet.BadRequestError{
+					Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
+				}
+			}
 		}
 	}
 

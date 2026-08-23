@@ -27223,7 +27223,7 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	var resultsResp getMDMCommandResultsResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
 	require.Len(t, resultsResp.Results, 1)
-	assert.Equal(t, "pending", resultsResp.Results[0].Status)
+	assert.Equal(t, "Pending", resultsResp.Results[0].Status)
 	assert.Equal(t, "REBOOT", resultsResp.Results[0].RequestType)
 
 	// Deliver a Pub/Sub COMMAND ack.
@@ -27247,7 +27247,7 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	// Verify command results now show acknowledged with raw_result.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
 	require.Len(t, resultsResp.Results, 1)
-	assert.Equal(t, "acknowledged", resultsResp.Results[0].Status)
+	assert.Equal(t, "Acknowledged", resultsResp.Results[0].Status)
 	assert.NotEmpty(t, resultsResp.Results[0].Result, "raw_result should be populated after Pub/Sub ack")
 
 	// Verify GetMDMCommandPlatform returns "android".

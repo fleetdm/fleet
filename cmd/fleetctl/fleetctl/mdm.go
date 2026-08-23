@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/service"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
@@ -138,7 +139,7 @@ func mdmRunCommand() *cli.Command {
 					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
 				}
 				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "android" {
-					return errors.New("This command requires a Fleet Premium license.")
+					return errors.New(android.AndroidMDMRequiresPremiumCmdMessage)
 				}
 
 				var sce kithttp.StatusCoder
