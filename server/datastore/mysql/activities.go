@@ -1000,7 +1000,7 @@ func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context
 		GROUP BY
 			gated_ua.host_id
 		ORDER BY
-			MIN(gated_ua.created_at)
+			MIN(gated_ua.created_at), gated_ua.host_id
 		LIMIT ?`
 
 	var gatedHostIDs []uint

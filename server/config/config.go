@@ -2122,7 +2122,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
 			AuditLogPlugin:                 man.getConfigString("activity.audit_log_plugin"),
-			FleetInitiatedReleasePerMinute: man.getConfigInt("activity.fleet_initiated_release_per_minute"),
+			FleetInitiatedReleasePerMinute: man.getConfigNonNegativeInt("activity.fleet_initiated_release_per_minute"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
@@ -2468,6 +2468,17 @@ func (man Manager) getConfigString(key string) string {
 	}
 
 	return stringVal
+}
+
+// getConfigNonNegativeInt is like getConfigInt but panics on negative values,
+// for keys where a negative would silently disable a protection (0 is the
+// documented "disabled" value; below that is an operator error).
+func (man Manager) getConfigNonNegativeInt(key string) int {
+	val := man.getConfigInt(key)
+	if val < 0 {
+		panic(fmt.Sprintf("%s cannot be negative (0 disables it): %d", key, val))
+	}
+	return val
 }
 
 // Custom handling for TLSProfile which can only accept specific values
