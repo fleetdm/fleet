@@ -198,9 +198,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
-	// NDES briefly unreachable. Nobody has to act and nothing was delivered, so the profile must be left queued for a
-	// later tick rather than failed against the host: failing here would strand every profile an NDES blip touched
-	// until someone resent them by hand.
+	// NDES briefly unreachable. Nobody has to act and nothing was delivered, so the profile must be left queued.
 	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", errors.New("sending request: dial tcp 10.0.0.10:80: connect: connection refused")

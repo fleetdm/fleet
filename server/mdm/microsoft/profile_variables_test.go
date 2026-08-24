@@ -498,6 +498,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 // A challenge fetch that fails for a reason nobody has to act on (NDES briefly unreachable) must come back as a
 // transient error, so the reconciler leaves the profile queued instead of failing it against the host. A failure that
 // does need someone to act (bad credentials, exhausted password cache) still fails the profile immediately.
+//
+// The classifier itself is injected and stubbed here, so what this pins is the branching, not the classification: the
+// error messages below are labels for the reader and nothing inspects them. Which real errors are terminal, including
+// the 5xx-versus-4xx split on the NDES admin URL, is decided by IsTerminalNDESChallengeError and tested in the scep
+// package.
 func TestPreprocessWindowsProfileNDESChallengeErrorClass(t *testing.T) {
 	const contents = `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`
 

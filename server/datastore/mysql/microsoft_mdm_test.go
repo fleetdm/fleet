@@ -6972,6 +6972,21 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
+// readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.
+func readWindowsHostProfile(t *testing.T, ds *Datastore, hostUUID, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
+	t.Helper()
+	var row struct {
+		Status  fleet.MDMDeliveryStatus `db:"status"`
+		Detail  string                  `db:"detail"`
+		Retries int                     `db:"retries"`
+	}
+	require.NoError(t, sqlx.GetContext(context.Background(), ds.reader(context.Background()), &row,
+		`SELECT COALESCE(status, '') AS status, COALESCE(detail, '') AS detail, retries
+		 FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+		hostUUID, profileUUID))
+	return row.Status, row.Detail, row.Retries
+}
+
 // readWindowsProfilesStatusRollup returns every host_mdm_windows_profiles_status row keyed by host
 // UUID, read directly from the table (no reconcile).
 func readWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) map[string]string {
@@ -8328,15 +8343,11 @@ func testDeleteMDMWindowsConfigProfileWithPolicyAutomation(t *testing.T, ds *Dat
 
 // testWindowsProfileRetryOnDeviceFailure covers the device-reported failure path. An install profile the host rejects
 // goes back to "pending" (NULL status) and consumes one retry per attempt; only once the budget is gone does the
-// failure become terminal and surface the device's error. While Fleet is still retrying, the row must not carry the
-// previous attempt's detail: a NULL status reads as "pending" everywhere it surfaces, so a lingering detail would put
-// an error next to a profile the admin is being told is still on its way.
+// failure become terminal and surface the device's error.
 func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	host := test.NewHost(t, ds, "wretry", "10.0.0.42", "wretry-key", "wretry-uuid", time.Now())
-	host.Platform = "windows"
-	require.NoError(t, ds.UpdateHost(ctx, host))
 
 	const (
 		profileUUID = "w-retry-prof"
@@ -8367,32 +8378,18 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 			}}))
 	}
 
-	readProfile := func(t *testing.T) (*fleet.MDMDeliveryStatus, string, int) {
-		t.Helper()
-		var row struct {
-			Status  *fleet.MDMDeliveryStatus `db:"status"`
-			Detail  string                   `db:"detail"`
-			Retries int                      `db:"retries"`
-		}
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
-			`SELECT status, COALESCE(detail, '') AS detail, retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
-			host.UUID, profileUUID))
-		return row.Status, row.Detail, row.Retries
-	}
-
 	for attempt := 1; attempt <= mdm.MaxWindowsProfileRetries; attempt++ {
 		reportFailure(t)
-		status, detail, retries := readProfile(t)
-		require.Nil(t, status, "attempt %d must leave the profile queued for another try", attempt)
+		status, detail, retries := readWindowsHostProfile(t, ds, host.UUID, profileUUID)
+		require.Empty(t, status, "attempt %d must leave the profile queued for another try", attempt)
 		require.Empty(t, detail, "attempt %d must not leave the failed attempt's error on a pending profile", attempt)
 		require.Equal(t, attempt, retries)
 	}
 
 	// Budget exhausted: the next device failure is terminal and the device's error is surfaced to the admin.
 	reportFailure(t)
-	status, detail, retries := readProfile(t)
-	require.NotNil(t, status)
-	require.Equal(t, fleet.MDMDeliveryFailed, *status)
+	status, detail, retries := readWindowsHostProfile(t, ds, host.UUID, profileUUID)
+	require.Equal(t, fleet.MDMDeliveryFailed, status)
 	require.Equal(t, deviceError, detail)
 	require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
 

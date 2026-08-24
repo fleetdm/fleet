@@ -107,19 +107,9 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
 	}
 
-	// A NULL status means the profile is queued for (re)delivery, which surfaces as "pending"; it comes back as the
-	// empty status here so callers can assert on it with require.Empty.
 	getProfile := func(t *testing.T, h *fleet.Host, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
 		t.Helper()
-		var row struct {
-			Status  fleet.MDMDeliveryStatus `db:"status"`
-			Detail  string                  `db:"detail"`
-			Retries int                     `db:"retries"`
-		}
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
-			`SELECT COALESCE(status, '') AS status, detail, retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
-			h.UUID, profileUUID))
-		return row.Status, row.Detail, row.Retries
+		return readWindowsHostProfile(t, ds, h.UUID, profileUUID)
 	}
 
 	// certWithRenewalID builds an ingestable host cert whose OU carries the profile's renewal-ID marker.
