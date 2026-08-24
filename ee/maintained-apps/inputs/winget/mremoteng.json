@@ -1,0 +1,11 @@
+{
+  "name": "mRemoteNG",
+  "slug": "mremoteng/windows",
+  "package_identifier": "mRemoteNG.mRemoteNG",
+  "unique_identifier": "mRemoteNG",
+  "program_publisher": "Next Generation Software",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Utilities"]
+}

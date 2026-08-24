@@ -546,6 +546,7 @@ import JumpDesktop from "./JumpDesktop";
 import Kaleidoscope from "./Kaleidoscope";
 import Kap from "./Kap";
 import Kdenlive from "./Kdenlive";
+import Keepass from "./Keepass";
 import KeePassXc from "./KeePassXc";
 import KeeperPasswordManager from "./KeeperPasswordManager";
 import Keepingyouawake from "./Keepingyouawake";
@@ -676,6 +677,7 @@ import Mos from "./Mos";
 import MountainDuck from "./MountainDuck";
 import MozillaVpn from "./MozillaVpn";
 import Mqttx from "./Mqttx";
+import Mremoteng from "./Mremoteng";
 import MullvadBrowser from "./MullvadBrowser";
 import MullvadVpn from "./MullvadVpn";
 import Multitouch from "./Multitouch";
@@ -864,6 +866,7 @@ import Retrobatch from "./Retrobatch";
 import Rewritebar from "./Rewritebar";
 import Rider from "./Rider";
 import Rightfont from "./Rightfont";
+import Ringcentral from "./Ringcentral";
 import Rive from "./Rive";
 import Rize from "./Rize";
 import Robofont from "./Robofont";
@@ -1707,6 +1710,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
+  keepass: Keepass,
   keepassxc: KeePassXc,
   "keeper password manager": KeeperPasswordManager,
   keepingyouawake: Keepingyouawake,
@@ -1845,6 +1849,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mozilla firefox nightly": FirefoxNightly,
   "mozilla vpn": MozillaVpn,
   mqttx: Mqttx,
+  mremoteng: Mremoteng,
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
   multitouch: Multitouch,
@@ -2036,6 +2041,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rewritebar: Rewritebar,
   rider: Rider,
   rightfont: Rightfont,
+  ringcentral: Ringcentral,
   rive: Rive,
   rize: Rize,
   robofont: Robofont,
