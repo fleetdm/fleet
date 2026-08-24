@@ -422,9 +422,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			processingError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
 		},
 		{
-			// Same failure, classified as self-clearing: the reconciler must be able to tell it apart so it leaves the
-			// profile queued instead of failing it against the host. Which real errors land on which side is decided
-			// by IsTerminalNDESChallengeError and tested in the scep package.
+			// Same failure, classified as self-clearing
 			name:                         "ndes challenge fetch fails transiently",
 			hostUUID:                     "ndes-transient-host",
 			withNDESConfig:               ndesConfig,
@@ -507,8 +505,6 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					require.Equal(t, tt.processingError, processingErr.Error())
 				}
 				if tt.transientError != "" {
-					// The distinction is what the reconciler branches on: a transient error leaves the profile queued,
-					// a processing error fails it against the host.
 					var transientErr *MicrosoftProfileTransientError
 					require.ErrorAs(t, err, &transientErr, "expected ProfileTransientError")
 					require.Equal(t, tt.transientError, transientErr.Error())
