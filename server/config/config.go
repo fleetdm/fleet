@@ -929,6 +929,24 @@ type WebSocketConfig struct {
 	CheckBatchSize   int           `yaml:"check_batch_size"`
 }
 
+// Validate checks that the WebSocketConfig has valid values. The values feed
+// tickers and batch loops, so zero or negative values would panic or spin.
+func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
+	if !w.TransportEnabled {
+		return
+	}
+	for name, ok := range map[string]bool{
+		"websocket.ping_interval":    w.PingInterval > 0,
+		"websocket.pong_timeout":     w.PongTimeout > 0,
+		"websocket.check_interval":   w.CheckInterval > 0,
+		"websocket.check_batch_size": w.CheckBatchSize > 0,
+	} {
+		if !ok {
+			initFatal(errors.New("must be greater than 0"), name)
+		}
+	}
+}
+
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
 type MicrosoftCompliancePartnerConfig struct {
 	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).

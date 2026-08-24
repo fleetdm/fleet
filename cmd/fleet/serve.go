@@ -229,6 +229,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	config.ConditionalAccess.Validate(initFatal)
 
+	config.WebSocket.Validate(initFatal)
+
 	config.Server.NormalizeURLPrefix()
 	config.Server.ValidateURLPrefix(initFatal)
 

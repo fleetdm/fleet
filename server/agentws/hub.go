@@ -21,8 +21,9 @@ type Hub struct {
 	pingInterval time.Duration
 	pongTimeout  time.Duration
 
-	mu    sync.RWMutex
-	conns map[uint]*conn
+	mu     sync.RWMutex
+	conns  map[uint]*conn
+	closed bool
 
 	// reads counts distributed/read requests per host by path (see ReadStats),
 	// reported by the debug endpoint alongside the connections.
@@ -69,9 +70,16 @@ func (h *Hub) ServeConn(hostID uint, hostname, platform string, ws *websocket.Co
 
 // register stores c as the connection for hostID, evicting and closing any
 // previous connection for the same host (e.g. an agent that reconnected
-// before the server noticed the old connection died).
+// before the server noticed the old connection died). An upgrade that races
+// Shutdown registers after the hub drained its map; such late connections are
+// closed instead of stored, since no other cleanup path would ever see them.
 func (h *Hub) register(hostID uint, c *conn) {
 	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		c.close()
+		return
+	}
 	old := h.conns[hostID]
 	h.conns[hostID] = c
 	h.mu.Unlock()
@@ -180,9 +188,11 @@ func (h *Hub) Snapshot() []ConnectionInfo {
 	return infos
 }
 
-// Shutdown closes all held connections.
+// Shutdown closes all held connections and rejects registrations from then
+// on. It is terminal: the hub cannot be reused afterwards.
 func (h *Hub) Shutdown() {
 	h.mu.Lock()
+	h.closed = true
 	conns := make([]*conn, 0, len(h.conns))
 	for _, c := range h.conns {
 		conns = append(conns, c)

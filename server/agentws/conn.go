@@ -19,6 +19,13 @@ import (
 // interval check job or, at worst, by the agent's polling fallback.
 const sendBufferSize = 8
 
+// maxInboundMessageSize caps inbound data messages, which readLoop buffers
+// (ReadMessage) before discarding. The channel is server-to-agent only, so
+// agents send nothing but control frames; without a cap, a misbehaving agent
+// with a valid node key could force large allocations. Exceeding it closes
+// the connection (gorilla sends close code 1009 and errors the read).
+const maxInboundMessageSize = 1024
+
 type conn struct {
 	hostID      uint
 	hostname    string
@@ -157,6 +164,7 @@ func (c *conn) readLoop(hub *Hub, pingInterval, pongTimeout time.Duration) {
 		c.close()
 	}()
 
+	c.ws.SetReadLimit(maxInboundMessageSize)
 	deadline := pingInterval + pongTimeout
 	_ = c.ws.SetReadDeadline(time.Now().Add(deadline))
 	c.ws.SetPongHandler(func(string) error {

@@ -160,6 +160,25 @@ func TestHandlerDisconnectUnregisters(t *testing.T) {
 	assert.Equal(t, 0, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
 }
 
+func TestHandlerClosesOnOversizedInboundMessage(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	ws := dial(t, srv, "key-1")
+	waitForConnCount(t, hub, 1)
+
+	// A message within the limit is discarded; the connection stays up.
+	require.NoError(t, ws.WriteMessage(websocket.TextMessage, make([]byte, maxInboundMessageSize)))
+	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
+	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
+	var msg fleet.AgentWSMessage
+	require.NoError(t, ws.ReadJSON(&msg))
+
+	// An oversized message gets the connection torn down.
+	require.NoError(t, ws.WriteMessage(websocket.TextMessage, make([]byte, maxInboundMessageSize+1)))
+	waitForConnCount(t, hub, 0)
+}
+
 func TestHandlerKeepaliveClosesDeadPeer(t *testing.T) {
 	// Millisecond-scale keepalive: the client never reads, so it never answers
 	// pings, and the server's read deadline (pingInterval+pongTimeout) expires.
@@ -201,4 +220,21 @@ func TestHubShutdown(t *testing.T) {
 	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
 	_, _, err := ws.ReadMessage()
 	require.Error(t, err)
+}
+
+func TestHubShutdownRejectsLateRegistrations(t *testing.T) {
+	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
+	srv := newTestServer(t, hub)
+
+	hub.Shutdown()
+
+	// An upgrade racing shutdown still completes at the HTTP layer, but the
+	// closed hub must close the connection instead of holding it forever.
+	ws := dial(t, srv, "key-1")
+	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
+	_, _, err := ws.ReadMessage()
+	require.Error(t, err)
+
+	assert.Equal(t, 0, hub.connCount())
+	assert.Equal(t, 0, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
 }
