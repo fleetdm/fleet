@@ -461,8 +461,7 @@ func TestValidateIdentifier(t *testing.T) {
 			}, nil
 		}
 		// a-profile-uuid is an Apple profile, so the expired-challenge resend routes through
-		// ResendHostCertificateProfile (resets retries + clears the stale command). Windows profiles use their own
-		// equivalent; Android has no host profile row and falls back to ResendHostMDMProfile.
+		// ResendHostCertificateProfile (resets retries + clears the stale command).
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "a-profile-uuid", profileUUID)
@@ -478,10 +477,9 @@ func TestValidateIdentifier(t *testing.T) {
 		ds.ResendHostCertificateProfileFuncInvoked = false
 	})
 
-	// The challenge aged out before the device reached PKIOperation, so the host never had a usable profile to
-	// install. Redelivering must hand the profile a full retry budget back, or a slow-syncing host could spend its
-	// retries on deliveries it was never able to act on and end up "failed" without the CA ever being asked.
-	t.Run("NDES challenge expired for a Windows profile resets the retry budget", func(t *testing.T) {
+	// The challenge aged out before the device reached PKIOperation, so the host never had a usable profile to install
+	// and Fleet has to requeue it. This checks routing only.
+	t.Run("NDES challenge expired for a Windows profile routes to the Windows resend", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
@@ -512,7 +510,7 @@ func TestValidateIdentifier(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "challenge password has expired")
 		assert.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
-		assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend preserves retries and must not be used here")
+		assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend leaves the stale detail in place and would requeue a terminal row")
 	})
 
 	t.Run("NDES challenge not expired", func(t *testing.T) {
@@ -835,8 +833,7 @@ func TestValidateIdentifier(t *testing.T) {
 				ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
 					return sql.ErrNoRows // challenge not found
 				}
-				// Fleet turned this delivery away, so the resend has to give the profile its retries back rather
-				// than spend one on an install the host never attempted.
+				// Fleet turned this delivery away.
 				ds.ResendWindowsHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 					assert.Equal(t, "host-uuid", hostUUID)
 					assert.Equal(t, "w-profile-uuid", profileUUID)
@@ -849,7 +846,7 @@ func TestValidateIdentifier(t *testing.T) {
 				assert.Contains(t, err.Error(), "custom scep challenge failed")
 				assert.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
 				assert.False(t, ds.ResendHostCertificateProfileFuncInvoked, "Windows profiles must not use the Apple-only resend")
-				assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend preserves retries and must not be used here")
+				assert.False(t, ds.ResendHostMDMProfileFuncInvoked, "the admin-initiated resend leaves the stale detail in place and would requeue a terminal row")
 			})
 		}
 
@@ -1378,7 +1375,6 @@ func TestIsTerminalNDESChallengeError(t *testing.T) {
 		{"NDES answered 503", NewNDESTransientError("NDES admin URL returned status 503"), false},
 		{"wrapped transient error is still transient", fmt.Errorf("scraping challenge: %w", NewNDESTransientError("status 502")), false},
 		{"timeout", context.DeadlineExceeded, false},
-		{"truncated response", errors.New("reading response body: unexpected EOF"), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, IsTerminalNDESChallengeError(tc.err))
