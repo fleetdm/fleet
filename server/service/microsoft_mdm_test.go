@@ -3558,6 +3558,8 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 		uri := cmd.GetTargetURI()
 		if strings.Contains(uri, "SkipUserStatusPage") {
 			found = true
+			assert.Contains(t, uri, "/Device/",
+				"SkipUserStatusPage must be at Device scope, not User scope")
 			require.NotNil(t, cmd.Items, "SkipUserStatusPage command must have Items")
 			require.NotEmpty(t, cmd.Items, "SkipUserStatusPage command must have at least one Item")
 			require.NotNil(t, cmd.Items[0].Data, "SkipUserStatusPage Item must have Data")

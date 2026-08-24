@@ -368,10 +368,12 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 					"setup has been displayed")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "BlockInStatusPage"),
 				"release path must NOT include BlockInStatusPage")
-			// SkipUserStatusPage must be set to true so subsequent user logins don't trigger a fresh
-			// Account setup ESP phase (#51380).
+			// SkipUserStatusPage must be set to true at Device scope so subsequent user logins don't
+			// trigger a fresh Account setup ESP phase (#51380).
 			skipCmd := pbtFindCmdByLocURI(cmds, "SkipUserStatusPage")
 			require.NotNilf(rt, skipCmd, "release path must include SkipUserStatusPage=true (#51380)")
+			assert.Containsf(rt, skipCmd.GetTargetURI(), "/Device/",
+				"SkipUserStatusPage must be at Device scope, not User scope")
 			require.NotEmptyf(rt, skipCmd.Items, "SkipUserStatusPage command must have Items")
 			require.NotNilf(rt, skipCmd.Items[0].Data, "SkipUserStatusPage Item must have Data")
 			assert.Equalf(rt, "true", skipCmd.Items[0].Data.Content,
