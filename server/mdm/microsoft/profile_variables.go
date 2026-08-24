@@ -44,9 +44,7 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 }
 
 // MicrosoftProfileTransientError indicates that preprocessing (substituting this host's Fleet variables into the
-// profile) could not complete for a reason that clears on its own, so the profile must be left queued and preprocessed
-// again on a later tick rather than reported as failed against the host.
-// Nothing was delivered in this case, so there is no host-side outcome to report.
+// profile) could not complete for a reason that clears on its own.
 type MicrosoftProfileTransientError struct {
 	message string
 }
@@ -66,8 +64,7 @@ type ProfilePreprocessDependencies struct {
 	NDESConfig                 *fleet.NDESSCEPProxyCA
 	GetNDESSCEPChallenge       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
 	NDESChallengeErrorToDetail func(err error) string
-	// NDESChallengeErrorIsTerminal reports whether a challenge-fetch failure needs someone to act before Fleet could
-	// succeed. Injected rather than called directly to keep the ee SCEP package out of this one's imports.
+	// NDESChallengeErrorIsTerminal reports whether a challenge-fetch failure needs someone to act before Fleet could succeed.
 	NDESChallengeErrorIsTerminal func(err error) bool
 }
 

@@ -391,9 +391,7 @@ func preprocessProfileContents(
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
 						if !scep.IsTerminalNDESChallengeError(err) {
-							// Nothing was delivered, and the condition clears on its own, so leave the profile queued
-							// and let a later tick preprocess it. Failing it here would strand every profile an NDES blip
-							// touched until someone resent them by hand.
+							// Nothing was delivered, and the condition clears on its own, so leave the profile queued and let a later tick preprocess it.
 							logger.WarnContext(ctx, "could not reach NDES for a SCEP challenge; leaving profile queued for a later tick",
 								"host_uuid", hostUUID, "profile_uuid", profUUID, "err", err)
 							failed = true
