@@ -21,11 +21,11 @@ module.exports = function (sails){
       }
     },
 
-    initialize: function (cb) {
+    configure: function () {
+      // If SSO isn't configured, leave the app's built-in authentication in place.
       if(!sails.config.custom.ssoClientSecret){
-        return cb();
+        return;
       }
-      sails.log('SSO enabled. The built-in authorization mechanism will be disabled.');
       // Throw errors if required config variables are missing.
       if(!sails.config.custom.ssoIssuer){
         throw new Error(`Missing config! No sails.config.custom.ssoIssuer was configured. To replace this app's built-in authorization mechanism with SSO, a ssoIssuer value is required.`);
@@ -88,6 +88,13 @@ module.exports = function (sails){
           return oidc.router(req, res, next);
         };
       })();
+    },
+
+    initialize: function (cb) {
+      if(!sails.config.custom.ssoClientSecret){
+        return cb();
+      }
+      sails.log('SSO enabled. The built-in authorization mechanism will be disabled.');
 
       var err;
       // Validate `userModelIdentity` config
