@@ -2571,4 +2571,21 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Asset tag")).toBeInTheDocument();
   });
+
+  it("renders a canceled_mdm_command activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledMdmCommand,
+      details: {
+        command_type: "DeviceLock",
+        host_display_name: "Anna's MacBook Pro",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("canceled the pending", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("DeviceLock")).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
 });
