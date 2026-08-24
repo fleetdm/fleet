@@ -5349,6 +5349,9 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
+			if act == nil {
+				return nil, nil
+			}
 			// Auto-update terminal failures land here (all retries exhausted), so
 			// we need to carry the from_auto_update flag onto the emitted activity
 			// alongside from_setup_experience. Without this, WasFromAutomation()
