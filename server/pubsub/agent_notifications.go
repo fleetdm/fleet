@@ -187,14 +187,3 @@ func (n *DelayedAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hos
 	})
 	return nil
 }
-
-// HealthCheck verifies that the redis backend can be pinged.
-func (n *RedisAgentNotifier) HealthCheck() error {
-	conn := n.pool.Get()
-	defer conn.Close()
-
-	if _, err := conn.Do("PING"); err != nil {
-		return ctxerr.Wrap(context.Background(), err, "reading from redis")
-	}
-	return nil
-}

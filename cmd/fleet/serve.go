@@ -1123,6 +1123,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 					logger.ErrorContext(ctx, "failed to shutdown OTEL logger provider", "err", err)
 				}
 			}
+			// srv.Shutdown ignores hijacked connections; close the agent
+			// WebSockets so agents start reconnecting right away.
+			if agentWSHub != nil {
+				agentWSHub.Shutdown()
+			}
 			return srv.Shutdown(ctx)
 		}()
 	}()

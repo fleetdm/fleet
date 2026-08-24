@@ -123,8 +123,8 @@ func (h *Hub) HeldHostIDs() []uint {
 	return ids
 }
 
-// ConnCount returns the number of connections this instance holds.
-func (h *Hub) ConnCount() int {
+// connCount returns the number of connections this instance holds.
+func (h *Hub) connCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.conns)

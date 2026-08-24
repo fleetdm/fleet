@@ -58,7 +58,7 @@ func dial(t *testing.T, srv *httptest.Server, nodeKey string) *websocket.Conn {
 
 func waitForConnCount(t *testing.T, hub *Hub, want int) {
 	t.Helper()
-	require.Eventually(t, func() bool { return hub.ConnCount() == want },
+	require.Eventually(t, func() bool { return hub.connCount() == want },
 		2*time.Second, 5*time.Millisecond, "expected %d connections", want)
 }
 
@@ -83,7 +83,7 @@ func TestHandlerRejectsBadAuth(t *testing.T) {
 			require.NotNil(t, resp)
 			defer resp.Body.Close()
 			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-			assert.Equal(t, 0, hub.ConnCount())
+			assert.Equal(t, 0, hub.connCount())
 		})
 	}
 }
@@ -196,7 +196,7 @@ func TestHubShutdown(t *testing.T) {
 	waitForConnCount(t, hub, 1)
 
 	hub.Shutdown()
-	assert.Equal(t, 0, hub.ConnCount())
+	assert.Equal(t, 0, hub.connCount())
 
 	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
 	_, _, err := ws.ReadMessage()
