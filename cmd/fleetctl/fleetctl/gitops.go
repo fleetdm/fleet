@@ -1339,7 +1339,7 @@ func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.
 		return "", false, nil
 	}
 	name, _ := weMap["default_fleet"].(string)
-	if name == "" {
+	if name == "" || fleet.IsUnassignedFleetName(name) {
 		return "", false, nil
 	}
 	// normalize for Unicode support
