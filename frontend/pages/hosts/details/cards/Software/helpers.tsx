@@ -508,10 +508,15 @@ export const getSoftwareSubheader = ({
 export const anyCompletedSoftwareSucceeded = (
   completedIds: string[],
   software: IHostSoftware[]
-): boolean =>
-  completedIds.some((completedId) => {
-    const status = software.find(
-      (softwareItem) => String(softwareItem.id) === completedId
-    )?.status;
-    return status !== "failed_install" && status !== "failed_uninstall";
-  });
+): boolean => {
+  const failedIds = new Set(
+    software
+      .filter(
+        ({ status }) =>
+          status === "failed_install" || status === "failed_uninstall"
+      )
+      .map(({ id }) => String(id))
+  );
+
+  return completedIds.some((completedId) => !failedIds.has(completedId));
+};

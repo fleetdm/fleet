@@ -191,7 +191,14 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 // memSoftwareInstallAttemptCounter is an in-memory fleet.SoftwareInstallAttemptCounter used by tests.
 type memSoftwareInstallAttemptCounter struct {
 	mMu sync.RWMutex
-	m   map[string]int
+	m   map[string]memInstallAttempt
+}
+
+// memInstallAttempt mirrors a Redis key holding a count with a TTL: recording refreshes
+// the deadline, and the count is gone once it passes.
+type memInstallAttempt struct {
+	count     int
+	expiresAt time.Time
 }
 
 var _ fleet.SoftwareInstallAttemptCounter = (*memSoftwareInstallAttemptCounter)(nil)
@@ -199,7 +206,7 @@ var _ fleet.SoftwareInstallAttemptCounter = (*memSoftwareInstallAttemptCounter)(
 // NewMemSoftwareInstallAttemptCounter returns a new in-memory SoftwareInstallAttemptCounter.
 func NewMemSoftwareInstallAttemptCounter() *memSoftwareInstallAttemptCounter {
 	return &memSoftwareInstallAttemptCounter{
-		m: make(map[string]int),
+		m: make(map[string]memInstallAttempt),
 	}
 }
 
@@ -213,16 +220,27 @@ func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, ho
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
+	now := time.Now()
 	key := memInstallAttemptKey(hostID, softwareInstallerID)
-	m.m[key]++
-	return m.m[key], nil
+	attempt := m.m[key]
+	if now.After(attempt.expiresAt) {
+		attempt.count = 0
+	}
+	attempt.count++
+	attempt.expiresAt = now.Add(expireIn)
+	m.m[key] = attempt
+	return attempt.count, nil
 }
 
 func (m *memSoftwareInstallAttemptCounter) CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error) {
 	m.mMu.RLock()
 	defer m.mMu.RUnlock()
 
-	return m.m[memInstallAttemptKey(hostID, softwareInstallerID)], nil
+	attempt := m.m[memInstallAttemptKey(hostID, softwareInstallerID)]
+	if time.Now().After(attempt.expiresAt) {
+		return 0, nil
+	}
+	return attempt.count, nil
 }
 
 func (m *memSoftwareInstallAttemptCounter) ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {
