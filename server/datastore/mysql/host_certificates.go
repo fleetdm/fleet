@@ -490,9 +490,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 
 		// Both helpers above rewrite host_mdm_windows_profiles rows, so the per-host rollup that
-		// GetMDMWindowsProfilesSummary reads has to be refreshed on the same transaction. Neither deletes rows, so no
-		// rollup row can be orphaned. Guarded on rows affected because this runs on every certificate ingest, for
-		// every platform, and the overwhelming majority of them touch no Windows profile at all.
+		// GetMDMWindowsProfilesSummary reads has to be refreshed on the same transaction.
 		if verifiedRows+failedRows > 0 {
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after scep reconciliation")
