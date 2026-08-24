@@ -649,7 +649,9 @@ func TestAuthenticateHostFailure(t *testing.T) {
 func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
 	ds := new(mock.Store)
 	task := async.NewTask(ds, nil, clock.C, nil)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
+	cfg := config.TestConfig()
+	cfg.WebSocket.TransportEnabled = true
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Task: task})
 
 	host := fleet.Host{ID: 42, Hostname: "orbit-host", HasHostIdentityCert: new(false)}
 	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -693,6 +695,22 @@ func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
 	ds.LoadHostByOrbitNodeKeyFuncInvoked = false
 	_, _, err = svc.AuthenticateHost(ctx, "osquery-key")
 	require.NoError(t, err)
+	assert.False(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
+}
+
+func TestAuthenticateHostNoOrbitNodeKeyFallbackWhenTransportDisabled(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return nil, newNotFoundError()
+	}
+
+	_, _, err := svc.AuthenticateHost(ctx, "orbit-key")
+	require.Error(t, err)
+	var osqueryErr *OsqueryError
+	require.ErrorAs(t, err, &osqueryErr)
+	assert.True(t, osqueryErr.NodeInvalid())
 	assert.False(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
 }
 

@@ -64,7 +64,11 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// orbit calls the distributed endpoints on behalf of osquery and only
 		// has its own node key. Both keys resolve to the same host row, so
 		// authorization is unchanged. The fallback runs only on an osquery-key
-		// miss, keeping the hot path at a single query.
+		// miss and only with the transport enabled, keeping legacy auth
+		// semantics (and the single-query hot path) intact otherwise.
+		if !svc.config.WebSocket.TransportEnabled {
+			return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+		}
 		host, err = svc.ds.LoadHostByOrbitNodeKey(ctx, nodeKey)
 		switch {
 		case err == nil:

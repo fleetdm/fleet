@@ -37,7 +37,6 @@ func (c *countingConn) Write(b []byte) (int, error) {
 // a non-zero ReadBufferSize), so all subsequent I/O is counted.
 type hijackCountingResponseWriter struct {
 	http.ResponseWriter
-	conn *countingConn
 }
 
 var _ http.Hijacker = (*hijackCountingResponseWriter)(nil)
@@ -51,6 +50,5 @@ func (w *hijackCountingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, er
 	if err != nil {
 		return nil, nil, err
 	}
-	w.conn = &countingConn{Conn: netConn}
-	return w.conn, brw, nil
+	return &countingConn{Conn: netConn}, brw, nil
 }
