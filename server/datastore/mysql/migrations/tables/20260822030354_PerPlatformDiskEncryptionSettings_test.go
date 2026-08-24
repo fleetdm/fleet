@@ -29,6 +29,14 @@ func TestUp_20260822030354(t *testing.T) {
 		('absent',   '{"mdm": {}}'),
 		('nomdm',    '{}')`)
 
+	// hand-edited shapes Fleet's marshaler can never produce (struct values
+	// always serialize as objects): JSON_SET below a non-object parent is a
+	// silent no-op, so the migration must tolerate these rows rather than fail
+	// and block the upgrade; the server heals them from the flat toggle on read
+	execNoErr(t, db, `INSERT INTO teams (name, config) VALUES
+		('nullmdm',   '{"mdm": null}'),
+		('nullmacos', '{"mdm": {"enable_disk_encryption": true, "macos_settings": null}}')`)
+
 	// a FileVault profile that must come out of the migration byte-identical
 	execNoErr(t, db, `INSERT INTO mdm_apple_configuration_profiles
 		(profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
@@ -83,6 +91,22 @@ func TestUp_20260822030354(t *testing.T) {
 			assertDiskEncryptionKeys(t, raw, tc.want)
 		})
 	}
+
+	// a JSON-null mdm parent comes out byte-identical
+	var nullMDMConfig string
+	require.NoError(t, sqlx.Get(db, &nullMDMConfig, `SELECT config FROM teams WHERE name = 'nullmdm'`))
+	require.JSONEq(t, `{"mdm": null}`, nullMDMConfig)
+
+	// a JSON-null macos_settings stays null, while the sibling sections and
+	// the flat toggle are still written correctly
+	var nullMacOSConfig string
+	require.NoError(t, sqlx.Get(db, &nullMacOSConfig, `SELECT config FROM teams WHERE name = 'nullmacos'`))
+	require.JSONEq(t, `{"mdm": {
+		"enable_disk_encryption": true,
+		"macos_settings": null,
+		"windows_settings": {"enable_disk_encryption": true},
+		"linux_settings": {"enable_escrow_disk_encryption_key": true}
+	}}`, nullMacOSConfig)
 
 	// large integers elsewhere in the config survive the rewrite
 	var bigNumber string
