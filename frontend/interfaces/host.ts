@@ -177,6 +177,12 @@ export interface IHostMdmData {
    */
   encryption_key_archived?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  /**
+   * is_personal_enrollment reports whether the host's most recent MDM enrollment
+   * was personal (BYOD). Unlike enrollment_status it stays true after the host
+   * unenrolls, so BYOD-only UI doesn't flip back once the host is unenrolled.
+   */
+  is_personal_enrollment?: boolean;
   dep_profile_error?: boolean;
   name?: string;
   id?: number;

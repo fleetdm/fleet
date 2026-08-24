@@ -643,6 +643,11 @@ type MDMHostData struct {
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
 	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// IsPersonalEnrollment reports whether the host's most recent MDM enrollment was
+	// personal (BYOD). Unlike EnrollmentStatus, it survives unenrollment: host_mdm keeps
+	// the column set so consumers can still tell a BYOD device apart afterwards (BYOD
+	// devices never report a serial number, so the UI has nothing else to identify them by).
+	IsPersonalEnrollment bool `json:"is_personal_enrollment" db:"-" csv:"-"`
 	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
 	// attempting to assign a DEP profile for the host.
 	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse

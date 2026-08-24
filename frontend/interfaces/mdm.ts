@@ -347,6 +347,21 @@ export const isBYODAccountDrivenUserEnrollment = (
   return enrollmentStatus === "On (manual - personal)";
 };
 
+/** Whether the host's most recent MDM enrollment was personal (BYOD), including
+ * hosts that have since unenrolled. `is_personal_enrollment` survives unenrollment
+ * while `enrollment_status` flips to "Off", so UI that identifies a BYOD device
+ * (which never reports a serial number) must not rely on the status alone. The
+ * status is still checked as a fallback for payloads that predate the field. */
+export const wasBYODEnrolled = (
+  enrollmentStatus: MdmEnrollmentStatus | null,
+  isPersonalEnrollment?: boolean
+) => {
+  return (
+    isPersonalEnrollment === true ||
+    isBYODAccountDrivenUserEnrollment(enrollmentStatus)
+  );
+};
+
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
  * This was previously known as automatic enrollment but was updatd to company owned. Here we check
  * for both to current and legacy enrollment status */

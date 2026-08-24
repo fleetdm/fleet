@@ -1,0 +1,2 @@
+- Fixed the host details Vitals card replacing **Enrollment ID** with an empty **Serial number** after a personal (BYOD) Android host is unenrolled.
+- Added `mdm.is_personal_enrollment` to host API responses. Unlike `mdm.enrollment_status`, it stays `true` after the host unenrolls.

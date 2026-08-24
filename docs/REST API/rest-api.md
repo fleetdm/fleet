@@ -4220,6 +4220,7 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
@@ -4286,6 +4287,8 @@ Returns the information of the specified host.
 > - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
+
+> Note: ⁠`mdm.is_personal_enrollment` reports whether the host's most recent MDM enrollment was personal (BYOD). Unlike ⁠`mdm.enrollment_status`, it stays ⁠`true` after the host unenrolls.
 
 > Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
 
@@ -4710,6 +4713,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
