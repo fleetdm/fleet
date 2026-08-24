@@ -1952,7 +1952,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 			// Only an attempt that downloaded and ran the installer counts, so an app-open
 			// skip or a pre-install query that did not pass records nothing.
-			if hsi.SoftwareInstallerID != nil {
+			if hsi.SoftwareInstallerID != nil && svc.installAttemptCounter != nil {
 				switch {
 				case status == fleet.SoftwareInstalled:
 					if err := svc.installAttemptCounter.ResetAttempts(ctx, host.ID, *hsi.SoftwareInstallerID); err != nil {
@@ -2057,6 +2057,10 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 }
 
 func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
+	if svc.installAttemptCounter == nil {
+		return false
+	}
+
 	attempts, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
 	if err != nil {
 		// A Redis error is treated the same as a count of 0, so the install goes ahead.

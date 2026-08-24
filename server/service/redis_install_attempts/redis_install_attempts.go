@@ -26,17 +26,29 @@ func New(pool fleet.RedisPool) *redisInstallAttemptCounter {
 	return &redisInstallAttemptCounter{pool: pool}
 }
 
+type TestNamer interface {
+	Name() string
+}
+
+// NewTest creates an install attempt counter to be used only in tests.
+func NewTest(t TestNamer, pool fleet.RedisPool) *redisInstallAttemptCounter {
+	return &redisInstallAttemptCounter{
+		pool:       pool,
+		testPrefix: t.Name() + ":",
+	}
+}
+
 // prefix is used to not collide with other key domains (like live queries or calendar locks).
 const prefix = "install_attempts:"
 
 // KEYS[1]: $prefix$hostID:$softwareInstallerID (value integer)
-// ARGV[1]: key TTL in seconds
+// ARGV[1]: key TTL in milliseconds
 //
-// One script keeps the INCR and the EXPIRE together, so a key can never be left
+// One script keeps the INCR and the PEXPIRE together, so a key can never be left
 // without a TTL.
 const recordAttemptScript = `
 local count = redis.call("INCR", KEYS[1])
-redis.call("EXPIRE", KEYS[1], ARGV[1])
+redis.call("PEXPIRE", KEYS[1], ARGV[1])
 return count
 `
 
@@ -52,7 +64,7 @@ func (r *redisInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID u
 
 	count, err := redigo.Int(conn.Do("EVAL", recordAttemptScript, 1,
 		r.key(hostID, softwareInstallerID),
-		int(expireIn.Seconds()),
+		expireIn.Milliseconds(),
 	))
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "redis record software install attempt")

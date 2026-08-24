@@ -65,6 +65,7 @@ type TestServerOpts struct {
 	Rs                              fleet.QueryResultStore
 	Lq                              fleet.LiveQueryStore
 	Pool                            fleet.RedisPool
+	InstallAttemptCounter           fleet.SoftwareInstallAttemptCounter
 	FailingPolicySet                fleet.FailingPolicySet
 	Clock                           clock.Clock
 	Task                            *async.Task

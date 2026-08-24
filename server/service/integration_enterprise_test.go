@@ -95,6 +95,7 @@ type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
 	redisPool              fleet.RedisPool
+	attemptCounter         fleet.SoftwareInstallAttemptCounter
 	calendarSchedule       *schedule.Schedule
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -105,7 +106,8 @@ type integrationEnterpriseTestSuite struct {
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	s.redisPool = redistest.SetupRedis(s.T(), s.T().Name(), false, false, false)
+	s.attemptCounter = redis_install_attempts.NewTest(s.T(), s.redisPool)
 	s.lq = live_query_mock.New(s.T())
 	var calendarSchedule *schedule.Schedule
 
@@ -132,11 +134,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool:           s.redisPool,
-		Rs:             pubsub.NewInmemQueryResults(),
-		Lq:             s.lq,
-		Logger:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		EnableCachedDS: true,
+		Pool:                  s.redisPool,
+		InstallAttemptCounter: s.attemptCounter,
+		Rs:                    pubsub.NewInmemQueryResults(),
+		Lq:                    s.lq,
+		Logger:                slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		EnableCachedDS:        true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -34032,9 +34035,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	})
 	require.NotZero(t, installerID)
 
-	// Host IDs restart once the suite truncates tables, so a count left in Redis by an earlier run would apply to this host.
-	attemptCounter := redis_install_attempts.New(s.redisPool)
-	require.NoError(t, attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
 
 	policyIDs := make([]uint, 0, 2)
 	for _, name := range []string{"continuous-a", "continuous-b"} {
@@ -34102,7 +34103,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	require.NotEmpty(t, installUUID)
 	reportInstallResult(installUUID, 1)
 
-	attempts, err := attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
 	require.Equal(t, 1, attempts)
 
@@ -34112,7 +34113,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	require.NotEmpty(t, installUUID)
 	reportInstallResult(installUUID, 0)
 
-	attempts, err = attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
 	require.Zero(t, attempts)
 
@@ -34149,7 +34150,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, installs)
 
 	// The count is keyed on the host and installer, so both policies share it.
-	attempts, err = attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, attempts)
 
@@ -34201,8 +34202,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 	})
 	require.NotZero(t, installerID)
 
-	attemptCounter := redis_install_attempts.New(s.redisPool)
-	require.NoError(t, attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
 
 	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
 		Name:                         "pre-install",
@@ -34249,7 +34249,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 	}
 
 	// A failure before the package is fetched must not count against the limit.
-	attempts, err := attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
 	require.Zero(t, attempts)
 

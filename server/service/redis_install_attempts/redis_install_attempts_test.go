@@ -6,7 +6,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
@@ -33,18 +32,7 @@ func TestRedisInstallAttempts(t *testing.T) {
 
 func setupRedis(t testing.TB, cluster, redir bool) *redisInstallAttemptCounter {
 	pool := redistest.SetupRedis(t, t.Name(), cluster, redir, true)
-	return newCounterForTest(t, pool)
-}
-
-type testName interface {
-	Name() string
-}
-
-func newCounterForTest(t testName, pool fleet.RedisPool) *redisInstallAttemptCounter {
-	return &redisInstallAttemptCounter{
-		pool:       pool,
-		testPrefix: t.Name() + ":",
-	}
+	return NewTest(t, pool)
 }
 
 func testRecordAndCount(t *testing.T, counter *redisInstallAttemptCounter) {
@@ -101,6 +89,15 @@ func testRecordSetsExpiry(t *testing.T, counter *redisInstallAttemptCounter) {
 	_, err = counter.RecordAttempt(ctx, hostID, installerID, 3*time.Hour)
 	require.NoError(t, err)
 	require.InDelta(t, (3 * time.Hour).Seconds(), ttlSeconds(t, counter, hostID, installerID), 60)
+
+	// An expiry under a second still has to outlive the call that set it.
+	count, err := counter.RecordAttempt(ctx, hostID, installerID, 500*time.Millisecond)
+	require.NoError(t, err)
+	require.NotZero(t, count)
+
+	stored, err := counter.CountAttempts(ctx, hostID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, count, stored)
 }
 
 func testCountsAreScopedToHostAndInstaller(t *testing.T, counter *redisInstallAttemptCounter) {

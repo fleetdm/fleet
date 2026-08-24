@@ -212,6 +212,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
+		if opts[0].InstallAttemptCounter != nil {
+			installAttemptCounter = opts[0].InstallAttemptCounter
+		}
 		if opts[0].EnrollHostLimiter != nil {
 			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
