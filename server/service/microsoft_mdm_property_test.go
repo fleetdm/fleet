@@ -368,6 +368,14 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 					"setup has been displayed")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "BlockInStatusPage"),
 				"release path must NOT include BlockInStatusPage")
+			// SkipUserStatusPage must be set to true so subsequent user logins don't trigger a fresh
+			// Account setup ESP phase (#51380).
+			skipCmd := pbtFindCmdByLocURI(cmds, "SkipUserStatusPage")
+			assert.NotNilf(rt, skipCmd, "release path must include SkipUserStatusPage=true (#51380)")
+			if skipCmd != nil && len(skipCmd.Items) > 0 && skipCmd.Items[0].Data != nil {
+				assert.Equalf(rt, "true", skipCmd.Items[0].Data.Content,
+					"SkipUserStatusPage must be true in release commands")
+			}
 		}
 
 		// Cancel-block invariants. The cancel block fires iff (timedOut || (observedHasFailure && requireAll))
