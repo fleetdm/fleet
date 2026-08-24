@@ -2,7 +2,7 @@
 
 Pin a Fleet-maintained app to the version you trust, or roll one back whenever you need to. Fleet 4.89.0 also adds Google Workspace as a source of IdP host vitals, and gives end users a clear path through Windows enrollment. Two more releases land this month.
 
-## What shipped last month
+## 🚀 What shipped last month
 
 - **Auto-update, pin, and roll back Fleet-maintained apps.** Pin an app to a specific version to stop it from auto-updating, or roll back to the previous version if a new release breaks something. Fleet checks for new versions hourly, so hosts you leave on auto-update stay current without you re-adding the app. Available in Fleet Premium.
 - **Windows setup experience: continue past a failed install.** When required setup software fails during Windows automatic enrollment, end users see exactly which app failed. If you haven't checked **Cancel setup if software fails**, they can continue and install it later from self-service. Either way they get a next step instead of a stuck screen. Available in Fleet Premium.
@@ -10,20 +10,17 @@ Pin a Fleet-maintained app to the version you trust, or roll one back whenever y
 
 Also shipped in July: host vital variables everywhere on Android, a policy status page that shows every automation run, vulnerability exposure chart filters you can save through GitOps, and BYOD enrollment permissions for Apple. [See every release](https://fleetdm.com/releases).
 
-## What we plan to ship this month
+## 🗺️ What we plan to ship this month
 
 Two releases are scheduled for August: 4.90.0 and 4.91.0. These are planned, not promised, and scope changes as the releases come together.
 
 - **Custom host vitals.** Define your own host fields, add, edit, and delete them, and use them in host name templates.
 - **Full Apple declarative (DDM) profile support.** Support for all Apple declaration profiles and assets, plus custom activations.
 - **macOS local accounts from any IdP.** Create the initial local account and sync its password from any identity provider that supports OAuth ROPG, moving out of experimental.
-- **Certificate visibility.** View certificates in **Controls > OS settings**, and see certificates on the host details page for Windows hosts.
-- **Android software inventory.** Show Android OS versions and their vulnerabilities in **Software > OS**, alongside more Android host vitals.
-- **Python script-only packages.** Add Python to the script-only package options for software deployment.
 
 Fleet plans releases in the open. The [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) shows what's queued for the releases after this one.
 
-## Upcoming workshops
+## 🎓 Upcoming workshops
 
 Fleet workshops are free, run about four hours, and cap at roughly seven people so everyone gets hands-on time. They lead to the Fleet level 1 certificate.
 
@@ -35,7 +32,7 @@ Fleet workshops are free, run about four hours, and cap at roughly seven people 
 
 More dates are on the way, and nothing near you yet is worth telling us about. You can [request a workshop](https://fleetdm.com/workshops) in your city.
 
-## Worth reading
+## 📖 Worth reading
 
 ### Customer stories
 
@@ -55,7 +52,7 @@ More dates are on the way, and nothing near you yet is worth telling us about. Y
 - [Build a Linux self-service catalog with script-only packages](https://fleetdm.com/guides/build-your-own-linux-self-service-with-script-only-packages-guide). Turn apt and dnf commands into a self-service catalog your Linux users can install from.
 - [Detect and remove unwanted software installed by peripherals](https://fleetdm.com/guides/detect-and-remove-peripheral-software). Find and clean up the software docks and peripherals install without asking.
 
-## From the community
+## 💬 From the community
 
 - [Fleet](https://www.linkedin.com/company/fleetdm/) published [three ways to find Intel-only Mac apps](https://www.linkedin.com/feed/update/urn:li:activity:7485034063301627904) still running in your fleet, ahead of Apple ending Rosetta support.
 - [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) wrote about [taking the case study program in-house](https://www.linkedin.com/posts/zayhanlon_i-hijacked-the-case-study-program-from-marketing-share-7488595098134265856-WuPG) and what came out of the Hawx story.
