@@ -56,7 +56,7 @@ describe("ManagedAccountModal", () => {
     render(
       <ManagedAccountModal
         hostId={7}
-        canRotatePassword
+        canRotatePassword={false}
         onCancel={jest.fn()}
         onRotate={jest.fn()}
       />
@@ -156,7 +156,7 @@ describe("ManagedAccountModal", () => {
     render(
       <ManagedAccountModal
         hostId={7}
-        canRotatePassword
+        canRotatePassword={false}
         onCancel={jest.fn()}
         onRotate={jest.fn()}
       />

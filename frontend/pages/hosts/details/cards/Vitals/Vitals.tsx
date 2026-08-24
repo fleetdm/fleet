@@ -700,9 +700,8 @@ export const buildHostVitals = ({
           size="small"
           onClick={() => onEditCustomHostVital(vital)}
           ariaLabel={`Edit ${vital.name}`}
-        >
-          <Icon name="pencil" size="small" />
-        </Button>
+          icon="pencil"
+        />
       </span>
     ) : (
       vital.name

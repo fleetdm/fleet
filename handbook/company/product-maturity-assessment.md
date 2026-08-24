@@ -31,19 +31,19 @@ Fleet provides comprehensive device management across the entire computing lifec
 **Analyst reports**
 - Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Windows enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Windows Autopilot | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Work Profile enrollment (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🦆 |
-| Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Account Driven User Enrollment (Apple) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| ASM enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Windows enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Windows Autopilot | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Work Profile enrollment (Android) | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Automatic Device Enrollment (Android) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Linux enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| iOS/iPadOS profile-based enrollment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Account Driven User Enrollment (Apple) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Account Driven Device Enrollment (Apple) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| ChromeOS enrollment | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -55,25 +55,25 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 - Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| Setup experience (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration profiles (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Configuration profiles (iOS/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Configuration profiles (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
-| Configuration profiles (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration profiles (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Remote script execution | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Software deployment | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
-| App Store app management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Custom package deployment | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Fleet-maintained apps | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Disk encryption management (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Disk encryption management (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Certificate management | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| Setup experience (macOS) | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (macOS) | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (iOS/iPadOS) | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (tvOS/visionOS/watchOS) | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (Windows) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Configuration profiles (Android) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote script execution | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Software deployment | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| App Store app management | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Custom package deployment | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Fleet-maintained apps | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Disk encryption management (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Disk encryption management (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Disk encryption management (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Certificate management | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 
 ---
 
@@ -85,23 +85,23 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 - Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| Live report execution | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| Scheduled queries | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| Software inventory | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Geolocation tracking | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Activity feed | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Audit logs | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Compliance reporting | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Vulnerability detection | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| CIS Benchmark checks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Binary authorization | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| Live report execution | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Scheduled queries | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Software inventory | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Hardware inventory | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Device status monitoring | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Geolocation tracking | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Activity feed | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Audit logs | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Custom dashboards | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Real-time alerts | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Historical data analysis | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Compliance reporting | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Vulnerability detection | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| CIS Benchmark checks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Binary authorization | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 
 ---
 
@@ -116,27 +116,27 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| OS update management (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
-| OS update management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Patch management (macOS) | 🐣 | 🐣 | 🐣 | 🐥 | 🦆 |
-| Patch management (iPhone/iPadOS) | 🐣 | 🐥 | 🐥 | 🦆 | 🦆 |
-| Patch management (tvOS/visionOS/watchOS) | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
-| Patch management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Patch management (Linux) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Patch management (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Remote lock | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote restart | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
-| Remote support tools | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| Self-service portal | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Device health checks | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Maintenance windows | 🐣 | 🐣 | 🐣 | 🐣 | 🐥 |
-| End user communications | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| OS update management (macOS) | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| OS update management (iPhone/iPadOS) | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| OS update management (tvOS/visionOS/watchOS) | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| OS update management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management (macOS) | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Patch management (iPhone/iPadOS) | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Patch management (tvOS/visionOS/watchOS) | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Patch management (Windows) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management (Linux) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Patch management (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Remote lock | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote restart | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote support tools | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Self-service portal | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Device health checks | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Maintenance windows | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| End user communications | 🥚 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -148,18 +148,18 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 - Gartner: [Market Guide for Endpoint Management Tools - 2025-01-13](https://www.gartner.com/en/documents/6075395)
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| Remote lock/wipe (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote lock/wipe (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Remote lock/wipe (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Device unenrollment (Apple) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 |
-| Device unenrollment (Windows) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Device unenrollment (Linux) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Remote unenrollment (Android) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Offboarding audit trail | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Activation lock management | 🥚 | 🥚 | 🐥 | 🐥 | 🐥 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| Remote lock/wipe (Apple) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Windows) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Linux) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Remote lock/wipe (Android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| Device unenrollment (Apple) | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Device unenrollment (Windows) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Device unenrollment (Linux) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Remote unenrollment (Android) | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Offboarding audit trail | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Activation lock management | 🥚 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -169,19 +169,19 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Stage lifecycle**: Varies by platform (see individual platform rows)
 
-| Platform | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🐥 | 🐥 | 🐥 | 🦆 | 🦢 |
-| Windows | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
-| Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Linux (Debian) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Linux (Arch) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Linux (SUSE) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Android | 🐣 | 🐣 | 🐣 | 🐥 | 🐥 |
-| tvOS/visionOS/watchOS | 🥚 | 🥚 | 🥚 | 🐣 | 🐥 |
-| iOS/iPadOS | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 |
-| ChromeOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Platform | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| macOS | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Windows | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Debian) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (Arch) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Linux (SUSE) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Android | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| tvOS/visionOS/watchOS | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| iOS/iPadOS | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| ChromeOS | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 
 ---
 
@@ -189,22 +189,22 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Stage lifecycle**: Market Leading
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| REST API | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| Webhooks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| SSO/SAML | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Google Workspace Calendar | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Entra Conditional Access | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Slack integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Jira integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Zendesk integration | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Splunk integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Snowflake integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| BigQuery integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Terraform provider | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| GitOps support | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| ServiceNow integration | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| REST API | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| Webhooks | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| SSO/SAML | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Google Workspace Calendar | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Entra Conditional Access | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Slack integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Jira integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Zendesk integration | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Splunk integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Snowflake integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| BigQuery integration | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
+| Terraform provider | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| GitOps support | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
+| ServiceNow integration | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
 
@@ -212,13 +212,13 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 **Stage lifecycle**: Market Competitive
 
-| Category | Current | Q1 2026 | Q2 2026 | Q3 2026 | Q4 2026 |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| Self-managed deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Fleet cloud | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Docker deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Kubernetes deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
-| Multi-tenancy | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
+| Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
+| :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
+| Self-managed deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Fleet cloud | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Docker deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Kubernetes deployment | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Multi-tenancy | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 
 ---
 
@@ -303,14 +303,14 @@ Platform support maturity is determined by aggregating all platform-specific cat
 
 1. Stage lifecycle: Replace the placeholder with the current stage-level assessment
 2. Analyst reports: Add any relevant mentions (optional)
-3. Category maturity table: For each category row, set Current maturity (emoji only) and projections for future quarters (Q1–Q4)
+3. Category maturity table: For each category row, set Current maturity (emoji only) and projections for each future quarter shown in the table
    - Category name: Include a link to Fleet documentation if available, or plain text if not
    - Maturity columns: Use only emojis (🥚 🐣 🐥 🦆 🦢) without text labels
 
 Example row transformation:
 
-- Before: `| DEP/ABM enrollment |  |  |  |  |  |`
-- After:  `| [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |`
+- Before: `| DEP/ABM enrollment |  |  |  |  |  |  |  |`
+- After:  `| [DEP/ABM enrollment (Apple)](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |`
 
 This indicates: Current maturity is Complete (🦆), with Complete maintained across all quarters.
 

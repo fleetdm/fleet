@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.53.43",
+      "version": "2.54.48",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.inin.purecloud.directory';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.inin.purecloud.directory' AND version_compare(bundle_short_version, '2.53.43') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.inin.purecloud.directory' AND version_compare(bundle_short_version, '2.54.48') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.inin.purecloud.directory');"
       },
-      "installer_url": "https://app.mypurecloud.com/directory-mac/build-assets/2.53.43-202/genesys-cloud-mac-2.53.43.dmg",
+      "installer_url": "https://app.mypurecloud.com/directory-mac/build-assets/2.54.48-206/genesys-cloud-mac-2.54.48.dmg",
       "install_script_ref": "f12f0cd5",
       "uninstall_script_ref": "0bf9ba55",
-      "sha256": "fee59a679a60810f6035bc7cf106ea1560c37af608c171e24f4258e5123d6fa7",
+      "sha256": "4671acf6aec12922c52a4181cae06ac8213c460ed701199c58087486ee27a056",
       "default_categories": [
         "Communication"
       ]

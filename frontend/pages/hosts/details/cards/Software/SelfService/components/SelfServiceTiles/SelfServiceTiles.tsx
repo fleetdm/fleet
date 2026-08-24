@@ -22,7 +22,7 @@ interface SelfServiceTilesProps {
   onClickInstallAction: (
     softwareId: number,
     isSoftwarePackage?: boolean
-  ) => void;
+  ) => Promise<boolean> | void;
   isEmptySearch?: boolean;
   /** Category filter produced no results; takes precedence under isEmptySearch */
   isEmptyCategory?: boolean;

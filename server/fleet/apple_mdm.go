@@ -406,6 +406,12 @@ type MDMAppleProfilePayload struct {
 	IgnoreError       bool               `db:"ignore_error"`
 	Scope             PayloadScope       `db:"scope"`
 	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
+	// CancelOnly marks a removal carried through the reconciler solely so its
+	// already-queued RemoveProfile command can be cancelled, because the same
+	// identifier is being installed again on the host under a different profile
+	// UUID. Delivering the removal would strip the profile the admin just asked
+	// for, so nothing is ever enqueued for these rows.
+	CancelOnly bool `db:"-"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -1706,6 +1712,15 @@ const (
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
+
+// CancelableAppleMDMRequestTypes are the request types of Apple MDM commands
+// that can be canceled while they are still pending delivery to the device.
+var CancelableAppleMDMRequestTypes = map[string]struct{}{
+	"DeviceLock":          {},
+	"EraseDevice":         {},
+	"ClearPasscode":       {},
+	EnableLostModeCmdName: {},
+}
 
 // PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
 // Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary

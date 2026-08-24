@@ -49,6 +49,11 @@ func IsReservedTeamName(name string) bool {
 		normalizedName == "unassigned" || normalizedName == "all fleets"
 }
 
+// IsUnassignedFleetName checks if the name provided is the display name of the "Unassigned" pseudo-fleet, i.e. hosts with no fleet (case-insensitive).
+func IsUnassignedFleetName(name string) bool {
+	return strings.ToLower(name) == "unassigned"
+}
+
 type TeamPayload struct {
 	Name               *string              `json:"name"`
 	Description        *string              `json:"description"`

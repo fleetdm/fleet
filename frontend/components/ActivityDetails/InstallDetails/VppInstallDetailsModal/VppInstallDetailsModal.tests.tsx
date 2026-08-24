@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "react-query";
 import { http, HttpResponse } from "msw";
 import {
   createCustomRenderer,
@@ -120,24 +121,60 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText("End user")).toBeInTheDocument();
   });
 
-  it("shows failed_install message for non-Apple platform when MDM command fails", () => {
+  it("shows failed_install message for Android when MDM command fails", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
+        hostDisplayName: "Marko's Pixel 8",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "android",
+      })
+    );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/The end user can retry via the Google Play Store/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows first-person failed_install message for Android on My Device page", () => {
+    render(
+      getStatusMessage({
+        isMyDevicePage: true,
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's Pixel 8",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "android",
+      })
+    );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Retry via the Google Play Store in your work profile/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/The end user can retry/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to generic failed_install copy for a platform that's neither Apple nor Android", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's ThinkPad",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "windows",
       })
     );
-    expect(
-      screen.getByText(/The MDM command \(request\) to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Please re-attempt this installation/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Google Play Store/i)).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific message when MDM command fails on macOS", () => {
@@ -206,16 +243,16 @@ describe("getStatusMessage helper function", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows failed verification message for non-Apple platforms", () => {
+  it("shows failed verification message for Android", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: true,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
+        hostDisplayName: "Marko's Pixel 8",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
-        platform: "windows",
+        platform: "android",
       })
     );
     expect(
@@ -630,5 +667,45 @@ describe("VPP Install Details Modal", () => {
         /If the install finishes later, Fleet will update the status when the host is refetched/i
       )
     ).toBeInTheDocument();
+  });
+
+  it("does not retry the command results request when the API returns 404", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), () => {
+        requestCount += 1;
+        return HttpResponse.json({ message: "Not Found" }, { status: 404 });
+      })
+    );
+
+    // The shared test renderer sets `retry: false` for every query, which would
+    // hide the behavior under test. Render against a client that retries, so
+    // it's the modal's own retry rule that decides.
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: 3, retryDelay: 0, cacheTime: 0 } },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus: "pending_install",
+            hostDisplayName: "Marko's MacBook Pro",
+            appName: "Keynote",
+            commandUuid: "missing-uuid",
+            platform: "darwin",
+          }}
+          onCancel={jest.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    // Waiting on the settled UI rather than a timer: the query stays loading
+    // while retries are in flight, so this only resolves once they're done.
+    await waitFor(() => {
+      expect(screen.getByText(/when it comes online/i)).toBeInTheDocument();
+    });
+
+    expect(requestCount).toBe(1);
   });
 });

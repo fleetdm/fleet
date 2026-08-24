@@ -116,6 +116,32 @@ describe("AssetsTab", () => {
     );
   });
 
+  it("renders the EmptyState heading without Add asset for technicians when there are no assets", async () => {
+    (mdmAPI.getAssets as jest.Mock).mockResolvedValue({ assets: [] });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalTechnician: true,
+          config: mdmEnabledConfig,
+        },
+      },
+    });
+
+    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
+
+    expect(
+      await screen.findByRole("heading", { name: /No assets/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No assets have been added\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add asset$/i })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the tab-header description and Add asset button above the list", async () => {
     (mdmAPI.getAssets as jest.Mock).mockResolvedValue({
       assets: [

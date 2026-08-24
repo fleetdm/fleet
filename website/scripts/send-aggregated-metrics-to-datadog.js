@@ -130,6 +130,32 @@ module.exports = {
       }//∞
     }//∞
 
+    // Emit per-instance host counts grouped by major OS type.
+    for (let instanceStats of latestStatisticsForEachInstance) {
+      if (!instanceStats.hostsEnrolledByOperatingSystem) {
+        continue;
+      }
+      let hostCountByMajorOs = {};
+      for (let platform in instanceStats.hostsEnrolledByOperatingSystem) {
+        let totalForPlatform = 0;
+        for (let osVersion of instanceStats.hostsEnrolledByOperatingSystem[platform]) {
+          totalForPlatform += osVersion.numEnrolled || 0;
+        }
+        if (totalForPlatform > 0) {
+          hostCountByMajorOs[platform] = (hostCountByMajorOs[platform] || 0) + totalForPlatform;
+        }
+      }
+      for (let osType in hostCountByMajorOs) {
+        metricsToReport.push({
+          metric: 'usage_statistics_v2.host_count_by_os_type',
+          type: 3,
+          points: [{ timestamp: timestampForTheseMetrics, value: hostCountByMajorOs[osType] }],
+          resources: [{ name: instanceStats.anonymousIdentifier, type: 'fleet_instance' }],
+          tags: [`os_type:${osType}`, `license_tier:${instanceStats.licenseTier}`, `organization:${instanceStats.organization}`],
+        });
+      }
+    }//∞
+
 
     let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'hostsEnrolledByOsqueryVersion');
     let combinedHostsEnrolledByOsqueryVersion = [];
@@ -403,6 +429,27 @@ module.exports = {
       }],
       tags: [`enabled:false`],
     });
+    // mdmAndroidEnabled
+    let numberOfInstancesWithMdmAndroidEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {mdmAndroidEnabled: true}).length;
+    let numberOfInstancesWithMdmAndroidDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmAndroidEnabled;
+    metricsToReport.push({
+      metric: 'usage_statistics.android_mdm',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMdmAndroidEnabled
+      }],
+      tags: [`enabled:true`],
+    });
+    metricsToReport.push({
+      metric: 'usage_statistics.android_mdm',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMdmAndroidDisabled
+      }],
+      tags: [`enabled:false`],
+    });
     // liveQueryDisabled
     let numberOfInstancesWithLiveQueryDisabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {liveQueryDisabled: true}).length;
     let numberOfInstancesWithLiveQueryEnabled = numberOfInstancesToReport - numberOfInstancesWithLiveQueryDisabled;
@@ -544,6 +591,52 @@ module.exports = {
       points: [{
         timestamp: timestampForTheseMetrics,
         value: totalNumberOfHostsReportedByFreeInstancesInTheLastWeek
+      }],
+      tags: [`license_tier:free`],
+    });
+
+    // numHostsFleetMDMEnrolledWindows
+    let totalNumHostsFleetMDMEnrolledWindowsByPremiumInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'premium'}), 'numHostsFleetMDMEnrolledWindows'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_windows',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledWindowsByPremiumInstances
+      }],
+      tags: [`license_tier:premium`],
+    });
+
+    let totalNumHostsFleetMDMEnrolledWindowsByFreeInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'free'}), 'numHostsFleetMDMEnrolledWindows'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_windows',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledWindowsByFreeInstances
+      }],
+      tags: [`license_tier:free`],
+    });
+
+    // numHostsFleetMDMEnrolledMacOS
+    let totalNumHostsFleetMDMEnrolledMacOSByPremiumInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'premium'}), 'numHostsFleetMDMEnrolledMacOS'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_macos',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledMacOSByPremiumInstances
+      }],
+      tags: [`license_tier:premium`],
+    });
+
+    let totalNumHostsFleetMDMEnrolledMacOSByFreeInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'free'}), 'numHostsFleetMDMEnrolledMacOS'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_macos',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledMacOSByFreeInstances
       }],
       tags: [`license_tier:free`],
     });
@@ -925,6 +1018,56 @@ module.exports = {
       points: [{
         timestamp: timestampForTheseMetrics,
         value: highestNumberOfHostsFleetDesktopEnabled
+      }],
+    });
+
+    // numHostsFleetMDMEnrolledWindows
+    let fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+      return statistics.numHostsFleetMDMEnrolledWindows > 0;
+    });
+
+    let averageNumberOfHostsFleetMDMEnrolledWindows = Math.floor(_.sum(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows, 'numHostsFleetMDMEnrolledWindows')) / fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows.length);
+    metricsToReport.push({
+      metric: 'usage_statistics.avg_num_hosts_fleet_mdm_enrolled_windows',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: averageNumberOfHostsFleetMDMEnrolledWindows
+      }],
+    });
+
+    let highestNumberOfHostsFleetMDMEnrolledWindows = _.max(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows, 'numHostsFleetMDMEnrolledWindows'));
+    metricsToReport.push({
+      metric: 'usage_statistics.max_num_hosts_fleet_mdm_enrolled_windows',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: highestNumberOfHostsFleetMDMEnrolledWindows
+      }],
+    });
+
+    // numHostsFleetMDMEnrolledMacOS
+    let fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+      return statistics.numHostsFleetMDMEnrolledMacOS > 0;
+    });
+
+    let averageNumberOfHostsFleetMDMEnrolledMacOS = Math.floor(_.sum(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS, 'numHostsFleetMDMEnrolledMacOS')) / fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS.length);
+    metricsToReport.push({
+      metric: 'usage_statistics.avg_num_hosts_fleet_mdm_enrolled_macos',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: averageNumberOfHostsFleetMDMEnrolledMacOS
+      }],
+    });
+
+    let highestNumberOfHostsFleetMDMEnrolledMacOS = _.max(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS, 'numHostsFleetMDMEnrolledMacOS'));
+    metricsToReport.push({
+      metric: 'usage_statistics.max_num_hosts_fleet_mdm_enrolled_macos',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: highestNumberOfHostsFleetMDMEnrolledMacOS
       }],
     });
 

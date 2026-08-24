@@ -625,7 +625,7 @@ const EditIconModal = ({
                 <TabText>Fleet</TabText>
               </Tab>
               <Tab>
-                <TabText>Self-service</TabText>
+                <TabText>Self service</TabText>
               </Tab>
             </TabList>
             <TabPanel>{renderPreviewFleetCard()}</TabPanel>

@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "workspace": "477loadtest",
+    "collected_at": "2025-11-25T00:00:00Z",
+    "interval": "1h",
+    "release": "4.77.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 49
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 77.0
+    },
+    "memory_utilization": {
+      "Average": 9.5
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 26.0
+    },
+    "memory_utilization": {
+      "Average": 9.0
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 26.0
+    },
+    "write_iops": {
+      "Average": 3000.0
+    },
+    "deadlocks": {
+      "Sum": 0
+    }
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 7.0,
+      "maximum": 15.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 48.0
+      },
+      "read_iops": {
+        "Average": 1.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 9.5,
+        "maximum": 16.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.0,
+        "Maximum": 2.6
+      },
+      "memory_utilization": {
+        "Average": 0.23
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Baseline Test",
+    "one_click": "no",
+    "notes": "Writer load related to <url>",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~77%",
+      "fleet_mem": "~9.5%",
+      "errors": "{\"count\":\"count\"-1,\"examples\":\"examples\"-2 Token-3 python_pa\u2026",
+      "writer_top_sql": "DELETE FROM `host_softwar\u2026",
+      "writer_cpu": "~26%",
+      "writer_sessions": "4-15 avg 7",
+      "writer_iops": "~3000",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~48%",
+      "reader_sessions": "~3-16",
+      "reader_iops": "avg 1",
+      "redis_cpu": "1.4-2.6%",
+      "redis_mem": "0.23%",
+      "osquery_uptime": "not 100% due to writer spikes",
+      "osquery_cpu": "26%",
+      "osquery_mem": "9%",
+      "deadlocks": "~0"
+    }
+  }
+}

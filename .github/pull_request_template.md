@@ -24,6 +24,10 @@ For unreleased bug fixes in a release candidate, one of:
 - [ ] Confirmed that the fix is not expected to adversely impact load test results
 - [ ] Alerted the release DRI if additional load testing is needed
 
+## Frontend
+
+- [ ] Attached a screenshot or screen recording of each user-visible change. For changes to existing UI, show the before and after.
+
 ## Database migrations
 
 - [ ] Checked schema for all modified table for columns that will auto-update timestamps during migration.

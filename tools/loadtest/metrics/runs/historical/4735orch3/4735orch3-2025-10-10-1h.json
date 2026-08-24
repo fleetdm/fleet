@@ -1,0 +1,114 @@
+{
+  "metadata": {
+    "workspace": "4735orch3",
+    "collected_at": "2025-10-10T00:00:00Z",
+    "interval": "1h",
+    "release": "4.73.5",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 40
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 80.0,
+      "Maximum": 100.0
+    },
+    "memory_utilization": {
+      "Average": 10.0
+    },
+    "task_counts": {
+      "runningCount": 20
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 27.0
+    },
+    "memory_utilization": {
+      "Average": 4.0
+    },
+    "task_counts": {
+      "runningCount": 104
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 11.0
+    },
+    "write_iops": {
+      "Average": 2000.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 103.5,
+      "maximum": 200.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 22.0
+      },
+      "read_iops": {
+        "Average": 32.0,
+        "Maximum": 64.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 7.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.0,
+        "Maximum": 2.5
+      },
+      "memory_utilization": {
+        "Average": 0.35
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Ticket #33668",
+    "one_click": null,
+    "notes": "Full update and context can be found here: <url>",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "20",
+      "loadtest_containers": "104",
+      "fleet_cpu": "~80% with occasional spikes to 100%",
+      "fleet_mem": "~10%",
+      "errors": "Various errors, mainly related to all the locks that happen \u2026",
+      "writer_top_sql": "INSERT IGNORE INTO `softw\u2026",
+      "writer_cpu": "~11%",
+      "writer_sessions": "7-200",
+      "writer_iops": "~2000",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~22%",
+      "reader_sessions": "~7",
+      "reader_iops": "0-64",
+      "redis_cpu": "1.5- 2.5%",
+      "redis_mem": "0.35%",
+      "osquery_uptime": "N/A",
+      "osquery_cpu": "27%",
+      "osquery_mem": "4%",
+      "deadlocks": "~0-22"
+    }
+  }
+}

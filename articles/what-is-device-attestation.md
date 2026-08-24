@@ -104,7 +104,7 @@ about proving the device is what it says it is.
 Starting in Fleet 4.84.0, Fleet Premium customers can require hardware attestation for ADE
 enrollments on Apple Silicon Macs running macOS 14 or later.
 
-When you enable **Require hardware attestation** in Fleet's MDM settings, Fleet does two things:
+When you enable **Require hardware attestation** in under **Organization settings > Advanced options**, Fleet does two things:
 
 1. Sends an enrollment profile that includes an ACME hardware-bound certificate configuration
 2. Requires the device to pass an Apple device attestation challenge before enrollment completes
@@ -124,7 +124,7 @@ When a device enrolls with a hardware-attested certificate, Fleet shows **MDM at
 in host vitals. If a host isn't attested, the field doesn't appear. That keeps the UI clear
 for devices where attestation applies.
 
-The setting is available in Fleet's UI and can be managed via GitOps. When GitOps mode is
+The setting is available in Fleet's UI and can be managed via [GitOps](https://fleetdm.com/docs/configuration/yaml-files#:~:text=apple_require_hardware_attestation). When GitOps mode is
 enabled, the checkbox in the UI is disabled, which keeps your configuration source of truth in
 version control.
 

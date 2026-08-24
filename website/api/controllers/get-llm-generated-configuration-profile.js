@@ -77,7 +77,7 @@ module.exports = {
     // console.log(configurationProfilePrompt);
     let configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
       prompt: configurationProfilePrompt,
-      baseModel: 'o3-mini-2025-01-31',
+      baseModel: 'claude-sonnet-5',
       // expectJson: true
     }).intercept((err)=>{
       return new Error(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);

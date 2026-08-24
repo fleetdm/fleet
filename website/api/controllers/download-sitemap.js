@@ -69,6 +69,8 @@ module.exports = {
       '/device-management',
       '/software-management',
       '/infrastructure-as-code',
+      '/endpoint-governance',
+      '/ai',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs

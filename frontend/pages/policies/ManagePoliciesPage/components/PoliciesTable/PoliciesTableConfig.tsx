@@ -98,6 +98,9 @@ const AUTOMATION_ICON_RENDERERS: Record<
       className="scale-40-24"
     />
   ),
+  profile: () => (
+    <Graphic name="file-configuration-profile" className="scale-40-24" />
+  ),
   calendar: () => <Graphic name="calendar" />,
   conditional_access: () => <Graphic name="lock" />,
   other: () => <Icon name="settings" />,

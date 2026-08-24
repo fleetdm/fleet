@@ -31,7 +31,7 @@ const InstalledSoftwareActivityItem = ({
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
-  if (details.install_skipped_when_app_open) {
+  if (details.skipped_install) {
     return (
       <ActivityItem
         className={baseClass}
@@ -66,8 +66,8 @@ const InstalledSoftwareActivityItem = ({
         isSoloActivity={isSoloActivity}
       >
         <b>{title}</b> {passivePrefix} on this host
-        {from_setup_experience ? " during setup experience" : ""} (self-service)
-        .
+        {from_setup_experience ? " during setup experience" : ""}
+        (self service).
       </ActivityItem>
     );
   }

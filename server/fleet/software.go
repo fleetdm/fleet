@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -359,29 +360,36 @@ type SoftwareAutoUpdateSchedule struct {
 
 func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
-		return errors.New("Start and end time must both be set")
+		return NewInvalidArgumentError("auto_update_window", "Start and end time must both be set")
 	}
-	// Validate that the times are in HH:MM format.
-	// Note that durations can be arbitrarily long, but parsing in this way
-	// automatically validates that the hours are between 0 and 23 and the minutes are between 0 and 59.
-	startDuration, err := time.Parse("15:04", *s.AutoUpdateStartTime)
+	startDuration, err := parseAutoUpdateHHMM(*s.AutoUpdateStartTime)
 	if err != nil {
-		return fmt.Errorf("Error parsing start time: %w", err)
+		return NewInvalidArgumentError("auto_update_window_start", "must be in HH:MM (24-hour) format")
 	}
-	endDuration, err := time.Parse("15:04", *s.AutoUpdateEndTime)
+	endDuration, err := parseAutoUpdateHHMM(*s.AutoUpdateEndTime)
 	if err != nil {
-		return fmt.Errorf("Error parsing end time: %w", err)
+		return NewInvalidArgumentError("auto_update_window_end", "must be in HH:MM (24-hour) format")
 	}
-	// Validate that the window is at least one hour long.
-	// If the end time is less than the start time, the window wraps to the next day, so we need to add 24 hours to the end time in that case.
+	// If end < start the window wraps past midnight.
 	if endDuration.Before(startDuration) {
 		endDuration = endDuration.Add(24 * time.Hour)
 	}
 	if endDuration.Sub(startDuration) < time.Hour {
-		return errors.New("The update window must be at least one hour long")
+		return NewInvalidArgumentError("auto_update_window", "The update window must be at least one hour long")
 	}
 
 	return nil
+}
+
+var autoUpdateHHMMPattern = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
+
+// parseAutoUpdateHHMM validates the 24-hour time shape and parses it. Unpadded hours
+// ("1:00") are accepted because the cron reader (isTimezoneInWindow) tolerates them.
+func parseAutoUpdateHHMM(s string) (time.Time, error) {
+	if !autoUpdateHHMMPattern.MatchString(s) {
+		return time.Time{}, errors.New("must be HH:MM")
+	}
+	return time.Parse("15:04", s)
 }
 
 type SoftwareAutoUpdateScheduleFilter struct {

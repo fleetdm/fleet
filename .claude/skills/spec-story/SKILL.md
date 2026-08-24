@@ -387,6 +387,7 @@ Finally, report each created issue with its number and URL.
 - **Always** extract Figma UI strings verbatim into per-surface tables (Element | Text) — section titles, checkbox/button labels, tooltips, descriptions, flash messages (enable/disable/error), disabled-state tooltips. Do not paraphrase Figma copy.
 - **Always** answer every engineering checklist item from the parent story body in an "Engineering section answers" section.
 - **Always** include "Open questions" and "Resolved questions" sections. Use "None." rather than omitting an empty section. Resolved questions preserve decisions made during spec review and prevent re-litigation.
+  - If you suggest an API or YAML change in the subtask that is not documented in the API or YAML PR in the parent story, flag that in the "Open questions" section, so Tech Lead can point Product Designer to it. 
 - **Always** reconcile in-flight doc PRs in an "API design note" section when more than one PR shapes the API or YAML surface for the feature. Show the PR table, the conflicts, and the resolution.
 
 ### Sub-issue body

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.7.2",
+      "version": "8.7.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linebreak.CloudAppMacOSX';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linebreak.CloudAppMacOSX' AND version_compare(bundle_short_version, '8.7.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linebreak.CloudAppMacOSX' AND version_compare(bundle_short_version, '8.7.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.linebreak.CloudAppMacOSX');"
       },
-      "installer_url": "https://downloads.zight.com/mac/Zight-8.7.2.3615.zip",
+      "installer_url": "https://downloads.zight.com/mac/Zight-8.7.3.3645.zip",
       "install_script_ref": "a6fb4b3d",
       "uninstall_script_ref": "06dbc54c",
-      "sha256": "b64dfcbf9ab1a0b90f0346d7815f5547510d4e7cd9b3945ef62fc72c5663f40b",
+      "sha256": "02724436bfa1d61aa69119e10e5b767a27002fe5e852bef7e8a360e3c0685e65",
       "default_categories": [
         "Productivity"
       ]

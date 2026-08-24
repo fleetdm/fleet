@@ -50,6 +50,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID *uint
+	// ProfileUUID is the UUID of the configuration profile that will be resent if the policy fails.
+	//
+	// Only applies to team policies.
+	ProfileUUID *string
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string
 	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
@@ -113,6 +117,8 @@ type NewTeamPolicyPayload struct {
 	SoftwareInstallerID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
+	// ProfileUUID is the UUID of the configuration profile that will be resent if the policy fails.
+	ProfileUUID *string
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string
 	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
@@ -149,6 +155,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 )
@@ -199,6 +206,9 @@ func (p PolicyPayload) Verify() error {
 		return err
 	}
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
 		return err
 	}
 
@@ -297,6 +307,28 @@ func verifyPatchPolicy(team string, typ string) error {
 	return nil
 }
 
+// PolicyVerifyResendProfile checks that a policy resending a configuration profile targets a
+// platform that can receive configuration profiles at all: only macOS and Windows hosts can, so a
+// policy scoped exclusively to linux or chrome has
+// nothing to resend to.
+func PolicyVerifyResendProfile(profileUUID *string, platform string) error {
+	if profileUUID == nil || *profileUUID == "" {
+		return nil
+	}
+
+	if platform == "" {
+		return nil // empty = all platforms
+	}
+
+	for p := range strings.SplitSeq(platform, ",") {
+		switch strings.TrimSpace(p) {
+		case "darwin", "windows":
+			return nil
+		}
+	}
+	return errPolicyResendProfileInvalidPlatform
+}
+
 func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform string) error {
 	if conditionalAccessEnabled && !strings.Contains(platform, "darwin") && !strings.Contains(platform, "windows") {
 		return errPolicyConditionalAccessEnabledInvalidPlatform
@@ -338,6 +370,11 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
+	// ProfileUUID is the UUID of the configuration profile that will be resent if the policy fails.
+	// Value "" will unset the current profile from the policy.
+	//
+	// Only applies to team policies.
+	ProfileUUID optjson.String `json:"profile_uuid" premium:"true"`
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
@@ -442,10 +479,12 @@ type PolicyData struct {
 	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
 	//
 	// Only applies to team policies.
-	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
-	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
-	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
-	ScriptID              *uint `json:"-" db:"script_id"`
+	CalendarEventsEnabled    bool    `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+	SoftwareInstallerID      *uint   `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID           *uint   `json:"-" db:"vpp_apps_teams_id"`
+	ScriptID                 *uint   `json:"-" db:"script_id"`
+	ResendAppleProfileUUID   *string `json:"-" db:"resend_apple_profile_uuid"`
+	ResendWindowsProfileUUID *string `json:"-" db:"resend_windows_profile_uuid"`
 
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
@@ -483,6 +522,40 @@ func (p PolicyData) VerifyLabelScopes() error {
 	)
 }
 
+// ResendProfileUUID returns the UUID of the configuration profile this policy resends, whichever
+// platform's column holds it, or nil when the policy has no associated profile.
+func (p *PolicyData) ResendProfileUUID() *string {
+	if p.ResendAppleProfileUUID != nil {
+		return p.ResendAppleProfileUUID
+	}
+	return p.ResendWindowsProfileUUID
+}
+
+func (p *PolicyData) SetResendProfileUUID(profileUUID string) error {
+	if profileUUID == "" {
+		p.ResendAppleProfileUUID = nil
+		p.ResendWindowsProfileUUID = nil
+		return nil
+	}
+
+	resolvedProfile, err := ResolvePolicyResendProfile(&profileUUID)
+	if err != nil {
+		return err
+	}
+
+	if resolvedProfile.AppleUUID != nil {
+		p.ResendAppleProfileUUID = resolvedProfile.AppleUUID
+		p.ResendWindowsProfileUUID = nil
+	}
+
+	if resolvedProfile.WindowsUUID != nil {
+		p.ResendWindowsProfileUUID = resolvedProfile.WindowsUUID
+		p.ResendAppleProfileUUID = nil
+	}
+
+	return nil
+}
+
 // Policy is a fleet's policy query.
 type Policy struct {
 	PolicyData
@@ -515,6 +588,13 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.PatchSoftwareTitleID
 	PatchSoftware *PolicySoftwareTitle `json:"patch_software,omitempty"`
+
+	// ResendConfigurationProfile is used to trigger the resend of a configuration profile when this policy fails.
+	//
+	// Only applies to team policies.
+	//
+	// This field is populated from PolicyData.ResendAppleProfileUUID and PolicyData.ResendWindowsProfileUUID
+	ResendConfigurationProfile *PolicyProfile `json:"resend_configuration_profile,omitempty"`
 }
 
 type PolicyCalendarData struct {
@@ -539,6 +619,13 @@ type PolicyScriptData struct {
 	ID                           uint `db:"id"`
 	ScriptID                     uint `db:"script_id"`
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+}
+
+type PolicyProfileData struct {
+	PolicyID    uint   `db:"policy_id"`
+	PolicyName  string `db:"policy_name"`
+	ProfileUUID string `db:"profile_uuid"`
+	ProfileName string `db:"profile_name"`
 }
 
 // PolicyLite is a stripped down version of the policy.
@@ -659,7 +746,10 @@ type PolicySpec struct {
 	SoftwareTitleID *uint `json:"software_title_id"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
-	ScriptID         *uint    `json:"script_id"`
+	ScriptID *uint `json:"script_id"`
+	// ProfileUUID is the UUID of the configuration profile associated with this policy (team policies only).
+	// When editing a policy, if this is nil or "" then the profile UUID is unset from the policy.
+	ProfileUUID      *string  `json:"profile_uuid"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
@@ -711,6 +801,13 @@ type PolicyScript struct {
 	Name string `json:"name"`
 }
 
+type PolicyProfile struct {
+	// UUID is the UUID of the configuration profile associated with the policy
+	UUID string `json:"profile_uuid"`
+	// Name is the configuration profile's name
+	Name string `json:"name"`
+}
+
 // Verify verifies the policy data is valid.
 func (p PolicySpec) Verify() error {
 	if err := verifyPolicyName(p.Name); err != nil {
@@ -723,6 +820,9 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
 		return err
 	}
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
@@ -794,3 +894,49 @@ const (
 	PolicyTypeDynamic = "dynamic"
 	PolicyTypePatch   = "patch"
 )
+
+type PolicyAutomationType string
+
+const (
+	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypePatch             PolicyAutomationType = "patch"
+	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
+	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
+	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"
+	PolicyAutomationTypeProfiles          PolicyAutomationType = "profiles"
+	PolicyAutomationTypeOther             PolicyAutomationType = "other"
+	PolicyAutomationTypeNone              PolicyAutomationType = ""
+)
+
+// resendProfile holds the resolved values for a policy's
+// resend_apple_profile_uuid / resend_windows_profile_uuid columns. At most one of
+// the two is ever set (enforced by the ck_policies_resend_profile_uuid constraint).
+type resendProfile struct {
+	AppleUUID   *string
+	WindowsUUID *string
+	// Table is the configuration profile table the UUID belongs to.
+	Table string
+}
+
+// ResolvePolicyResendProfile maps a configuration profile UUID onto the resend columns
+// based on its UUID prefix. A nil or empty UUID clears both columns.
+func ResolvePolicyResendProfile(profileUUID *string) (resendProfile, error) {
+	if profileUUID == nil || *profileUUID == "" {
+		return resendProfile{}, nil
+	}
+
+	switch {
+	case strings.HasPrefix(*profileUUID, MDMAppleProfileUUIDPrefix):
+		return resendProfile{AppleUUID: profileUUID, Table: "mdm_apple_configuration_profiles"}, nil
+	case strings.HasPrefix(*profileUUID, MDMWindowsProfileUUIDPrefix):
+		return resendProfile{WindowsUUID: profileUUID, Table: "mdm_windows_configuration_profiles"}, nil
+	case strings.HasPrefix(*profileUUID, MDMAppleDeclarationUUIDPrefix):
+		return resendProfile{}, &BadRequestError{
+			Message: CantResendAppleDeclarationProfilesMessage,
+		}
+	default:
+		return resendProfile{}, &BadRequestError{
+			Message: fmt.Sprintf("Configuration profile with UUID %s has an invalid prefix", *profileUUID),
+		}
+	}
+}

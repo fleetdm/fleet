@@ -256,7 +256,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 			teamName,
 			certTemplateName,
 		),
-		0)
+		0,
+	)
 
 	// Step: Verify status is 'pending'
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "")
@@ -325,7 +326,12 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 			teamName,
 			certTemplateName,
 		),
-		0)
+		0,
+	)
+
+	// Deleting a certificate template that doesn't exist returns 404 for a user authorized to manage certificate templates,
+	// not a 500 from the authorization check being skipped ahead of the not found error.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certificateTemplateID), nil, http.StatusNotFound)
 }
 
 // TestCertificateTemplateSpecEndpointAndAMAPIFailure tests:
@@ -636,7 +642,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
 
 	// Fetch the certificate via the fleetd API. Both SN and SAN should have the IdP username
 	// substituted.
-	resp := s.DoRawWithHeaders("GET",
+	resp := s.DoRawWithHeaders(
+		"GET",
 		fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID),
 		nil,
 		http.StatusOK,
@@ -1466,6 +1473,46 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// Team admin should get 403 forbidden when trying to list other team's certificates
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
 	})
+
+	// Reading and deleting hide the existence of templates the team admin can't reach.
+	// A template on another team and a template that doesn't exist must both come back as 404,
+	// so the response can't be used to probe which IDs exist.
+	t.Run("team admin cannot read or delete other team certificates", func(t *testing.T) {
+		s.token = originalToken
+		deleteOtherTeamName := t.Name() + "-other-team"
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: new(deleteOtherTeamName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		otherTeamID := createTeamResp.Team.ID
+
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   strings.ReplaceAll(t.Name(), "/", "-") + "-Cert",
+			TeamID:                 otherTeamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+
+		s.token = teamAdminToken
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createResp.ID), nil, http.StatusNotFound)
+		s.Do("DELETE", "/api/latest/fleet/certificates/9999999", nil, http.StatusNotFound)
+
+		// Reading a single template hides existence the same way deleting does.
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createResp.ID), nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/certificates/9999999", nil, http.StatusNotFound)
+
+		// The other team's template is still there.
+		s.token = originalToken
+		var listResp listCertificateTemplatesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusOK, &listResp)
+		require.Len(t, listResp.Certificates, 1)
+		require.Equal(t, createResp.ID, listResp.Certificates[0].ID)
+	})
 }
 
 // TestCertificateTemplateResend tests the resend endpoint for Android certificate templates:
@@ -1586,7 +1633,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 			certTemplateID,
 			certTemplateName,
 		),
-		0)
+		0,
+	)
 
 	// Verify status is reset to 'pending', UUID changed, and all certificate fields cleared
 	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)

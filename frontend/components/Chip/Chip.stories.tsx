@@ -30,7 +30,7 @@ export const Playground: Story = {
 export const WithLeadingIcon: Story = {
   args: {
     icon: "user",
-    text: "Self-service",
+    text: "Self service",
   },
 };
 
@@ -53,7 +53,7 @@ export const Clickable: Story = {
 export const WithTooltip: Story = {
   args: {
     icon: "user",
-    text: "Self-service",
+    text: "Self service",
     tooltip: "End users can install this from the My device page.",
   },
 };

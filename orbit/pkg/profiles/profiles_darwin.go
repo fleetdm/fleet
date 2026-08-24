@@ -130,10 +130,10 @@ func IsEnrolledInMDM() (bool, string, error) {
 // ParseMDMEnrollmentStatus runs the `profiles` command to get the current MDM
 // enrollment information and reports if the host is enrolled via DEP or not.
 // Which is used to check for manual enrollment or not.
-func ParseMDMEnrollmentStatus() (enrolledViaDEP bool, err error) {
+func ParseMDMEnrollmentStatus() (enrolledViaDEP bool, isEnrolled bool, err error) {
 	out, err := getMDMInfoFromProfilesCmd()
 	if err != nil {
-		return false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
+		return false, false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
 	}
 
 	// The output of the command is in the form:
@@ -151,14 +151,20 @@ func ParseMDMEnrollmentStatus() (enrolledViaDEP bool, err error) {
 	// 2. The first row contains "Yes" or "No"
 	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
 	if len(lines) < 2 {
-		return false, fmt.Errorf("Got %d lines of output, when expected at least 2 or more", len(lines))
+		return false, false, fmt.Errorf("Got %d lines of output, when expected at least 2 or more", len(lines))
 	}
 
+	var isDepEnrolled bool
 	if strings.Contains(string(lines[0]), "Yes") {
-		return true, nil
+		isDepEnrolled = true
 	}
 
-	return false, nil
+	var isMDMEnrolled bool
+	if strings.Contains(string(lines[1]), "Yes") {
+		isMDMEnrolled = true
+	}
+
+	return isDepEnrolled, isMDMEnrolled, nil
 }
 
 // getMDMInfoFromProfilesCmd is declared as a variable so it can be overwritten by tests.

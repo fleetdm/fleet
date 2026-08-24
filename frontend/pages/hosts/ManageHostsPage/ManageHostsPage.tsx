@@ -1969,10 +1969,7 @@ const ManageHostsPage = ({
     let disableRunScriptBatchTooltipContent: React.ReactNode;
     if (config?.server_settings?.scripts_disabled) {
       disableRunScriptBatchTooltipContent = (
-        <>
-          Running scripts is disabled in <br />
-          organization settings.
-        </>
+        <>Running scripts is disabled in organization settings.</>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a fleet to run a script.";

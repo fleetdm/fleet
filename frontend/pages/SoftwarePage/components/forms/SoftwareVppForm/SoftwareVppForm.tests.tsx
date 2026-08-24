@@ -7,7 +7,7 @@ import { createCustomRenderer } from "test/test-utils";
 import SoftwareVppForm from "./SoftwareVppForm";
 
 describe("SoftwareVppForm", () => {
-  it("shows Self-service after selecting an app to add", async () => {
+  it("shows Self service after selecting an app to add", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     const { user } = render(
       <SoftwareVppForm
@@ -24,6 +24,6 @@ describe("SoftwareVppForm", () => {
 
     await user.click(screen.getByRole("radio", { name: /Test App/ }));
 
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
   });
 });

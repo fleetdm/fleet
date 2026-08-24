@@ -43,7 +43,7 @@ describe("FleetAppDetailsForm", () => {
   it("submits Self-service and Deploy selections", async () => {
     const { user } = renderForm();
     const selfServiceSwitch = screen
-      .getByText("Self-service")
+      .getByText("Self service")
       .closest(".fleet-slider__wrapper")
       ?.querySelector('[role="switch"]');
     expect(selfServiceSwitch).not.toBeNull();

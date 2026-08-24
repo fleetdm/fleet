@@ -1,0 +1,1 @@
+- Fixed the VPP install details modal retrying the command results request four times when the result isn't available yet and the API returns a 404.

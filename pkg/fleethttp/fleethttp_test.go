@@ -2,6 +2,8 @@ package fleethttp
 
 import (
 	"crypto/tls"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -126,10 +128,13 @@ func TestAlwaysBlockedIPs(t *testing.T) {
 		ip      string
 		blocked bool
 	}{
+		{"0.0.0.0", true}, // unspecified; connects to loopback
 		{"127.0.0.1", true},
 		{"127.0.0.2", true},
 		{"169.254.169.254", true}, // AWS IMDS
 		{"169.254.0.1", true},
+		{"::", true},           // IPv6 unspecified; connects to loopback
+		{"::127.0.0.1", true},  // deprecated IPv4-compatible form
 		{"::1", true},          // IPv6 loopback
 		{"fe80::1", true},      // IPv6 link-local
 		{"8.8.8.8", false},     // public
@@ -145,6 +150,57 @@ func TestAlwaysBlockedIPs(t *testing.T) {
 	}
 }
 
+func TestNAT64EmbeddedIPv4(t *testing.T) {
+	// A NAT64 address reaches the IPv4 address it carries, so the embedded
+	// address decides whether it is blocked. The prefix itself carries public
+	// IPv4 traffic on IPv6-only networks and must stay reachable.
+	cases := []struct {
+		ip       string
+		embedded string
+	}{
+		{"64:ff9b::7f00:1", "127.0.0.1"},          // loopback
+		{"64:ff9b::a9fe:a9fe", "169.254.169.254"}, // cloud IMDS
+		{"64:ff9b::a00:1", "10.0.0.1"},            // RFC 1918
+		{"64:ff9b::808:808", "8.8.8.8"},           // public
+		{"2001:4860:4860::8888", ""},              // not NAT64
+	}
+	for _, c := range cases {
+		t.Run(c.ip, func(t *testing.T) {
+			ip := net.ParseIP(c.ip)
+			require.NotNil(t, ip)
+			got := embeddedIPv4(ip)
+			if c.embedded == "" {
+				assert.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, c.embedded, got.String())
+		})
+	}
+
+	blocked := func(t *testing.T, target string, mode NetworkBlockingMode) error {
+		t.Helper()
+		setBlockingMode(t, mode)
+		_, err := NewClient(WithTimeout(3 * time.Second)).Get(target)
+		return err
+	}
+	t.Run("embedded internal address is blocked", func(t *testing.T) {
+		for _, ip := range []string{"64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe"} {
+			err := blocked(t, "http://["+ip+"]:80/", BlockingPrivateAllowed)
+			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, ip)
+		}
+		err := blocked(t, "http://[64:ff9b::a00:1]:80/", BlockingFull)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+	t.Run("embedded public address is not blocked", func(t *testing.T) {
+		// Reaching it may fail for unrelated reasons; it must not be the guard.
+		err := blocked(t, "http://[64:ff9b::808:808]:80/", BlockingFull)
+		if err != nil {
+			assert.NotErrorIs(t, err, ErrPrivateNetworkBlocked)
+		}
+	})
+}
+
 func TestPrivateNetworkCIDRs(t *testing.T) {
 	// These IPs are blocked when private network blocking is enabled.
 	cases := []struct {
@@ -156,8 +212,8 @@ func TestPrivateNetworkCIDRs(t *testing.T) {
 		{"172.16.0.1", true},
 		{"172.31.255.255", true},
 		{"192.168.1.1", true},
-		{"0.0.0.0", true},
 		{"fc00::1", true},     // IPv6 unique local
+		{"0.0.0.0", false},    // always-blocked instead, so not listed here
 		{"8.8.8.8", false},    // public
 		{"1.1.1.1", false},    // public
 		{"172.32.0.1", false}, // just outside 172.16.0.0/12
@@ -198,6 +254,47 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
 		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("unspecified address cannot reach a loopback-only service", func(t *testing.T) {
+		// Connecting to an unspecified address reaches services listening on
+		// loopback, so it has to be blocked like loopback itself.
+		const marker = "loopback-only"
+		cases := []struct {
+			bind        string
+			unspecified string
+		}{
+			{"127.0.0.1:0", "0.0.0.0"},
+			{"[::1]:0", "[::]"},
+		}
+		for _, c := range cases {
+			ln, err := net.Listen("tcp", c.bind)
+			if err != nil {
+				t.Skipf("cannot listen on %s: %v", c.bind, err)
+			}
+			t.Cleanup(func() { ln.Close() })
+			go http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { //nolint:errcheck // closed by cleanup
+				io.WriteString(w, marker) //nolint:errcheck
+			}))
+			url := fmt.Sprintf("http://%s:%d/", c.unspecified, ln.Addr().(*net.TCPAddr).Port)
+
+			// Without blocking the address does reach the loopback-only
+			// listener, so the assertions below test the guard rather than an
+			// address that was unreachable anyway.
+			setBlockingMode(t, BlockingDisabled)
+			resp, err := NewClient(WithTimeout(5 * time.Second)).Get(url)
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			require.NoError(t, err)
+			require.Equal(t, marker, string(body))
+
+			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
+				setBlockingMode(t, mode)
+				_, err := NewClient(WithTimeout(5 * time.Second)).Get(url)
+				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "%s in mode %v", url, mode)
+			}
+		}
 	})
 
 	t.Run("not blocked when blocking is not enabled", func(t *testing.T) {

@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 
 import { createCustomRenderer } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
@@ -17,9 +17,11 @@ import PolicyAutomationsFields, {
 } from "./PolicyAutomationsFields";
 import useSoftwareTitles from "./hooks/useSoftwareTitles";
 import useScripts from "./hooks/useScripts";
+import useProfiles from "./hooks/useProfiles";
 
 jest.mock("./hooks/useSoftwareTitles");
 jest.mock("./hooks/useScripts");
+jest.mock("./hooks/useProfiles");
 jest.mock("hooks/useGitOpsMode", () => ({
   __esModule: true,
   default: () => ({ gitOpsModeEnabled: false }),
@@ -29,6 +31,9 @@ const mockedUseSoftwareTitles = useSoftwareTitles as jest.MockedFunction<
   typeof useSoftwareTitles
 >;
 const mockedUseScripts = useScripts as jest.MockedFunction<typeof useScripts>;
+const mockedUseProfiles = useProfiles as jest.MockedFunction<
+  typeof useProfiles
+>;
 
 const setSoftwareTitles = (titles: ISoftwareTitle[]) => {
   mockedUseSoftwareTitles.mockReturnValue({
@@ -48,6 +53,19 @@ const emptyScriptsResponse = ({
     meta: { has_next_results: false, has_previous_results: false },
   },
 } as unknown) as ReturnType<typeof useScripts>;
+
+const emptyProfilesResponse = ({
+  data: {
+    meta: { has_next_results: false, has_previous_results: false },
+    profiles: [],
+  },
+} as unknown) as ReturnType<typeof useProfiles>;
+
+// Every render mounts the profiles hook; each describe clears mocks after
+// itself, so re-seed the default (empty) response before each test.
+beforeEach(() => {
+  mockedUseProfiles.mockReturnValue(emptyProfilesResponse);
+});
 
 const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
   id: 1,
@@ -164,6 +182,7 @@ const renderWithHandle = (
       automationsConfig={undefined}
       globalConfig={undefined}
       fleetName="Test Fleet"
+      selectedPlatforms={["darwin"]}
       {...componentProps}
     />
   );
@@ -490,5 +509,104 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(
       screen.getByRole("checkbox", { name: "continuous-automations-enabled" })
     ).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("PolicyAutomationsFields — Resend configuration profile row", () => {
+  beforeEach(() => {
+    mockedUseScripts.mockReturnValue(emptyScriptsResponse);
+    setSoftwareTitles([]);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("is enabled for platforms that support configuration profiles", () => {
+    renderWithHandle(undefined, undefined, { selectedPlatforms: ["windows"] });
+
+    expect(
+      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+    ).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("is disabled for platforms without configuration profiles", () => {
+    renderWithHandle(undefined, undefined, { selectedPlatforms: ["linux"] });
+
+    expect(
+      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+    ).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps the stored selection while the platform checkboxes are still hydrating", () => {
+    mockedUseProfiles.mockReturnValue(({
+      data: {
+        meta: { has_next_results: false, has_previous_results: false },
+        profiles: [
+          {
+            profile_uuid: "abc-123",
+            name: "Safari home page",
+            platform: "darwin",
+          },
+        ],
+      },
+    } as unknown) as ReturnType<typeof useProfiles>);
+
+    // PolicyForm's platform checkboxes mount unchecked and are filled in by an
+    // effect, so the first render sees an empty selection (#51272).
+    const { rerender } = renderWithHandle(
+      {
+        resend_configuration_profile: {
+          profile_uuid: "abc-123",
+          name: "Safari home page",
+        },
+      },
+      undefined,
+      { selectedPlatforms: [] }
+    );
+
+    rerender(
+      <PolicyAutomationsFields
+        policy={createMockPolicy({
+          resend_configuration_profile: {
+            profile_uuid: "abc-123",
+            name: "Safari home page",
+          },
+        })}
+        isGlobalPolicy={false}
+        teamIdForApi={1}
+        automationsConfig={undefined}
+        globalConfig={undefined}
+        fleetName="Test Fleet"
+        selectedPlatforms={["darwin"]}
+      />
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+    ).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Safari home page")).toBeInTheDocument();
+  });
+
+  it("blocks the save when the row is checked but no profile is selected", async () => {
+    const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
+      current: null,
+    };
+    const { user } = renderWithHandle(undefined, handleRef, {
+      selectedPlatforms: ["darwin"],
+    });
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "resend_configuration_profile" })
+    );
+
+    act(() => {
+      expect(handleRef.current?.getAutomationsPayload().isValid).toBe(false);
+    });
+    expect(
+      await screen.findByText(
+        "Please select a configuration profile to resend."
+      )
+    ).toBeInTheDocument();
   });
 });

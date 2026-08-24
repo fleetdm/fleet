@@ -12,6 +12,7 @@ import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
 import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
 
 import VppRenewalMessage from "./banners/VppRenewalMessage";
+import MicrosoftGraphCredentialInvalidMessage from "./banners/MicrosoftGraphCredentialInvalidMessage";
 
 export interface IMainContentConfig {
   renderedBanner: boolean;
@@ -77,6 +78,8 @@ const MainContent = ({
         );
       } else if (isVppExpired || willVppExpire) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
+      } else if (config?.mdm.microsoft_graph_credential_invalid) {
+        banner = <MicrosoftGraphCredentialInvalidMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
       }

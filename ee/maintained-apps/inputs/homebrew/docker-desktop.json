@@ -1,7 +1,7 @@
 {
   "name": "Docker Desktop",
   "slug": "docker-desktop/darwin",
-  "unique_identifier": "com.electron.dockerdesktop",
+  "unique_identifier": "com.docker.docker",
   "token": "docker-desktop",
   "installer_format": "dmg",
   "post_uninstall_scripts": [

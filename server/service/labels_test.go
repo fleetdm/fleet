@@ -492,6 +492,19 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 			fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
 	}
 
+	// case-variant names must also be rejected: labels.name has a case-insensitive
+	// collation, so the upsert would overwrite the built-in label row.
+	for _, variant := range []string{"all hosts", "ALL HOSTS", "All hosts", "fedora linux", "MS WINDOWS"} {
+		err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:      variant,
+				Query:     "select 1;",
+				LabelType: fleet.LabelTypeRegular,
+			},
+		}, nil, nil)
+		require.ErrorContains(t, err, "conflicts with the name of a built-in label", "case variant %q should be rejected", variant)
+	}
+
 	const errorMessage = "cannot modify or add built-in label"
 	// not ok -- built-in label name doesn't exist
 	name = "not-foo"
@@ -529,6 +542,45 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	}
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}, nil, nil)
 	assert.ErrorIs(t, err, assert.AnError)
+}
+
+func TestBuiltInLabelNameCaseVariants(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		return lbl, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{
+			Label: fleet.Label{ID: lid, Name: "a regular label", Query: "select 1;", LabelType: fleet.LabelTypeRegular},
+		}, nil, nil
+	}
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		return nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: *label}, nil, nil
+	}
+
+	for _, variant := range []string{"all hosts", "ALL HOSTS", "aLl HoStS"} {
+		t.Run(variant, func(t *testing.T) {
+			_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: variant, Query: "select 1;"})
+			require.ErrorContains(t, err, "cannot add label 'All Hosts' because it conflicts with the name of a built-in label")
+			require.False(t, ds.NewLabelFuncInvoked)
+
+			_, _, err = svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Name: &variant})
+			require.ErrorContains(t, err, "cannot rename label to 'All Hosts' because it conflicts with the name of a built-in label")
+			require.False(t, ds.SaveLabelFuncInvoked)
+
+			err = svc.DeleteLabel(ctx, variant)
+			require.ErrorContains(t, err, "cannot delete built-in label 'All Hosts'")
+			require.False(t, ds.DeleteLabelFuncInvoked)
+		})
+	}
 }
 
 func TestApplyLabelSpecsCustomHostVitalCriteria(t *testing.T) {
@@ -1218,6 +1270,92 @@ func TestModifyManualLabel(t *testing.T) {
 		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
 			HostIDs: []uint{1, 2},
 		})
+		require.NoError(t, err)
+		require.True(t, ds.SaveLabelFuncInvoked)
+	})
+}
+
+func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	membershipType := fleet.LabelMembershipTypeDynamic
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{
+			Label: fleet.Label{
+				ID:                  lid,
+				LabelMembershipType: membershipType,
+			},
+		}, nil, nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99}, nil
+	}
+	mockListHostsLiteByIDs(ds)
+
+	type labelTypeCase struct {
+		name           string
+		membershipType fleet.LabelMembershipType
+	}
+	computedTypes := []labelTypeCase{
+		{"dynamic", fleet.LabelMembershipTypeDynamic},
+		{"host vitals", fleet.LabelMembershipTypeHostVitals},
+	}
+	manualType := labelTypeCase{"manual", fleet.LabelMembershipTypeManual}
+	payloads := []struct {
+		name    string
+		payload fleet.ModifyLabelPayload
+	}{
+		{"empty host IDs", fleet.ModifyLabelPayload{HostIDs: []uint{}}},
+		{"host IDs", fleet.ModifyLabelPayload{HostIDs: []uint{1}}},
+		{"empty hostnames", fleet.ModifyLabelPayload{Hosts: []string{}}},
+		{"hostnames", fleet.ModifyLabelPayload{Hosts: []string{"host1"}}},
+	}
+
+	for _, lblType := range computedTypes {
+		for _, tc := range payloads {
+			t.Run(lblType.name+"/"+tc.name, func(t *testing.T) {
+				membershipType = lblType.membershipType
+				ds.SaveLabelFuncInvoked = false
+
+				_, _, err := svc.ModifyLabel(ctx, 1, tc.payload)
+				require.ErrorContains(t, err, `"hosts" or "host_ids" can only be provided for a manual label`)
+				require.False(t, ds.SaveLabelFuncInvoked)
+			})
+		}
+	}
+
+	// SaveLabel only replaces membership when it gets a non-nil list, so a request
+	// that omits both host fields must reach it as nil.
+	for _, lblType := range append(computedTypes, manualType) {
+		t.Run(lblType.name+"/rename without host fields", func(t *testing.T) {
+			membershipType = lblType.membershipType
+			ds.SaveLabelFuncInvoked = false
+			ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+				require.Nil(t, hostIDs)
+				return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+			}
+
+			_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{Name: new("renamed")})
+			require.NoError(t, err)
+			require.True(t, ds.SaveLabelFuncInvoked)
+		})
+	}
+
+	t.Run("manual label can still be cleared", func(t *testing.T) {
+		membershipType = fleet.LabelMembershipTypeManual
+		ds.SaveLabelFuncInvoked = false
+		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			require.NotNil(t, hostIDs)
+			require.Empty(t, hostIDs)
+			return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+		}
+
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{HostIDs: []uint{}})
 		require.NoError(t, err)
 		require.True(t, ds.SaveLabelFuncInvoked)
 	})

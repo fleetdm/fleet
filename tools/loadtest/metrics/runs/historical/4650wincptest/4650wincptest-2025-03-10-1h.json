@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "workspace": "4650wincptest",
+    "collected_at": "2025-03-10T00:00:00Z",
+    "interval": "1h",
+    "release": "4.65.0",
+    "category": "mdm",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 12
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 31.0
+    },
+    "memory_utilization": {
+      "Average": 2.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 60.0
+    },
+    "memory_utilization": {
+      "Average": 45.0
+    },
+    "task_counts": {
+      "runningCount": 40
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 2.5
+    },
+    "write_iops": {
+      "Average": 1740.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 4.0,
+      "maximum": 9.0
+    },
+    "iops_utilization": {
+      "utilization_pct": 8.7
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 25.0
+      },
+      "read_iops": {
+        "Average": 2.0,
+        "Maximum": 5.4
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 5.0,
+        "maximum": 9.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.38,
+        "Maximum": 3.15
+      },
+      "memory_utilization": {
+        "Average": 0.26
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Ticket #26918",
+    "one_click": null,
+    "notes": "20k hosts, all Windows with MDM",
+    "raw": {
+      "full_day": "no",
+      "fleet_containers": "30",
+      "loadtest_containers": "40",
+      "fleet_cpu": "~31%",
+      "fleet_mem": "~2%",
+      "errors": "No new errors",
+      "writer_top_sql": "UPDATE `software` `s` JOI\u2026",
+      "writer_cpu": "~2.5%",
+      "writer_sessions": "2-9 avg ~4",
+      "writer_iops": "1740 (~8.7%)",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "25.00%",
+      "reader_sessions": "2-9 avg ~5",
+      "reader_iops": "max 5.4 otherwise about 2",
+      "redis_cpu": "1.6-3.15%",
+      "redis_mem": "0.26%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "60%",
+      "osquery_mem": "45%",
+      "deadlocks": "Between 0 and 1 per min"
+    }
+  }
+}

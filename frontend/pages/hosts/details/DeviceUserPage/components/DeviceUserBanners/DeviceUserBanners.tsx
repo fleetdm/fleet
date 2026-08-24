@@ -8,6 +8,7 @@ import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/compo
 import CustomLink from "components/CustomLink";
 import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
 import { isAutomaticDeviceEnrollment } from "interfaces/mdm";
+import { INITIAL_FLEET_DATE } from "utilities/constants";
 
 const baseClass = "device-user-banners";
 
@@ -36,6 +37,7 @@ const DeviceUserBanners = ({
   diskEncryptionKeyAvailable,
   onTriggerEscrowLinuxKey,
   lastMdmEnrolledAt,
+  detailUpdatedAt,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -43,7 +45,11 @@ const DeviceUserBanners = ({
   const mdmEnabledAndConnected = mdmEnabledAndConfigured && connectedToFleetMdm;
 
   const showTurnOnAppleMdmBanner =
-    hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
+    hostPlatform === "darwin" &&
+    isMdmUnenrolled &&
+    mdmEnabledAndConfigured &&
+    detailUpdatedAt &&
+    detailUpdatedAt > INITIAL_FLEET_DATE;
 
   const isNewMdmEnrollment =
     !isMdmUnenrolled &&

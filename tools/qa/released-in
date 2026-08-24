@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# released-in — find the commit that introduced a string and the first stable
+# Fleet release that shipped it.
+#
+# Usage: released-in [--ref REF] [--pathspec PATH] <needle>
+#
+#   needle      string to search for in the git diff (passed to git log -S)
+#   --ref       git ref to search history from (default: origin/main)
+#   --pathspec  optional path filter (e.g. server/service/)
+#
+# Example:
+#   released-in "someSymbolOrString"
+#   released-in --pathspec server/service/ "someSymbolOrString"
+set -euo pipefail
+
+REF="origin/main"
+PATHSPEC=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --) shift; break ;;
+    --ref|--pathspec)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      [[ "$1" == "--ref" ]] && REF="$2" || PATHSPEC="$2"
+      shift 2
+      ;;
+    -*) echo "unknown flag: $1" >&2; exit 1 ;;
+    *)
+      [[ -z "${NEEDLE:-}" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
+      NEEDLE="$1"
+      shift
+      ;;
+  esac
+done
+# pick up needle after -- separator
+if [[ -z "${NEEDLE:-}" && $# -gt 0 ]]; then
+  NEEDLE="$1"; shift
+fi
+
+if [[ -z "${NEEDLE:-}" ]]; then
+  echo "usage: ${0##*/} [--ref REF] [--pathspec PATH] [--] <needle>" >&2
+  exit 1
+fi
+
+if [[ $# -gt 0 ]]; then
+  echo "unexpected argument: $1" >&2
+  exit 2
+fi
+
+ARGS=("log" "--reverse" "-S" "$NEEDLE" "-n" "1" "--format=%H" "$REF")
+if [[ -n "$PATHSPEC" ]]; then
+  ARGS+=("--" "$PATHSPEC")
+fi
+
+COMMIT=$(git "${ARGS[@]}")
+
+if [[ -z "$COMMIT" ]]; then
+  echo "No commit found introducing: $NEEDLE"
+  exit 0
+fi
+
+echo "Introducing commit: $COMMIT"
+
+# Find the first stable fleet-vX.Y.Z tag containing this commit.
+# Warn early if no fleet-v* tags exist at all — likely missing a git fetch --tags.
+if [[ -z "$(git tag --list "fleet-v*")" ]]; then
+  echo "Warning: no fleet-v* tags found locally. Run 'git fetch --tags' for accurate results." >&2
+fi
+ALL_TAGS=$(git tag --contains "$COMMIT" --list "fleet-v*" --sort=v:refname 2>/dev/null || true)
+FIRST=$(echo "$ALL_TAGS" | grep -E '^fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+
+if [[ -n "$FIRST" ]]; then
+  echo "First release:      $FIRST"
+  echo "Status:             RELEASED — shipped to customers since $FIRST"
+else
+  echo "First release:      (none)"
+  echo "Status:             UNRELEASED — not in any stable fleet-v* tag"
+fi

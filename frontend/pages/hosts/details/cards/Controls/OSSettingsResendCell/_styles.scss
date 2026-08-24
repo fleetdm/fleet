@@ -1,0 +1,30 @@
+.os-settings-resend-cell {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: $pad-small;
+
+  &__resending,
+  &__rotating {
+    color: $core-vibrant-blue;
+    cursor: default;
+    opacity: 50%;
+    filter: saturate(100%);
+
+    .icon {
+      animation: spin 2s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+      transform-origin: center center;
+    }
+
+    100% {
+      transform: rotate(360deg);
+      transform-origin: center center;
+    }
+  }
+}

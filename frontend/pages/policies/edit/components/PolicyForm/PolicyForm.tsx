@@ -69,6 +69,7 @@ import {
 } from "pages/policies/hooks";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
+import { getPolicyAutomationErrorMessage } from "./helpers";
 
 const baseClass = "policy-form";
 
@@ -306,7 +307,9 @@ const PolicyForm = ({
     onSuccess: () => {
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
     },
-    onError: () => notify.error("Could not update policy automations."),
+    onError: (err) => {
+      notify.error(getPolicyAutomationErrorMessage(err), { response: err });
+    },
   });
 
   /* - Observer/Observer+ and Technicians cannot edit existing policies
@@ -771,6 +774,7 @@ const PolicyForm = ({
                   isPremiumTier && isPatchPolicy ? patchOption : undefined
                 }
                 patchSlot={patchOptions}
+                selectedPlatforms={getSelectedPlatforms()}
               />
             </div>
           )}
@@ -813,15 +817,7 @@ const PolicyForm = ({
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <TooltipWrapper
-                  tipContent={
-                    <>
-                      Select the platforms this
-                      <br />
-                      policy will be checked on
-                      <br />
-                      to save or run the policy.
-                    </>
-                  }
+                  tipContent="Select the platforms this policy will be checked on to save or run the policy."
                   tooltipClass={`${baseClass}__button-wrap--tooltip`}
                   position="top"
                   disableTooltip={!isEditMode || isAnyPlatformSelected}
@@ -843,15 +839,11 @@ const PolicyForm = ({
             <TooltipWrapper
               tipContent={
                 disabledLiveQuery ? (
-                  <>
-                    Live reports are disabled <br />
-                    in organization settings.
-                  </>
+                  <>Live reports are disabled in organization settings.</>
                 ) : (
                   <>
-                    Select the platforms this <br />
-                    policy will be checked on <br />
-                    to save or run the policy.
+                    Select the platforms this policy will be checked on to save
+                    or run the policy.
                   </>
                 )
               }

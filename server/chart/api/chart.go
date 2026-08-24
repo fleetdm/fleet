@@ -179,8 +179,9 @@ type RequestOpts struct {
 	// no bound. The frontend converts its 0–100 % input before sending.
 	EPSSMin *float64
 	EPSSMax *float64
-	// Severity (CVSS) bounds are accepted but ignored this round — the service
-	// forces critical-only [9.0, 10.0]. See the severity TODO in the service.
+	// Severity bounds are CVSS v3 base scores, 0.0–10.0; nil means no bound on
+	// that side, which drops the predicate rather than widening it to the full
+	// range.
 	SeverityMin *float64
 	SeverityMax *float64
 	// ExcludeCVEs is a subtractive filter — these CVEs are removed from the

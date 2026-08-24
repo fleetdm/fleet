@@ -20,12 +20,12 @@ export const DROPDOWN_OPTIONS = [
   },
   {
     disabled: false,
-    label: "Self-service",
+    label: "Self service",
     value: "selfService",
     helpText: (
       <>
         Software that end users can install from <b>Fleet Desktop</b> {">"}
-        <b>Self-service</b>.
+        <b>Self service</b>.
       </>
     ),
   },

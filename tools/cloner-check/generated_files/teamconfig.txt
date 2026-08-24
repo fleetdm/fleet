@@ -160,6 +160,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAny	[]st
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Categories	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	DisplayName	string
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	SetupExperiencePlatform	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MaintainedAppSpec	Icon	fleet.TeamSpecSoftwareAsset

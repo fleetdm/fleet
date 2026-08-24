@@ -25,7 +25,12 @@ var userSearchColumns = []string{"name", "email"}
 // various places, which we do not want.
 const userSelectColumns = `id, created_at, updated_at, password, salt, name, email,
 	admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role,
-	api_only, mfa_enabled, invite_id`
+	api_only, mfa_enabled, invite_id, last_login_at`
+
+// userLastActivitySelect computes the user's most recent authenticated
+// request from its live sessions (accessed_at is bumped on every request).
+// NULL when the user has no live session.
+const userLastActivitySelect = `(SELECT MAX(s.accessed_at) FROM sessions s WHERE s.user_id = users.id) AS last_activity_at`
 
 // userSummaryColumns are the columns selected for UserSummary.
 const userSummaryColumns = `id, name, email, gravatar_url, api_only`
@@ -100,8 +105,8 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 
 func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
-		"SELECT %s FROM users WHERE %s = ? LIMIT 1",
-		userSelectColumns, searchCol,
+		"SELECT %s, %s FROM users WHERE %s = ? LIMIT 1",
+		userSelectColumns, userLastActivitySelect, searchCol,
 	)
 
 	user := &fleet.User{}
@@ -160,7 +165,8 @@ var userAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 // UserListOptions.
 func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	sqlStatement := `
-		SELECT * FROM users
+		SELECT users.*, ` + userLastActivitySelect + `
+		FROM users
 		WHERE TRUE
 	`
 	var params []interface{}

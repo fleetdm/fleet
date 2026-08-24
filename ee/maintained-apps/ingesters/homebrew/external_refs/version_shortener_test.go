@@ -50,6 +50,7 @@ func TestMakeVersionShortenerKeep3(t *testing.T) {
 		{name: "citrix workspace", version: "25.11.1.42", slug: "citrix-workspace", expected: "25.11.1"},
 		{name: "grammarly desktop", version: "1.160.0.0", slug: "grammarly-desktop", expected: "1.160.0"},
 		{name: "anka virtualization", version: "3.8.6.212", slug: "anka-virtualization", expected: "3.8.6"},
+		{name: "onedrive", version: "26.139.0720.0007", slug: "onedrive", expected: "26.139.0720"},
 	}
 
 	for _, tc := range tcs {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.20",
+      "version": "2.21",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'CPUID CPU-Z %' AND publisher = 'CPUID, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CPUID CPU-Z %' AND publisher = 'CPUID, Inc.' AND version_compare(version, '2.20') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CPUID CPU-Z %' AND publisher = 'CPUID, Inc.' AND version_compare(version, '2.21') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cpu-z.exe');"
       },
-      "installer_url": "https://download.cpuid.com/cpu-z/cpu-z_2.20-en.exe",
+      "installer_url": "https://download.cpuid.com/cpu-z/cpu-z_2.21-en.exe",
       "install_script_ref": "ec59e4d0",
       "uninstall_script_ref": "580f45c8",
-      "sha256": "fb1e0ce5c019bad7f1343103e514858e19fce05abcb18bc6bc870f243a3c2b24",
+      "sha256": "784fe4f06ba1c53cf396f6751ec8b8ba59145c702e06a2650b80c632c479123f",
       "default_categories": [
         "Utilities"
       ]

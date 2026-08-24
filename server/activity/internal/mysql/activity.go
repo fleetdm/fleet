@@ -39,6 +39,33 @@ func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
 // Ensure Datastore implements types.Datastore
 var _ types.Datastore = (*Datastore)(nil)
 
+// activitiesAllowedOrderKeys maps the sortable order keys for ListActivities to their
+// SQL column expressions. Ordering is validated against this allowlist so a
+// caller can't sort by an arbitrary column (e.g. the details JSON) and use the
+// cursor as a binary-search oracle to read it.
+var activitiesAllowedOrderKeys = platform_mysql.OrderKeyAllowlist{
+	"id":              "a.id",
+	"created_at":      "a.created_at",
+	"user_id":         "a.user_id",
+	"activity_type":   "a.activity_type",
+	"user_name":       "a.user_name",
+	"user_email":      "a.user_email",
+	"fleet_initiated": "a.fleet_initiated",
+	"streamed":        "a.streamed",
+}
+
+// hostPastActivitiesAllowedOrderKeys is the equivalent allowlist for
+// ListHostPastActivities, whose id comes from the join table.
+var hostPastActivitiesAllowedOrderKeys = platform_mysql.OrderKeyAllowlist{
+	"id":              "ha.activity_id",
+	"created_at":      "a.created_at",
+	"user_id":         "a.user_id",
+	"activity_type":   "a.activity_type",
+	"user_name":       "a.user_name",
+	"user_email":      "a.user_email",
+	"fleet_initiated": "a.fleet_initiated",
+}
+
 // ListActivities returns a slice of activities performed across the organization.
 func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities")
@@ -101,11 +128,14 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 		args = append(args, time.Now().UTC())
 	}
 
-	// Apply pagination using platform_mysql
-	activitiesQ, args = platform_mysql.AppendListOptionsWithParams(activitiesQ, args, &opt)
+	// Apply pagination, validating the order key against an allowlist.
+	activitiesQ, args, err := platform_mysql.AppendListOptionsWithParamsSecure(activitiesQ, args, &opt, activitiesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var activities []*api.Activity
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
 	}
@@ -176,7 +206,10 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 
 	args := []any{hostID}
 
-	stmt, args := platform_mysql.AppendListOptionsWithParams(listStmt, args, &opt)
+	stmt, args, err := platform_mysql.AppendListOptionsWithParamsSecure(listStmt, args, &opt, hostPastActivitiesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var activities []*api.Activity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {

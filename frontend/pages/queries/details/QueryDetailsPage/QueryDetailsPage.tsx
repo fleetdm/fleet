@@ -332,11 +332,10 @@ const QueryDetailsPage = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Report automations let you send data to your log <br />
-                      destination on a schedule. When automations are <b>
-                        on
-                      </b>, <br />
-                      data is sent according to a report&apos;s interval.
+                      Report automations let you send data to your log
+                      destination on a schedule. When automations are{" "}
+                      <strong>on</strong>, data is sent according to a
+                      report&apos;s interval.
                     </>
                   }
                 >

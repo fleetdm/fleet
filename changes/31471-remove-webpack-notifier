@@ -1,0 +1,1 @@
+- Removed an unneeded dependency that does not support Apple M chips.

@@ -283,6 +283,35 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, ds.NewJobFuncInvoked, "should queue a polling job when expected app not in list")
 	})
+
+	t.Run("no installs left to verify releases the verify command", func(t *testing.T) {
+		ds := setupMockDS(t)
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+		var removedHostUUID, removedCmdType string
+		ds.RemoveHostMDMCommandByHostUUIDFunc = func(_ context.Context, hUUID, cmdType string) error {
+			removedHostUUID, removedCmdType = hUUID, cmdType
+			return nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newNoopActivityFn)
+
+		err := handler(ctx, &testInstalledAppListResult{
+			uuid:          cmdUUID,
+			hostUUID:      hostUUID,
+			hostPlatform:  "darwin",
+			availableApps: []fleet.Software{},
+		})
+		require.NoError(t, err)
+
+		// Holding the verify command here would suppress the next install's acknowledgement on
+		// this host until the daily cleanup removes it.
+		require.True(t, ds.RemoveHostMDMCommandByHostUUIDFuncInvoked)
+		assert.Equal(t, hostUUID, removedHostUUID)
+		assert.Equal(t, fleet.VerifySoftwareInstallVPPPrefix, removedCmdType)
+		assert.False(t, ds.NewJobFuncInvoked, "nothing left to verify, so no polling job")
+	})
 }
 
 func TestSetRecoveryLockResultsHandler(t *testing.T) {

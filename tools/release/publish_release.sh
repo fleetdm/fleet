@@ -406,16 +406,24 @@ remove_changelog_branches() {
 
 create_qa_issue() {
     if [ "$dry_run" = "false" ]; then
+        # QA assignees (GitHub usernames) and groups (labels) for the release QA ticket.
+        local qa_users=(xpkoala chrstphr84 marcusallen97 AndreyKizimenko Brajim20 thisisjoegrant)
+        local qa_groups=("#g-apple-at-work" "#g-auto-patching" "#g-byod" "#g-orchestration" "#g-supply-chain" "#g-power-to-pc")
+
+        # Expand each list into repeated --assignee / --label flags for gh issue create.
+        local qa_args=()
+        for user in "${qa_users[@]}"; do
+            qa_args+=(--assignee "$user")
+        done
+        for group in "${qa_groups[@]}"; do
+            qa_args+=(--label "$group")
+        done
+
         # Check for QA issue
         found=$(gh issue list --search "Release QA: $target_milestone in:title" --json number | jq length)
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
-            gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "AndreyKizimenko"  --label "#g-apple-at-work" --label ":release" \
-                --label "#g-auto-patching" \
-                --assignee "xpkoala" --label "#g-orchestration" \
-                --label "#g-supply-chain" \
-                --label "#g-byod"
+            gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file "${qa_args[@]}"
             rm -f temp_qa_issue_file
         fi
     else

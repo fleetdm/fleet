@@ -1,0 +1,1 @@
+- Fixed self-service reinstall and uninstall buttons remaining disabled after cancelling the uninstall confirmation modal.

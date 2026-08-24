@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "workspace": "4640loadtest-gabe",
+    "collected_at": "2025-02-11T00:00:00Z",
+    "interval": "1h",
+    "release": "4.64.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 7
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 60.0
+    },
+    "memory_utilization": {
+      "Average": 30.0
+    },
+    "task_counts": {
+      "runningCount": null
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 55.0
+    },
+    "memory_utilization": {
+      "Average": 30.0
+    },
+    "task_counts": {
+      "runningCount": null
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 10.0
+    },
+    "write_iops": {
+      "Average": 1300.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 4.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 20.0,
+        "Maximum": 37.0
+      },
+      "read_iops": {
+        "Average": 25.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 13.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 3.0
+      },
+      "memory_utilization": {
+        "Average": 0.25
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Ticket #25875",
+    "one_click": null,
+    "notes": "20K hosts w/ mdm enabled",
+    "raw": {
+      "fleet_cpu": "~60%",
+      "fleet_mem": "~30%",
+      "api_latency": "<url>",
+      "writer_cpu": "~10%",
+      "writer_sessions": "avg ~4",
+      "writer_iops": "1.3K",
+      "reader_cpu": "~37% was peak, avg was ~20%",
+      "reader_sessions": "avg ~13",
+      "reader_iops": "25",
+      "redis_cpu": "~3%",
+      "redis_mem": "0.25%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "55%",
+      "osquery_mem": "30%"
+    }
+  }
+}

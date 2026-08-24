@@ -2675,12 +2675,13 @@ func TestPubSubCommand(t *testing.T) {
 			return stored, nil
 		}
 		var capturedStatus string
-		var capturedErrCode, capturedErrMsg *string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		var capturedErrCode, capturedErrMsg, capturedRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			require.Equal(t, stored.CommandUUID, commandUUID)
 			capturedStatus = status
 			capturedErrCode = errorCode
 			capturedErrMsg = errorMessage
+			capturedRawResult = rawResult
 			return nil
 		}
 
@@ -2691,6 +2692,9 @@ func TestPubSubCommand(t *testing.T) {
 		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), capturedStatus)
 		require.Nil(t, capturedErrCode)
 		require.Nil(t, capturedErrMsg)
+		require.NotNil(t, capturedRawResult, "raw_result should be stored on status update")
+		require.Contains(t, *capturedRawResult, stored.OperationName, "raw_result should contain the operation name")
+		require.Contains(t, *capturedRawResult, `"done":true`, "raw_result should contain done:true")
 	})
 
 	t.Run("pending -> error on op.Error set", func(t *testing.T) {
@@ -2707,7 +2711,8 @@ func TestPubSubCommand(t *testing.T) {
 			return stored, nil
 		}
 		var capturedStatus, capturedCode, capturedMsg string
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		var capturedRawResult *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			capturedStatus = status
 			if errorCode != nil {
 				capturedCode = *errorCode
@@ -2715,6 +2720,7 @@ func TestPubSubCommand(t *testing.T) {
 			if errorMessage != nil {
 				capturedMsg = *errorMessage
 			}
+			capturedRawResult = rawResult
 			return nil
 		}
 
@@ -2728,6 +2734,9 @@ func TestPubSubCommand(t *testing.T) {
 		require.Equal(t, string(android.MDMAndroidCommandStatusError), capturedStatus)
 		require.Equal(t, "13", capturedCode)
 		require.Equal(t, "device does not support WIPE", capturedMsg)
+		require.NotNil(t, capturedRawResult, "raw_result should be stored even on error")
+		require.Contains(t, *capturedRawResult, `"done":true`, "raw_result should contain done:true")
+		require.Contains(t, *capturedRawResult, "device does not support WIPE", "raw_result should contain the error message")
 	})
 
 	t.Run("already-terminal status is not re-transitioned", func(t *testing.T) {
@@ -2742,7 +2751,7 @@ func TestPubSubCommand(t *testing.T) {
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return stored, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("UpdateMDMAndroidCommandStatus should not be called for terminal row")
 			return nil
 		}
@@ -2802,7 +2811,7 @@ func TestPubSubCommand(t *testing.T) {
 			mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 				return stored, nil
 			}
-			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 				t.Fatalf("UpdateMDMAndroidCommandStatus must not be called for a terminal row")
 				return nil
 			}
@@ -2854,7 +2863,7 @@ func TestPubSubCommand(t *testing.T) {
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return stored, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			return nil
 		}
 		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
@@ -2921,7 +2930,7 @@ func TestPubSubCommand(t *testing.T) {
 			t.Fatalf("lookup should be skipped when op.Done is false")
 			return nil, nil
 		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 			t.Fatalf("status update should be skipped when op.Done is false")
 			return nil
 		}

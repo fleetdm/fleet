@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
@@ -46,6 +47,7 @@ type Service struct {
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	msGraphClientFactory   msgraph.ClientFactory
 }
 
 func NewService(
@@ -69,10 +71,16 @@ func NewService(
 	androidService android.Service,
 	estService fleet.ESTService,
 	pssoNonceStore fleet.PSSONonceStore,
+	msGraphClientFactory msgraph.ClientFactory,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
+	}
+
+	// Default to the real Graph client.
+	if msGraphClientFactory == nil {
+		msGraphClientFactory = msgraph.NewClient
 	}
 
 	eeservice := &Service{
@@ -97,6 +105,7 @@ func NewService(
 		androidModule:          androidService,
 		estService:             estService,
 		pssoNonceStore:         pssoNonceStore,
+		msGraphClientFactory:   msGraphClientFactory,
 	}
 
 	// Override methods that can't be easily overriden via

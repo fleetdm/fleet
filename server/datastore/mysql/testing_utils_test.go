@@ -974,3 +974,10 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 // errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
 // for assertions that only care about the error.
 func errOnly(_ []uint, err error) error { return err }
+
+func excludeAnyLabelScope(label *fleet.Label) fleet.LabelIdentsWithScope {
+	return fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label.Name: {LabelName: label.Name, LabelID: label.ID}},
+	}
+}

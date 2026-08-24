@@ -20,6 +20,7 @@ describe("Device User Banners", () => {
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
+        detailUpdatedAt="2025-01-15T10:00:00Z"
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
         onClickTurnOnMdm={noop}
@@ -199,5 +200,43 @@ describe("Device User Banners", () => {
     expect(
       screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
     ).not.toBeInTheDocument();
+  });
+
+  it("hides the Turn on MDM banner for never-fetched devices", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="Off"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        detailUpdatedAt="0001-01-01T00:00:00Z"
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+
+    expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
+  });
+
+  it("renders the Turn on MDM banner for unenrolled macOS hosts that have updated its detail", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="Off"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        detailUpdatedAt="2025-01-15T10:00:00Z"
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+
+    expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
   });
 });

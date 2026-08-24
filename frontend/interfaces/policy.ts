@@ -70,6 +70,7 @@ export interface IPolicy {
   type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  resend_configuration_profile?: IPolicyResendConfigurationProfile;
   patch_software?: IPolicySoftwareToInstall;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
@@ -87,6 +88,11 @@ export interface IPolicySoftwareToInstall {
    * title. Absent for VPP-backed policies. When absent the automations UI
    * falls back to auto-selecting the title's first-added package. */
   software_installer_id?: number;
+}
+
+export interface IPolicyResendConfigurationProfile {
+  profile_uuid: string;
+  name: string;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -155,6 +161,7 @@ export interface IPolicyFormData {
   software_installer_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
+  profile_uuid?: string | null;
   labels_include_any?: string[];
   labels_include_all?: string[];
   labels_exclude_any?: string[];

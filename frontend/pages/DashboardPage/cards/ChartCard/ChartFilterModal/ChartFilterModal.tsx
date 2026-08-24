@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useDebouncedCallback } from "use-debounce";
+import { isEmpty } from "lodash";
 
 import { IHost } from "interfaces/host";
 import { ILabelSummary } from "interfaces/label";
@@ -12,7 +13,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -21,15 +21,28 @@ import SearchField from "components/forms/fields/SearchField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
+import {
+  ANY_SEVERITY_VALUE,
+  ISeverityFilterValue,
+  severityFilters,
+  SeverityValue,
+} from "components/SeverityFilter";
+
 import SoftwareFilters from "./SoftwareFilters";
 import {
-  getSoftwareFilterApplyError,
   isEpssActive,
+  ISoftwareFilterErrors,
+  NO_CATEGORIES_MSG,
+  SoftwareFilterField,
+  validateSoftwareFilters,
 } from "./SoftwareFilters/helpers";
 
 const baseClass = "chart-filter-modal";
 
 export type ChartFilterTab = "hosts" | "software";
+
+const HOSTS_TAB_INDEX = 0;
+const SOFTWARE_TAB_INDEX = 1;
 
 // Exported for testing.
 export const PLATFORM_OPTIONS = [
@@ -56,6 +69,12 @@ export interface IChartFilterState {
   knownExploit: boolean;
   epssMin: string;
   epssMax: string;
+  // Severity (CVSS). `severity` is the SeverityFilter option value; cvssMin /
+  // cvssMax are the raw 0–10 score strings behind it, and they always mirror
+  // the selection — a preset carries its own bounds, Any and Custom carry none.
+  severity: SeverityValue;
+  cvssMin: string;
+  cvssMax: string;
   excludeCVEs: string[];
 }
 
@@ -65,6 +84,7 @@ interface IChartFilterModalProps {
   // metric drives whether the Software tab is shown (cve only).
   metric: string;
   initialTab?: ChartFilterTab;
+  initialShowAdvanced?: boolean;
   onApply: (filters: IChartFilterState) => void;
   onCancel: () => void;
 }
@@ -77,11 +97,14 @@ const ChartFilterModal = ({
   currentTeamId,
   metric,
   initialTab = "hosts",
+  initialShowAdvanced = false,
   onApply,
   onCancel,
 }: IChartFilterModalProps): JSX.Element => {
   const isCVE = metric === "cve";
-  const [activeTab, setActiveTab] = useState(initialTab === "software" ? 1 : 0);
+  const [activeTab, setActiveTab] = useState(
+    initialTab === "software" ? SOFTWARE_TAB_INDEX : HOSTS_TAB_INDEX
+  );
 
   // Software (cve) filter state.
   const [softwareFilters, setSoftwareFilters] = useState<string[]>(
@@ -92,7 +115,22 @@ const ChartFilterModal = ({
   );
   const [epssMin, setEpssMin] = useState<string>(filters.epssMin);
   const [epssMax, setEpssMax] = useState<string>(filters.epssMax);
+  const [severityFilter, setSeverityFilter] = useState<ISeverityFilterValue>({
+    severity: filters.severity,
+    minScore: filters.cvssMin,
+    maxScore: filters.cvssMax,
+  });
   const [excludeCVEs, setExcludeCVEs] = useState<string[]>(filters.excludeCVEs);
+
+  // Only the errors currently being shown — never everything that is invalid.
+  // See frontend/docs/patterns.md#data-validation.
+  const [softwareErrors, setSoftwareErrors] = useState<ISoftwareFilterErrors>(
+    {}
+  );
+  // A field is dirty once the user has edited it. Seeded values that happen to
+  // be invalid must not error on a mere tab through. A ref because it gates
+  // handlers only.
+  const dirtyFields = useRef(new Set<SoftwareFilterField>());
 
   const [selectedLabelIDs, setSelectedLabelIDs] = useState<number[]>(
     filters.labelIDs
@@ -191,7 +229,95 @@ const ChartFilterModal = ({
       value: l.id,
     }));
 
-  const handleApply = () => {
+  const softwareFormData = {
+    categories: softwareFilters,
+    epssMin,
+    epssMax,
+    minScore: severityFilter.minScore,
+    maxScore: severityFilter.maxScore,
+  };
+
+  const markDirty = (field: SoftwareFilterField) => {
+    dirtyFields.current.add(field);
+  };
+
+  // Blur validates that one field and nothing else.
+  const onFieldBlur = (field: SoftwareFilterField) => {
+    if (!dirtyFields.current.has(field)) {
+      return;
+    }
+    const { [field]: fieldError } = validateSoftwareFilters(softwareFormData);
+    setSoftwareErrors((prev) => ({ ...prev, [field]: fieldError }));
+  };
+
+  // Focus clears immediately so the label returns while the user edits.
+  const onFieldFocus = (field: SoftwareFilterField) => {
+    setSoftwareErrors((prev) =>
+      prev[field] ? { ...prev, [field]: undefined } : prev
+    );
+  };
+
+  const onChangeEpssMin = (value: string) => {
+    markDirty("epssMin");
+    setEpssMin(value);
+  };
+
+  const onChangeEpssMax = (value: string) => {
+    markDirty("epssMax");
+    setEpssMax(value);
+  };
+
+  const onChangeSeverityFilter = (next: ISeverityFilterValue) => {
+    if (next.severity === severityFilter.severity) {
+      // Same option means the user typed in a score input.
+      if (next.minScore !== severityFilter.minScore) markDirty("cvssMin");
+      if (next.maxScore !== severityFilter.maxScore) markDirty("cvssMax");
+    } else {
+      // Switching options rewrites both bounds, so any error on them no longer
+      // describes anything.
+      setSoftwareErrors((prev) => ({
+        ...prev,
+        cvssMin: undefined,
+        cvssMax: undefined,
+      }));
+    }
+    setSeverityFilter(next);
+  };
+
+  const onChangeCategories = (next: string[]) => {
+    markDirty("categories");
+    // A selection control has no blur to validate on, and going from one
+    // category to none is unambiguous, so this one resolves on change.
+    setSoftwareErrors((prev) => ({
+      ...prev,
+      categories: next.length === 0 ? NO_CATEGORIES_MSG : undefined,
+    }));
+    setSoftwareFilters(next);
+  };
+
+  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+
+    // Enter submits a native form from any field in it, and applying part-way
+    // through typing a search would be a surprise. Clicking Apply moves focus to
+    // the button, so a still-focused text input means Enter came from a
+    // SearchField — ignore it. The number inputs keep Enter-to-apply.
+    const focused = document.activeElement as HTMLInputElement | null;
+    if (focused?.tagName === "INPUT" && focused.type === "text") {
+      return;
+    }
+    // Submit is a checkpoint: validate everything regardless of dirty state,
+    // show all the errors at once, and return without applying.
+    if (isCVE) {
+      const errors = validateSoftwareFilters(softwareFormData);
+      if (Object.keys(errors).length > 0) {
+        setSoftwareErrors(errors);
+        // The errors are all on the Software tab, so show it.
+        setActiveTab(SOFTWARE_TAB_INDEX);
+        return;
+      }
+    }
+
     onApply({
       labelIDs: selectedLabelIDs,
       platforms: selectedPlatforms,
@@ -201,6 +327,9 @@ const ChartFilterModal = ({
       knownExploit,
       epssMin,
       epssMax,
+      severity: severityFilter.severity,
+      cvssMin: severityFilter.minScore,
+      cvssMax: severityFilter.maxScore,
       excludeCVEs,
     });
   };
@@ -220,7 +349,17 @@ const ChartFilterModal = ({
     setKnownExploit(false);
     setEpssMin("");
     setEpssMax("");
+    // Clear all resets severity to Any, not to the Critical seed — otherwise
+    // the filters would still be active and the Clear all button would never
+    // disappear after being clicked.
+    setSeverityFilter({
+      severity: ANY_SEVERITY_VALUE,
+      minScore: "",
+      maxScore: "",
+    });
     setExcludeCVEs([]);
+    setSoftwareErrors({});
+    dirtyFields.current.clear();
   };
 
   const handleTabChange = (index: number) => {
@@ -245,6 +384,7 @@ const ChartFilterModal = ({
     (softwareFilters.length !== ALL_CVE_SOFTWARE_CATEGORY_VALUES.length ||
       knownExploit ||
       isEpssActive(epssMin, epssMax) ||
+      !isEmpty(severityFilters(severityFilter)) ||
       excludeCVEs.length > 0);
 
   const hasFilters =
@@ -255,14 +395,6 @@ const ChartFilterModal = ({
 
   // Inner host include/exclude tab.
   const tabIndex = hostFilterMode === "include" ? 1 : 0;
-
-  // Block Apply when the Software tab is invalid — no category selected or bad
-  // EPSS input — and surface the reason as a tooltip.
-  const applyError = isCVE
-    ? getSoftwareFilterApplyError(softwareFilters, epssMin, epssMax)
-    : null;
-  const applyDisabled = applyError !== null;
-  const applyTooltip = applyError ?? "";
 
   const renderHostSearch = () => (
     <div className={`${baseClass}__host-search`}>
@@ -377,65 +509,68 @@ const ChartFilterModal = ({
 
   return (
     <Modal title="Settings" onExit={onCancel} className={baseClass}>
-      {isCVE ? (
-        <TabNav>
-          <Tabs selectedIndex={activeTab} onSelect={setActiveTab}>
-            <TabList>
-              <Tab>
-                <TabText>Hosts</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Software</TabText>
-              </Tab>
-            </TabList>
-            <TabPanel>{renderHostFilters()}</TabPanel>
-            <TabPanel>
-              {/* Wrap in __form so the Software tab gets the same bottom
-                  spacing before the action buttons as the Hosts tab. */}
-              <div className={`${baseClass}__form`}>
-                <SoftwareFilters
-                  currentTeamId={currentTeamId}
-                  categories={softwareFilters}
-                  knownExploit={knownExploit}
-                  epssMin={epssMin}
-                  epssMax={epssMax}
-                  excludeCVEs={excludeCVEs}
-                  setCategories={setSoftwareFilters}
-                  setKnownExploit={setKnownExploit}
-                  setEpssMin={setEpssMin}
-                  setEpssMax={setEpssMax}
-                  setExcludeCVEs={setExcludeCVEs}
-                />
-              </div>
-            </TabPanel>
-          </Tabs>
-        </TabNav>
-      ) : (
-        renderHostFilters()
-      )}
-      <div className={`${baseClass}__btn-wrap`}>
-        {hasFilters && (
-          <Button variant="secondary" onClick={handleClear}>
-            Clear all
-          </Button>
+      <form onSubmit={handleSubmit}>
+        {isCVE ? (
+          <TabNav>
+            <Tabs selectedIndex={activeTab} onSelect={setActiveTab}>
+              <TabList>
+                <Tab>
+                  <TabText>Hosts</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Software</TabText>
+                </Tab>
+              </TabList>
+              <TabPanel>{renderHostFilters()}</TabPanel>
+              <TabPanel>
+                {/* Wrap in __form so the Software tab gets the same bottom
+                    spacing before the action buttons as the Hosts tab. */}
+                <div className={`${baseClass}__form`}>
+                  <SoftwareFilters
+                    currentTeamId={currentTeamId}
+                    categories={softwareFilters}
+                    knownExploit={knownExploit}
+                    epssMin={epssMin}
+                    epssMax={epssMax}
+                    severityFilter={severityFilter}
+                    initialShowAdvanced={initialShowAdvanced}
+                    errors={softwareErrors}
+                    excludeCVEs={excludeCVEs}
+                    setCategories={onChangeCategories}
+                    setKnownExploit={setKnownExploit}
+                    setEpssMin={onChangeEpssMin}
+                    setEpssMax={onChangeEpssMax}
+                    setSeverityFilter={onChangeSeverityFilter}
+                    setExcludeCVEs={setExcludeCVEs}
+                    onFieldBlur={onFieldBlur}
+                    onFieldFocus={onFieldFocus}
+                  />
+                </div>
+              </TabPanel>
+            </Tabs>
+          </TabNav>
+        ) : (
+          renderHostFilters()
         )}
-        <div className={`${baseClass}__btn-actions`}>
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          {applyDisabled ? (
-            <TooltipWrapper tipContent={applyTooltip} underline={false}>
-              <Button variant="default" disabled>
-                Apply
-              </Button>
-            </TooltipWrapper>
-          ) : (
-            <Button variant="default" onClick={handleApply}>
-              Apply
+        <div className={`${baseClass}__btn-wrap`}>
+          {hasFilters && (
+            <Button variant="secondary" onClick={handleClear}>
+              Clear all
             </Button>
           )}
+          <div className="modal-cta-wrap">
+            {/* Always enabled: submitting with invalid input is what surfaces
+            the inline errors. See
+            frontend/docs/patterns.md#submit-button-state. */}
+            <Button type="submit" variant="default">
+              Apply
+            </Button>
+            <Button variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };

@@ -32,6 +32,7 @@ const PKG_TYPE_TO_ID_TEXT = {
   deb: "package name",
   rpm: "package name",
   msi: "product code",
+  msix: "product code or package family name",
   exe: "software name",
   zip: "software name",
   sh: "package name",
@@ -293,10 +294,7 @@ const PackageAdvancedOptions = ({
           requiresAdvancedOptions ? (
             <>Install and uninstall scripts are required for .{ext} packages.</>
           ) : (
-            <>
-              Choose a file to modify <br />
-              advanced options.
-            </>
+            <>Choose a file to modify advanced options.</>
           )
         }
       />

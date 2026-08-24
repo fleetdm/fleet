@@ -523,11 +523,7 @@ const SelectTargets = ({
         %&nbsp;
         <TooltipWrapper
           tipContent={
-            <>
-              Hosts are online if they <br />
-              have recently checked <br />
-              into Fleet.
-            </>
+            <>Hosts are online if they have recently checked into Fleet.</>
           }
         >
           online

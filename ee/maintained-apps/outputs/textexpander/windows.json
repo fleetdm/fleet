@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "254.8.4.603",
+      "version": "254.8.4.704",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TextExpander' AND publisher = 'TextExpander, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TextExpander' AND publisher = 'TextExpander, Inc.' AND version_compare(version, '254.8.4.603') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TextExpander' AND publisher = 'TextExpander, Inc.' AND version_compare(version, '254.8.4.704') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'textexpander.exe');"
       },
-      "installer_url": "https://cdn.textexpander.com/windows/846.3.0/TextExpander_x64.msi",
+      "installer_url": "https://cdn.textexpander.com/windows/847.4.0/TextExpander_x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "ef1edd0e",
-      "sha256": "3d0ecfc428080f95963b62963c11d2891fe1ad9b95acc92c4e8c134924a0a028",
+      "sha256": "546392907027063a4973f2caae655d6f01ed6738e9fb618e42654923ccc9548b",
       "default_categories": [
         "Productivity"
       ],

@@ -15,7 +15,7 @@ func TestAuthorizeOrNotFound(t *testing.T) {
 
 	t.Run("write allowed", func(t *testing.T) {
 		ctx := test.UserContext(t.Context(), &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}})
-		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, teamHost, notFoundErr)
+		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, notFoundErr)
 		require.NoError(t, err)
 	})
 
@@ -24,7 +24,7 @@ func TestAuthorizeOrNotFound(t *testing.T) {
 		// an existence oracle (the caller already knows the host exists), so
 		// the real Forbidden should surface, not notFoundErr.
 		ctx := test.UserContext(t.Context(), &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}})
-		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, teamHost, notFoundErr)
+		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, notFoundErr)
 		require.Error(t, err)
 		require.NotErrorIs(t, err, notFoundErr)
 		var forbidden *Forbidden
@@ -36,7 +36,7 @@ func TestAuthorizeOrNotFound(t *testing.T) {
 		// write it: masking as notFoundErr prevents them from learning the
 		// host exists on some other team via a distinguishable Forbidden.
 		ctx := test.UserContext(t.Context(), &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}})
-		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, teamHost, notFoundErr)
+		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, notFoundErr)
 		require.Error(t, err)
 		require.ErrorIs(t, err, notFoundErr)
 	})
@@ -46,7 +46,7 @@ func TestAuthorizeOrNotFound(t *testing.T) {
 		// never get nil (success) back for a caller who can neither read nor
 		// write the resource: that would silently bypass authorization.
 		ctx := test.UserContext(t.Context(), &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}})
-		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, teamHost, nil)
+		err := auth.AuthorizeOrNotFound(ctx, teamHost, fleet.ActionWrite, nil)
 		require.Error(t, err)
 		var forbidden *Forbidden
 		require.ErrorAs(t, err, &forbidden)

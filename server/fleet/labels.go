@@ -332,6 +332,17 @@ func ReservedLabelNames() map[string]struct{} {
 	}
 }
 
+// IsReservedLabelName reports whether name refers to a built-in label, returning
+// the canonical built-in name. The comparison is case-insensitive.
+func IsReservedLabelName(name string) (string, bool) {
+	for reserved := range ReservedLabelNames() {
+		if strings.EqualFold(name, reserved) {
+			return reserved, true
+		}
+	}
+	return "", false
+}
+
 // DetectMissingLabels returns a list of labels present in the unvalidatedLabels list that could not be found in the validLabelMap.
 func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []string) []string {
 	missingLabels := make([]string, 0, len(unvalidatedLabels))

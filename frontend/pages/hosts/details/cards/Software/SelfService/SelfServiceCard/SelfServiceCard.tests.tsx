@@ -127,7 +127,7 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
     expect(
       screen.getByText(
         /Install organization-approved apps provided by your IT department/

@@ -98,19 +98,18 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
-            {canRotatePassword &&
-              (showPendingRotationBanner ? (
+            {showPendingRotationBanner ? (
+              <InfoBanner color="yellow">
+                Password will rotate once the host acknowledges the request.
+              </InfoBanner>
+            ) : (
+              autoRotateAt && (
                 <InfoBanner color="yellow">
-                  Password will rotate once the host acknowledges the request.
+                  Password rotates automatically after{" "}
+                  {monthDayTimeFormat(autoRotateAt)}.
                 </InfoBanner>
-              ) : (
-                autoRotateAt && (
-                  <InfoBanner color="yellow">
-                    Password rotates automatically after{" "}
-                    {monthDayTimeFormat(autoRotateAt)}.
-                  </InfoBanner>
-                )
-              ))}
+              )
+            )}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (

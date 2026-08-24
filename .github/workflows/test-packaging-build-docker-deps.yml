@@ -1,9 +1,9 @@
 # This workflow tests packaging of fleetd with the
-# `fleetctl package` command using locally built fleetdm/wix and fleetdm/bomutils images.
+# `fleetctl package` command using a locally built fleetdm/wix image.
 #
 # It fetches the targets: orbit, osquery and fleet-desktop from the default
 # (Fleet's) TUF server, https://tuf.fleetctl.com.
-name: Test packaging with local fleetdm/wix and fleetdm/bomutils
+name: Test packaging with local fleetdm/wix
 
 on:
   push:
@@ -12,12 +12,10 @@ on:
       - patch-*
       - prepare-*
     paths:
-      - "tools/bomutils-docker/**"
       - "tools/wix-docker/**"
       - ".github/workflows/test-packaging-build-docker-deps.yml"
   pull_request:
     paths:
-      - "tools/bomutils-docker/**"
       - "tools/wix-docker/**"
       - ".github/workflows/test-packaging-build-docker-deps.yml"
   workflow_dispatch: # Manual
@@ -65,11 +63,8 @@ jobs:
       - name: Build fleetdm/wix
         run: make wix-docker
 
-      - name: Build fleetdm/bomutils
-        run: make bomutils-docker
-
       #
-      # Only testing MSI and PKG because RPM/DEB have no docker dependency.
+      # Only testing MSI because PKG/RPM/DEB have no docker dependency.
       #
 
       - name: Build MSI
@@ -77,9 +72,3 @@ jobs:
 
       - name: Build MSI with Fleet Desktop
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
-
-      - name: Build PKG
-        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
-
-      - name: Build PKG with Fleet Desktop
-        run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop

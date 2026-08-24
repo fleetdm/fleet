@@ -46,7 +46,7 @@ describe("SoftwareOptionsSelector", () => {
     const onToggleSelfService = jest.fn();
     renderComponent({ onToggleSelfService });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
     fireEvent.click(selfServiceSwitch);
 
     expect(onToggleSelfService).toHaveBeenCalledTimes(1);
@@ -57,21 +57,21 @@ describe("SoftwareOptionsSelector", () => {
   it("enables self-service sliders for iOS", () => {
     renderComponent({ platform: "ios" });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
     expect(selfServiceSwitch.disabled).toBe(false);
   });
 
   it("enables self-service  for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
     expect(selfServiceSwitch.disabled).toBe(false);
   });
 
   it("disables self-service when disableOptions is true", () => {
     renderComponent({ disableOptions: true });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
 
     expect(selfServiceSwitch.disabled).toBe(true);
   });

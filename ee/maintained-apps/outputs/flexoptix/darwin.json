@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.66.0-latest",
+      "version": "5.67.0-latest",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.flexoptix.flexoptix.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.flexoptix.flexoptix.app' AND version_compare(bundle_short_version, '5.66.0-latest') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.flexoptix.flexoptix.app' AND version_compare(bundle_short_version, '5.67.0-latest') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.flexoptix.flexoptix.app');"
       },
-      "installer_url": "https://flexbox.reconfigure.me/download/electron/mac/arm64/FLEXOPTIX%20App-5.66.0-latest-arm64.dmg",
+      "installer_url": "https://flexbox.reconfigure.me/download/electron/mac/arm64/FLEXOPTIX%20App-5.67.0-latest-arm64.dmg",
       "install_script_ref": "a73a3b76",
       "uninstall_script_ref": "38a5d563",
-      "sha256": "86749fee72e420611191ba9e52bec5101aec5fc105f34df63309c3662fa79eb0",
+      "sha256": "af2f7a75a2475b26742a0445e0e0e6cc3fb8583e0c8d4cf99aac399ffd431c70",
       "default_categories": [
         "Productivity"
       ]

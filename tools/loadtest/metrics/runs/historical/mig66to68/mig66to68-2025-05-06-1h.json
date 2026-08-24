@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "workspace": "mig66to68",
+    "collected_at": "2025-05-06T00:00:00Z",
+    "interval": "1h",
+    "release": "4.68.0",
+    "category": "migration",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 18
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 58.0
+    },
+    "memory_utilization": {
+      "Average": 4.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 38.0
+    },
+    "memory_utilization": {
+      "Average": 8.97
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 16.0,
+      "Maximum": 21.0
+    },
+    "write_iops": {
+      "Average": 2700.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 5.0,
+      "maximum": 11.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 50.0
+      },
+      "read_iops": {
+        "Average": 1.0,
+        "Maximum": 3.2
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 4.0,
+        "maximum": 9.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.1,
+        "Maximum": 2.7
+      },
+      "memory_utilization": {
+        "Average": 0.4
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Migration Test",
+    "one_click": null,
+    "notes": "Was run after code cut but there were many cherry picks afte\u2026",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~58%",
+      "fleet_mem": "~4%",
+      "errors": "No new errors",
+      "writer_top_sql": "INSERT INTO `host_seen_ti\u2026",
+      "writer_cpu": "11-21%",
+      "writer_sessions": "2-11 avg 5",
+      "writer_iops": "~2700",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~50%",
+      "reader_sessions": "1-9 avg ~4",
+      "reader_iops": "max 3.2 otherwise about 1",
+      "redis_cpu": "1.5-2.7%",
+      "redis_mem": "0.40%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "38%",
+      "osquery_mem": "8.97%",
+      "deadlocks": "~0-6"
+    }
+  }
+}

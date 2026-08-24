@@ -27,7 +27,7 @@ const InstalledAllSelfServiceSoftwareActivityItem = ({
         </>
       ) : (
         <>
-          <b>End user</b> installed all the software in self-service.
+          <b>End user</b> installed all the software in self service.
         </>
       )}
     </ActivityItem>

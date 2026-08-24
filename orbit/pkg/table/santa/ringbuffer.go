@@ -5,35 +5,62 @@ package santa
 
 type ringBuffer struct {
 	buf   []logEntry
+	cap   int
 	start int
 	size  int
 }
 
 func newRingBuffer(n int) *ringBuffer {
-	return &ringBuffer{buf: make([]logEntry, n)}
+	// The backing array grows on demand: most hosts have far fewer events than the
+	// cap, and the tables allocate a buffer on every query.
+	return &ringBuffer{cap: n}
 }
 
 func (r *ringBuffer) Add(e logEntry) {
-	if len(r.buf) == 0 {
+	if r.cap <= 0 {
 		return
 	}
-	if r.size < len(r.buf) {
-		r.buf[(r.start+r.size)%len(r.buf)] = e
+
+	if r.size < r.cap {
+		if r.size == len(r.buf) {
+			r.grow()
+		}
+		r.buf[r.size] = e
 		r.size++
-	} else {
-		r.buf[r.start] = e
-		r.start = (r.start + 1) % len(r.buf)
+		return
 	}
+
+	// Full: overwrite the oldest entry.
+	r.buf[r.start] = e
+	r.start = (r.start + 1) % len(r.buf)
+}
+
+func (r *ringBuffer) grow() {
+	buf := make([]logEntry, min(max(2*len(r.buf), 64), r.cap))
+	copy(buf, r.buf)
+	r.buf = buf
 }
 
 func (r *ringBuffer) Len() int {
 	return r.size
 }
 
+// Reset empties the buffer so it can be reused, releasing the entries it held.
+func (r *ringBuffer) Reset() {
+	clear(r.buf)
+	r.start = 0
+	r.size = 0
+}
+
 func (r *ringBuffer) SliceChrono() []logEntry {
-	out := make([]logEntry, r.size)
-	for i := 0; i < r.size; i++ {
-		out[i] = r.buf[(r.start+i)%len(r.buf)]
+	return r.AppendTo(make([]logEntry, 0, r.size))
+}
+
+// AppendTo appends the buffer's entries, oldest first, to dst. It lets several
+// buffers be assembled into one result without a slice per buffer.
+func (r *ringBuffer) AppendTo(dst []logEntry) []logEntry {
+	for i := range r.size {
+		dst = append(dst, r.buf[(r.start+i)%len(r.buf)])
 	}
-	return out
+	return dst
 }

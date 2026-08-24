@@ -7,7 +7,7 @@ import { ActivityType } from "interfaces/activity";
 
 import InstalledSoftwareActivityItem from "./InstalledSoftwareActivityItem";
 
-const createInstallActivity = (installSkippedWhenAppOpen?: boolean) =>
+const createInstallActivity = (skippedInstall?: boolean) =>
   createMockHostPastActivity({
     type: ActivityType.InstalledSoftware,
     actor_full_name: "Fleet",
@@ -19,7 +19,7 @@ const createInstallActivity = (installSkippedWhenAppOpen?: boolean) =>
       source: "apps",
       status: "failed_install",
       install_uuid: "uuid-123",
-      install_skipped_when_app_open: installSkippedWhenAppOpen,
+      skipped_install: skippedInstall,
     },
   });
 

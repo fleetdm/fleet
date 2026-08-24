@@ -36,6 +36,10 @@ debug.test*
 # operating system artifacts
 .DS_Store
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # test mysql server data
 mysqldata/
 

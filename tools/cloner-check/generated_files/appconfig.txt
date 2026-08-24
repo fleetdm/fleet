@@ -195,6 +195,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraClientIDs	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/server/fleet/MDM	MicrosoftGraphCredentialInvalid	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnrollment	optjson.Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsEnrollment]
 github.com/fleetdm/fleet/v4/pkg/optjson/Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsEnrollment]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsEnrollment]	Valid	bool

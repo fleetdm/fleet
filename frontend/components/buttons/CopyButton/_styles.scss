@@ -1,17 +1,17 @@
 .copy-button {
   display: inline-flex;
 
-  // Collapse Fleet Button's default 36px footprint down to a 20×20 hit area
-  // (16px icon + 2px padding) so the button fits inside a 21px line-height
-  // row without growing it.
+  // Collapse Fleet Button's default 36px footprint down to a 24×24 hit area
+  // (16px icon + 4px padding) so the button sits inline with a 21px
+  // line-height row without growing it much.
   &__button--compact.button {
     height: auto;
     min-height: 0;
     width: auto;
-    padding: 2px;
+    padding: 4px;
 
     // Fleet Button's focus indicator is a `::after` pseudo with a 1px
-    // border, which paints 1px past the 20×20 footprint. Swap it for an
+    // border, which paints 1px past the 24×24 footprint. Swap it for an
     // inset outline so the focus ring stays within the bounds.
     &::after {
       content: none;

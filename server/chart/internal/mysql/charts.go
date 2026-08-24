@@ -311,17 +311,30 @@ func (ds *Datastore) CollectibleCVEs(ctx context.Context) ([]string, error) {
 // the curated universe with the filter's predicates (software category, CVSS
 // range, EPSS range, known-exploit) and subtracting any excluded CVEs.
 //
-// With the default filter (CVSS 9.0–10.0, all categories, no EPSS bound, no
-// known-exploit, no exclusions) this reproduces the iteration-1 "tracked
-// critical CVEs" set, so the chart's default display is unchanged.
+// Filtering on any cve_meta column (CVSS, EPSS, known-exploit) requires that
+// row to exist, so those filters exclude CVEs Fleet has no NVD metadata for.
+// When no such filter is set the join is dropped and they resolve. NULL fails
+// every comparison, so an explicit 0.0–10.0 CVSS range still excludes a CVE
+// whose cvss_score is NULL, while no CVSS bound at all includes it.
 //
 // Returns a non-nil empty slice when the filter resolves to nothing, so callers
-// never pass nil to GetSCDData (which would mean "all collected", leaking
-// lower-severity CVEs into the chart).
+// never pass nil to GetSCDData, which would mean "no entity filter" and widen
+// the chart to everything the collector recorded.
 func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.CVEChartFilter) ([]string, error) {
-	set := make(map[string]struct{})
 	cats := categorySet(filter.Categories) // nil == all categories
 	metaClause, metaArgs := cveMetaPredicate(filter)
+
+	if cats == nil && metaClause == "" && len(filter.ExcludeCVEs) == 0 {
+		return ds.CollectibleCVEs(ctx)
+	}
+
+	set := make(map[string]struct{})
+
+	swMetaJoin, osMetaJoin := "", ""
+	if metaClause != "" {
+		swMetaJoin = "JOIN cve_meta cm ON cm.cve = sc.cve"
+		osMetaJoin = "JOIN cve_meta cm ON cm.cve = osv.cve"
+	}
 
 	// Software-side: skip entirely when no matcher falls in the selected
 	// categories (e.g. only the OS category is selected).
@@ -331,7 +344,7 @@ func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.C
 			SELECT DISTINCT sc.cve
 			FROM software_cve sc
 			JOIN software s  ON s.id = sc.software_id
-			JOIN cve_meta cm ON cm.cve = sc.cve
+			` + swMetaJoin + `
 			WHERE ` + swClause + metaClause
 		expanded, expandedArgs, err := sqlx.In(swQuery, args...)
 		if err != nil {
@@ -348,7 +361,7 @@ func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.C
 		osQuery := `
 			SELECT DISTINCT osv.cve
 			FROM operating_system_vulnerabilities osv
-			JOIN cve_meta cm ON cm.cve = osv.cve
+			` + osMetaJoin + `
 			WHERE 1=1` + metaClause
 		expanded, expandedArgs, err := sqlx.In(osQuery, metaArgs...)
 		if err != nil {
@@ -396,11 +409,21 @@ func softwareMatcherClause(categories map[string]struct{}) (clause string, args 
 }
 
 // cveMetaPredicate builds the cve_meta WHERE fragment (with a leading " AND ")
-// shared by the software- and OS-side resolve queries, plus its args. The CVSS
-// range is always applied; EPSS bounds and the known-exploit flag are optional.
+// shared by the software- and OS-side resolve queries, plus its args. Every
+// predicate is optional: CVSS and EPSS bounds are applied only when set, and
+// the known-exploit flag only when true. Returns an empty fragment when no
+// predicate applies, so callers must not assume a leading " AND ".
 func cveMetaPredicate(filter types.CVEChartFilter) (string, []any) {
-	clauses := []string{"cm.cvss_score >= ?", "cm.cvss_score <= ?"}
-	args := []any{filter.CVSSMin, filter.CVSSMax}
+	var clauses []string
+	var args []any
+	if filter.CVSSMin != nil {
+		clauses = append(clauses, "cm.cvss_score >= ?")
+		args = append(args, *filter.CVSSMin)
+	}
+	if filter.CVSSMax != nil {
+		clauses = append(clauses, "cm.cvss_score <= ?")
+		args = append(args, *filter.CVSSMax)
+	}
 	if filter.EPSSMin != nil {
 		clauses = append(clauses, "cm.epss_probability >= ?")
 		args = append(args, *filter.EPSSMin)
@@ -411,6 +434,9 @@ func cveMetaPredicate(filter types.CVEChartFilter) (string, []any) {
 	}
 	if filter.KnownExploit {
 		clauses = append(clauses, "cm.cisa_known_exploit = 1")
+	}
+	if len(clauses) == 0 {
+		return "", nil
 	}
 	return " AND " + strings.Join(clauses, " AND "), args
 }

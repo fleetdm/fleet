@@ -3,6 +3,7 @@ package mcp
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -75,10 +76,17 @@ func TestEnrichRiskFlags(t *testing.T) {
 	}
 
 	fs := by["fs"]
-	for _, want := range []string{"remote_fetch_exec", "unpinned_dependency", "plaintext_secret", "mcp_fs_write", "world_readable_config"} {
+	for _, want := range []string{"remote_fetch_exec", "unpinned_dependency", "plaintext_secret", "mcp_fs_write"} {
 		if !strings.Contains(fs.RiskFlags, want) {
 			t.Errorf("fs.RiskFlags=%q missing %q", fs.RiskFlags, want)
 		}
+	}
+	// world_readable_config comes from the 0644 mode above, which Windows ignores:
+	// there fsutil.Stat reads the file's DACL, and a temp file under the user
+	// profile grants no world SID. fsutil's TestStatPermWindowsACL covers that
+	// side; here the flag is only asserted where the mode bits mean something.
+	if runtime.GOOS != "windows" && !strings.Contains(fs.RiskFlags, "world_readable_config") {
+		t.Errorf("fs.RiskFlags=%q missing world_readable_config", fs.RiskFlags)
 	}
 	if fs.SHA256 == "" {
 		t.Error("fs.SHA256 should be set (config hash)")

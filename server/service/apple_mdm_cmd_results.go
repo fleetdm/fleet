@@ -91,7 +91,14 @@ func NewInstalledApplicationListResultsHandler(
 
 		if len(expectedVPPInstalls) == 0 && len(expectedInHouseInstalls) == 0 {
 			logger.WarnContext(ctx, "no apple MDM installs found for host", "host_uuid", installedAppResult.HostUUID(), "verification_command_uuid", installedAppResult.UUID())
-			return nil
+			// Nothing is left to verify, so release the verify command the same way the
+			// terminal path below does. Holding it would suppress the next install's
+			// acknowledgement on this host until the daily cleanup removes it.
+			return ctxerr.Wrap(
+				ctx,
+				ds.RemoveHostMDMCommandByHostUUID(ctx, installedAppResult.HostUUID(), fleet.VerifySoftwareInstallVPPPrefix),
+				"InstalledApplicationList handler: removing host mdm command with no installs to verify",
+			)
 		}
 
 		installsByBundleID := map[string]fleet.Software{}
@@ -221,8 +228,15 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetInHouseAppInstallAsVerified,
 				ds.SetInHouseAppInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
-					return ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
+				// fromAutoUpdate is ignored: in-house apps have no auto-update flow
+				// and ActivityTypeInstalledSoftware has no field for it.
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+					user, act, err := ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
+					if err != nil {
+						return nil, nil, err
+					}
+					act.FromSetupExperience = fromSetupExp
+					return user, act, nil
 				},
 			}
 			if err := setStatusForExpectedInstall(expectedInstall, setter); err != nil {

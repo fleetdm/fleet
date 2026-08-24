@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/plist"
 )
 
 var scriptsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
@@ -2503,8 +2504,127 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	default:
 		return nil
 	}
-	_, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded, setUnlockRef)
-	return err
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// A device can acknowledge a lock/wipe that was canceled after it
+		// already fetched the command (Apple's protocol has no retract). The
+		// device really is locked/wiped then, so restore the canceled state
+		// first and let the normal update below run as if the cancel never
+		// happened. An Error result means the command didn't run — no restore.
+		if succeeded && refCol != "unlock_ref" {
+			if err := ds.restoreCanceledLockWipeRef(ctx, tx, hostUUID, cmdUUID, requestType); err != nil {
+				return err
+			}
+		}
+		_, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, hostUUID, refCol, cmdUUID, succeeded, setUnlockRef)
+		return err
+	})
+}
+
+// restoreCanceledLockWipeRef makes an acknowledged-but-canceled lock/wipe
+// command whole again: canceling deactivated its queue row and cleared its
+// host_mdm_actions ref, so without a restore the ack would update nothing and
+// the host would report unlocked while it is really locked/wiped, with the
+// unlock PIN unretrievable. Re-activating the row and restoring the ref (PIN
+// recovered from the stored command plist) reproduces the exact state a
+// never-canceled acknowledgment leaves. The command cannot be re-delivered to
+// the device: commands are only served while they have no result row.
+//
+// Queue rows deactivated by other paths (re-enrollment queue clearing, SCEP
+// renewal sweeps) take this same path when the device acknowledged the
+// command anyway, which is deliberate — those today strand the host in a
+// state Fleet misreports.
+func (ds *Datastore) restoreCanceledLockWipeRef(ctx context.Context, tx sqlx.ExtContext, hostUUID, cmdUUID, requestType string) error {
+	var active bool
+	err := sqlx.GetContext(ctx, tx, &active,
+		`SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "check queue row for canceled lock/wipe restore")
+	case active:
+		// storing a result never deactivates the queue row, so an active row
+		// means the command was never canceled — nothing to restore
+		return nil
+	}
+
+	var host struct {
+		ID       uint   `db:"id"`
+		Platform string `db:"platform"`
+	}
+	// hosts.uuid is not unique (cloned VMs, re-enrollment); the highest id is
+	// the live enrollment
+	err = sqlx.GetContext(ctx, tx, &host,
+		`SELECT id, platform FROM hosts WHERE uuid = ? ORDER BY id DESC LIMIT 1`, hostUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "load host for canceled lock/wipe restore")
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE nano_enrollment_queue SET active = 1 WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reactivate canceled lock/wipe command")
+	}
+
+	// The IF(... IS NULL ...) guards ensure a non-NULL ref is never clobbered:
+	// if a newer lock/wipe was issued after the cancel, that command's
+	// lifecycle resolves the host's true state and this late ack must not
+	// overwrite its pending ref (or PIN).
+	if requestType == "EraseDevice" {
+		_, err = tx.ExecContext(ctx, `
+INSERT INTO host_mdm_actions (host_id, wipe_ref, fleet_platform)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	wipe_ref = IF(wipe_ref IS NULL, VALUES(wipe_ref), wipe_ref)`,
+			host.ID, cmdUUID, fleet.PlatformFromHost(host.Platform))
+		return ctxerr.Wrap(ctx, err, "restore wipe_ref for canceled wipe")
+	}
+
+	// EnableLostMode commands carry no PIN and store "" at enqueue time
+	var pin string
+	if requestType == "DeviceLock" {
+		var raw []byte
+		if err := sqlx.GetContext(ctx, tx, &raw,
+			`SELECT command FROM nano_commands WHERE command_uuid = ?`, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load command plist for canceled lock restore")
+		}
+		var payload struct {
+			Command struct {
+				PIN string
+			}
+		}
+		if err := plist.Unmarshal(raw, &payload); err != nil {
+			// erroring would abort the ack processing and poison every
+			// re-delivery of the device's report, so skip the restore instead
+			ds.logger.WarnContext(ctx, "canceled lock restore: cannot parse stored command plist, skipping restore",
+				"command_uuid", cmdUUID, "err", err)
+			return nil
+		}
+		if payload.Command.PIN == "" {
+			// a raw DeviceLock sent via POST /commands/run may carry no PIN;
+			// restoring lock_ref without one would leave a lock the admin
+			// cannot unlock and CleanAppleMDMLock cannot clear, and erroring
+			// here would poison every re-delivery of the device's report —
+			// skip the restore, matching the no-bookkeeping behavior raw
+			// commands have always had (Fleet-issued locks always embed a PIN)
+			return nil
+		}
+		pin = payload.Command.PIN
+	}
+
+	// unlock_pin must be assigned before lock_ref: MySQL evaluates the
+	// assignments left to right using already-updated values, so once lock_ref
+	// is set its guard turns false.
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO host_mdm_actions (host_id, lock_ref, unlock_pin, fleet_platform)
+VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	unlock_pin = IF(lock_ref IS NULL AND wipe_ref IS NULL, VALUES(unlock_pin), unlock_pin),
+	lock_ref   = IF(lock_ref IS NULL AND wipe_ref IS NULL, VALUES(lock_ref), lock_ref)`,
+		host.ID, cmdUUID, pin, fleet.PlatformFromHost(host.Platform))
+	return ctxerr.Wrap(ctx, err, "restore lock_ref for canceled lock")
 }
 
 func updateHostLockWipeStatusFromResultAndHostUUID(

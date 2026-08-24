@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "workspace": "480to481mig",
+    "collected_at": "2026-02-18T00:00:00Z",
+    "interval": "1h",
+    "release": "4.81.0",
+    "category": "migration",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 56
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 52.0
+    },
+    "memory_utilization": {
+      "Average": 4.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 17.0
+    },
+    "memory_utilization": {
+      "Average": 9.5
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 38.0
+    },
+    "write_iops": {
+      "Average": 2900.0
+    },
+    "deadlocks": {
+      "Sum": 0
+    }
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 4.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 24.0
+      },
+      "read_iops": {
+        "Average": 1.0,
+        "Maximum": 240.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 3.5,
+        "maximum": 6.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.05,
+        "Maximum": 2.5
+      },
+      "memory_utilization": {
+        "Average": 0.37
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Migration test",
+    "one_click": "yes",
+    "notes": null,
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~52%",
+      "fleet_mem": "~4%",
+      "errors": "No new errores: logged a follow-up bug for existing one here\u2026",
+      "writer_top_sql": "DELETE FROM `host_softwar\u2026",
+      "writer_cpu": "~56% > ~20%",
+      "writer_sessions": "avg 4",
+      "writer_iops": "~2900",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~10% > ~38%",
+      "reader_sessions": "~1-6",
+      "reader_iops": "avg 1 spikes to 240",
+      "redis_cpu": "1.6-2.5%",
+      "redis_mem": "0.37%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "17%",
+      "osquery_mem": "9.50%",
+      "deadlocks": "~0"
+    }
+  }
+}

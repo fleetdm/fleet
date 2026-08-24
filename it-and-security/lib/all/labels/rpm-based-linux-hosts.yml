@@ -1,4 +1,4 @@
 - name: RPM-based Linux hosts
   description: Linux hosts running on RPM-based operating systems
-  query: SELECT 1 FROM os_version WHERE platform_like = 'rhel';
+  query: SELECT 1 FROM os_version WHERE platform = 'rhel' OR platform_like LIKE '%rhel%' OR platform_like LIKE '%fedora%' OR platform_like LIKE '%suse%';
   label_membership_type: dynamic

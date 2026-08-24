@@ -5,7 +5,6 @@ const webpack = require("webpack");
 const bourbon = require("node-bourbon").includePaths;
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const WebpackNotifierPlugin = require("webpack-notifier");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 const globImporter = require("node-sass-glob-importer");
 
@@ -20,9 +19,6 @@ let plugins = [
       isProduction: process.env.NODE_ENV === "production",
     },
     template: "frontend/templates/react.ejs",
-  }),
-  new WebpackNotifierPlugin({
-    excludeWarnings: true,
   }),
   new webpack.DefinePlugin({
     featureFlags: {},

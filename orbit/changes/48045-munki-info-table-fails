@@ -1,0 +1,3 @@
+* Updated macadmins/osquery-extension`to`v1.5.1`, which comes with the following changes:
+  * Fixed the `munki_info` table erroring on hosts where Munki reported items it could not install, which left those hosts without Munki version, errors, and warnings.
+  * Added `touchid_system_config` and `touchid_user_config` tables for macOS.

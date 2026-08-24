@@ -293,7 +293,6 @@ const AppleOSTargetForm = ({
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <DropdownWrapper
-        label="Target"
         name="target"
         options={TARGET_OPTIONS}
         value={target}

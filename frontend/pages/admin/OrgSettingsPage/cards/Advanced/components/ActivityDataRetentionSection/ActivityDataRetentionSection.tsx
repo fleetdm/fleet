@@ -53,14 +53,12 @@ const ActivityDataRetentionSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When enabled, allows automatic cleanup of
+                  When enabled, allows automatic cleanup of audit logs older
+                  than the number of days specified.
                   <br />
-                  audit logs older than the number of days
-                  <br />
-                  specified.{" "}
-                  <em>
+                  <i>
                     (Default: <strong>Off</strong>)
-                  </em>
+                  </i>
                 </>
               )
             }
@@ -100,21 +98,15 @@ const ActivityDataRetentionSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  <>
-                    When enabled, preserves host activities after
-                    <br />
-                    a wipe and re-enrollment. Currently only
-                    <br />
-                    supported for company-owned (AB) Apple
-                    <br />
-                    hosts.{" "}
-                    <strong>Delete activities &gt; Max activity age </strong>
-                    <br />
-                    still applies.{" "}
-                    <em>
-                      (Default: <b>Off</b>)
-                    </em>
-                  </>
+                  When enabled, preserves host activities after a wipe and
+                  re-enrollment. Currently only supported for company-owned (AB)
+                  Apple hosts.{" "}
+                  <strong>Delete activities &gt; Max activity age </strong>
+                  still applies.
+                  <br />
+                  <i>
+                    (Default: <strong>Off</strong>)
+                  </i>
                 </>
               )
             }
@@ -139,16 +131,14 @@ const ActivityDataRetentionSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  Disabling stored results will decrease database usage,
+                  Disabling stored results will decrease database usage, but
+                  will prevent you from accessing report results in Fleet and
+                  will delete existing results. This can also be disabled on a
+                  per-report basis.
                   <br />
-                  but will prevent you from accessing report results in
-                  <br />
-                  Fleet and will delete existing results. This can also be
-                  <br />
-                  disabled on a per-report basis.{" "}
-                  <em>
-                    (Default: <b>On</b>)
-                  </em>
+                  <i>
+                    (Default: <strong>On</strong>)
+                  </i>
                 </>
               )
             }
@@ -174,12 +164,12 @@ const ActivityDataRetentionSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When disabled, Fleet stops collecting hourly hosts online
+                  When disabled, Fleet stops collecting hourly hosts online data
+                  used by the dashboard chart.
                   <br />
-                  data used by the dashboard chart.{" "}
-                  <em>
+                  <i>
                     (Default: <strong>On</strong>)
-                  </em>
+                  </i>
                 </>
               )
             }
@@ -206,11 +196,11 @@ const ActivityDataRetentionSection = ({
                 !disableChildren && (
                   <>
                     When disabled, Fleet stops collecting historical
+                    vulnerability exposure data used by the dashboard chart.
                     <br />
-                    vulnerability exposure data used by the dashboard chart.{" "}
-                    <em>
+                    <i>
                       (Default: <strong>On</strong>)
-                    </em>
+                    </i>
                   </>
                 )
               }

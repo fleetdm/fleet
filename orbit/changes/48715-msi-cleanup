@@ -1,0 +1,1 @@
+Fixed an issue where Windows hosts installed from a network path could not be uninstalled or reinstalled when the original source was unavailable.

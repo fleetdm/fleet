@@ -30,7 +30,10 @@ func TestOwnerUsesStatNotName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	uid, username := owner(dir, fi)
+	uid, username, ok := statOwner(dir, fi)
+	if !ok {
+		t.Fatalf("statOwner could not read the owner of %q", dir)
+	}
 	if uid != cur.Uid {
 		t.Errorf("uid = %q, want the real owner %q (must be read from stat, not the name)", uid, cur.Uid)
 	}

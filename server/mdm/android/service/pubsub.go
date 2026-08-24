@@ -203,7 +203,15 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 	}
 
 	newStatus, errCode, errMsg := androidOperationTerminalState(&op)
-	if err := setAndroidCommandTerminalState(ctx, svc.fleetDS, svc.newActivity, cmd, newStatus, errCode, errMsg,
+
+	// Store the raw Operation JSON so custom command results can be retrieved via the API.
+	var rawResult *string
+	if resultJSON, err := json.Marshal(op); err == nil {
+		s := string(resultJSON)
+		rawResult = &s
+	}
+
+	if err := setAndroidCommandTerminalState(ctx, svc.fleetDS, svc.newActivity, cmd, newStatus, errCode, errMsg, rawResult,
 		svc.pubSubDedupRecorder(ctx, messageID, publishTime)); err != nil {
 		return err
 	}
@@ -234,7 +242,7 @@ func androidOperationTerminalState(op *androidmanagement.Operation) (status stri
 // so the two paths cannot drift. onUnenrolled is passed through to androidWipeAckUnenroll; see its doc
 // comment.
 func setAndroidCommandTerminalState(ctx context.Context, ds fleet.Datastore, newActivityFn fleet.NewActivityFunc,
-	cmd *android.MDMAndroidCommand, status string, errCode, errMsg *string, onUnenrolled func(hostID uint),
+	cmd *android.MDMAndroidCommand, status string, errCode, errMsg, rawResult *string, onUnenrolled func(hostID uint),
 ) error {
 	// WIPE ack is the authoritative signal that the device has been wiped (BYO: work profile removed; COBO: full factory reset). Flip
 	// host_mdm.enrolled to 0 here rather than waiting on a separate STATUS_REPORT / ENROLLMENT with state=DELETED, which AMAPI does
@@ -251,7 +259,7 @@ func setAndroidCommandTerminalState(ctx context.Context, ds fleet.Datastore, new
 		}
 	}
 
-	if err := ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, status, errCode, errMsg); err != nil {
+	if err := ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, status, errCode, errMsg, rawResult); err != nil {
 		return ctxerr.Wrap(ctx, err, "update android command status")
 	}
 	return nil
@@ -910,6 +918,31 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return err
 	}
+
+	if fromEnroll {
+		// Clear the state the re-enrolled device no longer has (dynamic labels, pending
+		// commands and software installs) before anything below writes this enrollment's
+		// data, so the reset cannot undo the writes below and cannot fail installs after
+		// verifyDeviceSoftware has just verified them.
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config for android reenroll reset")
+		}
+		users, acts, err := svc.ds.AndroidResetOnReenrollment(ctx, host.Host.ID, host.Host.UUID,
+			appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reset state on android reenroll")
+		}
+		if len(users) != len(acts) {
+			return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+		}
+		for i, act := range acts {
+			if err := svc.newActivity(ctx, users[i], act); err != nil {
+				return ctxerr.Wrap(ctx, err, "create failed app install activity on android reenroll")
+			}
+		}
+	}
+
 	if device.AppliedPolicyName != "" {
 		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 )
 
@@ -99,6 +100,9 @@ type TestServerOpts struct {
 	// ActivityMock is populated automatically when a test service is built.
 	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockActivityService
+
+	// MicrosoftGraphClientFactory overrides the Graph client used to verify a credential on config write.
+	MicrosoftGraphClientFactory msgraph.ClientFactory
 
 	ACMECertCA  *x509.Certificate
 	ACMECertKey *ecdsa.PrivateKey

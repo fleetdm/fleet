@@ -32,6 +32,7 @@ func scanApps(homesList []homes.Home) []App {
 			seen[ka.name] = struct{}{}
 			out = append(out, App{
 				Name:           ka.name,
+				DisplayName:    name,
 				Path:           firstNonEmpty(exec, e.Name()),
 				PlatformSource: "desktop-file",
 				Scope:          scope,

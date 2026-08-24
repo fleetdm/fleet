@@ -70,6 +70,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   // use a formErrors object.
   const [isValidWebhookUrl, setIsValidWebhookUrl] = useState(true);
 
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const toggleExamplePayloadModal = () => {
     setShowExamplePayload(!showExamplePayload);
   };
@@ -106,6 +108,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       return;
     }
 
+    setIsUpdating(true);
     try {
       const updatedConfig = await configAPI.update({
         mdm: {
@@ -128,6 +131,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         return;
       }
       notify.error("Could not update. Please try again.", { response: err });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -249,7 +254,11 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         <GitOpsModeTooltipWrapper
           tipOffset={8}
           renderChildren={(disableChildren) => (
-            <Button onClick={onSubmit} disabled={disableChildren}>
+            <Button
+              onClick={onSubmit}
+              disabled={disableChildren || isUpdating}
+              isLoading={isUpdating}
+            >
               Save
             </Button>
           )}

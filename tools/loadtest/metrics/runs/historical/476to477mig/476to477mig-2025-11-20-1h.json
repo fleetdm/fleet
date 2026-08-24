@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "workspace": "476to477mig",
+    "collected_at": "2025-11-20T00:00:00Z",
+    "interval": "1h",
+    "release": "4.77.0",
+    "category": "migration",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 46
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 77.0
+    },
+    "memory_utilization": {
+      "Average": 4.6
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 25.0
+    },
+    "memory_utilization": {
+      "Average": 4.3
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 20.0
+    },
+    "write_iops": {
+      "Average": 2800.0
+    },
+    "deadlocks": {
+      "Sum": 0
+    }
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 6.0,
+      "maximum": 12.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 55.0
+      },
+      "read_iops": {
+        "Average": 1.0,
+        "Maximum": 55.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 9.0,
+        "maximum": 14.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.1,
+        "Maximum": 2.65
+      },
+      "memory_utilization": {
+        "Average": 0.22
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Migration Test",
+    "one_click": null,
+    "notes": "Same issue as the above causing some perf spikes. Nothing ne\u2026",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~77%",
+      "fleet_mem": "~4.6%",
+      "errors": "Errors related to spikes here: <url>",
+      "writer_top_sql": "DELETE FROM host_software\u2026",
+      "writer_cpu": "~20%",
+      "writer_sessions": "3-12 avg 6",
+      "writer_iops": "~2800",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~55%",
+      "reader_sessions": "~4-14",
+      "reader_iops": "0-55 avg 1",
+      "redis_cpu": "1.55-2.65%",
+      "redis_mem": "0.22%",
+      "osquery_uptime": "not 100% due to writer spikes",
+      "osquery_cpu": "25%",
+      "osquery_mem": "4.30%",
+      "deadlocks": "~0"
+    }
+  }
+}

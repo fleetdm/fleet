@@ -266,6 +266,10 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
+	// MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by
+	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent.
+	MicrosoftGraphCredentialInvalid bool `json:"microsoft_graph_credential_invalid"`
+
 	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
 	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
 	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`

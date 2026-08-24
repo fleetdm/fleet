@@ -14,9 +14,9 @@ describe("Chip", () => {
   });
 
   it("renders a leading icon when icon prop is provided", () => {
-    render(<Chip icon="user" text="Self-service" />);
+    render(<Chip icon="user" text="Self service" />);
 
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
     expect(document.querySelector("svg")).not.toBeNull();
   });
 
@@ -52,11 +52,11 @@ describe("Chip", () => {
 
   it("wraps the chip in a TooltipWrapper when tooltip is provided", () => {
     const { container } = render(
-      <Chip text="Self-service" tooltip="Available in self-service" />
+      <Chip text="Self service" tooltip="Available in self service" />
     );
 
     // The chip text is still discoverable through the wrapper.
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
     // The TooltipWrapper element is present (content renders on hover, but the
     // wrapper class is the structural signal that tooltip wiring kicked in).
     expect(
@@ -65,7 +65,7 @@ describe("Chip", () => {
   });
 
   it("does not render a TooltipWrapper when tooltip is omitted", () => {
-    const { container } = render(<Chip text="Self-service" />);
+    const { container } = render(<Chip text="Self service" />);
     expect(container.querySelector(".component__tooltip-wrapper")).toBeNull();
   });
 });

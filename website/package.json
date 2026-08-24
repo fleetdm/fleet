@@ -32,6 +32,7 @@
     "yaml": "1.10.2"
   },
   "overrides": {
+    "js-yaml": "3.15.1",
     "jsforce": {
       "form-data": "4.0.6"
     },
@@ -39,7 +40,8 @@
       "form-data": "2.5.6"
     },
     "websocket-driver": "0.7.5",
-    "body-parser": "1.20.6"
+    "body-parser": "1.20.6",
+    "postcss": "8.5.23"
   },
   "scripts": {
     "custom-tests": "echo \"(No other custom tests yet.)\" && echo",

@@ -253,7 +253,11 @@ export const updateFormData = (
     }
     case "ndes_scep_proxy": {
       const formData = prevFormData as INDESFormData;
-      if (update.name === "adminURL" || update.name === "username") {
+      if (
+        update.name === "scepURL" ||
+        update.name === "adminURL" ||
+        update.name === "username"
+      ) {
         return {
           ...newData,
           password:

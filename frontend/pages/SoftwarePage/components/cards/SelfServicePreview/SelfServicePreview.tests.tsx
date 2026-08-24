@@ -20,7 +20,7 @@ describe("SelfServicePreview", () => {
     );
 
     expect(
-      screen.getByAltText("Preview icon on Fleet Desktop > Self-service")
+      screen.getByAltText("Preview icon on Fleet Desktop > Self service")
     ).toBeVisible();
 
     expect(screen.getByText("Mock icon")).toBeVisible();
@@ -60,7 +60,7 @@ describe("SelfServicePreview", () => {
       />
     );
 
-    expect(screen.getByText(/Self-service/i)).toBeInTheDocument();
+    expect(screen.getByText(/Self service/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search by name")).toBeInTheDocument();
     expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText("Mock table")).toBeVisible();

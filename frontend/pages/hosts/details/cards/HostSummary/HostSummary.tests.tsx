@@ -112,68 +112,6 @@ describe("Host Summary section", () => {
     });
   });
 
-  describe("OS settings indicator", () => {
-    const osSettingsWithHostName = {
-      disk_encryption: { status: null, detail: "" },
-      certificates: [],
-      host_name: { status: "pending" as const, detail: "" },
-    };
-
-    it("renders the OS settings indicator for an enrolled darwin host whose only setting is the host name", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = {
-        ...createMockHostSummary({ platform: "darwin" }),
-        mdm: { enrollment_status: "On (manual)" },
-      };
-
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          hostSettings={[]}
-          osSettings={osSettingsWithHostName}
-          toggleOSSettingsModal={jest.fn()}
-        />
-      );
-
-      expect(screen.getByText("OS settings")).toBeInTheDocument();
-    });
-
-    it("does not render the OS settings indicator when the host is not enrolled in MDM", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = {
-        ...createMockHostSummary({ platform: "darwin" }),
-        mdm: { enrollment_status: "Off" },
-      };
-
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          hostSettings={[]}
-          osSettings={osSettingsWithHostName}
-          toggleOSSettingsModal={jest.fn()}
-        />
-      );
-
-      expect(screen.queryByText("OS settings")).not.toBeInTheDocument();
-    });
-  });
-
   describe("Maintenance window data", () => {
     it("renders maintenance window data with timezone", async () => {
       const render = createCustomRenderer({
@@ -207,7 +145,7 @@ describe("Host Summary section", () => {
       ["iOS", "ios", "iOS 17.4"],
       ["iPadOS", "ipados", "iPadOS 17.4"],
     ])(
-      "does not render the summary card for a Free-tier %s host with no OS settings",
+      "does not render the summary card for a Free-tier %s host",
       (_label, platform, os_version) => {
         const render = createCustomRenderer({
           context: {
@@ -224,11 +162,7 @@ describe("Host Summary section", () => {
         });
 
         const { container } = render(
-          <HostSummary
-            summaryData={summaryData}
-            isPremiumTier={false}
-            hostSettings={[]}
-          />
+          <HostSummary summaryData={summaryData} isPremiumTier={false} />
         );
 
         expect(container).toBeEmptyDOMElement();

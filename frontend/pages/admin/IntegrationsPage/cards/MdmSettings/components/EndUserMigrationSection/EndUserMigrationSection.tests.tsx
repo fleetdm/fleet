@@ -1,12 +1,14 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import { IConfig } from "interfaces/config";
+import configAPI from "services/entities/config";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import EndUserMigrationSection from "./EndUserMigrationSection";
 
+jest.mock("services/entities/config");
 jest.mock("components/ToastNotification", () => ({
   notify: {
     success: jest.fn(),
@@ -35,6 +37,82 @@ const createTestMockData = (
 
 describe("EndUserMigrationSection", () => {
   const mockRouter = createMockRouter();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("disables the save button while an update is in flight", async () => {
+    // Hold the request open so the in-flight window can be asserted on.
+    let resolveUpdate!: (config: IConfig) => void;
+    const updateSpy = jest.mocked(configAPI.update).mockImplementation(
+      () =>
+        new Promise<IConfig>((resolve) => {
+          resolveUpdate = resolve;
+        })
+    );
+
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).not.toBeDisabled();
+
+    await user.click(saveButton);
+    await waitFor(() => expect(saveButton).toBeDisabled());
+
+    // Extra clicks while the first request is open must not send more requests.
+    await user.click(saveButton);
+    await user.click(saveButton);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    resolveUpdate(createMockConfig());
+    await waitFor(() => expect(saveButton).not.toBeDisabled());
+  });
+
+  it("re-enables the save button when the update fails", async () => {
+    // Hold the request open so the button can be observed disabled before the
+    // failure, proving it is the rejection that re-enables it.
+    let rejectUpdate!: (err: Error) => void;
+    jest.mocked(configAPI.update).mockImplementation(
+      () =>
+        new Promise<IConfig>((_resolve, reject) => {
+          rejectUpdate = reject;
+        })
+    );
+
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+    await waitFor(() => expect(saveButton).toBeDisabled());
+
+    rejectUpdate(new Error("Something went wrong"));
+    await waitFor(() => expect(saveButton).not.toBeDisabled());
+  });
 
   it("toggles form elements disabled state when slider is clicked", async () => {
     const render = createCustomRenderer(

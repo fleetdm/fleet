@@ -176,7 +176,7 @@ const SoftwareSummaryCard = ({
         {showSelfServiceChip && (
           <Chip
             icon="user"
-            text="Self-service"
+            text="Self service"
             tooltip={getSelfServiceTooltip(
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
               isAndroidSoftwareSource(softwareTitle.source)

@@ -78,12 +78,22 @@ export const mapAutomationRows = (
     });
   }
 
+  if (storedPolicy.resend_configuration_profile) {
+    rows.push({
+      name: storedPolicy.resend_configuration_profile.name,
+      type: "Profile",
+      graphicName: "file-configuration-profile",
+      sortOrder: 2,
+      sortName: storedPolicy.resend_configuration_profile.name.toLowerCase(),
+    });
+  }
+
   if (storedPolicy.calendar_events_enabled) {
     rows.push({
       name: "Maintenance window",
       type: "Calendar",
       graphicName: "calendar",
-      sortOrder: 2,
+      sortOrder: 3,
       sortName: "",
     });
   }
@@ -93,7 +103,7 @@ export const mapAutomationRows = (
       name: "Block single sign-on",
       type: "Conditional access",
       graphicName: "lock",
-      sortOrder: 3,
+      sortOrder: 4,
       sortName: "",
     });
   }
@@ -106,7 +116,7 @@ export const mapAutomationRows = (
       name: otherName,
       type: "Other",
       graphicName: "settings",
-      sortOrder: 4,
+      sortOrder: 5,
       sortName: "",
     });
   }
@@ -154,7 +164,8 @@ const PolicyAutomationsList = ({
                   key={`${row.graphicName}-graphic`}
                   className={`${baseClass}__row-graphic ${
                     row.graphicName === "file-sh" ||
-                    row.graphicName === "file-ps1"
+                    row.graphicName === "file-ps1" ||
+                    row.graphicName === "file-configuration-profile"
                       ? "scale-40-24"
                       : ""
                   }`}

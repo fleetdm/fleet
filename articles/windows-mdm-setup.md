@@ -51,6 +51,16 @@ Windows MDM turns on after an end user signs in to the host. Windows completes M
 
 > Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
 
+### Where Windows stores the MDM certificate
+
+Fleet's MDM identity certificate isn't in `LocalMachine\My`. Windows chooses the certificate store based on the enrollment type. Enrollment through fleetd happens in a user context, so Windows files the certificate in the SYSTEM account's personal store:
+
+`C:\Windows\System32\config\systemprofile\AppData\Roaming\Microsoft\SystemCertificates\My`
+
+A copy also appears in the personal store of the user who was signed in during enrollment. That copy has no private key. Both locations are expected. The private key is stored machine-wide, so removing a user profile doesn't affect MDM.
+
+Hosts that enroll through Microsoft Entra ID or Autopilot use a device enrollment instead. Windows files their certificate in `LocalMachine\My`.
+
 ### Migrating from another MDM solution
 
 When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., 400 or 0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging). Local accounts can also become locked.

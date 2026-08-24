@@ -59,12 +59,23 @@ func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, logger *slog.Logg
 		return nopPusher{}
 	}
 	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
-	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-			Certificates: []tls.Certificate{*cert},
-			MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
-		})), nil
-	}))
+
+	opts := []buford.Option{
+		buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+				Certificates: []tls.Certificate{*cert},
+				MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
+			})), nil
+		}),
+	}
+
+	devPushServer := dev_mode.Env("FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL")
+	if devPushServer != "" {
+		logger.InfoContext(context.Background(), "using dev push server URL", "url", devPushServer)
+		opts = append(opts, buford.WithPushServerURL(devPushServer))
+	}
+
+	pushProviderFactory := buford.NewPushProviderFactory(opts...)
 	return nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 }
 

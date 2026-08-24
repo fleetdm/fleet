@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "workspace": "4650lt0311",
+    "collected_at": "2025-03-12T00:00:00Z",
+    "interval": "1h",
+    "release": "4.65.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 13
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 73.0
+    },
+    "memory_utilization": {
+      "Average": 3.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 47.0
+    },
+    "memory_utilization": {
+      "Average": 7.0
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 50.0
+    },
+    "write_iops": {
+      "Average": 2630.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 8.0,
+      "maximum": 17.0
+    },
+    "iops_utilization": {
+      "utilization_pct": 13.15
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 10.0,
+        "Maximum": 16.0
+      },
+      "read_iops": {
+        "Maximum": 1.37
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 3.0,
+        "maximum": 5.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 1.85,
+        "Maximum": 2.2
+      },
+      "memory_utilization": {
+        "Average": 0.26
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Release/baseline",
+    "one_click": null,
+    "notes": "100K hosts, no mdm",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~73%",
+      "fleet_mem": "~3%",
+      "errors": "Error from #27041",
+      "writer_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "writer_cpu": "50%",
+      "writer_sessions": "2-17 avg ~8",
+      "writer_iops": "2630 (~13.15%)",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "16% at peak, avg ~10%",
+      "reader_sessions": "1-5 avg ~3",
+      "reader_iops": "max 1.37",
+      "redis_cpu": "1.5-2.2%",
+      "redis_mem": "0.26%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "47%",
+      "osquery_mem": "7%",
+      "deadlocks": "between 0 and 6 per min, max 16"
+    }
+  }
+}

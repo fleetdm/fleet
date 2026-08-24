@@ -25,14 +25,11 @@ const LiveQueryIssueCell = ({
         tipContent={
           <span className="tooltip__tooltip-text">
             {status === "offline" ? (
-              <>
-                Offline hosts will not <br />
-                respond to a live report.
-              </>
+              <>Offline hosts will not respond to a live report.</>
             ) : (
               <>
-                This host might take up to
-                <br /> {distributedInterval} seconds to respond.
+                This host might take up to {distributedInterval} seconds to
+                respond.
               </>
             )}
           </span>

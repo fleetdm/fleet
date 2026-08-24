@@ -240,8 +240,10 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 			// might be newer than the installer version. For OneDrive, we only verify that
 			// the app exists rather than checking the version.
 			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
-				logger.InfoContext(ctx, "OneDrive detected - skipping version check due to auto-update behavior")
-				return true, nil
+				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
+					logger.InfoContext(ctx, "OneDrive detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
 			}
 
 			// GPG Suite's installer version (e.g., "2023.3") doesn't match the app bundle version

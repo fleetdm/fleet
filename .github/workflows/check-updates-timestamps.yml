@@ -164,7 +164,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "${{ job.status }},
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
               "blocks": [
                 {
                   "type": "section",

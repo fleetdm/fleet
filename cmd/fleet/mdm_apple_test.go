@@ -11,6 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -44,6 +46,14 @@ func TestInitAppleMDMPushService_DevModeReturnsNopPusher(t *testing.T) {
 
 	pusher := initAppleMDMPushService(nil, discardLogger())
 	require.IsType(t, nopPusher{}, pusher)
+}
+
+func TestInitAppleMDMPushService_DevModeCustomPushServerURL(t *testing.T) {
+	// SetOverride enables dev mode and registers cleanup via t.
+	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL", "http://localhost:8378", t)
+
+	pusher := initAppleMDMPushService(nil, discardLogger())
+	require.IsType(t, &nanomdm_pushsvc.PushService{}, pusher)
 }
 
 func TestCheckMDMAssetsExist(t *testing.T) {

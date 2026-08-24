@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.2",
+      "version": "7.1.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ranchero.NetNewsWire-Evergreen';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ranchero.NetNewsWire-Evergreen' AND version_compare(bundle_short_version, '7.1.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ranchero.NetNewsWire-Evergreen' AND version_compare(bundle_short_version, '7.1.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.ranchero.NetNewsWire-Evergreen');"
       },
-      "installer_url": "https://github.com/Ranchero-Software/NetNewsWire/releases/download/mac-7.1.2/NetNewsWire7.1.2.zip",
+      "installer_url": "https://github.com/Ranchero-Software/NetNewsWire/releases/download/mac-7.1.3/NetNewsWire7.1.3.zip",
       "install_script_ref": "c0cd566a",
       "uninstall_script_ref": "01498874",
-      "sha256": "c6f45a4cd4c3377754ee1c112e44e27fb53f471d4d53edaac700e9f4d8ba2c1c",
+      "sha256": "b266ec3e76c118279f10a172ae740dd6feae1a69142025c44a659344c6b27367",
       "default_categories": [
         "Productivity"
       ]

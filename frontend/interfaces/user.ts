@@ -44,6 +44,8 @@ export type UserRole =
   | ""
   | "Various";
 
+export type UserStatus = "active" | "inactive" | "no_access";
+
 export interface IUser {
   created_at?: string;
   updated_at?: string;
@@ -58,6 +60,13 @@ export interface IUser {
   mfa_enabled?: boolean;
   global_role: UserRole | null;
   api_only: boolean;
+  /** Last time the user logged in. `null` if the user has never logged in. */
+  last_login_at: string | null;
+  /** Last time the user made an authenticated request with a live session.
+   * This is the inactivity signal for API-only users. `null` if the user has
+   * no live session. */
+  last_activity_at: string | null;
+  status?: UserStatus;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
   api_endpoints?: IApiEndpointRef[];

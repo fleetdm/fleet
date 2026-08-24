@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.8.0",
+      "version": "2.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana' AND version_compare(bundle_short_version, '2.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana' AND version_compare(bundle_short_version, '2.8.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.electron.asana');"
       },
-      "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.8.0/Asana-darwin-arm64-2.8.0.zip",
+      "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.8.1/Asana-darwin-arm64-2.8.1.zip",
       "install_script_ref": "668a034e",
       "uninstall_script_ref": "f219467b",
-      "sha256": "dd7c5ca488774e5dd63f9e0b7f877dd1c72c864005a23f704db55ceea9fdc809",
+      "sha256": "ada5626bcf7e657da850a19f9c07bd616f1c51d464d4bf0e6eaa7886aa1c4afb",
       "default_categories": [
         "Productivity"
       ]

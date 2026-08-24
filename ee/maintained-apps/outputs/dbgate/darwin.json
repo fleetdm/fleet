@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.4",
+      "version": "7.2.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.dbgate';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.dbgate' AND version_compare(bundle_short_version, '7.2.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.dbgate' AND version_compare(bundle_short_version, '7.2.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.dbgate');"
       },
-      "installer_url": "https://github.com/dbgate/dbgate/releases/download/v7.2.4/dbgate-7.2.4-mac_universal.dmg",
+      "installer_url": "https://github.com/dbgate/dbgate/releases/download/v7.2.5/dbgate-7.2.5-mac_universal.dmg",
       "install_script_ref": "6185e1ae",
       "uninstall_script_ref": "64b18c76",
-      "sha256": "18f7438253f60d518275c86f8f5439a0b537f834b34dc7146c7e4b9871918ff3",
+      "sha256": "7df321f839c522a33dd8ea79d4125304e6ab696eceb9de6a1547aa236a5ef402",
       "default_categories": [
         "Developer tools"
       ]

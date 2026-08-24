@@ -689,7 +689,7 @@ About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fle
 
 <meta name="articleTitle" value="SHADOW-EARTH-053: threat brief, kill chain, and validated Fleet queries">
 <meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="drvcodenta">
+<meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="security">
 <meta name="publishedOn" value="2026-05-26">
 <meta name="description" value="Threat brief and Fleet/osquery detection guide for the SHADOW-EARTH-053 China-aligned cyberespionage campaign exploiting ProxyLogon.">

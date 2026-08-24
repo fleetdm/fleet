@@ -10,7 +10,7 @@
       "installer_url": "https://www2.aomeisoftware.com/download/adb/AOMEIBackupperStd.exe",
       "install_script_ref": "03d967ed",
       "uninstall_script_ref": "e92f2668",
-      "sha256": "a9b347b8e43a5ef626adad9eda2e5713df7ca86da11438ada7c0a90453a724d2",
+      "sha256": "765c8b673d28295c11fe730925aa507e98c9a8f5d0a27ad517bd567ecedd7166",
       "default_categories": [
         "Utilities"
       ]

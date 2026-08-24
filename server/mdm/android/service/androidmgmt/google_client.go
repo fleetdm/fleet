@@ -229,7 +229,7 @@ func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName str
 func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
 	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
 	switch {
-	case googleapi.IsNotModified(err):
+	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
 		g.logger.InfoContext(ctx, "Android device already deleted", "device_name", deviceName)
 		return nil
 	case err != nil:

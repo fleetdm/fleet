@@ -22,6 +22,7 @@ interface IEnrollmentGateProps {
   enrollmentReference?: string;
   initiator?: string;
   error?: boolean;
+  reason?: string;
 }
 
 const EnrollmentGate = ({
@@ -30,13 +31,14 @@ const EnrollmentGate = ({
   enrollmentReference,
   initiator,
   error,
+  reason,
 }: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
   const deviceinfo = localStorage.getItem("deviceinfo") || "";
 
   if ((!profileToken && initiator !== "setup_experience") || error) {
-    return <SSOError />;
+    return <SSOError sessionExpired={reason === "session_expired"} />;
   }
 
   if (initiator === "setup_experience") {
@@ -86,6 +88,7 @@ interface IMDMSSOCallbackQuery {
   enrollment_reference?: string;
   initiator?: string;
   error?: boolean;
+  reason?: string;
 }
 
 const MDMAppleSSOCallbackPage = (
@@ -97,6 +100,7 @@ const MDMAppleSSOCallbackPage = (
     enrollment_reference,
     initiator,
     error,
+    reason,
   } = props.location.query;
   return (
     <div className={baseClass}>
@@ -106,6 +110,7 @@ const MDMAppleSSOCallbackPage = (
         enrollmentReference={enrollment_reference}
         initiator={initiator}
         error={error}
+        reason={reason}
       />
     </div>
   );

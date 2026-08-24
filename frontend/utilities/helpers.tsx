@@ -725,36 +725,36 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.MINIMAL:
       return (
         <>
-          Running this report very frequently has little to no <br /> impact on
-          your device&apos;s performance.
+          Running this report very frequently has little to no impact on your
+          device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.CONSIDERABLE:
       return (
         <>
-          Running this report frequently can have a noticeable <br />
-          impact on your device&apos;s performance.
+          Running this report frequently can have a noticeable impact on your
+          device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.EXCESSIVE:
       return (
         <>
-          Running this report, even infrequently, can have a <br />
-          significant impact on your device&apos;s performance.
+          Running this report, even infrequently, can have a significant impact
+          on your device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.DENYLISTED:
       return (
         <>
-          This report has been <br /> stopped from running <br /> because of
-          excessive <br /> resource consumption.
+          This report has been stopped from running because of excessive
+          resource consumption.
         </>
       );
     case PerformanceImpactIndicatorValue.UNDETERMINED:
       return (
         <>
-          Performance impact will be available
-          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          Performance impact will be available when{" "}
+          {isHostSpecific ? "the" : "this"} report runs
           {isHostSpecific && " on this host"}.
         </>
       );

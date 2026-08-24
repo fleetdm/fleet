@@ -88,7 +88,7 @@ func NewManager(version string, factory Factory) *Manager {
 	items.HostOffline.Disable()
 
 	// Add self-service item
-	items.SelfService = factory.AddMenuItem("Self-service", "")
+	items.SelfService = factory.AddMenuItem("Self service", "")
 	items.SelfService.Disable()
 	items.SelfService.Hide()
 	factory.AddSeparator()

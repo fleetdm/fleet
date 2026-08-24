@@ -78,7 +78,7 @@ describe("getAutomationRunDisplayName", () => {
           details: {
             policy_id: 123,
             software_title: "1Password",
-            install_skipped_when_app_open: true,
+            skipped_install: true,
           },
         })
       )
@@ -156,7 +156,7 @@ describe("getAutomationStatusIcon", () => {
           details: {
             policy_id: 123,
             software_title: "1Password",
-            install_skipped_when_app_open: true,
+            skipped_install: true,
           },
         })
       )

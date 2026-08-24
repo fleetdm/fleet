@@ -85,6 +85,31 @@ function Force-Remove-Orbit {
       }
     }
 
+    #Remove MSI product registration to prevent stale source path errors (error 1612)
+    #when the original install source (e.g. a network share) is no longer available.
+    $packedGuids = @()
+    Get-ChildItem "HKLM:\SOFTWARE\Classes\Installer\Products" -ErrorAction "SilentlyContinue" | ForEach-Object {
+      if ($_.GetValue("ProductName") -eq "Fleet osquery") {
+        $packedGuids += $_.PSChildName
+        Remove-Item $_.PSPath -Recurse -Force -ErrorAction "SilentlyContinue"
+      }
+    }
+    #Also scan UserData directly in case the Products key was already removed by a previous run
+    Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData" -ErrorAction "SilentlyContinue" | ForEach-Object {
+      $productsPath = Join-Path $_.PSPath "Products"
+      if (Test-Path $productsPath) {
+        Get-ChildItem $productsPath -ErrorAction "SilentlyContinue" | ForEach-Object {
+          $instProps = Join-Path $_.PSPath "InstallProperties"
+          if ((Test-Path $instProps) -and ((Get-ItemProperty $instProps -ErrorAction "SilentlyContinue").DisplayName -eq "Fleet osquery")) {
+            $packedGuids += $_.PSChildName
+          }
+          if ($packedGuids -contains $_.PSChildName) {
+            Remove-Item $_.PSPath -Recurse -Force -ErrorAction "SilentlyContinue"
+          }
+        }
+      }
+    }
+
     # Write success log
     "Fleetd successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
   }

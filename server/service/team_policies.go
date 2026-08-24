@@ -45,6 +45,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Type:                         req.Type,
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
 		PatchWhenClosed:              req.PatchWhenClosed,
+		ProfileUUID:                  req.ProfileUUID,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -88,6 +89,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 
 	if (len(tp.LabelsIncludeAll) > 0 || len(tp.LabelsExcludeAll) > 0 || len(tp.LabelsIncludeAny) > 0 || len(tp.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if tp.ProfileUUID != nil && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -159,6 +164,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 }
 
 func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy *fleet.Policy) error {
+	if policy == nil {
+		return nil
+	}
 	if policy.TeamID == nil {
 		return nil
 	}
@@ -167,6 +175,9 @@ func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy
 	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyResendConfigProfile(ctx, policy); err != nil {
+		return ctxerr.Wrap(ctx, err, "populate resend_config_profile")
 	}
 	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate patch_software")
@@ -207,6 +218,35 @@ func (svc *Service) populatePolicyRunScript(ctx context.Context, p *fleet.Policy
 		return ctxerr.Wrap(ctx, err, "get script metadata by id")
 	}
 	p.RunScript = &fleet.PolicyScript{ID: *p.ScriptID, Name: scriptMetadata.Name}
+	return nil
+}
+
+func (svc *Service) populatePolicyResendConfigProfile(ctx context.Context, p *fleet.Policy) error {
+	if p.ResendAppleProfileUUID == nil && p.ResendWindowsProfileUUID == nil {
+		return nil
+	}
+
+	if p.ResendAppleProfileUUID != nil {
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, *p.ResendAppleProfileUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get apple config profile by uuid")
+		}
+		p.ResendConfigurationProfile = &fleet.PolicyProfile{
+			UUID: prof.ProfileUUID,
+			Name: prof.Name,
+		}
+		return nil
+	}
+
+	prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, *p.ResendWindowsProfileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows config profile by uuid")
+	}
+	p.ResendConfigurationProfile = &fleet.PolicyProfile{
+		UUID: prof.ProfileUUID,
+		Name: prof.Name,
+	}
+
 	return nil
 }
 
@@ -336,6 +376,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		PatchWhenClosed:              p.PatchWhenClosed,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
+		ProfileUUID:                  p.ProfileUUID,
 	}, nil
 }
 
@@ -360,7 +401,7 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 	return fleet.ListTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -380,7 +421,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter, platform)
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationType, platform)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -395,7 +436,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return policies, nil, nil
 	}
 
-	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter, platform)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationType, platform)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -425,7 +466,7 @@ func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fle
 	return fleet.CountTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -664,6 +705,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	// Only reject an actual profile assignment. An explicit null/empty value means
+	// "unset the profile", which is a no-op on a global policy (clients such as the
+	// UI send the full payload, including profile_uuid: null).
+	if p.ProfileUUID.Set && p.ProfileUUID.Valid && p.ProfileUUID.Value != "" && teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", errPolicyAllFleetsForProfiles),
+		})
+	}
+
 	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -672,6 +722,10 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if p.ProfileUUID.Valid && p.ProfileUUID.Value != "" && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -773,6 +827,21 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = &p.ScriptID.Value
 		}
 	}
+	if p.ProfileUUID.Set {
+		// If the associated profile is changed (or it's set and the policy didn't have an
+		// associated profile) then we clear the results of the policy so that automation can
+		// be triggered upon failure.
+		if p.ProfileUUID.Value != "" &&
+			!ptr.Equal(policy.ResendAppleProfileUUID, &p.ProfileUUID.Value) &&
+			!ptr.Equal(policy.ResendWindowsProfileUUID, &p.ProfileUUID.Value) {
+			removeAllMemberships = true
+			removeStats = true
+		}
+
+		if err := policy.SetResendProfileUUID(p.ProfileUUID.Value); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "set resend configuration profile")
+		}
+	}
 	// If the client sent any of the label scope fields, treat all of them as authoritative
 	// for the policy's label state. Verify() enforces that at most one include scope and one
 	// exclude scope carry values (empty slices are allowed and just clear that scope), so the
@@ -786,6 +855,13 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
+		})
+	}
+	// Checked against the merged policy, not the payload: either the profile or the platform can
+	// be the field being changed, and both have to end up consistent.
+	if err := fleet.PolicyVerifyResendProfile(policy.ResendProfileUUID(), policy.Platform); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})

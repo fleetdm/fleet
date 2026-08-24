@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.5.7",
+      "version": "8.5.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xkoji.altair';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xkoji.altair' AND version_compare(bundle_short_version, '8.5.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xkoji.altair' AND version_compare(bundle_short_version, '8.5.9') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.xkoji.altair');"
       },
-      "installer_url": "https://github.com/imolorhe/altair/releases/download/v8.5.7/altair_8.5.7_arm64_mac.zip",
+      "installer_url": "https://github.com/imolorhe/altair/releases/download/v8.5.9/altair_8.5.9_arm64_mac.zip",
       "install_script_ref": "5c1a30ea",
       "uninstall_script_ref": "c196066e",
-      "sha256": "bf62986cbc4a481942a37d555a4b052252acddc45640ea406eb2fce96b33db1d",
+      "sha256": "5dbf5a58be50922965bc30d5ed5dc38ee3607b89b01c3777827aeab8a27d7d3c",
       "default_categories": [
         "Developer tools"
       ]

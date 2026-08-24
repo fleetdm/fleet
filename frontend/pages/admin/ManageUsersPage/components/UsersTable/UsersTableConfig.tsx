@@ -7,7 +7,7 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import TooltipWrapper from "components/TooltipWrapper";
 import Tag from "components/Tag";
 import { IInvite } from "interfaces/invite";
-import { IUser, UserRole } from "interfaces/user";
+import { IUser, UserRole, UserStatus } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   generateRole,
@@ -82,6 +82,29 @@ export interface IUserTableData {
   type: string;
   api_only: boolean;
 }
+
+// The inactivity window is enforced server-side (see UserInactiveAfter in
+// server/fleet/users.go); these tooltips just describe it.
+const USER_INACTIVE_TOOLTIP = "Hasn't logged in for 30+ days";
+const API_ONLY_INACTIVE_TOOLTIP = "No API activity for 30+ days";
+
+const USER_STATUS_DISPLAY_TEXT: Record<UserStatus, string> = {
+  active: "Active",
+  inactive: "Inactive",
+  no_access: "No access",
+};
+
+/** The user's status is computed server-side ("active" | "inactive" |
+ * "no_access") and only mapped to display text here. */
+const generateUserStatus = (user: IUser): string =>
+  USER_STATUS_DISPLAY_TEXT[user.status ?? "active"];
+
+// Invites come from a separate endpoint and have no server-computed status,
+// so their status stays derived client-side.
+const generateInviteStatus = (invite: IInvite): string =>
+  invite.global_role === null && invite.teams.length === 0
+    ? "No access"
+    : "Invite pending";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -186,7 +209,18 @@ const generateTableHeaders = (
       ),
       accessor: "status",
       Cell: (cellProps: ICellProps) => (
-        <StatusIndicator value={cellProps.cell.value} />
+        <StatusIndicator
+          value={cellProps.cell.value}
+          tooltip={
+            cellProps.cell.value === "Inactive"
+              ? {
+                  tooltipText: cellProps.row.original.api_only
+                    ? API_ONLY_INACTIVE_TOOLTIP
+                    : USER_INACTIVE_TOOLTIP,
+                }
+              : undefined
+          }
+        />
       ),
     },
     {
@@ -266,15 +300,6 @@ const generateTableHeaders = (
   return tableHeaders;
 };
 
-const generateStatus = (type: string, data: IUser | IInvite): string => {
-  const { teams, global_role } = data;
-  if (global_role === null && teams.length === 0) {
-    return "No access";
-  }
-
-  return type === "invite" ? "Invite pending" : "Active";
-};
-
 const generateActionDropdownOptions = (
   isCurrentUser: boolean,
   isInvitePending: boolean,
@@ -340,7 +365,7 @@ const enhanceUserData = (
   return users.map((user) => {
     return {
       name: user.name || DEFAULT_EMPTY_CELL_VALUE,
-      status: generateStatus("user", user),
+      status: generateUserStatus(user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
       teamNames: generateTeamNames(user.teams),
@@ -364,7 +389,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
   return invites.map((invite) => {
     return {
       name: invite.name || DEFAULT_EMPTY_CELL_VALUE,
-      status: generateStatus("invite", invite),
+      status: generateInviteStatus(invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       teamNames: generateTeamNames(invite.teams),

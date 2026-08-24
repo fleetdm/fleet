@@ -1,5 +1,8 @@
 .fleet-markdown {
   font-size: $x-small;
+  // Long unbreakable words (e.g. inline-code file paths) must wrap instead of
+  // overflowing narrow containers like the query side panel.
+  overflow-wrap: break-word;
 
   ul {
     // We need 20px here to keep the list items in line with the left side of

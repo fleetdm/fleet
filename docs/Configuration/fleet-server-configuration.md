@@ -689,9 +689,9 @@ Per-endpoint max request body size overrides using human-readable sizes (e.g. 50
 - Config file format:
   ```yaml
   server:
-  endpoint_request_size_overrides:
-    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
-      max_request_size: "50MiB"
+    endpoint_request_size_overrides:
+      - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+        max_request_size: "50MiB"
   ```
 
 ### server_tls

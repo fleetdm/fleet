@@ -496,13 +496,14 @@ const SoftwareSelfService = ({
   }, [refetchForPendingInstallsOrUninstalls]);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number, isScriptPackage = false) => {
+    async (softwareId: number, isScriptPackage = false): Promise<boolean> => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
         if (isMountedRef.current) {
           onInstallOrUninstall();
           registerUserSoftwareAction(softwareId);
         }
+        return true;
       } catch (error) {
         // We only show toast message if API returns an error
         notify.error(
@@ -511,6 +512,7 @@ const SoftwareSelfService = ({
             : getInstallErrorMessage(error),
           { response: error }
         );
+        return false;
       }
     },
     [deviceToken, onInstallOrUninstall, registerUserSoftwareAction]

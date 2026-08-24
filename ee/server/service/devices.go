@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -106,6 +107,12 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+
+	// iOS/iPadOS devices authenticate by UUID in the URL and don't participate in
+	// conditional access policies, so they can't bypass it.
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
+		return fleet.NewUserMessageError(errors.New("conditional access bypass is not supported on this device"), http.StatusForbidden)
+	}
 
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {

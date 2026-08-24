@@ -31,6 +31,10 @@ The following terms were recently renamed. Use the new terms in conversation and
 - **"Teams" → "Fleets"** — the concept of grouping hosts. Legacy code still uses `team_id`, `teams` table, etc.
 - **"Queries" → "Reports"** — what was formerly a "query" in the product is now a "report." The word "query" now refers solely to a SQL query, which is one aspect of a report.
 
+## Code comments
+
+Keep comments concise and sparse — a diff should be mostly code, not comments. Comment to explain non-obvious "why" (constraints, gotchas, why the expected approach wasn't used), never to restate what the code obviously does, narrate the change, or cite the issue/PR that prompted it.
+
 ## Fleet-specific patterns
 
 Go and API conventions (ctxerr error wrapping, error types, request/response structs, auth, slog, `new(expression)` pointers, endpoint registration) auto-load from `.claude/rules/` when you edit matching files — see `rules/fleet-go-backend.md`, `rules/fleet-api.md`, and `rules/fleet-database.md`. Reference example: `server/service/vulnerabilities.go`.

@@ -36,6 +36,10 @@
   &__oauth-scopes {
     @include vertical-form-layout;
     padding-bottom: $pad-large;
+
+    .input-field__input-container.copy-enabled {
+      padding-top: 4px;
+    }
   }
 
   #oauth-scopes {

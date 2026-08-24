@@ -60,6 +60,24 @@ alongside a matching `.md` synopsis.
 automatically. The `--filter` flag matches on the workspace name, which — thanks to the
 naming conventions below — doubles as a category selector (`--filter loadtest`, `--filter mig`).
 
+## Visualizing runs
+
+Open [`dashboard.html`](dashboard.html) in a browser and drop the `runs/` folder onto the
+page (or use the folder picker). Everything is parsed and rendered locally — no server, no
+network, nothing leaves the browser.
+
+- **Overview** — one sparkline card per metric across the selected runs, colored by the
+  latest release-over-release movement (green/amber/red, using the same thresholds,
+  per-hour normalization, and noise floors as `compare-metrics.sh`), worst first.
+- **Detail** — click any card (or pick from the metric dropdown) for a full line chart
+  with the absolute threshold drawn in. Any numeric path in the JSON can also be charted
+  via the raw-path input.
+- Runs are selectable individually, grouped by category; baselines are selected by
+  default since migration/MDM runs exercise different workloads.
+
+The dashboard's metric registry mirrors the definitions in `compare-metrics.sh` — keep
+them in sync when adding metrics.
+
 ## Run organization
 
 Historical runs live under `runs/`, grouped by what the load test exercised:
@@ -69,6 +87,7 @@ Historical runs live under `runs/`, grouped by what the load test exercised:
 | **Baseline** — per-release branch load test | `runs/baseline/`  | `<version>loadtest`            | `486loadtest` |
 | **Migration** — n-1 → n schema migration    | `runs/migration/` | `<n-1>to<n>mig`                | `485to486mig` |
 | **MDM** — platform-specific MDM load test   | `runs/mdm/`       | `<version><platform>` / `<platform>-release` | `483applemdm`, `486-windows` |
+| **Historical** — backfilled from the manual results spreadsheet (4.63–4.85) | `runs/historical/` | as recorded in the sheet | `4630loadtestbl` — see [runs/historical/README.md](runs/historical/README.md) |
 
 The category subfolder is purely for human organization; the scripts don't depend on it.
 Keeping workspace names to these conventions is what makes `--filter` a reliable category

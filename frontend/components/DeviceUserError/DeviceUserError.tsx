@@ -58,8 +58,8 @@ const DeviceUserError = ({
       "Couldn't authenticate this device. Please contact your IT admin."
     ) : (
       <>
-        To access your device information, please click <br />
-        “My Device” from the Fleet Desktop menu icon.
+        To access your device information, please click “My Device” from the
+        Fleet Desktop menu icon.
       </>
     );
   }

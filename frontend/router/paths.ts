@@ -64,6 +64,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_ANDROID: `${INTEGRATIONS_PREFIX}/mdm/android`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/ab`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${INTEGRATIONS_PREFIX}/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_MICROSOFT_GRAPH: `${INTEGRATIONS_PREFIX}/mdm/microsoft-graph`,
   ADMIN_INTEGRATIONS_SCEP: `${INTEGRATIONS_PREFIX}/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${INTEGRATIONS_PREFIX}/calendars`,
   ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${INTEGRATIONS_PREFIX}/change-management`,
@@ -166,6 +167,9 @@ export default {
   HOST_SCRIPTS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
+  HOST_CONTROLS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/controls`;
+  },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
@@ -188,6 +192,9 @@ export default {
   },
   DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
+  },
+  DEVICE_USER_DETAILS_CONTROLS: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/controls`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;

@@ -93,9 +93,11 @@ type MDMAndroidCommand struct {
 	HostUUID      string           `db:"host_uuid"`
 	OperationName string           `db:"operation_name"`
 	CommandType   string           `db:"command_type"`
+	RawCommand    sql.Null[string] `db:"raw_command"`
 	Status        string           `db:"status"`
 	ErrorCode     sql.Null[string] `db:"error_code"`
 	ErrorMessage  sql.Null[string] `db:"error_message"`
+	RawResult     sql.Null[string] `db:"raw_result"`
 	CreatedAt     time.Time        `db:"created_at"`
 	UpdatedAt     time.Time        `db:"updated_at"`
 }

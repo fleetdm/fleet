@@ -138,7 +138,7 @@ func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *slog.
 		span.RecordError(err)
 		return fmt.Errorf("updating vulnerability host counts: %w", err)
 	}
-	logger.InfoContext(ctx, "vulnerability host counts updated", "took", time.Since(start).Seconds())
+	logger.InfoContext(ctx, "vulnerability host counts updated", "took", time.Since(start))
 
 	return nil
 }
@@ -859,9 +859,9 @@ func checkNVDVulnerabilities(
 	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
 	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
+		// Partial results are still returned: their rows are already inserted,
+		// so dropping them here would suppress their automations forever.
 		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
-		cveSpan.End()
-		return nil
 	}
 	cveSpan.End()
 
@@ -1272,6 +1272,7 @@ func newAppleMDMWorkerSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	inHouseAppInstaller worker.InHouseAppInstaller,
 	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1290,6 +1291,7 @@ func newAppleMDMWorkerSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
+		InHouseAppInstaller:   inHouseAppInstaller,
 		NewActivityFn:         newActivityFn,
 	}
 
@@ -1625,11 +1627,15 @@ func newCleanupsAndAggregationSchedule(
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart
-// collection cron. It computes (skip, disabledFleetIDs) from the global and
-// per-team historical-data flags. Extracted from the cron closure so it can be
-// unit-tested without spinning up a schedule.
-func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, logger *slog.Logger) chart_api.CollectScopeFn {
+// collection cron. It computes (skip, disabledFleetIDs) from the license and the
+// global and per-team historical-data flags. Extracted from the cron closure so
+// it can be unit-tested without spinning up a schedule.
+func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, isPremium bool, logger *slog.Logger) chart_api.CollectScopeFn {
 	return func(name string) (skip bool, disabledFleetIDs []uint) {
+		if name == chart_api.MetricCVE && !isPremium {
+			return true, nil
+		}
+
 		ok, err := appCfg.Features.HistoricalData.Enabled(name)
 		if err != nil {
 			// Unknown dataset — fall back to enabled with no team filter.
@@ -1660,6 +1666,7 @@ func newChartDataCollectionSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	chartSvc chart_api.Service,
+	isPremium bool,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1688,7 +1695,7 @@ func newChartDataCollectionSchedule(
 				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
-			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, logger))
+			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
 		}),
 	)
 
@@ -2363,6 +2370,9 @@ func newMaintainedAppSchedule(
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
 			return maintained_apps.SyncAppsList(ctx, ds)
 		}),
+		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
+			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
+		}),
 	)
 
 	return s, nil
@@ -2485,22 +2495,47 @@ func newUpcomingActivitiesSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	installReapTimeout time.Duration,
+	verifyTimeout time.Duration,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpcomingActivitiesMaintenance)
 		defaultInterval = 10 * time.Minute
 	)
-	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(logger.With("cron", name)),
-		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
-			const maxUnblockHosts = 500
-			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
-			return err
-		}),
-	)
+	logger = logger.With("cron", name)
 
-	return s, nil
+	opts := []schedule.Option{schedule.WithLogger(logger)}
+	if installReapTimeout > 0 {
+		// Both timeouts age an acknowledged install from the same instant, its command
+		// result's updated_at, so a reap timeout under the verification budget would fail
+		// installs verification was still entitled to be working on. Raised rather than
+		// honoured, since it asks Fleet to give up before it has finished trying.
+		if installReapTimeout < verifyTimeout {
+			logger.WarnContext(ctx, "raising stuck app install reap timeout to the verification timeout",
+				"vpp_install_reap_timeout", installReapTimeout.String(),
+				"vpp_verify_timeout", verifyTimeout.String())
+			installReapTimeout = verifyTimeout
+		}
+		// Registered ahead of the unblock job so that if a reap frees a head but leaves
+		// nothing activated, the unblock job catches it in this run rather than the next.
+		opts = append(opts, schedule.WithJob("reap_stuck_activated_mdm_installs", func(ctx context.Context) error {
+			const maxReapHosts = 500
+			return service.ReapStuckMDMInstalls(ctx, ds, logger, newActivityFn, installReapTimeout, maxReapHosts)
+		}))
+	} else {
+		// Left unregistered rather than run with a non-positive timeout, which would fail
+		// every activated install on the fleet instead of none.
+		logger.InfoContext(ctx, "stuck app install reaper disabled by configuration",
+			"vpp_install_reap_timeout", installReapTimeout.String())
+	}
+	opts = append(opts, schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+		const maxUnblockHosts = 500
+		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+		return err
+	}))
+
+	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
 }
 
 func newBatchActivitiesSchedule(

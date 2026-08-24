@@ -38,9 +38,8 @@ const SLUG_TOOLTIP_MESSAGE = (
 
 const URL_TOOLTIP_MESSAGE = (
   <>
-    Fleet downloads the package from the URL and stores it.
-    <br />
-    Hosts download it from Fleet before install.
+    Fleet downloads the package from the URL and stores it. Hosts download it
+    from Fleet before install.
   </>
 );
 
@@ -57,11 +56,7 @@ const FleetAppDetailsModal = ({
     versionElement = (
       <TooltipWrapper
         tipContent={
-          <>
-            To preview the version download
-            <br />
-            {name} using the URL below.
-          </>
+          <>To preview the version, download {name} using the URL below.</>
         }
       >
         Latest

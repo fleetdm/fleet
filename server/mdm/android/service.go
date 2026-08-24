@@ -36,6 +36,12 @@ type Service interface {
 	// here. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
 	WipeAndroidHost(ctx context.Context, hostID uint) error
 
+	// IssueCustomCommand issues an arbitrary AMAPI command (the raw JSON from the API request) against
+	// the given host. It persists the command in mdm_android_commands with raw_command populated but
+	// does NOT update host_mdm_actions (custom commands have no UI state). Returns the persisted
+	// command so the caller can read CommandUUID and CommandType for the API response.
+	IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*MDMAndroidCommand, error)
+
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
 	RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)

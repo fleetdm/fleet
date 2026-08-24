@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.6.15",
+      "version": "3.6.16",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.cozic.joplin-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.cozic.joplin-desktop' AND version_compare(bundle_short_version, '3.6.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.cozic.joplin-desktop' AND version_compare(bundle_short_version, '3.6.16') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.cozic.joplin-desktop');"
       },
-      "installer_url": "https://github.com/laurent22/joplin/releases/download/v3.6.15/Joplin-3.6.15-arm64.DMG",
+      "installer_url": "https://github.com/laurent22/joplin/releases/download/v3.6.16/Joplin-3.6.16-arm64.DMG",
       "install_script_ref": "a14de727",
       "uninstall_script_ref": "970919b2",
-      "sha256": "d8b33336d3cbe963d37fd6af1a677d837fcee6b793d6690ce6a486c240197f29",
+      "sha256": "0aa77a277bc2040aae73ce1f77c6eca5e52d6d21f8e83cfbc206916b600bfb4e",
       "default_categories": [
         "Productivity"
       ]

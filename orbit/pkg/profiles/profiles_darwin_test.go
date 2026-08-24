@@ -331,16 +331,17 @@ func TestParseMDMEnrollmentStatus(t *testing.T) {
 	cases := []struct {
 		cmdOut  *string
 		cmdErr  error
-		want    bool
+		wantDEP bool
+		wantMDM bool
 		wantErr bool
 	}{
-		{nil, errors.New("test error"), false, true},
-		{ptr.String(""), nil, false, true},
-		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: No"), nil, false, false},
-		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: No"), nil, true, false},
-		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)"), nil, false, false},
-		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)\nMDM Server: https://mdm.example.com"), nil, false, false},
-		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: Yes\nMDM Server: https://mdm.example.com"), nil, true, false},
+		{nil, errors.New("test error"), false, false, true},
+		{ptr.String(""), nil, false, false, true},
+		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: No"), nil, false, false, false},
+		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: No"), nil, true, false, false},
+		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)"), nil, false, true, false},
+		{ptr.String("Enrolled via DEP: No\nMDM Enrollment: Yes (User Approved)\nMDM Server: https://mdm.example.com"), nil, false, true, false},
+		{ptr.String("Enrolled via DEP: Yes\nMDM Enrollment: Yes\nMDM Server: https://mdm.example.com"), nil, true, true, false},
 	}
 
 	origCmd := getMDMInfoFromProfilesCmd
@@ -356,13 +357,14 @@ func TestParseMDMEnrollmentStatus(t *testing.T) {
 			return buf.Bytes(), nil
 		}
 
-		got, err := ParseMDMEnrollmentStatus()
+		gotDEP, gotMDM, err := ParseMDMEnrollmentStatus()
 		if c.wantErr {
 			require.Error(t, err)
 		} else {
 			require.NoError(t, err)
 		}
-		require.Equal(t, c.want, got)
+		require.Equal(t, c.wantDEP, gotDEP)
+		require.Equal(t, c.wantMDM, gotMDM)
 	}
 }
 

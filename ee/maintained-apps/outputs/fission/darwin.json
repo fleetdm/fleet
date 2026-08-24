@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.9.4",
+      "version": "2.9.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.Fission';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.Fission' AND version_compare(bundle_short_version, '2.9.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.Fission' AND version_compare(bundle_short_version, '2.9.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.rogueamoeba.Fission');"
       },
       "installer_url": "https://cdn.rogueamoeba.com/fission/download/Fission.zip",

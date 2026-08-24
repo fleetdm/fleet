@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1041.0.29",
+      "version": "1041.0.32",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.mail';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.mail' AND version_compare(bundle_short_version, '1041.0.29') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.mail' AND version_compare(bundle_short_version, '1041.0.32') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.superhuman.mail');"
       },
-      "installer_url": "https://storage.googleapis.com/download.superhuman.com/supertron-update/Superhuman-1041.0.29-arm64-latest-mac.zip",
+      "installer_url": "https://storage.googleapis.com/download.superhuman.com/supertron-update/Superhuman-1041.0.32-arm64-latest-mac.zip",
       "install_script_ref": "7e74bd96",
       "uninstall_script_ref": "1809183d",
-      "sha256": "b4c2582da79eb9a6aa09bc362a8cc966a888e64cbe7996ca6c614625ec89e461",
+      "sha256": "771dc034520a9dc4648d98504210989eeabbdb963a1df7902c580faa004e85fd",
       "default_categories": [
         "Communication"
       ]

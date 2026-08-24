@@ -147,7 +147,7 @@ About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fle
 
 <meta name="articleTitle" value="Detecting AI agents like OpenClaw with automated tooling">
 <meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="drvcodenta">
+<meta name="authorGitHubUsername" value="karmine05">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-18">
 <meta name="description" value="Part 2 of 3 - OpenClaw: What governance over autonomous AI agents looks like and what IT leaders should know about them.">

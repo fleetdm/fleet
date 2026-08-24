@@ -8,13 +8,17 @@ package homes
 
 import (
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
 
-// Home is a single user's account and home directory.
+// Home is a single user's account and home directory. UID is the numeric uid on
+// Unix and the account SID on Windows; UID and Username are both empty when the
+// home could not be attributed to a user account. Username alone may be empty
+// when the owner is known but cannot be named: a uid with no passwd entry on
+// Unix, a profile SID the host cannot resolve (unreachable domain controller,
+// offline Entra ID) on Windows.
 type Home struct {
 	UID      string
 	Username string
@@ -27,21 +31,64 @@ func All() []Home {
 	seen := map[string]struct{}{}
 	var out []Home
 
-	add := func(dir string) {
+	// admit reports whether dir is a directory that exists and has not been
+	// recorded yet, returning it cleaned along with its FileInfo and marking it
+	// seen.
+	admit := func(dir string) (string, os.FileInfo, bool) {
 		if dir == "" {
-			return
+			return "", nil, false
 		}
+
 		dir = filepath.Clean(dir)
-		if _, ok := seen[dir]; ok {
-			return
+
+		key := dir
+		if runtime.GOOS == "windows" {
+			key = strings.ToLower(dir)
+		}
+
+		if _, ok := seen[key]; ok {
+			return "", nil, false
 		}
 		fi, err := os.Stat(dir)
 		if err != nil || !fi.IsDir() {
+			return "", nil, false
+		}
+		seen[key] = struct{}{}
+		return dir, fi, true
+	}
+
+	// add records a home found by path alone, deriving its owner from the
+	// directory itself. When ownership can't be established it stays unknown
+	// ("", "")
+	add := func(dir string) {
+		dir, fi, ok := admit(dir)
+		if !ok {
 			return
 		}
-		seen[dir] = struct{}{}
-		uid, username := owner(dir, fi)
+		uid, username, ok := statOwner(dir, fi)
+		if !ok {
+			uid, username = "", ""
+		}
 		out = append(out, Home{UID: uid, Username: username, Dir: dir})
+	}
+
+	// addKnown records a home the platform enumerated together with its owner,
+	// which is authoritative and needs no derivation.
+	addKnown := func(h Home) {
+		dir, _, ok := admit(h.Dir)
+		if !ok {
+			return
+		}
+		h.Dir = dir
+		out = append(out, h)
+	}
+
+	// Homes the OS itself records against an account come first, so that where a
+	// directory is found both ways the authoritative attribution wins. This also
+	// reaches profiles the directory listings below miss entirely, such as one
+	// redirected off the system drive. Only Windows has such a record.
+	for _, h := range platformHomes() {
+		addKnown(h)
 	}
 
 	switch runtime.GOOS {
@@ -65,26 +112,6 @@ func All() []Home {
 		add(h)
 	}
 	return out
-}
-
-// owner returns the uid/username to attribute rows under dir to. It derives
-// them from the directory's actual owner — the numeric owner uid on Unix, the
-// owner SID on Windows — rather than the directory name, so a low-privilege user
-// who creates a directory named after another account (e.g. /Users/root or
-// C:\Users\Administrator2) cannot forge the uid/username attribution columns.
-//
-// When ownership can't be read, it reports it as unknown ("", "") and never
-// falls back to the (attacker-influenced) directory name.
-func owner(dir string, fi os.FileInfo) (uid, username string) {
-	ownerUID, ok := statOwnerUID(dir, fi)
-	if !ok {
-		return "", ""
-	}
-	// user.LookupId resolves a numeric uid on Unix and a SID string on Windows.
-	if u, err := user.LookupId(ownerUID); err == nil {
-		return ownerUID, u.Username
-	}
-	return ownerUID, ""
 }
 
 func listChildren(parent string, skipLower []string, add func(string)) {

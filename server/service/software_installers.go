@@ -751,6 +751,10 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
+func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Uninstall software
 ////////////////////////////////////////////////////////////////////////////////

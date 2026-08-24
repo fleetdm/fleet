@@ -617,7 +617,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		// carrying the unresolvable variable as the reason.
 		var listActs listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActs,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			"order_key", "id", "order_direction", "desc", "per_page", "10")
 		var found bool
 		for _, act := range listActs.Activities {
 			if act.Type == (fleet.ActivityInstalledAppStoreApp{}).ActivityName() {

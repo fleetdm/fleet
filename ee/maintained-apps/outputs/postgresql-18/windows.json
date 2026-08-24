@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "18.4-2",
+      "version": "18.6-1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PostgreSQL 18' AND publisher = 'PostgreSQL Global Development Group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 18' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '18.4-2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 18' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '18.6-1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'postgresql 18.exe');"
       },
-      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-18.4-2-windows-x64.exe",
+      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64.exe",
       "install_script_ref": "bc68ad4d",
       "uninstall_script_ref": "24e7779d",
-      "sha256": "0698d1a6083da490e5a57149257f5d9220d8c34109ed11b38aa592d320bf5385",
+      "sha256": "cae561e98d09f3f4a1a95759249240f86f66d71dcf33d14b6f7be894078401d1",
       "default_categories": [
         "Developer tools"
       ]

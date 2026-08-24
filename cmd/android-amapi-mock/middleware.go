@@ -60,6 +60,14 @@ func forwardForRealDevice(store *deviceStore, google *googleForwarder) func(http
 				next(w, r)
 				return
 			}
+			// An unknown device is normally a real one, but it is also what every fake device
+			// looks like after this process restarts. Record a delete for it either way: if it
+			// was a forgotten fake device, its agent must not be able to register it again and
+			// resurrect a host Fleet just unenrolled. Recording a real device's name here is
+			// harmless, since only fake devices ever register.
+			if r.Method == http.MethodDelete {
+				store.markDeleted(name)
+			}
 			// Real device — forward via Google SDK if available
 			if google != nil {
 				hasSeenRealDevice.Store(true)
