@@ -22,16 +22,15 @@ module.exports = function (sails){
     },
 
     configure: function () {
-      // If SSO isn't configured, leave the app's built-in authentication in place.
-      if(!sails.config.custom.ssoClientSecret){
-        return;
-      }
       // Throw errors if required config variables are missing.
       if(!sails.config.custom.ssoIssuer){
         throw new Error(`Missing config! No sails.config.custom.ssoIssuer was configured. To replace this app's built-in authorization mechanism with SSO, a ssoIssuer value is required.`);
       }
       if(!sails.config.custom.ssoClientSecret){
         throw new Error(`Missing config! No sails.config.custom.ssoClientSecret was configured. To replace this app's built-in authorization mechanism with SSO, a ssoClientSecret value is required.`);
+      }
+      if(!sails.config.custom.ssoClientId){
+        throw new Error(`Missing config! No sails.config.custom.ssoClientId was configured. To replace this app's built-in authorization mechanism with SSO, a ssoClientId value is required.`);
       }
 
       // Clone the existing routes
