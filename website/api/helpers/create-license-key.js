@@ -12,6 +12,7 @@ module.exports = {
     numberOfHosts: {
       type: 'number',
       required: true,
+      min: 1,
     },
 
     organization: {

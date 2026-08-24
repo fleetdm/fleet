@@ -67,6 +67,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestUpdateMDMWindowsConfigProfile", testUpdateMDMWindowsConfigProfile},
 		{"TestMDMWindowsProfileLabelsCombined", testMDMWindowsProfileLabelsCombined},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
+		{"TestMDMWindowsUserChannelRejection", testUserChannelRejection},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
@@ -4489,6 +4490,171 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 	t.Run("decompress rejects non-gzip data", func(t *testing.T) {
 		_, err := decompressWindowsMDMResponse([]byte("not-gzip-data"))
 		require.Error(t, err)
+	})
+}
+
+// TestTruncateMDMWindowsProfileDetail covers the one thing specific to this wrapper: the cap is the TEXT column's budget in
+// bytes. str.TruncateBytes owns rune-boundary safety, the marker, and the edge cases, and pkg/str tests those.
+//
+// Multi-byte input is what makes this a real check. Capping the same number of multi-byte runes by character count would
+// return several times the byte budget and still overflow the column, so an ASCII-only case would not catch that mistake.
+func TestTruncateMDMWindowsProfileDetail(t *testing.T) {
+	t.Parallel()
+
+	got := truncateMDMWindowsProfileDetail(strings.Repeat("é", maxMDMWindowsProfileDetailLen))
+	require.LessOrEqual(t, len(got), maxMDMWindowsProfileDetailLen)
+}
+
+// testUserChannelRejection covers what the ack path does when the device rejects a user-channel write while Fleet is still
+// waiting for a user context that can arrive. An install must not spend its retry budget, and a removal must not be recorded as
+// complete. Both become real once the user is actually signed in.
+func testUserChannelRejection(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// An Entra-style enrollment: a real UPN binds a user identity, so a user context can still arrive.
+	enrolledDevice := createEnrolledDevice(t, ds)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET enroll_user_id = ? WHERE id = ?`,
+			"victor@example.com", enrolledDevice.ID)
+		return err
+	})
+	enrolledDevice.MDMEnrollUserID = "victor@example.com"
+
+	profileUUID := "w" + uuid.NewString()
+
+	// sendUserChannelFailure queues a user-scoped command, points the host profile row at it, and acks it with a 500 on
+	// the user-channel LocURI: the signature measured on hardware.
+	sendUserChannelFailure := func(t *testing.T) {
+		t.Helper()
+		commandUUID := uuid.NewString()
+		replaceUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: commandUUID,
+			RawCommand: []byte(fmt.Sprintf(
+				`<Atomic><CmdID>%s</CmdID><Replace><CmdID>%s</CmdID><Item><Target>`+
+					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
+					`</Target><Data>0</Data></Item></Replace></Atomic>`, commandUUID, replaceUUID)),
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'user-scoped', ?)
+ON DUPLICATE KEY UPDATE status = 'pending', command_uuid = VALUES(command_uuid)`,
+				enrolledDevice.HostUUID, commandUUID, profileUUID)
+			return err
+		})
+
+		enriched := createResponseAsEnrichedSyncML(t, enrolledDevice, []enrichResponseEntry{
+			{Type: "Atomic", StatusCode: 507, UUID: commandUUID},
+			{Type: "Replace", StatusCode: 500, UUID: replaceUUID},
+		})
+		_, err := ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enriched, []string{})
+		require.NoError(t, err)
+	}
+
+	// sendUserChannelRemoveRejection queues a user-scoped <Delete>, points a remove row at it, and acks it with a 405: what
+	// Windows returns for a user-channel node it cannot reach. Removal is best-effort, so this reads as a completed removal
+	// and drops the row unless the user-context exemption catches it first.
+	sendUserChannelRemoveRejection := func(t *testing.T, removeProfileUUID string) {
+		t.Helper()
+		commandUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: commandUUID,
+			RawCommand: []byte(fmt.Sprintf(
+				`<Delete><CmdID>%s</CmdID><Item><Target>`+
+					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
+					`</Target></Item></Delete>`, commandUUID)),
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'remove', ?, 'user-scoped', ?)
+ON DUPLICATE KEY UPDATE status = 'pending', operation_type = 'remove', command_uuid = VALUES(command_uuid)`,
+				enrolledDevice.HostUUID, commandUUID, removeProfileUUID)
+			return err
+		})
+
+		enriched := createResponseAsEnrichedSyncML(t, enrolledDevice, []enrichResponseEntry{
+			{Type: "Delete", StatusCode: 405, UUID: commandUUID},
+		})
+		_, err := ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enriched, []string{})
+		require.NoError(t, err)
+	}
+
+	type profileRow struct {
+		Status  *string `db:"status"`
+		Retries int     `db:"retries"`
+		Detail  string  `db:"detail"`
+	}
+	// readRow reports whether the row still exists as well as its contents: a resolved removal deletes its row outright.
+	readRow := func(t *testing.T, wantProfileUUID string) (profileRow, bool) {
+		t.Helper()
+		var rows []profileRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT status, retries, detail FROM host_mdm_windows_profiles
+				WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice.HostUUID, wantProfileUUID)
+		})
+		if len(rows) == 0 {
+			return profileRow{}, false
+		}
+		return rows[0], true
+	}
+	setLoginStatus := func(t *testing.T, status fleet.WindowsMDMLoginStatus) {
+		t.Helper()
+		require.NoError(t, ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, &status))
+		enrolledDevice.LastLoginStatus = &status
+	}
+
+	t.Run("no retry is spent while the user context can still arrive", func(t *testing.T) {
+		sendUserChannelFailure(t)
+
+		row, found := readRow(t, profileUUID)
+		require.True(t, found)
+		require.Nil(t, row.Status, "the row returns to pending so the reconciler revisits it")
+		require.Zero(t, row.Retries, "a write Fleet sent too early must not consume the retry budget")
+		require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
+	})
+
+	t.Run("the exemption does not repeat once the user is signed in", func(t *testing.T) {
+		// The device now reports a signed-in MDM user, so the same rejection is a real failure.
+		setLoginStatus(t, fleet.WindowsMDMLoginStatusUser)
+
+		sendUserChannelFailure(t)
+
+		row, found := readRow(t, profileUUID)
+		require.True(t, found)
+		require.Equal(t, 1, row.Retries, "normal retry accounting applies once the user context is present")
+	})
+
+	// A rejected removal is the dangerous direction: 405 maps to verified, which deletes the row and reports the profile gone
+	// while its setting is still applied in a signed-out user's hive. This is the sign-out race, the one case the reconciler's
+	// gate cannot catch, since the user context was present when the <Delete> was sent.
+	t.Run("a rejected user-scoped removal is held rather than reported as removed", func(t *testing.T) {
+		setLoginStatus(t, fleet.WindowsMDMLoginStatusOthers)
+		removeProfileUUID := "w" + uuid.NewString()
+
+		sendUserChannelRemoveRejection(t, removeProfileUUID)
+
+		row, found := readRow(t, removeProfileUUID)
+		require.True(t, found, "the row must survive: the setting may still be applied in a signed-out user's hive")
+		require.Nil(t, row.Status, "a NULL status returns the removal to the reconciler, which holds it until a user signs in")
+		require.Equal(t, fleet.WindowsUserScopeRemoveHoldDetail, row.Detail)
+		require.Zero(t, row.Retries, "a removal Fleet sent too early must not consume the retry budget either")
+	})
+
+	t.Run("a rejected user-scoped removal resolves once the user is signed in", func(t *testing.T) {
+		// With a user signed in, 405 means what it says: the node is read-only, so the removal is as done as it will get.
+		setLoginStatus(t, fleet.WindowsMDMLoginStatusUser)
+		removeProfileUUID := "w" + uuid.NewString()
+
+		sendUserChannelRemoveRejection(t, removeProfileUUID)
+
+		_, found := readRow(t, removeProfileUUID)
+		require.False(t, found, "a terminal removal deletes its row rather than leaving it pending forever")
 	})
 }
 

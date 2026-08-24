@@ -258,11 +258,14 @@ module.exports = {
             ownerId: sails.config.custom.renderOwnerId,
             type: 'private_service',
             name: povRecord.slug+'-fleet-mysql',
-            repo: 'https://github.com/render-examples/mysql',
-            autoDeploy: 'yes',
+            image: {
+              ownerId: sails.config.custom.renderOwnerId,
+              imagePath: 'docker.io/library/mysql:8.0.44'
+            },
+            autoDeploy: 'no',
             serviceDetails: {
               plan: 'standard',
-              runtime: 'docker',
+              runtime: 'image',
               disk: {
                 sizeGB: 5,
                 name: 'mysql',

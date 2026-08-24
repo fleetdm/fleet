@@ -948,12 +948,17 @@ type SoftwarePackageOrApp struct {
 	// installed automatically with a policy.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies"`
 
-	Version       string                 `json:"version"`
-	Platform      string                 `json:"platform"`
-	SelfService   *bool                  `json:"self_service,omitempty"`
-	LastInstall   *HostSoftwareInstall   `json:"last_install"`
-	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
-	PackageURL    *string                `json:"package_url"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+	SelfService *bool  `json:"self_service,omitempty"`
+	// HasUninstallScript indicates whether the installer has a non-empty
+	// uninstall script configured. Absent for VPP and in-house apps (the
+	// key is dropped via omitempty on a nil pointer), and absent on
+	// /software/titles responses; only host software responses set it.
+	HasUninstallScript *bool                  `json:"has_uninstall_script,omitempty"`
+	LastInstall        *HostSoftwareInstall   `json:"last_install"`
+	LastUninstall      *HostSoftwareUninstall `json:"last_uninstall"`
+	PackageURL         *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
 	InstallDuringSetup      *bool                    `json:"install_during_setup,omitempty" db:"install_during_setup"`
