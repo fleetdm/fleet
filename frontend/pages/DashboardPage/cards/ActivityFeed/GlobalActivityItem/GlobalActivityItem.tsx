@@ -2873,8 +2873,9 @@ const GlobalActivityItem = ({
         if (activity.details?.from_auto_update) return <b>Fleet </b>;
         // A missing actor here means the initiating admin has been deleted
         // since the install was queued (the LEFT JOIN on users returns nil).
-        // Fall back to Fleet so the sentence doesn't render as a blank actor.
-        if (!activity.actor_full_name) return <b>Fleet </b>;
+        // Trim so whitespace-only names also count as missing. Fall back to
+        // Fleet so the sentence doesn't render as a blank actor.
+        if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
         return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.

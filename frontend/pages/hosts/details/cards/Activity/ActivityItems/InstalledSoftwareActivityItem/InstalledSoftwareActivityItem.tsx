@@ -86,8 +86,9 @@ const InstalledSoftwareActivityItem = ({
   // carries a stale actor (e.g. a pre-fix retry that re-attributed to the
   // admin who set up the schedule). A missing actor means the initiating
   // admin has been deleted since the install was queued (LEFT JOIN on users
-  // returns nil). Both cases render as "Fleet".
-  const actor = from_auto_update || !actorName ? "Fleet" : actorName;
+  // returns nil). Trim so whitespace-only names also count as missing. Both
+  // cases render as "Fleet".
+  const actor = from_auto_update || !actorName?.trim() ? "Fleet" : actorName;
 
   return (
     <ActivityItem

@@ -4317,7 +4317,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 		hostUUID    = "HOST-UUID-AUTO"
 		commandUUID = "CMD-UUID-AUTO"
 	)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ds := new(mock.Store)
 	var emitted *fleet.ActivityInstalledAppStoreApp
