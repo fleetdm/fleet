@@ -39,7 +39,7 @@ Expired pushes need no sweeping: pending keys carry a Redis TTL.
 | `POST /3/device/{token}` | Fleet server | Accept a push. Same path shape as real APNs. |
 | `GET /events?token=<hex>` | Simulated devices | Long-lived SSE stream of pushes for one device token. |
 | `GET /healthz` | Infra | Liveness check. |
-| `GET /memstats` | Operator | Go runtime memory, `?gc=1` to collect first. |
+| `GET /memstats` | Operator | Go runtime memory |
 | `GET /stats` | Operator | Counters as JSON, for this instance (`node`) and summed across the cluster (`cluster`). |
 
 ## Push requests
