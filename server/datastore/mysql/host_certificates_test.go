@@ -253,10 +253,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 
 	// Redelivery correctness. When a profile is sent again (a retry, an admin Resend, or a renewal) the host is still
 	// carrying the certificate from the previous issuance, and it has the same renewal-ID marker as the one we are
-	// waiting for. Verification therefore has to wait for a genuinely new certificate. Two things make that work, and
-	// this pins both: preprocessing the profile again clears the observed certificate off the managed-certificate row,
-	// and the renewal-ID matcher only considers certificates newly reported in this ingest. If either regressed, a
-	// redelivery would report "verified" off the stale certificate and quietly deliver nothing.
+	// waiting for. Verification therefore has to wait for a genuinely new certificate.
 	t.Run("redelivery waits for a new certificate", func(t *testing.T) {
 		h := mkHost(t, "redeliver")
 		p := "w-redeliver"
@@ -314,8 +311,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	})
 
 	// An upstream CA error is a delivery failure like any other, so it spends the profile's retries before it becomes
-	// terminal. Each retry puts the profile back in the queue, where the profile manager preprocesses it afresh and, for a
-	// SCEP profile, fetches a new challenge.
+	// terminal. Each retry puts the profile back in the queue, where the profile manager preprocesses it afresh.
 	const scepFailDetail = "SCEP PKIOperation failed: HTTP 500"
 	// Every value below the limit takes the same branch, so cover the first and the last one still allowed; the value
 	// at the limit is the terminal case below.
@@ -354,8 +350,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	})
 
 	// The SCEP CSP retries PKIOperation on its own schedule, so one Fleet delivery can produce a burst of upstream
-	// errors. Only the first may cost a retry; the rest arrive when a delivery is already queued and must be dropped,
-	// or a single bad CA would drain the whole budget without Fleet ever redelivering.
+	// errors. Only the first may cost a retry; the rest arrive when a delivery is already queued and must be dropped.
 	t.Run("repeated proxy failures within one delivery spend a single retry", func(t *testing.T) {
 		h := mkHost(t, "setfailed-burst")
 		p := "w-fail-burst"
@@ -392,11 +387,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	})
 
 	// A challenge Fleet turned away (expired NDES password, rejected custom SCEP challenge) is not an install the host
-	// failed, so nothing is charged for it. It must not hand the budget back either: the Windows SCEP CSP re-drives the
-	// exchange on its own using the challenge in the profile it already holds, so Fleet sees a request carrying the
-	// superseded challenge shortly after every redelivery. Resetting there would refill the budget on each cycle and
-	// the profile would never reach a terminal state however often the CA failed. Observed live on a Windows 11 host:
-	// retries went 0 -> 1 -> 0 -> 1 and never converged.
+	// failed, so nothing is charged for it. It must not hand the budget back either.
 	t.Run("certificate profile resend neither charges nor refills the retries", func(t *testing.T) {
 		h := mkHost(t, "resend-cert")
 		p := "w-resend-cert"
@@ -447,8 +438,6 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	})
 
 	// Windows profiles are exempt from the "status must be pending" gate in validateIdentifier, so a straggling SCEP
-	// request from the CSP's own retry can reach the resend long after the row settled. Terminal states must survive
-	// it: requeueing a verified profile would spend another challenge on a certificate the host already has, and
 	// requeueing a failed one would quietly resurrect a profile that had already run out of retries.
 	for _, tc := range []struct {
 		name   string
@@ -555,8 +544,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	}
 
 	// Redelivering resets updated_at, so a retried profile is back inside the grace window and the backstop must leave
-	// it alone until the next window elapses. Without this, one ingest per detail cycle would burn the whole budget in
-	// minutes instead of giving each attempt its own grace period.
+	// it alone until the next window elapses.
 	t.Run("backstop: a retried profile is not failed again until the next grace window", func(t *testing.T) {
 		h := mkHost(t, "backstop-regrace")
 		p := "w-backstop-regrace"
@@ -593,7 +581,6 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		status, _, _ := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
 	})
-
 }
 
 func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
