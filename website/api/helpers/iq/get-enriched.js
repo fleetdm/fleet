@@ -349,10 +349,10 @@ module.exports = {
           sails.log.info(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
         }//ﬁ
 
-        // Use OpenAI to try and enrich some additional data, if it's missing.
+        // Use an LLM to try and enrich some additional data, if it's missing.
         if (!employer.numberOfEmployees) {
-          if (!sails.config.custom.openAiSecret) {
-            throw new Error('sails.config.custom.openAiSecret not set.');
+          if (!sails.config.custom.anthropicSecret) {
+            throw new Error('sails.config.custom.anthropicSecret not set.');
           }//•
 
           let prompt = `How many employees does the organization who owns ${emailDomain} have?
@@ -361,21 +361,12 @@ module.exports = {
     {
       "employees": 0
     }`;
-          let BASE_MODEL = 'gpt-4o';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
-          // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-          let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
-            model: BASE_MODEL,
-            messages: [ { role: 'user', content: prompt } ],// // https://platform.openai.com/docs/guides/chat/introduction
-            temperature: 0.7,
-            max_tokens: 256//eslint-disable-line camelcase
-          }, {
-            Authorization: `Bearer ${sails.config.custom.openAiSecret}`
-          })
+          let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
           .tolerate((unusedErr)=>{});
 
-          if (openAiResponse) {
+          if (llmResponse) {
             try {
-              employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content).employees;
+              employer.numberOfEmployees = llmResponse.employees;
             } catch (unusedErr) {
               employer.numberOfEmployees = 1;
             }

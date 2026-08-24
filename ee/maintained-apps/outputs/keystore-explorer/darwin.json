@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.1",
+      "version": "5.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kse.keystore-explorer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kse.keystore-explorer' AND version_compare(bundle_short_version, '5.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kse.keystore-explorer' AND version_compare(bundle_short_version, '5.7.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.kse.keystore-explorer');"
       },
-      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.6.1/kse-561-arm64.dmg",
+      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.7.0/kse-570-arm64.dmg",
       "install_script_ref": "cfac5836",
       "uninstall_script_ref": "6d59af2d",
-      "sha256": "693e325e59173a14a1aedf4eb581ed24b6ddb0e8bb4037893312606eb23fab7b",
+      "sha256": "59ffae1f70f3e4a2eb6d25b4169ee8b7b528d5638dec27b2b60a3287b61f0499",
       "default_categories": [
         "Productivity"
       ]

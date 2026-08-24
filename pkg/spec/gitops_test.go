@@ -2735,6 +2735,47 @@ software:
 		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
 	})
 
+	t.Run("fleet_maintained_app_display_name_too_long", func(t *testing.T) {
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "` + longDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		assert.ErrorContains(t, err, "display_name is too long (max 255 characters)")
+	})
+
+	t.Run("multibyte_display_name_at_rune_limit", func(t *testing.T) {
+		// 255 multibyte characters fit the utf8mb4 varchar(255) column, so they
+		// must be accepted even though they take more than 255 bytes
+		multibyteDisplayName := strings.Repeat("é", 255)
+		config := getTeamConfig([]string{"name", "software"})
+		config += `name: Test Team
+software:
+  packages:
+    - hash_sha256: "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
+      display_name: "` + multibyteDisplayName + `"
+  app_store_apps:
+    - app_store_id: "12345"
+      display_name: "` + multibyteDisplayName + `"
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "` + multibyteDisplayName + `"
+`
+		path, basePath := createTempFile(t, "", config)
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.Equal(t, multibyteDisplayName, result.Software.Packages[0].DisplayName)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, multibyteDisplayName, result.Software.AppStoreApps[0].DisplayName)
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, multibyteDisplayName, result.Software.FleetMaintainedApps[0].DisplayName)
+	})
+
 	t.Run("valid_display_name", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "software"})
 		// Use hash instead of URL to avoid network calls, and no scripts required
@@ -2746,6 +2787,9 @@ software:
   app_store_apps:
     - app_store_id: "12345"
       display_name: "Custom VPP App Name"
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      display_name: "Custom FMA Name"
 `
 		path, basePath := createTempFile(t, "", config)
 		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
@@ -2754,6 +2798,13 @@ software:
 		assert.Equal(t, "Custom Package Name", result.Software.Packages[0].DisplayName)
 		require.Len(t, result.Software.AppStoreApps, 1)
 		assert.Equal(t, "Custom VPP App Name", result.Software.AppStoreApps[0].DisplayName)
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, "Custom FMA Name", result.Software.FleetMaintainedApps[0].DisplayName)
+
+		// the FMA display name must survive the conversion to the package spec used
+		// to build the batch payload
+		packageSpec := result.Software.FleetMaintainedApps[0].ToSoftwarePackageSpec()
+		assert.Equal(t, "Custom FMA Name", packageSpec.DisplayName)
 	})
 }
 
@@ -3452,9 +3503,9 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3540,8 +3591,8 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte(emptyMCProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3636,7 +3687,7 @@ func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
 	t.Run("macos updates configured with non-conflicting profile is allowed", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -4231,7 +4282,7 @@ func TestControlsNewKeyNames(t *testing.T) {
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -4299,7 +4350,7 @@ org_settings:
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -5768,3 +5819,113 @@ controls:
 		require.Contains(t, err.Error(), "failed to read activation file")
 	})
 }
+
+func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
+	t.Parallel()
+
+	//nolint:gosec // G101: test fixture, not a real credential.
+	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Password policy</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.password</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`
+
+	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
+	// then appends the given policies section to a team (or global) config.
+	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+
+		exclude := []string{"controls", "policies"}
+		config := getTeamConfig(exclude)
+		if global {
+			config = getGlobalConfig(exclude)
+		}
+		config += `
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./lib/password.MOBILECoNFIG
+  windows_settings:
+    custom_settings:
+      - path: ./lib/screenlock.XmL
+` + policies
+
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		return GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	}
+
+	t.Run("resolves macOS and Windows profile names defined in controls", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: Password policy
+- name: Windows policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: screenlock
+- name: No resend policy
+  query: SELECT 1;
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 3)
+		require.Equal(t, new("Password policy"), got.Policies[0].ResendConfigurationProfileName)
+		require.Equal(t, new("screenlock"), got.Policies[1].ResendConfigurationProfileName)
+		// Policies without the key get an empty name so the server unsets any existing profile.
+		require.Equal(t, new(""), got.Policies[2].ResendConfigurationProfileName)
+	})
+
+	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
+		_, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: Not a profile
+`)
+		require.ErrorContains(t, err, `configuration profile "Not a profile" was not defined in controls`)
+	})
+
+	t.Run("errors on global policies", func(t *testing.T) {
+		_, err := writeConfig(t, true, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile:
+    name: Password policy
+`)
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+	})
+}
+
+const emptyMCProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Empty Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>empty-profile-identifier</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+</dict>
+</plist>`

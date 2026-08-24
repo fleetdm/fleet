@@ -22,6 +22,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -630,6 +631,17 @@ func (c *Client) ApplyGroup(
 				return nil, nil, nil, nil, fmt.Errorf("applying packs: %w", err)
 			}
 			logfn(appliedFormat, numberWithPluralization(len(specs.Packs), "pack", "packs"))
+		}
+	}
+
+	// The endpoint is Premium only.
+	if specs.MicrosoftGraphCredentials != nil && appconfig != nil && appconfig.License != nil && appconfig.License.IsPremium() {
+		if err := c.ApplyMicrosoftGraphCredentials(*specs.MicrosoftGraphCredentials, opts.ApplySpecOptions.DryRun); err != nil {
+			// The server answers 402, which ParseResponse converts to client.ErrMissingLicense.
+			if errors.Is(err, client.ErrMissingLicense) && viaGitOps && filename != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.", *filename)
+			}
+			return nil, nil, nil, nil, fmt.Errorf("applying microsoft graph credentials: %w", err)
 		}
 	}
 
@@ -2283,6 +2295,15 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
+		// Microsoft Graph credentials are applied through their own endpoint too, so they are lifted out of
+		// OrgSettings for the same reason and must not reach the AppConfig PATCH.
+		graphCreds, err := fleet.ParseMicrosoftGraphCredentials(incoming.OrgSettings["microsoft_graph_credentials"])
+		if err != nil {
+			return nil, fmt.Errorf("invalid microsoft_graph_credentials: %w", err)
+		}
+		group.MicrosoftGraphCredentials = &graphCreds
+		delete(incoming.OrgSettings, "microsoft_graph_credentials")
+
 		// Plan PUT uploads and strip the gitops-only `path` keys, which
 		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
 		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
@@ -3579,6 +3600,45 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				continue
 			}
 			config.Policies[i].ScriptID = &scriptID
+		}
+
+		var teamProfiles map[string]string
+		hydrateProfiles := func() error {
+			if teamProfiles != nil {
+				return nil
+			}
+
+			profiles, err := c.ListConfigurationProfiles(teamID)
+			if err != nil {
+				return fmt.Errorf("error listing configuration profiles: %w", err)
+			}
+			teamProfiles = make(map[string]string, len(profiles))
+			for _, profile := range profiles {
+				teamProfiles[profile.Name] = profile.ProfileUUID
+			}
+			return nil
+		}
+		// assign profile UUIDs for policies with resend configuration profiles
+		for i := range config.Policies {
+			// default to empty string to unset, and then override if match is found
+			config.Policies[i].ProfileUUID = new("")
+
+			if config.Policies[i].ResendConfigurationProfileName == nil || *config.Policies[i].ResendConfigurationProfileName == "" {
+				continue
+			}
+
+			if err := hydrateProfiles(); err != nil {
+				return fmt.Errorf("error hydrating configuration profiles: %w", err)
+			}
+
+			profileUUID, ok := teamProfiles[*config.Policies[i].ResendConfigurationProfileName]
+			if !ok {
+				if !dryRun { // this shouldn't happen
+					logFn("[!] reference to an unknown configuration profile: %s\n", *config.Policies[i].ResendConfigurationProfileName)
+				}
+				continue
+			}
+			config.Policies[i].ProfileUUID = &profileUUID
 		}
 
 		// Get patch policy title IDs for the team

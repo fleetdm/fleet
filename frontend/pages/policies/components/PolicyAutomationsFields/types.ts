@@ -2,6 +2,7 @@ type IAutomationRowKey =
   | "ticket_webhook"
   | "install_software"
   | "run_script"
+  | "resend_configuration_profile"
   | "calendar_event"
   | "conditional_access";
 

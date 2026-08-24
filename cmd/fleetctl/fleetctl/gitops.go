@@ -401,6 +401,18 @@ func gitopsCommand() *cli.Command {
 				}
 
 				if !appConfig.License.IsPremium() {
+					if creds, ok := config.OrgSettings["microsoft_graph_credentials"]; ok {
+						parsed, err := fleet.ParseMicrosoftGraphCredentials(creds)
+						if err != nil {
+							return fmt.Errorf("invalid microsoft_graph_credentials: %w", err)
+						}
+						if len(parsed) > 0 {
+							return fmt.Errorf(
+								"Couldn't edit %q at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.",
+								filepath.Base(flFilename))
+						}
+					}
+
 					// Targeting queries against labels is a Premium feature only
 					for _, query := range config.Queries {
 						if len(query.LabelsIncludeAny) > 0 {
@@ -1327,7 +1339,7 @@ func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.
 		return "", false, nil
 	}
 	name, _ := weMap["default_fleet"].(string)
-	if name == "" {
+	if name == "" || fleet.IsUnassignedFleetName(name) {
 		return "", false, nil
 	}
 	// normalize for Unicode support

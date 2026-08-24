@@ -146,6 +146,56 @@ func TestParseUintList(t *testing.T) {
 	}
 }
 
+func TestTruncateBytes(t *testing.T) {
+	const marker = "... (truncated)"
+
+	t.Run("under the limit passes through unchanged", func(t *testing.T) {
+		require.Equal(t, "hello", TruncateBytes("hello", 64, marker))
+	})
+
+	t.Run("exactly at the limit passes through unchanged", func(t *testing.T) {
+		s := strings.Repeat("x", 32)
+		require.Equal(t, s, TruncateBytes(s, 32, marker))
+	})
+
+	t.Run("result including the marker stays within the limit", func(t *testing.T) {
+		result := TruncateBytes(strings.Repeat("x", 1000), 64, marker)
+		require.LessOrEqual(t, len(result), 64)
+		require.True(t, strings.HasSuffix(result, marker))
+	})
+
+	t.Run("cut in the middle of a multi-byte rune stays valid UTF-8", func(t *testing.T) {
+		// Place a 4-byte rune so the byte limit lands inside it.
+		limit := 40
+		s := strings.Repeat("a", limit-len(marker)-2) + "😀" + strings.Repeat("b", 100)
+		result := TruncateBytes(s, limit, marker)
+		require.True(t, utf8.ValidString(result), "result must be valid UTF-8")
+		require.LessOrEqual(t, len(result), limit)
+		require.True(t, strings.HasSuffix(result, marker))
+	})
+
+	t.Run("multi-byte text is capped by bytes, not characters", func(t *testing.T) {
+		// The reason this helper exists: 100 two-byte runes is 200 bytes, which a 100-byte column cannot hold.
+		result := TruncateBytes(strings.Repeat("é", 100), 100, marker)
+		require.LessOrEqual(t, len(result), 100)
+		require.True(t, utf8.ValidString(result))
+	})
+
+	t.Run("limit too small for the marker drops the marker", func(t *testing.T) {
+		result := TruncateBytes(strings.Repeat("x", 100), 5, marker)
+		require.Equal(t, "xxxxx", result)
+	})
+
+	t.Run("non-positive limit returns empty", func(t *testing.T) {
+		require.Empty(t, TruncateBytes("hello", 0, marker))
+		require.Empty(t, TruncateBytes("hello", -1, marker))
+	})
+
+	t.Run("empty marker truncates cleanly", func(t *testing.T) {
+		require.Equal(t, "xxxxx", TruncateBytes(strings.Repeat("x", 100), 5, ""))
+	})
+}
+
 func TestTruncateErrorResponse(t *testing.T) {
 	t.Run("short string passes through unchanged", func(t *testing.T) {
 		require.Equal(t, "hello", TruncateErrorResponse("hello"))
