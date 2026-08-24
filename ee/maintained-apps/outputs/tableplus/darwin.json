@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.9.10",
+      "version": "26.9.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus' AND version_compare(bundle_short_version, '26.9.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus' AND version_compare(bundle_short_version, '26.9.12') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.tinyapp.TablePlus');"
       },
-      "installer_url": "https://files.tableplus.com/macos/768/TablePlus.dmg",
+      "installer_url": "https://files.tableplus.com/macos/770/TablePlus.dmg",
       "install_script_ref": "b7b75762",
       "uninstall_script_ref": "19abdcd7",
-      "sha256": "8c9c37957e686abb41a7d091c016b369469febcfb2539c2dd2afaec416a4e176",
+      "sha256": "36df6cec348460becd51d1bc09e2497fd995eac749c9ebe74d1a4e83ef2d6aea",
       "default_categories": [
         "Developer tools"
       ]
