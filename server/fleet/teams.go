@@ -932,10 +932,19 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	// emit the deprecated flat toggle only when it agrees with every
 	// per-platform setting: the flat toggle wins when provided, so emitting it
 	// for a mixed state would reset the per-platform values on re-apply.
-	if flat == mdm.MacOSSettings.EnableDiskEncryption.Value &&
-		flat == mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
-		flat == mdm.WindowsSettings.EnableDiskEncryption.Value &&
-		flat == mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
+	uniformDiskEncryption := true
+	for _, v := range []bool{
+		mdm.MacOSSettings.EnableDiskEncryption.Value,
+		mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		mdm.WindowsSettings.EnableDiskEncryption.Value,
+		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	} {
+		if v != flat {
+			uniformDiskEncryption = false
+			break
+		}
+	}
+	if uniformDiskEncryption {
 		mdmSpec.EnableDiskEncryption = optjson.SetBool(flat)
 	}
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(mdm.EnableRecoveryLockPassword)

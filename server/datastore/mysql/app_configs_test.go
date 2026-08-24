@@ -776,3 +776,25 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	_, err = ds.YaraRuleByName(ctx, "wildcard.yar")
 	require.Error(t, err)
 }
+
+// setAppConfigDiskEncryptionForTest sets the deprecated flat toggle and every
+// per-platform disk encryption setting. The flat toggle is virtual (recomputed
+// as the AND of the per-platform settings on save), so a flat-only write on a
+// loaded config would be discarded.
+func setAppConfigDiskEncryptionForTest(ac *fleet.AppConfig, enabled bool) {
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(enabled)
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+	ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+}
+
+// setTeamMDMDiskEncryptionForTest is the TeamMDM twin of
+// setAppConfigDiskEncryptionForTest.
+func setTeamMDMDiskEncryptionForTest(tm *fleet.TeamMDM, enabled bool) {
+	tm.EnableDiskEncryption = enabled
+	tm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	tm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+	tm.WindowsSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	tm.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+}
