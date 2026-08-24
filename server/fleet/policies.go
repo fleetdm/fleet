@@ -621,6 +621,13 @@ type PolicyScriptData struct {
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
 }
 
+type PolicyProfileData struct {
+	PolicyID    uint   `db:"policy_id"`
+	PolicyName  string `db:"policy_name"`
+	ProfileUUID string `db:"profile_uuid"`
+	ProfileName string `db:"profile_name"`
+}
+
 // PolicyLite is a stripped down version of the policy.
 type PolicyLite struct {
 	ID uint `db:"id"`
@@ -892,6 +899,7 @@ type PolicyAutomationType string
 
 const (
 	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypePatch             PolicyAutomationType = "patch"
 	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
 	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
 	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -40,6 +41,7 @@ func TestQueries(t *testing.T) {
 		{"IsSavedQuery", testIsSavedQuery},
 		{"SaveQueryLabels", testSaveQueryLabels},
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
+		{"QueriesPerHost", testQueriesPerHost},
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
 	}
 	for _, c := range cases {
@@ -1382,6 +1384,133 @@ func testSaveQueryLabels(t *testing.T, ds *Datastore) {
 	query1.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label2.Name}}
 	err = ds.SaveQuery(ctx, query1, true, true)
 	require.Error(t, err)
+}
+
+func testQueriesPerHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	otherLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
+
+	hostInLabel := test.NewHost(t, ds, "host1", "10.0.0.1", "asdf", "host1", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInLabel.ID, []uint{label.ID}))
+	hostInOtherLabel := test.NewHost(t, ds, "host2", "10.0.0.2", "asdg", "host2", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInOtherLabel.ID, []uint{otherLabel.ID}))
+	hostInBothLabels := test.NewHost(t, ds, "host3", "10.0.0.3", "asdh", "host3", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInBothLabels.ID, []uint{label.ID, otherLabel.ID}))
+	hostNoLabels := test.NewHost(t, ds, "host4", "10.0.0.4", "asdj", "host4", time.Now())
+
+	hostOnTeam := test.NewHost(t, ds, "host5", "10.0.0.5", "asdk", "host5", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostOnTeam.ID})))
+	hostOnOtherTeam := test.NewHost(t, ds, "host6", "10.0.0.6", "asdl", "host6", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&otherTeam.ID, []uint{hostOnOtherTeam.ID})))
+
+	// Read the team hosts back so their TeamID is the one the service would pass.
+	hostOnTeam, err = ds.Host(ctx, hostOnTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, team.ID, *hostOnTeam.TeamID)
+	hostOnOtherTeam, err = ds.Host(ctx, hostOnOtherTeam.ID)
+	require.NoError(t, err)
+
+	newQuery := func(t *testing.T, name string, mutate func(*fleet.Query)) *fleet.Query {
+		query := &fleet.Query{
+			Name:     name,
+			Query:    "SELECT 1",
+			AuthorID: &user.ID,
+			Logging:  fleet.LoggingSnapshot,
+			Interval: 10,
+			Saved:    true,
+		}
+		if mutate != nil {
+			mutate(query)
+		}
+		created, err := ds.NewQuery(ctx, query)
+		require.NoError(t, err)
+		return created
+	}
+
+	// Stores results in a report, no automations.
+	global := newQuery(t, "global", nil)
+	// Stores results and streams them.
+	automated := newQuery(t, "automated", func(q *fleet.Query) { q.AutomationsEnabled = true })
+	// Streams results without storing them, which is still a reason to run it.
+	streamOnly := newQuery(t, "stream only", func(q *fleet.Query) {
+		q.AutomationsEnabled = true
+		q.Logging = fleet.LoggingDifferential
+	})
+
+	// Never scheduled for any host: they would neither store nor stream a result.
+	noInterval := newQuery(t, "no interval", func(q *fleet.Query) { q.Interval = 0 })
+	notSaved := newQuery(t, "not saved", func(q *fleet.Query) { q.Saved = false })
+	discardData := newQuery(t, "discard data", func(q *fleet.Query) { q.DiscardData = true })
+	differential := newQuery(t, "differential", func(q *fleet.Query) { q.Logging = fleet.LoggingDifferential })
+
+	includeAny := newQuery(t, "include any", func(q *fleet.Query) {
+		q.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label.Name}}
+	})
+	includeAll := newQuery(t, "include all", func(q *fleet.Query) {
+		q.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label.Name}, {LabelName: otherLabel.Name}}
+	})
+	teamQuery := newQuery(t, "team query", func(q *fleet.Query) { q.TeamID = &team.ID })
+	otherTeamQuery := newQuery(t, "other team query", func(q *fleet.Query) { q.TeamID = &otherTeam.ID })
+
+	// Scheduled for every host, whatever its team and labels.
+	unscopedGlobal := []uint{global.ID, automated.ID, streamOnly.ID}
+
+	for _, tc := range []struct {
+		name string
+		host *fleet.Host
+		want []uint
+	}{
+		{
+			name: "host with no labels gets the unscoped global queries",
+			host: hostNoLabels,
+			want: unscopedGlobal,
+		},
+		{
+			name: "host in an include_any label also gets the includeAny query",
+			host: hostInLabel,
+			want: append(slices.Clone(unscopedGlobal), includeAny.ID),
+		},
+		{
+			name: "host in a different label gets neither label-scoped query",
+			host: hostInOtherLabel,
+			want: unscopedGlobal,
+		},
+		{
+			name: "host in every include_all label gets both label-scoped queries",
+			host: hostInBothLabels,
+			want: append(slices.Clone(unscopedGlobal), includeAny.ID, includeAll.ID),
+		},
+		{
+			name: "host on a team gets global queries and its own team's",
+			host: hostOnTeam,
+			want: append(slices.Clone(unscopedGlobal), teamQuery.ID),
+		},
+		{
+			name: "host on another team gets that team's queries instead",
+			host: hostOnOtherTeam,
+			want: append(slices.Clone(unscopedGlobal), otherTeamQuery.ID),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			queryIDs, err := ds.QueriesPerHost(ctx, tc.host.ID, tc.host.TeamID)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.want, queryIDs)
+			require.NotContains(t, queryIDs, noInterval.ID)
+			require.NotContains(t, queryIDs, notSaved.ID)
+			require.NotContains(t, queryIDs, discardData.ID)
+			require.NotContains(t, queryIDs, differential.ID)
+		})
+	}
 }
 
 func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {

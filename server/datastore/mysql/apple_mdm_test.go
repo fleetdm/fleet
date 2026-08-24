@@ -135,12 +135,15 @@ func TestMDMApple(t *testing.T) {
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
 		{"TestLockUnlockWipeIphone", testLockUnlockWipeIphone},
+		{"CancelHostMDMCommand", testCancelHostMDMCommand},
+		{"RestoreCanceledLockWipeOnAck", testRestoreCanceledLockWipeOnAck},
 		{"TestOrphanMDMCommandRef", testOrphanMDMCommandRef},
 		{"TestGetLatestAppleMDMCommandOfType", testGetLatestAppleMDMCommandOfType},
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"DeleteMDMAppleConfigProfileWithPolicyAutomation", testDeleteMDMAppleConfigProfileWithPolicyAutomation},
 		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
 		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
 		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
@@ -6203,6 +6206,443 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, tt.want, got)
 		})
 	}
+}
+
+// deviceLockPlist builds a realistic DeviceLock command payload so tests
+// exercise the PIN recovery parse in restoreCanceledLockWipeRef.
+func deviceLockPlist(cmdUUID, pin string) []byte {
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>PIN</key>
+		<string>%s</string>
+		<key>RequestType</key>
+		<string>DeviceLock</string>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, pin, cmdUUID)
+}
+
+func testCancelHostMDMCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrolledHost := func(t *testing.T, id, platform string) *fleet.Host {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "host-" + id,
+			OsqueryHostID: new("osq-" + id),
+			NodeKey:       new("nk-" + id),
+			UUID:          "uuid-" + id,
+			Platform:      platform,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+		return host
+	}
+
+	appleStore, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	queueActive := func(t *testing.T, hostUUID, cmdUUID string) bool {
+		var active bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &active,
+				`SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID)
+		})
+		return active
+	}
+	hostMDMActions := func(t *testing.T, hostID uint) (lockRef, wipeRef, unlockPin *string) {
+		var row struct {
+			LockRef   *string `db:"lock_ref"`
+			WipeRef   *string `db:"wipe_ref"`
+			UnlockPin *string `db:"unlock_pin"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT lock_ref, wipe_ref, unlock_pin FROM host_mdm_actions WHERE host_id = ?`, hostID)
+		})
+		return row.LockRef, row.WipeRef, row.UnlockPin
+	}
+
+	t.Run("pending DeviceLock", func(t *testing.T) {
+		host := newEnrolledHost(t, "lock", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456"))
+
+		reqType, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, "DeviceLock", reqType)
+
+		require.False(t, queueActive(t, host.UUID, cmd.CommandUUID))
+		lockRef, _, pin := hostMDMActions(t, host.ID)
+		require.Nil(t, lockRef)
+		require.Nil(t, pin)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+
+		// second cancel of the same command is a not-found
+		_, err = ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+
+		// a fresh lock can be issued with a new PIN
+		relock := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		relock.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, relock, "654321"))
+		status, err = ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, true, false)
+	})
+
+	t.Run("pending EnableLostMode", func(t *testing.T) {
+		host := newEnrolledHost(t, "lostmode", "ios")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "EnableLostMode"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, ""))
+
+		reqType, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, "EnableLostMode", reqType)
+
+		require.False(t, queueActive(t, host.UUID, cmd.CommandUUID))
+		lockRef, _, _ := hostMDMActions(t, host.ID)
+		require.Nil(t, lockRef)
+	})
+
+	t.Run("pending EraseDevice", func(t *testing.T) {
+		host := newEnrolledHost(t, "wipe", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "EraseDevice"
+		require.NoError(t, appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd))
+
+		reqType, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, "EraseDevice", reqType)
+
+		require.False(t, queueActive(t, host.UUID, cmd.CommandUUID))
+		_, wipeRef, _ := hostMDMActions(t, host.ID)
+		require.Nil(t, wipeRef)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+	})
+
+	t.Run("pending ClearPasscode leaves host_mdm_actions untouched", func(t *testing.T) {
+		host := newEnrolledHost(t, "clearpass", "ios")
+		lostMode := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		lostMode.Command.RequestType = "EnableLostMode"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, lostMode, ""))
+
+		clearCmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		clearCmd.Command.RequestType = "ClearPasscode"
+		_, err := appleStore.EnqueueCommand(ctx, []string{host.UUID}, &mdm.CommandWithSubtype{Command: *clearCmd, Subtype: mdm.CommandSubtypeNone})
+		require.NoError(t, err)
+
+		reqType, err := ds.CancelHostMDMCommand(ctx, host, clearCmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, "ClearPasscode", reqType)
+
+		require.False(t, queueActive(t, host.UUID, clearCmd.CommandUUID))
+		require.True(t, queueActive(t, host.UUID, lostMode.CommandUUID))
+		lockRef, _, _ := hostMDMActions(t, host.ID)
+		require.NotNil(t, lockRef)
+		require.Equal(t, lostMode.CommandUUID, *lockRef)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		host := newEnrolledHost(t, "notfound", "darwin")
+		other := newEnrolledHost(t, "notfound-other", "darwin")
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, "no-such-command")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+
+		// a command enqueued for another host is a not-found too
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, other, cmd, "123456"))
+		_, err = ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.True(t, queueActive(t, other.UUID, cmd.CommandUUID))
+	})
+
+	t.Run("non-cancelable request type", func(t *testing.T) {
+		host := newEnrolledHost(t, "profile", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "InstallProfile"
+		_, err := appleStore.EnqueueCommand(ctx, []string{host.UUID}, &mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone})
+		require.NoError(t, err)
+
+		_, err = ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Only lock, wipe, and clear passcode commands can be canceled")
+		require.True(t, queueActive(t, host.UUID, cmd.CommandUUID))
+	})
+
+	t.Run("already ran", func(t *testing.T) {
+		host := newEnrolledHost(t, "ran", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456"))
+		require.NoError(t, appleStore.StoreCommandReport(&mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: host.UUID},
+			Context:  ctx,
+		}, &mdm.CommandResults{CommandUUID: cmd.CommandUUID, Status: "Acknowledged", Raw: cmd.Raw}))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "The command has already run on the host")
+
+		// nothing was touched
+		require.True(t, queueActive(t, host.UUID, cmd.CommandUUID))
+		lockRef, _, pin := hostMDMActions(t, host.ID)
+		require.NotNil(t, lockRef)
+		require.Equal(t, cmd.CommandUUID, *lockRef)
+		require.NotNil(t, pin)
+		require.Equal(t, "123456", *pin)
+	})
+
+	t.Run("NotNow result does not block the cancel", func(t *testing.T) {
+		host := newEnrolledHost(t, "notnow", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456"))
+		require.NoError(t, appleStore.StoreCommandReport(&mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: host.UUID},
+			Context:  ctx,
+		}, &mdm.CommandResults{CommandUUID: cmd.CommandUUID, Status: "NotNow", Raw: cmd.Raw}))
+
+		reqType, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, "DeviceLock", reqType)
+		require.False(t, queueActive(t, host.UUID, cmd.CommandUUID))
+	})
+
+	t.Run("raw command without host_mdm_actions bookkeeping", func(t *testing.T) {
+		host := newEnrolledHost(t, "raw", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "DeviceLock"
+		_, err := appleStore.EnqueueCommand(ctx, []string{host.UUID}, &mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone})
+		require.NoError(t, err)
+
+		reqType, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, "DeviceLock", reqType)
+		require.False(t, queueActive(t, host.UUID, cmd.CommandUUID))
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+		})
+		require.Zero(t, count)
+	})
+}
+
+func testRestoreCanceledLockWipeOnAck(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrolledHost := func(t *testing.T, id, platform string) *fleet.Host {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "host-" + id,
+			OsqueryHostID: new("osq-" + id),
+			NodeKey:       new("nk-" + id),
+			UUID:          "uuid-" + id,
+			Platform:      platform,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+		return host
+	}
+
+	appleStore, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	ack := func(t *testing.T, host *fleet.Host, cmd *mdm.Command, status string) {
+		require.NoError(t, appleStore.StoreCommandReport(&mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: host.UUID},
+			Context:  ctx,
+		}, &mdm.CommandResults{CommandUUID: cmd.CommandUUID, Status: status, Raw: []byte("<?xml")}))
+	}
+	queueActive := func(t *testing.T, hostUUID, cmdUUID string) bool {
+		var active bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &active,
+				`SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID)
+		})
+		return active
+	}
+
+	t.Run("canceled DeviceLock acked by the device restores the lock and PIN", func(t *testing.T) {
+		host := newEnrolledHost(t, "heal-lock", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString()}
+		cmd.Command.RequestType = "DeviceLock"
+		cmd.Raw = deviceLockPlist(cmd.CommandUUID, "123456")
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456"))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// the device had already fetched the command and executes it anyway
+		ack(t, host, cmd, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DeviceLock", true))
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, false, true, false, false, false, false)
+		require.Equal(t, "123456", status.UnlockPIN)
+		require.True(t, queueActive(t, host.UUID, cmd.CommandUUID))
+	})
+
+	t.Run("canceled EraseDevice acked by the device restores the wiped state", func(t *testing.T) {
+		host := newEnrolledHost(t, "heal-wipe", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "EraseDevice"
+		require.NoError(t, appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+
+		ack(t, host, cmd, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EraseDevice", true))
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, false, false, true, false, false, false)
+	})
+
+	t.Run("canceled EnableLostMode acked by the device restores the lock", func(t *testing.T) {
+		host := newEnrolledHost(t, "heal-lostmode", "ios")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "EnableLostMode"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, ""))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+
+		ack(t, host, cmd, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EnableLostMode", true))
+		require.NoError(t, ds.InsertHostLocationData(ctx, fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42}))
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, false, true, false, false, false, false)
+	})
+
+	t.Run("Error result does not restore anything", func(t *testing.T) {
+		host := newEnrolledHost(t, "heal-error", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString()}
+		cmd.Command.RequestType = "DeviceLock"
+		cmd.Raw = deviceLockPlist(cmd.CommandUUID, "123456")
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456"))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+
+		ack(t, host, cmd, "Error")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DeviceLock", false))
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, false, false)
+		require.False(t, queueActive(t, host.UUID, cmd.CommandUUID))
+	})
+
+	t.Run("never-canceled raw command ack stays a no-op", func(t *testing.T) {
+		host := newEnrolledHost(t, "heal-raw", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString()}
+		cmd.Command.RequestType = "DeviceLock"
+		cmd.Raw = deviceLockPlist(cmd.CommandUUID, "123456")
+		_, err := appleStore.EnqueueCommand(ctx, []string{host.UUID}, &mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone})
+		require.NoError(t, err)
+
+		ack(t, host, cmd, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DeviceLock", true))
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+		})
+		require.Zero(t, count)
+	})
+
+	t.Run("canceled PIN-less raw lock ack skips the restore without failing", func(t *testing.T) {
+		// A raw DeviceLock via POST /commands/run carries no PIN; failing here
+		// would poison every re-delivery of the device's report.
+		host := newEnrolledHost(t, "heal-raw-nopin", "darwin")
+		cmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmd.Command.RequestType = "DeviceLock"
+		_, err := appleStore.EnqueueCommand(ctx, []string{host.UUID}, &mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone})
+		require.NoError(t, err)
+
+		_, err = ds.CancelHostMDMCommand(ctx, host, cmd.CommandUUID)
+		require.NoError(t, err)
+
+		ack(t, host, cmd, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DeviceLock", true))
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+		})
+		require.Zero(t, count)
+	})
+
+	t.Run("late wipe ack wins over a newer pending lock", func(t *testing.T) {
+		// Mirrors the normal wipe-ack semantics: a successful wipe always
+		// clears any lock state, restored or not — the device is gone.
+		host := newEnrolledHost(t, "heal-wipe-wins", "darwin")
+		wipeCmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		wipeCmd.Command.RequestType = "EraseDevice"
+		require.NoError(t, appleStore.EnqueueDeviceWipeCommand(ctx, host, wipeCmd))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, wipeCmd.CommandUUID)
+		require.NoError(t, err)
+
+		lockCmd := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		lockCmd.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, lockCmd, "222222"))
+
+		ack(t, host, wipeCmd, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, wipeCmd.CommandUUID, "EraseDevice", true))
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, false, false, true, false, false, false)
+		require.Empty(t, status.UnlockPIN)
+	})
+
+	t.Run("late ack never clobbers a newer lock's ref and PIN", func(t *testing.T) {
+		host := newEnrolledHost(t, "heal-noclobber", "darwin")
+		cmdA := &mdm.Command{CommandUUID: uuid.NewString()}
+		cmdA.Command.RequestType = "DeviceLock"
+		cmdA.Raw = deviceLockPlist(cmdA.CommandUUID, "111111")
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmdA, "111111"))
+
+		_, err := ds.CancelHostMDMCommand(ctx, host, cmdA.CommandUUID)
+		require.NoError(t, err)
+
+		cmdB := &mdm.Command{CommandUUID: uuid.NewString(), Raw: []byte("<?xml")}
+		cmdB.Command.RequestType = "DeviceLock"
+		require.NoError(t, appleStore.EnqueueDeviceLockCommand(ctx, host, cmdB, "222222"))
+
+		ack(t, host, cmdA, "Acknowledged")
+		require.NoError(t, ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmdA.CommandUUID, "DeviceLock", true))
+
+		// B's pending lock is untouched; A's lifecycle resolves via B's
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		checkLockWipeState(t, status, true, false, false, false, true, false)
+		require.Equal(t, "222222", status.UnlockPIN)
+	})
 }
 
 func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
@@ -14850,4 +15290,56 @@ func testMDMAppleBatchCustomActivations(t *testing.T, ds *Datastore) {
 	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, []*fleet.MDMAppleDeclaration{}, nil, nil)
 	require.NoError(t, err)
 	require.Zero(t, countActivations())
+}
+
+func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "apple-policy-automation"})
+	require.NoError(t, err)
+
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("A", "A", tm.ID), nil)
+	require.NoError(t, err)
+	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("B", "B", tm.ID), nil)
+	require.NoError(t, err)
+
+	pol, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{
+		Name:        "resend A",
+		Query:       "SELECT 1;",
+		Platform:    "darwin",
+		ProfileUUID: &profA.ProfileUUID,
+	})
+	require.NoError(t, err)
+
+	requireConflict := func(err error, wantMsg string) {
+		var conflictErr *fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		require.ErrorContains(t, err, wantMsg)
+	}
+
+	// deleting the profile used by the policy automation returns a conflict with a
+	// user-friendly message instead of the raw foreign key error.
+	requireConflict(ds.DeleteMDMAppleConfigProfile(ctx, profA.ProfileUUID),
+		"Couldn't delete. Policy automations use this profile. Please disable policy automations for this profile and try again.")
+
+	// batch-setting a new set of profiles that would delete the profile used by the
+	// policy automation returns a conflict mentioning the profiles being deleted.
+	requireConflict(ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, []*fleet.MDMAppleConfigProfile{generateAppleCP("B", "B", tm.ID)}),
+		"Couldn't delete. Policy automations use one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again.")
+
+	// profiles are still there
+	_, err = ds.GetMDMAppleConfigProfile(ctx, profA.ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
+	require.NoError(t, err)
+
+	// once the policy automation is disabled, both deletes succeed
+	pol.ResendAppleProfileUUID = nil
+	pol.ResendWindowsProfileUUID = nil
+	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
+
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, profA.ProfileUUID))
+	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil))
+	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

@@ -26,6 +26,7 @@ const (
 	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
 	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
 	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
+	CronMicrosoftAutopilotSync       CronScheduleName = "microsoft_autopilot_sync"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"

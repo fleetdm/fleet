@@ -635,6 +635,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
 		return nil, nil
 	}
+	ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error { return nil }
 	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
 		return nil
 	}
