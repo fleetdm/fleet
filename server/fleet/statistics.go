@@ -30,6 +30,7 @@ type StatisticsPayload struct {
 	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
 	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
+	MDMAndroidEnabled              bool   `json:"mdmAndroidEnabled"`
 	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
 	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
 	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`

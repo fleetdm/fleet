@@ -1803,15 +1803,22 @@ func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(f
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string, opts ...mdmtest.TestWindowsMDMClientOption) *mdmtest.TestWindowsMDMClient {
+	opts = append([]mdmtest.TestWindowsMDMClientOption{
+		mdmtest.TestWindowsMDMClientNotInOOBE(),
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID),
+	}, opts...)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, opts...)
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string, opts ...mdmtest.TestWindowsMDMClientOption) *mdmtest.TestWindowsMDMClient {
+	opts = append([]mdmtest.TestWindowsMDMClientOption{
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID),
+	}, opts...)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, opts...)
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
@@ -17322,7 +17329,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity := fleet.ActivityAddedDigiCert{}
 	caNames := make([]string, 0, 3)
@@ -17380,7 +17387,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		activity = fleet.ActivityAddedDigiCert{}
 		editActivity := fleet.ActivityEditedDigiCert{}
@@ -17421,7 +17428,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		// Check that 3 deleted activities are present
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		delActivity := fleet.ActivityDeletedDigiCert{}
 		caNames = make([]string, 0, 3)
@@ -18162,7 +18169,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity := fleet.ActivityAddedCustomSCEPProxy{}
 	caNames := make([]string, 0, 3)
@@ -18219,7 +18226,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 
 	listActivities = listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity = fleet.ActivityAddedCustomSCEPProxy{}
 	editActivity := fleet.ActivityEditedCustomSCEPProxy{}
@@ -18259,7 +18266,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 		// Check that 3 deleted activities are present
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
 		caNames = make([]string, 0, 3)
@@ -25319,7 +25326,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Auto-rotation activity exists and is FleetInitiated.
 		var fleetActivities listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &fleetActivities,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "20")
+			"order_key", "id", "order_direction", "desc", "per_page", "20")
 		rotateActivityName := fleet.ActivityTypeRotatedManagedLocalAccountPassword{}.ActivityName()
 		var sawFleetRotation bool
 		for _, a := range fleetActivities.Activities {
