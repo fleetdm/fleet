@@ -173,7 +173,7 @@ func (m *Manager) connectionLoop() {
 			continue
 		}
 		tracker.RecordSuccess()
-		log.Info().Msg("websocket connected, polling paused")
+		log.Debug().Msg("websocket connected, polling paused")
 
 		m.connected.Store(true)
 		m.readLoop(conn)
@@ -182,7 +182,7 @@ func (m *Manager) connectionLoop() {
 		if m.ctx.Err() != nil {
 			return
 		}
-		log.Info().Msg("websocket disconnected, polling resumed")
+		log.Debug().Msg("websocket disconnected, polling resumed")
 
 		// Jitter re-dials so a server restart doesn't produce a thundering herd.
 		if !m.sleep(time.Duration(rand.Int64N(int64(m.opts.ReconnectJitterMax)))) { //nolint:gosec // jitter does not need cryptographic randomness
