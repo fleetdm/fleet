@@ -886,6 +886,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
+			// Once an admin has replaced a script, the Fleet-maintained app cron keeps
+			// carrying it forward until the script matches the manifest again.
+			payload.InstallScriptEdited = existingInstaller.InstallScriptEdited || dirty["InstallScript"]
+			payload.UninstallScriptEdited = existingInstaller.UninstallScriptEdited || dirty["UninstallScript"]
+
 			// Get the hosts that are NOT in label scope currently (before the update happens)
 			var hostsNotInScope map[uint]struct{}
 			if dirty["Labels"] {
@@ -3140,6 +3145,11 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
+	// A script spelled out in the yaml is an admin customization; falling back to the
+	// manifest is not. GitOps is declarative, so dropping the script from the yaml
+	// clears the flag again.
+	payload.InstallScriptEdited = payload.InstallScript != ""
+	payload.UninstallScriptEdited = payload.UninstallScript != ""
 	if payload.InstallScript == "" {
 		payload.InstallScript = app.InstallScript
 	}
@@ -3443,6 +3453,8 @@ func (svc *Service) softwareBatchUpload(
 				PreInstallQuery:          p.PreInstallQuery,
 				PostInstallScript:        p.PostInstallScript,
 				UninstallScript:          p.UninstallScript,
+				InstallScriptEdited:      p.InstallScriptEdited,
+				UninstallScriptEdited:    p.UninstallScriptEdited,
 				SelfService:              p.SelfService,
 				UserID:                   userID,
 				URL:                      p.URL,

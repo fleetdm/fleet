@@ -29078,6 +29078,22 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		})
 		return row.Install, row.Uninstall
 	}
+	// Both flags move together here, since the batch payload always sets or omits
+	// both scripts at once.
+	activeScriptEditedFlags := func(teamID, titleID uint) bool {
+		var row struct {
+			Install   bool `db:"install_script_edited"`
+			Uninstall bool `db:"uninstall_script_edited"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT install_script_edited, uninstall_script_edited
+				FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`, teamID, titleID)
+		})
+		require.Equal(t, row.Install, row.Uninstall)
+		return row.Install
+	}
 	setPin := func(teamID, titleID uint, pin string) {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
@@ -29193,13 +29209,35 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, customInstall, gotInstall)
 	require.Equal(t, customUninstall, gotUninstall)
 
-	// A newly published version must keep the custom scripts, not revert to the manifest's.
+	// Scripts spelled out in the batch payload are flagged as edited, so they survive
+	// a newly published version rather than reverting to the manifest's.
+	require.True(t, activeScriptEditedFlags(team.ID, titleID))
+
 	setManifest("5.0", []byte("v50"))
 	runCron()
 	require.Equal(t, "5.0", activeTitle(team.ID).SoftwarePackage.Version)
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.Equal(t, customInstall, gotInstall, "custom install script must survive auto-update")
 	require.Equal(t, customUninstall, gotUninstall, "custom uninstall script must survive auto-update")
+	require.True(t, activeScriptEditedFlags(team.ID, titleID), "the flags carry onto the new version")
+
+	// === Section F: dropping the scripts from the batch payload hands the app back to Fleet ===
+	var batchRespF batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+			{Slug: new(slug), SelfService: true},
+		}, TeamName: team.Name},
+		http.StatusAccepted, &batchRespF, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespF.RequestUUID)
+	require.False(t, activeScriptEditedFlags(team.ID, titleID))
+
+	// The manifest scripts now win on the next published version.
+	setManifest("6.0", []byte("v60"))
+	runCron()
+	require.Equal(t, "6.0", activeTitle(team.ID).SoftwarePackage.Version)
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.NotEqual(t, customInstall, gotInstall, "an unedited install script follows the manifest")
+	require.NotEqual(t, customUninstall, gotUninstall, "an unedited uninstall script follows the manifest")
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {

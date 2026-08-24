@@ -307,40 +307,24 @@ func downloadNewVersionIfEligible(
 		InstallerFile:   tfr,
 	}
 
-	// Preserve admin-customized scripts across auto-updates. The active installer
-	// (still the previous version here; promotion happens later) is the one to
-	// carry forward from. Detect customization per-script by comparing against the
-	// manifest, first neutralizing the parts that legitimately change between
-	// versions so a routine version bump isn't mistaken for an edit: the install
-	// script hardcodes the versioned installer filename, and the uninstall script
-	// is version-specific after $PACKAGE_ID / $UPGRADE_CODE substitution.
-	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
-	if err != nil && !fleet.IsNotFound(err) {
-		return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
-	}
-	if active != nil {
-		// Compare with the old and new filenames replaced by a common placeholder
-		// (active.Name is the filename column); otherwise the filename difference
-		// alone reads as an admin edit and the stale script is kept against the
-		// newly downloaded installer. FMAs whose script embeds a name unrelated to
-		// the stored installer filename (e.g. a versioned pkg inside a dmg) aren't
-		// neutralized and fall back to preserving, as before.
-		activeInstall := normalizeInstallerFilename(strings.TrimSpace(active.InstallScript), active.Name)
-		manifestInstall := normalizeInstallerFilename(strings.TrimSpace(app.InstallScript), payload.Filename)
-		if activeInstall != manifestInstall {
-			payload.InstallScript = active.InstallScript
+	// Carry an admin's scripts across the version bump. Only the stored flags say a
+	// script was replaced; comparing text against the manifest can't tell an edit
+	// from Fleet publishing a new script. The active installer is still on the
+	// previous version here, since promotion happens later.
+	payload.InstallScriptEdited = c.InstallScriptEdited
+	payload.UninstallScriptEdited = c.UninstallScriptEdited
+	if c.InstallScriptEdited || c.UninstallScriptEdited {
+		active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
+		if err != nil && !fleet.IsNotFound(err) {
+			return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
 		}
-		defaultUninstall := &fleet.UploadSoftwareInstallerPayload{
-			UninstallScript: app.UninstallScript,
-			PackageIDs:      active.PackageIDs(),
-			UpgradeCode:     active.UpgradeCode,
-			Extension:       active.Extension,
-		}
-		if err := preProcessUninstallScript(defaultUninstall); err != nil {
-			return "", ctxerr.Wrap(ctx, err, "computing manifest uninstall script for comparison")
-		}
-		if strings.TrimSpace(active.UninstallScript) != strings.TrimSpace(defaultUninstall.UninstallScript) {
-			payload.UninstallScript = active.UninstallScript
+		if active != nil {
+			if c.InstallScriptEdited {
+				payload.InstallScript = active.InstallScript
+			}
+			if c.UninstallScriptEdited {
+				payload.UninstallScript = active.UninstallScript
+			}
 		}
 	}
 
@@ -428,24 +412,4 @@ func teamIDForLog(p *uint) any {
 		return "none"
 	}
 	return *p
-}
-
-// normalizeInstallerFilename replaces the version-specific installer filename in
-// a generated FMA install script with a fixed placeholder, so two scripts that
-// differ only because the installer filename changed between versions compare
-// equal. A missing filename leaves the script unchanged.
-func normalizeInstallerFilename(script, filename string) string {
-	if filename == "" {
-		return script
-	}
-	const placeholder = "__FLEET_INSTALLER_FILE__"
-	// Replace only where the filename is the installer path argument. A short URL
-	// basename (e.g. "dmg") would otherwise rewrite free-floating occurrences such
-	// as /tmp/dmg_mount_XXXXXX.
-	script = strings.ReplaceAll(script, `"$TMPDIR/`+filename+`"`, `"$TMPDIR/`+placeholder+`"`)
-	// The unquoted (choices) form is always followed by " -target", so bound the
-	// match with the trailing space; otherwise a filename would prefix-match a
-	// longer path that merely starts with it.
-	script = strings.ReplaceAll(script, `"$TMPDIR"/`+filename+" ", `"$TMPDIR"/`+placeholder+" ")
-	return script
 }

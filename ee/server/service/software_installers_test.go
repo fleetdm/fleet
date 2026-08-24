@@ -3339,3 +3339,129 @@ func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 }
+
+// The auto-update cron carries a Fleet-maintained app's scripts forward only when
+// these flags say an admin replaced them, so editing one script must not mark the
+// other, and an edit must stick across later updates that leave the scripts alone.
+func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
+	const (
+		titleID         = uint(42)
+		installerID     = uint(7)
+		storedInstall   = "#!/bin/sh\ninstall\n"
+		storedUninstall = "#!/bin/sh\nuninstall\n"
+	)
+
+	// setup returns the service plus a reader for whatever payload reached the
+	// datastore, which is where the computed flags land.
+	setup := func(t *testing.T, installEdited bool, uninstallEdited bool) (*Service, context.Context, func() *fleet.UpdateSoftwareInstallerPayload) {
+		t.Helper()
+		ds := new(mock.Store)
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		teamID := uint(0)
+		fmaID := uint(3)
+		installer := &fleet.SoftwareInstaller{
+			TeamID:                &teamID,
+			TitleID:               new(titleID),
+			InstallerID:           installerID,
+			Name:                  "app.pkg",
+			Extension:             "pkg",
+			Version:               "1.0",
+			Platform:              "darwin",
+			PackageIDList:         "com.example.app",
+			FleetMaintainedAppID:  &fmaID,
+			InstallScript:         storedInstall,
+			UninstallScript:       storedUninstall,
+			InstallScriptEdited:   installEdited,
+			UninstallScriptEdited: uninstallEdited,
+		}
+
+		ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+		ds.ValidateReferencedCustomHostVitalsFunc = func(context.Context, []string) error { return nil }
+		ds.SoftwareTitleByIDFunc = func(context.Context, uint, *uint, fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			return &fleet.SoftwareTitle{ID: titleID, Name: "App", SoftwareInstallersCount: 1}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(context.Context, *uint, uint, bool) (*fleet.SoftwareInstaller, error) {
+			return installer, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(context.Context, *uint, uint, uint, bool) (*fleet.SoftwareInstaller, error) {
+			return installer, nil
+		}
+		ds.GetPatchPolicyFunc = func(context.Context, *uint, uint) (*fleet.PatchPolicyData, error) {
+			return nil, &notFoundError{}
+		}
+		ds.ProcessInstallerUpdateSideEffectsFunc = func(context.Context, uint, bool, bool) error { return nil }
+		ds.GetSummaryHostSoftwareInstallsFunc = func(context.Context, uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+			return nil, nil
+		}
+		baseSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
+
+		var saved *fleet.UpdateSoftwareInstallerPayload
+		ds.SaveInstallerUpdatesFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+			saved = payload
+			return nil
+		}
+
+		ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+		return svc, ctx, func() *fleet.UpdateSoftwareInstallerPayload { return saved }
+	}
+
+	update := func(t *testing.T, svc *Service, ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) {
+		t.Helper()
+		teamID := uint(0)
+		payload.TitleID = titleID
+		payload.TeamID = &teamID
+		_, err := svc.UpdateSoftwareInstaller(ctx, payload)
+		require.NoError(t, err)
+	}
+
+	t.Run("editing the install script marks only the install script", func(t *testing.T) {
+		svc, ctx, saved := setup(t, false, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: new("#!/bin/sh\necho custom\n"),
+		})
+
+		require.NotNil(t, saved())
+		require.True(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("editing the uninstall script marks only the uninstall script", func(t *testing.T) {
+		svc, ctx, saved := setup(t, false, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			UninstallScript: new("#!/bin/sh\necho custom uninstall\n"),
+		})
+
+		require.NotNil(t, saved())
+		require.False(t, saved().InstallScriptEdited)
+		require.True(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("resubmitting the stored script is not an edit", func(t *testing.T) {
+		svc, ctx, saved := setup(t, false, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript:   new(storedInstall),
+			PreInstallQuery: new("SELECT 1"),
+		})
+
+		require.NotNil(t, saved())
+		require.False(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("an existing edit survives an update that leaves the scripts alone", func(t *testing.T) {
+		svc, ctx, saved := setup(t, true, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			PreInstallQuery: new("SELECT 1"),
+		})
+
+		require.NotNil(t, saved())
+		require.True(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+}

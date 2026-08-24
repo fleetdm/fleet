@@ -657,11 +657,15 @@ type SoftwareInstallerPayload struct {
 	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
-	InstallScript      string `json:"install_script"`
-	UninstallScript    string `json:"uninstall_script"`
-	PostInstallScript  string `json:"post_install_script"`
-	SelfService        bool   `json:"self_service"`
-	FleetMaintained    bool   `json:"-"`
+	InstallScript   string `json:"install_script"`
+	UninstallScript string `json:"uninstall_script"`
+	// InstallScriptEdited and UninstallScriptEdited record that the yaml spelled out a
+	// script rather than falling back to the Fleet-maintained app manifest's.
+	InstallScriptEdited   bool `json:"-"`
+	UninstallScriptEdited bool `json:"-"`
+	PostInstallScript     string `json:"post_install_script"`
+	SelfService           bool   `json:"self_service"`
+	FleetMaintained       bool   `json:"-"`
 	Filename           string `json:"-"`
 	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 	// SetupExperiencePlatforms carries non-native cross-platform setup

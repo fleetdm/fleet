@@ -328,8 +328,10 @@ INSERT INTO software_installers (
  	upgrade_code,
  	is_active,
 	patch_query,
-	app_open_query
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?, ?)`
+	app_open_query,
+	install_script_edited,
+	uninstall_script_edited
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -355,6 +357,8 @@ INSERT INTO software_installers (
 			true,
 			payload.PatchQuery,
 			payload.AppOpenQuery,
+			payload.InstallScriptEdited,
+			payload.UninstallScriptEdited,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -873,6 +877,8 @@ func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context)
 			si.fleet_maintained_app_id,
 			si.id AS installer_id,
 			si.version,
+			si.install_script_edited,
+			si.uninstall_script_edited,
 			fma.slug
 		FROM software_installers si
 		INNER JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
@@ -947,6 +953,7 @@ INSERT INTO software_installers (
 	team_id, global_or_team_id, title_id, pre_install_query, platform,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
 	post_install_script_content_id, install_during_setup,
+	install_script_edited, uninstall_script_edited,
 	storage_id, filename, extension, version,
 	install_script_content_id, uninstall_script_content_id,
 	url, upgrade_code, is_active, patch_query, app_open_query, package_ids
@@ -955,6 +962,7 @@ SELECT
 	team_id, global_or_team_id, title_id, pre_install_query, platform,
 	self_service, user_id, user_name, user_email, fleet_maintained_app_id,
 	post_install_script_content_id, install_during_setup,
+	install_script_edited, uninstall_script_edited,
 	?, ?, ?, ?,
 	?, ?,
 	?, ?, 0, ?, ?, ?
@@ -1169,9 +1177,11 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			version = ?,
 			package_ids = ?,
 			install_script_content_id = ?,
+			install_script_edited = ?,
 			pre_install_query = ?,
 			post_install_script_content_id = ?,
 			uninstall_script_content_id = ?,
+			uninstall_script_edited = ?,
 			self_service = ?,
 			upgrade_code = ?,
 			user_id = ?,
@@ -1185,9 +1195,11 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			payload.Version,
 			strings.Join(payload.PackageIDs, ","),
 			installScriptID,
+			payload.InstallScriptEdited,
 			*payload.PreInstallQuery,
 			postInstallScriptID,
 			uninstallScriptID,
+			payload.UninstallScriptEdited,
 			*payload.SelfService,
 			payload.UpgradeCode,
 			payload.UserID,
@@ -1552,7 +1564,9 @@ SELECT
   COALESCE(st.name, '') AS software_title,
   COALESCE(st.bundle_identifier, '') AS bundle_identifier,
   si.patch_query,
-  si.app_open_query
+  si.app_open_query,
+  si.install_script_edited,
+  si.uninstall_script_edited
   %s
 FROM
   software_installers si
@@ -3061,11 +3075,13 @@ INSERT INTO software_installers (
 	is_active,
 	http_etag,
 	patch_query,
-	app_open_query
+	app_open_query,
+	install_script_edited,
+	uninstall_script_edited
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
-  ?, ?, ?
+  ?, ?, ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -3088,7 +3104,9 @@ ON DUPLICATE KEY UPDATE
   is_active = VALUES(is_active),
   http_etag = VALUES(http_etag),
   patch_query = VALUES(patch_query),
-  app_open_query = VALUES(app_open_query)
+  app_open_query = VALUES(app_open_query),
+  install_script_edited = VALUES(install_script_edited),
+  uninstall_script_edited = VALUES(uninstall_script_edited)
 `
 
 	const updateInstaller = `
@@ -3103,7 +3121,9 @@ SET
 	post_install_script_content_id = ?,
 	pre_install_query = ?,
 	patch_query = ?,
-	app_open_query = ?
+	app_open_query = ?,
+	install_script_edited = ?,
+	uninstall_script_edited = ?
 WHERE id = ?
 `
 
@@ -3605,6 +3625,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				installer.HTTPETag,
 				installer.PatchQuery,
 				installer.AppOpenQuery,
+				installer.InstallScriptEdited,
+				installer.UninstallScriptEdited,
 				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -3642,6 +3664,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					installer.PreInstallQuery,
 					installer.PatchQuery,
 					installer.AppOpenQuery,
+					installer.InstallScriptEdited,
+					installer.UninstallScriptEdited,
 					existingID,
 				}
 				touchUploaded := ""
