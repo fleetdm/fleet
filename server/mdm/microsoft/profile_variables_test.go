@@ -105,6 +105,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		withNDESConfig             *fleet.NDESSCEPProxyCA
 		getNDESChallengeFunc       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
 		ndesChallengeErrorToDetail func(err error) string
+		// ndesChallengeErrorIsTerminal classifies a challenge-fetch failure. Defaults below to "everything is
+		// terminal" so existing cases keep their fail-fast behaviour; set it to return false for a self-clearing
+		// failure, which must surface as a MicrosoftProfileTransientError instead.
+		ndesChallengeErrorIsTerminal func(err error) bool
+		transientError               string // if set, expect a MicrosoftProfileTransientError carrying this message
 	}{
 		{
 			name:             "no fleet variables",
@@ -417,6 +422,21 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			processingError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
 		},
 		{
+			// Same failure, classified as self-clearing: the reconciler must be able to tell it apart so it leaves the
+			// profile queued instead of failing it against the host. Which real errors land on which side is decided
+			// by IsTerminalNDESChallengeError and tested in the scep package.
+			name:                         "ndes challenge fetch fails transiently",
+			hostUUID:                     "ndes-transient-host",
+			withNDESConfig:               ndesConfig,
+			getNDESChallengeFunc:         getNDESChallengeFail,
+			ndesChallengeErrorToDetail:   defaultNDESErrorToDetail,
+			ndesChallengeErrorIsTerminal: func(error) bool { return false },
+			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:    true,
+			transientError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
+		},
+		{
 			name:            "ndes not configured",
 			hostUUID:        "ndes-noconfig-host",
 			profileContents: `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
@@ -467,6 +487,12 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				NDESConfig:                 tt.withNDESConfig,
 				GetNDESSCEPChallenge:       tt.getNDESChallengeFunc,
 				NDESChallengeErrorToDetail: tt.ndesChallengeErrorToDetail,
+				NDESChallengeErrorIsTerminal: func(err error) bool {
+					if tt.ndesChallengeErrorIsTerminal != nil {
+						return tt.ndesChallengeErrorIsTerminal(err)
+					}
+					return true
+				},
 			}
 
 			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
@@ -479,6 +505,15 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					var processingErr *MicrosoftProfileProcessingError
 					require.ErrorAs(t, err, &processingErr, "expected ProfileProcessingError")
 					require.Equal(t, tt.processingError, processingErr.Error())
+				}
+				if tt.transientError != "" {
+					// The distinction is what the reconciler branches on: a transient error leaves the profile queued,
+					// a processing error fails it against the host.
+					var transientErr *MicrosoftProfileTransientError
+					require.ErrorAs(t, err, &transientErr, "expected ProfileTransientError")
+					require.Equal(t, tt.transientError, transientErr.Error())
+					var processingErr *MicrosoftProfileProcessingError
+					require.NotErrorAs(t, err, &processingErr)
 				}
 				return // do not verify profile contents if an error is expected
 			}
@@ -493,78 +528,4 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	}
 
 	require.Len(t, hostIDForUUIDCache, 3) // make sure cache is populated by IdP var host UUID lookups
-}
-
-// A challenge fetch that fails for a reason nobody has to act on (NDES briefly unreachable) must come back as a
-// transient error, so the reconciler leaves the profile queued instead of failing it against the host. A failure that
-// does need someone to act (bad credentials, exhausted password cache) still fails the profile immediately.
-//
-// The classifier itself is injected and stubbed here, so what this pins is the branching, not the classification: the
-// error messages below are labels for the reader and nothing inspects them. Which real errors are terminal, including
-// the 5xx-versus-4xx split on the NDES admin URL, is decided by IsTerminalNDESChallengeError and tested in the scep
-// package.
-func TestPreprocessWindowsProfileNDESChallengeErrorClass(t *testing.T) {
-	const contents = `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`
-
-	for _, tc := range []struct {
-		name        string
-		terminal    bool
-		wantMessage string
-	}{
-		{name: "unreachable NDES is transient", terminal: false, wantMessage: "connection refused"},
-		{name: "password cache full is terminal", terminal: true, wantMessage: "cache is full"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fetchErr := errors.New(tc.wantMessage)
-			deps := ProfilePreprocessDependencies{
-				Context:                    t.Context(),
-				Logger:                     slog.New(slog.DiscardHandler),
-				NDESConfig:                 &fleet.NDESSCEPProxyCA{URL: "http://ndes.example.com"},
-				ManagedCertificatePayloads: &[]*fleet.MDMManagedCertificate{},
-				GetNDESSCEPChallenge: func(context.Context, fleet.NDESSCEPProxyCA) (string, error) {
-					return "", fetchErr
-				},
-				NDESChallengeErrorToDetail:   func(err error) string { return err.Error() },
-				NDESChallengeErrorIsTerminal: func(error) bool { return tc.terminal },
-			}
-
-			_, err := PreprocessWindowsProfileContentsForDeployment(deps,
-				ProfilePreprocessParams{HostUUID: "h1", ProfileUUID: "w1"}, contents)
-			require.Error(t, err)
-
-			var transientErr *MicrosoftProfileTransientError
-			var processingErr *MicrosoftProfileProcessingError
-			if tc.terminal {
-				require.ErrorAs(t, err, &processingErr, "a failure needing admin action must fail the profile")
-				require.Contains(t, processingErr.Error(), tc.wantMessage)
-				require.NotErrorAs(t, err, &transientErr)
-				return
-			}
-			require.ErrorAs(t, err, &transientErr, "a self-clearing failure must leave the profile queued")
-			require.Contains(t, transientErr.Error(), tc.wantMessage)
-			require.NotErrorAs(t, err, &processingErr)
-		})
-	}
-}
-
-// An unwired NDESChallengeErrorIsTerminal must keep the pre-existing fail-fast behaviour rather than silently
-// switching a caller to retry-forever.
-func TestPreprocessWindowsProfileNDESChallengeErrorClassDefaultsToTerminal(t *testing.T) {
-	deps := ProfilePreprocessDependencies{
-		Context:                    t.Context(),
-		Logger:                     slog.New(slog.DiscardHandler),
-		NDESConfig:                 &fleet.NDESSCEPProxyCA{URL: "http://ndes.example.com"},
-		ManagedCertificatePayloads: &[]*fleet.MDMManagedCertificate{},
-		GetNDESSCEPChallenge: func(context.Context, fleet.NDESSCEPProxyCA) (string, error) {
-			return "", errors.New("connection refused")
-		},
-		NDESChallengeErrorToDetail: func(err error) string { return err.Error() },
-	}
-
-	_, err := PreprocessWindowsProfileContentsForDeployment(deps,
-		ProfilePreprocessParams{HostUUID: "h1", ProfileUUID: "w1"},
-		`<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`)
-	require.Error(t, err)
-	var processingErr *MicrosoftProfileProcessingError
-	require.ErrorAs(t, err, &processingErr)
 }

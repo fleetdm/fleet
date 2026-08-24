@@ -976,42 +976,24 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		}
 	}
 
-	// A real Windows device acks every command nested inside the <Atomic>, not just the wrapper, and Fleet builds a
-	// failed profile's detail out of those nested statuses. The fixture has to send them for the detail assertions
-	// below to mean anything.
-	appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
-		nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
-		for _, n := range nested {
-			cmdRef, verb := n.CmdID.Value, n.XMLName.Local
-			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				MsgRef:  &msgID,
-				CmdRef:  &cmdRef,
-				Cmd:     &verb,
-				Data:    &status,
-				Items:   nil,
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			})
-		}
-	}
-
 	// A profile with retries left reads as "pending" while Fleet tries again, so it must not also carry the failed
 	// attempt's error. The device's error comes back only once the failure is terminal.
-	checkProfileDetail := func(t *testing.T, name string, wantEmpty bool) {
+	profileDetail := func(t *testing.T, name string) string {
 		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		for _, p := range storedProfs {
-			if p.Name != name {
-				continue
+			if p.Name == name {
+				return p.Detail
 			}
-			if wantEmpty {
-				require.Empty(t, p.Detail, "profile %s is waiting on a retry and must not surface an error", name)
-			} else {
-				require.NotEmpty(t, p.Detail, "profile %s ran out of retries and must surface the device error", name)
-			}
-			return
 		}
 		t.Fatalf("profile %s not found for host %s", name, h.UUID)
+		return ""
+	}
+	requireNoDetailWhileRetrying := func(t *testing.T, name string) {
+		require.Empty(t, profileDetail(t, name), "profile %s is waiting on a retry and must not surface an error", name)
+	}
+	requireDetailOnceFailed := func(t *testing.T, name string) {
+		require.NotEmpty(t, profileDetail(t, name), "profile %s ran out of retries and must surface the device error", name)
 	}
 
 	verifyCommands := func(wantProfileInstalls int, status string) {
@@ -1065,6 +1047,25 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 	retriesBeforeFailure := servermdm.MaxWindowsProfileRetries
 	t.Run(fmt.Sprintf("retries %d times before marking as failed", retriesBeforeFailure), func(t *testing.T) {
+		// A real Windows device acks every command nested inside the <Atomic>, not just the wrapper, and Fleet builds
+		// a failed profile's detail out of those nested statuses. The fixture has to send them for the detail
+		// assertions below to mean anything.
+		appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
+			nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
+			for _, n := range nested {
+				cmdRef, verb := n.CmdID.Value, n.XMLName.Local
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmdRef,
+					Cmd:     &verb,
+					Data:    &status,
+					Items:   nil,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+		}
+
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			mysqltest.DumpTable(t, q, "host_mdm_windows_profiles")
@@ -1148,7 +1149,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			checkProfilesStatus(t)
 			expectedRetryCounts["N1"] = uint(i + 1) //nolint:gosec // dismiss G115
 			checkRetryCounts(t)
-			checkProfileDetail(t, "N1", true)
+			requireNoDetailWhileRetrying(t, "N1")
 		}
 
 		// Final run to mark it as failed
@@ -1204,7 +1205,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		checkProfilesStatus(t)
 		expectedRetryCounts["N1"] = servermdm.MaxWindowsProfileRetries
 		checkRetryCounts(t)
-		checkProfileDetail(t, "N1", false)
+		requireDetailOnceFailed(t, "N1")
 	})
 }
 
