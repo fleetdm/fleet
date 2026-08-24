@@ -230,6 +230,47 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), notPython, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "3.14.5150.0", notPython.Version)
 
+	// Test AnyDesk version sanitizer - strips the client-ID prefix AnyDesk writes
+	// into its registry DisplayVersion ("ad 9.7.15" for the generic client).
+	anyDesk := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "ad 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDesk, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDesk.Version)
+
+	// Test AnyDesk custom clients, which carry an ID in the prefix
+	anyDeskCustom := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "ad1a2b3c4 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDeskCustom, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDeskCustom.Version)
+
+	// Test AnyDesk sanitizer leaves an already-clean version alone
+	anyDeskClean := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDeskClean, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDeskClean.Version)
+
+	// Test AnyDesk sanitizer doesn't touch other vendors' prefixed versions
+	notAnyDesk := &fleet.Software{
+		Name:    "Some App",
+		Source:  "programs",
+		Vendor:  "Some Other Vendor",
+		Version: "ad 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notAnyDesk, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "ad 9.7.15", notAnyDesk.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",

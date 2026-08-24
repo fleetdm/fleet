@@ -1,0 +1,2 @@
+- Added AnyDesk, Microsoft Azure CLI, DisplayLink, Grammarly Desktop, KeePass, KeyStore Explorer, mRemoteNG, and RingCentral as Windows Fleet-maintained apps.
+- Normalized AnyDesk's reported version on Windows (e.g. `ad 9.7.15` -> `9.7.15`) so software inventory, patch policies, and vulnerability matching use the real version.
