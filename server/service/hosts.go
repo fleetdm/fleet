@@ -2574,19 +2574,19 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 		// Check if the email has changed; if not, skip the email update
 		// and activity log but still reconcile the SCIM mapping below
 		// (it may be stale from a prior silent failure).
-		emailUnchanged := false
+		emailChanged := true
 		emails, err := svc.ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingIDP)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host emails for idempotency check")
 		}
 		for _, e := range emails {
 			if strings.EqualFold(e, email) {
-				emailUnchanged = true
+				emailChanged = false
 				break
 			}
 		}
 
-		if !emailUnchanged {
+		if emailChanged {
 			// Store the IDP username for display (accept any value)
 			// This will appear in the host details API under the idp_username field
 			if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {

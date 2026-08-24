@@ -5255,6 +5255,8 @@ func TestSetHostDeviceMapping(t *testing.T) {
 			return &fleet.ScimUser{ID: 2, UserName: "user@example.com"}, nil
 		}
 		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			require.Equal(t, uint(1), hostID)
+			require.Equal(t, uint(2), scimUserID)
 			return nil, nil
 		}
 
