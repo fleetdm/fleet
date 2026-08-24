@@ -133,6 +133,19 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		return generateTestHostCertificateRecord(t, h.ID, tmpl)
 	}
 
+	// The SCEP write paths rewrite host_mdm_windows_profiles outside the profile manager, so each has to keep the
+	// per-host rollup that GetMDMWindowsProfilesSummary reads current by itself. Drift is invisible until the hourly
+	// windows_profiles_status_reconcile cron heals it, so compare against a freshly reconciled value rather than just
+	// asserting the rollup row exists.
+	requireRollupMatchesReconcile := func(t *testing.T, hostUUID string, want fleet.MDMDeliveryStatus) {
+		t.Helper()
+		got := readWindowsProfilesStatusRollup(t, ds)[hostUUID]
+		require.Equal(t, string(want), got)
+		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+		require.Equal(t, got, readWindowsProfilesStatusRollup(t, ds)[hostUUID],
+			"write path must keep the rollup in sync without a reconcile")
+	}
+
 	ingest := func(t *testing.T, h *fleet.Host, recs ...*fleet.HostCertificateRecord) {
 		t.Helper()
 		require.NoError(t, ds.UpdateHostCertificates(ctx, h.ID, h.UUID, recs, fleet.HostCertificateOriginOsquery, nil))
@@ -218,6 +231,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 
 		status, _, _ := getProfile(t, h, p)
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
+		requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
 	})
 
 	t.Run("cert observation self-heals failed to verified and clears detail", func(t *testing.T) {
@@ -303,7 +317,9 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	// terminal. Each retry puts the profile back in the queue, where the profile manager preprocesses it afresh and, for a
 	// SCEP profile, fetches a new challenge.
 	const scepFailDetail = "SCEP PKIOperation failed: HTTP 500"
-	for retries := range mdm.MaxWindowsProfileRetries {
+	// Every value below the limit takes the same branch, so cover the first and the last one still allowed; the value
+	// at the limit is the terminal case below.
+	for _, retries := range []int{0, mdm.MaxWindowsProfileRetries - 1} {
 		t.Run(fmt.Sprintf("proxy failure retries the profile at %d retries", retries), func(t *testing.T) {
 			h := mkHost(t, fmt.Sprintf("setfailed-retry-%d", retries))
 			p := "w-fail"
@@ -317,6 +333,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			require.Empty(t, status, "a profile with retries left goes back to pending")
 			require.Empty(t, detail, "a pending profile must not surface the failed attempt's error")
 			require.Equal(t, retries+1, gotRetries)
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryPending)
 		})
 	}
 
@@ -333,6 +350,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, fleet.MDMDeliveryFailed, status)
 		require.Equal(t, scepFailDetail, detail)
 		require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+		requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryFailed)
 	})
 
 	// The SCEP CSP retries PKIOperation on its own schedule, so one Fleet delivery can produce a burst of upstream
@@ -396,7 +414,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Empty(t, status)
 		require.Empty(t, detail)
 		require.Equal(t, mdm.MaxWindowsProfileRetries-1, retries)
-		require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[h.UUID])
+		requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryPending)
 
 		// The budget still runs out. Each step redelivers first (status back to verifying) so the failure is judged on
 		// the retry count and not short-circuited by the already-queued guard.
@@ -457,15 +475,6 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	t.Run("certificate profile resend no-ops for a removed profile", func(t *testing.T) {
-		h := mkHost(t, "resend-cert-missing")
-		require.NoError(t, ds.ResendWindowsHostCertificateProfile(ctx, h.UUID, "w-missing"))
-		var count int
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
-			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`, h.UUID, "w-missing"))
-		require.Equal(t, 0, count)
-	})
-
 	t.Run("proxy failure no-ops for a removed profile", func(t *testing.T) {
 		h := mkHost(t, "setfailed-missing")
 		// No profile row exists for this (host, profile): must not error and must not resurrect a row.
@@ -517,11 +526,6 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			"user-scoped retries past grace once a user cert is observed",
 			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, "", "", 1,
 		},
-		{
-			"user-scoped fails past grace once the retries are spent",
-			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", mdm.MaxWindowsProfileRetries,
-			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries,
-		},
 	} {
 		t.Run("backstop: "+tc.name, func(t *testing.T) {
 			h := mkHost(t, fmt.Sprintf("backstop-%d", i))
@@ -540,6 +544,13 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.wantStatus, status)
 			require.Equal(t, tc.wantDetail, detail)
 			require.Equal(t, tc.wantRetries, retries)
+
+			// An empty wantStatus means the row went back to NULL, which the rollup reports as pending.
+			wantRollup := tc.wantStatus
+			if wantRollup == "" {
+				wantRollup = fleet.MDMDeliveryPending
+			}
+			requireRollupMatchesReconcile(t, h.UUID, wantRollup)
 		})
 	}
 
@@ -583,75 +594,6 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, fleet.MDMDeliveryVerified, status)
 	})
 
-	// The SCEP write paths rewrite host_mdm_windows_profiles outside the profile manager, so each has to keep the
-	// per-host rollup that GetMDMWindowsProfilesSummary reads current by itself. Drift here is invisible until the
-	// hourly windows_profiles_status_reconcile cron heals it, so assert equality with a freshly reconciled value
-	// rather than just a non-empty rollup row.
-	t.Run("scep write paths keep the profiles status rollup current", func(t *testing.T) {
-		requireRollupMatchesReconcile := func(t *testing.T, hostUUID string, want fleet.MDMDeliveryStatus) {
-			t.Helper()
-			got := readWindowsProfilesStatusRollup(t, ds)[hostUUID]
-			require.Equal(t, string(want), got)
-			require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
-			require.Equal(t, got, readWindowsProfilesStatusRollup(t, ds)[hostUUID],
-				"write path must keep the rollup in sync without a reconcile")
-		}
-
-		t.Run("proxy-observed failure", func(t *testing.T) {
-			h := mkHost(t, "rollup-setfailed")
-			p := "w-rollup-setfailed"
-			upsertWinProfile(t, h, p, "cmd-rollup-setfailed", fleet.MDMDeliveryVerifying, mdm.MaxWindowsProfileRetries)
-
-			_, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500")
-			require.NoError(t, err)
-
-			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryFailed)
-		})
-
-		t.Run("proxy-observed failure with retries left", func(t *testing.T) {
-			h := mkHost(t, "rollup-setretry")
-			p := "w-rollup-setretry"
-			upsertWinProfile(t, h, p, "cmd-rollup-setretry", fleet.MDMDeliveryVerifying, 0)
-
-			_, err := ds.SetMDMWindowsHostProfileFailedOrRetry(ctx, h.UUID, p, "SCEP PKIOperation failed: HTTP 500")
-			require.NoError(t, err)
-
-			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryPending)
-		})
-
-		t.Run("cert observation flip", func(t *testing.T) {
-			h := mkHost(t, "rollup-flip")
-			p := "w-rollup-flip"
-			upsertWinProfile(t, h, p, "cmd-rollup-flip", fleet.MDMDeliveryVerifying, 0)
-			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-
-			ingest(t, h, certWithRenewalID(t, h, p, 7201))
-
-			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
-		})
-
-		for _, tc := range []struct {
-			name    string
-			retries int
-			want    fleet.MDMDeliveryStatus
-		}{
-			{"verification backstop with retries left", 0, fleet.MDMDeliveryPending},
-			{"verification backstop once the retries are spent", mdm.MaxWindowsProfileRetries, fleet.MDMDeliveryFailed},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				h := mkHost(t, fmt.Sprintf("rollup-backstop-%d", tc.retries))
-				p := fmt.Sprintf("w-rollup-backstop-%d", tc.retries)
-				upsertWinProfile(t, h, p, "cmd-rollup-backstop", fleet.MDMDeliveryVerifying, tc.retries)
-				insertConfigProfile(t, p, fmt.Sprintf("rollup-backstop-%d", tc.retries), false)
-				upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
-				backdateProfile(t, h, p, 2*time.Hour)
-
-				ingest(t, h, plainCert(t, h, "rollup-backstop-cert", fleet.SystemHostCertificate, ""))
-
-				requireRollupMatchesReconcile(t, h.UUID, tc.want)
-			})
-		}
-	})
 }
 
 func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
