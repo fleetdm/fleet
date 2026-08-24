@@ -37,6 +37,9 @@ func TestWSTransportCoalescesTriggers(t *testing.T) {
 		hostIdentityClient: &hostidentity.Client{},
 	}
 	ws := newWSTransport(a)
+	// Install the transport as syncWSTransport does: an active transport is
+	// what routes the reads to the unversioned /api/osquery path.
+	a.ws = ws
 
 	ws.trigger()
 	require.Eventually(t, func() bool { return reads.Load() == 1 }, 2*time.Second, time.Millisecond)
