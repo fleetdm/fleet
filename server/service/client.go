@@ -634,7 +634,8 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	if specs.MicrosoftGraphCredentials != nil {
+	// The endpoint is Premium only.
+	if specs.MicrosoftGraphCredentials != nil && appconfig != nil && appconfig.License != nil && appconfig.License.IsPremium() {
 		if err := c.ApplyMicrosoftGraphCredentials(*specs.MicrosoftGraphCredentials, opts.ApplySpecOptions.DryRun); err != nil {
 			// The server answers 402, which ParseResponse converts to client.ErrMissingLicense.
 			if errors.Is(err, client.ErrMissingLicense) && viaGitOps && filename != nil {

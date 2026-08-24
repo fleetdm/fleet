@@ -441,6 +441,22 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 	}
 }
 
+// checkQueryWriteAuthErr asserts the result of a query-mutation authorization
+// check. A caller with no read visibility into the query at all must see a
+// NotFound (masking existence), not a Forbidden that would confirm the query
+// exists on some other team; a caller who CAN read the query (e.g. same-team
+// observer) still gets the normal Forbidden, since no new information is
+// disclosed by it.
+func checkQueryWriteAuthErr(t *testing.T, shouldFailWrite, shouldFailRead bool, err error) {
+	t.Helper()
+	if shouldFailWrite && shouldFailRead {
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err), "expected a not-found error, got: %v", err)
+		return
+	}
+	checkAuthErr(t, shouldFailWrite, err)
+}
+
 func TestQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -808,16 +824,16 @@ func TestQueryAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailNew, err)
 
 			_, err = svc.ModifyQuery(ctx, tt.qid, fleet.QueryPayload{})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			err = svc.DeleteQuery(ctx, query.TeamID, query.Name)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			err = svc.DeleteQueryByID(ctx, tt.qid)
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			_, err = svc.DeleteQueries(ctx, []uint{tt.qid})
-			checkAuthErr(t, tt.shouldFailWrite, err)
+			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)

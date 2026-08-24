@@ -1,0 +1,31 @@
+name: touchid_user_config
+platforms:
+  - darwin
+description: Per-user Touch ID configuration and number of enrolled fingerprints, one row per local user account. Returns no rows on Macs without a usable fingerprint sensor. Apple Silicon only. Requires root.
+columns:
+  - name: uid
+    type: integer
+    required: false
+    description: The user ID of the local account.
+  - name: fingerprints_registered
+    type: integer
+    required: false
+    description: Number of fingerprints the user has enrolled. NULL if unknown.
+  - name: touchid_unlock
+    type: integer
+    required: false
+    description: Value is 1 if the user has Touch ID enabled for unlocking the Mac. NULL if unknown (e.g. the user is not logged in).
+  - name: touchid_applepay
+    type: integer
+    required: false
+    description: Value is 1 if the user has Touch ID enabled for Apple Pay. NULL if unknown (e.g. the user is not logged in).
+  - name: effective_unlock
+    type: integer
+    required: false
+    description: Value is 1 if Touch ID unlock is effectively available to the user (enabled and fingerprints enrolled). NULL if unknown.
+  - name: effective_applepay
+    type: integer
+    required: false
+    description: Value is 1 if Touch ID for Apple Pay is effectively available to the user (enabled and fingerprints enrolled). NULL if unknown.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+evented: false

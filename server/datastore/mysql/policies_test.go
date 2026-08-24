@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -79,10 +80,18 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecFirstAddedInstaller", testApplyPolicySpecFirstAddedInstaller},
 		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
+		{"TestPoliciesTeamPoliciesWithResendProfile", testTeamPoliciesWithResendProfile},
+		{"TestPoliciesApplyPolicySpecsWithResendProfile", testApplyPolicySpecsWithResendProfile},
+		{"TestPoliciesResendProfileRejectsFleetManaged", testPoliciesResendProfileRejectsFleetManaged},
+		{"TestPoliciesGetPoliciesWithAssociatedProfile", testGetPoliciesWithAssociatedProfile},
+		{"TestPoliciesApplyPolicySpecsResendProfileChangeResetsStats", testApplyPolicySpecsResendProfileChangeResetsStats},
+		{"TestPoliciesSaveResendProfile", testSavePolicyResendProfile},
+		{"TestPoliciesResendProfileAutomationFilter", testResendProfileAutomationFilter},
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 		{"PolicyLabels", testPolicyLabels},
+		{"PolicyLabelsUnknownMembership", testPolicyLabelsUnknownMembership},
 		{"PolicyLabelMembershipCleanup", testPolicyLabelMembershipCleanup},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
@@ -5255,6 +5264,740 @@ func testTeamPoliciesWithScript(t *testing.T, ds *Datastore) {
 	require.Empty(t, policiesWithScripts)
 }
 
+func testTeamPoliciesWithResendProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Romeo", "romeo@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team resend profile"})
+	require.NoError(t, err)
+
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "apple-profile",
+		Identifier:   "com.example.apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(appleProf.ProfileUUID, fleet.MDMAppleProfileUUIDPrefix))
+
+	winProf, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "windows-profile",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(winProf.ProfileUUID, fleet.MDMWindowsProfileUUIDPrefix))
+
+	// A profile on another team, to exercise the assertTeamMatches check.
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "other team resend profile"})
+	require.NoError(t, err)
+	otherTeamProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "other-team-apple-profile",
+		Identifier:   "com.example.other-team-apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team2.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name        string
+		profileUUID *string
+		wantApple   *string
+		wantWindows *string
+		wantErrMsg  string
+	}{
+		{
+			name:        "apple profile UUID goes to the apple column",
+			profileUUID: &appleProf.ProfileUUID,
+			wantApple:   &appleProf.ProfileUUID,
+		},
+		{
+			name:        "windows profile UUID goes to the windows column",
+			profileUUID: &winProf.ProfileUUID,
+			wantWindows: &winProf.ProfileUUID,
+		},
+		{
+			name:        "nil profile UUID leaves both columns null",
+			profileUUID: nil,
+		},
+		{
+			name:        "unrecognized prefix is rejected",
+			profileUUID: new("z" + uuid.NewString()),
+			wantErrMsg:  "has an invalid prefix",
+		},
+		{
+			name:        "nonexistent profile is rejected",
+			profileUUID: new(fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()),
+			wantErrMsg:  "does not exist",
+		},
+		{
+			name:        "profile belonging to another team is rejected",
+			profileUUID: &otherTeamProf.ProfileUUID,
+			wantErrMsg:  "does not belong to team ID",
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+				Name:        fmt.Sprintf("resend policy %d", i),
+				Query:       "SELECT 1;",
+				ProfileUUID: c.profileUUID,
+			})
+			if c.wantErrMsg != "" {
+				require.Error(t, err)
+				var bre *fleet.BadRequestError
+				require.ErrorAs(t, err, &bre)
+				require.Contains(t, bre.Message, c.wantErrMsg)
+				return
+			}
+			require.NoError(t, err)
+
+			// The returned policy reflects what was inserted.
+			require.Equal(t, c.wantApple, p.ResendAppleProfileUUID)
+			require.Equal(t, c.wantWindows, p.ResendWindowsProfileUUID)
+
+			// And so does a fresh read from the DB.
+			got, err := ds.Policy(ctx, p.ID)
+			require.NoError(t, err)
+			require.Equal(t, c.wantApple, got.ResendAppleProfileUUID)
+			require.Equal(t, c.wantWindows, got.ResendWindowsProfileUUID)
+		})
+	}
+}
+
+// testPoliciesResendProfileRejectsFleetManaged verifies that a policy cannot be pinned to one of
+// Fleet's own profiles. Fleet rewrites and removes those as the settings that produce them change
+// (disk encryption, Windows OS updates, the fleetd config and CA profiles), so a policy holding one
+// for resend would reference a profile whose lifecycle it does not control.
+func testPoliciesResendProfileRejectsFleetManaged(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Whiskey", "whiskey@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team fleet managed profiles"})
+	require.NoError(t, err)
+
+	// Fleet's own profiles are ordinary rows in the profile tables — created by
+	// MDMAppleEnableFileVaultAndEscrow, mdmWindowsEnableOSUpdates and friends — so nothing stops a
+	// caller from passing their UUIDs.
+	appleManaged, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         fleetmdm.FleetFileVaultProfileName,
+		Identifier:   "com.fleetdm.fleet.mdm.filevault",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	fleetdConfig, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         fleetmdm.FleetdConfigProfileName,
+		Identifier:   "com.fleetdm.fleetd.config",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	windowsManaged, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   fleetmdm.FleetWindowsOSUpdatesProfileName,
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	// A user-authored profile in the same team, to show only the managed ones are refused.
+	userProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "my-own-profile",
+		Identifier:   "com.example.my-own-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	managed := []struct {
+		name        string
+		profileUUID string
+		profileName string
+	}{
+		{"apple disk encryption", appleManaged.ProfileUUID, fleetmdm.FleetFileVaultProfileName},
+		{"fleetd configuration", fleetdConfig.ProfileUUID, fleetmdm.FleetdConfigProfileName},
+		{"windows OS updates", windowsManaged.ProfileUUID, fleetmdm.FleetWindowsOSUpdatesProfileName},
+	}
+
+	requireRejected := func(t *testing.T, err error, profileName string) {
+		t.Helper()
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, profileName)
+		require.Contains(t, bre.Message, "managed by Fleet")
+	}
+
+	// Every write path converges on assertProfileTeamMatches, so each is exercised here.
+	for i, c := range managed {
+		t.Run("create: "+c.name, func(t *testing.T) {
+			_, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+				Name:        fmt.Sprintf("managed create %d", i),
+				Query:       "SELECT 1;",
+				Platform:    "darwin,windows",
+				ProfileUUID: &c.profileUUID,
+			})
+			requireRejected(t, err, c.profileName)
+		})
+
+		t.Run("modify: "+c.name, func(t *testing.T) {
+			p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+				Name:        fmt.Sprintf("managed modify %d", i),
+				Query:       "SELECT 1;",
+				Platform:    "darwin,windows",
+				ProfileUUID: &userProf.ProfileUUID,
+			})
+			require.NoError(t, err)
+
+			require.NoError(t, p.SetResendProfileUUID(c.profileUUID))
+			requireRejected(t, ds.SavePolicy(ctx, p, false, false), c.profileName)
+
+			// The stored policy still points at the profile it had before the rejected change.
+			got, err := ds.Policy(ctx, p.ID)
+			require.NoError(t, err)
+			require.Equal(t, &userProf.ProfileUUID, got.ResendAppleProfileUUID)
+		})
+
+		t.Run("specs: "+c.name, func(t *testing.T) {
+			err := ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{{
+				Name:        fmt.Sprintf("managed spec %d", i),
+				Team:        team1.Name,
+				Query:       "SELECT 1;",
+				Platform:    "darwin,windows",
+				ProfileUUID: &c.profileUUID,
+			}})
+			requireRejected(t, err, c.profileName)
+		})
+	}
+
+	// A user-authored profile is still accepted on every path.
+	t.Run("user-authored profile is accepted", func(t *testing.T) {
+		p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+			Name:        "user profile policy",
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: &userProf.ProfileUUID,
+		})
+		require.NoError(t, err)
+		require.Equal(t, &userProf.ProfileUUID, p.ResendAppleProfileUUID)
+
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{{
+			Name:        "user profile spec",
+			Team:        team1.Name,
+			Query:       "SELECT 1;",
+			Platform:    "darwin",
+			ProfileUUID: &userProf.ProfileUUID,
+		}}))
+	})
+}
+
+func testGetPoliciesWithAssociatedProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Oscar", "oscar@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team get policies with profile"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "other team get policies with profile"})
+	require.NoError(t, err)
+
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "get-apple-profile",
+		Identifier:   "com.example.get-apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	winProf, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "get-windows-profile",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	noTeamProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "get-no-team-profile",
+		Identifier:   "com.example.get-no-team-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+	}, nil)
+	require.NoError(t, err)
+
+	newPolicy := func(teamID uint, name string, profileUUID *string) *fleet.Policy {
+		p, err := ds.NewTeamPolicy(ctx, teamID, &user1.ID, fleet.PolicyPayload{
+			Name:        name,
+			Query:       "SELECT 1;",
+			ProfileUUID: profileUUID,
+		})
+		require.NoError(t, err)
+		return p
+	}
+
+	appleResendPolicy := newPolicy(team1.ID, "apple resend policy", &appleProf.ProfileUUID)
+	winResendPolicy := newPolicy(team1.ID, "windows resend policy", &winProf.ProfileUUID)
+	noResendPolicy := newPolicy(team1.ID, "no resend policy", nil)
+	noTeamResendPolicy := newPolicy(fleet.PolicyNoTeamID, "no team resend policy", &noTeamProf.ProfileUUID)
+
+	// No policy IDs requested: no query, no results.
+	got, err := ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, nil)
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// An Apple resend policy returns the policy and profile names alongside the UUID; those
+	// are what the resend activity records.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{appleResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, fleet.PolicyProfileData{
+		PolicyID:    appleResendPolicy.ID,
+		PolicyName:  "apple resend policy",
+		ProfileUUID: appleProf.ProfileUUID,
+		ProfileName: appleProf.Name,
+	}, got[0])
+
+	// A Windows resend policy resolves its name from the Windows profile table.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{winResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, fleet.PolicyProfileData{
+		PolicyID:    winResendPolicy.ID,
+		PolicyName:  "windows resend policy",
+		ProfileUUID: winProf.ProfileUUID,
+		ProfileName: winProf.Name,
+	}, got[0])
+
+	// A policy without an associated profile is filtered out, even when asked for alongside
+	// policies that have one.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{noResendPolicy.ID})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{appleResendPolicy.ID, winResendPolicy.ID, noResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	byID := make(map[uint]fleet.PolicyProfileData, len(got))
+	for _, p := range got {
+		byID[p.PolicyID] = p
+	}
+	require.Equal(t, appleProf.ProfileUUID, byID[appleResendPolicy.ID].ProfileUUID)
+	require.Equal(t, winProf.ProfileUUID, byID[winResendPolicy.ID].ProfileUUID)
+
+	// The team ID scopes the lookup: a policy from another team is not returned even when its
+	// ID is requested, so a host can't have another team's profile resent.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team2.ID, []uint{appleResendPolicy.ID, winResendPolicy.ID})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// "No team" policies live under PolicyNoTeamID and are not returned for a real team.
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, fleet.PolicyNoTeamID, []uint{noTeamResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, noTeamProf.ProfileUUID, got[0].ProfileUUID)
+	require.Equal(t, noTeamProf.Name, got[0].ProfileName)
+
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{noTeamResendPolicy.ID})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// Renaming the profile or the policy is reflected on the next lookup, since both names are
+	// read through rather than copied onto the policy.
+	appleProf.Name = "get-apple-profile-renamed"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET name = ? WHERE profile_uuid = ?`,
+			appleProf.Name, appleProf.ProfileUUID)
+		return err
+	})
+	got, err = ds.GetPoliciesWithAssociatedProfile(ctx, team1.ID, []uint{appleResendPolicy.ID})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, appleProf.Name, got[0].ProfileName)
+}
+
+func testApplyPolicySpecsWithResendProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Juliet", "juliet@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team specs resend profile"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "other team specs resend profile"})
+	require.NoError(t, err)
+
+	newAppleProf := func(name string, teamID *uint) *fleet.MDMAppleConfigProfile {
+		prof, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Name:         name,
+			Identifier:   "com.example." + name,
+			Mobileconfig: []byte("<plist></plist>"),
+			TeamID:       teamID,
+		}, nil)
+		require.NoError(t, err)
+		return prof
+	}
+	team1Prof := newAppleProf("specs-team1-profile", &team1.ID)
+	team2Prof := newAppleProf("specs-team2-profile", &team2.ID)
+
+	winProf, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "specs-windows-profile",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	spec := func(name, team string, profileUUID *string) *fleet.PolicySpec {
+		return &fleet.PolicySpec{
+			Name:        name,
+			Team:        team,
+			Query:       "SELECT 1;",
+			ProfileUUID: profileUUID,
+		}
+	}
+
+	// Apple and Windows UUIDs land in their respective columns.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		spec("apple resend", team1.Name, &team1Prof.ProfileUUID),
+		spec("windows resend", team1.Name, &winProf.ProfileUUID),
+		spec("no resend", team1.Name, nil),
+	})
+	require.NoError(t, err)
+
+	policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	byName := make(map[string]*fleet.Policy, len(policies))
+	for _, p := range policies {
+		byName[p.Name] = p
+	}
+	require.NotNil(t, byName["apple resend"])
+	require.NotNil(t, byName["windows resend"])
+	require.Equal(t, &team1Prof.ProfileUUID, byName["apple resend"].ResendAppleProfileUUID)
+	require.Nil(t, byName["apple resend"].ResendWindowsProfileUUID)
+	require.Equal(t, &winProf.ProfileUUID, byName["windows resend"].ResendWindowsProfileUUID)
+	require.Nil(t, byName["windows resend"].ResendAppleProfileUUID)
+	require.NotNil(t, byName["no resend"])
+	require.Nil(t, byName["no resend"].ResendAppleProfileUUID)
+	require.Nil(t, byName["no resend"].ResendWindowsProfileUUID)
+
+	// An empty UUID clears both columns.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		spec("apple resend", team1.Name, new("")),
+	})
+	require.NoError(t, err)
+	cleared, err := ds.Policy(ctx, byName["apple resend"].ID)
+	require.NoError(t, err)
+	require.Nil(t, cleared.ResendAppleProfileUUID)
+	require.Nil(t, cleared.ResendWindowsProfileUUID)
+
+	errCases := []struct {
+		name       string
+		spec       *fleet.PolicySpec
+		wantErrMsg string
+	}{
+		{
+			name:       "profile on a global policy is rejected",
+			spec:       spec("global resend", "", &team1Prof.ProfileUUID),
+			wantErrMsg: "resend configuration profile can only be set on team policies",
+		},
+		{
+			name:       "profile belonging to another team is rejected",
+			spec:       spec("cross team resend", team1.Name, &team2Prof.ProfileUUID),
+			wantErrMsg: "does not belong to team ID",
+		},
+		{
+			name:       "nonexistent profile is rejected",
+			spec:       spec("missing resend", team1.Name, new(fleet.MDMAppleProfileUUIDPrefix+uuid.NewString())),
+			wantErrMsg: "does not exist",
+		},
+		{
+			name:       "unrecognized prefix is rejected",
+			spec:       spec("bad prefix resend", team1.Name, new("z"+uuid.NewString())),
+			wantErrMsg: "has an invalid prefix",
+		},
+	}
+
+	for _, c := range errCases {
+		t.Run(c.name, func(t *testing.T) {
+			err := ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{c.spec})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.wantErrMsg)
+
+			// The rejected policy must not have been created.
+			var count int
+			err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM policies WHERE name = ?`, c.spec.Name)
+			require.NoError(t, err)
+			require.Zero(t, count)
+		})
+	}
+}
+
+func testApplyPolicySpecsResendProfileChangeResetsStats(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user1 := test.NewUser(t, ds, "Benvolio", "benvolio@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team resend profile stats"})
+	require.NoError(t, err)
+
+	newAppleProf := func(name string) *fleet.MDMAppleConfigProfile {
+		prof, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Name:         name,
+			Identifier:   "com.example." + name,
+			Mobileconfig: []byte("<plist></plist>"),
+			TeamID:       &team.ID,
+		}, nil)
+		require.NoError(t, err)
+		return prof
+	}
+	prof1 := newAppleProf("stats-profile-1")
+	prof2 := newAppleProf("stats-profile-2")
+
+	applySpec := func(profileUUID *string) {
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+			{
+				Name:        "resend stats policy",
+				Query:       "SELECT 1;",
+				Team:        team.Name,
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+				ProfileUUID: profileUUID,
+			},
+		}))
+	}
+
+	applySpec(&prof1.ProfileUUID)
+
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	pol := policies[0]
+
+	hostKey := "resend-stats-host"
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   &hostKey,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &hostKey,
+		UUID:            hostKey,
+		Hostname:        hostKey,
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	recordFailingResult := func() {
+		_, err := ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+	}
+
+	failingHostCount := func() uint {
+		policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, "")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		return policies[0].FailingHostCount
+	}
+
+	membershipCount := func() int {
+		var count int
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &count,
+			`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, pol.ID))
+		return count
+	}
+
+	recordFailingResult()
+	require.Equal(t, uint(1), failingHostCount())
+	require.Equal(t, 1, membershipCount())
+
+	// Re-applying the same profile must NOT reset memberships or stats.
+	applySpec(&prof1.ProfileUUID)
+	require.Equal(t, uint(1), failingHostCount())
+	require.Equal(t, 1, membershipCount())
+
+	// Switching to a different profile resets both.
+	applySpec(&prof2.ProfileUUID)
+	require.Zero(t, membershipCount())
+	require.Zero(t, failingHostCount())
+
+	updated, err := ds.Policy(ctx, pol.ID)
+	require.NoError(t, err)
+	require.Equal(t, &prof2.ProfileUUID, updated.ResendAppleProfileUUID)
+}
+
+func testSavePolicyResendProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Mercutio", "mercutio@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team save resend profile"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "other team save resend profile"})
+	require.NoError(t, err)
+
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "save-apple-profile",
+		Identifier:   "com.example.save-apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	winProf, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "save-windows-profile",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	team2Prof, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "save-team2-apple-profile",
+		Identifier:   "com.example.save-team2-apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team2.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "save resend policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	require.Nil(t, p.ResendAppleProfileUUID)
+	require.Nil(t, p.ResendWindowsProfileUUID)
+
+	// Setting an Apple profile persists.
+	p.ResendAppleProfileUUID = &appleProf.ProfileUUID
+	require.NoError(t, ds.SavePolicy(ctx, p, false, false))
+	p, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.Equal(t, &appleProf.ProfileUUID, p.ResendAppleProfileUUID)
+	require.Nil(t, p.ResendWindowsProfileUUID)
+
+	// Switching to a Windows profile clears the Apple column.
+	p.ResendAppleProfileUUID = nil
+	p.ResendWindowsProfileUUID = &winProf.ProfileUUID
+	require.NoError(t, ds.SavePolicy(ctx, p, false, false))
+	p, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.Nil(t, p.ResendAppleProfileUUID)
+	require.Equal(t, &winProf.ProfileUUID, p.ResendWindowsProfileUUID)
+
+	// Unsetting clears both columns.
+	p.ResendWindowsProfileUUID = nil
+	require.NoError(t, ds.SavePolicy(ctx, p, false, false))
+	p, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.Nil(t, p.ResendAppleProfileUUID)
+	require.Nil(t, p.ResendWindowsProfileUUID)
+
+	t.Run("profile belonging to another team is rejected", func(t *testing.T) {
+		saved := *p
+		saved.ResendAppleProfileUUID = &team2Prof.ProfileUUID
+		err := ds.SavePolicy(ctx, &saved, false, false)
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, "does not belong to team ID")
+	})
+
+	t.Run("both columns at once is rejected", func(t *testing.T) {
+		// Guarded by the ck_policies_resend_profile_uuid check constraint.
+		saved := *p
+		saved.ResendAppleProfileUUID = &appleProf.ProfileUUID
+		saved.ResendWindowsProfileUUID = &winProf.ProfileUUID
+		require.Error(t, ds.SavePolicy(ctx, &saved, false, false))
+	})
+
+	t.Run("global policy rejects a resend profile", func(t *testing.T) {
+		// On create.
+		_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+			Name:        "global resend policy",
+			Query:       "SELECT 1;",
+			ProfileUUID: &appleProf.ProfileUUID,
+		})
+		require.ErrorIs(t, err, errProfileUUIDOnGlobalPolicy)
+
+		// And on save.
+		gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+			Name:  "global no resend policy",
+			Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+		gp.ResendAppleProfileUUID = &appleProf.ProfileUUID
+		require.ErrorIs(t, ds.SavePolicy(ctx, gp, false, false), errProfileUUIDOnGlobalPolicy)
+	})
+}
+
+func testResendProfileAutomationFilter(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Tybalt", "tybalt@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team resend automation filter"})
+	require.NoError(t, err)
+
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "filter-apple-profile",
+		Identifier:   "com.example.filter-apple-profile",
+		Mobileconfig: []byte("<plist></plist>"),
+		TeamID:       &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+	winProf, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "filter-windows-profile",
+		SyncML: []byte("<Replace></Replace>"),
+		TeamID: &team1.ID,
+	}, nil)
+	require.NoError(t, err)
+
+	applePolicy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:        "filter apple resend",
+		Query:       "SELECT 1;",
+		ProfileUUID: &appleProf.ProfileUUID,
+	})
+	require.NoError(t, err)
+	winPolicy, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:        "filter windows resend",
+		Query:       "SELECT 1;",
+		ProfileUUID: &winProf.ProfileUUID,
+	})
+	require.NoError(t, err)
+	// A policy with a different automation, which must be filtered out.
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		TeamID:         &team1.ID,
+		Name:           "filter-hello-world.sh",
+		ScriptContents: "echo 'Hello World'",
+	})
+	require.NoError(t, err)
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:     "filter script",
+		Query:    "SELECT 1;",
+		ScriptID: &script.ID,
+	})
+	require.NoError(t, err)
+	// And one with no automation at all.
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "filter none",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	opts := fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending}
+
+	// Unfiltered, all four are listed.
+	all, _, err := ds.ListTeamPolicies(ctx, team1.ID, opts, fleet.ListOptions{}, fleet.PolicyAutomationTypeNone, "")
+	require.NoError(t, err)
+	require.Len(t, all, 4)
+
+	// The "profiles" automation type returns both the Apple- and Windows-backed policies.
+	profiles, _, err := ds.ListTeamPolicies(ctx, team1.ID, opts, fleet.ListOptions{}, fleet.PolicyAutomationTypeProfiles, "")
+	require.NoError(t, err)
+	require.Len(t, profiles, 2)
+	assert.Equal(t, applePolicy.ID, profiles[0].ID)
+	assert.Equal(t, winPolicy.ID, profiles[1].ID)
+
+	count, err := ds.CountPolicies(ctx, &team1.ID, "", fleet.PolicyAutomationTypeProfiles, "")
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// The "scripts" automation type must not pick up the profile policies.
+	scripts, _, err := ds.ListTeamPolicies(ctx, team1.ID, opts, fleet.ListOptions{}, fleet.PolicyAutomationTypeScripts, "")
+	require.NoError(t, err)
+	require.Len(t, scripts, 1)
+	assert.Equal(t, "filter script", scripts[0].Name)
+}
+
 func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -6614,6 +7357,15 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
 	require.NoError(t, err)
 
+	// labels.created_at is second-granular, and this test creates its labels and hosts inside one second. A tie reads as
+	// "the host has not evaluated this label yet", which correctly withholds every exclude-scoped policy -- not what this
+	// test is about. Backdate the labels so the hosts' label_updated_at is unambiguously later.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id IN (?, ?)`,
+			time.Now().Add(-time.Minute), label1.ID, label2.ID)
+		return err
+	})
+
 	hostNoLabels := test.NewHost(t, ds, "host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
 	hostLabel1 := test.NewHost(t, ds, "host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
 	hostLabel2 := test.NewHost(t, ds, "host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
@@ -6723,6 +7475,178 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assertQueries(t, queries, tc.Policies, tc.Host.Hostname)
 	}
+}
+
+func testPolicyLabelsUnknownMembership(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	setLabelUpdatedAt := func(t *testing.T, host *fleet.Host, ts time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id = ?`, ts, host.ID)
+			return err
+		})
+		host.LabelUpdatedAt = ts
+	}
+
+	policyNames := func(t *testing.T, host *fleet.Host) []string {
+		t.Helper()
+		queries, err := ds.PolicyQueriesForHost(ctx, host)
+		require.NoError(t, err)
+		policies, err := ds.ListPoliciesForHost(ctx, host)
+		require.NoError(t, err)
+
+		byID := make(map[uint]string, len(policies))
+		var listed []string
+		for _, p := range policies {
+			byID[p.ID] = p.Name
+			listed = append(listed, p.Name)
+		}
+		var sent []string
+		for idStr := range queries {
+			id, err := strconv.Atoi(idStr)
+			require.NoError(t, err)
+			name, ok := byID[uint(id)] //nolint:gosec // dismiss G115
+			require.True(t, ok, "policy %s sent to host but not listed for it", idStr)
+			sent = append(sent, name)
+		}
+		sort.Strings(listed)
+		sort.Strings(sent)
+		// The two paths share the label-scoping predicate, so they must never disagree.
+		require.Equal(t, listed, sent)
+		return sent
+	}
+
+	// The host enrolls before any of the labels below exist, so it cannot have evaluated them.
+	host := test.NewHost(t, ds, "unknown-membership-host", "10.0.0.1", "key1", "uuid1", time.Now())
+	setLabelUpdatedAt(t, host, common_mysql.GetDefaultNonZeroTime())
+
+	dynamicLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "dynamic-mdm-enrolled", Query: "select 1;"})
+	require.NoError(t, err)
+	require.Equal(t, fleet.LabelMembershipTypeDynamic, dynamicLabel.LabelMembershipType)
+	dynamicLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "dynamic-other", Query: "select 1;"})
+	require.NoError(t, err)
+	manualLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "manual-label",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+
+	unscoped := newTestPolicy(t, ds, user1, "unscoped", "", nil)
+
+	excludeDynamic := newTestPolicy(t, ds, user1, "exclude any dynamic", "", nil)
+	excludeDynamic.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: dynamicLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, excludeDynamic, false, false))
+
+	excludeManual := newTestPolicy(t, ds, user1, "exclude any manual", "", nil)
+	excludeManual.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: manualLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, excludeManual, false, false))
+
+	excludeAllDynamic := newTestPolicy(t, ds, user1, "exclude all dynamic", "", nil)
+	excludeAllDynamic.LabelsExcludeAll = []fleet.LabelIdent{
+		{LabelName: dynamicLabel.Name},
+		{LabelName: dynamicLabel2.Name},
+	}
+	require.NoError(t, ds.SavePolicy(ctx, excludeAllDynamic, false, false))
+
+	includeDynamic := newTestPolicy(t, ds, user1, "include any dynamic", "", nil)
+	includeDynamic.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: dynamicLabel.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, includeDynamic, false, false))
+
+	t.Run("host that has never reported labels is held out of exclude scope", func(t *testing.T) {
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			// A manual label's membership is server-populated, so its absence is known, not unknown.
+			excludeManual.Name,
+		}, policyNames(t, host))
+	})
+
+	// labels.created_at and hosts.label_updated_at are both second-granular, so pivot on the stored value: a wall-clock
+	// time.Now() here can land in the same second the labels were created, which is the ambiguous case, not the resolved one.
+	newestDynamicCreatedAt := func(t *testing.T) time.Time {
+		t.Helper()
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &ts,
+				`SELECT MAX(created_at) FROM labels WHERE id IN (?, ?)`, dynamicLabel.ID, dynamicLabel2.ID)
+		})
+		return ts
+	}
+
+	t.Run("membership stays unknown while the timestamps are tied", func(t *testing.T) {
+		setLabelUpdatedAt(t, host, newestDynamicCreatedAt(t))
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			excludeManual.Name,
+		}, policyNames(t, host))
+	})
+
+	t.Run("labels reported after the labels were created resolves the scope", func(t *testing.T) {
+		setLabelUpdatedAt(t, host, newestDynamicCreatedAt(t).Add(time.Second))
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			excludeManual.Name,
+			excludeDynamic.Name,
+			excludeAllDynamic.Name,
+		}, policyNames(t, host))
+	})
+
+	// GetHostHealth and the conditional-access IdP build a &fleet.Host{ID, Platform} with no LabelUpdatedAt; a zero timestamp
+	// would make every dynamic label look unevaluated and silently hide exclude-scoped policies from them.
+	t.Run("minimal host struct scopes off the stored timestamp", func(t *testing.T) {
+		minimal := &fleet.Host{ID: host.ID, Platform: host.Platform}
+		require.True(t, minimal.LabelUpdatedAt.IsZero())
+
+		full, err := ds.ListPoliciesForHost(ctx, host)
+		require.NoError(t, err)
+		lean, err := ds.ListPoliciesForHost(ctx, minimal)
+		require.NoError(t, err)
+
+		names := func(ps []*fleet.HostPolicy) []string {
+			var out []string
+			for _, p := range ps {
+				out = append(out, p.Name)
+			}
+			sort.Strings(out)
+			return out
+		}
+		require.Equal(t, names(full), names(lean))
+		require.Contains(t, names(lean), excludeDynamic.Name)
+	})
+
+	t.Run("confirmed membership still excludes", func(t *testing.T) {
+		require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{dynamicLabel.ID}))
+		t.Cleanup(func() {
+			require.NoError(t, ds.RemoveLabelsFromHost(ctx, host.ID, []uint{dynamicLabel.ID}))
+		})
+		require.ElementsMatch(t, []string{
+			unscoped.Name,
+			excludeManual.Name,
+			// exclude_all needs membership in every listed label; the host is only in one.
+			excludeAllDynamic.Name,
+			includeDynamic.Name,
+		}, policyNames(t, host))
+	})
+
+	t.Run("label created after the host's last report is unknown again", func(t *testing.T) {
+		newLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "dynamic-added-later", Query: "select 1;"})
+		require.NoError(t, err)
+		excludeNew := newTestPolicy(t, ds, user1, "exclude any newly created label", "", nil)
+		excludeNew.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: newLabel.Name}}
+		require.NoError(t, ds.SavePolicy(ctx, excludeNew, false, false))
+
+		// labels.created_at is second-granular, so pivot on the stored value rather than wall-clock now.
+		var createdAt time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &createdAt, `SELECT created_at FROM labels WHERE id = ?`, newLabel.ID)
+		})
+
+		setLabelUpdatedAt(t, host, createdAt.Add(-time.Second))
+		require.NotContains(t, policyNames(t, host), excludeNew.Name)
+
+		setLabelUpdatedAt(t, host, createdAt.Add(time.Second))
+		require.Contains(t, policyNames(t, host), excludeNew.Name)
+	})
 }
 
 func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
@@ -8623,14 +9547,26 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, "software", "")
 	require.NoError(t, err)
-	require.Len(t, merged, 3)
+	require.Len(t, merged, 2)
 	assert.Equal(t, teamInstallerPolicy.ID, merged[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, merged[1].ID)
-	assert.Equal(t, teamPatchPolicy.ID, merged[2].ID)
 
 	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "software", "")
 	require.NoError(t, err)
-	assert.Equal(t, 3, mergedCount)
+	assert.Equal(t, 2, mergedCount)
+
+	// Test patch
+	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, "patch", "")
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, teamPatchPolicy.ID, merged[0].ID)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, 0, "", "patch", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
 
 	// Test scripts
 	merged, err = ds.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{
@@ -8690,14 +9626,26 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 		OrderDirection: fleet.OrderAscending,
 	}, fleet.ListOptions{}, "software", "")
 	require.NoError(t, err)
-	require.Len(t, policies, 3)
+	require.Len(t, policies, 2)
 	assert.Equal(t, teamInstallerPolicy.ID, policies[0].ID)
 	assert.Equal(t, teamAppStorePolicy.ID, policies[1].ID)
-	assert.Equal(t, teamPatchPolicy.ID, policies[2].ID)
 
 	mergedCount, err = ds.CountPolicies(ctx, new(uint(0)), "", "software", "")
 	require.NoError(t, err)
-	assert.Equal(t, 3, mergedCount)
+	assert.Equal(t, 2, mergedCount)
+
+	// Test not merged patch
+	policies, _, err = ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderAscending,
+	}, fleet.ListOptions{}, "patch", "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, teamPatchPolicy.ID, policies[0].ID)
+
+	mergedCount, err = ds.CountPolicies(ctx, new(uint(0)), "", "patch", "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, mergedCount)
 }
 
 // testApplyPolicySpecNoSpuriousStatsReset verifies that re-applying a team

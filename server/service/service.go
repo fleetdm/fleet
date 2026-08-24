@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	gocache "github.com/patrickmn/go-cache"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,7 +24,6 @@ import (
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
-	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -78,14 +79,15 @@ type Service struct {
 	// activitySvc is the activity bounded context service for write operations.
 	activitySvc fleet.ActivityWriteService
 
-	// msGraphClientFactory builds the Microsoft Graph client used to verify a credential when it is written to the config.
-	msGraphClientFactory msgraph.ClientFactory
-
 	// acmeSvc is the ACME service module for write operations.
 	acmeSvc fleet.ACMEWriteService
 
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
+
+	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
+	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	packConfigCache *gocache.Cache
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -161,16 +163,10 @@ func NewService(
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
 	orgLogoStore fleet.OrgLogoStore,
-	msGraphClientFactory msgraph.ClientFactory,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
-	}
-
-	// Default to the real Graph client.
-	if msGraphClientFactory == nil {
-		msGraphClientFactory = msgraph.NewClient
 	}
 
 	svc := &Service{
@@ -207,7 +203,7 @@ func NewService(
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		msGraphClientFactory:            msGraphClientFactory,
+		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

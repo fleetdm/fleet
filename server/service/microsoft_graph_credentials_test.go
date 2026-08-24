@@ -126,6 +126,21 @@ func setupGraphCredsTest(t *testing.T, tier string, privateKey string, verifyErr
 		}
 		return out, nil
 	}
+	ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error {
+		var anyInvalid bool
+		for _, c := range env.stored {
+			if c.CredentialInvalid {
+				anyInvalid = true
+				break
+			}
+		}
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return err
+		}
+		ac.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
+		return ds.SaveAppConfig(ctx, ac)
+	}
 	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
 		for _, cred := range upsert {
 			copied := *cred
@@ -368,24 +383,6 @@ func TestListMicrosoftGraphCredentials(t *testing.T) {
 		"the read must go through the metadata query")
 	assert.False(t, env.ds.ListMicrosoftGraphCredentialsFuncInvoked,
 		"the read must not decrypt secrets it is about to mask")
-}
-
-func TestMicrosoftGraphVerifyMessage(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name     string
-		err      error
-		contains string
-	}{
-		{"permission", &msgraph.Error{StatusCode: http.StatusForbidden}, "DeviceManagementServiceConfig.Read.All"},
-		{"auth", &msgraph.Error{StatusCode: http.StatusUnauthorized}, "rejected the credential"},
-		{"transient", &msgraph.Error{StatusCode: http.StatusBadGateway}, "temporarily unavailable"},
-		{"non-graph error", errors.New("dial tcp: timeout"), "Couldn't connect to Microsoft Graph"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Contains(t, microsoftGraphVerifyMessage(tc.err), tc.contains)
-		})
-	}
 }
 
 func TestMicrosoftGraphCredentialsAuth(t *testing.T) {

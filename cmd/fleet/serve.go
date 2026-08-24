@@ -262,6 +262,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
 	if mds == nil {
@@ -513,7 +514,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		redis_key_value.New(redisPool),
 		androidSvc,
 		orgLogoStore,
-		msgraph.NewClient,
 	)
 	if err != nil {
 		initFatal(err, "initializing service")
@@ -580,7 +580,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			} else {
 				softwareInstallStore = store
 				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for production use", "directory",
+					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
 					installerDir)
 			}
 
@@ -622,6 +622,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			androidSvc,
 			hydrantService,
 			psso.NewRedisNonceStore(redisPool),
+			msgraph.NewClient,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")

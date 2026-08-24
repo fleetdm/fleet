@@ -78,7 +78,9 @@ All bug fix pull requests should reference the issue they resolve with the issue
 
 #### Handle a security report
 
-Security reports come in through the [confidential repo](https://github.com/fleetdm/confidential). Not every report is a fire drill — the severity determines the timing, not the urgency the reporter feels.
+Security reports come in through the private [fleetdm/security](https://github.com/fleetdm/security) repo. Whatever the source — GitHub security advisory, pen test finding, bug bounty, disclosure email, or scan result — file it with the [security report issue form](https://github.com/fleetdm/security/issues/new?template=security-report.yml), which standardizes the format for the engineers reviewing it and cross-links the original report. Issues labeled `security` are added to the [🔓 :help-security project](https://github.com/orgs/fleetdm/projects/113) automatically.
+
+If a report names or otherwise identifies a Fleet customer, keep that context in [fleetdm/confidential](https://github.com/fleetdm/confidential) and link to it — never copy customer-identifying details or `customer-*` labels into fleetdm/security.
 
 **Initial review:** An engineer or Engineering Manager reviews every new security report within **one business day** to confirm the report, assign a severity, and decide on a remediation path.
 
@@ -97,7 +99,7 @@ When a patch release branch has already been cut to ship previously fixed High i
 
 #### Stage a fix for a security report
 
-All conversation about an unfixed vulnerability stays in the confidential repo — never cross-post details, reproduction steps, or affected components into the public `fleet` repo.
+All conversation about an unfixed vulnerability stays in the private [fleetdm/security](https://github.com/fleetdm/security) repo — never cross-post details, reproduction steps, or affected components into the public `fleet` repo.
 
 **Keep the fix obscure in public history.** Fleet's commit log and open PRs are public, so anyone watching can correlate a vague commit with the upcoming release. Write the PR title and commit message so a reader cannot identify the vulnerability:
 
@@ -105,11 +107,11 @@ All conversation about an unfixed vulnerability stays in the confidential repo �
 - Do not describe the bug or its impact in terms a reporter would recognize.
 - Frame the change as a routine refactor, hardening, or input-validation improvement — whatever is least surprising for the files touched.
 - Keep the diff scoped to the fix; avoid bundling unrelated cleanup that makes the change look larger or more interesting than it is.
-- Do not use `Resolves: #<ticket>` or any other link back to the confidential ticket — that would expose the ticket number publicly.
+- Do not use `Resolves: #<ticket>` or any other link back to the security ticket — that would expose the ticket number publicly.
 
 **Private security advisory fork.** If the fix itself would tip off an attacker (for example, the patch is small and the vulnerable code path is obvious from the diff), develop it in the private fork attached to a GitHub [security advisory](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/about-repository-security-advisories) instead of an open PR. Either way, once the PR merges to `main` the change is in public history — coordinate the merge with the patch release so the fix ships immediately.
 
-**Link the PR back to the confidential ticket.** Since the PR description can't reference the confidential issue, post a comment on the confidential ticket with the PR URL when the PR opens (and again when it merges). That's how we maintain the audit trail without exposing the link publicly.
+**Link the PR back to the security ticket.** Since the PR description can't reference the security issue, post a comment on the fleetdm/security ticket with the PR URL when the PR opens (and again when it merges). That's how we maintain the audit trail without exposing the link publicly.
 
 
 ### Community contributions
@@ -166,9 +168,7 @@ Fleet uses AI code review tools to supplement human review on pull requests. Thr
 
 1. **GitHub Copilot**: Automatically reviews every PR for contributors with a Copilot seat. No action needed.
 2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
-3. **Claude**: A more thorough review that takes about 30 minutes and costs $20–$25 per review. Claude often finds issues the other AI reviews miss. Use this option judiciously given the cost.
-
-> **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit (including minor or stale changes), leading to unnecessary long-running review cycles and added cost.
+3. **Qodo**: Available for free as an open source project. Qodo does not review PRs automatically. To request a review, add a comment on the PR: `/agentic_review`.
 
 
 #### AI coding tools

@@ -60,6 +60,15 @@ const (
 	// redirect after the SSO flow is completed.
 	FleetUISSOCallbackPath = "/mdm/sso/callback"
 
+	// FleetUISSOCallbackError redirects to the callback route's generic error.
+	FleetUISSOCallbackError = FleetUISSOCallbackPath + "?error=true"
+
+	// FleetUISSOCallbackSessionExpired redirects to the callback route and asks
+	// it for the timed-out message instead of the generic one. Signing in can
+	// take a while on a device being set up for the first time, and the generic
+	// error gives the end user nothing to act on.
+	FleetUISSOCallbackSessionExpired = FleetUISSOCallbackError + "&reason=session_expired"
+
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"

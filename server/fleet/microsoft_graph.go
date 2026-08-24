@@ -3,9 +3,21 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// entraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in lower case but
+// admins paste them either way, so the match is deliberately case-insensitive.
+var entraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
+
+// IsValidEntraGUID reports whether s is a well-formed Microsoft Entra identifier: a tenant ID, an application (client)
+// ID, or any other Entra object ID. It lives here rather than in a service package because both the core app config
+// validation and the premium Graph credential validation need it.
+func IsValidEntraGUID(s string) bool {
+	return entraGUIDRegex.MatchString(s)
+}
 
 // MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft Graph.
 type MicrosoftGraphCredential struct {
@@ -43,6 +55,10 @@ type HostAutopilotDevice struct {
 	GroupTag          string `db:"group_tag" json:"group_tag"`
 	HardwareSerial    string `db:"hardware_serial" json:"hardware_serial"`
 	TenantID          string `db:"tenant_id" json:"tenant_id"`
+	// HardwareModel and HardwareVendor seed the host row when a pending host is created and are deliberately not
+	// columns on host_autopilot_devices.
+	HardwareModel  string `db:"-" json:"-"`
+	HardwareVendor string `db:"-" json:"-"`
 }
 
 // ParseMicrosoftGraphCredentials decodes the raw GitOps `org_settings.microsoft_graph_credentials` value into a typed list.

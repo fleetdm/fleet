@@ -1,6 +1,6 @@
 module fleetdm.local/gitops-auto-complete
 
-go 1.26.5
+go 1.26.7
 
 require (
 	github.com/fleetdm/fleet/v4 v4.0.0
@@ -147,7 +147,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	howett.net/plist v1.0.1 // indirect
-	software.sslmate.com/src/go-pkcs12 v0.7.1 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.2 // indirect
 )
 
 replace github.com/fleetdm/fleet/v4 => ../..

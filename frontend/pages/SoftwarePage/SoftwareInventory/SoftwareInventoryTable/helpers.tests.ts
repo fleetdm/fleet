@@ -1,4 +1,4 @@
-import { getVulnerabilities } from "./helpers";
+import { getVulnerabilities, getVulnFilterRenderDetails } from "./helpers";
 
 const versions = [
   {
@@ -48,5 +48,67 @@ describe("getVulnerabilities", () => {
 
   it("returns an empty array if no versions are given", () => {
     expect(getVulnerabilities([])).toEqual([]);
+  });
+});
+
+describe("getVulnFilterRenderDetails", () => {
+  // Only the CVSS bounds are stored, so the severity line is recovered from
+  // them by the same helpers the chart's filter summary uses.
+  const withSeverity = (minCvssScore?: number, maxCvssScore?: number) => {
+    const details = getVulnFilterRenderDetails({
+      vulnerable: true,
+      minCvssScore,
+      maxCvssScore,
+    });
+    return {
+      filterCount: details.filterCount,
+      // Each entry is a <span>{line}<br /></span> keyed by uniqueId, so the
+      // text is the first child.
+      lines: details.tooltipText.map((line) => line.props.children[0]),
+    };
+  };
+
+  it("counts nothing but the vulnerable filter when no scores are set", () => {
+    expect(withSeverity()).toEqual({
+      filterCount: 1,
+      lines: ["Vulnerable software"],
+    });
+  });
+
+  it("names a preset without restating its band", () => {
+    expect(withSeverity(9, 10).lines).toContain("Severity: Critical");
+    expect(withSeverity(0.1, 3.9).lines).toContain("Severity: Low");
+  });
+
+  it("spells out a Custom range, widening a half-open one", () => {
+    expect(withSeverity(2.5, 6).lines).toContain("Severity: Custom (2.5 to 6)");
+    expect(withSeverity(2.5, undefined).lines).toContain(
+      "Severity: Custom (2.5 to 10)"
+    );
+  });
+
+  it("counts a lone 0 minimum, which is a real bound", () => {
+    // The modal submits min 0 with no max, so this reaches the URL through the
+    // UI. A truthiness test here dropped it and under-reported the count.
+    const { filterCount, lines } = withSeverity(0, undefined);
+    expect(filterCount).toBe(2);
+    expect(lines).toContain("Severity: Custom (0 to 10)");
+  });
+
+  it("does not count the whole 0-10 scale as a severity filter", () => {
+    // It spans the scale, so it narrows nothing.
+    const { filterCount, lines } = withSeverity(0, 10);
+    expect(filterCount).toBe(1);
+    expect(lines).not.toContainEqual(expect.stringContaining("Severity"));
+  });
+
+  it("ignores severity entirely when the vulnerable filter is off", () => {
+    const { filterCount, buttonText } = getVulnFilterRenderDetails({
+      vulnerable: false,
+      minCvssScore: 9,
+      maxCvssScore: 10,
+    });
+    expect(filterCount).toBe(0);
+    expect(buttonText).toBe("Add filters");
   });
 });
