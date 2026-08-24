@@ -51,5 +51,8 @@ describe("DeleteLabelModal", () => {
     expect(
       screen.queryByText(/targeted in a configuration profile/i)
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/reports and policies that target this label/i)
+    ).not.toBeInTheDocument();
   });
 });
