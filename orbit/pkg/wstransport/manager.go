@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// notificationsPath is the server's agent WebSocket endpoint (ADR-0011).
+// notificationsPath is the server's agent WebSocket endpoint.
 const notificationsPath = "/api/fleet/orbit/notifications"
 
 // Options configures a Manager. ServerURL, NodeKeyFunc, Client and Cache are
@@ -80,54 +80,42 @@ func (o *Options) applyDefaults() {
 // iterState tracks one distributed read iteration: the HTTP distributed/read,
 // osquery picking up the cached queries on its local poll, and the resulting
 // distributed/write. Exactly one iteration runs at a time; triggers arriving
-// while one is in flight coalesce into a single queued follow-up (see
-// Manager.trigger).
+// mid-iteration coalesce into a single queued follow-up (see Manager.trigger).
 type iterState int
 
 const (
-	// iterIdle: no iteration in flight; a trigger starts one.
 	iterIdle iterState = iota
 	// iterReading: the HTTP distributed/read is in flight.
 	iterReading
-	// iterDelivered: queries are cached, waiting for osquery's next local
-	// distributed poll to pick them up.
+	// iterDelivered: queries cached, waiting for osquery's next local poll.
 	iterDelivered
-	// iterAwaitingWrite: osquery took the queries and is running them; the
-	// iteration ends when their distributed/write completes — or, for a pass
-	// that never writes (osquery crashed mid-run, or every query was
-	// discovery-filtered), when osquery's next local poll arrives (see
-	// Manager.takeQueries).
+	// iterAwaitingWrite: osquery took the queries; the iteration ends when
+	// their distributed/write completes — or, for a pass that never writes
+	// (osquery crashed mid-run, or every query discovery-filtered), on
+	// osquery's next local poll (see Manager.takeQueries).
 	iterAwaitingWrite
 )
 
-// Manager holds the WebSocket connection to the Fleet server and falls back to
-// polling while it is disconnected. It is an oklog/run-compatible subsystem
-// (Execute/Interrupt).
+// Manager holds the WebSocket connection to the Fleet server, polling on
+// PollInterval while it is disconnected. It is an oklog/run-compatible
+// subsystem (Execute/Interrupt).
 //
-// Polling runs on PollInterval whenever the WebSocket is down, and stops the
-// moment it is up. A "check now" notification — or a polling tick — triggers
-// one distributed read iteration (see iterState) whose queries go into the
-// cache for osquery's next local poll. There is deliberately no warm-up
-// period and no catch-up read on connect: a notification lost around a
-// (re)connect — interval work or a live query — is recovered by the server's
-// interval check job, which re-notifies until the work is done (results
-// ingested, or the live query answered). The remaining exposure is a half-open
-// connection, which is bounded by the keepalive read deadline for the
-// connection's whole lifetime — a warm-up window would only have narrowed its
-// first minute. When both the WebSocket and HTTP fail, the server (or the
-// path to it) is down and both paths simply keep retrying — there is nothing
-// to "downgrade" to.
+// A "check now" notification — or a poll tick — triggers one distributed read
+// iteration (see iterState) whose queries go into the cache for osquery's
+// next local poll. There is deliberately no catch-up read on (re)connect: a
+// notification lost around a connect is recovered by the server's interval
+// check job, which re-notifies until the work is done. A half-open connection
+// is bounded by the keepalive read deadline.
 type Manager struct {
 	opts Options
 
-	// connected is true while a WebSocket connection is up; polling ticks are
-	// skipped while it is set.
+	// connected is true while the WebSocket is up; poll ticks are skipped
+	// while it is set.
 	connected atomic.Bool
 
-	// mu guards the iteration state machine. All triggers (notifications and
-	// poll ticks) and all osquery pass boundaries (query pickup, write
-	// completion) funnel through it, so at most one iteration is in flight
-	// and at most one follow-up is queued.
+	// mu guards the iteration state machine. All triggers and all osquery
+	// pass boundaries funnel through it, so at most one iteration is in
+	// flight and at most one follow-up is queued.
 	mu      sync.Mutex
 	state   iterState
 	pending bool
@@ -196,8 +184,7 @@ func (m *Manager) connectionLoop() {
 		}
 		log.Info().Msg("websocket disconnected, polling resumed")
 
-		// Jitter the reconnection so a server restart doesn't produce a
-		// thundering herd of simultaneous re-dials.
+		// Jitter re-dials so a server restart doesn't produce a thundering herd.
 		if !m.sleep(time.Duration(rand.Int64N(int64(m.opts.ReconnectJitterMax)))) { //nolint:gosec // jitter does not need cryptographic randomness
 			return
 		}
@@ -211,9 +198,9 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 	stop := context.AfterFunc(m.ctx, func() { _ = conn.Close() })
 	defer stop()
 
-	// The read deadline doubles as connection liveness: the server pings every
-	// ServerPingInterval, and every ping refreshes the deadline. A connection
-	// with no traffic for two ping intervals is dead (e.g. half-open TCP).
+	// The read deadline doubles as liveness: the server pings every
+	// ServerPingInterval and every ping refreshes the deadline, so no traffic
+	// for two intervals means a dead (e.g. half-open) connection.
 	deadline := 2 * m.opts.ServerPingInterval
 	_ = conn.SetReadDeadline(time.Now().Add(deadline))
 	defaultPingHandler := conn.PingHandler()
@@ -235,8 +222,7 @@ func (m *Manager) readLoop(conn *websocket.Conn) {
 		case fleet.AgentWSMessageTypeDistributedRead:
 			m.trigger()
 		default:
-			// Unknown notification types are ignored for forward
-			// compatibility with future channels.
+			// Ignored for forward compatibility.
 			log.Debug().Str("type", msg.Type).Msg("ignoring unknown websocket notification type")
 		}
 	}
@@ -261,9 +247,9 @@ func (m *Manager) pollLoop() {
 }
 
 // trigger starts a distributed read iteration, or queues one if an iteration
-// is already in flight. It is the single entry point for both WebSocket
-// notifications and poll ticks, so both coalesce under the same rule: at most
-// one iteration in flight, at most one follow-up queued. Non-blocking.
+// is already in flight. It is the single entry point for notifications and
+// poll ticks, so both coalesce: at most one iteration in flight, at most one
+// follow-up queued. Non-blocking.
 func (m *Manager) trigger() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -285,16 +271,14 @@ func (m *Manager) runRead() {
 	if err != nil {
 		log.Debug().Err(err).Msg("distributed read failed")
 		// Drop any queued trigger too: firing it now would tight-loop against
-		// a failing server. The server's per-tick re-notify (or the polling
-		// fallback) re-triggers as long as the host has due work.
+		// a failing server, and the server re-notifies while work is due.
 		m.state = iterIdle
 		m.pending = false
 		return
 	}
 	m.opts.Cache.Set(resp)
 	if len(resp.Queries) == 0 {
-		// No work handed out, so no write will follow: the iteration ends
-		// here and a queued trigger can run immediately.
+		// No work handed out, so no write will follow: the iteration ends here.
 		m.state = iterIdle
 		m.firePendingLocked()
 		return
@@ -316,11 +300,10 @@ func (m *Manager) firePendingLocked() {
 // takeQueries hands the cached queries to osquery's local distributed poll
 // and advances the iteration state. The poll doubles as the recovery signal
 // for a pass that will never write: osquery's distributed passes are
-// sequential within one process (get → run → write), so an empty poll
-// arriving while a write is still expected proves the pass that took the
-// queries died (osquery crashed mid-run and was restarted by osquery.Runner)
-// or finished without writing (every query discovery-filtered). Either way
-// the iteration is over and a queued trigger can run.
+// sequential, so an empty poll arriving while a write is still expected
+// proves the pass that took the queries died (osquery crashed mid-run) or
+// finished without writing (every query discovery-filtered) — either way the
+// iteration is over.
 func (m *Manager) takeQueries() (queries, discovery map[string]string, accelerate uint) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -335,10 +318,9 @@ func (m *Manager) takeQueries() (queries, discovery map[string]string, accelerat
 	return queries, discovery, accelerate
 }
 
-// writeDone marks the end of a pass whose distributed/write completed. This
-// closes the iteration even when the write failed: the pass is over either
-// way, and on failure the host simply stays due in the server's view, which
-// re-notifies on its next interval check.
+// writeDone closes the iteration when a pass's distributed/write completed,
+// even a failed one: the pass is over either way, and on failure the host
+// stays due in the server's view, which re-notifies.
 func (m *Manager) writeDone() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

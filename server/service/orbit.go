@@ -686,8 +686,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
-	// The WebSocket transport directive (ADR-0011) is server-config driven and
-	// applies to all hosts regardless of team.
+	// The WebSocket transport directive is server-config driven and applies to
+	// all hosts regardless of team.
 	var wsTransport *fleet.OrbitWebSocketTransportConfig
 	if svc.config.WebSocket.TransportEnabled {
 		wsTransport = &fleet.OrbitWebSocketTransportConfig{Enabled: true}

@@ -23,15 +23,10 @@ const chunkPacingDelay = 100 * time.Millisecond
 
 // IntervalChecker is the per-instance job that periodically notifies connected
 // agents with due work: interval work (labels, policies, host vitals) and
-// unanswered live query campaigns whose one-shot pub/sub wake-up was missed
-// (host mid-reconnect at campaign creation, lost message, dropped buffer
-// entry). Each server instance runs its own checker over only the WebSocket
-// connections it holds, so the work is naturally sharded across instances with
-// no coordination — this is intentionally NOT a cluster-wide locked cron job.
-//
-// In steady state hosts' updated-at timestamps are naturally spread out, so
-// each tick finds only a small slice due. The one case where everything looks
-// due at once (after downtime) is smoothed by batch pacing.
+// unanswered live query campaigns whose one-shot pub/sub wake-up was missed.
+// Each instance checks only the WebSocket connections it holds, so the work is
+// naturally sharded with no coordination — intentionally NOT a cluster-wide
+// locked cron job.
 type IntervalChecker struct {
 	Hub       *Hub
 	Svc       DueLister
@@ -57,13 +52,10 @@ func (c *IntervalChecker) Run(ctx context.Context) {
 }
 
 func (c *IntervalChecker) checkOnce(ctx context.Context) {
-	// Every held connection is checked on every tick: the hosts table is the
-	// single source of truth for interval due-ness, and the live query store
-	// for unanswered campaigns. A due host stays due until its results are
-	// ingested (or, for a live query, until it answers), so it is re-notified
-	// each tick until then — the agent coalesces triggers into one read+write
-	// iteration at a time (see orbit/pkg/wstransport), which bounds the cost
-	// of re-notifying to one cheap follow-up read per iteration.
+	// A due host stays due until its results are ingested (or its live query
+	// answered), so it is re-notified each tick until then — cheap, because
+	// the agent coalesces triggers into one read+write iteration at a time
+	// (see orbit/pkg/wstransport).
 	hostIDs := c.Hub.HeldHostIDs()
 
 	notified := 0

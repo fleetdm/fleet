@@ -13,10 +13,10 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-// agentNotificationsChannel is the Redis pub/sub channel used for agent
-// check-in wake-ups (ADR-0011). A single channel is shared by all server
-// instances: every instance subscribes at boot and each delivers
-// notifications only to the agents whose WebSocket connections it holds.
+// agentNotificationsChannel is the Redis pub/sub channel for agent check-in
+// wake-ups. A single channel is shared by all server instances: every instance
+// subscribes at boot and each delivers notifications only to the agents whose
+// WebSocket connections it holds.
 const agentNotificationsChannel = "agent_notifications"
 
 // publishHostIDsChunkSize bounds the size of a single published message.
@@ -30,10 +30,9 @@ const (
 )
 
 // AgentNotification is the payload published on the agent notifications
-// channel. It carries only the notification type, the targeted host IDs and
-// the reason that triggered it (e.g. "live-<campaign ID>") — never query
-// content or results. The reason is forwarded to the agents for
-// debugging/troubleshooting.
+// channel: only the notification type, the targeted host IDs and the
+// triggering reason (e.g. "live-<campaign ID>") — never query content or
+// results.
 type AgentNotification struct {
 	Type    string `json:"type"`
 	HostIDs []uint `json:"host_ids"`
@@ -61,7 +60,6 @@ func NewRedisAgentNotifier(pool fleet.RedisPool, logger *slog.Logger) *RedisAgen
 // is broadcast cluster-wide, so publishing on any node reaches all
 // subscribers.
 func (n *RedisAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
-	// pub-sub can publish and listen on any node in the cluster
 	conn := redis.ReadOnlyConn(n.pool, n.pool.Get())
 	defer conn.Close()
 
@@ -158,14 +156,10 @@ func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(Age
 // notification by a fixed duration before publishing it in the background.
 //
 // It exists because of the live query store's in-memory active-queries cache
-// (see live_query.NewRedisLiveQuery): an agent connected over the WebSocket
-// transport performs its distributed/read within milliseconds of a
-// notification, and a read served from a cache snapshot loaded just before
-// the campaign was stored does not include the campaign. The interval check
-// job would recover the miss, but only a full check interval later; delaying
-// the notification by at least the cache TTL instead guarantees every
-// instance's cache snapshot predating the campaign has expired by the time a
-// notified agent reads.
+// (see live_query.NewRedisLiveQuery): a notified agent reads within
+// milliseconds, and a read served from a cache snapshot predating the
+// campaign misses it. Delaying by at least the cache TTL guarantees every
+// instance's stale snapshot has expired by the time a notified agent reads.
 type DelayedAgentNotifier struct {
 	inner  fleet.AgentCheckInNotifier
 	delay  time.Duration

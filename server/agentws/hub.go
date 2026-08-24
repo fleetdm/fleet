@@ -24,14 +24,12 @@ type Hub struct {
 	mu    sync.RWMutex
 	conns map[uint]*conn
 
-	// reads counts distributed/read requests per host, split by path (see
-	// ReadStats). Kept on the hub so the debug endpoint can report them
-	// alongside the connections.
+	// reads counts distributed/read requests per host by path (see ReadStats),
+	// reported by the debug endpoint alongside the connections.
 	reads readStatsRegistry
 
-	// nextCheckNano is the unix-nano timestamp of the interval check job's
-	// next tick, recorded by the job for observability (the /debug/agentws
-	// endpoint's "next sync" countdown); zero until the job first runs.
+	// nextCheckNano is the interval check job's next tick (unix nanos), for
+	// the /debug/agentws "next sync" countdown; zero until the job first runs.
 	nextCheckNano atomic.Int64
 }
 
@@ -62,7 +60,6 @@ func NewHub(logger *slog.Logger, pingInterval, pongTimeout time.Duration) *Hub {
 // ServeConn registers ws as the connection for hostID and services it until
 // the peer disconnects or fails a keepalive check. It blocks (running the read
 // loop) and is meant to be called from the upgrade handler's goroutine.
-// hostname and platform describe the host, carried for observability.
 func (h *Hub) ServeConn(hostID uint, hostname, platform string, ws *websocket.Conn) {
 	c := newConn(hostID, hostname, platform, ws)
 	h.register(hostID, c)
@@ -126,9 +123,7 @@ func (h *Hub) HeldHostIDs() []uint {
 	return ids
 }
 
-// ConnCount returns the number of connections this instance holds. It is the
-// hook for future per-instance connection caps and rebalancing (deferred from
-// the ADR-0011 POC).
+// ConnCount returns the number of connections this instance holds.
 func (h *Hub) ConnCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

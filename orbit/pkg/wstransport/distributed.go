@@ -22,14 +22,10 @@ type distributedClient interface {
 }
 
 // NewDistributedPlugin returns the osquery distributed plugin that serves
-// queries from the manager's cache (filled by its distributed/read
-// iterations) and forwards results to the Fleet server over HTTP. Query
-// pickup and write completion are reported back to the manager, which uses
-// them as the iteration boundaries of its trigger-coalescing state machine.
-//
-// osquery keeps polling its distributed plugin on its usual interval; with
-// this plugin registered the poll is a localhost thrift call that is answered
-// from memory, and no network traffic happens until there is actual work.
+// queries from the manager's cache and forwards results to the Fleet server
+// over HTTP. Query pickup and write completion feed the manager's iteration
+// state machine. osquery's usual distributed poll becomes a localhost thrift
+// call answered from memory — no network traffic until there is actual work.
 func NewDistributedPlugin(m *Manager, fleetClient distributedClient) *distributed.Plugin {
 	getQueries := func(ctx context.Context) (*distributed.GetQueriesResult, error) {
 		queries, discovery, accelerate := m.takeQueries()

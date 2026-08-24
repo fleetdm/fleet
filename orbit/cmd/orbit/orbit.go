@@ -1329,9 +1329,9 @@ func orbitAction(c *cli.Context) error {
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
 
-	// Watch the orbit config for the server's WebSocket transport directive
-	// (ADR-0011). A toggle persists the new state and restarts orbit, since
-	// flipping osquery's --distributed_plugin requires relaunching osquery.
+	// Watch the orbit config for the server's WebSocket transport directive; a
+	// toggle persists the new state and restarts orbit (see
+	// wstransport.ToggleReceiver).
 	orbitClient.RegisterConfigReceiver(wstransport.NewToggleReceiver(c.String("root-dir"), orbitClient.TriggerOrbitRestart))
 
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
@@ -1412,10 +1412,9 @@ func orbitAction(c *cli.Context) error {
 
 	// The WebSocket transport toggle is read once per process lifetime, after
 	// the early config fetch above had a chance to persist a server-directed
-	// change (and restart orbit if it did). Everything derives from this one
-	// bool — the osquery flag flip, the distributed plugin registration and
-	// the WebSocket manager subsystem — so there is no mixed state within a
-	// process run.
+	// change (and restart orbit if it did). Everything — the osquery flag
+	// flip, the plugin registration, the manager subsystem — derives from this
+	// one bool, so there is no mixed state within a run.
 	wsTransportEnabled := wstransport.Enabled(c.String("root-dir"))
 	if wsTransportEnabled {
 		log.Info().Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
@@ -1455,24 +1454,18 @@ func orbitAction(c *cli.Context) error {
 	options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
 	options = append(options, optionsAfterFlagfile...)
 
-	// Route osquery's distributed queries through orbit's extension plugin
-	// (ADR-0011). Set after --flagfile so user flagfiles can't override it
-	// (repeated gflags: last one wins, overriding --distributed_plugin=tls
-	// from FleetFlags).
+	// Route osquery's distributed queries through orbit's extension plugin.
+	// Set after --flagfile so user flagfiles can't override it (repeated
+	// gflags: last one wins, overriding --distributed_plugin=tls from
+	// FleetFlags).
 	//
-	// --extensions_require makes osqueryd wait for orbit's extension to
-	// register before activating plugins. Without it, plugin activation races
-	// extension registration (~1s window, observed on osquery 5.23): if
-	// activation runs first, the osqueryd worker exits fatally ("Cannot
-	// activate fleet_orbit_distributed distributed plugin"), the extension
-	// socket dies, orbit's extension runner times out a minute later and the
-	// whole process crashloops.
-	//
-	// Since these flags override the flagfile's, any --extensions_require or
-	// --extensions_timeout the user set there (e.g. via command_line_flags in
-	// agent options) is merged in rather than dropped — clobbering the user's
-	// required-extensions list would let osquery activate plugins before the
-	// user's extensions register, hitting the same fatal race for them.
+	// --extensions_require makes osqueryd wait for orbit's extension before
+	// activating plugins; without it activation races extension registration
+	// (~1s window, observed on osquery 5.23) and a lost race crashloops the
+	// whole process. User-set --extensions_require/--extensions_timeout from
+	// the flagfile are merged in rather than clobbered — dropping the user's
+	// list would hit the same race for their extensions (see
+	// wstransport.OsqueryFlags).
 	if wsTransportEnabled {
 		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
 		if err != nil {
@@ -1567,9 +1560,6 @@ func orbitAction(c *cli.Context) error {
 			Cache:              wstransport.NewQueryCache(),
 		})
 		addSubsystem(&g, "websocket transport", wsManager)
-		// The distributed plugin drains the manager's query cache on osquery's
-		// local distributed poll and reports the pass boundaries (query pickup,
-		// write completion) back to the manager's iteration state machine.
 		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
 	}
 

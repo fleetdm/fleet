@@ -653,18 +653,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap the agent WebSocket notification transport (ADR-0011): the
 	// per-instance hub of agent connections, the Redis pub/sub subscription
 	// that fans live query wake-ups out to all instances, and the per-instance
-	// interval check job. All of it is inert unless websocket.transport_enabled
-	// is set.
+	// interval check job.
 	var agentWSHub *agentws.Hub
 	if config.WebSocket.TransportEnabled {
 		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
 			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
 		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Live query wake-ups are delayed by the live query store's in-memory
-		// active-queries cache TTL: notified agents read within milliseconds,
-		// and a read served from a cache snapshot loaded just before the
-		// campaign was stored would miss it — with no second notification
-		// (see pubsub.DelayedAgentNotifier).
+		// Delay live query wake-ups by the live query store's in-memory cache
+		// TTL so a notified read can't be served from a cache snapshot
+		// predating the campaign (see pubsub.DelayedAgentNotifier).
 		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
 			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
@@ -679,11 +676,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			BatchSize: config.WebSocket.CheckBatchSize,
 			Logger:    logger.With("component", "agentws-interval-checker"),
 		}).Run(ctx)
-		// Keep WebSocket-connected hosts "online": the transport removes
-		// osquery's 10s distributed/read poll, which is what used to keep
-		// seen_time fresh. 30s stays comfortably inside the smallest online
-		// window Fleet computes (min interval + 60s buffer). Uses the same
-		// batched last-seen path the polling auth used.
+		// Keep WebSocket-connected hosts "online": the transport removes the
+		// 10s distributed/read poll that used to keep seen_time fresh. 30s
+		// stays inside the smallest online window Fleet computes (min interval
+		// + 60s buffer); uses the same batched last-seen path as polling auth.
 		go agentws.RecordSeenLoop(ctx, agentWSHub, task, 30*time.Second,
 			logger.With("component", "agentws-seen"))
 	}

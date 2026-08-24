@@ -86,7 +86,7 @@ type Service struct {
 	orgLogoStore fleet.OrgLogoStore
 
 	// agentNotifier publishes check-in wake-ups for agents connected over the
-	// WebSocket transport (ADR-0011). Nil when the transport is disabled.
+	// WebSocket transport; nil when the transport is disabled.
 	agentNotifier fleet.AgentCheckInNotifier
 
 	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
@@ -229,9 +229,7 @@ func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 }
 
 // SetAgentCheckInNotifier sets the notifier used to wake up agents connected
-// over the WebSocket transport (ADR-0011). This should be called after
-// NewService when the transport is enabled; when unset, no notifications are
-// published.
+// over the WebSocket transport; when unset, no notifications are published.
 func (svc *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
 	svc.agentNotifier = notifier
 }

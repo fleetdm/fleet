@@ -31,14 +31,10 @@ type conn struct {
 	closeOnce sync.Once
 	done      chan struct{}
 
-	// lastNotifiedNano is the unix-nano timestamp of the last notification
-	// enqueued for this connection, shared by the live query and interval
-	// notification paths. Kept for observability (see Hub.Snapshot).
+	// lastNotifiedNano/lastNotifyReason record the last enqueued notification
+	// for observability (see Hub.Snapshot). They are updated independently, so
+	// a snapshot may pair a timestamp with a concurrent enqueue's reason.
 	lastNotifiedNano atomic.Int64
-	// lastNotifyReason is the reason of the last notification enqueued for
-	// this connection, kept for observability (see Hub.Snapshot). It is
-	// updated independently of lastNotifiedNano, so under concurrent enqueues
-	// a snapshot may pair a timestamp with the other enqueue's reason.
 	lastNotifyReason atomic.Pointer[string]
 	// notified/dropped count enqueued and buffer-overflow-dropped
 	// notifications, for observability (see Hub.Snapshot).

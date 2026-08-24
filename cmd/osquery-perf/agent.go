@@ -511,11 +511,11 @@ type agent struct {
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
 	winMDMWake chan struct{}
 
-	// ws simulates orbit's WebSocket notification transport (ADR-0011);
-	// non-nil only while the server's orbit-config directive has it enabled
-	// (see syncWSTransport). wsSupported gates which orbit agents follow the
-	// directive (-websocket_prob), simulating fleets with older fleetd
-	// versions that ignore it.
+	// ws simulates orbit's WebSocket notification transport; non-nil only
+	// while the server's orbit-config directive has it enabled (see
+	// syncWSTransport). wsSupported gates which orbit agents follow the
+	// directive (-websocket_prob), simulating older fleetd versions that
+	// ignore it.
 	wsMu        sync.Mutex
 	ws          *wsTransport
 	wsSupported bool
@@ -967,9 +967,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	_ = a.config()
 
-	// This startup read runs before runOrbitLoop starts, so it can never race
-	// with the WebSocket transport (which only starts from that loop's config
-	// checks) — keep this ordering if runLoop is ever refactored.
+	// This startup read runs before runOrbitLoop, so it cannot race with the
+	// WebSocket transport (started only from that loop's config checks).
 	resp, err := a.DistributedRead()
 	if err == nil {
 		if len(resp.Queries) > 0 {
@@ -1016,11 +1015,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
-			// With the WebSocket transport running, the tick belongs to it:
-			// skipped while connected (notifications drive the reads), routed
-			// through its coalescing trigger as the polling fallback while
-			// disconnected — mirroring fleetd, where orbit replaces osquery's
-			// tls distributed plugin.
+			// With the WebSocket transport running, the tick belongs to it
+			// (see wsPollTick).
 			if a.wsPollTick() {
 				continue
 			}

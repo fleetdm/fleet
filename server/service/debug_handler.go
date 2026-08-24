@@ -110,11 +110,10 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 		return ds.GetTraceSamplerSettings(ctx)
 	})).Methods(http.MethodGet)
 	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
-	// Agent WebSocket transport observability (ADR-0011): a point-in-time view
-	// of the connections held by THIS server instance (each instance holds its
-	// own; in a multi-instance deployment, query each instance directly).
-	// Byte/read metrics are collected only when debug logging is enabled (see
-	// metrics_enabled), so production servers don't pay for them.
+	// Agent WebSocket transport observability: a point-in-time view of the
+	// connections held by THIS server instance (in a multi-instance
+	// deployment, query each instance directly). Read-path counters are
+	// collected only with debug logging enabled (see metrics_enabled).
 	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
 		if agentWSHub == nil {
 			return map[string]any{"enabled": false}, nil

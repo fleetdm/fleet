@@ -27,14 +27,12 @@ const (
 )
 
 // wsTransport simulates orbit's WebSocket notification transport
-// (orbit/pkg/wstransport.Manager): it holds a WebSocket connection to the
-// Fleet server, performs one distributed read+write cycle per "check now"
-// notification, and coalesces triggers arriving mid-cycle into a single
-// queued follow-up cycle. The simulator runs the whole iteration inline —
-// there is no separate osquery process picking cached queries up later — so
-// orbit's reading/delivered/awaiting-write states collapse into one busy
-// flag, with the same external behavior: at most one iteration in flight, at
-// most one queued.
+// (orbit/pkg/wstransport.Manager): one distributed read+write cycle per
+// "check now" notification, coalescing triggers arriving mid-cycle into a
+// single queued follow-up. The simulator runs the whole iteration inline (no
+// separate osquery process), so orbit's three iteration states collapse into
+// one busy flag with the same external behavior: at most one cycle in flight,
+// at most one queued.
 type wsTransport struct {
 	agent *agent
 
@@ -249,9 +247,8 @@ func (a *agent) syncWSTransport(directive *fleet.OrbitWebSocketTransportConfig) 
 
 // wsPollTick reports whether the WebSocket transport owns this distributed
 // poll tick. While connected the tick is skipped (notifications drive the
-// reads); while disconnected the tick routes through the coalescing trigger,
-// mirroring orbit's polling fallback going through the same trigger() door as
-// notifications.
+// reads); while disconnected it routes through the coalescing trigger,
+// mirroring orbit's polling fallback.
 func (a *agent) wsPollTick() bool {
 	a.wsMu.Lock()
 	ws := a.ws

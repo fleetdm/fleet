@@ -1,5 +1,5 @@
 // Command agentws-viz is a small development dashboard that visualizes the
-// agent WebSocket connections (ADR-0011) held by a running Fleet server, live.
+// agent WebSocket connections held by a running Fleet server, live.
 //
 // It polls the server's /debug/agentws endpoint (which requires a global admin
 // API token) and serves a self-refreshing dashboard page on localhost, showing

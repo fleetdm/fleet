@@ -48,10 +48,10 @@ func Enabled(rootDir string) bool {
 }
 
 // ToggleReceiver watches the orbit config for the websocket_transport
-// directive (ADR-0011). When the server-directed state differs from the
-// persisted one, it persists the new state and triggers an orbit restart:
-// flipping osquery's --distributed_plugin requires relaunching osquery, and
-// orbit restarts handle that uniformly (same pattern as osquery flag updates).
+// directive. When the server-directed state differs from the persisted one,
+// it persists the new state and triggers an orbit restart: flipping osquery's
+// --distributed_plugin requires relaunching osquery, and orbit restarts
+// handle that uniformly (same pattern as osquery flag updates).
 type ToggleReceiver struct {
 	rootDir             string
 	triggerOrbitRestart func(reason string)

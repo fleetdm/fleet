@@ -12,9 +12,9 @@ import (
 const defaultExtensionsTimeout = 60
 
 // OsqueryFlags returns the osquery command-line flags that route distributed
-// queries through orbit's extension plugin (ADR-0011). These flags are passed
-// after --flagfile and gflags is last-one-wins, so any --extensions_require
-// or --extensions_timeout the user set in their flagfile would be silently
+// queries through orbit's extension plugin. These flags are passed after
+// --flagfile and gflags is last-one-wins, so any --extensions_require or
+// --extensions_timeout the user set in their flagfile would be silently
 // replaced. To honor those, userFlags (the parsed flagfile, keys with the
 // "--" prefix) is merged in: user-required extensions are kept alongside
 // orbit's, and the larger of the two timeouts wins.

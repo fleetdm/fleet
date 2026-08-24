@@ -7,10 +7,10 @@ import (
 )
 
 // The types below follow the osquery TLS distributed protocol wire format.
-// When the WebSocket transport is active (ADR-0011), orbit acts as osquery's
-// distributed plugin and calls the distributed endpoints itself, authenticating
-// with its orbit node key (accepted by the server as a fallback to the osquery
-// node key). The node key is sent both in the body ("node_key") and in the
+// With the WebSocket transport active, orbit acts as osquery's distributed
+// plugin and calls the distributed endpoints itself, authenticating with its
+// orbit node key (accepted by the server as a fallback to the osquery node
+// key). The key is sent both in the body ("node_key") and in the
 // "Authorization: NodeKey <key>" header: the server consults exactly one of
 // the two depending on its osquery.allow_body_auth_fallback setting, so
 // sending both works in either mode.

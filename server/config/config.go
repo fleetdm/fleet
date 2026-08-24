@@ -1976,7 +1976,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("conditional_access.cert_serial_format", "hex",
 		"Format for parsing certificate serial numbers from X-Client-Cert-Serial header: 'hex' (default, used by AWS ALB) or 'decimal' (used by Caddy)")
 
-	// WebSocket agent transport (ADR-0011)
+	// WebSocket agent transport
 	man.addConfigBool("websocket.transport_enabled", false,
 		"Enable the agent WebSocket notification transport (experimental)")
 	man.addConfigDuration("websocket.ping_interval", 5*time.Minute,
