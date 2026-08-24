@@ -498,6 +498,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1")
+	defer dev_mode.ClearOverride(apple_mdm.DisableMachineInfoVerifyEnvVar)
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath+"?token="+c.depURLToken+"&deviceinfo="+di, nil,
 	)
@@ -513,6 +517,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1")
+	defer dev_mode.ClearOverride(apple_mdm.DisableMachineInfoVerifyEnvVar)
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath+"?token="+c.depURLToken, buf,
 	)
@@ -659,8 +667,10 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
 	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1")
 	body, err = do(mockedCert, mockedKey)
 	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
+	dev_mode.ClearOverride(apple_mdm.DisableMachineInfoVerifyEnvVar)
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}

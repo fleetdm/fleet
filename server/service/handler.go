@@ -1615,12 +1615,28 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os version
 		di := r.Header.Get("x-apple-aspen-deviceinfo")
 		if di != "" {
-			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+			parsed, p7, err := apple_mdm.ParseDeviceinfo(di)
 			if err != nil {
 				// just log the error and continue to next
 				logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo", "err", err)
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			if err := apple_mdm.VerifyMachineInfoSignature(p7); err != nil {
+				logAttrs := []any{
+					"lane", "mdm_sso",
+					"machine_info_verify_reason", err.Error(),
+					"serial", parsed.Serial,
+					"udid", parsed.UDID,
+					"product", parsed.Product,
+				}
+				if !apple_mdm.MachineInfoVerificationDisabled() {
+					logger.ErrorContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, rejecting request", logAttrs...)
+					http.Error(w, "unable to verify deviceinfo signature", http.StatusForbidden)
+					return
+				}
+				logger.WarnContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, continuing because verification is disabled", logAttrs...)
 			}
 
 			// TODO: skip os version check if deviceinfo query param is present? or find another way
