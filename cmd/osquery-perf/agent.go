@@ -3036,7 +3036,7 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.distributedNodeKey()+`"}`)))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.distributedNodeKey()+`"}`)))
 	if err != nil {
 		return nil, err
 	}
@@ -4012,7 +4012,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		panic(err)
 	}
 
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/write", bytes.NewReader(body))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/write", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

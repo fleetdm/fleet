@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"log"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -130,6 +131,11 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 	for {
 		var msg fleet.AgentWSMessage
 		if err := conn.ReadJSON(&msg); err != nil {
+			// A stopped transport closes the connection itself; the resulting
+			// read error is not worth logging.
+			if !w.stopped() {
+				log.Printf("agent %d: websocket read failed: %s", w.agent.agentIndex, err)
+			}
 			return
 		}
 		// Unknown notification types are ignored for forward compatibility,
@@ -275,4 +281,15 @@ func (a *agent) distributedNodeKey() string {
 		return *a.orbitNodeKey
 	}
 	return a.nodeKey
+}
+
+// distributedAPIPrefix is the URL prefix for distributed read/write calls.
+// osquery's tls distributed plugin is configured with the versioned
+// /api/v1/osquery endpoints, while orbit's WebSocket transport calls the
+// unversioned /api/osquery aliases.
+func (a *agent) distributedAPIPrefix() string {
+	if a.wsTransportActive() {
+		return "/api/osquery"
+	}
+	return "/api/v1/osquery"
 }
