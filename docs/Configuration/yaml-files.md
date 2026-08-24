@@ -169,7 +169,7 @@ _Available in Fleet Premium_
 
 To trigger a configuration profile resend when a policy fails, specify:
 
-- `resend_configuration_profile.name` is the name of the configuration profile to resend. The profile must already be added to the same fleet's **Controls > OS settings > configuration profiles** section.
+- `resend_configuration_profile` is the name of the configuration profile to resend. The profile must already be added to the same fleet's **Controls > OS settings > Configuration profiles** section.
 
 > When the configuration profile automation is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
 
@@ -207,8 +207,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
-  resend_configuration_profile:
-    name: "Passcode requirements"
+  resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
