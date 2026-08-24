@@ -3686,13 +3686,27 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 	}
 
 	var didUpdate bool
+	var macOSWasOn bool
 	if enabled != nil {
-		if ac.MDM.EnableDiskEncryption.Value != *enabled {
+		// the deprecated flat toggle fans out to every per-platform disk
+		// encryption setting
+		macOSWasOn = ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+		changed := ac.MDM.MacOSSettings.EnableDiskEncryption.Value != *enabled ||
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != *enabled ||
+			ac.MDM.WindowsSettings.EnableDiskEncryption.Value != *enabled ||
+			ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != *enabled
+		if changed {
 			if *enabled && svc.config.Server.PrivateKey == "" {
 				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 			}
 
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
+			v := optjson.SetBool(*enabled)
+			ac.MDM.MacOSSettings.EnableDiskEncryption = v
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = v
+			ac.MDM.WindowsSettings.EnableDiskEncryption = v
+			ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = v
+			ac.MDM.EnableDiskEncryption = v
 			didUpdate = true
 		}
 	}
@@ -3700,16 +3714,21 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
-		if ac.MDM.EnabledAndConfigured { // if macOS MDM is configured, set up FileVault escrow
+		// The FileVault profile covers enforcement and escrow as a whole: only
+		// the off<->on transition of the macOS pair creates or deletes it
+		// (payload conditionality ships in #51259).
+		macOSOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+		if ac.MDM.EnabledAndConfigured && macOSOn != macOSWasOn { // if macOS MDM is configured, set up FileVault escrow
 			var act fleet.ActivityDetails
-			if ac.MDM.EnableDiskEncryption.Value {
+			if macOSOn {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
 				}
 			} else {
 				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}

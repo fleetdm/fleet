@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -453,6 +452,8 @@ type TeamMDM struct {
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
 
+	LinuxSettings LinuxSettings `json:"linux_settings"`
+
 	// HostNameTemplate is the template used to compute a host's display name from
 	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
 	HostNameTemplate string `json:"name_template"`
@@ -467,6 +468,48 @@ type TeamMDM struct {
 // Clone implements cloner for TeamMDM.
 func (t *TeamMDM) Clone() (Cloner, error) {
 	return t.Copy(), nil
+}
+
+// MarshalJSON keeps the deprecated flat EnableDiskEncryption toggle virtual:
+// every serialization (API responses, teams.config storage) recomputes it as
+// the AND of the four per-platform disk encryption settings, and unset
+// per-platform settings become explicit booleans (fanned out from the flat
+// value when none was ever set).
+func (t TeamMDM) MarshalJSON() ([]byte, error) {
+	t.EnableDiskEncryption = normalizeDiskEncryptionFields(
+		t.EnableDiskEncryption,
+		&t.MacOSSettings.EnableDiskEncryption,
+		&t.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&t.WindowsSettings.EnableDiskEncryption,
+		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	)
+	// the alias type has no methods, so marshaling it avoids infinite recursion
+	type alias TeamMDM
+	return json.Marshal(alias(t))
+}
+
+// UnmarshalJSON fills per-platform disk encryption settings ABSENT from the
+// stored document from the flat toggle. This keeps team configs correct even
+// if the per-platform keys were dropped from the stored JSON (e.g. re-saved by
+// a pre-split server after the fan-out migration ran). A key explicitly
+// present (including explicit null) is never overridden here.
+func (t *TeamMDM) UnmarshalJSON(b []byte) error {
+	// the alias type has no methods, so unmarshaling it avoids infinite recursion
+	type alias TeamMDM
+	if err := json.Unmarshal(b, (*alias)(t)); err != nil {
+		return err
+	}
+	for _, f := range []*optjson.Bool{
+		&t.MacOSSettings.EnableDiskEncryption,
+		&t.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&t.WindowsSettings.EnableDiskEncryption,
+		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	} {
+		if !f.Set {
+			*f = optjson.SetBool(t.EnableDiskEncryption)
+		}
+	}
+	return nil
 }
 
 // Copy returns a deep copy of the TeamMDM.
@@ -486,9 +529,6 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		for i, mps := range t.MacOSSettings.CustomSettings {
 			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
 		}
-	}
-	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
-		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
 	if t.WindowsSettings.CustomSettings.Set {
 		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
@@ -542,6 +582,7 @@ type TeamSpecMDM struct {
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	AndroidSettings  AndroidSettings `json:"android_settings"`
+	LinuxSettings    LinuxSettings   `json:"linux_settings"`
 	HostNameTemplate optjson.String  `json:"name_template"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
@@ -868,19 +909,39 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		agentOptions = *t.Config.AgentOptions
 	}
 
+	// normalize a local copy so the spec always carries explicit per-platform
+	// disk encryption booleans, even for configs stored before the
+	// per-platform split.
+	mdm := t.Config.MDM
+	flat := normalizeDiskEncryptionFields(
+		mdm.EnableDiskEncryption,
+		&mdm.MacOSSettings.EnableDiskEncryption,
+		&mdm.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&mdm.WindowsSettings.EnableDiskEncryption,
+		&mdm.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	)
+
 	var mdmSpec TeamSpecMDM
-	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
-	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
-	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
-	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
+	mdmSpec.MacOSUpdates = mdm.MacOSUpdates
+	mdmSpec.WindowsUpdates = mdm.WindowsUpdates
+	mdmSpec.MacOSSettings = mdm.MacOSSettings.ToMap()
 	// assets are only present in ToMap for GitOps request validation; they are
 	// not stored on the team config, so keep them out of the generated spec.
 	delete(mdmSpec.MacOSSettings, "assets")
-	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
-	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
-	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
-	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
-	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
+	mdmSpec.MacOSSetup = mdm.MacOSSetup
+	// emit the deprecated flat toggle only when it agrees with every
+	// per-platform setting: the flat toggle wins when provided, so emitting it
+	// for a mixed state would reset the per-platform values on re-apply.
+	if flat == mdm.MacOSSettings.EnableDiskEncryption.Value &&
+		flat == mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
+		flat == mdm.WindowsSettings.EnableDiskEncryption.Value &&
+		flat == mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
+		mdmSpec.EnableDiskEncryption = optjson.SetBool(flat)
+	}
+	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(mdm.EnableRecoveryLockPassword)
+	mdmSpec.WindowsSettings = mdm.WindowsSettings
+	mdmSpec.AndroidSettings = mdm.AndroidSettings
+	mdmSpec.LinuxSettings = mdm.LinuxSettings
 
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {

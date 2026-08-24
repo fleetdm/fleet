@@ -325,17 +325,25 @@ func TestMacOSMigrationModeIsValid(t *testing.T) {
 
 func TestAppConfigDeprecatedFields(t *testing.T) {
 	cases := []struct {
-		msg                string
-		in                 json.RawMessage
-		wantFeatures       Features
-		wantDiskEncryption bool
+		msg          string
+		in           json.RawMessage
+		wantFeatures Features
+		// wantDiskEncryption is the marshaled flat mdm.enable_disk_encryption,
+		// virtual since the per-platform split: the AND of the four
+		// per-platform settings.
+		wantDiskEncryption      bool
+		wantMacOSDiskEncryption bool
 	}{
-		{"both empty", json.RawMessage(`{}`), Features{}, false},
-		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false},
+		{"both empty", json.RawMessage(`{}`), Features{}, false, false},
+		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false, false},
 		{
-			"a feature and disk encryption set",
+			// macos_settings.enable_disk_encryption is no longer an alias of
+			// the flat toggle: it enables macOS enforcement only, so the
+			// virtual flat toggle reads false.
+			"a feature and macOS disk encryption set",
 			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"macos_settings": {"enable_disk_encryption": true}}}`),
 			Features{EnableHostUsers: true},
+			false,
 			true,
 		},
 		{
@@ -343,12 +351,23 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "features": {"enable_host_users": false}}`),
 			Features{EnableHostUsers: true},
 			false,
+			false,
 		},
 		{
-			"disk encryption legacy and new setting set",
+			"flat disk encryption false and macOS setting true",
 			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true}}}`),
 			Features{},
 			false,
+			true,
+		},
+		{
+			// a legacy-only write fans out to every per-platform setting on
+			// serialization
+			"flat disk encryption only",
+			json.RawMessage(`{"mdm": {"enable_disk_encryption": true}}`),
+			Features{},
+			true,
+			true,
 		},
 	}
 
@@ -358,11 +377,8 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			err := json.Unmarshal(c.in, &ac)
 			require.NoError(t, err)
 			require.Nil(t, ac.DeprecatedHostSettings)
-			require.Nil(t, ac.MDM.MacOSSettings.DeprecatedEnableDiskEncryption)
 			require.Equal(t, c.wantFeatures, ac.Features)
-			require.Equal(t, c.wantDiskEncryption, ac.MDM.EnableDiskEncryption.Value)
 
-			// marshalling the fields again doesn't contain deprecated fields
 			acJSON, err := json.Marshal(ac)
 			require.NoError(t, err)
 			var resultMap map[string]interface{}
@@ -373,14 +389,21 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			_, exists := resultMap["host_settings"]
 			require.False(t, exists)
 
-			// mdm.macos_settings.enable_disk_encryption is not present
-			mdm, ok := resultMap["mdm"].(map[string]interface{})
+			// the per-platform settings are always explicit booleans
+			mdm, ok := resultMap["mdm"].(map[string]any)
 			require.True(t, ok)
-			macosSettings, ok := mdm["macos_settings"].(map[string]interface{})
+			macosSettings, ok := mdm["macos_settings"].(map[string]any)
 			require.True(t, ok)
-			_, exists = macosSettings["enable_disk_encryption"]
-			require.False(t, exists)
+			require.EqualValues(t, c.wantMacOSDiskEncryption, macosSettings["enable_disk_encryption"])
+			require.EqualValues(t, c.wantDiskEncryption, macosSettings["enable_escrow_disk_encryption_key"])
+			windowsSettings, ok := mdm["windows_settings"].(map[string]any)
+			require.True(t, ok)
+			require.EqualValues(t, c.wantDiskEncryption, windowsSettings["enable_disk_encryption"])
+			linuxSettings, ok := mdm["linux_settings"].(map[string]any)
+			require.True(t, ok)
+			require.EqualValues(t, c.wantDiskEncryption, linuxSettings["enable_escrow_disk_encryption_key"])
 
+			// the flat toggle is virtual: the AND of the four
 			diskEncryption, exists := mdm["enable_disk_encryption"]
 			require.True(t, exists)
 			require.EqualValues(t, c.wantDiskEncryption, diskEncryption)
