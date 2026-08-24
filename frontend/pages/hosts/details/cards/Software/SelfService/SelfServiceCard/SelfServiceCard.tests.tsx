@@ -637,7 +637,8 @@ describe("SelfServiceCard", () => {
       await screen.findByText("No items match your search")
     ).toBeInTheDocument();
     // Ensure the categories request has settled before exercising the update.
-    await screen.findByRole("button", { expanded: false });
+    // Trigger renders the current selection label ("All" when none is picked).
+    await screen.findByRole("button", { name: /^All$/i });
 
     rerender(
       <SelfServiceCard

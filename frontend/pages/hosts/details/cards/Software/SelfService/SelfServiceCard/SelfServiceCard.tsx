@@ -265,7 +265,7 @@ const SelfServiceCard = ({
   // in sync with the current search query. The desktop table used to rely on
   // TableContainer's client-side filter, but that path is debounced separately
   // from the search field and briefly reported the previous zero-result count
-  // when the URL query changed — see #50120.
+  // when the URL query changed.
   const filteredSoftware = softwareInSelectedCategoryMatchingQuery;
 
   // The button is shown on desktop ONLY when a specific category is selected
