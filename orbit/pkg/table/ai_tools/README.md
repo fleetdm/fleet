@@ -36,8 +36,9 @@ exported `Columns()`/`Generate()` wrappers used to register the table in
   regular-file-only reads that never follow symlinks or block on FIFOs/devices
   (`internal/fsutil`), path-traversal containment for attacker-controlled
   config/manifest/plist fields, removal of outbound DNS resolution of untrusted
-  MCP hostnames (`internal/netsock`), owner-based (not name-based) uid/username
-  attribution (`internal/homes`), and panic recovery at the `Generate` boundary.
+  MCP hostnames (`internal/netsock`), OS-attested (never name-based) uid/username
+  attribution cross-checked against on-disk ownership (`internal/homes`), and
+  panic recovery at the `Generate` boundary.
 
 ## License
 

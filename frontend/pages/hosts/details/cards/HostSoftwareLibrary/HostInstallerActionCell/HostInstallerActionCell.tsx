@@ -17,6 +17,7 @@ import {
   IHostAppStoreApp,
   EnhancedSoftwareInstallUninstallStatus,
   IHostSoftwareWithUiStatus,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -56,11 +57,14 @@ interface IHostInstallerActionButtonProps {
 
 interface IHostInstallerActionCellProps {
   software: IHostSoftwareWithUiStatus;
+  /** Returns true on API success, false on API failure so the row can clear
+   * its optimistic pending state. Callers that ignore the return value
+   * (fire-and-forget) are still supported. */
   onClickInstallAction: (
     softwareId: number,
     isSoftwarePackage?: boolean
-  ) => void;
-  onClickUninstallAction: () => void;
+  ) => Promise<boolean> | void;
+  onClickUninstallAction: () => Promise<boolean> | void;
   onClickOpenInstructionsAction?: () => void;
   baseClass: string;
   hostScriptsEnabled?: boolean;
@@ -183,6 +187,7 @@ export const HostInstallerActionButton = ({
   <div className={`${baseClass}__item-action`}>
     <TooltipWrapper
       tipContent={tooltip}
+      disableTooltip={!tooltip}
       underline={false}
       showArrow
       position="top"
@@ -270,6 +275,20 @@ export const HostInstallerActionCell = ({
       "failed_uninstall",
     ].includes(ui_status);
 
+  const ranScriptPackageDetected =
+    SCRIPT_PACKAGE_SOURCES.includes(software.source) &&
+    ui_status === "ran_script";
+
+  // NO_VERSION_OR_HOST_DATA_SOURCES (tgz + script-only .ps1/.sh/.py) may be
+  // uploaded without an uninstall script, so gate the Uninstall action on the
+  // flag for those sources. Other package types default an uninstall script
+  // from the extension.
+  const sourceMayLackUninstallScript = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+    software.source
+  );
+  const uninstallScriptAvailable =
+    !sourceMayLackUninstallScript || !!software_package?.has_uninstall_script;
+
   const isIpaPackage =
     (software.source === "ios_apps" || software.source === "ipados_apps") &&
     !!software_package;
@@ -278,10 +297,12 @@ export const HostInstallerActionCell = ({
     !app_store_app &&
     !isIpaPackage &&
     !!software_package &&
+    uninstallScriptAvailable &&
     // Show uninstall button even when the status is installed but the host's
     // inventory has no matching title ID with the installer.
     (installedVersionsDetected ||
       installedTgzPackageDetected ||
+      ranScriptPackageDetected ||
       ui_status === "installed" ||
       ui_status === "recently_installed");
 
@@ -307,17 +328,38 @@ export const HostInstallerActionCell = ({
     installedVersionsDetected,
   });
 
-  // Wrap handlers to disable action button(s) immediately, important for slow connections/APIs
-  const handleInstallClick = () => {
+  // Wrap handlers to disable action button(s) immediately, important for slow
+  // connections/APIs. Reset only on failure (explicit false OR rejection) so
+  // success stays owned by the status→pending transition — no re-enable
+  // flicker before the parent's refetch propagates.
+  const handleInstallClick = async () => {
     if (installDisabled || isInstallUninstallPendingLocal) return;
     setIsInstallUninstallPendingLocal(true);
-    onClickInstallAction(id, SCRIPT_PACKAGE_SOURCES.includes(software.source));
+    try {
+      const ok = await onClickInstallAction(
+        id,
+        SCRIPT_PACKAGE_SOURCES.includes(software.source)
+      );
+      if (ok === false) setIsInstallUninstallPendingLocal(false);
+    } catch {
+      setIsInstallUninstallPendingLocal(false);
+    }
   };
 
-  const handleUninstallClick = () => {
+  const handleUninstallClick = async () => {
     if (uninstallDisabled || isInstallUninstallPendingLocal) return;
-    setIsInstallUninstallPendingLocal(true);
-    onClickUninstallAction();
+    // On My Device, uninstall opens a confirmation modal instead of calling the
+    // API directly. Skip the optimistic pending flag so cancelling the modal
+    // doesn't leave the row's buttons stuck disabled (#50856).
+    if (!isMyDevicePage) {
+      setIsInstallUninstallPendingLocal(true);
+    }
+    try {
+      const ok = await onClickUninstallAction();
+      if (ok === false) setIsInstallUninstallPendingLocal(false);
+    } catch {
+      setIsInstallUninstallPendingLocal(false);
+    }
   };
 
   const onSelectOption = (option: string) => {

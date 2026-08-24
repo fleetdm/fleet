@@ -70,6 +70,7 @@ module.exports = {
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#patch
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = (sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] || 0) + 1;// Count this request for the per-enterprise-per-minute total logged in api/hooks/custom/index.js.
       let patchDeviceResponse = await androidManagementConnection.enterprises.devices.patch({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
         // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.

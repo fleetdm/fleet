@@ -35,17 +35,15 @@ const EndUserAuthSection = ({
       <TooltipWrapper
         tipContent={
           !isIdPConfigured ? (
-            <span>
-              To enable, first connect Fleet to
-              <br />
-              your{" "}
+            <>
+              To enable, first connect Fleet to your{" "}
               <CustomLink
                 url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
                 text="identity provider (IdP)"
                 variant="tooltip-link"
               />
               .
-            </span>
+            </>
           ) : undefined
         }
         disableTooltip={isIdPConfigured}

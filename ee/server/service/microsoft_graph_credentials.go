@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -80,8 +79,9 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 
 	// A credential that was just verified is healthy, and a deleted one can no longer be unhealthy, so the aggregate is
 	// recomputed after a change.
-	if err := svc.refreshMicrosoftGraphCredentialInvalid(ctx); err != nil {
-		return err
+	// Reads the credentials just persisted above, so it cannot be served by a replica.
+	if err := svc.ds.UpdateMicrosoftGraphCredentialInvalidAggregate(ctxdb.RequirePrimary(ctx, true)); err != nil {
+		return ctxerr.Wrap(ctx, err, "refresh microsoft graph credential invalid aggregate")
 	}
 
 	for _, act := range newMicrosoftGraphCredentialActivities(added, edited, deleted) {
@@ -90,40 +90,6 @@ func (svc *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, incoming
 		}
 	}
 
-	return nil
-}
-
-// refreshMicrosoftGraphCredentialInvalid recomputes MDM.MicrosoftGraphCredentialInvalid from the stored credentials
-// and saves the app config only when it actually changed. The flag is stored rather than derived on read so that GET /config does not
-// have to join the credentials table on every page load.
-func (svc *Service) refreshMicrosoftGraphCredentialInvalid(ctx context.Context) error {
-	// Callers reach this immediately after writing the credentials, so a replica read can miss the write.
-	ctx = ctxdb.RequirePrimary(ctx, true)
-	stored, err := svc.ds.ListMicrosoftGraphCredentialMetadata(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list microsoft graph credential metadata")
-	}
-
-	var anyInvalid bool
-	for _, cred := range stored {
-		if cred.CredentialInvalid {
-			anyInvalid = true
-			break
-		}
-	}
-
-	appCfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get app config")
-	}
-	if appCfg.MDM.MicrosoftGraphCredentialInvalid == anyInvalid {
-		return nil
-	}
-
-	appCfg.MDM.MicrosoftGraphCredentialInvalid = anyInvalid
-	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph credential status")
-	}
 	return nil
 }
 
@@ -225,25 +191,19 @@ func (svc *Service) verifyMicrosoftGraphCredentials(
 	return nil
 }
 
-// microsoftGraphVerifyMessage turns a Graph failure into something an admin can act on. The three cases have genuinely
-// different remedies, and Graph reports a missing permission under different error codes depending on the endpoint
-// family, so the classification keys on the HTTP status rather than the code string.
+// microsoftGraphVerifyMessage turns a save-time Graph failure into something an admin can act on. A failure that never
+// reached Graph is described here rather than in msgraph, because only the caller knows what it was attempting.
 func microsoftGraphVerifyMessage(err error) string {
-	graphErr, ok := errors.AsType[*msgraph.Error](err)
-	if !ok {
-		return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", err)
+	if msg := msgraph.UserFacingMessage(err); msg != "" {
+		// Someone is waiting on this save, so retrying by hand is real advice.
+		if graphErr, ok := msgraph.AsError(err); ok && graphErr.IsTransient() {
+			return msg + " Please try again."
+		}
+		return msg
 	}
-	switch {
-	case graphErr.IsPermissionError():
-		return "Microsoft Graph denied the request. Grant the app registration the DeviceManagementServiceConfig.Read.All " +
-			"application permission and grant admin consent for your tenant."
-	case graphErr.IsAuthError():
-		return "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret."
-	case graphErr.IsTransient():
-		return fmt.Sprintf("Microsoft Graph is temporarily unavailable (%d). Please try again.", graphErr.StatusCode)
-	default:
-		return fmt.Sprintf("Couldn't verify the Microsoft Graph credential: %s", graphErr)
-	}
+	// Unwrapped for the same reason the sync path stores a classified message: the wrap chain is internal plumbing, and
+	// the innermost error is the part an admin can act on (a DNS or TLS failure, say).
+	return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", ctxerr.Cause(err))
 }
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants

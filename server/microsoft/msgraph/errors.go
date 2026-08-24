@@ -2,6 +2,7 @@ package msgraph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -52,6 +53,43 @@ func (e *Error) IsPermissionError() bool {
 // a bad credential, or a Microsoft outage would raise a credential alarm on every Fleet deployment at once.
 func (e *Error) IsTransient() bool {
 	return e.StatusCode == http.StatusTooManyRequests || e.StatusCode >= http.StatusInternalServerError
+}
+
+// UserFacingMessage turns a Graph failure into a single sentence an admin can act on, discarding the internal wrap
+// chain that an error accumulates on its way up.
+func UserFacingMessage(err error) string {
+	graphErr, ok := AsError(err)
+	if !ok {
+		return ""
+	}
+	switch {
+	case graphErr.IsPermissionError():
+		return "Microsoft Graph denied the request. Grant the app registration the DeviceManagementServiceConfig.Read.All " +
+			"application permission and grant admin consent for your tenant."
+	case graphErr.IsAuthError():
+		return "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret."
+	case graphErr.IsTransient():
+		return fmt.Sprintf("Microsoft Graph is temporarily unavailable (%d).", graphErr.StatusCode)
+	default:
+		return fmt.Sprintf("Microsoft Graph returned an error (%d): %s", graphErr.StatusCode, graphErr.Message)
+	}
+}
+
+// AsError extracts the Graph error from a possibly-wrapped error. Callers classify a failure by unwrapping it here
+// rather than type-asserting themselves, so the unwrap and the classification stay in one place.
+func AsError(err error) (*Error, bool) {
+	if err == nil {
+		return nil, false
+	}
+	return errors.AsType[*Error](err)
+}
+
+// CredentialRejected reports whether a failure means the credential itself needs an admin's attention, as opposed to
+// Microsoft being temporarily unavailable. A non-Graph failure is never a rejection: a DNS or dial error says nothing
+// about the credential.
+func CredentialRejected(err error) bool {
+	graphErr, ok := AsError(err)
+	return ok && (graphErr.IsAuthError() || graphErr.IsPermissionError())
 }
 
 // graphErrorBody is Graph's standard error envelope.
