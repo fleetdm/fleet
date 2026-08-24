@@ -859,9 +859,9 @@ func checkNVDVulnerabilities(
 	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
 	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
+		// Partial results are still returned: their rows are already inserted,
+		// so dropping them here would suppress their automations forever.
 		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
-		cveSpan.End()
-		return nil
 	}
 	cveSpan.End()
 

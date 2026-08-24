@@ -9,6 +9,7 @@ import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
 
 import { IMdmProfile } from "interfaces/mdm";
+import { getErrorReason } from "interfaces/errors";
 
 import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
 
@@ -155,7 +156,14 @@ const ConfigurationProfiles = ({
       onMutation();
       notify.success("Successfully deleted.");
     } catch (e) {
-      notify.error("Couldn't delete. Please try again.", { response: e });
+      const reason = getErrorReason(e, {
+        reasonIncludes: "Policy automations",
+      });
+      if (reason === "") {
+        notify.error("Couldn't delete. Please try again.", { response: e });
+      } else {
+        notify.error(reason, { response: e });
+      }
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);

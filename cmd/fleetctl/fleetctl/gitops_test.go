@@ -9261,3 +9261,69 @@ software:
 		"the license branch must fire rather than surfacing the raw client error")
 	require.Contains(t, err.Error(), filepath.Base(f.Name()), "the message must name the file being applied")
 }
+
+func TestGitOpsPolicyResendConfigurationProfile(t *testing.T) {
+	const (
+		macProfileUUID = "a-mac-profile-uuid"
+		macProfileName = "Password policy - require 10 characters"
+	)
+
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return []*fleet.MDMConfigProfilePayload{
+			{ProfileUUID: macProfileUUID, TeamID: teamID, Name: macProfileName, Platform: "darwin"},
+		}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+
+	var appliedSpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedSpecs = append(appliedSpecs, specs...)
+		return nil
+	}
+
+	tmpDir := t.TempDir()
+	profileContents, err := os.ReadFile("./testdata/gitops/lib/macos-password.mobileconfig")
+	require.NoError(t, err)
+	profilePath := filepath.Join(tmpDir, "password.mobileconfig")
+	require.NoError(t, os.WriteFile(profilePath, profileContents, 0o600))
+
+	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamYAMLPath, fmt.Appendf(nil, `
+name: Resend Profile Team
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+agent_options:
+software:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+  - name: Resend policy
+    query: "SELECT 1"
+    platform: darwin
+    resend_configuration_profile:
+      name: %s
+  - name: Plain policy
+    query: "SELECT 2"
+`, profilePath, macProfileName), 0o600))
+
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.NoError(t, err)
+
+	require.Len(t, appliedSpecs, 2)
+	require.Equal(t, "Resend policy", appliedSpecs[0].Name)
+	require.Equal(t, new(macProfileUUID), appliedSpecs[0].ProfileUUID)
+	// A policy without the key sends an empty UUID, which unsets any profile
+	// previously associated with it.
+	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
+	require.Equal(t, new(""), appliedSpecs[1].ProfileUUID)
+}
