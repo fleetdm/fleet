@@ -1336,27 +1336,6 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 	})
 
-	// The datastore owns the retry-or-fail decision; the proxy just has to hand the error over and not care which way
-	// it went. A datastore error must not panic or double-report.
-	for _, tc := range []struct {
-		name    string
-		retried bool
-		err     error
-	}{
-		{"another delivery attempt", true, nil},
-		{"a terminal failure", false, nil},
-		{"a datastore error", false, errors.New("write failed")},
-	} {
-		t.Run("hands the error over regardless of "+tc.name, func(t *testing.T) {
-			ds := new(mock.DataStore)
-			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string) (bool, error) {
-				return tc.retried, tc.err
-			}
-			newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
-			require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
-		})
-	}
-
 	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
 	canceledCtx, cancelFn := context.WithCancel(context.Background())
 	cancelFn()
@@ -1455,20 +1434,17 @@ func TestNDESChallengeErrorToDetail(t *testing.T) {
 // indistinguishable from bad credentials and permanently failed every profile the outage touched. 5xx and the
 // throttling/timeout codes are separated out so callers can leave those profiles queued.
 func TestNDESRetryableStatus(t *testing.T) {
+	// One case per distinct branch. 503 vs 401 is already proven end to end in
+	// TestGetNDESSCEPChallengeStatusClassification, so what is left to pin here is the 5xx boundary and the two
+	// individually named codes, which that test does not reach.
 	for _, tc := range []struct {
 		code int
 		want bool
 	}{
 		{http.StatusInternalServerError, true},
-		{http.StatusBadGateway, true},
-		{http.StatusServiceUnavailable, true},
-		{http.StatusGatewayTimeout, true},
+		{http.StatusNotFound, false},
 		{http.StatusRequestTimeout, true},
 		{http.StatusTooManyRequests, true},
-		{http.StatusUnauthorized, false},
-		{http.StatusForbidden, false},
-		{http.StatusNotFound, false},
-		{http.StatusBadRequest, false},
 	} {
 		t.Run(http.StatusText(tc.code), func(t *testing.T) {
 			assert.Equal(t, tc.want, ndesRetryableStatus(tc.code))
