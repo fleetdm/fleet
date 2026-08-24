@@ -32,6 +32,7 @@ var (
 	MicrosoftAutoUpdateVersionShortener = makeVersionShortener(2) // "4.82.26020434" → "4.82"
 	OperaVersionShortener               = makeVersionShortener(2) // "129.0.5823.28" → "129.0"
 	TwingateVersionShortener            = makeVersionShortener(2) // "2026.29.22575" → "2026.29"
+	Microsoft365CopilotVersionShortener = makeVersionShortener(2) // "1.2608.0301" → "1.2608"
 	CitrixWorkspaceVersionShortener     = makeVersionShortener(3) // "25.11.1.42" → "25.11.1"
 	ElgatoStreamDeckVersionShortener    = makeVersionShortener(3) // "7.3.1.22604" → "7.3.1"
 	FileMakerProVersionShortener        = makeVersionShortener(3) // "22.0.5.500" → "22.0.5"
