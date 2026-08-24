@@ -101,16 +101,16 @@ func IsValidUPN(userID string) bool {
 	return upnRegex.MatchString(userID)
 }
 
-// WindowsUserContextState reports what Fleet knows about the enrollment's MDM user context, which decides whether its
+// WindowsUserContextStateFromDevice reports what Fleet knows about the enrollment's MDM user context, which decides whether its
 // user-scoped profiles are held or delivered.
-func WindowsUserContextState(device *fleet.MDMWindowsEnrolledDevice) fleet.WindowsUserContextState {
+func WindowsUserContextStateFromDevice(device *fleet.MDMWindowsEnrolledDevice) fleet.WindowsUserContextState {
 	if device == nil {
 		return fleet.WindowsUserContextUnknown
 	}
 	return WindowsUserContextStateFor(device.MDMEnrollUserID, device.LastLoginStatus)
 }
 
-// WindowsUserContextStateFor is WindowsUserContextState over the two fields it actually needs.
+// WindowsUserContextStateFor is WindowsUserContextStateFromDevice over the two fields it actually needs.
 func WindowsUserContextStateFor(enrollUserID string, lastLoginStatus *fleet.WindowsMDMLoginStatus) fleet.WindowsUserContextState {
 	if lastLoginStatus != nil && *lastLoginStatus == fleet.WindowsMDMLoginStatusUser {
 		// The device reported a usable user context.

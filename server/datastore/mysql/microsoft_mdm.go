@@ -1337,7 +1337,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 		}
 
 		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads,
-			microsoft_mdm.WindowsUserContextState(enrolledDevice),
+			microsoft_mdm.WindowsUserContextStateFromDevice(enrolledDevice),
 			enrolledDevice != nil && microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID)); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}

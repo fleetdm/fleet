@@ -606,7 +606,9 @@ type MDMWindowsProfilePayload struct {
 	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
 	// install is triggered because the profile content changed (a modify, not a fresh install).
 	PreviousInstalledChecksum []byte `db:"-"`
-	// UserChannelRejected is set when building this payload from a device response. Transient, never persisted.
+	// UserChannelRejected is set when Fleet parses a device's SyncML results. It becomes true when at least one failed command in the
+	// profile targeted a user-channel LocURI (canonical prefix User/) and its status code is one of an allow-list of "no user context
+	// available" rejections that Windows was empirically observed to return. Transient, never persisted.
 	UserChannelRejected bool `db:"-"`
 }
 
