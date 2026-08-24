@@ -123,9 +123,9 @@ variable "apple_apns_mock_memory" {
 }
 
 variable "apple_apns_mock_redis_instance_size" {
-  description = "Node type for the mock APNs Redis. Sized for the push rate, not the connection count: a full-fleet wave at 300k devices is ~900k commands."
+  description = "Node type for the mock APNs Redis."
   type        = string
-  default     = "cache.m7g.large"
+  default     = "cache.t4g.small"
 }
 
 variable "apple_apns_mock_redis_instance_count" {

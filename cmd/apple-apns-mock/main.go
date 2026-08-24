@@ -30,7 +30,7 @@ func run() error {
 	defaultTTL := flag.Duration("default-ttl", 24*time.Hour, "how long to hold a push for a disconnected device when the request has no apns-expiration header (an explicit apns-expiration of 0 or a past time means deliver-now-or-discard)")
 	debug := flag.Bool("debug", false, "enable debug logging")
 
-	redisAddress := flag.String("redis-address", "localhost:6379", "host:port of the Redis instances share (required)")
+	redisAddress := flag.String("redis-address", "", "host:port of the Redis instances share (required)")
 	redisUsername := flag.String("redis-username", "", "Redis username")
 	redisPassword := flag.String("redis-password", "", "Redis password")
 	redisDatabase := flag.Int("redis-database", 0, "Redis database")
