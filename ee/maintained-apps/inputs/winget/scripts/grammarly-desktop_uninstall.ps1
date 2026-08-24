@@ -1,11 +1,29 @@
-# Grammarly registers per user, so its uninstall entry lives in the user's own
-# hive rather than under HKLM. This reads the uninstaller path out of the loaded
-# user hives, then runs it through a scheduled task in the logged-in user's
-# session so the user's registry entry is removed along with the files.
+# Grammarly registers per user, so its uninstall entry lives in a user hive
+# rather than under HKLM, and the uninstaller has to run as that user for the
+# entry to go away with the files. Uninstall.exe also relaunches itself from a
+# temp copy and exits immediately, so removal is only done once the entry is gone.
 
 $softwareName = "Grammarly for Windows"
 
 $exitCode = 0
+
+function Get-GrammarlyEntry {
+    param([string]$DisplayName)
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots = @(
+            "Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            "Registry::$($hive.Name)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        )
+        foreach ($root in $roots) {
+            foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+                $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+                if ($key.DisplayName -eq $DisplayName) { return $key }
+            }
+        }
+    }
+    return $null
+}
 
 try {
 
@@ -15,28 +33,13 @@ if (-not $userName) {
     Exit 1
 }
 
-$roots = [System.Collections.Generic.List[string]]::new()
-foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
-    if ($hive.Name -match '_Classes$') { continue }
-    $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
-    $roots.Add("Registry::$($hive.Name)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
-}
-
-$uninstallCommand = $null
-foreach ($root in $roots) {
-    foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
-        $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
-        if ($key.DisplayName -ne $softwareName) { continue }
-        $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
-        break
-    }
-    if ($uninstallCommand) { break }
-}
-
-if (-not $uninstallCommand) {
+$entry = Get-GrammarlyEntry -DisplayName $softwareName
+if (-not $entry) {
     Write-Host "Uninstall entry not found for '$softwareName'."
     Exit 1
 }
+
+$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
 
 # Defensive parser for the three UninstallString shapes:
 #   "C:\Users\me\AppData\Local\Grammarly\...\Uninstall.exe" /S -> quoted
@@ -94,14 +97,22 @@ while ($state -eq "Running") {
     $state = (Get-ScheduledTask -TaskName "$taskName").State
 }
 
-$taskResult = (Get-ScheduledTaskInfo -TaskName "$taskName").LastTaskResult
-Write-Host "Uninstall exit code: $taskResult"
-if ($taskResult -ne 0) { $exitCode = $taskResult }
-
-Start-Sleep -Seconds 2
-
 Write-Host "Removing ScheduledTask: $taskName."
 Unregister-ScheduledTask -TaskName "$taskName" -Confirm:$false
+
+# The relaunched copy keeps working after the task exits, so wait for the
+# uninstall entry to disappear before reporting success.
+$removeDate = Get-Date
+while (Get-GrammarlyEntry -DisplayName $softwareName) {
+    if ((New-Timespan -Start $removeDate -End (Get-Date)).TotalSeconds -gt 180) {
+        Write-Host "'$softwareName' is still registered 180s after the uninstaller finished."
+        Exit 1
+    }
+    Write-Host "Waiting for '$softwareName' to be removed..."
+    Start-Sleep -Seconds 5
+}
+
+Write-Host "'$softwareName' removed."
 
 } catch {
     Write-Host "Error: $_"
