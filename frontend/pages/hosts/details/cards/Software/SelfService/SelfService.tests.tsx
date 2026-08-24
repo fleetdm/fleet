@@ -20,6 +20,8 @@ import {
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
 
+import { IDeviceSoftware } from "interfaces/software";
+
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
 
 /**
@@ -36,6 +38,28 @@ const getMoreDropdown = () => {
     throw new Error("Could not find the More actions dropdown");
   }
   return moreDropdown;
+};
+
+/**
+ * Serves one response per request, so a test can watch an install leave the
+ * pending state. The component starts polling as soon as it sees a pending item.
+ */
+const sequencedDeviceSoftwareHandler = (
+  statuses: IDeviceSoftware["status"][]
+) => {
+  let call = 0;
+  return http.get(baseUrl("/device/:token/software"), () => {
+    const status = statuses[Math.min(call, statuses.length - 1)];
+    call += 1;
+    return HttpResponse.json(
+      createMockDeviceSoftwareResponse({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "test-software", status }),
+        ],
+        count: 1,
+      })
+    );
+  });
 };
 
 const TEST_PROPS: ISoftwareSelfServiceProps = {
@@ -461,5 +485,39 @@ describe("SelfService", () => {
     expect(
       within(getUpdatesCard()).queryByRole("button", { name: /^Update$/ })
     ).not.toBeInTheDocument();
+  });
+  it("does not refetch host details when the only completed install failed", async () => {
+    const refetchHostDetails = jest.fn();
+    mockServer.use(
+      sequencedDeviceSoftwareHandler(["pending_install", "failed_install"])
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SelfService {...TEST_PROPS} refetchHostDetails={refetchHostDetails} />
+    );
+
+    // The poll has landed once the failed status renders.
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("install-status-cell__status--test")
+      ).toHaveTextContent("Failed")
+    );
+
+    expect(refetchHostDetails).not.toHaveBeenCalled();
+  });
+
+  it("refetches host details when a completed install succeeded", async () => {
+    const refetchHostDetails = jest.fn();
+    mockServer.use(
+      sequencedDeviceSoftwareHandler(["pending_install", "installed"])
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SelfService {...TEST_PROPS} refetchHostDetails={refetchHostDetails} />
+    );
+
+    await waitFor(() => expect(refetchHostDetails).toHaveBeenCalled());
   });
 });
