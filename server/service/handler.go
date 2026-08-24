@@ -1260,7 +1260,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// off (the default) upgrade attempts get a 404.
 	if config.WebSocket.TransportEnabled && extra.agentWSHub != nil {
 		ne.HandleHTTPHandler("/api/fleet/orbit/notifications",
-			agentws.NewHandler(extra.agentWSHub, svc, logger, config.Logging.Debug), "GET")
+			agentws.NewHandler(extra.agentWSHub, svc, logger), "GET")
 	}
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}

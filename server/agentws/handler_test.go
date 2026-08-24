@@ -35,30 +35,9 @@ func discardLogger() *slog.Logger {
 func newTestServer(t *testing.T, hub *Hub) *httptest.Server {
 	t.Helper()
 	auth := &fakeAuthenticator{hosts: map[string]uint{"key-1": 1, "key-2": 2}}
-	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger(), true))
+	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger()))
 	t.Cleanup(srv.Close)
 	return srv
-}
-
-func TestHandlerByteCountingDisabled(t *testing.T) {
-	hub := NewHub(discardLogger(), time.Minute, 30*time.Second)
-	auth := &fakeAuthenticator{hosts: map[string]uint{"key-1": 1}}
-	srv := httptest.NewServer(NewHandler(hub, auth, discardLogger(), false))
-	t.Cleanup(srv.Close)
-
-	ws := dial(t, srv, "key-1")
-	waitForConnCount(t, hub, 1)
-
-	require.Equal(t, 1, hub.Notify(fleet.AgentWSMessageTypeDistributedRead, fleet.AgentWSReasonDetail, []uint{1}))
-	require.NoError(t, ws.SetReadDeadline(time.Now().Add(2*time.Second)))
-	var msg fleet.AgentWSMessage
-	require.NoError(t, ws.ReadJSON(&msg))
-
-	// Delivery works, but no byte accounting happens.
-	snap := hub.Snapshot()
-	require.Len(t, snap, 1)
-	assert.Zero(t, snap[0].BytesIn)
-	assert.Zero(t, snap[0].BytesOut)
 }
 
 func dial(t *testing.T, srv *httptest.Server, nodeKey string) *websocket.Conn {
