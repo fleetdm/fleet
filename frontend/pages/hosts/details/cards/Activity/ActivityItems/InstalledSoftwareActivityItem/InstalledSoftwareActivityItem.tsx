@@ -84,9 +84,10 @@ const InstalledSoftwareActivityItem = ({
 
   // Auto-update installs are always Fleet-initiated even when the payload
   // carries a stale actor (e.g. a pre-fix retry that re-attributed to the
-  // admin who set up the schedule). Overriding here keeps rendering consistent
-  // with WasFromAutomation() on the backend.
-  const actor = from_auto_update ? "Fleet" : actorName ?? "Fleet";
+  // admin who set up the schedule). A missing actor means the initiating
+  // admin has been deleted since the install was queued (LEFT JOIN on users
+  // returns nil). Both cases render as "Fleet".
+  const actor = from_auto_update || !actorName ? "Fleet" : actorName;
 
   return (
     <ActivityItem
