@@ -218,10 +218,10 @@ const (
 // All keys share the {cfgetag} hash tag → same Redis Cluster slot, so the
 // multi-key MGET/EVAL calls below are legal in cluster mode.
 const (
-	genKey        = "{cfgetag}:gen"
-	fenceKey      = "{cfgetag}:fence"
-	legacyKey     = "{cfgetag}:legacy-packs"
-	scopeModesKey = "{cfgetag}:scope-modes"
+	genKeyBase        = "{cfgetag}:gen"
+	fenceKeyBase      = "{cfgetag}:fence"
+	legacyKeyBase     = "{cfgetag}:legacy-packs"
+	scopeModesKeyBase = "{cfgetag}:scope-modes"
 	// shared etag record keys append ":v<fleet version>:<scope>:<platform>",
 	// see (*Store).etagKey.
 	etagKeyPrefix = "{cfgetag}:etag"
@@ -302,6 +302,11 @@ func New(pool fleet.RedisPool, logger *slog.Logger) *Store {
 	}
 }
 
+func (s *Store) genKey() string        { return s.testPrefix + genKeyBase }
+func (s *Store) fenceKey() string      { return s.testPrefix + fenceKeyBase }
+func (s *Store) legacyKey() string     { return s.testPrefix + legacyKeyBase }
+func (s *Store) scopeModesKey() string { return s.testPrefix + scopeModesKeyBase }
+
 func (s *Store) etagKey(scope, platform string) string {
 	return fmt.Sprintf("%s%s:v%s:%s:%s", s.testPrefix, etagKeyPrefix, s.version, scope, platform)
 }
@@ -329,17 +334,17 @@ func (s *Store) hostETagTTLSeconds() int {
 // Shared records
 ////////////////////////////////////////////////////////////////////////////////
 
-// GetValid returns the stored SHARED ETag for (scope, platform) only when its
+// GetETagIfCurrent returns the stored SHARED ETag for (scope, platform) only when its
 // recorded generation matches the current generation. Any malformed or
 // generation-stale record is reported as a miss (ok=false) — the caller then
 // performs a normal full config build, so there is no failure mode here that
 // can serve wrong data.
-func (s *Store) GetValid(ctx context.Context, scope, platform string) (etag string, ok bool, err error) {
+func (s *Store) GetETagIfCurrent(ctx context.Context, scope, platform string) (etag string, ok bool, err error) {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 
 	// Single MGET; both keys share the {cfgetag} slot.
-	vals, err := redigo.Values(conn.Do("MGET", s.etagKey(scope, platform), s.testPrefix+genKey))
+	vals, err := redigo.Values(conn.Do("MGET", s.etagKey(scope, platform), s.genKey()))
 	if err != nil {
 		metricRequests.WithLabelValues("shared", "error").Inc()
 		return "", false, ctxerr.Wrap(ctx, err, "redis config etag get")
@@ -403,7 +408,7 @@ func (s *Store) SetIfNoFence(ctx context.Context, scope, platform, etag string) 
 	defer conn.Close()
 
 	res, err := redigo.Int64(conn.Do("EVAL", setIfNoFenceScript, 3,
-		s.testPrefix+fenceKey, s.testPrefix+genKey, s.etagKey(scope, platform),
+		s.fenceKey(), s.genKey(), s.etagKey(scope, platform),
 		etag, int(s.etagTTL.Seconds())))
 	if err != nil {
 		metricPublish.WithLabelValues("error").Inc()
@@ -440,7 +445,7 @@ func (s *Store) Invalidate(ctx context.Context) error {
 	defer conn.Close()
 
 	if _, err := conn.Do("EVAL", invalidateScript, 2,
-		s.testPrefix+genKey, s.testPrefix+fenceKey,
+		s.genKey(), s.fenceKey(),
 		int(s.fenceTTL.Seconds())); err != nil {
 		metricInvalidations.WithLabelValues("deployment", "error").Inc()
 		return ctxerr.Wrap(ctx, err, "redis config etag invalidate")
@@ -453,16 +458,16 @@ func (s *Store) Invalidate(ctx context.Context) error {
 // Per-host records
 ////////////////////////////////////////////////////////////////////////////////
 
-// GetValidHost returns the stored PER-HOST ETag only when its recorded
+// GetHostETagIfCurrent returns the stored PER-HOST ETag only when its recorded
 // generation matches the current generation AND its recorded scope and
 // platform match the authenticated host context. A team transfer or platform
 // change therefore reads as a miss with no key cleanup required. Malformed or
 // stale records are misses — never matches.
-func (s *Store) GetValidHost(ctx context.Context, hostID uint, scope, platform string) (etag string, ok bool, err error) {
+func (s *Store) GetHostETagIfCurrent(ctx context.Context, hostID uint, scope, platform string) (etag string, ok bool, err error) {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 
-	vals, err := redigo.Values(conn.Do("MGET", s.hostETagKey(hostID), s.testPrefix+genKey))
+	vals, err := redigo.Values(conn.Do("MGET", s.hostETagKey(hostID), s.genKey()))
 	if err != nil {
 		metricRequests.WithLabelValues("host", "error").Inc()
 		return "", false, ctxerr.Wrap(ctx, err, "redis config etag host get")
@@ -540,7 +545,7 @@ func (s *Store) SetHostIfNoFence(ctx context.Context, hostID uint, scope, platfo
 	defer conn.Close()
 
 	res, err := redigo.Int64(conn.Do("EVAL", setHostIfNoFenceScript, 4,
-		s.testPrefix+fenceKey, s.hostQuarantineKey(hostID), s.testPrefix+genKey, s.hostETagKey(hostID),
+		s.fenceKey(), s.hostQuarantineKey(hostID), s.genKey(), s.hostETagKey(hostID),
 		scope, platform, etag, s.hostETagTTLSeconds()))
 	if err != nil {
 		metricPublish.WithLabelValues("error").Inc()
@@ -653,7 +658,7 @@ func (s *Store) gateSet(ctx context.Context, key, val string) error {
 // another request on this instance is already loading — normal contention,
 // not a fault.
 func (s *Store) LegacyPacksPresent(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error) {
-	val, found, err := s.gateGet(ctx, s.testPrefix+legacyKey)
+	val, found, err := s.gateGet(ctx, s.legacyKey())
 	if err != nil {
 		return true, err
 	}
@@ -669,7 +674,7 @@ func (s *Store) LegacyPacksPresent(ctx context.Context, load func(ctx context.Co
 
 	// Re-check under leadership: another Fleet instance may have loaded and
 	// SET while we were losing the race locally.
-	if val, found, err := s.gateGet(ctx, s.testPrefix+legacyKey); err != nil {
+	if val, found, err := s.gateGet(ctx, s.legacyKey()); err != nil {
 		return true, err
 	} else if found {
 		return val != "0", nil
@@ -684,7 +689,7 @@ func (s *Store) LegacyPacksPresent(ctx context.Context, load func(ctx context.Co
 	if present {
 		stored = "1"
 	}
-	if err := s.gateSet(ctx, s.testPrefix+legacyKey, stored); err != nil {
+	if err := s.gateSet(ctx, s.legacyKey(), stored); err != nil {
 		return present, err
 	}
 	// Bounded state-write log: at most once per gateStateTTL/reset per
@@ -701,7 +706,7 @@ func (s *Store) ResetLegacyPacksFlag(ctx context.Context) error {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 
-	if _, err := conn.Do("DEL", s.testPrefix+legacyKey); err != nil {
+	if _, err := conn.Do("DEL", s.legacyKey()); err != nil {
 		return ctxerr.Wrap(ctx, err, "redis config etag legacy flag reset")
 	}
 	return nil
@@ -725,7 +730,7 @@ func (s *Store) LabelScopes(ctx context.Context, load func(ctx context.Context) 
 		return scopes, nil
 	}
 
-	val, found, err := s.gateGet(ctx, s.testPrefix+scopeModesKey)
+	val, found, err := s.gateGet(ctx, s.scopeModesKey())
 	if err != nil {
 		return fleet.ConfigETagLabelScopes{}, err
 	}
@@ -741,7 +746,7 @@ func (s *Store) LabelScopes(ctx context.Context, load func(ctx context.Context) 
 
 	// Re-check under leadership: another Fleet instance may have loaded and
 	// SET while we were losing the race locally.
-	if val, found, err := s.gateGet(ctx, s.testPrefix+scopeModesKey); err != nil {
+	if val, found, err := s.gateGet(ctx, s.scopeModesKey()); err != nil {
 		return fleet.ConfigETagLabelScopes{}, err
 	} else if found {
 		return parse(val)
@@ -756,7 +761,7 @@ func (s *Store) LabelScopes(ctx context.Context, load func(ctx context.Context) 
 	if err != nil {
 		return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, err, "marshal label scopes")
 	}
-	if err := s.gateSet(ctx, s.testPrefix+scopeModesKey, string(raw)); err != nil {
+	if err := s.gateSet(ctx, s.scopeModesKey(), string(raw)); err != nil {
 		// the loaded answer is still valid for this request
 		return scopes, err
 	}
@@ -777,7 +782,7 @@ func (s *Store) ResetLabelScopes(ctx context.Context) error {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 
-	if _, err := conn.Do("DEL", s.testPrefix+scopeModesKey); err != nil {
+	if _, err := conn.Do("DEL", s.scopeModesKey()); err != nil {
 		return ctxerr.Wrap(ctx, err, "redis config etag label scopes reset")
 	}
 	return nil
@@ -788,7 +793,7 @@ func (s *Store) ResetLabelScopes(ctx context.Context) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 // parseRecordAndGen extracts the record value and the current generation from
-// an MGET(recordKey, genKey) reply. A missing record yields ("", gen, nil); a
+// an MGET(recordKey, genKey()) reply. A missing record yields ("", gen, nil); a
 // missing generation key means no invalidation ever ran and reads as "0".
 func parseRecordAndGen(ctx context.Context, vals []any) (record, currentGen string, err error) {
 	if len(vals) != 2 || vals[0] == nil {

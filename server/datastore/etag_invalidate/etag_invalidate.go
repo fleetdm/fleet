@@ -79,6 +79,26 @@ import (
 // Datastore decorates a fleet.Datastore so that every successful
 // config-affecting write fires the appropriate ETag invalidation (see the
 // package docs for the deployment-wide vs per-host split).
+//
+// ADDING A DATASTORE METHOD: decide whether it can change what
+// Service.GetClientConfig returns — agent options (global or team), scheduled
+// reports, 2017 packs, or label membership that reports are scoped to. Indirect
+// changes count: a method that edits a label a report targets changes the
+// config for every host whose membership shifts.
+//
+// If it can, declare it here and invalidate after the inner call succeeds, then
+// add a case to deploymentHookCases or perHostHookCases in the tests —
+// TestEveryWrappedMethodHasAHookCase requires one, so a wrapper cannot be
+// declared without proving it fires.
+//
+// If it cannot, do nothing: this type embeds fleet.Datastore, so the method is
+// promoted and passes straight through. That convenience is also the trap —
+// forgetting to wrap a config-affecting write produces no compile error and no
+// test failure, just hosts told {"etag":"ok"} against a config that changed,
+// until the backstop TTL expires up to an hour later. Nothing detects that
+// automatically; reflection cannot distinguish a promoted method from a
+// declared one, and snapshotting fleet.Datastore was tried and rejected as too
+// noisy to be trustworthy (see coverage_test.go). It is a review concern.
 type Datastore struct {
 	fleet.Datastore
 	store  fleet.ConfigETagStore

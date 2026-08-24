@@ -65,7 +65,7 @@ func newStoreForTest(t testing.TB, pool fleet.RedisPool) *Store {
 func disarmFence(t *testing.T, s *Store) {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	_, err := conn.Do("DEL", s.testPrefix+fenceKey)
+	_, err := conn.Do("DEL", s.fenceKey())
 	require.NoError(t, err)
 }
 
@@ -82,7 +82,7 @@ func testSharedGetSetAndGenerationInvalidation(t *testing.T, s *Store) {
 	ctx := context.Background()
 
 	// empty store: miss
-	etag, ok, err := s.GetValid(ctx, "global", "darwin")
+	etag, ok, err := s.GetETagIfCurrent(ctx, "global", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok)
 	require.Empty(t, etag)
@@ -92,16 +92,16 @@ func testSharedGetSetAndGenerationInvalidation(t *testing.T, s *Store) {
 	require.NoError(t, err)
 	require.True(t, stored)
 
-	etag, ok, err = s.GetValid(ctx, "global", "darwin")
+	etag, ok, err = s.GetETagIfCurrent(ctx, "global", "darwin")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, `"abc"`, etag)
 
 	// different scope/platform: independent keys
-	_, ok, err = s.GetValid(ctx, "global", "windows")
+	_, ok, err = s.GetETagIfCurrent(ctx, "global", "windows")
 	require.NoError(t, err)
 	require.False(t, ok)
-	_, ok, err = s.GetValid(ctx, "team:1", "darwin")
+	_, ok, err = s.GetETagIfCurrent(ctx, "team:1", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok)
 
@@ -109,7 +109,7 @@ func testSharedGetSetAndGenerationInvalidation(t *testing.T, s *Store) {
 	// read as a miss, even though the key still physically exists. This is
 	// the read half of the invalidation.
 	require.NoError(t, s.Invalidate(ctx))
-	_, ok, err = s.GetValid(ctx, "global", "darwin")
+	_, ok, err = s.GetETagIfCurrent(ctx, "global", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok)
 
@@ -119,7 +119,7 @@ func testSharedGetSetAndGenerationInvalidation(t *testing.T, s *Store) {
 	stored, err = s.SetIfNoFence(ctx, "global", "darwin", `"def"`)
 	require.NoError(t, err)
 	require.True(t, stored)
-	etag, ok, err = s.GetValid(ctx, "global", "darwin")
+	etag, ok, err = s.GetETagIfCurrent(ctx, "global", "darwin")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, `"def"`, etag)
@@ -137,7 +137,7 @@ func testSharedWriteFence(t *testing.T, s *Store) {
 	require.NoError(t, err)
 	require.False(t, stored, "write must be suppressed while the fence is armed")
 
-	_, ok, err := s.GetValid(ctx, "team:5", "linux")
+	_, ok, err := s.GetETagIfCurrent(ctx, "team:5", "linux")
 	require.NoError(t, err)
 	require.False(t, ok, "suppressed write must not be readable")
 
@@ -149,7 +149,7 @@ func testSharedWriteFence(t *testing.T, s *Store) {
 	stored, err = s.SetIfNoFence(ctx, "team:5", "linux", `"fresh"`)
 	require.NoError(t, err)
 	require.True(t, stored)
-	etag, ok, err := s.GetValid(ctx, "team:5", "linux")
+	etag, ok, err := s.GetETagIfCurrent(ctx, "team:5", "linux")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, `"fresh"`, etag)
@@ -159,13 +159,13 @@ func testSharedMalformedRecord(t *testing.T, s *Store) {
 	ctx := context.Background()
 
 	// A record that doesn't parse as "<gen>|<etag>" must be a miss, never a
-	// match — GetValid can only fail toward a full config build.
+	// match — GetETagIfCurrent can only fail toward a full config build.
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
 	_, err := conn.Do("SET", s.etagKey("global", "darwin"), "garbage-no-separator")
 	require.NoError(t, err)
 
-	_, ok, err := s.GetValid(ctx, "global", "darwin")
+	_, ok, err := s.GetETagIfCurrent(ctx, "global", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -175,7 +175,7 @@ func testHostGetSetAndValidation(t *testing.T, s *Store) {
 	const hostID = uint(42)
 
 	// empty: miss
-	_, ok, err := s.GetValidHost(ctx, hostID, "team:7", "darwin")
+	_, ok, err := s.GetHostETagIfCurrent(ctx, hostID, "team:7", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok)
 
@@ -183,7 +183,7 @@ func testHostGetSetAndValidation(t *testing.T, s *Store) {
 	require.NoError(t, err)
 	require.True(t, stored)
 
-	etag, ok, err := s.GetValidHost(ctx, hostID, "team:7", "darwin")
+	etag, ok, err := s.GetHostETagIfCurrent(ctx, hostID, "team:7", "darwin")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, `"h42"`, etag)
@@ -199,17 +199,17 @@ func testHostGetSetAndValidation(t *testing.T, s *Store) {
 		"host record TTL must be within the jittered backstop bounds")
 
 	// isolation: another host never reads this record
-	_, ok, err = s.GetValidHost(ctx, 43, "team:7", "darwin")
+	_, ok, err = s.GetHostETagIfCurrent(ctx, 43, "team:7", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok, "a host record must never be readable by another host")
 
 	// team transfer: stored scope no longer matches → miss, no cleanup needed
-	_, ok, err = s.GetValidHost(ctx, hostID, "team:8", "darwin")
+	_, ok, err = s.GetHostETagIfCurrent(ctx, hostID, "team:8", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok, "a team transfer must read as a cache miss")
 
 	// platform change: stored platform no longer matches → miss
-	_, ok, err = s.GetValidHost(ctx, hostID, "team:7", "windows")
+	_, ok, err = s.GetHostETagIfCurrent(ctx, hostID, "team:7", "windows")
 	require.NoError(t, err)
 	require.False(t, ok, "a platform change must read as a cache miss")
 
@@ -231,7 +231,7 @@ func testHostQuarantine(t *testing.T, s *Store) {
 	require.True(t, stored)
 
 	require.NoError(t, s.InvalidateHost(ctx, hostID))
-	_, ok, err := s.GetValidHost(ctx, hostID, "global", "darwin")
+	_, ok, err := s.GetHostETagIfCurrent(ctx, hostID, "global", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok, "InvalidateHost must delete the record")
 
@@ -240,7 +240,7 @@ func testHostQuarantine(t *testing.T, s *Store) {
 	stored, err = s.SetHostIfNoFence(ctx, hostID, "global", "darwin", `"stale"`)
 	require.NoError(t, err)
 	require.False(t, stored, "publication must be suppressed while the quarantine is armed")
-	_, ok, err = s.GetValidHost(ctx, hostID, "global", "darwin")
+	_, ok, err = s.GetHostETagIfCurrent(ctx, hostID, "global", "darwin")
 	require.NoError(t, err)
 	require.False(t, ok, "suppressed publication must not be readable")
 
@@ -262,7 +262,7 @@ func testHostQuarantine(t *testing.T, s *Store) {
 	stored, err = s.SetHostIfNoFence(ctx, hostID, "global", "darwin", `"fresh"`)
 	require.NoError(t, err)
 	require.True(t, stored)
-	etag, ok, err := s.GetValidHost(ctx, hostID, "global", "darwin")
+	etag, ok, err := s.GetHostETagIfCurrent(ctx, hostID, "global", "darwin")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, `"fresh"`, etag)
@@ -279,7 +279,7 @@ func testHostGenerationInvalidation(t *testing.T, s *Store) {
 	// a deployment-wide invalidation (config/report mutation) makes per-host
 	// records stale through the embedded generation
 	require.NoError(t, s.Invalidate(ctx))
-	_, ok, err := s.GetValidHost(ctx, hostID, "global", "linux")
+	_, ok, err := s.GetHostETagIfCurrent(ctx, hostID, "global", "linux")
 	require.NoError(t, err)
 	require.False(t, ok, "deployment invalidation must invalidate per-host records")
 	disarmFence(t, s)
@@ -366,7 +366,7 @@ func testLabelScopesState(t *testing.T, s *Store) {
 	require.NoError(t, err)
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	ttl, terr := redigoInt(conn.Do("TTL", s.testPrefix+scopeModesKey))
+	ttl, terr := redigoInt(conn.Do("TTL", s.scopeModesKey()))
 	require.NoError(t, terr)
 	require.Positive(t, ttl)
 	require.LessOrEqual(t, ttl, int(gateStateTTL.Seconds()))

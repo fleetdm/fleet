@@ -152,6 +152,9 @@ type OsqueryLogger struct {
 	Result fleet.JSONLogger
 }
 
+// PackConfigCacheTTL is how long a marshaled pack config stays in packConfigCache
+const PackConfigCacheTTL = 1 * time.Minute
+
 // NewService creates a new service from the config struct
 func NewService(
 	ctx context.Context,
@@ -222,7 +225,7 @@ func NewService(
 		configETagErrLast:               new(atomic.Int64),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
+		packConfigCache:                 gocache.New(PackConfigCacheTTL, 30*time.Second),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

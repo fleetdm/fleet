@@ -10,8 +10,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,7 +57,7 @@ type stubConfigETagStore struct {
 
 var _ fleet.ConfigETagStore = (*stubConfigETagStore)(nil)
 
-func (s *stubConfigETagStore) GetValid(ctx context.Context, scope, platform string) (string, bool, error) {
+func (s *stubConfigETagStore) GetETagIfCurrent(ctx context.Context, scope, platform string) (string, bool, error) {
 	s.getCalls++
 	if s.getErr != nil {
 		return "", false, s.getErr
@@ -74,7 +76,7 @@ func (s *stubConfigETagStore) SetIfNoFence(ctx context.Context, scope, platform,
 
 func (s *stubConfigETagStore) Invalidate(ctx context.Context) error { return nil }
 
-func (s *stubConfigETagStore) GetValidHost(ctx context.Context, hostID uint, scope, platform string) (string, bool, error) {
+func (s *stubConfigETagStore) GetHostETagIfCurrent(ctx context.Context, hostID uint, scope, platform string) (string, bool, error) {
 	s.hostGetCalls++
 	if s.hostGetErr != nil {
 		return "", false, s.hostGetErr
@@ -162,8 +164,8 @@ func TestConfigETagSharedShortCircuitHit(t *testing.T) {
 	assert.True(t, result.NotModified)
 	assert.Nil(t, result.Body, "a not-modified result must carry no body")
 	assert.Equal(t, `"stored"`, result.ETag)
-	assert.Equal(t, "redis_not_modified", result.CacheStatus)
-	assert.Equal(t, "shared", result.Mode)
+	assert.Equal(t, fleet.ConfigETagStatusRedisNotModified, result.CacheStatus)
+	assert.Equal(t, fleet.ConfigETagModeShared, result.Mode)
 	assert.Equal(t, 1, store.getCalls)
 	assert.Equal(t, 0, store.hostGetCalls, "shared mode must not read per-host records")
 	assert.Equal(t, 0, store.setCalls)
@@ -195,8 +197,8 @@ func TestConfigETagPerHostShortCircuitHit(t *testing.T) {
 	assert.True(t, result.NotModified)
 	assert.Nil(t, result.Body)
 	assert.Equal(t, `"host-etag"`, result.ETag)
-	assert.Equal(t, "redis_host_not_modified", result.CacheStatus)
-	assert.Equal(t, "host", result.Mode)
+	assert.Equal(t, fleet.ConfigETagStatusRedisHostNotModified, result.CacheStatus)
+	assert.Equal(t, fleet.ConfigETagModeHost, result.Mode)
 	assert.Equal(t, 1, store.hostGetCalls)
 	assert.Equal(t, 0, store.getCalls, "per-host mode must never read the shared record")
 	assert.Equal(t, 0, store.hostSetCalls)
@@ -214,7 +216,7 @@ func TestConfigETagModeSelection(t *testing.T) {
 		name     string
 		host     *fleet.Host
 		store    *stubConfigETagStore
-		wantMode string
+		wantMode fleet.ConfigETagMode
 	}{
 		{
 			"no label scopes -> shared",
@@ -292,6 +294,19 @@ func TestConfigETagModeSelection(t *testing.T) {
 	}
 }
 
+// assertBodyCarriesETag checks that an opted-in agent's Body carries the
+// validator under the "etag" key. The hash-covers-canonical-body relationship
+// is pinned separately in TestConfigETagBodyContract, which compares the
+// opted-in and legacy responses directly rather than re-marshaling (a config
+// containing json.RawMessage does not round-trip byte-identically through
+// map[string]any).
+func assertBodyCarriesETag(t *testing.T, result *fleet.ClientConfigResult) {
+	t.Helper()
+	var withKey map[string]any
+	require.NoError(t, json.Unmarshal(result.Body, &withKey))
+	assert.Equal(t, result.ETag, withKey["etag"], "body must carry the validator")
+}
+
 // TestConfigETagMissBuildsAndPersists: a miss falls back to a full build,
 // and the fresh ETag is offered to the store under the right key family for
 // the mode.
@@ -317,7 +332,9 @@ func TestConfigETagMissBuildsAndPersists(t *testing.T) {
 
 				assert.False(t, result.NotModified)
 				assert.NotEmpty(t, result.Body)
-				assert.Equal(t, clientConfigETag(result.Body), result.ETag)
+				// The agent opted in, so Body carries the validator; the
+				// validator itself covers the canonical (etag-less) body.
+				assertBodyCarriesETag(t, result)
 				assert.True(t, ds.ListPacksForHostFuncInvoked, "miss must do a full build")
 
 				require.Equal(t, 1, store.setCalls)
@@ -345,7 +362,8 @@ func TestConfigETagMissBuildsAndPersists(t *testing.T) {
 
 		assert.False(t, result.NotModified)
 		assert.NotEmpty(t, result.Body)
-		assert.Equal(t, "host", result.Mode)
+		assertBodyCarriesETag(t, result)
+		assert.Equal(t, fleet.ConfigETagModeHost, result.Mode)
 		assert.True(t, ds.ListPacksForHostFuncInvoked, "miss must do a full build")
 
 		require.Equal(t, 1, store.hostSetCalls)
@@ -400,7 +418,7 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 	// v2 immediately.
 	second, err := svc.GetClientConfigWithETag(ctx, new(""))
 	require.NoError(t, err)
-	assert.Equal(t, "host", second.Mode)
+	assert.Equal(t, fleet.ConfigETagModeHost, second.Mode)
 	assert.Contains(t, string(second.Body), "report-v2",
 		"per-host mode must bypass the team pack cache")
 	assert.NotContains(t, string(second.Body), "report-v1")
@@ -411,7 +429,7 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 	store.scopes = fleet.ConfigETagLabelScopes{}
 	third, err := svc.GetClientConfigWithETag(ctx, new(""))
 	require.NoError(t, err)
-	assert.Equal(t, "shared", third.Mode)
+	assert.Equal(t, fleet.ConfigETagModeShared, third.Mode)
 	assert.Contains(t, string(third.Body), "report-v1",
 		"shared mode keeps using the team pack cache")
 }
@@ -452,7 +470,7 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			// 1. Shared-mode request warms the team pack cache with v1.
 			first, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
-			assert.Equal(t, "shared", first.Mode)
+			assert.Equal(t, fleet.ConfigETagModeShared, first.Mode)
 			assert.Contains(t, string(first.Body), "report-v1")
 
 			// 2. Schedules change while scope state becomes unavailable.
@@ -470,7 +488,7 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			getBefore, setBefore, hostSetBefore := store.getCalls, store.setCalls, store.hostSetCalls
 			second, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
-			assert.Equal(t, "bypass", second.Mode)
+			assert.Equal(t, fleet.ConfigETagModeBypass, second.Mode)
 			assert.Contains(t, string(second.Body), "report-v2",
 				"unknown label-scope state must bypass the team pack cache")
 			assert.NotContains(t, string(second.Body), "report-v1")
@@ -483,7 +501,7 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			store.scopesErr = nil
 			third, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
-			assert.Equal(t, "shared", third.Mode)
+			assert.Equal(t, fleet.ConfigETagModeShared, third.Mode)
 			assert.Contains(t, string(third.Body), "report-v1")
 		})
 	}
@@ -512,10 +530,10 @@ func TestConfigETagNaiveNotModifiedStillWorks(t *testing.T) {
 			first, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
 			assert.False(t, first.NotModified)
-			assert.Equal(t, "full_no_validator", first.CacheStatus)
+			assert.Equal(t, fleet.ConfigETagStatusFullNoValidator, first.CacheStatus)
 			require.NotEmpty(t, first.ETag)
 			if !withStore {
-				assert.Equal(t, "off", first.Mode)
+				assert.Equal(t, fleet.ConfigETagModeOff, first.Mode)
 			}
 
 			// second fetch presents the etag: full build, then naive not-modified
@@ -524,7 +542,7 @@ func TestConfigETagNaiveNotModifiedStillWorks(t *testing.T) {
 			assert.True(t, second.NotModified)
 			assert.Nil(t, second.Body)
 			assert.Equal(t, first.ETag, second.ETag)
-			assert.Equal(t, "not_modified", second.CacheStatus)
+			assert.Equal(t, fleet.ConfigETagStatusNotModified, second.CacheStatus)
 
 			if !withStore {
 				assert.Equal(t, 0, store.getCalls)
@@ -545,39 +563,39 @@ func TestConfigETagBodyContract(t *testing.T) {
 	svc, baseCtx := newTestService(t, ds, nil, nil)
 	ctx := hostctx.NewContext(baseCtx, &fleet.Host{ID: 1, Platform: "darwin"})
 
-	// Opted in (empty etag, first request): full config plus the etag key.
+	// Not opted in (nil): the canonical body, no etag key, and the validator
+	// covers exactly those bytes.
+	legacy, err := svc.GetClientConfigWithETag(ctx, nil)
+	require.NoError(t, err)
+	assert.False(t, legacy.NotModified)
+	require.NotNil(t, legacy.Body)
+	assert.NotContains(t, string(legacy.Body), `"etag"`)
+	assert.Equal(t, clientConfigETag(legacy.Body), legacy.ETag,
+		"the validator covers the etag-less body")
+
+	// Opted in (empty etag, first request): the same config with the etag key
+	// spliced in. Body is what goes on the wire in both cases.
 	optedIn, err := svc.GetClientConfigWithETag(ctx, new(""))
 	require.NoError(t, err)
 	assert.False(t, optedIn.NotModified)
 	require.NotNil(t, optedIn.Body)
-	require.NotNil(t, optedIn.BodyWithETag)
-	assert.NotContains(t, string(optedIn.Body), `"etag"`)
-	assert.Equal(t, clientConfigETag(optedIn.Body), optedIn.ETag,
-		"the validator covers the etag-less body")
+	assert.Equal(t, legacy.ETag, optedIn.ETag, "opting in does not change the validator")
 
 	var withKey map[string]any
-	require.NoError(t, json.Unmarshal(optedIn.BodyWithETag, &withKey))
+	require.NoError(t, json.Unmarshal(optedIn.Body, &withKey))
 	assert.Equal(t, optedIn.ETag, withKey["etag"])
 
-	// Stripping the etag key from BodyWithETag yields exactly Body.
+	// Stripping the etag key yields exactly the bytes a legacy agent gets.
 	delete(withKey, "etag")
 	stripped, err := marshalClientConfig(withKey)
 	require.NoError(t, err)
-	assert.Equal(t, string(optedIn.Body), string(stripped))
+	assert.Equal(t, string(legacy.Body), string(stripped))
 
-	// Not opted in (nil): the canonical body only, byte-identical legacy.
-	legacy, err := svc.GetClientConfigWithETag(ctx, nil)
-	require.NoError(t, err)
-	assert.False(t, legacy.NotModified)
-	assert.Nil(t, legacy.BodyWithETag, "legacy responses never carry an etag key")
-	assert.Equal(t, string(optedIn.Body), string(legacy.Body))
-
-	// Unchanged: neither body is populated; the endpoint serves the constant.
+	// Unchanged: no body at all; the endpoint serves the constant.
 	unchanged, err := svc.GetClientConfigWithETag(ctx, new(optedIn.ETag))
 	require.NoError(t, err)
 	assert.True(t, unchanged.NotModified)
 	assert.Nil(t, unchanged.Body)
-	assert.Nil(t, unchanged.BodyWithETag)
 }
 
 // TestConfigETagFeatureDisabled pins the osquery.config_etags escape hatch:
@@ -599,10 +617,10 @@ func TestConfigETagFeatureDisabled(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, result.NotModified)
 	require.NotNil(t, result.Body)
-	assert.NotContains(t, string(result.Body), `"etag"`)
-	assert.Nil(t, result.BodyWithETag, "disabled feature must never emit an etag key")
-	assert.Equal(t, "off", result.Mode)
-	assert.Equal(t, "full_no_validator", result.CacheStatus)
+	assert.NotContains(t, string(result.Body), `"etag"`,
+		"disabled feature must never emit an etag key")
+	assert.Equal(t, fleet.ConfigETagModeOff, result.Mode)
+	assert.Equal(t, fleet.ConfigETagStatusFullNoValidator, result.CacheStatus)
 
 	// The store is never consulted or written.
 	assert.Equal(t, 0, store.getCalls)
@@ -620,13 +638,13 @@ func TestConfigETagGateLoaders(t *testing.T) {
 		name        string
 		packs       []*fleet.Pack
 		scopes      fleet.ConfigETagLabelScopes
-		wantMode    string
+		wantMode    fleet.ConfigETagMode
 		wantHostGet int
 		wantGet     int
 	}{
-		{"no blockers -> shared", nil, fleet.ConfigETagLabelScopes{}, "shared", 0, 1},
-		{"2017 packs -> bypass", []*fleet.Pack{{ID: 1, Name: "p"}}, fleet.ConfigETagLabelScopes{}, "bypass", 0, 0},
-		{"global label scope -> host", nil, fleet.ConfigETagLabelScopes{Global: true}, "host", 1, 0},
+		{"no blockers -> shared", nil, fleet.ConfigETagLabelScopes{}, fleet.ConfigETagModeShared, 0, 1},
+		{"2017 packs -> bypass", []*fleet.Pack{{ID: 1, Name: "p"}}, fleet.ConfigETagLabelScopes{}, fleet.ConfigETagModeBypass, 0, 0},
+		{"global label scope -> host", nil, fleet.ConfigETagLabelScopes{Global: true}, fleet.ConfigETagModeHost, 1, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := newETagTestDS()
@@ -739,4 +757,34 @@ func TestConfigETagStateLoggedOncePerContainer(t *testing.T) {
 	const stateMsg = "config etag optimization state first observed"
 	assert.Equal(t, 1, strings.Count(buf.String(), stateMsg),
 		"the state log must be emitted exactly once per container")
+}
+
+// TestFenceTTLOutlivesInMemoryCaches turns the derivation documented on
+// redis_config_etag.DefaultFenceTTL into a build failure.
+//
+// The fence suppresses ETag publication after a config-affecting write. It has
+// to outlive every per-instance in-memory cache that feeds the config build,
+// because an instance whose caches are still warm with pre-write data would
+// otherwise compute the hash of a stale config and publish it as current —
+// freezing every host in the scope on a config that no longer exists. The
+// staleness is additive: packConfigCache is filled FROM cached_mysql reads.
+//
+// If any of those TTLs grows, DefaultFenceTTL must grow with it. Without this
+// test that relationship lives only in a comment, and nothing notices when it
+// stops holding.
+func TestFenceTTLOutlivesInMemoryCaches(t *testing.T) {
+	composedStaleness := PackConfigCacheTTL + cached_mysql.MaxConfigInputTTL()
+
+	require.Greater(t, redis_config_etag.DefaultFenceTTL, composedStaleness,
+		"DefaultFenceTTL (%s) must exceed packConfigCache TTL (%s) + max cached_mysql "+
+			"config-input TTL (%s) = %s; raising either cache TTL requires raising the fence",
+		redis_config_etag.DefaultFenceTTL, PackConfigCacheTTL,
+		cached_mysql.MaxConfigInputTTL(), composedStaleness)
+
+	// The backstop TTLs exist to bound a missed invalidation, so they must
+	// outlive the window in which publication is suppressed.
+	assert.Greater(t, redis_config_etag.DefaultETagTTL, redis_config_etag.DefaultFenceTTL,
+		"a shared record must outlive the fence, or the cache can never warm")
+	assert.Greater(t, redis_config_etag.DefaultHostETagMinTTL, redis_config_etag.DefaultFenceTTL,
+		"a per-host record must outlive the fence")
 }

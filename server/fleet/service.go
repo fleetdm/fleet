@@ -81,8 +81,9 @@ type OsqueryService interface {
 	// response.
 	//
 	// The request runs in one of four cache modes (see ClientConfigResult.Mode):
-	//   - "off": the feature flag is off or Redis is not configured (no
-	//     store set);
+	//   - "off": no store is configured — either osquery.config_etags or
+	//     osquery.redis_config_etags is false (the store is only injected when
+	//     both are true), or Redis is not set up;
 	//   - "bypass": the deployment has user-created 2017 "legacy" packs, or
 	//     the gate state could not be read/loaded (never guess);
 	//   - "shared": no label-scoped reports in the host's effective scope
@@ -1728,37 +1729,73 @@ type AdvancedKeyValueStore interface {
 // ClientConfigResult is the outcome of an ETag-aware osquery config request
 // (see OsqueryService.GetClientConfigWithETag).
 type ClientConfigResult struct {
-	// Body is the marshaled JSON config WITHOUT the "etag" key — the
-	// canonical representation the validator is computed over, and the exact
-	// bytes served to agents that did not opt in (byte-identical to the
-	// pre-feature response). It is nil when NotModified is true.
+	// Body is the exact bytes to write to the agent: the canonical config for
+	// an agent that did not opt in (byte-identical to the pre-feature
+	// response), or that config with the validator spliced in under the
+	// "etag" key for one that did. It is nil when NotModified is true.
 	Body []byte
-	// BodyWithETag is Body re-marshaled with the validator added under the
-	// "etag" key: the response body for an opted-in agent receiving the full
-	// config. It is nil when the agent did not opt in and when NotModified
-	// is true.
-	BodyWithETag []byte
-	// ETag is the validator for the config representation (SHA-256 hex of
-	// Body, or the Redis-stored value on a short-circuit hit). It is opaque
-	// to agents, which echo it verbatim in the "etag" request field. The
-	// literal value "ok" is reserved for the unchanged response and is never
-	// a real validator (impossible for hex output).
+	// ETag is the validator for the config representation: SHA-256 hex over the
+	// canonical (etag-less) body, or the Redis-stored value on a short-circuit
+	// hit. It is opaque to agents, which echo it verbatim in the "etag" request
+	// field, and the reserved value "ok" can never collide with hex output.
+	//
+	// The endpoint does not read this field — it is carried for tests and
+	// diagnostics; the value agents see is already spliced into Body.
 	ETag string
 	// NotModified reports that the client's etag matched: the response is
 	// the constant body {"etag":"ok"}.
 	NotModified bool
 	// CacheStatus describes, for observability only, how this result was
-	// produced. See the etag_result values logged by the osquery config
-	// endpoint: "redis_not_modified" (shared mode) and
-	// "redis_host_not_modified" (per-host mode) mean the SHORT CIRCUIT
-	// served an "unchanged" response without building the config; every
-	// other value means a full config build happened.
-	CacheStatus string
-	// Mode is the cache mode the request was served under, for
-	// observability only: "off" (no store configured), "bypass" (legacy
-	// packs present or gate state unavailable), "shared", or "host".
-	Mode string
+	// produced. It is logged as etag_result by the osquery config endpoint.
+	CacheStatus ConfigETagCacheStatus
+	// Mode is the cache mode the request was served under, for observability
+	// only. It is logged as etag_mode by the osquery config endpoint.
+	Mode ConfigETagMode
 }
+
+// ConfigETagMode is the cache mode an osquery config request was served
+// under. Observability only: it never changes the response an agent sees.
+type ConfigETagMode string
+
+const (
+	// ConfigETagModeOff means no store was configured, so the short circuit
+	// could not apply. Distinct from Bypass: the feature is not active at all.
+	ConfigETagModeOff ConfigETagMode = "off"
+	// ConfigETagModeBypass means the feature is active but this request
+	// declined to use it — user-created 2017 packs exist, or the gate state
+	// could not be read. Kept distinct from Off so the etag_mode field can
+	// tell "flag disabled" from "enabled but bypassing fleet-wide"; no
+	// control flow branches on it.
+	ConfigETagModeBypass ConfigETagMode = "bypass"
+	// ConfigETagModeShared uses one record per (scope, platform).
+	ConfigETagModeShared ConfigETagMode = "shared"
+	// ConfigETagModeHost uses one isolated record per host, because
+	// label-scoped reports make the rendered config host-specific.
+	ConfigETagModeHost ConfigETagMode = "host"
+)
+
+// ConfigETagCacheStatus is how an osquery config result was produced.
+// Observability only.
+type ConfigETagCacheStatus string
+
+const (
+	// These two are the only values meaning the SHORT CIRCUIT answered
+	// "unchanged" WITHOUT building the config. Every other value means a
+	// full config build happened.
+	ConfigETagStatusRedisNotModified     ConfigETagCacheStatus = "redis_not_modified"
+	ConfigETagStatusRedisHostNotModified ConfigETagCacheStatus = "redis_host_not_modified"
+
+	// ConfigETagStatusNotModified is the bandwidth-only path: the config was
+	// built, but the agent's validator matched it so the body shrinks to the
+	// constant "unchanged" form.
+	ConfigETagStatusNotModified ConfigETagCacheStatus = "not_modified"
+	// ConfigETagStatusFullMismatch is a full config sent to an agent whose
+	// validator did not match.
+	ConfigETagStatusFullMismatch ConfigETagCacheStatus = "full_mismatch"
+	// ConfigETagStatusFullNoValidator is a full config sent to an agent that
+	// sent no validator, or an empty one.
+	ConfigETagStatusFullNoValidator ConfigETagCacheStatus = "full_no_validator"
+)
 
 // ConfigETagLabelScopes is the cached deployment-wide answer to "which
 // report scopes contain label-scoped scheduled reports". It drives the
@@ -1824,10 +1861,10 @@ var ErrConfigETagGateLoading = errors.New("config etag gate state load in flight
 // All methods must FAIL OPEN from the caller's perspective: a Redis error
 // disables the optimization for that request, it never fails config delivery.
 type ConfigETagStore interface {
-	// GetValid returns the stored ETag for (scope, platform) only if its
+	// GetETagIfCurrent returns the stored ETag for (scope, platform) only if its
 	// recorded generation matches the current generation. ok is false on a
 	// missing/expired key or a stale generation.
-	GetValid(ctx context.Context, scope, platform string) (etag string, ok bool, err error)
+	GetETagIfCurrent(ctx context.Context, scope, platform string) (etag string, ok bool, err error)
 	// SetIfNoFence persists the ETag for (scope, platform), stamped with the
 	// current generation — unless the write fence is armed, in which case it
 	// does nothing and returns stored=false. The check-and-set is atomic in
@@ -1839,14 +1876,14 @@ type ConfigETagStore interface {
 	// config-affecting datastore write.
 	Invalidate(ctx context.Context) error
 
-	// GetValidHost returns the stored PER-HOST ETag for hostID only if its
+	// GetHostETagIfCurrent returns the stored PER-HOST ETag for hostID only if its
 	// recorded generation matches the current generation AND its recorded
 	// scope and platform match the authenticated host context — so a team
 	// transfer or platform change is a natural cache miss with no key
 	// cleanup required. Per-host records exist because label-scoped reports
 	// make the rendered config host-specific; a per-host record is never
 	// read by another host, so cross-host isolation is structural.
-	GetValidHost(ctx context.Context, hostID uint, scope, platform string) (etag string, ok bool, err error)
+	GetHostETagIfCurrent(ctx context.Context, hostID uint, scope, platform string) (etag string, ok bool, err error)
 	// SetHostIfNoFence persists the PER-HOST ETag stamped with the current
 	// generation and a jittered backstop TTL (~50-70m) — unless the
 	// deployment write fence OR the host's publish quarantine is armed, in

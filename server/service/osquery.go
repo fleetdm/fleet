@@ -451,38 +451,21 @@ func clientConfigETagMatches(clientETag *string, etag string) bool {
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getClientConfigRequest)
 
-	// ██ SHORT CIRCUIT WARNING ██ GetClientConfigWithETag may answer from the
-	// Redis-backed ETag store WITHOUT building the config (result.CacheStatus
-	// == "redis_not_modified"). See the method's interface docs in
-	// server/fleet/service.go for the full contract and every condition under
-	// which it falls back to a full build. The feature is ON by default;
-	// disable it with FLEET_OSQUERY_REDIS_CONFIG_ETAGS=false
-	// (osquery.redis_config_etags).
+	// GetClientConfigWithETag may answer without building the config at all;
+	// see its interface docs in server/fleet/service.go for the contract.
 	result, err := svc.GetClientConfigWithETag(ctx, req.ETag)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
 	}
 
-	// Debug logging for ETag behavior. "redis_not_modified" (shared) and
-	// "redis_host_not_modified" (per-host) are the only values meaning the
-	// config was NOT built; all others involved a full build. etag_mode is
-	// the cache mode the request was served under (off/bypass/shared/host);
-	// a publish outcome, when one was attempted, is added as etag_publish by
-	// the service. Aggregating these debug fields over a logging window
-	// yields hit rates, validator adoption, and suppression rates — the
-	// activation inputs — without any metrics pipeline.
+	// Per-request diagnostics are debug-only because this endpoint is the
+	// highest-volume route in Fleet; the Prometheus counters in
+	// server/service/redis_config_etag carry the aggregate view.
 	logging.WithLevel(ctx, slog.LevelDebug)
 	logging.WithExtras(ctx, "etag_result", result.CacheStatus, "etag_mode", result.Mode)
 
-	// Opted-in agents receive the config with the "etag" key added; agents
-	// that did not send the field receive the canonical body, byte-identical
-	// to the pre-feature response.
-	body := result.Body
-	if result.BodyWithETag != nil {
-		body = result.BodyWithETag
-	}
 	return getClientConfigResponse{
-		body:        body,
+		body:        result.Body,
 		notModified: result.NotModified,
 	}, nil
 }
@@ -529,16 +512,9 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 	return "pack_config:" + tid + ":" + qrd
 }
 
-// getPackConfig returns the marshaled pack config JSON for the host, along
-// with usedLegacyPacks reporting whether the host has user-created 2017
-// ("legacy") packs. It uses a cache for hosts without legacy packs and
-// without label-scoped queries, keyed by (teamID, queryReportsDisabled).
-//
-// The usedLegacyPacks return value matters beyond this function: a host WITH
-// legacy packs has a host-specific config, so its ETag must never be
-// persisted to the team-shared Redis ETag store (it would poison every
-// teammate with not-modified responses against the wrong config).
-// GetClientConfigWithETag relies on this flag to guard that write.
+// getPackConfig returns the marshaled pack config JSON for the host. It uses
+// a cache for hosts without legacy packs and without label-scoped queries,
+// keyed by (teamID, queryReportsDisabled).
 //
 // ██ bypassTeamPackCache ██ When true, the team-keyed packConfigCache is
 // neither read NOR written. Per-host cache mode (label-scoped reports in the
@@ -549,18 +525,14 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 // construction, invisible to every invalidation mechanism. This bypass
 // prevents systematic cross-host wrongness; it is not defense against a rare
 // race.
-func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassTeamPackCache bool) (raw json.RawMessage, usedLegacyPacks bool, err error) {
+// packs are the host's legacy (2017) packs, which make the config host-specific,
+// so its ETag must never reach the team-shared store.
+func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, packs []*fleet.Pack, bypassTeamPackCache bool) (raw json.RawMessage, err error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "fetch app config")
+		return nil, ctxerr.Wrap(ctx, err, "fetch app config")
 	}
 	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
-
-	// Check for legacy packs assigned to this specific host. Legacy packs are per-host, thus not cached.
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "list packs for host")
-	}
 
 	// Fast path: if no legacy packs and no label-scoped queries, try the cached pack config.
 	// The scheduled queries pack config is identical for all hosts in the
@@ -586,7 +558,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 		} else {
 			hasLabelScoped, err := svc.ds.HasLabelScopedScheduledQueries(ctx, host.TeamID, queryReportsDisabled)
 			if err != nil {
-				return nil, false, ctxerr.Wrap(ctx, err, "check label-scoped scheduled queries")
+				return nil, ctxerr.Wrap(ctx, err, "check label-scoped scheduled queries")
 			}
 			svc.packConfigCache.SetDefault(labelCacheKey, hasLabelScoped)
 			if hasLabelScoped {
@@ -599,8 +571,8 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 		if cached, found := svc.packConfigCache.Get(cacheKey); found {
 			// cached may be nil (negative cache: no queries for this team)
 			// or a json.RawMessage with the marshaled pack config.
-			raw, _ := cached.(json.RawMessage)
-			return raw, false, nil
+			cachedRaw, _ := cached.(json.RawMessage)
+			return cachedRaw, nil
 		}
 	}
 
@@ -610,7 +582,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 	for _, pack := range packs {
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
 		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
+			return nil, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
 		}
 
 		configQueries := fleet.Queries{}
@@ -644,7 +616,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 
 	globalQueries, err := svc.getScheduledQueries(ctx, nil)
 	if err != nil {
-		return nil, false, ctxerr.Wrap(ctx, err, "get global scheduled queries")
+		return nil, ctxerr.Wrap(ctx, err, "get global scheduled queries")
 	}
 	if len(globalQueries) > 0 {
 		packConfig["Global"] = fleet.PackContent{
@@ -655,7 +627,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 	if host.TeamID != nil {
 		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
 		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "get team scheduled queries")
+			return nil, ctxerr.Wrap(ctx, err, "get team scheduled queries")
 		}
 		if len(teamQueries) > 0 {
 			packName := fmt.Sprintf("team-%d", *host.TeamID)
@@ -668,7 +640,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 	if len(packConfig) > 0 {
 		packJSON, err := json.Marshal(packConfig)
 		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "marshal pack config")
+			return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
 		}
 		raw = json.RawMessage(packJSON)
 	}
@@ -681,22 +653,26 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassT
 		svc.packConfigCache.SetDefault(cacheKey, raw)
 	}
 
-	return raw, useLegacyPacks, nil
+	return raw, nil
 }
 
 // GetClientConfig always performs a full config build (it never consults the
 // Redis ETag store). It remains the entry point for the launcher (gRPC)
 // service. The osquery HTTP endpoint uses GetClientConfigWithETag instead.
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
-	config, _, err := svc.buildClientConfig(ctx, false)
-	return config, err
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, newOsqueryError("internal error: missing host from request context")
+	}
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
+	if err != nil {
+		return nil, newOsqueryError("internal error: list packs for host: " + err.Error())
+	}
+	return svc.buildClientConfig(ctx, packs, false)
 }
 
 // buildClientConfig performs the full osquery config build: agent options +
-// pack config + host intervals reconciliation. usedLegacyPacks reports
-// whether the host has user-created 2017 packs (host-specific config — see
-// getPackConfig for why callers must never persist such a config's ETag to
-// the team-shared Redis store).
+// pack config + host intervals reconciliation.
 //
 // ██ SIDE-EFFECT NOTICE ██ Anything added to this function (or anything it
 // calls) does NOT run when GetClientConfigWithETag serves a not-modified
@@ -712,25 +688,25 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 //
 // bypassTeamPackCache must be true for per-host cache-mode builds — see the
 // notice on getPackConfig.
-func (svc *Service) buildClientConfig(ctx context.Context, bypassTeamPackCache bool) (config map[string]any, usedLegacyPacks bool, err error) {
+func (svc *Service) buildClientConfig(ctx context.Context, packs []*fleet.Pack, bypassTeamPackCache bool) (config map[string]any, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, false, newOsqueryError("internal error: missing host from request context")
+		return nil, newOsqueryError("internal error: missing host from request context")
 	}
 
 	baseConfig, err := svc.AgentOptionsForHost(ctx, host.TeamID, host.Platform)
 	if err != nil {
-		return nil, false, newOsqueryError("internal error: fetch base config: " + err.Error())
+		return nil, newOsqueryError("internal error: fetch base config: " + err.Error())
 	}
 
 	config = make(map[string]any)
 	if baseConfig != nil {
 		err = json.Unmarshal(baseConfig, &config)
 		if err != nil {
-			return nil, false, newOsqueryError("internal error: parse base configuration: " + err.Error())
+			return nil, newOsqueryError("internal error: parse base configuration: " + err.Error())
 		}
 		if config == nil {
 			// Unmarshaling the JSON literal `null` (e.g. agent options with
@@ -741,9 +717,9 @@ func (svc *Service) buildClientConfig(ctx context.Context, bypassTeamPackCache b
 		}
 	}
 
-	packConfigJSON, usedLegacyPacks, err := svc.getPackConfig(ctx, host, bypassTeamPackCache)
+	packConfigJSON, err := svc.getPackConfig(ctx, host, packs, bypassTeamPackCache)
 	if err != nil {
-		return nil, false, newOsqueryError("internal error: build pack config: " + err.Error())
+		return nil, newOsqueryError("internal error: build pack config: " + err.Error())
 	}
 	if packConfigJSON != nil {
 		config["packs"] = packConfigJSON
@@ -786,11 +762,11 @@ func (svc *Service) buildClientConfig(ctx context.Context, bypassTeamPackCache b
 	// are not modified often.
 	if intervalsModified {
 		if err := svc.ds.UpdateHostOsqueryIntervals(ctx, host.ID, intervals); err != nil {
-			return nil, false, newOsqueryError("internal error: update host intervals: " + err.Error())
+			return nil, newOsqueryError("internal error: update host intervals: " + err.Error())
 		}
 	}
 
-	return config, usedLegacyPacks, nil
+	return config, nil
 }
 
 // clientConfigETagScope returns the Redis ETag scope for a host: "global" for
@@ -804,14 +780,6 @@ func clientConfigETagScope(host *fleet.Host) string {
 	}
 	return "global"
 }
-
-// Cache modes for the config ETag short circuit (fleet.ClientConfigResult.Mode).
-const (
-	configETagModeOff    = "off"    // no store configured (feature flag off or no Redis)
-	configETagModeBypass = "bypass" // legacy packs present, or gate state unavailable
-	configETagModeShared = "shared" // team-shared record: no label-scoped reports in scope
-	configETagModeHost   = "host"   // per-host record: label-scoped reports in scope
-)
 
 // GetClientConfigWithETag returns the osquery config plus ETag metadata,
 // implementing the Redis-backed SHORT CIRCUIT documented on the
@@ -872,7 +840,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// Cache-mode selection from the two cached gate answers. Their loaders
 	// (below) are the only DB load the short circuit machinery performs, at
 	// most once per few minutes per cluster.
-	// scopesUnknown is set when the deployment has no legacy packs but the
+	// labelScopesUnknown is set when the deployment has no legacy packs but the
 	// label-scope state could not be read or loaded. In that state the
 	// deployment MAY have label-scoped reports, which makes the team-keyed
 	// pack cache host-incorrect (see getPackConfig) — so the full build
@@ -882,10 +850,10 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// leader-election contention. This branch is unreachable during a full
 	// Redis outage — the legacy gate fails first and plain bypass (with the
 	// team cache, i.e. exact baseline behavior) applies.
-	scopesUnknown := false
-	mode := configETagModeOff
+	labelScopesUnknown := false
+	mode := fleet.ConfigETagModeOff
 	if store != nil {
-		mode = configETagModeBypass
+		mode = fleet.ConfigETagModeBypass
 		legacyPresent, err := store.LegacyPacksPresent(ctx, svc.userPacksExist)
 		switch {
 		case errors.Is(err, fleet.ErrConfigETagGateLoading):
@@ -902,24 +870,22 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 			switch {
 			case errors.Is(err, fleet.ErrConfigETagGateLoading):
 				// normal contention: bypass silently, as above — but the
-				// build must be per-host correct (see scopesUnknown).
-				scopesUnknown = true
+				// build must be per-host correct (see labelScopesUnknown).
+				labelScopesUnknown = true
 			case err != nil:
 				svc.logConfigETagError(ctx, "config etag: label scope state unavailable; bypassing short circuit", err)
-				scopesUnknown = true
+				labelScopesUnknown = true
 			case scopes.PerHostMode(host.TeamID):
-				mode = configETagModeHost
+				mode = fleet.ConfigETagModeHost
 			default:
-				mode = configETagModeShared
+				mode = fleet.ConfigETagModeShared
 			}
 		}
 		// Bounded state log: once per Fleet container, on first observation.
-		if svc.configETagStateOnce != nil {
-			svc.configETagStateOnce.Do(func() {
-				svc.logger.InfoContext(ctx, "config etag optimization state first observed",
-					"component", "config-etag", "mode", mode, "scope", scope)
-			})
-		}
+		svc.configETagStateOnce.Do(func() {
+			svc.logger.InfoContext(ctx, "config etag optimization state first observed",
+				"component", "config-etag", "mode", mode, "scope", scope)
+		})
 	}
 
 	// ██ THE SHORT CIRCUIT ██ One Redis MGET; zero database reads on a hit.
@@ -931,8 +897,8 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// who later reorders the mode selection.
 	if store != nil && clientETag != nil && *clientETag != "" {
 		switch mode {
-		case configETagModeShared:
-			storedETag, valid, err := store.GetValid(ctx, scope, host.Platform)
+		case fleet.ConfigETagModeShared:
+			storedETag, valid, err := store.GetETagIfCurrent(ctx, scope, host.Platform)
 			switch {
 			case err != nil:
 				// FAIL OPEN: fall through to the full build.
@@ -941,15 +907,15 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 				return &fleet.ClientConfigResult{
 					ETag:        storedETag,
 					NotModified: true,
-					CacheStatus: "redis_not_modified",
+					CacheStatus: fleet.ConfigETagStatusRedisNotModified,
 					Mode:        mode,
 				}, nil
 			}
-		case configETagModeHost:
-			// GetValidHost validates generation, stored scope, and stored
+		case fleet.ConfigETagModeHost:
+			// GetHostETagIfCurrent validates generation, stored scope, and stored
 			// platform against the authenticated host context — a team
 			// transfer or platform change reads as a miss.
-			storedETag, valid, err := store.GetValidHost(ctx, host.ID, scope, host.Platform)
+			storedETag, valid, err := store.GetHostETagIfCurrent(ctx, host.ID, scope, host.Platform)
 			switch {
 			case err != nil:
 				svc.logConfigETagError(ctx, "config etag: redis host read failed; falling back to full config build", err)
@@ -957,7 +923,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 				return &fleet.ClientConfigResult{
 					ETag:        storedETag,
 					NotModified: true,
-					CacheStatus: "redis_host_not_modified",
+					CacheStatus: fleet.ConfigETagStatusRedisHostNotModified,
 					Mode:        mode,
 				}, nil
 			}
@@ -969,11 +935,17 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// its content is one host's label-filtered render served team-wide, so a
 	// per-host record derived from it could bind this host to another host's
 	// config — poisoning that no invalidation mechanism can see. The bypass
-	// also applies when the label-scope state is unknown (scopesUnknown):
+	// also applies when the label-scope state is unknown (labelScopesUnknown):
 	// the deployment may have label-scoped reports, so the cached render may
 	// be host-incorrect for this host. Shared mode and plain bypass keep the
 	// pre-existing build path, in-memory caches and all.
-	config, usedLegacyPacks, err := svc.buildClientConfig(ctx, mode == configETagModeHost || scopesUnknown)
+	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
+	if err != nil {
+		return nil, newOsqueryError("internal error: list packs for host: " + err.Error())
+	}
+	usedLegacyPacks := len(packs) > 0
+
+	config, err := svc.buildClientConfig(ctx, packs, mode == fleet.ConfigETagModeHost || labelScopesUnknown)
 	if err != nil {
 		return nil, err
 	}
@@ -1000,33 +972,15 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// The store != nil guard mirrors the short-circuit gate above: publish
 	// modes imply a store, but the invariant is kept local and provable.
 	if store != nil && !usedLegacyPacks {
-		var (
-			stored     bool
-			publishErr error
-			attempted  bool
-		)
+		// Only shared/host modes publish; bypass and off never touch Redis, so
+		// the absence of a case is the "nothing to publish" path.
 		switch mode {
-		case configETagModeShared:
-			attempted = true
-			stored, publishErr = store.SetIfNoFence(ctx, scope, host.Platform, etag)
-		case configETagModeHost:
-			attempted = true
-			stored, publishErr = store.SetHostIfNoFence(ctx, host.ID, scope, host.Platform, etag)
-		}
-		if attempted {
-			switch {
-			case publishErr != nil:
-				// FAIL OPEN: the response is unaffected; only the optimization is.
-				svc.logConfigETagError(ctx, "config etag: redis write failed", publishErr)
-				logging.WithExtras(ctx, "etag_publish", "error")
-			case !stored:
-				// fence or quarantine suppression — normal operation after a
-				// recent mutation/invalidation; details are in the store
-				// metrics and this debug field.
-				logging.WithExtras(ctx, "etag_publish", "suppressed")
-			default:
-				logging.WithExtras(ctx, "etag_publish", "stored")
-			}
+		case fleet.ConfigETagModeShared:
+			stored, publishErr := store.SetIfNoFence(ctx, scope, host.Platform, etag)
+			svc.recordETagPublish(ctx, stored, publishErr)
+		case fleet.ConfigETagModeHost:
+			stored, publishErr := store.SetHostIfNoFence(ctx, host.ID, scope, host.Platform, etag)
+			svc.recordETagPublish(ctx, stored, publishErr)
 		}
 	}
 
@@ -1035,12 +989,12 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// naive-not-modified path: the config was built, but the response body
 	// shrinks to the constant "unchanged" form).
 	notModified := clientConfigETagMatches(clientETag, etag)
-	cacheStatus := "full_mismatch"
+	cacheStatus := fleet.ConfigETagStatusFullMismatch
 	switch {
 	case notModified:
-		cacheStatus = "not_modified"
+		cacheStatus = fleet.ConfigETagStatusNotModified
 	case clientETag == nil || *clientETag == "":
-		cacheStatus = "full_no_validator"
+		cacheStatus = fleet.ConfigETagStatusFullNoValidator
 	}
 	result := &fleet.ClientConfigResult{
 		ETag:        etag,
@@ -1049,18 +1003,19 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		Mode:        mode,
 	}
 	if !notModified {
+		// An opted-in agent receives the config with the validator added under
+		// the "etag" key; an agent that never sent the field receives the
+		// canonical body. The validator is always computed over the etag-less
+		// body — the representation the agent applies after stripping the key —
+		// so the re-marshal happens after hashing.
 		result.Body = body
-		// An opted-in agent receives the config with the validator added
-		// under the "etag" key. The validator itself is always computed over
-		// the etag-less Body — the representation the agent applies after
-		// stripping the key — so the re-marshal happens after hashing.
 		if clientETag != nil {
 			config["etag"] = etag
 			bodyWithETag, err := marshalClientConfig(config)
 			if err != nil {
 				return nil, newOsqueryError("internal error: encode config with etag: " + err.Error())
 			}
-			result.BodyWithETag = bodyWithETag
+			result.Body = bodyWithETag
 		}
 	}
 	return result, nil
@@ -1093,6 +1048,22 @@ func (svc *Service) labelScopedReportScopes(ctx context.Context) (fleet.ConfigET
 		return fleet.ConfigETagLabelScopes{}, ctxerr.Wrap(ctx, err, "list label scoped report scopes for config etag mode")
 	}
 	return scopes, nil
+}
+
+// recordETagPublish logs the outcome of an ETag publication attempt as the
+// etag_publish debug field. Publication failing is never visible to the agent
+// — it only costs the optimization.
+func (svc *Service) recordETagPublish(ctx context.Context, stored bool, err error) {
+	switch {
+	case err != nil:
+		svc.logConfigETagError(ctx, "config etag: redis write failed", err)
+		logging.WithExtras(ctx, "etag_publish", "error")
+	case !stored:
+		// Fence or quarantine suppression: normal after a recent mutation.
+		logging.WithExtras(ctx, "etag_publish", "suppressed")
+	default:
+		logging.WithExtras(ctx, "etag_publish", "stored")
+	}
 }
 
 // logConfigETagError logs config-ETag Redis/gate errors at most once per 30
