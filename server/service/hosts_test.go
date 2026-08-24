@@ -5238,7 +5238,7 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
 	})
 
-	t.Run("IDP source same email returns early without updates", func(t *testing.T) {
+	t.Run("IDP source same email skips email update but still reconciles SCIM mapping", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
@@ -5251,6 +5251,12 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{ID: 2, UserName: "user@example.com"}, nil
+		}
+		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			return nil, nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
@@ -5259,9 +5265,11 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		require.Len(t, result, 1)
 		assert.Equal(t, "user@example.com", result[0].Email)
 
-		// These should NOT be invoked because the email hasn't changed
+		// Email update should NOT be invoked because the email hasn't changed
 		require.False(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
-		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
+		// But SCIM mapping SHOULD still be reconciled (fixes #46624)
+		require.True(t, ds.ScimUserByUserNameOrEmailFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
 	})
 
 	t.Run("IDP source different email proceeds with update", func(t *testing.T) {
