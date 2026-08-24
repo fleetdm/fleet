@@ -57,7 +57,8 @@ module "loadtest" {
       require_secure_transport = "ON"
     }
     observability = {
-      database_insights_mode = "standard"
+      performance_insights_enabled = true
+      database_insights_mode       = "standard"
     }
   }
   redis_config = {
@@ -95,6 +96,7 @@ module "loadtest" {
   fleet_config = {
     image               = local.fleet_image
     family              = local.customer
+    command             = ["fleet", "serve", "--dev"]
     mem                 = var.fleet_task_memory
     cpu                 = var.fleet_task_cpu
     security_group_name = local.customer

@@ -47,7 +47,10 @@ module.exports = {
         sails.config.custom.licenseKeyGeneratorPublicKey,
         { algorithm: 'ES256' }
       );
-    } catch(unusedErr) {
+    } catch(err) {
+      // If a license could not be verified, log the error name and message
+      sails.log.info('VPP proxy could not verify Fleet license:', err.name, err.message);
+
       // If there is an error parsing the provided fleetLicenseKey, return a couldNotVerifyLicense response.
       throw 'couldNotVerifyLicense';
     }

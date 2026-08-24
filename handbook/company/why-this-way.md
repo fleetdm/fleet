@@ -126,11 +126,10 @@ The only exceptions are:
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
-3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
-4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
+3. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
-5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+4. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
@@ -231,14 +230,14 @@ We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's
 12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
 
 
-### Why scrum?
+### Why continuous flow?
 
-Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
-- Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
-- Flexibility and adaptability: Scrum allows teams to respond quickly to changing requirements and market conditions. By working in short sprints, teams can continuously adapt to new information and feedback, and adjust their approach as needed.
-- Continuous improvement: Scrum encourages teams to reflect on their processes and identify areas for improvement. The regular sprint retrospective meetings provide a forum for the team to discuss what went well and what could be improved, and to make changes to their processes accordingly.
-- Faster delivery of working software: Scrum helps teams deliver working software faster by breaking down the development process into manageable chunks that can be completed within a sprint. Stakeholders can see progress and provide feedback more quickly, which helps ensure the final product meets their needs.
-- Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
+Fleet's product groups use a continuous flow process instead of fixed multi-week iterations. Well-drafted stories can often be implemented in a day or two, so batching work into fixed iterations adds latency without adding value. Instead, issues flow continuously across each group's board from intake to release. Here are some of the reasons we work [this way](https://fleetdm.com/handbook/company/product-groups#continuous-flow):
+- Less latency: Work starts as soon as it is ready, instead of waiting for the next iteration to begin.
+- Flexibility and adaptability: Teams respond quickly to changing requirements and new information, and adjust their approach as they learn.
+- Continuous improvement: A short retrospective at the end of each three-week release gives the team a regular forum to reflect on what went well, what could be better, and what to change.
+- Faster delivery of working software: Breaking work into small, independently valuable stories lets the team ship and gather feedback sooner.
+- Higher quality software: Quality assurance is involved from intake onward, so testing and reliability are built in rather than bolted on.
 
 
 ### Why lean software development?
@@ -511,6 +510,9 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 
 ##### What is a P1?
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
+
+##### Why scrum?
+Please see [handbook/company/why-this-way#why-continuous-flow](https://fleetdm.com/handbook/company/why-this-way#why-continuous-flow).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="💭 Why this way?">

@@ -1,10 +1,12 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import classnames from "classnames";
 
+import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
+  formatFileSize,
   getExtensionFromFileName,
   getFileDetails,
 } from "utilities/file/fileUtils";
@@ -33,12 +35,18 @@ import {
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
+import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
+import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import { createTooltipContent, generateFormValidation } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import {
+  createTooltipContent,
+  estimateUploadSize,
+  generateFormValidation,
+} from "./helpers";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -70,6 +78,8 @@ const getGraphicName = (ext: string) => {
     return "file-sh";
   } else if (ext === "ps1") {
     return "file-ps1";
+  } else if (ext === "py") {
+    return "file-py";
   }
   return "file-pkg";
 };
@@ -95,14 +105,17 @@ const renderSoftwareDeployWarningBanner = () => (
 const renderFileTypeMessage = () => {
   return (
     <>
-      macOS (.pkg,{" "}
-      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>),
-      iOS/iPadOS (.ipa),
-      <br />
-      Windows (.msi, .exe,{" "}
-      <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm, .tar.gz,{" "}
-      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
+      <TooltipWrapper tipContent="Supports .pkg, .sh, and .py">
+        macOS
+      </TooltipWrapper>
+      , <TooltipWrapper tipContent="Supports .ipa">iOS/iPadOS</TooltipWrapper>,{" "}
+      <TooltipWrapper tipContent="Supports .msi, .exe, .ps1">
+        Windows
+      </TooltipWrapper>
+      , or{" "}
+      <TooltipWrapper tipContent="Supports .deb, .rpm, .tar.gz, .sh, and .py">
+        Linux
+      </TooltipWrapper>
     </>
   );
 };
@@ -146,10 +159,11 @@ interface IPackageFormProps {
   /** Overrides the initial `targetType` for new (non-editing) forms. The
    * multi-package add modal preselects `"Custom"` per Figma. */
   initialTargetType?: string;
+  patchWhenClosed?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
-  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.ipa";
+  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.py,.ipa";
 
 const PackageForm = ({
   labels,
@@ -174,8 +188,11 @@ const PackageForm = ({
   restrictedFileAccept,
   restrictedFileTypeLabel,
   initialTargetType,
+  patchWhenClosed = false,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
+  const { config } = useContext(AppContext);
+  const maxSoftwarePackageSize = config?.max_software_package_size;
 
   const initialFormData: IPackageFormData = {
     // `formData.software` is typed as `File | null` (its shape once a user
@@ -204,9 +221,29 @@ const PackageForm = ({
     software: { isValid: false },
   });
 
+  const notifyTooLarge = () => {
+    const errorPrefix = isEditingSoftware
+      ? EDIT_SOFTWARE_ERROR_PREFIX
+      : ADD_SOFTWARE_ERROR_PREFIX;
+    notify.error(
+      `${errorPrefix} The maximum file size is ${formatFileSize(
+        maxSoftwarePackageSize || 0
+      )}.`
+    );
+  };
+
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
+
+      // Reject before uploading if file size is too big
+      if (
+        maxSoftwarePackageSize !== undefined &&
+        file.size > maxSoftwarePackageSize
+      ) {
+        notifyTooLarge();
+        return;
+      }
 
       // Only populate default install/uninstall scripts when adding (but not editing) software
       if (isEditingSoftware) {
@@ -245,6 +282,16 @@ const PackageForm = ({
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    // The server caps the whole request body, and not just the file.
+    if (
+      maxSoftwarePackageSize !== undefined &&
+      estimateUploadSize(formData) > maxSoftwarePackageSize
+    ) {
+      notifyTooLarge();
+      return;
+    }
+
     onSubmit(formData);
   };
 
@@ -403,11 +450,13 @@ const PackageForm = ({
   );
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
-  // Options selector (self-service + categories) stays edit-only. The target
-  // selector shows whenever a package is being staged — on Edit, in the
+  // The options selector exposes Self-service on Add and Edit; categories
+  // remain edit-only inside SoftwareOptionsSelector. The target selector
+  // shows whenever a package is being staged — on Edit, in the
   // multi-package Add modal, and on the single-package Add page once a file
   // is chosen — because every package on a title needs its own label scope.
-  const showSoftwareOptionsSelector = !gitOpsModeEnabled && isEditingSoftware;
+  const showSoftwareOptionsSelector =
+    !gitOpsModeEnabled && (isEditingSoftware || !!formData.software);
   const showTargetLabelSelector =
     !gitOpsModeEnabled &&
     (isEditingSoftware || multiPackageContext || !!formData.software);
@@ -466,7 +515,7 @@ const PackageForm = ({
           message={restrictedFileTypeLabel ?? renderFileTypeMessage()}
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           className={`${baseClass}__file-uploader`}
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
@@ -520,6 +569,7 @@ const PackageForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            patchWhenClosed={patchWhenClosed}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>
@@ -550,7 +600,7 @@ const PackageForm = ({
             );
           })()}
 
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         </div>

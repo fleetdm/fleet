@@ -1,6 +1,6 @@
 import React from "react";
 
-import Button from "components/buttons/Button";
+import Tag from "components/Tag";
 import { ILabel } from "interfaces/label";
 import classnames from "classnames";
 
@@ -29,13 +29,13 @@ const Labels = ({
     .map((label: ILabel) => {
       return (
         <li className={`${baseClass}__list-item`} key={label.id}>
-          <Button
+          <Tag
+            type="clickable"
             onClick={() => onLabelClick(label)}
-            variant="pill"
             className={`${baseClass}__list-button`}
           >
             <TooltipTruncatedText value={label.name} />
-          </Button>
+          </Tag>
         </li>
       );
     });

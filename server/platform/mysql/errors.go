@@ -28,6 +28,9 @@ func NotFound(kind string) *NotFoundError {
 }
 
 func (e *NotFoundError) Error() string {
+	if e.ID != 0 && e.FleetID != 0 {
+		return fmt.Sprintf("%s %d for fleet %d was not found in the datastore", e.ResourceType, e.ID, e.FleetID)
+	}
 	if e.ID != 0 {
 		return fmt.Sprintf("%s %d was not found in the datastore", e.ResourceType, e.ID)
 	}
@@ -43,12 +46,12 @@ func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("%s was not found in the datastore", e.ResourceType)
 }
 
-func (e *NotFoundError) WithID(id uint) error {
+func (e *NotFoundError) WithID(id uint) *NotFoundError {
 	e.ID = id
 	return e
 }
 
-func (e *NotFoundError) WithFleetID(fleetID uint) error {
+func (e *NotFoundError) WithFleetID(fleetID uint) *NotFoundError {
 	e.FleetID = fleetID
 	return e
 }
@@ -58,7 +61,7 @@ func (e *NotFoundError) WithName(name string) *NotFoundError {
 	return e
 }
 
-func (e *NotFoundError) WithMessage(msg string) error {
+func (e *NotFoundError) WithMessage(msg string) *NotFoundError {
 	e.Message = msg
 	return e
 }

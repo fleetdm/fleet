@@ -19,6 +19,7 @@ describe("LocalAccountSection", () => {
       lockEndUserInfo: false,
       enableManagedLocalAccount: false,
       localAccountType: EndUserLocalAccountType.ADMIN,
+      enableManagedLocalAccountWindows: false,
     },
     onLocalAccountTypeChange: onLocalAccountTypeChangeMock,
     onEnableManagedLocalAccountChange: onEnableManagedLocalAccountChangeMock,
@@ -29,12 +30,10 @@ describe("LocalAccountSection", () => {
     withBackendMock: true,
   });
 
-  it("renders the section title and subtitle", () => {
+  it("renders the sub-section headings", () => {
     render(<LocalAccountSection {...defaultProps} />);
-    expect(screen.getByText("Local accounts")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Currently supported for macOS hosts/)
-    ).toBeInTheDocument();
+    expect(screen.getByText("End user account")).toBeInTheDocument();
+    expect(screen.getByText("Managed account")).toBeInTheDocument();
   });
 
   it("renders the managed local account checkbox with help text", () => {
@@ -43,7 +42,7 @@ describe("LocalAccountSection", () => {
       screen.getByRole("checkbox", { name: "Create hidden admin" })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Fleet creates a user \(_fleetadmin\)/)
+      screen.getByText("A hidden local admin for remote troubleshooting.")
     ).toBeInTheDocument();
   });
 

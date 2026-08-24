@@ -39,6 +39,7 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestListMDMCommandsByHostIdentifier", testListMDMCommandsByHostIdentifier},
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
 		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
@@ -3412,6 +3413,9 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	checkSummaryWindows := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		// GetMDMWindowsProfilesSummary reads the maintained host_mdm_windows_profiles_status rollup; this test seeds
+		// host_mdm_windows_profiles directly, so reconcile it first.
+		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
@@ -4018,6 +4022,56 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		linuxHost.UUID:                      false,
 		disconnectedWithoutCheckoutMac.UUID: false,
 		disconnectedWithoutCheckoutWin.UUID: false,
+	}, connectedMap)
+
+	// Android: enrolled host should be connected
+	connectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-connected",
+		OsqueryHostID: new("osquery-android-connected"),
+		NodeKey:       new("node-key-android-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, connectedAndroid.ID, false, true, "https://android.example.com", true, "Android", "", false)
+	require.NoError(t, err)
+
+	// Android: host without MDM enrollment should not be connected
+	notConnectedAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-not-connected",
+		OsqueryHostID: new("osquery-android-not-connected"),
+		NodeKey:       new("node-key-android-not-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	// Android: unenrolled host (enrolled=false) should not be connected
+	unenrolledAndroid, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-test-unenrolled",
+		OsqueryHostID: new("osquery-android-unenrolled"),
+		NodeKey:       new("node-key-android-unenrolled"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, unenrolledAndroid.ID, false, false, "", false, "", "", false)
+	require.NoError(t, err)
+
+	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+		connectedMac,
+		connectedWin,
+		connectedAndroid,
+		notConnectedAndroid,
+		unenrolledAndroid,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		connectedMac.UUID:        true,
+		connectedWin.UUID:        true,
+		connectedAndroid.UUID:    true,
+		notConnectedAndroid.UUID: false,
+		unenrolledAndroid.UUID:   false,
 	}, connectedMap)
 }
 
@@ -5601,16 +5655,51 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		return profileUUID
 	}
 
-	mkHostProfileLink := func(t *testing.T, hostUUID, profileUUID, commandUUID string) {
+	mkHostProfileLinkWithScope := func(t *testing.T, hostUUID, profileUUID, commandUUID string, scope fleet.PayloadScope) {
 		t.Helper()
 		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
 			ProfileUUID:   profileUUID,
 			HostUUID:      hostUUID,
 			Checksum:      []byte("0123456789abcdef"),
-			Scope:         fleet.PayloadScopeSystem,
+			Scope:         scope,
 			OperationType: fleet.MDMOperationTypeInstall,
 			CommandUUID:   commandUUID,
 		}}))
+	}
+
+	mkHostProfileLink := func(t *testing.T, hostUUID, profileUUID, commandUUID string) {
+		t.Helper()
+		mkHostProfileLinkWithScope(t, hostUUID, profileUUID, commandUUID, fleet.PayloadScopeSystem)
+	}
+
+	// mkUserEnrollment gives the host a user channel, keyed as nanomdm keys them.
+	mkUserEnrollment := func(t *testing.T, hostUUID, userID string, enabled bool) string {
+		t.Helper()
+		enrollmentID := hostUUID + ":" + userID
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT IGNORE INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`,
+				hostUUID, hostUUID, "test"); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx,
+				`INSERT IGNORE INTO nano_users (id, device_id, user_short_name, user_long_name) VALUES (?, ?, ?, ?)`,
+				enrollmentID, hostUUID, "alice", "Alice"); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, enabled, last_seen_at)
+				 VALUES (?, ?, ?, 'User', 'topic', 'magic', 'hex', ?, NOW())`,
+				enrollmentID, hostUUID, enrollmentID, enabled)
+			return err
+		})
+		t.Cleanup(func() {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM nano_enrollments WHERE id = ?`, enrollmentID)
+				return err
+			})
+		})
+		return enrollmentID
 	}
 
 	acmeXML := []byte(`<?xml version="1.0"?><plist><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.acme</string></dict></array></dict></plist>`)
@@ -5681,6 +5770,43 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
 		require.NoError(t, err)
 		require.True(t, got.HasACMEPayload, "remove-op upsert must not reset the flag")
+	})
+
+	t.Run("system-scoped profile reports no user enrollment", func(t *testing.T) {
+		mkUserEnrollment(t, host.UUID, uuid.NewString(), true)
+		profUUID := mkProfile(t, "acme-system-scope", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLinkWithScope(t, host.UUID, profUUID, cmdUUID, fleet.PayloadScopeSystem)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PayloadScopeSystem, got.Scope)
+		// Resolved only for user-scoped profiles.
+		require.Empty(t, got.UserEnrollmentID)
+	})
+
+	t.Run("user-scoped profile resolves the active user enrollment", func(t *testing.T) {
+		enrollmentID := mkUserEnrollment(t, host.UUID, uuid.NewString(), true)
+		profUUID := mkProfile(t, "acme-user-scope", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLinkWithScope(t, host.UUID, profUUID, cmdUUID, fleet.PayloadScopeUser)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PayloadScopeUser, got.Scope)
+		require.Equal(t, enrollmentID, got.UserEnrollmentID)
+	})
+
+	t.Run("user-scoped profile ignores disabled user enrollments", func(t *testing.T) {
+		mkUserEnrollment(t, host.UUID, uuid.NewString(), false)
+		profUUID := mkProfile(t, "acme-user-scope-disabled", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLinkWithScope(t, host.UUID, profUUID, cmdUUID, fleet.PayloadScopeUser)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PayloadScopeUser, got.Scope)
+		require.Empty(t, got.UserEnrollmentID, "a disabled enrollment cannot answer a CertificateList")
 	})
 
 	t.Run("unknown command returns not found", func(t *testing.T) {
@@ -5911,4 +6037,28 @@ func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, ndesProfileDetail)
 	require.Equal(t, fleet.CAConfigNDES, ndesProfileDetail.Type)
+}
+
+func testListMDMCommandsByHostIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("non-supported platforms return empty list", func(t *testing.T) {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "non-supported-platform-host",
+			OsqueryHostID: new("osquery-linux-unsupported"),
+			NodeKey:       new("node-key-linux-unsupported"),
+			UUID:          uuid.NewString(),
+			Platform:      "linux",
+		})
+		require.NoError(t, err)
+
+		commands, _, _, err := ds.listMDMCommandsByHostIdentifier(ctx, fleet.TeamFilter{
+			User:            test.UserAdmin,
+			IncludeObserver: true,
+		}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{
+			HostIdentifier: h.UUID,
+		}})
+		require.NoError(t, err)
+		require.Empty(t, commands)
+	})
 }

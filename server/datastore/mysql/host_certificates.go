@@ -113,10 +113,11 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		//   h.Write(data)
 		//   sha1Sum := h.Sum(nil)
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-		incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], certSourceToSet{
-			Source:   cert.Source,
-			Username: cert.Username,
-		})
+		// Dedupe (source, username) tuples per certificate: osquery can report the same certificate scope more than once.
+		srcToSet := certSourceToSet{Source: cert.Source, Username: cert.Username}
+		if !slices.Contains(incomingSourcesBySHA1[normalizedSHA1], srcToSet) {
+			incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], srcToSet)
+		}
 		incomingBySHA1[normalizedSHA1] = cert
 	}
 
@@ -127,15 +128,38 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		return ctxerr.Wrap(ctx, err, "list host certificates for update")
 	}
 
+	// listHostCertsDB returns one row per (certificate row x source row). host_certificates has no unique index on (host_id,
+	// sha1_sum), so treat the newest row as canonical: diff sources against it alone, and soft-delete the duplicates in the
+	// transaction below. Newest wins.
 	existingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(existingCerts))
-	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingCerts))
 	for _, ec := range existingCerts {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
-		existingBySHA1[normalizedSHA1] = ec
-		existingSourcesBySHA1[normalizedSHA1] = append(existingSourcesBySHA1[normalizedSHA1], certSourceToSet{
-			Source:   ec.Source,
-			Username: ec.Username,
-		})
+		if cur, ok := existingBySHA1[normalizedSHA1]; !ok || ec.ID > cur.ID {
+			existingBySHA1[normalizedSHA1] = ec
+		}
+	}
+	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingBySHA1))
+	existingSourceRowIDsBySHA1 := make(map[string]map[certSourceToSet]uint, len(existingBySHA1))
+	var certIDsToRetire []uint      // duplicate host_certificates rows, soft-deleted in the tx (self-heal)
+	var sourceRowIDsToRetire []uint // their host_certificate_sources rows, deleted
+	seenRetiredCertIDs := make(map[uint]struct{})
+	for _, ec := range existingCerts {
+		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
+		winner := existingBySHA1[normalizedSHA1]
+		if ec.ID != winner.ID {
+			if _, ok := seenRetiredCertIDs[ec.ID]; !ok {
+				seenRetiredCertIDs[ec.ID] = struct{}{}
+				certIDsToRetire = append(certIDsToRetire, ec.ID)
+			}
+			sourceRowIDsToRetire = append(sourceRowIDsToRetire, ec.SourceID)
+			continue
+		}
+		srcToSet := certSourceToSet{Source: ec.Source, Username: ec.Username}
+		existingSourcesBySHA1[normalizedSHA1] = append(existingSourcesBySHA1[normalizedSHA1], srcToSet)
+		if existingSourceRowIDsBySHA1[normalizedSHA1] == nil {
+			existingSourceRowIDsBySHA1[normalizedSHA1] = make(map[certSourceToSet]uint)
+		}
+		existingSourceRowIDsBySHA1[normalizedSHA1][srcToSet] = ec.SourceID
 	}
 
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
@@ -379,26 +403,55 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			return ctxerr.Wrap(ctx, err, "insert host certs")
 		}
 
+		// Self-heal: retire duplicate cert rows (and their source rows) before resolving canonical ids,
+		// so a host that accumulated duplicate rows returns to one active row per certificate.
+		if err := softDeleteHostCertsDB(ctx, tx, hostID, certIDsToRetire); err != nil {
+			return ctxerr.Wrap(ctx, err, "soft delete duplicate host certs")
+		}
+
+		// Compute the precise source-row changes: delete only rows that are stale (by primary key) and insert only tuples that are missing.
+		staleSourceRowIDs := append([]uint(nil), sourceRowIDsToRetire...)
+		var sourceRowsToInsert []hostCertSourceRow
 		if len(toSetSourcesBySHA1) > 0 {
-			// must reload the DB IDs to insert the host_certificates_sources rows
+			// must reload the DB IDs to insert the host_certificate_sources rows
 			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, hostID, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "load host certs ids")
 			}
 
-			toReplaceSources := make([]*fleet.HostCertificateRecord, 0, len(toSetSourcesBySHA1))
-			for sha1, sources := range toSetSourcesBySHA1 {
-				for _, source := range sources {
-					toReplaceSources = append(toReplaceSources, &fleet.HostCertificateRecord{
-						ID:       certIDsBySHA1[sha1],
-						Source:   source.Source,
-						Username: source.Username,
+			for sha1, desired := range toSetSourcesBySHA1 {
+				certID, ok := certIDsBySHA1[sha1]
+				if !ok {
+					// cert row not found on the writer (e.g. deleted concurrently); nothing to attach sources to
+					continue
+				}
+				existingRowIDs := existingSourceRowIDsBySHA1[sha1]
+				desiredSet := make(map[certSourceToSet]struct{}, len(desired))
+				for _, s := range desired {
+					desiredSet[s] = struct{}{}
+				}
+				for s, rowID := range existingRowIDs {
+					if _, ok := desiredSet[s]; !ok {
+						staleSourceRowIDs = append(staleSourceRowIDs, rowID)
+					}
+				}
+				for _, s := range desired {
+					if _, ok := existingRowIDs[s]; ok {
+						continue
+					}
+					sourceRowsToInsert = append(sourceRowsToInsert, hostCertSourceRow{
+						HostCertificateID: certID,
+						Source:            s.Source,
+						Username:          s.Username,
 					})
 				}
 			}
-			if err := replaceHostCertsSourcesDB(ctx, tx, toReplaceSources); err != nil {
-				return ctxerr.Wrap(ctx, err, "replace host certs sources")
-			}
+		}
+		if err := deleteHostCertSourceRowsDB(ctx, tx, staleSourceRowIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale host cert sources")
+		}
+		if err := insertHostCertSourceRowsDB(ctx, tx, sourceRowsToInsert); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host cert sources")
 		}
 
 		if err := softDeleteHostCertsDB(ctx, tx, hostID, toDelete); err != nil {
@@ -621,7 +674,11 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 	certIDsBySHA1 := make(map[string]uint, len(certs))
 	for _, cert := range certs {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-		certIDsBySHA1[normalizedSHA1] = cert.ID
+		// Keep the newest row when duplicates exist (matching the canonical-row selection in UpdateHostCertificates)
+		// so sources attach to the row that survives duplicate healing instead of an arbitrary duplicate.
+		if curID, ok := certIDsBySHA1[normalizedSHA1]; !ok || cert.ID > curID {
+			certIDsBySHA1[normalizedSHA1] = cert.ID
+		}
 	}
 	return certIDsBySHA1, nil
 }
@@ -661,6 +718,7 @@ SELECT
 	hc.issuer_org_unit,
 	hc.issuer_common_name,
 	hc.origin,
+	hcs.id AS source_id,
 	hcs.source,
 	hcs.username
 	%s`, fromWhereClause)
@@ -695,89 +753,66 @@ SELECT
 	return certs, metaData, nil
 }
 
-func replaceHostCertsSourcesDB(ctx context.Context, tx sqlx.ExtContext, toReplaceSources []*fleet.HostCertificateRecord) error {
-	if len(toReplaceSources) == 0 {
+// deleteHostCertSourceRowsDB deletes host_certificate_sources rows by primary key.
+func deleteHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, ids []uint) error {
+	if len(ids) == 0 {
 		return nil
 	}
+	// Sort for deterministic lock ordering across concurrent transactions.
+	slices.Sort(ids)
+	stmt, args, err := sqlx.In(`DELETE FROM host_certificate_sources WHERE id IN (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host cert sources")
+	}
+	return nil
+}
 
-	// FIXME: It is entirely possible for the caller to pass duplicates in the toReplaceSources slice
-	// (e.g. multiple elements with the same source and username for the same certificate ID).
-	// Although this function checks against duplicates in the database, it does not deduplicate the
-	// slice itself. This can lead to unique constraint violations when ths function inserts new sources.
-	//
-	// For Apple, it was implicitly assumed that there would be no incoming duplicates (likely based
-	// on Apple KeyChain behavior). But for Windows, duplicates are commonly reported by osquery. We
-	// should consider the best pattern for ensuring deduplication happens here or up the call
-	// stack. For now, we are deduping Windows certs in the upstream osqquery directIngest function,
-	// but that may not be the best approach if we want to guard against other potential issues.
+// hostCertSourceRow is one (host_certificate_id, source, username) tuple to insert into host_certificate_sources.
+type hostCertSourceRow struct {
+	HostCertificateID uint
+	Source            fleet.HostCertificateSource
+	Username          string
+}
 
-	// Sort by host_certificate_id to ensure consistent lock ordering and prevent deadlocks
-	slices.SortFunc(toReplaceSources, func(a, b *fleet.HostCertificateRecord) int {
-		if a.ID != b.ID {
-			if a.ID < b.ID {
+// insertHostCertSourceRowsDB inserts the given (host_certificate_id, source, username) tuples. The caller passes only
+// tuples it believes are missing; ON DUPLICATE KEY UPDATE is a no-op guard.
+func insertHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, rows []hostCertSourceRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	// Sort by (host_certificate_id, source, username) for deterministic lock ordering across concurrent transactions.
+	slices.SortFunc(rows, func(a, b hostCertSourceRow) int {
+		if a.HostCertificateID != b.HostCertificateID {
+			if a.HostCertificateID < b.HostCertificateID {
 				return -1
 			}
 			return 1
 		}
-		// Secondary sort by source/username for determinism
 		if a.Source != b.Source {
 			return strings.Compare(string(a.Source), string(b.Source))
 		}
 		return strings.Compare(a.Username, b.Username)
 	})
 
-	// Build unique certificate IDs for deletion (already sorted from above)
-	certIDs := make([]uint, 0, len(toReplaceSources))
-	var lastID uint
-	for i, source := range toReplaceSources {
-		// Deduplicate: only add if this ID is different from the last one
-		if i == 0 || source.ID != lastID {
-			certIDs = append(certIDs, source.ID)
-			lastID = source.ID
-		}
+	const singleRowPlaceholderCount = 3
+	placeholders := make([]string, 0, len(rows))
+	args := make([]any, 0, len(rows)*singleRowPlaceholderCount)
+	for _, row := range rows {
+		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
+		args = append(args, row.HostCertificateID, row.Source, row.Username)
 	}
-
-	// Check if any sources exist before deleting to avoid unnecessary gap locks
-	stmtCheck := `SELECT EXISTS(SELECT 1 FROM host_certificate_sources WHERE host_certificate_id IN (?))`
-	stmtCheck, args, err := sqlx.In(stmtCheck, certIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building check host cert sources query")
-	}
-	var exists bool
-	if err := sqlx.GetContext(ctx, tx, &exists, stmtCheck, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking if host cert sources exist")
-	}
-
-	// Only delete if sources exist
-	if exists {
-		stmtDelete := `DELETE FROM host_certificate_sources WHERE host_certificate_id IN (?)`
-		stmtDelete, args, err := sqlx.In(stmtDelete, certIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
-		}
-		if _, err := tx.ExecContext(ctx, stmtDelete, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting host cert sources")
-		}
-	}
-
-	// Insert new sources
-	stmtInsert := `
+	stmt := fmt.Sprintf(`
 	INSERT INTO host_certificate_sources (
 		host_certificate_id,
 		source,
 		username
-	) VALUES %s`
-
-	const singleRowPlaceholderCount = 3
-	placeholders := make([]string, 0, len(toReplaceSources))
-	args = make([]any, 0, len(toReplaceSources)*singleRowPlaceholderCount)
-	for _, source := range toReplaceSources {
-		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
-		args = append(args, source.ID, source.Source, source.Username)
-	}
-
-	stmtInsert = fmt.Sprintf(stmtInsert, strings.Join(placeholders, ","))
-	if _, err := tx.ExecContext(ctx, stmtInsert, args...); err != nil {
+	) VALUES %s
+	ON DUPLICATE KEY UPDATE host_certificate_id = host_certificate_sources.host_certificate_id`,
+		strings.Join(placeholders, ","))
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting host cert sources")
 	}
 	return nil

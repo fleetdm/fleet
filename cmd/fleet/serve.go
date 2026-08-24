@@ -72,6 +72,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -149,6 +150,21 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// networkBlockingModeFor decides the outbound network-blocking mode for
+// integration HTTP requests. BypassNetworkBlocking is an infra-level escape
+// hatch, only settable via server startup config, never a runtime admin
+// operation.
+func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerConfig) fleethttp.NetworkBlockingMode {
+	switch {
+	case devModeEnabled, serverConfig.BypassNetworkBlocking:
+		return fleethttp.BlockingBypassAll
+	case serverConfig.AllowPrivateNetworkIntegrations:
+		return fleethttp.BlockingPrivateAllowed
+	default:
+		return fleethttp.BlockingFull
+	}
+}
+
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
 	config := configManager.LoadConfig()
@@ -158,14 +174,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Set network blocking mode for outbound integration requests.
-	switch {
-	case dev_mode.IsEnabled:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingBypassAll)
-	case config.Server.AllowPrivateNetworkIntegrations:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingPrivateAllowed)
-	default:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingFull)
-	}
+	fleethttp.SetNetworkBlockingMode(networkBlockingModeFor(dev_mode.IsEnabled, config.Server))
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
 	if err != nil {
@@ -211,7 +220,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		platform_logging.DisableTopic(topic)
 	}
 
-	if dev_mode.IsEnabled {
+	if dev_mode.IsEnabled && useS3DevConfig() {
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
@@ -253,6 +262,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
 	if mds == nil {
@@ -287,7 +297,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return
 	}
 
-	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+	resultStore := pubsub.NewRedisQueryResults(
+		redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
 	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
@@ -428,23 +439,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	})
 
-	var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
-	if config.MicrosoftCompliancePartner.IsSet() {
-		var err error
-		conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
-			config.MicrosoftCompliancePartner.ProxyURI,
-			config.MicrosoftCompliancePartner.ProxyAPIKey,
-			func() (string, error) {
-				appCfg, err := ds.AppConfig(ctx)
-				if err != nil {
-					return "", fmt.Errorf("failed to load appconfig: %w", err)
-				}
-				return appCfg.ServerSettings.ServerURL, nil
-			},
-		)
-		if err != nil {
-			initFatal(err, "new microsoft compliance proxy")
-		}
+	// The Microsoft Compliance Partner proxy is available to all Fleet Premium
+	// instances (including self-hosted). The feature itself is gated on the
+	// license tier at the service layer.
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new microsoft compliance proxy")
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
@@ -456,6 +465,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -523,6 +533,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			}
 			// Extract the CloudFront URL signer before creating the S3 stores.
 			config.S3.ValidateCloudFrontURL(initFatal)
+			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
 			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
 				// Strip newlines from private key
 				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
@@ -569,7 +580,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			} else {
 				softwareInstallStore = store
 				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for production use", "directory",
+					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
 					installerDir)
 			}
 
@@ -611,6 +622,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			androidSvc,
 			hydrantService,
 			psso.NewRedisNonceStore(redisPool),
+			msgraph.NewClient,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -1110,8 +1122,10 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
 	chartSvc.RegisterDataset(&chart.CVEDataset{})
 	// Create auth middleware for chart bounded context
+	// Makes sure that api_only users are subject to endpoint
+	// restrictions on chart routes.
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	chartRoutes := chartRoutesFn(chartAuthMiddleware)
 	return chartSvc, chartRoutes
@@ -1248,12 +1262,14 @@ func getTLSConfig(profile string) *tls.Config {
 	switch profile {
 	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1265,12 +1281,14 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1375,6 +1393,12 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
+// useS3DevConfig determines usage of local S3 test buckets for software and carve storage.
+// By default, they are allowed unless explicitly disabled by setting FLEET_DEV_SKIP_S3_CONFIG to "1".
+func useS3DevConfig() bool {
+	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") != "1"
+}
+
 func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
@@ -1382,7 +1406,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := softwareInstallerStore.CreateTestBucket(ctx, config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test software installer bucket",
+		logger.InfoContext(
+			ctx, "failed to create test software installer bucket",
 			"err", err,
 			"name", config.S3.SoftwareInstallersBucket,
 		)
@@ -1393,7 +1418,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := carveStore.CreateTestBucket(ctx, config.S3.CarvesBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test carve bucket",
+		logger.InfoContext(
+			ctx, "failed to create test carve bucket",
 			"err", err,
 			"name", config.S3.CarvesBucket,
 		)

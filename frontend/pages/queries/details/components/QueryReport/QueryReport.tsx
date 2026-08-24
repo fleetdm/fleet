@@ -11,7 +11,6 @@ import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 import PATHS from "router/paths";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
@@ -83,12 +82,12 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export results
-            <Icon name="download" color="ui-fleet-black-75" />
-          </>
+          Export results
         </Button>
       </div>
     );

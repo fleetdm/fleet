@@ -11,15 +11,14 @@ import { IMdmAsset } from "interfaces/mdm";
 import mdmAPI, { IListAssetsResponse } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
-import Card from "components/Card/Card";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import UploadList from "components/UploadList";
 
-import UploadListHeading from "../../../../../components/UploadListHeading";
 import AssetListItem from "../AssetListItem";
 import AddAssetModal from "../AddAssetModal";
 import DeleteAssetModal from "../DeleteAssetModal";
@@ -35,11 +34,16 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
   const {
     config,
     isPremiumTier,
+    isGlobalAdmin,
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  const canAddAsset = !isTechnician;
+  // Team admins can reach /settings/integrations/mdm/apple, but only global
+  // admins can actually turn on Apple MDM there.
+  const canTurnOnMdm = !!isGlobalAdmin;
   const mdmAppleEnabled = !!config?.mdm.enabled_and_configured;
 
   const [showAddAssetModal, setShowAddAssetModal] = useState(false);
@@ -106,11 +110,13 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
           header="Manage assets"
           info="Supported on macOS, iOS, and iPadOS."
           primaryButton={
-            <Button
-              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE)}
-            >
-              Turn on Apple MDM
-            </Button>
+            canTurnOnMdm ? (
+              <Button
+                onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE)}
+              >
+                Turn on Apple MDM
+              </Button>
+            ) : undefined
           }
         />
       );
@@ -125,25 +131,28 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     }
 
     if (!assets?.length) {
-      if (isTechnician) {
-        return <Card className="empty-assets">No assets have been added.</Card>;
-      }
       return (
         <EmptyState
           variant="header-list"
           header="No assets"
-          info="Add an asset to make it available for reference in Apple DDM declarations."
+          info={
+            canAddAsset
+              ? "Add an asset to make it available for reference in Apple DDM declarations."
+              : "No assets have been added."
+          }
           primaryButton={
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  onClick={() => setShowAddAssetModal(true)}
-                >
-                  Add asset
-                </Button>
-              )}
-            />
+            canAddAsset ? (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={() => setShowAddAssetModal(true)}
+                  >
+                    Add asset
+                  </Button>
+                )}
+              />
+            ) : undefined
           }
         />
       );
@@ -153,15 +162,6 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
       <UploadList
         keyAttribute="asset_uuid"
         listItems={assets}
-        HeadingComponent={() => (
-          <UploadListHeading
-            onClickAdd={
-              isTechnician ? undefined : () => setShowAddAssetModal(true)
-            }
-            entityName="Assets"
-            createEntityText="Add asset"
-          />
-        )}
         ListItemComponent={({ listItem }) => (
           <AssetListItem
             asset={listItem}
@@ -173,8 +173,32 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     );
   };
 
+  const showAddAssetButton = isPremiumTier && mdmAppleEnabled && canAddAsset;
+
   return (
     <div className={baseClass}>
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="right-panel"
+          content="Manage assets that provide data or credentials referenced by DDM declarations."
+        />
+        {showAddAssetButton && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowAddAssetModal(true)}
+                disabled={disableChildren}
+                icon="plus"
+              >
+                Add asset
+              </Button>
+            )}
+          />
+        )}
+      </div>
       {renderContent()}
       {showAddAssetModal && (
         <AddAssetModal

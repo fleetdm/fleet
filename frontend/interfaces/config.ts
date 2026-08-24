@@ -4,6 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
   IWebhookActivities,
+  IWebhookHostActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
@@ -15,8 +16,6 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
-  // Whether the Fleet instance is managed by FleetDM
-  managed_cloud: boolean;
   allow_disable_telemetry: boolean;
 }
 
@@ -41,8 +40,12 @@ interface ICustomSetting {
 }
 
 export interface IAppleDeviceUpdates {
+  /** The sentinel `"latest"` enforces the newest version available, with the
+   * deadline derived from `deadline_days` instead of a fixed date. */
   minimum_version: string;
   deadline: string;
+  /** Only set when `minimum_version` is `"latest"`; null otherwise. */
+  deadline_days: number | null;
   update_new_hosts?: boolean;
 }
 
@@ -95,6 +98,11 @@ export interface IMdmConfig {
   macos_setup?: {
     enable_managed_local_account?: boolean;
   };
+  windows_settings?: {
+    managed_local_account_settings?: {
+      enabled?: boolean;
+    };
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
@@ -102,7 +110,15 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  microsoft_graph_credential_invalid: boolean;
+  windows_enrollment?: IWindowsEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
+}
+
+/** Settings for new user-driven Windows MDM enrollments (Premium only). */
+export interface IWindowsEnrollment {
+  /** Name of the fleet new MDM-enrolled Windows hosts are assigned to; "" means Unassigned. */
+  default_fleet: string;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -245,6 +261,7 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  max_software_package_size: number;
 }
 
 interface IFleetPartnerships {
@@ -262,6 +279,7 @@ export interface IWebhookSettings {
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   activities_webhook: IWebhookActivities;
+  host_activities_webhook?: IWebhookHostActivities | null;
 }
 
 export type IAutomationsConfig = Pick<

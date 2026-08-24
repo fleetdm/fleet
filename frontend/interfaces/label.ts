@@ -15,6 +15,19 @@ export default PropTypes.shape({
 });
 
 export type LabelType = "regular" | "builtin";
+
+// Valid platform values for a dynamic label, mirroring the server's
+// ValidLabelPlatformVariants (server/fleet/labels.go). "" targets all
+// platforms.
+export const LABEL_PLATFORMS = [
+  "",
+  "darwin",
+  "windows",
+  "linux",
+  "ubuntu",
+  "centos",
+] as const;
+export type LabelPlatform = typeof LABEL_PLATFORMS[number];
 export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
 export const LabelMembershipTypeToDisplayCopy: Record<
   LabelMembershipType,
@@ -112,7 +125,7 @@ export interface ILabel extends ILabelSummary {
 
   // dynamic-specific
   query: string; // does return '""' for other types
-  platform: string; // does return '""' for other types
+  platform: LabelPlatform; // "" for non-dynamic label types, and for dynamic labels targeting all platforms
 
   // host_vitals-specific
   criteria: LabelHostVitalsCriteria | null;
@@ -128,7 +141,7 @@ export interface ILabelSpecResponse {
     name: string;
     description: string;
     query: string;
-    platform?: string; // improve to only allow possible platforms from API
+    platform?: LabelPlatform;
     label_type?: LabelType;
     label_membership_type: LabelMembershipType;
     hosts?: string[];

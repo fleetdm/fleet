@@ -38,11 +38,11 @@ const DiscardDataOption = ({
           <TooltipWrapper
             tipContent={
               <>
-                A Fleet administrator can enable report results under <br />
-                <b>
+                A Fleet administrator can enable report results under
+                <strong>
                   Organization settings &gt; Advanced options &gt; Store report
                   results
-                </b>
+                </strong>
                 .
               </>
             }
@@ -54,10 +54,9 @@ const DiscardDataOption = ({
               e.preventDefault();
               setForceEditDiscardData(true);
             }}
-            variant="text-icon"
+            variant="subdued"
             size="small"
             className={`${baseClass}__edit-anyway`}
-            iconStroke
           >
             <>
               Edit anyway

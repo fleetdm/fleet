@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -58,18 +60,15 @@ type tableRow struct {
 	IsApplied bool  `db:"is_applied"`
 }
 
-type sqlStatements struct {
-	tableName           string
-	versionIDRemappings [][2]int64
-}
-
 type options struct {
-	checkout string
-	branch   string
-	output   string
-	dryRun   bool
-	apply    bool
-	verbose  bool
+	checkout    string
+	branch      string
+	sinceCommit string
+	commit      string
+	output      string
+	dryRun      bool
+	apply       bool
+	verbose     bool
 
 	dbHost     string
 	dbPort     int
@@ -120,6 +119,7 @@ func (e exitError) Error() string {
 	return e.message
 }
 
+// newRootCmd creates and configures the root cobra command with all flags.
 func newRootCmd(opts *options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "migration-cleanup",
@@ -130,6 +130,8 @@ func newRootCmd(opts *options) *cobra.Command {
 	cmd.PersistentFlags().String("config", "", "Path to a Fleet configuration file")
 	cmd.Flags().StringVarP(&opts.checkout, "checkout", "c", ".", "Path to fleetdm/fleet git checkout")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "", "Branch name")
+	cmd.Flags().StringVarP(&opts.sinceCommit, "since-commit", "", "", "Scan main from this commit forward (hash or short ref)")
+	cmd.Flags().StringVarP(&opts.commit, "commit", "", "", "Inspect a single commit for renames")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Write SQL to file instead of stdout")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Connect to MySQL, simulate the SQL, and verify the final state")
 	cmd.Flags().BoolVar(&opts.apply, "apply", false, "Execute SQL against the database in a transaction")
@@ -148,6 +150,8 @@ func newRootCmd(opts *options) *cobra.Command {
 	return cmd
 }
 
+// hideUnneededFleetConfigFlags hides Fleet config flags that are not relevant
+// to this tool, keeping only the MySQL-related flags visible.
 func hideUnneededFleetConfigFlags(cmd *cobra.Command) {
 	visibleMysqlFlags := map[string]struct{}{
 		"mysql_protocol":            {},
@@ -176,9 +180,11 @@ func hideUnneededFleetConfigFlags(cmd *cobra.Command) {
 	})
 }
 
+// run executes the migration cleanup workflow: validates options, scans git
+// history for migration renames, generates SQL, and optionally dry-runs or applies.
 func run(ctx context.Context, configManager configpkg.Manager, opts options) error {
-	if opts.branch == "" {
-		return exitError{code: exitGeneral, message: "ERROR: --branch is required"}
+	if countModeFlags(opts) != 1 {
+		return exitError{code: exitGeneral, message: "ERROR: exactly one of --branch, --since-commit, or --commit is required"}
 	}
 	if opts.dryRun && opts.apply {
 		return exitError{code: exitGeneral, message: "ERROR: --dry-run and --apply are mutually exclusive"}
@@ -205,43 +211,109 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 		return exitError{code: exitGeneral, message: err.Error()}
 	}
 
-	branch, err := resolveBranch(checkout, opts.branch)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
-	}
-
-	mergeBase, err := getMergeBase(checkout, branch)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Merge base: %s\n", mergeBase)
-	}
-
-	commits, err := findRenameCommits(checkout, branch, mergeBase)
-	if err != nil {
-		return exitError{code: exitGeneral, message: err.Error()}
-	}
-	if opts.verbose {
-		fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
-	}
-
 	var renames []migrationRename
-	for _, sha := range commits {
-		rs, err := extractRenames(checkout, sha)
+	switch {
+	case opts.branch != "":
+		branch, err := resolveBranch(checkout, opts.branch)
 		if err != nil {
 			return exitError{code: exitGeneral, message: err.Error()}
 		}
 		if opts.verbose {
-			fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			fmt.Fprintf(os.Stderr, "Resolved branch: %s\n", branch)
+		}
+
+		mergeBase, err := getMergeBase(checkout, branch)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Merge base: %s\n", mergeBase)
+		}
+
+		commits, err := findRenameCommits(checkout, branch, mergeBase)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
+		}
+
+		for _, sha := range commits {
+			rs, err := extractRenames(checkout, sha)
+			if err != nil {
+				return exitError{code: exitGeneral, message: err.Error()}
+			}
+			if opts.verbose {
+				fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			}
+			renames = append(renames, rs...)
+		}
+
+	case opts.sinceCommit != "":
+		resolvedSHA, err := resolveRef(checkout, opts.sinceCommit)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Resolved since-commit: %s\n", resolvedSHA)
+		}
+
+		mainRef, err := resolveMainRef(checkout)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+
+		if !isAncestor(checkout, resolvedSHA, mainRef) {
+			return exitError{code: exitGeneral, message: fmt.Sprintf("ERROR: %q is not an ancestor of %s", opts.sinceCommit, mainRef)}
+		}
+
+		// Include resolvedSHA itself in the scan, then scan descendants.
+		rs, err := extractRenames(checkout, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(resolvedSHA), len(rs))
 		}
 		renames = append(renames, rs...)
+
+		commits, err := findRenameCommits(checkout, mainRef, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Rename commits found: %d\n", len(commits))
+		}
+
+		for _, sha := range commits {
+			rs, err := extractRenames(checkout, sha)
+			if err != nil {
+				return exitError{code: exitGeneral, message: err.Error()}
+			}
+			if opts.verbose {
+				fmt.Fprintf(os.Stderr, "  %s: %d rename(s)\n", shortSHA(sha), len(rs))
+			}
+			renames = append(renames, rs...)
+		}
+
+	case opts.commit != "":
+		resolvedSHA, err := resolveRef(checkout, opts.commit)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		if opts.verbose {
+			fmt.Fprintf(os.Stderr, "Resolved commit: %s\n", resolvedSHA)
+		}
+
+		rs, err := extractRenames(checkout, resolvedSHA)
+		if err != nil {
+			return exitError{code: exitGeneral, message: err.Error()}
+		}
+		renames = rs
 	}
+
 	if len(renames) == 0 {
-		fmt.Println("No migration renumbering detected on this branch.")
+		fmt.Println("No migration renumbering detected in the selected scope.")
 		return nil
 	}
 	renames = dedupeRenames(renames)
@@ -315,6 +387,7 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 	return nil
 }
 
+// validateTLSFlags checks that --tls-mode is a valid value.
 func validateTLSFlags(opts options) error {
 	switch opts.tlsMode {
 	case "", "skip-verify", "verify-ca", "verify-identity":
@@ -324,6 +397,8 @@ func validateTLSFlags(opts options) error {
 	return nil
 }
 
+// validateEffectiveTLSConfig validates the combined TLS configuration
+// after merging CLI flags and Fleet config.
 func validateEffectiveTLSConfig(conf configpkg.MysqlConfig, tlsMode string) error {
 	if tlsMode == "verify-ca" || tlsMode == "verify-identity" {
 		if conf.TLSCA == "" {
@@ -336,6 +411,7 @@ func validateEffectiveTLSConfig(conf configpkg.MysqlConfig, tlsMode string) erro
 	return nil
 }
 
+// git runs a git command in the given checkout directory and returns stdout.
 func git(checkout string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"-C", checkout}, args...)...)
 	out, err := cmd.Output()
@@ -349,6 +425,50 @@ func git(checkout string, args ...string) (string, error) {
 	return string(out), nil
 }
 
+// countModeFlags returns the number of scan-mode flags set in opts.
+// Exactly one must be set; zero or more than one is an error.
+func countModeFlags(opts options) int {
+	n := 0
+	if opts.branch != "" {
+		n++
+	}
+	if opts.sinceCommit != "" {
+		n++
+	}
+	if opts.commit != "" {
+		n++
+	}
+	return n
+}
+
+// resolveRef resolves a git ref to a full commit SHA, peeling annotated tags.
+func resolveRef(checkout, ref string) (string, error) {
+	out, err := git(checkout, "rev-parse", "--verify", ref+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve ref %q: %w", ref, err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// resolveMainRef returns the best available ref for the main branch,
+// preferring origin/main (freshly fetched) over local main.
+func resolveMainRef(checkout string) (string, error) {
+	for _, candidate := range []string{"origin/main", "main"} {
+		_, err := git(checkout, "rev-parse", "--verify", candidate)
+		if err == nil {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("cannot resolve main ref (neither origin/main nor main exists)")
+}
+
+// isAncestor reports whether ancestor is an ancestor of descendant.
+func isAncestor(checkout, ancestor, descendant string) bool {
+	_, err := git(checkout, "merge-base", "--is-ancestor", ancestor, descendant)
+	return err == nil
+}
+
+// resolveBranch resolves a branch name, trying local then origin/<branch>.
 func resolveBranch(checkout, branch string) (string, error) {
 	candidates := []string{branch, "origin/" + branch}
 	var lastErr error
@@ -367,13 +487,18 @@ func resolveBranch(checkout, branch string) (string, error) {
 	return "", fmt.Errorf("ERROR: cannot resolve branch %q", branch)
 }
 
+// getMergeBase returns the merge base between main and the given branch.
 func getMergeBase(checkout, branch string) (string, error) {
 	out, err := git(checkout, "merge-base", "main", branch)
 	return strings.TrimSpace(out), err
 }
 
+// findRenameCommits returns commit SHAs in mergeBase..branch that contain
+// renames in the migration directories, oldest first. Commit order matters:
+// applying chained renames (A -> B in one commit, B -> C in a later one)
+// oldest-first moves rows through the chain to the terminal version ID.
 func findRenameCommits(checkout, branch, mergeBase string) ([]string, error) {
-	args := []string{"log", "-M", "--diff-filter=R", "--format=%H", mergeBase + ".." + branch, "--"}
+	args := []string{"log", "--reverse", "-M", "--diff-filter=R", "--format=%H", mergeBase + ".." + branch, "--"}
 	args = append(args, migrationDirs...)
 	out, err := git(checkout, args...)
 	if err != nil {
@@ -386,6 +511,8 @@ func findRenameCommits(checkout, branch, mergeBase string) ([]string, error) {
 	return strings.Split(out, "\n"), nil
 }
 
+// extractRenames parses a single commit for migration file renames and returns
+// the detected version ID changes.
 func extractRenames(checkout, commitSHA string) ([]migrationRename, error) {
 	out, err := git(checkout, "diff-tree", "-M", "-r", "--diff-filter=R", "--name-status", "--no-commit-id", commitSHA)
 	if err != nil {
@@ -438,6 +565,7 @@ func extractRenames(checkout, commitSHA string) ([]migrationRename, error) {
 	return renames, nil
 }
 
+// shortSHA returns the first 12 characters of a SHA, or the full string if shorter.
 func shortSHA(sha string) string {
 	if len(sha) < 12 {
 		return sha
@@ -445,6 +573,7 @@ func shortSHA(sha string) string {
 	return sha[:12]
 }
 
+// dedupeRenames removes duplicate renames based on migration type and version IDs.
 func dedupeRenames(renames []migrationRename) []migrationRename {
 	seen := map[string]struct{}{}
 	unique := make([]migrationRename, 0, len(renames))
@@ -459,6 +588,8 @@ func dedupeRenames(renames []migrationRename) []migrationRename {
 	return unique
 }
 
+// generateStatementGroups groups renames by migration type and generates
+// SQL statements for each table.
 func generateStatementGroups(renames []migrationRename) map[string][]string {
 	groups := map[string][]string{}
 	for _, item := range []struct {
@@ -477,24 +608,21 @@ func generateStatementGroups(renames []migrationRename) map[string][]string {
 		if len(tableRenames) == 0 {
 			continue
 		}
-		stmts := computeSQLForTable(item.table, tableRenames)
-		groups[item.table] = buildSQL(item.table, stmts, tableRenames)
+		groups[item.table] = buildSQL(item.table, tableRenames)
 	}
 	return groups
 }
 
-func computeSQLForTable(tableName string, renames []migrationRename) sqlStatements {
-	stmts := sqlStatements{tableName: tableName}
-	for _, r := range renames {
-		stmts.versionIDRemappings = append(stmts.versionIDRemappings, [2]int64{r.oldVersionID, r.newVersionID})
-	}
-	return stmts
-}
-
-func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) []string {
+// buildSQL generates the full SQL for a table: version remaps (in commit
+// order, so chained renames resolve to the terminal version ID), duplicate
+// cleanup, and a full rebuild of row ids into version order. Rebuilding the
+// total order instead of computing a minimal shift handles every renumber
+// shape identically: moves up, moves down, mixed batches in one scope, and
+// remapped rows stranded at the table tail.
+func buildSQL(tableName string, renames []migrationRename) []string {
 	lines := make([]string, 0)
-	for _, pair := range stmts.versionIDRemappings {
-		lines = append(lines, fmt.Sprintf("UPDATE `%s` SET version_id = %d WHERE version_id = %d;", tableName, pair[1], pair[0]))
+	for _, r := range renames {
+		lines = append(lines, fmt.Sprintf("UPDATE `%s` SET version_id = %d WHERE version_id = %d;", tableName, r.newVersionID, r.oldVersionID))
 	}
 	if len(renames) == 0 {
 		return lines
@@ -507,44 +635,23 @@ func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) 
 		fmt.Sprintf("DROP TEMPORARY TABLE `_fix_dups_%s`;", tableName),
 	)
 
-	minNewVID, maxNewVID := renames[0].newVersionID, renames[0].newVersionID
-	movesUp := false
-	for _, r := range renames {
-		if r.newVersionID < minNewVID {
-			minNewVID = r.newVersionID
-		}
-		if r.newVersionID > maxNewVID {
-			maxNewVID = r.newVersionID
-		}
-		if r.newVersionID > r.oldVersionID {
-			movesUp = true
-		}
-	}
-
-	varName := "increment_by_" + tableName
-	if !movesUp {
-		varName += "_shift"
-	}
-	maxMovedVar := "max_moved_down_" + tableName
-
-	lines = append(lines, fmt.Sprintf("SELECT (SELECT MAX(id) FROM `%s` WHERE id > (SELECT id FROM `%s` WHERE version_id = %d)) - (SELECT id FROM `%s` WHERE version_id = %d) + 1 INTO @%s;", tableName, tableName, maxNewVID, tableName, minNewVID, varName))
-
-	var whereClause string
-	if movesUp {
-		whereClause = fmt.Sprintf("WHERE version_id BETWEEN %d AND %d", minNewVID, maxNewVID)
-		lines = append(lines, fmt.Sprintf("SELECT %d INTO @%s;", maxNewVID, maxMovedVar))
-	} else {
-		whereClause = fmt.Sprintf("WHERE id < (SELECT id FROM `%s` WHERE version_id = %d) AND version_id > %d", tableName, minNewVID, maxNewVID)
-		lines = append(lines, fmt.Sprintf("SELECT MAX(version_id) INTO @%s FROM `%s` %s ;", maxMovedVar, tableName, whereClause))
-	}
-
+	// Rebuild ids in two passes: rebase every row above the current MAX(id)
+	// (targets are all beyond existing ids, so no transient duplicate keys
+	// regardless of update order), then compact down to 1..N. Compacting keeps
+	// the final ids below the table's AUTO_INCREMENT counter, which UPDATEs do
+	// not advance, so future goose inserts cannot collide with shifted rows.
 	lines = append(lines,
-		fmt.Sprintf("UPDATE `%s` SET id = id + COALESCE(@%s, 0) WHERE version_id > @%s ORDER BY id DESC;", tableName, varName, maxMovedVar),
-		fmt.Sprintf("UPDATE `%s` SET id = id + COALESCE(@%s, 0) %s ORDER BY id DESC;", tableName, varName, whereClause),
+		fmt.Sprintf("SELECT MAX(id) INTO @rebase_%s FROM `%s`;", tableName, tableName),
+		fmt.Sprintf("CREATE TEMPORARY TABLE `_fix_order_%s` (id BIGINT UNSIGNED PRIMARY KEY, rn BIGINT UNSIGNED);", tableName),
+		fmt.Sprintf("INSERT INTO `_fix_order_%s` (id, rn) SELECT id, ROW_NUMBER() OVER (ORDER BY version_id ASC, id ASC) FROM `%s`;", tableName, tableName),
+		fmt.Sprintf("UPDATE `%s` t JOIN `_fix_order_%s` o ON t.id = o.id SET t.id = @rebase_%s + o.rn;", tableName, tableName, tableName),
+		fmt.Sprintf("UPDATE `%s` t JOIN `_fix_order_%s` o ON t.id = @rebase_%s + o.rn SET t.id = o.rn;", tableName, tableName, tableName),
+		fmt.Sprintf("DROP TEMPORARY TABLE `_fix_order_%s`;", tableName),
 	)
 	return lines
 }
 
+// renderSQL formats statement groups into a complete SQL transaction.
 func renderSQL(groups map[string][]string) string {
 	if len(groups) == 0 {
 		return "-- No changes needed.\n"
@@ -567,6 +674,7 @@ func renderSQL(groups map[string][]string) string {
 	return b.String()
 }
 
+// queryTableRows fetches all rows from a migration status table.
 func queryTableRows(ctx context.Context, db *sqlx.DB, tableName string) ([]tableRow, error) {
 	var rows []tableRow
 	if err := sqlx.SelectContext(ctx, db, &rows, fmt.Sprintf("SELECT id, version_id, is_applied FROM `%s` ORDER BY id", tableName)); err != nil {
@@ -575,6 +683,8 @@ func queryTableRows(ctx context.Context, db *sqlx.DB, tableName string) ([]table
 	return rows, nil
 }
 
+// verifyDryRun simulates the generated SQL against real table data and reports
+// whether the final state would be valid.
 func verifyDryRun(renames []migrationRename, tableRows, dataRows []tableRow) (bool, []string) {
 	var issues []string
 	var messages []string
@@ -605,30 +715,30 @@ func verifyDryRun(renames []migrationRename, tableRows, dataRows []tableRow) (bo
 	return len(issues) == 0, append(messages, issues...)
 }
 
+// simulateTableSQL applies version remaps (sequentially, in the same order as
+// the generated SQL so chained renames resolve identically), duplicate
+// removal, and the version-order id rebuild to a copy of the table rows,
+// returning the simulated result plus messages and issues.
 func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRename) ([]tableRow, []string, []string) {
 	var messages []string
 	var issues []string
-	renameMap := map[int64]int64{}
-	existing := map[int64]struct{}{}
-	for _, row := range rows {
-		existing[row.VersionID] = struct{}{}
-	}
+
+	simulated := make([]tableRow, len(rows))
+	copy(simulated, rows)
+
 	for _, r := range renames {
-		renameMap[r.oldVersionID] = r.newVersionID
-		if _, ok := existing[r.oldVersionID]; ok {
+		found := false
+		for i := range simulated {
+			if simulated[i].VersionID == r.oldVersionID {
+				simulated[i].VersionID = r.newVersionID
+				found = true
+			}
+		}
+		if found {
 			messages = append(messages, fmt.Sprintf("  %s: will remap %d -> %d", tableName, r.oldVersionID, r.newVersionID))
 		} else {
 			messages = append(messages, fmt.Sprintf("  %s: %d not present (UPDATE will be no-op)", tableName, r.oldVersionID))
 		}
-	}
-
-	simulated := make([]tableRow, 0, len(rows))
-	for _, row := range rows {
-		newVID := row.VersionID
-		if mapped, ok := renameMap[row.VersionID]; ok {
-			newVID = mapped
-		}
-		simulated = append(simulated, tableRow{ID: row.ID, VersionID: newVID, IsApplied: row.IsApplied})
 	}
 
 	byVID := map[int64][]tableRow{}
@@ -636,7 +746,8 @@ func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRena
 		byVID[row.VersionID] = append(byVID[row.VersionID], row)
 	}
 	simulated = simulated[:0]
-	for vid, vidRows := range byVID {
+	for _, vid := range slices.Sorted(maps.Keys(byVID)) {
+		vidRows := byVID[vid]
 		sort.Slice(vidRows, func(i, j int) bool { return vidRows[i].ID < vidRows[j].ID })
 		keep := vidRows[0]
 		simulated = append(simulated, keep)
@@ -649,127 +760,45 @@ func simulateTableSQL(tableName string, rows []tableRow, renames []migrationRena
 		}
 	}
 
-	minNewVID, maxNewVID := renames[0].newVersionID, renames[0].newVersionID
-	movesUp := false
-	for _, r := range renames {
-		if r.newVersionID < minNewVID {
-			minNewVID = r.newVersionID
+	violations := countOrderingViolations(simulated)
+	sort.Slice(simulated, func(i, j int) bool {
+		if simulated[i].VersionID != simulated[j].VersionID {
+			return simulated[i].VersionID < simulated[j].VersionID
 		}
-		if r.newVersionID > maxNewVID {
-			maxNewVID = r.newVersionID
-		}
-		if r.newVersionID > r.oldVersionID {
-			movesUp = true
-		}
-	}
-
-	minRows := rowsForVID(simulated, minNewVID)
-	maxRows := rowsForVID(simulated, maxNewVID)
-	var targetRows []tableRow
-	if movesUp {
-		for _, row := range simulated {
-			if row.VersionID >= minNewVID && row.VersionID <= maxNewVID {
-				targetRows = append(targetRows, row)
-			}
-		}
-	} else {
-		if len(minRows) == 0 {
-			messages = append(messages, fmt.Sprintf("  %s: no row for min_new_vid=%d; id shift would affect 0 row(s)", tableName, minNewVID))
-			return simulated, messages, issues
-		}
-		for _, row := range simulated {
-			if row.ID < minRows[0].ID && row.VersionID > maxNewVID {
-				targetRows = append(targetRows, row)
-			}
+		return simulated[i].ID < simulated[j].ID
+	})
+	renumbered := 0
+	for i := range simulated {
+		if simulated[i].ID != int64(i+1) {
+			renumbered++
+			simulated[i].ID = int64(i + 1)
 		}
 	}
-	if len(targetRows) == 0 {
-		messages = append(messages, fmt.Sprintf("  %s: id shift would affect 0 row(s)", tableName))
-		return simulated, messages, issues
-	}
-	if len(minRows) != 1 {
-		issues = append(issues, fmt.Sprintf("  %s: expected one row for min_new_vid=%d, found %d", tableName, minNewVID, len(minRows)))
-		return simulated, messages, issues
-	}
-	if len(maxRows) != 1 {
-		issues = append(issues, fmt.Sprintf("  %s: expected one row for max_new_vid=%d, found %d", tableName, maxNewVID, len(maxRows)))
-		return simulated, messages, issues
-	}
-
-	var idsAfterMax []int64
-	for _, row := range simulated {
-		if row.ID > maxRows[0].ID {
-			idsAfterMax = append(idsAfterMax, row.ID)
-		}
-	}
-	var offset int64
-	if len(idsAfterMax) == 0 {
-		messages = append(messages, fmt.Sprintf("  %s: generated offset would be NULL; COALESCE will shift by +0", tableName))
-		offset = 0
-	} else {
-		offset = maxInt64(idsAfterMax) - minRows[0].ID + 1
-		if offset <= 0 {
-			issues = append(issues, fmt.Sprintf("  %s: generated offset would be %d, expected a positive value", tableName, offset))
-			return simulated, messages, issues
-		}
-	}
-
-	maxMovedDownVID := targetRows[0].VersionID
-	for _, row := range targetRows {
-		if row.VersionID > maxMovedDownVID {
-			maxMovedDownVID = row.VersionID
-		}
-	}
-	spaceIDs := map[int64]struct{}{}
-	for _, row := range simulated {
-		if row.VersionID > maxMovedDownVID {
-			spaceIDs[row.ID] = struct{}{}
-		}
-	}
-	withSpace := shiftRows(simulated, spaceIDs, offset)
-	messages = append(messages, fmt.Sprintf("  %s: would make space by shifting %d row(s) after version_id=%d by +%d", tableName, len(spaceIDs), maxMovedDownVID, offset))
-
-	targetIDs := map[int64]struct{}{}
-	for _, row := range targetRows {
-		targetIDs[row.ID] = struct{}{}
-	}
-	shifted := shiftRows(withSpace, targetIDs, offset)
-	messages = append(messages, fmt.Sprintf("  %s: would shift %d row(s) by +%d", tableName, len(targetRows), offset))
-	return shifted, messages, issues
+	messages = append(messages, fmt.Sprintf("  %s: would renumber %d row id(s) into version order, fixing %d ordering violation(s)", tableName, renumbered, violations))
+	return simulated, messages, issues
 }
 
-func rowsForVID(rows []tableRow, vid int64) []tableRow {
-	var out []tableRow
+// countOrderingViolations returns the number of adjacent applied-row pairs
+// (ordered by id) whose version_ids are out of order.
+func countOrderingViolations(rows []tableRow) int {
+	var applied []tableRow
 	for _, row := range rows {
-		if row.VersionID == vid {
-			out = append(out, row)
+		if row.IsApplied && row.VersionID > 0 {
+			applied = append(applied, row)
 		}
 	}
-	return out
-}
-
-func maxInt64(values []int64) int64 {
-	maxVal := values[0]
-	for _, val := range values[1:] {
-		if val > maxVal {
-			maxVal = val
+	sort.Slice(applied, func(i, j int) bool { return applied[i].ID < applied[j].ID })
+	violations := 0
+	for i := 0; i < len(applied)-1; i++ {
+		if applied[i].VersionID > applied[i+1].VersionID {
+			violations++
 		}
 	}
-	return maxVal
+	return violations
 }
 
-func shiftRows(rows []tableRow, ids map[int64]struct{}, offset int64) []tableRow {
-	shifted := make([]tableRow, 0, len(rows))
-	for _, row := range rows {
-		newID := row.ID
-		if _, ok := ids[row.ID]; ok {
-			newID += offset
-		}
-		shifted = append(shifted, tableRow{ID: newID, VersionID: row.VersionID, IsApplied: row.IsApplied})
-	}
-	return shifted
-}
-
+// validateFinalTableState checks the simulated table for duplicate IDs,
+// duplicate applied version IDs, and ordering violations.
 func validateFinalTableState(tableName string, rows []tableRow) []string {
 	var issues []string
 	ids := map[int64][]int64{}
@@ -807,6 +836,8 @@ func validateFinalTableState(tableName string, rows []tableRow) []string {
 	return issues
 }
 
+// writerConfig merges CLI database options with Fleet config to produce
+// the effective MySQL configuration.
 func writerConfig(conf configpkg.MysqlConfig, opts options) (*configpkg.MysqlConfig, error) {
 	if opts.dbHost != "" {
 		conf.Address = fmt.Sprintf("%s:%d", opts.dbHost, opts.dbPort)
@@ -847,6 +878,7 @@ func writerConfig(conf configpkg.MysqlConfig, opts options) (*configpkg.MysqlCon
 	return &conf, nil
 }
 
+// promptPassword reads a password from stdin, using secure terminal read if available.
 func promptPassword() (string, error) {
 	fmt.Fprint(os.Stderr, "MySQL password: ")
 	if term.IsTerminal(int(os.Stdin.Fd())) {
@@ -859,6 +891,7 @@ func promptPassword() (string, error) {
 	return strings.TrimSpace(pass), err
 }
 
+// openWriterDB opens a connection to the MySQL database using the given config.
 func openWriterDB(conf *configpkg.MysqlConfig) (*sqlx.DB, error) {
 	if conf.PasswordPath != "" && conf.Password != "" {
 		return nil, errors.New("a MySQL password and password file were provided; specify only one")
@@ -912,6 +945,7 @@ func openWriterDB(conf *configpkg.MysqlConfig) (*sqlx.DB, error) {
 	}, "mysql")
 }
 
+// applyStatements executes all SQL statements in a transaction.
 func applyStatements(ctx context.Context, db *sqlx.DB, groups map[string][]string) error {
 	var statements []string
 	for _, tableName := range []string{tableStatusName, dataStatusName} {
@@ -927,6 +961,7 @@ func applyStatements(ctx context.Context, db *sqlx.DB, groups map[string][]strin
 	}, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 }
 
+// writeOutput writes SQL to stdout or to a file if outputPath is set.
 func writeOutput(sqlText, outputPath string) error {
 	if outputPath == "" {
 		fmt.Print(sqlText)

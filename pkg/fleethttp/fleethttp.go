@@ -33,8 +33,13 @@ const (
 	// (e.g. EJBCA, Jira, SCEP servers). Set via
 	// --server_allow_private_network_integrations.
 	BlockingPrivateAllowed
-	// BlockingBypassAll performs no filtering at all. Used in dev mode
-	// where integrations are tested against localhost.
+	// BlockingBypassAll performs no filtering at all. Used in dev mode, and
+	// can also be set in production via --server_bypass_network_blocking as
+	// an infra-level escape hatch for environments where egress is already
+	// constrained by external infrastructure (e.g. a proxy or firewall) that
+	// Fleet's own checks would otherwise conflict with. Disables SSRF
+	// protection for every outbound integration request, not just the one
+	// causing the conflict.
 	BlockingBypassAll
 )
 
@@ -55,17 +60,19 @@ var ErrPrivateNetworkBlocked = errors.New("connections to private network addres
 // --allow_private_network_integrations is set. No legitimate integration
 // should ever target these addresses.
 var alwaysBlockedCIDRs = parseCIDRs([]string{
+	"0.0.0.0/8",      // "this" network (RFC 1122); 0.0.0.0 itself routes to loopback
 	"127.0.0.0/8",    // loopback
 	"169.254.0.0/16", // link-local (includes cloud IMDS at 169.254.169.254)
-	"::1/128",        // IPv6 loopback
-	"fe80::/10",      // IPv6 link-local
+	// Covers the unspecified address (::), IPv6 loopback (::1) and the
+	// deprecated IPv4-compatible form (::a.b.c.d, e.g. ::127.0.0.1).
+	"::/96",
+	"fe80::/10", // IPv6 link-local
 })
 
 // privateNetworkCIDRs are blocked when private network blocking is enabled.
 // Customers with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on
 // private networks) can disable this with --allow_private_network_integrations.
 var privateNetworkCIDRs = parseCIDRs([]string{
-	"0.0.0.0/8",       // "this" network (RFC 1122)
 	"10.0.0.0/8",      // RFC 1918 private
 	"100.64.0.0/10",   // shared address space (RFC 6598)
 	"172.16.0.0/12",   // RFC 1918 private
@@ -105,6 +112,29 @@ func ipInCIDRs(ip net.IP, cidrs []*net.IPNet) bool {
 	return false
 }
 
+// nat64WellKnownPrefix is the RFC 6052 prefix used to reach IPv4 hosts from an
+// IPv6-only network. Addresses under it carry an IPv4 address in their low 32
+// bits, so the embedded address is what has to be checked -- the prefix itself
+// carries public IPv4 traffic too and can't simply be listed as internal.
+//
+// RFC 6052 also allows a network-specific prefix, which is drawn from the
+// operator's own address space and so can't be recognized without being
+// configured: an address under one is indistinguishable from any other address
+// in that space, and treating every address whose low 32 bits look internal as
+// a translation would reject unrelated public addresses.
+var nat64WellKnownPrefix = parseCIDRs([]string{"64:ff9b::/96"})
+
+// embeddedIPv4 returns the IPv4 address carried by a NAT64 address, or nil if
+// the address doesn't carry one.
+func embeddedIPv4(ip net.IP) net.IP {
+	if !ipInCIDRs(ip, nat64WellKnownPrefix) {
+		return nil
+	}
+	// ipInCIDRs only matches a 16-byte address against an IPv6 range.
+	ip16 := ip.To16()
+	return net.IPv4(ip16[12], ip16[13], ip16[14], ip16[15])
+}
+
 // privateNetworkBlockingDialContext returns a DialContext function that blocks
 // connections to private/reserved IP addresses. It resolves DNS first, then
 // checks the resolved IP before connecting -- this catches DNS rebinding.
@@ -126,14 +156,21 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 		}
 
 		for _, ip := range ips {
-			// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
-			// overridden with --server_allow_private_network_integrations.
-			if ipInCIDRs(ip.IP, alwaysBlockedCIDRs) {
-				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
-			}
-			// Tier 2: private networks. Only blocked in BlockingFull mode.
-			if mode == BlockingFull && ipInCIDRs(ip.IP, privateNetworkCIDRs) {
-				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
+			// A NAT64 address reaches the IPv4 address it carries, so check
+			// that one as well.
+			for _, check := range []net.IP{ip.IP, embeddedIPv4(ip.IP)} {
+				if check == nil {
+					continue
+				}
+				// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
+				// overridden with --server_allow_private_network_integrations.
+				if ipInCIDRs(check, alwaysBlockedCIDRs) {
+					return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
+				}
+				// Tier 2: private networks. Only blocked in BlockingFull mode.
+				if mode == BlockingFull && ipInCIDRs(check, privateNetworkCIDRs) {
+					return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
+				}
 			}
 		}
 
@@ -259,6 +296,8 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	})
+	// Timeout on response headers missing after fully sending the request if 45 seconds pass.
+	tr.ResponseHeaderTimeout = 45 * time.Second
 	return tr
 }
 

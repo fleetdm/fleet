@@ -230,7 +230,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `redis-tests/` | Redis testing configs | ElastiCache and general Redis test configs |
 | `snapshot/` | Database snapshot/restore tool | `go run ./tools/snapshot s` or `go run ./tools/snapshot r` |
 | **Development Tools** | | |
-| `app/` | Prometheus config for local dev | See `prometheus.yml` |
 | `ci/` | CI helper tools (golangci-lint rules) | `rules.go` - ruleguard custom linting rules |
 | `desktop/` | Fleet Desktop development tool | `go run ./tools/desktop` - builds Desktop app |
 | `dialog/` | Test zenity/kdialog dialogs on Linux | `go run ./tools/dialog -dialog zenity` |
@@ -283,7 +282,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `osquery-agent-options/` | Generate osquery agent options struct | `go run ./tools/osquery-agent-options <output-file>` - macOS only |
 | `run-scripts/` | Test Orbit script execution | `go run ./tools/run-scripts -exec-id <id> -content 'echo "Hello"'` |
 | **Packaging & Installers** | | |
-| `bomutils-docker/` | Docker image for BOM utils (macOS pkg) | Docker build for BOM utilities |
 | `team-builder/` | Bulk fleet (formerly "team") creation + installer generation (deprecated for plain seeding — see [dibble](dibble/README.md)) | `./build_teams.sh -s teams.txt -u fleet.example.com` |
 | `wix-docker/` | Docker image for WiX (Windows MSI) | Docker build for WiX toolset |
 | **Release & Distribution** | | |

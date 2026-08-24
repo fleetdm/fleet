@@ -1,0 +1,1 @@
+* Fixed the live query results websocket stream returning a different error for a nonexistent campaign versus one owned by another user.

@@ -7,6 +7,7 @@ import AddPackageModal from "./AddPackageModal";
 
 const BASE_PROPS = {
   softwareTitleId: 42,
+  softwareTitleName: "GlobalProtect",
   teamId: 1,
   existingPackageName: "GlobalProtect-v6.3.2.pkg",
   onExit: jest.fn(),
@@ -73,8 +74,12 @@ describe("AddPackageModal", () => {
 
     it("falls back to the all-platforms file-type message when the existing name has no recognized extension", () => {
       renderModal({ existingPackageName: "no-extension" });
-      // PackageForm's default message lists every supported platform.
-      expect(screen.getByText(/macOS \(.pkg,/)).toBeInTheDocument();
+      // PackageForm's default message lists every supported platform as
+      // tooltip triggers (extensions live in the tooltips, not the label text).
+      expect(screen.getByText("macOS")).toBeInTheDocument();
+      expect(screen.getByText("iOS/iPadOS")).toBeInTheDocument();
+      expect(screen.getByText("Windows")).toBeInTheDocument();
+      expect(screen.getByText("Linux")).toBeInTheDocument();
     });
 
     it("renders the form's Save button as 'Save' (not 'Add software')", async () => {
@@ -114,7 +119,7 @@ describe("AddPackageModal", () => {
       const link = screen.getByRole("link", { name: /YAML docs/i });
       expect(link).toHaveAttribute(
         "href",
-        expect.stringMatching(/learn-more-about\/software-yaml$/)
+        expect.stringMatching(/learn-more-about\/yaml-software$/)
       );
     });
 

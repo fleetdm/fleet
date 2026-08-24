@@ -67,6 +67,9 @@ type Options struct {
 	DisableUpdates bool
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
+	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
+	// advertising the end-user auth capability to the Fleet server.
+	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
@@ -359,16 +362,11 @@ func writeMacOSSecret(opt Options, orbitRoot string) error {
 }
 
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, "osquery.flags")
-
 	if opt.OsqueryFlagfile == "" {
-		// Write empty flagfile
-		if err := os.WriteFile(path, []byte(""), constant.DefaultFileMode); err != nil {
-			return fmt.Errorf("write empty flagfile: %w", err)
-		}
-
 		return nil
 	}
+
+	path := filepath.Join(orbitRoot, "osquery.flags")
 
 	if err := file.Copy(opt.OsqueryFlagfile, path, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("copy flagfile: %w", err)

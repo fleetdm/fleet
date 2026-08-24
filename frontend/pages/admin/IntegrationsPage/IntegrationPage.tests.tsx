@@ -39,7 +39,7 @@ describe("Integrations Page", () => {
   describe("Conditional access", () => {
     it("Does not render the conditional access sidenav for self-hosted Fleet instances", () => {
       const mockConfig = createMockConfig({
-        license: { ...DEFAULT_LICENSE_MOCK, managed_cloud: false },
+        license: { ...DEFAULT_LICENSE_MOCK },
       });
 
       const render = createCustomRenderer({

@@ -13,11 +13,13 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -187,9 +189,8 @@ type GitOpsControls struct {
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
-
-	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
-	AndroidSettings             any `json:"android_settings"`
+	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
+	AndroidSettings                any `json:"android_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
@@ -222,14 +223,21 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
-	RunScript       *PolicyRunScript                       `json:"run_script"`
-	InstallSoftware optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
+	// explicitly vs. omitted, which patch_when_closed validation needs.
+	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
+	RunScript                  *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	ResendConfigurationProfile *PolicyResendConfigurationProfile      `json:"resend_configuration_profile"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
 	// RunScriptName is populated after confirming the script exists on both the file system
 	// and in the controls scripts list for the same team
 	RunScriptName *string `json:"-"`
+	// ResendConfigurationProfileName is populated after confirming the configuration profile exists on both the file system
+	// and in the controls configuration profiles list for the same team
+	ResendConfigurationProfileName *string `json:"-"`
 	// WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets
 	// should be enabled for this policy. This is a gitops-only convenience that
 	// translates to adding the policy's ID to the failing_policies_webhook.policy_ids list.
@@ -245,6 +253,10 @@ type PolicyInstallSoftware struct {
 	AppStoreID             string `json:"app_store_id"`
 	HashSHA256             string `json:"hash_sha256"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
+}
+
+type PolicyResendConfigurationProfile struct {
+	Name string `json:"name"`
 }
 
 type Query struct {
@@ -288,7 +300,7 @@ type SoftwarePackage struct {
 }
 
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec, ext string) (fleet.SoftwarePackageSpec, error) {
-	isScript := ext == ".sh" || ext == ".ps1"
+	isScript := fleet.IsScriptPackage(ext)
 
 	// Script-only packages are configured inline in the team YAML, so their
 	// uninstall/post-install scripts and pre-install query are allowed here;
@@ -304,7 +316,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 
 	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
 	if spec.Icon.Path != "" {
-		if ext != ".sh" && ext != ".ps1" {
+		if !fleet.IsScriptPackage(ext) {
 			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
 		}
 	}
@@ -387,6 +399,11 @@ type GitOpsOrgSettings struct {
 	fleet.AppConfig
 	Secrets                any `json:"secrets"`
 	CertificateAuthorities any `json:"certificate_authorities"`
+	// MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when
+	// reading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here
+	// rather than under controls to match every other credential in GitOps: it is applied through its own endpoint,
+	// exactly like certificate_authorities above.
+	MicrosoftGraphCredentials any `json:"microsoft_graph_credentials"`
 }
 
 // GitOpsOrgInfo extends fleet.OrgInfo with gitops-only path keys for uploading
@@ -742,6 +759,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
+			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -880,6 +898,31 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 	return multiError
 }
 
+// normalizeMDMSSOConfig, normalizes the MDM SSO configuration by trimming whitespaces.
+func normalizeMDMSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	mdm, _ := orgSettings["mdm"].(map[string]any)
+	if mdm == nil {
+		return multiError
+	}
+	eua, _ := mdm["end_user_authentication"].(map[string]any)
+	if eua == nil {
+		return multiError
+	}
+	if v, ok := eua["idp_name"].(string); ok {
+		eua["idp_name"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["entity_id"].(string); ok {
+		eua["entity_id"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata"].(string); ok {
+		eua["metadata"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata_url"].(string); ok {
+		eua["metadata_url"] = strings.TrimSpace(v)
+	}
+	return multiError
+}
+
 // validateGitOpsConfig validates the `org_settings.gitops` block at parse time
 // to mirror the server-side checks in ModifyAppConfig. The `exceptions`
 // sub-block is not yet supported via YAML and is rejected here; the
@@ -999,6 +1042,16 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 			}
 		}
 
+		// Validate host_activities_webhook if present
+		if haw, hasHAW := webhookMap["host_activities_webhook"]; hasHAW && haw != nil {
+			hawMap, ok := haw.(map[string]any)
+			if !ok {
+				multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
+			} else if err := validateHostActivitiesWebhook(hawMap, "settings.webhook_settings.host_activities_webhook"); err != nil {
+				multiError = multierror.Append(multiError, err)
+			}
+		}
+
 		// Could add validation for other webhook types here in the future
 		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
 	}
@@ -1014,6 +1067,28 @@ func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error
 		_, isArray := policyIDs.([]any)
 		if !isArray {
 			return fmt.Errorf("'%s.policy_ids' must be an array, got %T", keyPath, policyIDs)
+		}
+	}
+	return nil
+}
+
+func validateHostActivitiesWebhook(hawMap map[string]any, keyPath string) error {
+	for key, value := range hawMap {
+		switch key {
+		case "enable_host_activities_webhook":
+			if value != nil {
+				if _, ok := value.(bool); !ok {
+					return fmt.Errorf("'%s.enable_host_activities_webhook' must be a boolean, got %T", keyPath, value)
+				}
+			}
+		case "destination_url":
+			if value != nil {
+				if _, ok := value.(string); !ok {
+					return fmt.Errorf("'%s.destination_url' must be a string, got %T", keyPath, value)
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported option '%s' in %s - only 'enable_host_activities_webhook' and 'destination_url' are allowed", key, keyPath)
 		}
 	}
 	return nil
@@ -1054,9 +1129,9 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				return multierror.Append(multiError, errors.New("'settings.webhook_settings' must be an object or null"))
 			}
 			for key := range webhookMap {
-				if key != "failing_policies_webhook" {
+				if key != "failing_policies_webhook" && key != "host_activities_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' is allowed", key, filepath.Base(filePath)))
+						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed", key, filepath.Base(filePath)))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
@@ -1067,6 +1142,16 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				} else {
 					// Validate failing_policies_webhook structure
 					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
+						multiError = multierror.Append(multiError, err)
+					}
+				}
+			}
+			if haw, ok := webhookMap["host_activities_webhook"]; ok && haw != nil {
+				hawMap, ok := haw.(map[string]any)
+				if !ok {
+					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
+				} else {
+					if err := validateHostActivitiesWebhook(hawMap, "settings.webhook_settings.host_activities_webhook"); err != nil {
 						multiError = multierror.Append(multiError, err)
 					}
 				}
@@ -1284,10 +1369,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
-	// Validate that name_template, if present, is a string.
+	// Validate that name_template, if present, is a string, and collect any
+	// $FLEET_SECRET_ it references so GitOps uploads it (its placeholder is left
+	// in the template for the server to validate and expand).
 	if result.Controls.NameTemplate != nil {
-		if _, ok := result.Controls.NameTemplate.(string); !ok {
+		if tmpl, ok := result.Controls.NameTemplate.(string); !ok {
 			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
+		} else if err := LookupEnvSecrets(tmpl, result.FleetSecrets); err != nil {
+			multiError = multierror.Append(multiError, err)
 		}
 	}
 
@@ -1309,6 +1398,15 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
 		}
 
+		// An activation names exactly one declaration in its
+		// StandardConfigurations, so it can't be attached to a glob.
+		for _, cs := range macOSSettings.CustomSettings {
+			if cs.Activation != "" && cs.Paths != "" {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf(`profile %q cannot use "activation" with "paths"; use "path" for a single profile`, cs.Paths))
+			}
+		}
+
 		// Expand globs in profile paths.
 		var errs []error
 		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", GlobExpandOptions{
@@ -1320,6 +1418,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		for i := range macOSSettings.CustomSettings {
 
 			err := resolveAndUpdateProfilePath(&macOSSettings.CustomSettings[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+			// expandBaseItems only knows about path/paths, so the activation path
+			// is still relative to the controls file here.
+			err = resolveAndUpdateActivationPath(&macOSSettings.CustomSettings[i], controlsDir, result)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -1563,6 +1667,22 @@ func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, con
 	return errs
 }
 
+func resolveAndUpdateActivationPath(profile *fleet.MDMProfileSpec, baseDir string, result *GitOps) error {
+	if profile.Activation == "" {
+		return nil
+	}
+	resolved, err := filepath.Abs(resolveApplyRelativePath(baseDir, profile.Activation))
+	if err != nil {
+		return fmt.Errorf("failed to resolve activation path %s: %v", profile.Activation, err)
+	}
+	profile.Activation = resolved
+	fileBytes, err := os.ReadFile(resolved)
+	if err != nil {
+		return fmt.Errorf("failed to read activation file %s: %v", resolved, err)
+	}
+	return LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+}
+
 func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
 	// Path has already been resolved by expandBaseItems; just ensure it's absolute.
 	var err error
@@ -1579,6 +1699,28 @@ func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) 
 		return err
 	}
 	return nil
+}
+
+func resolveAndReturnFileBytes(path string) ([]byte, error) {
+	resolved, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve path %s: %v", path, err)
+	}
+	fileBytes, err := os.ReadFile(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %v", resolved, err)
+	}
+
+	return fileBytes, nil
+}
+
+// blankFleetSecrets removes $FLEET_SECRET_* references from contents. Secrets are
+// only expanded server-side, so a placeholder left inside a <data> payload would
+// fail base64 decoding when the profile is parsed for validation.
+func blankFleetSecrets(contents []byte) []byte {
+	return []byte(fleet.MaybeExpand(string(contents), func(name string, _, _ int) (string, bool) {
+		return "", strings.HasPrefix(name, fleet.ServerSecretPrefix)
+	}))
 }
 
 // defaultAllowedExtensions is the default set of file extensions allowed for
@@ -1875,15 +2017,76 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	// make an index of all FMAs by slug
-	fmasBySlug := make(map[string]struct{}, len(result.Software.FleetMaintainedApps))
+	fmasBySlug := make(map[string]*fleet.MaintainedAppSpec, len(result.Software.FleetMaintainedApps))
 	for _, s := range result.Software.FleetMaintainedApps {
-		fmasBySlug[s.Slug] = struct{}{}
+		fmasBySlug[s.Slug] = s
 	}
 	var errs []error
 	if policies, errs = expandBaseItems(policies, baseDir, "policy", GlobExpandOptions{
 		LogFn: logFn,
 	}); len(errs) > 0 {
 		multiError = multierror.Append(multiError, errs...)
+	}
+
+	// map of profile names that is defined in gitops
+	definedProfileNames := make(map[string]struct{})
+
+	// cast already parsed controls to it's type
+	macOSSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+	if ok {
+		for _, item := range macOSSettings.CustomSettings {
+			// each entry has already been expanded so we can expect a single path
+			if item.Path == "" {
+				multiError = multierror.Append(multiError, errors.New("controls.macos_settings.configuration_profiles[]: path is required for each profile"))
+				continue
+			}
+
+			if !strings.EqualFold(filepath.Ext(item.Path), ".mobileconfig") {
+				// no-op and skip silently
+				continue
+			}
+
+			// next we need to read the file, parse it and
+			fileBytes, err := resolveAndReturnFileBytes(item.Path)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to resolve and read file %s: %v", item.Path, err))
+				continue
+			}
+
+			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
+			mc := mobileconfig.Mobileconfig(blankFleetSecrets(fileBytes))
+			parsed, err := mc.ParseConfigProfile()
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse mobileconfig file %s: %v", item.Path, err))
+				continue
+			}
+			if parsed.PayloadDisplayName == "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("mobileconfig file %s is missing PayloadDisplayName", item.Path))
+				continue
+			}
+
+			definedProfileNames[parsed.PayloadDisplayName] = struct{}{}
+		}
+	}
+
+	windowsSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+	if ok {
+		for _, item := range windowsSettings.CustomSettings.Value {
+			// each entry has already been expanded so we can expect a single path
+			if item.Path == "" {
+				multiError = multierror.Append(multiError, errors.New("controls.windows_settings.configuration_profiles[]: path is required for each profile"))
+				continue
+			}
+
+			if !strings.EqualFold(filepath.Ext(item.Path), ".xml") {
+				// no-op and skip silently
+				continue
+			}
+
+			// windows profile names come from the file name without the extension
+			base := filepath.Base(item.Path)
+			definedProfileNames[strings.TrimSuffix(base, filepath.Ext(base))] = struct{}{}
+		}
 	}
 
 	// Validate unknown keys in policies section.
@@ -1896,6 +2099,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if err := parsePolicyRunScript(baseDir, parentFilePath, result.TeamName, &item, result.Controls.Scripts); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
+				continue
+			}
+			if err := parsePolicyResendConfigurationProfile(baseDir, parentFilePath, result.TeamName, &item, definedProfileNames); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", item.Name, err))
 				continue
 			}
 			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
@@ -1934,6 +2141,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
 								continue
 							}
+							if err := parsePolicyResendConfigurationProfile(filepath.Dir(*item.Path), parentFilePath, result.TeamName, pp, definedProfileNames); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", pp.Name, err))
+								continue
+							}
 							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
 						}
 					}
@@ -1948,6 +2159,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
 		} else {
 			item.Name = norm.NFC.String(item.Name)
+		}
+		// Reconcile the shadow value into the embedded field the apply path reads.
+		if item.ContinuousAutomations.Valid {
+			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
 		}
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
@@ -1968,6 +2183,22 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
+			if item.PatchWhenClosed {
+				// Declarative: reject an explicit false instead of letting the datastore silently
+				// force it on; auto-set when omitted.
+				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+				} else {
+					item.ContinuousAutomationsEnabled = true
+				}
+				// Fleet manages the app-open query, so a user pre_install_query on the FMA is rejected.
+				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
+						item.Name, item.FleetMaintainedAppSlug))
+				}
 			}
 		} else if item.FleetMaintainedAppSlug != "" {
 			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
@@ -2034,7 +2265,31 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]struct{}) []error {
+func parsePolicyResendConfigurationProfile(baseDir string, parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
+	if policy.ResendConfigurationProfile == nil {
+		policy.ResendConfigurationProfileName = new("") // unset the profile name
+		return nil
+	}
+
+	if teamName == nil {
+		return errors.New("resend_configuration_profile can only be set on team policies")
+	}
+
+	name := strings.TrimSpace(policy.ResendConfigurationProfile.Name)
+	if name == "" {
+		return errors.New("resend_configuration_profile.name is required")
+	}
+
+	if _, ok := definedProfiles[name]; !ok {
+		return fmt.Errorf("configuration profile %q was not defined in controls in %s", name, filepath.Base(parentFilePath))
+	}
+
+	policy.ResendConfigurationProfileName = &name
+
+	return nil
+}
+
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer
@@ -2281,7 +2536,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 
 		// Validate display_name length (matches database VARCHAR(255))
-		if len(item.DisplayName) > 255 {
+		if utf8.RuneCountInString(item.DisplayName) > 255 {
 			multiError = multierror.Append(multiError, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID))
 			continue
 		}
@@ -2304,6 +2559,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if count > 1 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
+			continue
+		}
+
+		// Validate display_name length (matches database VARCHAR(255))
+		if utf8.RuneCountInString(maintainedAppSpec.DisplayName) > 255 {
+			multiError = multierror.Append(multiError, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", maintainedAppSpec.Slug))
 			continue
 		}
 
@@ -2343,8 +2604,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			ext := strings.ToLower(filepath.Ext(resolvedPath))
-			switch ext {
-			case ".sh", ".ps1":
+			switch {
+			case fleet.IsScriptPackage(ext):
 				// Script files: only gather FLEET_SECRET_ variables, don't expand
 				// regular env vars (they are shell variables meant for the endpoint).
 				if err := gatherFileSecrets(result, resolvedPath); err != nil {
@@ -2372,7 +2633,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				}
 				softwarePackageSpecs = append(softwarePackageSpecs, &scriptSpec)
 
-			case ".yml", ".yaml":
+			case ext == ".yml" || ext == ".yaml":
 				// Replace $var and ${var} with env values in YAML files only.
 				fileBytes, err = ExpandEnvBytes(fileBytes)
 				if err != nil {
@@ -2419,7 +2680,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				softwarePackageSpecs = valid
 
 			default:
-				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, or .ps1 files are supported", *teamLevelPackage.Path, ext))
+				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, .ps1, or .py files are supported", *teamLevelPackage.Path, ext))
 				continue
 			}
 		} else {
@@ -2502,7 +2763,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			// Validate display_name length (matches database VARCHAR(255))
-			if len(softwarePackageSpec.DisplayName) > 255 {
+			if utf8.RuneCountInString(softwarePackageSpec.DisplayName) > 255 {
 				multiError = multierror.Append(multiError, fmt.Errorf("software package %q display_name is too long (max 255 characters)", softwarePackageSpec.URL))
 				continue
 			}

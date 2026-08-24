@@ -34,9 +34,8 @@ const TeamHostExpiryToggle = ({
               setTeamExpiryEnabled(true);
             }}
             className={`${baseClass}__add-custom-window`}
-            variant="text-icon"
+            variant="subdued"
             size="small"
-            iconStroke
           >
             <>
               Add custom expiry window
@@ -62,20 +61,13 @@ const TeamHostExpiryToggle = ({
         helpText={renderHelpText()}
         labelTooltipContent={
           <>
-            When enabled, allows automatic cleanup of
+            When enabled, allows automatic cleanup of hosts that have not
+            communicated with Fleet in the number of days specified in the{" "}
+            <strong>Host expiry window</strong> setting.
             <br />
-            hosts that have not communicated with Fleet in
-            <br />
-            the number of days specified in the{" "}
-            <strong>
-              Host expiry
-              <br />
-              window
-            </strong>{" "}
-            setting.{" "}
-            <em>
+            <i>
               (Default: <strong>Off</strong>)
-            </em>
+            </i>
           </>
         }
       >

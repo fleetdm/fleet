@@ -1,1 +1,0 @@
-* Fixed a bug where a user's BYOD selection was not persisted through IdP authentication

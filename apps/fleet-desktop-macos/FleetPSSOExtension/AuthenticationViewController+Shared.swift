@@ -10,6 +10,7 @@ import AuthenticationServices
 import CryptoKit
 import Foundation
 import IOKit
+import os
 import Security
 
 @available(macOS 14.0, *)
@@ -83,7 +84,10 @@ extension AuthenticationViewController {
               let base = URL(string: baseString),
               let host = base.host,
               base.scheme?.lowercased() == "https"
-        else { throw NSError(domain: "FleetPSSO", code: -1) }
+        else {
+            logger.error("applyLoginConfiguration: missing or non-HTTPS BaseURL in profile ExtensionData")
+            throw NSError(domain: "FleetPSSO", code: -1)
+        }
         let cfg = ASAuthorizationProviderExtensionLoginConfiguration(
             clientID: Bundle.main.bundleIdentifier ?? "",
             issuer: host,
@@ -98,6 +102,7 @@ extension AuthenticationViewController {
         cfg.keyEndpointURL = pssoEndpointURL(base, "token")
         self.registrationEndpointURL = pssoEndpointURL(base, "registration")
         guard let encryptionKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) else {
+            logger.error("applyLoginConfiguration: failed to load login request encryption key")
             throw NSError(domain: "FleetPSSO", code: -2)
         }
         cfg.loginRequestEncryptionPublicKey = encryptionKey

@@ -84,20 +84,23 @@
       "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,
+      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "windows_updates": {
@@ -146,9 +149,13 @@
         "require_all_software_windows": false,
         "software": null
       },
+      "windows_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
-        "configuration_profiles": null
+        "configuration_profiles": null,
+        "managed_local_account_settings": {
+          "enabled": false
+        }
       },
       "android_settings": {
         "certificates": null,
@@ -232,8 +239,7 @@
     },
     "license": {
       "tier": "free",
-      "expiration": "0001-01-01T00:00:00Z",
-      "managed_cloud": false
+      "expiration": "0001-01-01T00:00:00Z"
     },
     "logging": {
       "debug": true,
@@ -278,6 +284,7 @@
         }
       }
     },
+    "max_software_package_size": 537919488,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",

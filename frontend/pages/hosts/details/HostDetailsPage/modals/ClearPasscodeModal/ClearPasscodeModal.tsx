@@ -86,6 +86,7 @@ const ClearPasscodeModal = ({
             wrapperClassName={`${baseClass}__clear-checkbox`}
             value={confirmChecked}
             onChange={(value: boolean) => setConfirmChecked(value)}
+            variant="danger"
           >
             I wish to clear the passcode for <b>{hostName}</b>
           </Checkbox>
@@ -103,7 +104,7 @@ const ClearPasscodeModal = ({
         >
           Clear passcode
         </Button>
-        <Button onClick={onExit} variant="inverse-alert">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

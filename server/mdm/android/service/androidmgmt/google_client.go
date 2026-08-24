@@ -229,7 +229,7 @@ func (g *GoogleClient) EnterprisesDevicesGet(ctx context.Context, deviceName str
 func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
 	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
 	switch {
-	case googleapi.IsNotModified(err):
+	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
 		g.logger.InfoContext(ctx, "Android device already deleted", "device_name", deviceName)
 		return nil
 	case err != nil:
@@ -242,6 +242,15 @@ func (g *GoogleClient) EnterprisesDevicesIssueCommand(ctx context.Context, devic
 	op, err := g.mgmt.Enterprises.Devices.IssueCommand(deviceName, command).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("issuing command to device %s: %w", deviceName, err)
+	}
+	return op, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+	op, err := g.mgmt.Enterprises.Devices.Operations.Get(operationName).Context(ctx).Do()
+	if err != nil {
+		// Wrapped with %w so callers can classify the googleapi.Error (not found, quota exceeded).
+		return nil, fmt.Errorf("getting operation %s: %w", operationName, err)
 	}
 	return op, nil
 }

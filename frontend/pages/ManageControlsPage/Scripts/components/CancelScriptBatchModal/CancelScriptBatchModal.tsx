@@ -44,7 +44,7 @@ const CancelScriptBatchModal = ({
           >
             Cancel script
           </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
+          <Button variant="secondary" onClick={onExit}>
             Back
           </Button>
         </div>

@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_hardware_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/homebrew_outdated"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/macos_user_profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
@@ -43,6 +45,7 @@ import (
 	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
+	"github.com/macadmins/osquery-extension/tables/touchid"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
 	"github.com/macadmins/osquery-extension/tables/wifi_network"
 	"github.com/osquery/osquery-go"
@@ -54,6 +57,13 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		adobe_plugins.TablePlugin(log.Logger),
+		table.NewPlugin(
+			"apple_hardware_info",
+			apple_hardware_info.Columns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return apple_hardware_info.Generate(ctx, queryContext, opts.Socket)
+			},
+		),
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
@@ -74,6 +84,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
 		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
 		table.NewPlugin("disk_space", disk_space.Columns(), disk_space.Generate),
+		table.NewPlugin("homebrew_outdated", homebrew_outdated.Columns(), homebrew_outdated.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
@@ -89,7 +100,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
-		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedLogGenerate),
 		table.NewPlugin(
 			"sofa_security_release_info", sofa.SofaSecurityReleaseInfoColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
@@ -111,6 +122,8 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("macos_thermal_pressure", thermalthrottling.ThermalPressureColumns(), thermalthrottling.ThermalPressureGenerate),
 		table.NewPlugin("macos_soc_power", socpower.SocPowerColumns(), socpower.SocPowerGenerate),
 		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
+		table.NewPlugin("touchid_system_config", touchid.TouchIDSystemConfigColumns(), touchid.TouchIDSystemConfigGenerate),
+		table.NewPlugin("touchid_user_config", touchid.TouchIDUserConfigColumns(), touchid.TouchIDUserConfigGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"

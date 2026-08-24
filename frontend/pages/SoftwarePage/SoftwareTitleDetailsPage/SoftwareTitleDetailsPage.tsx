@@ -23,7 +23,10 @@ import {
   MAX_PACKAGES_PER_TITLE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+} from "interfaces/team";
 import {
   canDownloadSoftwareInstaller,
   canWriteSoftware,
@@ -38,7 +41,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -327,9 +329,10 @@ const SoftwareTitleDetailsPage = ({
           installedPath={statusPath("installed")}
           pendingPath={statusPath("pending")}
           failedPath={statusPath("failed")}
-          onLabelCountClick={openEditModal}
-          onLabelsClick={openEditModal}
-          onTrashClick={openDeleteModal}
+          onLabelCountClick={() => openEditModal()}
+          onLabelsClick={() => openEditModal()}
+          onEditClick={() => openEditModal()}
+          onTrashClick={() => openDeleteModal()}
         />
       );
     };
@@ -371,6 +374,7 @@ const SoftwareTitleDetailsPage = ({
           isFma={isFma}
           isLatestFmaVersion={row.isActive && isLatestFmaVersion}
           isScriptPackage={isScriptPackage}
+          source={title.source}
           isTarballPackage={title.source === "tgz_packages"}
           isIosOrIpadosApp={isIosOrIpadosApp}
           isActive={row.isActive}
@@ -399,6 +403,7 @@ const SoftwareTitleDetailsPage = ({
           }
           onLabelCountClick={() => openEditModal(pkg.installer_id)}
           onLabelsClick={() => openEditModal(pkg.installer_id)}
+          onEditClick={() => openEditModal(pkg.installer_id)}
           onDownloadClick={() => onDownloadInstaller(pkg)}
           onTrashClick={() => openDeleteModal(pkg.installer_id)}
           onSelfServiceClick={() => openEditModal(pkg.installer_id)}
@@ -431,11 +436,11 @@ const SoftwareTitleDetailsPage = ({
     const atPackageLimit = packages.length >= MAX_PACKAGES_PER_TITLE;
     const addPackageButton = showAddPackageAction && (
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={() => setShowAddPackageModal(true)}
         disabled={atPackageLimit}
+        icon="plus"
       >
-        <Icon name="plus" />
         Add package
       </Button>
     );
@@ -444,9 +449,8 @@ const SoftwareTitleDetailsPage = ({
         <TooltipWrapper
           tipContent={
             <>
-              This title already has {MAX_PACKAGES_PER_TITLE} packages.
-              <br />
-              Delete one you no longer use before adding.
+              This title already has {MAX_PACKAGES_PER_TITLE} packages. Delete
+              one you no longer use before adding.
             </>
           }
           showArrow
@@ -620,6 +624,10 @@ const SoftwareTitleDetailsPage = ({
     return (
       <AddPackageModal
         softwareTitleId={softwareId}
+        softwareTitleName={getDisplayedSoftwareName(
+          title.name,
+          title.display_name
+        )}
         teamId={teamIdForApi}
         existingPackageName={existingPackageName}
         onExit={() => setShowAddPackageModal(false)}
@@ -660,7 +668,11 @@ const SoftwareTitleDetailsPage = ({
     if (isSoftwareTitleError) {
       return (
         <DetailsNoHosts
-          header="Software not detected"
+          header={
+            currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
+              ? "Software not found"
+              : "Software not found in this fleet"
+          }
           details="Expecting to see software? Check back later."
         />
       );
