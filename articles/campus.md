@@ -126,7 +126,7 @@ A path toward automating hundreds of NIST 800-171 controls
 <meta name="authorGitHubUsername" value="n/a">
 <meta name="authorFullName" value="Fleetdm">
 
-<meta name="companyLogoFilename" value="campus-logo-40x40@2x.png">
+<meta name="companyLogoFilename" value="campus-logo-182x40@2x.png">
 <meta name="quoteAuthorImageFilename" value="robbie-trencheny-120x120@2x.png">
 <meta name="quoteAuthorName" value="Robbie Trencheny">
 <meta name="quoteAuthorJobTitle" value="Head of Infrastructure and IT, Campus">
