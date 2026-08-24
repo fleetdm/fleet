@@ -1,5 +1,7 @@
 # Uninstalls KeePass (Inno Setup installer). The registry DisplayName carries
-# the version ("KeePass Password Safe <version>"), so match on a prefix.
+# the version ("KeePass Password Safe <version>"), so match on a prefix. A
+# running instance is asked to close first and force-stopped only if it refuses
+# -- which discards unsaved database changes.
 
 $softwareNameLike = "KeePass Password Safe*"
 $silentArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
@@ -11,68 +13,74 @@ $exitCode = 0
 
 try {
 
-Get-Process -Name "KeePass" -ErrorAction SilentlyContinue | ForEach-Object {
-    Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-}
-
 [array]$uninstallKeys = Get-ChildItem `
     -Path @($machineKey, $machineKey32on64) `
     -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath }
 
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -like $softwareNameLike) {
-        $foundUninstaller = $true
+$key = $uninstallKeys | Where-Object { $_.DisplayName -like $softwareNameLike } | Select-Object -First 1
 
-        # Prefer QuietUninstallString when present; otherwise use UninstallString.
-        $uninstallCommand = if ($key.QuietUninstallString) {
-            $key.QuietUninstallString
-        } else {
-            $key.UninstallString
-        }
+if (-not $key) {
+    Write-Host "Uninstaller for KeePass not found."
+    Exit 1
+}
 
-        # Defensive parser for the three UninstallString shapes:
-        #   "C:\path with spaces\unins000.exe" /ARG              -> quoted
-        #   C:\Program Files\KeePass Password Safe 2\unins000.exe -> unquoted with spaces
-        #   MsiExec.exe /X{GUID}                                 -> bare token
-        $uninstallPath = $null
-        $existingArgs  = ''
-        if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-            $uninstallPath = $matches[1]
-            $existingArgs  = $matches[2]
-        } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-            $uninstallPath = $matches[1]
-            $existingArgs  = $matches[2]
-        } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-            $uninstallPath = $matches[1]
-            $existingArgs  = $matches[2]
-        }
+$running = Get-Process -Name "KeePass" -ErrorAction SilentlyContinue
+if ($running) {
+    Write-Host "Closing running KeePass before uninstalling."
+    $running | ForEach-Object { $_.CloseMainWindow() | Out-Null }
 
-        $finalArgs = ($existingArgs.Trim() + ' ' + $silentArgs).Trim()
+    $deadline = (Get-Date).AddSeconds(30)
+    while ((Get-Process -Name "KeePass" -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 2
+    }
 
-        Write-Host "Uninstall command: $uninstallPath"
-        Write-Host "Uninstall args: $finalArgs"
-
-        $processOptions = @{
-            FilePath     = $uninstallPath
-            ArgumentList = $finalArgs
-            PassThru     = $true
-            Wait         = $true
-        }
-
-        $process = Start-Process @processOptions
-        $exitCode = $process.ExitCode
-
-        Write-Host "Uninstall exit code: $exitCode"
-        break
+    Get-Process -Name "KeePass" -ErrorAction SilentlyContinue | ForEach-Object {
+        Write-Host "KeePass (PID $($_.Id)) did not close; stopping it. Unsaved database changes are lost."
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
     }
 }
 
-if (-not $foundUninstaller) {
-    Write-Host "Uninstaller for KeePass not found."
-    $exitCode = 1
+# Prefer QuietUninstallString when present; otherwise use UninstallString.
+$uninstallCommand = if ($key.QuietUninstallString) {
+    $key.QuietUninstallString
+} else {
+    $key.UninstallString
 }
+
+# Defensive parser for the three UninstallString shapes:
+#   "C:\path with spaces\unins000.exe" /ARG              -> quoted
+#   C:\Program Files\KeePass Password Safe 2\unins000.exe -> unquoted with spaces
+#   MsiExec.exe /X{GUID}                                 -> bare token
+$uninstallPath = $null
+$existingArgs  = ''
+if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+    $uninstallPath = $matches[1]
+    $existingArgs  = $matches[2]
+} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+    $uninstallPath = $matches[1]
+    $existingArgs  = $matches[2]
+} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
+    $uninstallPath = $matches[1]
+    $existingArgs  = $matches[2]
+}
+
+$finalArgs = ($existingArgs.Trim() + ' ' + $silentArgs).Trim()
+
+Write-Host "Uninstall command: $uninstallPath"
+Write-Host "Uninstall args: $finalArgs"
+
+$processOptions = @{
+    FilePath     = $uninstallPath
+    ArgumentList = $finalArgs
+    PassThru     = $true
+    Wait         = $true
+}
+
+$process = Start-Process @processOptions
+$exitCode = $process.ExitCode
+
+Write-Host "Uninstall exit code: $exitCode"
 
 } catch {
     Write-Host "Error: $_"

@@ -9,6 +9,7 @@
 $msiFilePath = "${env:INSTALLER_PATH}"
 $logFile = "${env:TEMP}/fleet-install-software.log"
 $softwareName = "Microsoft Azure CLI (64-bit)"
+$softwarePublisher = "Microsoft Corporation"
 
 # 3010 = ERROR_SUCCESS_REBOOT_REQUIRED, 1641 = ERROR_SUCCESS_REBOOT_INITIATED.
 $successCodes = @(0, 3010, 1641)
@@ -20,7 +21,7 @@ $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion
 
 [array]$existing = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
     ForEach-Object { Get-ItemProperty $_.PSPath } |
-    Where-Object { $_.DisplayName -eq $softwareName }
+    Where-Object { $_.DisplayName -eq $softwareName -and $_.Publisher -eq $softwarePublisher }
 
 foreach ($entry in $existing) {
     $productCode = $entry.PSChildName

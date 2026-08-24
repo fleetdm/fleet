@@ -4,8 +4,11 @@
   "package_identifier": "mRemoteNG.mRemoteNG",
   "unique_identifier": "mRemoteNG",
   "program_publisher": "Next Generation Software",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/mremoteng_uninstall.ps1",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
-  "default_categories": ["Utilities"]
+  "default_categories": [
+    "Utilities"
+  ]
 }
