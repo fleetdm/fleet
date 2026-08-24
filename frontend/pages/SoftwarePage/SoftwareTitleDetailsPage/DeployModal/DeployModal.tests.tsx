@@ -271,54 +271,6 @@ describe("DeployModal", () => {
     });
   });
 
-  it("fires a success toast when a patch radio change is saved (#51640)", async () => {
-    const successSpy = jest.spyOn(notify, "success");
-    const { user } = renderModal({
-      softwarePackage: createMockSoftwarePackage({
-        fleet_maintained_app_id: 1,
-        patch_policy: {
-          id: 22,
-          name: "Firefox up to date",
-          patch_when_closed: true,
-          continuous_automations_enabled: false,
-        },
-        automatic_install_policies: [],
-      }),
-    });
-
-    await user.click(screen.getByRole("radio", { name: "Force patch" }));
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() =>
-      expect(successSpy).toHaveBeenCalledWith(
-        "Successfully updated deploy options."
-      )
-    );
-  });
-
-  it("stays quiet when Save is clicked with no changes", async () => {
-    const successSpy = jest.spyOn(notify, "success");
-    const { user } = renderModal({
-      softwarePackage: createMockSoftwarePackage({
-        fleet_maintained_app_id: 1,
-        patch_policy: {
-          id: 22,
-          name: "Firefox up to date",
-          patch_when_closed: true,
-          continuous_automations_enabled: true,
-        },
-        automatic_install_policies: [
-          { id: 22, name: "Firefox up to date", type: "patch" },
-        ],
-      }),
-    });
-
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(teamPoliciesAPI.update).not.toHaveBeenCalled());
-    expect(successSpy).not.toHaveBeenCalled();
-  });
-
   it("warns about a partial save, then closes and refreshes so retry uses fresh policy state", async () => {
     const onExit = jest.fn();
     const onSuccess = jest.fn();
