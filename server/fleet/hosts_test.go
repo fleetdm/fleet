@@ -544,6 +544,23 @@ func TestIsPlaceholderHardwareSerial(t *testing.T) {
 	}
 }
 
+// The frontend keys the host page's Enrollment ID row off this exact field name, so pin
+// the wire format: MDMHostData is scanned from a JSON_OBJECT built in SQL, which makes a
+// silent rename easy to miss.
+func TestMDMHostDataIsPersonalEnrollmentJSON(t *testing.T) {
+	for _, want := range []bool{true, false} {
+		b, err := json.Marshal(MDMHostData{IsPersonalEnrollment: want})
+		require.NoError(t, err)
+		require.Contains(t, string(b), fmt.Sprintf(`"is_personal_enrollment":%t`, want))
+	}
+
+	// It is also the key the datastore's JSON_OBJECT emits, so round-tripping through
+	// Scan has to land on the same field.
+	var data MDMHostData
+	require.NoError(t, data.Scan([]byte(`{"is_personal_enrollment": true}`)))
+	require.True(t, data.IsPersonalEnrollment)
+}
+
 func TestHostMDMHostNameSettingJSON(t *testing.T) {
 	// Omitted entirely when there is no enforcement (host_name is a nil pointer
 	// with omitempty), matching the recovery-lock treatment for ineligible hosts.

@@ -347,11 +347,12 @@ export const isBYODAccountDrivenUserEnrollment = (
   return enrollmentStatus === "On (manual - personal)";
 };
 
-/** Whether the host's most recent MDM enrollment was personal (BYOD), including
- * hosts that have since unenrolled. `is_personal_enrollment` survives unenrollment
- * while `enrollment_status` flips to "Off", so UI that identifies a BYOD device
- * (which never reports a serial number) must not rely on the status alone. The
- * status is still checked as a fallback for payloads that predate the field. */
+/** Whether the host's last recorded MDM enrollment was personal (BYOD), including
+ * hosts that have since unenrolled. `is_personal_enrollment` is not cleared on
+ * unenrollment while `enrollment_status` flips to "Off", so UI that identifies a
+ * BYOD device (which never reports a serial number) must not rely on the status
+ * alone. The status is still checked because not every host payload carries the
+ * flag: only queries built on the server's shared host-MDM select populate it. */
 export const wasBYODEnrolled = (
   enrollmentStatus: MdmEnrollmentStatus | null,
   isPersonalEnrollment?: boolean

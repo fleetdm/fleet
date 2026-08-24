@@ -748,6 +748,9 @@ const Vitals = ({
   onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  // Unlike the Enrollment ID row, this keys off the *current* enrollment status on
+  // purpose: the cap exists because a personally-enrolled device reports few vitals
+  // right now, not because of how it was once enrolled.
   const showExpandedVitals =
     isIosOrIpadosHost &&
     !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
