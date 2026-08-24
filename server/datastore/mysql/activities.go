@@ -941,7 +941,13 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 // the next activity, or to a missing call to activateNextUpcomingActivity. It
 // unblocks up to maxHosts found in this situation (by activating the next
 // activity for each host).
-func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+//
+// When skipFleetInitiated is true (the fleet-initiated release budget is
+// enabled), a host is only considered blocked if it has an unactivated
+// non-fleet-initiated activity: hosts waiting solely on deferred
+// fleet-initiated activities are the release cron's job, and activating them
+// here would bypass its budget.
+func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	const findBlockedHostsStmt = `
 		SELECT
 			DISTINCT inactive_ua.host_id
@@ -953,13 +959,55 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 		WHERE
 			active_ua.host_id IS NULL AND
 			inactive_ua.activated_at IS NULL
+		%s
 		LIMIT ?`
 
+	var fleetInitiatedFilter string
+	if skipFleetInitiated {
+		fleetInitiatedFilter = "AND inactive_ua.fleet_initiated = 0"
+	}
+	stmt := fmt.Sprintf(findBlockedHostsStmt, fleetInitiatedFilter)
+
 	var blockedHostIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, findBlockedHostsStmt, maxHosts); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, stmt, maxHosts); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
 	}
 	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
+// ReleaseFleetInitiatedUpcomingActivities activates the upcoming activities
+// queue of up to maxHosts hosts that have no activated activity and at least
+// one fleet-initiated activity waiting (enqueued with deferred activation by
+// the policy-automation paths). Hosts with the oldest waiting fleet-initiated
+// activity are released first. It returns the number of hosts released.
+//
+// This is the release valve for the activity.fleet_initiated_release_per_minute
+// budget: enqueue is unthrottled, but hosts only start executing
+// fleet-initiated work at the pace this method is called with.
+func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	const findGatedHostsStmt = `
+		SELECT
+			gated_ua.host_id
+		FROM
+			upcoming_activities gated_ua
+			LEFT OUTER JOIN upcoming_activities active_ua ON
+				active_ua.host_id = gated_ua.host_id AND
+				active_ua.activated_at IS NOT NULL
+		WHERE
+			active_ua.host_id IS NULL AND
+			gated_ua.activated_at IS NULL AND
+			gated_ua.fleet_initiated = 1
+		GROUP BY
+			gated_ua.host_id
+		ORDER BY
+			MIN(gated_ua.created_at)
+		LIMIT ?`
+
+	var gatedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &gatedHostIDs, findGatedHostsStmt, maxHosts); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select gated hosts")
+	}
+	return len(gatedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, gatedHostIDs)
 }
 
 // mdmApplePushDeliveryGraceDays is how long an activated command has to reach its device before the

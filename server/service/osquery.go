@@ -2255,6 +2255,14 @@ func (svc *Service) continuousAutomationOnCooldown(lastFiredAt time.Time) bool {
 	return svc.clock.Now().Sub(lastFiredAt) < svc.config.Osquery.PolicyUpdateInterval
 }
 
+// deferFleetInitiatedActivation reports whether fleet-initiated activities
+// (policy-automation installs and scripts) should be enqueued without inline
+// activation, leaving them to the fleet-initiated release cron to activate
+// within the activity.fleet_initiated_release_per_minute budget.
+func (svc *Service) deferFleetInitiatedActivation() bool {
+	return svc.config.Activity.FleetInitiatedReleasePerMinute > 0
+}
+
 func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	ctx context.Context,
 	hostID uint,
@@ -2425,8 +2433,9 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService: false,
-				PolicyID:    &policyID,
+				SelfService:     false,
+				PolicyID:        &policyID,
+				DeferActivation: svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {
@@ -2599,8 +2608,9 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		}
 
 		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
-			SelfService: false,
-			PolicyID:    &policyID,
+			SelfService:     false,
+			PolicyID:        &policyID,
+			DeferActivation: svc.deferFleetInitiatedActivation(),
 		})
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to get install VPP app",
@@ -2852,6 +2862,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			ScriptID:        &scriptMetadata.ID,
 			TeamID:          policyTeamID,
 			PolicyID:        &policyID,
+			DeferActivation: svc.deferFleetInitiatedActivation(),
 			// no user ID as scripts are executed by Fleet
 		}
 

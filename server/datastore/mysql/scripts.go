@@ -149,8 +149,12 @@ VALUES
 		return "", 0, ctxerr.Wrap(ctx, err, "new join script upcoming activity")
 	}
 
-	if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
-		return "", 0, ctxerr.Wrap(ctx, err, "activate next activity")
+	// deferred activations are picked up by the fleet-initiated release cron
+	// within its per-minute budget
+	if !request.DeferActivation {
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
+			return "", 0, ctxerr.Wrap(ctx, err, "activate next activity")
+		}
 	}
 
 	return execID, activityID, nil

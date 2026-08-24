@@ -2010,8 +2010,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert software install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -2216,7 +2220,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			0, // Uninstalls are never used in setup experience, so always default priority
+			// uninstalls are always user-initiated (never setup experience, never
+			// policy automations), so they rank with other user-initiated activities
+			fleet.UserInitiatedActivityPriority,
 			userID,
 			false,
 			executionID,
