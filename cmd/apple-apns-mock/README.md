@@ -113,7 +113,7 @@ every instance          holds the token? -> GETDEL <prefix>pending:<token>
 connect at any instance GETDEL <prefix>pending:<token>, then announce ownership
 ```
 
-Keys used: `<prefix>pending:<token>`, `<prefix>stats:<node-id>`, `<prefix>seq`, and the `<prefix>push` channel. A push that has already expired (`apns-expiration: 0`) is never stored: its payload rides inline in the announcement. If Redis is unreachable a push is answered `503 ServiceUnavailable` rather than silently dropped, and Fleet's `apns_push_to_pending_hosts` cron retries it; existing streams keep working.
+Keys used: `<prefix>pending:<token>`, `<prefix>stats:<node-id>`, `<prefix>seq`, and the `<prefix>push` channel. A push that has already expired (`apns-expiration: 0`) is never stored: its payload rides inline in the announcement. If Redis is unreachable a push is answered `503 ServiceUnavailable` rather than silently dropped.
 
 Why it is shaped this way — the store-before-announce ordering, the `GETDEL` claim, the sequence number on ownership announcements — is in [the design doc](../../docs/Contributing/product-groups/mdm/apple-apns-mock.md#routing-between-instances).
 
