@@ -1,0 +1,1 @@
+- Updated the Mozilla Firefox Windows Fleet-maintained app to 154.0.
