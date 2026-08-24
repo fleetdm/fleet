@@ -1483,8 +1483,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 				payload.Status = nil
 				hp.Retries++
 				// A NULL status reads as "pending" everywhere it surfaces, so the attempt that just failed must not
-				// leave its error behind in the Details column while Fleet is still retrying. The detail is written
-				// again, for real, if the retries run out. Apple clears it for the same reason in setMDMProfilesRetryDB.
+				// leave its error behind in the Details column while Fleet is still retrying.
 				payload.Detail = ""
 			}
 		}
@@ -1535,17 +1534,9 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	return nil
 }
 
-// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for a Windows install profile, which today
-// means an error the SCEP proxy saw from the upstream CA. While the profile has retries left it is put back in the
-// pending state so the profile manager redelivers it on its next tick, with freshly preprocessed contents (a SCEP profile
-// therefore gets a brand new challenge). Once the retries are exhausted the failure is terminal and the detail is
-// surfaced to the user.
-//
-// Delivery attempts are what the retry counter is meant to bound, not requests: the Windows SCEP CSP retries
-// PKIOperation on its own schedule, so one delivery can produce several upstream errors in quick succession. The
-// "status is not NULL" condition is what keeps those from each consuming a retry. The first error moves the row out of
-// "verifying" and costs one; the rest land on an already-pending row and are ignored, because a delivery is by then
-// already queued and supersedes them. setMDMProfilesRetryDB guards Apple's retry path the same way.
+// SetMDMWindowsHostProfileFailedOrRetry records a failure Fleet observed itself rather than one the host reported, which
+// today means only an error Fleet's SCEP proxy saw from the upstream CA. While the profile has retries left it is put
+// back in the pending state so the profile manager redelivers it on its next tick.
 func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
@@ -1614,30 +1605,10 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 // ResendWindowsHostCertificateProfile queues a Windows certificate profile for redelivery after Fleet turned a SCEP
 // request away: an NDES challenge that aged past its window before the device got to PKIOperation, or a custom SCEP
 // challenge Fleet would not accept. The host never had a usable profile to install, so this is not one of the failures
-// the retry budget exists to bound, and nothing is charged for it. Note that the charge would not happen anyway: a
-// challenge that fails validateIdentifier returns before PKIOperation reaches the CA, so no upstream failure is ever
-// recorded for it.
+// the retry budget exists to bound, and nothing is charged for it.
 //
-// It deliberately does NOT reset the counter, which is where it parts company with the Apple equivalent. On the custom
-// SCEP proxy path, a delivery whose PKIOperation genuinely fails at the CA has already spent its Fleet one-time
-// challenge getting there (ConsumeChallenge deletes it), and burns a retry. Fleet then queues a redelivery carrying a
-// fresh Fleet challenge, but before it reaches the device the Windows SCEP CSP re-drives the exchange on its own,
-// replaying the profile it still holds and therefore the already-consumed challenge. That replay is rejected and comes
-// through here. Zeroing the counter on it would hand the profile a fresh budget once per genuine CA failure and it
-// would never reach a terminal state, no matter how many times the CA actually failed. Apple has no equivalent
-// exposure because its profile install is atomic and the device does not re-drive SCEP by itself.
-//
-// Note this is the Fleet-issued one-time challenge in the proxy URL, not the SCEP challenge password the CA checks.
-//
-// Unlike the Apple counterpart there is also no queued command to deactivate: the profile manager writes a new command
-// UUID onto the row when it redelivers, so a late response for the superseded command no longer matches this profile.
-//
-// A row that already reached a terminal state ("verified" or "failed", per the status documentation in
-// server/fleet/mdm.go) is left alone. Windows profiles are exempt from the "status must be pending" gate in
-// validateIdentifier, so a straggling SCEP request from the CSP's own retry can arrive long after the row settled.
-// Requeueing then would regress a verified profile and spend another challenge on a certificate the host already has,
-// or quietly resurrect a profile that had already exhausted its retries. An admin-initiated Resend is the supported
-// way out of a terminal state, and it comes through ResendHostMDMProfile instead.
+// A row that already reached a terminal state ("verified" or "failed") is left alone. An admin-initiated Resend is the
+// supported way out of a terminal state, and it comes through ResendHostMDMProfile instead.
 func (ds *Datastore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	const stmt = `
 		UPDATE host_mdm_windows_profiles
