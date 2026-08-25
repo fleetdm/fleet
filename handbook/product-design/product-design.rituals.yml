@@ -69,7 +69,7 @@
   task: "User story review"
   startedOn: "2025-01-16"
   frequency: "Weekly"
-  description: "Review user stories in the 'User story review' column on each product group's board with that group's Product Designer, Engineering Manager, and Quality Assurance Engineer."
+  description: "Review user stories that have completed the product checklist and are ready for review, with that group's Product Designer, Engineering Manager, and Quality Assurance Engineer."
   dri: "noahtalerman"
 - 
   task: "Revise quarterly roadmap blog post"
