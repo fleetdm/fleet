@@ -87,6 +87,25 @@ func TestVerifyMachineInfoSignatureGenuineCapture(t *testing.T) {
 	})
 }
 
+// TestVerifyMachineInfoSignatureAccountDrivenCapture verifies a real
+// Account-Driven User Enrollment blob captured from a lab iPhone. Despite the
+// design note that this lane was "not an Apple device signature", the blob is
+// signed by the same Apple device identity as ADE/OTA — a per-device GUID leaf
+// under the pinned Apple iPhone Device CA — so it verifies. The payload omits
+// SERIAL/UDID (BYOD privacy), which the parser leaves empty.
+func TestVerifyMachineInfoSignatureAccountDrivenCapture(t *testing.T) {
+	buf, err := os.ReadFile("testdata/deviceinfo/machineinfo-account-driven-iphone.der")
+	require.NoError(t, err)
+
+	info, p7, err := ParseMachineInfoFromPKCS7(buf)
+	require.NoError(t, err)
+	require.Equal(t, "iPhone14,5", info.Product)
+	require.Empty(t, info.Serial)
+	require.Empty(t, info.UDID)
+
+	require.NoError(t, VerifyMachineInfoSignature(p7))
+}
+
 func TestVerifyMachineInfoSignatureSyntheticChains(t *testing.T) {
 	content := []byte("<plist><dict></dict></plist>")
 

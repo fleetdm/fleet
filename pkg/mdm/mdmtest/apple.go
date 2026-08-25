@@ -568,6 +568,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.AccountDrivenEnrollPath, buf,
 	)

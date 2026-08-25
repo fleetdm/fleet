@@ -16207,6 +16207,19 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 		require.Equal(t, http.StatusForbidden, response.StatusCode)
 	})
 
+	t.Run("account-driven enroll rejects unverifiable deviceinfo", func(t *testing.T) {
+		body, err := mdmtest.AccountDrivenUserEnrollDeviceInfoAsPKCS7(fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{
+			Product: "iPhone14,5",
+			Version: "22A3351",
+		})
+		require.NoError(t, err)
+		path := strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", "unused", 1)
+		res := s.DoRawNoAuth("POST", path, body, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "unable to verify deviceinfo signature")
+		require.NoError(t, res.Body.Close())
+	})
+
 	t.Run("audit mode logs but does not block", func(t *testing.T) {
 		apple_mdm.SetMachineInfoVerificationForTest(t, false)
 		// the request proceeds past signature verification and fails later on

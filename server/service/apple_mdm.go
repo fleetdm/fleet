@@ -2643,10 +2643,9 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 // verifyMachineInfoSignature verifies that an Apple MachineInfo (deviceinfo)
 // payload received on an Apple-signed enrollment lane carries a valid Apple
 // device signature, and applies the enforcement policy: failures block the
-// request unless verification is disabled via
-// FLEET_MDM_DISABLE_MACHINEINFO_VERIFY, in which case they are logged only
-// (audit mode). Failures are logged and the self-asserted device identifiers
-// in both modes.
+// request unless verification is disabled via mdm.apple_machineinfo_verify, in
+// which case they are logged only (audit mode). Failures are logged with the
+// lane and the self-asserted device identifiers in both modes.
 func verifyMachineInfoSignature(ctx context.Context, p7 *pkcs7.PKCS7, info *fleet.MDMAppleMachineInfo, lane string) error {
 	err := apple_mdm.VerifyMachineInfoSignature(p7)
 	if err == nil {
@@ -2787,6 +2786,17 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 		}
 	}
 	decoded.DeviceInfo = deviceInfo
+
+	// Account-Driven User Enrollment blobs are signed by the device's Apple
+	// identity (same chain as ADE/OTA), so verify the signature. The payload
+	// omits SERIAL/UDID by design, so only product/version are available to log.
+	if err := verifyMachineInfoSignature(ctx, p7, &fleet.MDMAppleMachineInfo{
+		Product:   deviceInfo.Product,
+		OSVersion: deviceInfo.OSVersion,
+		Version:   deviceInfo.Version,
+	}, "account_driven_enroll"); err != nil {
+		return nil, err
+	}
 
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
