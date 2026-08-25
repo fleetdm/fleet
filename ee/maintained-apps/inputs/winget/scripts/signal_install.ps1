@@ -1,27 +1,79 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# Signal ships as a Nullsoft (NSIS) installer; /S runs silent.
-# Winget manifest is user-scope only.
+# Signal's Nullsoft (NSIS) installer has no machine-wide mode: it always installs
+# into the running user's %LOCALAPPDATA%\Programs\signal-desktop, and /allusers is
+# accepted and then ignored. Installing it from this script's own SYSTEM context
+# therefore drops Signal into SYSTEM's profile, where nobody can launch it. Worse,
+# the installer stub is 32-bit, so the WOW64 file system redirector puts that copy
+# under C:\Windows\SysWOW64\config\systemprofile\... while the uninstall entry it
+# writes still points at C:\Windows\system32\..., leaving an install that cannot be
+# removed afterwards. Hand the installer to the signed-in user instead.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$taskName = "fleet-install-signal"
+# SCHED_S_TASK_RUNNING: a scheduled task's result code while it is still going.
+$taskRunning = 267009
+$exitCode = 0
+$stagedInstaller = $null
 
 try {
+    # Find the signed-in user to install for. Signal is a per-user app, so there is
+    # nothing sensible to do when nobody is signed in.
+    $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
+        Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue |
+        Where-Object { $_.User } |
+        Select-Object -First 1
+    if (-not $owner) {
+        Throw "Signal installs per user and no user is signed in to this host. Sign in and try again."
+    }
+    $userAccount = "$($owner.Domain)\$($owner.User)"
+    Write-Host "Installing Signal for $userAccount."
 
-$processOptions = @{
-  FilePath = "$exeFilePath"
-  ArgumentList = "/S"
-  PassThru = $true
-  Wait = $true
-}
+    # Fleet's installer directory is not readable by that user, so stage a copy
+    # somewhere it is.
+    $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
+    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
 
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
+    $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument "/S"
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $principal = New-ScheduledTaskPrincipal -UserId $userAccount
+    $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
-Write-Host "Install exit code: $exitCode"
-Exit $exitCode
+    $startDate = Get-Date
+    Start-ScheduledTask -TaskName $taskName
+
+    # Wait for the task to finish. Do not wait to observe the "Running" state first:
+    # the task can get there and back between polls. The installer unpacks ~600MB so
+    # give it room; Signal launches itself at the end, but that is a separate process
+    # and does not hold the task open.
+    Start-Sleep -Seconds 2
+    while ($true) {
+        $info = Get-ScheduledTaskInfo -TaskName $taskName
+        $state = (Get-ScheduledTask -TaskName $taskName).State
+        if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+            $exitCode = $info.LastTaskResult
+            break
+        }
+        if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
+            Throw "Timed out waiting for the install task to finish."
+        }
+        Start-Sleep -Seconds 5
+    }
+    Write-Host "Install exit code: $exitCode"
 
 } catch {
-  Write-Host "Error: $_"
-  Exit 1
+    Write-Host "Error: $_"
+    $exitCode = 1
+} finally {
+    if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    if ($stagedInstaller -and (Test-Path -LiteralPath $stagedInstaller)) {
+        Remove-Item -LiteralPath $stagedInstaller -Force -ErrorAction SilentlyContinue
+    }
 }
+
+Exit $exitCode
