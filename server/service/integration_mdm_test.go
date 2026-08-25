@@ -2283,41 +2283,53 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() {
 	t := s.T()
 
+	// the deprecated flat toggle reads as the AND of the four per-platform
+	// settings; a legacy-only write fans out to all of them
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
-	// the deprecated flat toggle wins when provided: it fans out to every
-	// per-platform setting
+	// a per-platform change wins over an unchanged flat toggle sent alongside
+	// it: macOS enforcement turns on, the flat toggle still reads false (not
+	// all platforms are on) and the FileVault profile exists
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
-
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// without the flat toggle, macos_settings.enable_disk_encryption is the
-	// canonical macOS enforcement setting (no longer an alias of the flat
-	// toggle): it turns on macOS enforcement only, so the flat toggle (the AND
-	// of the per-platform settings) still reads false
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// new config takes precedence over old config again
+	// changing the flat toggle and a per-platform setting to disagreeing
+	// values in one request is a conflict
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enable_disk_encryption": true, "macos_settings": {"enable_disk_encryption": false} }
+  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// changing the flat toggle fans out to every per-platform setting, winning
+	// over per-platform values it does not change
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
+	  "mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// turning the flat toggle off turns everything off and removes the profile
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enable_disk_encryption": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
@@ -2344,55 +2356,65 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	// after creation, disk encryption is off
 	checkTeamDiskEncryption(false, false)
 
-	// the deprecated flat toggle wins when provided: it fans out to every
-	// per-platform setting
+	// a per-platform change wins over an unchanged flat toggle sent alongside it
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false, false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// without the flat toggle, macos_settings.enable_disk_encryption is the
-	// canonical macOS enforcement setting: it turns on macOS enforcement only,
-	// so the flat toggle (the AND of the per-platform settings) reads false
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	checkTeamDiskEncryption(false, true)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// the flat toggle wins again, resetting the macOS enforcement setting
+	// changing the flat toggle fans out over per-platform values it does not change
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	checkTeamDiskEncryption(false, true) // no change: same spec re-applied
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// changing the flat toggle and a per-platform setting to disagreeing
+	// values in one request is a conflict
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			EnableDiskEncryption: optjson.SetBool(true),
+			MacOSSettings:        map[string]any{"enable_disk_encryption": false},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// a legacy-only write fans out to all platforms
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			EnableDiskEncryption: optjson.SetBool(false),
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	checkTeamDiskEncryption(false, false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"custom_settings": []interface{}{"A", "B"}},
+			MacOSSettings:        map[string]any{"custom_settings": []any{"A", "B"}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	checkTeamDiskEncryption(false, false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
 
 func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
@@ -3105,7 +3127,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 
 	// use the MDM disk encryption endpoint to set it to true
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
@@ -3150,13 +3172,13 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 
 	// flip and verify the value
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -3508,7 +3530,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// use the MDM settings endpoint to set it to true
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
@@ -3534,7 +3556,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// use the MDM settings endpoint with an unknown team id
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(9999), EnableDiskEncryption: true}, http.StatusNotFound)
+		updateDiskEncryptionRequest{TeamID: new(uint(9999)), EnableDiskEncryption: new(true)}, http.StatusNotFound)
 
 	// mdm/apple/settings works for windows as well as it's being used by
 	// clients (UI) this way
@@ -3555,13 +3577,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// flip and verify the value
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: false}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
@@ -20451,7 +20473,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	require.NoError(t, err)
 
 	// first a quick stats check without disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20460,7 +20482,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
 
 	// enable disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20542,7 +20564,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	require.NoError(t, err)
 
 	// ensure disk encryption is disabled
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20573,7 +20595,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	}
 
 	// now turn disk encryption on
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)

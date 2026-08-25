@@ -322,6 +322,79 @@ type DiskEncryptionConfig struct {
 	LinuxEscrowEnabled bool
 }
 
+// MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
+// POST /disk_encryption. Nil fields mean "don't change".
+type MacOSDiskEncryptionSettingsPayload struct {
+	EnableDiskEncryption          *bool `json:"enable_disk_encryption"`
+	EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// WindowsDiskEncryptionSettingsPayload is the windows_settings object accepted
+// by POST /disk_encryption. Nil fields mean "don't change".
+type WindowsDiskEncryptionSettingsPayload struct {
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+}
+
+// LinuxDiskEncryptionSettingsPayload is the linux_settings object accepted by
+// POST /disk_encryption. Nil fields mean "don't change".
+type LinuxDiskEncryptionSettingsPayload struct {
+	EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// MDMDiskEncryptionSettingsPayload carries a POST /disk_encryption update
+// through the service layer. The deprecated flat EnableDiskEncryption fans out
+// to every per-platform setting; ResolvePerPlatform applies the fan-out and
+// conflict rules and returns the effective per-platform values.
+type MDMDiskEncryptionSettingsPayload struct {
+	// EnableDiskEncryption is deprecated: when set it applies to all platforms.
+	EnableDiskEncryption *bool
+	RequireBitLockerPIN  *bool
+	MacOSSettings        *MacOSDiskEncryptionSettingsPayload
+	WindowsSettings      *WindowsDiskEncryptionSettingsPayload
+	LinuxSettings        *LinuxDiskEncryptionSettingsPayload
+}
+
+// DiskEncryptionSettingsChanges holds the effective per-platform disk
+// encryption values of a settings write. Nil means "leave unchanged".
+type DiskEncryptionSettingsChanges struct {
+	MacOSEnable   *bool
+	MacOSEscrow   *bool
+	WindowsEnable *bool
+	LinuxEscrow   *bool
+}
+
+// ResolvePerPlatform applies the deprecated-key fan-out and conflict rules:
+// the legacy flat value fans out to every per-platform setting, and any
+// per-platform value explicitly sent alongside it must agree with it.
+func (p MDMDiskEncryptionSettingsPayload) ResolvePerPlatform() (DiskEncryptionSettingsChanges, error) {
+	var changes DiskEncryptionSettingsChanges
+	if p.MacOSSettings != nil {
+		changes.MacOSEnable = p.MacOSSettings.EnableDiskEncryption
+		changes.MacOSEscrow = p.MacOSSettings.EnableEscrowDiskEncryptionKey
+	}
+	if p.WindowsSettings != nil {
+		changes.WindowsEnable = p.WindowsSettings.EnableDiskEncryption
+	}
+	if p.LinuxSettings != nil {
+		changes.LinuxEscrow = p.LinuxSettings.EnableEscrowDiskEncryptionKey
+	}
+	if p.EnableDiskEncryption != nil {
+		legacy := *p.EnableDiskEncryption
+		for _, v := range []*bool{changes.MacOSEnable, changes.MacOSEscrow, changes.WindowsEnable, changes.LinuxEscrow} {
+			if v != nil && *v != legacy {
+				return DiskEncryptionSettingsChanges{}, NewInvalidArgumentError(
+					"enable_disk_encryption", "conflicts with per-platform disk encryption settings",
+				)
+			}
+		}
+		changes.MacOSEnable = &legacy
+		changes.MacOSEscrow = &legacy
+		changes.WindowsEnable = &legacy
+		changes.LinuxEscrow = &legacy
+	}
+	return changes, nil
+}
+
 // DiskEncryptionSettingsAllEnabled returns the AND of the four per-platform
 // disk encryption settings — the value the deprecated flat
 // mdm.enable_disk_encryption key reports.

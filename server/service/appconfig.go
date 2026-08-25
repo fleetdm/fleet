@@ -779,9 +779,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// The per-platform disk encryption settings follow PATCH-merge semantics:
 	// a field explicitly set to null keeps its stored value (as if not
-	// provided). The deprecated flat mdm.enable_disk_encryption wins when
-	// provided: it fans out to every per-platform setting, preserving its
-	// historical semantics.
+	// provided). The deprecated flat mdm.enable_disk_encryption fans out to
+	// all four per-platform settings; precedence between the flat toggle and
+	// a per-platform value sent in the same request goes to whichever the
+	// request actually changes, and changing both to disagreeing values is a
+	// conflict.
 	//
 	// TODO: move this logic to the AppConfig unmarshaller? we need to do
 	// this because we unmarshal twice into appConfig:
@@ -789,6 +791,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
 	legacyDiskEncryption := newAppConfig.MDM.EnableDiskEncryption
+	// the flat toggle reads as the AND of the four per-platform settings, so
+	// "the request changes it" is measured against that
+	legacyDiskEncryptionChanged := legacyDiskEncryption.Valid && legacyDiskEncryption.Value != oldAppConfig.MDM.DiskEncryptionSettingsAllEnabled()
 	anyDiskEncryptionSet := legacyDiskEncryption.Valid
 	enablingDiskEncryption := false
 	for _, f := range []struct {
@@ -801,8 +806,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		{newAppConfig.MDM.WindowsSettings.EnableDiskEncryption, &appConfig.MDM.WindowsSettings.EnableDiskEncryption, oldAppConfig.MDM.WindowsSettings.EnableDiskEncryption},
 		{newAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, &appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey},
 	} {
+		incomingChanged := f.incoming.Valid && f.incoming.Value != f.old.Value
 		switch {
-		case legacyDiskEncryption.Valid:
+		case incomingChanged && legacyDiskEncryptionChanged && f.incoming.Value != legacyDiskEncryption.Value:
+			// both the deprecated toggle and this per-platform setting are
+			// being changed, to disagreeing values
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(
+				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings"))
+		case incomingChanged:
+			*f.merged = f.incoming
+		case legacyDiskEncryption.Valid && (legacyDiskEncryptionChanged || !f.incoming.Valid):
+			// the deprecated toggle fans out: it wins over per-platform
+			// values the request carries but does not change (the common
+			// GET-modify-PATCH round-trip) and fills in absent ones
 			*f.merged = optjson.SetBool(legacyDiskEncryption.Value)
 		case f.incoming.Valid:
 			*f.merged = f.incoming
@@ -2037,16 +2053,19 @@ func (svc *Service) validateMDM(
 	overwrite bool,
 ) error {
 	if !lic.IsPremium() {
-		if mdm.MacOSSettings.EnableDiskEncryption.Value {
+		// gated on newly enabling (not the stored value) so a downgraded
+		// license with settings still on can save unrelated config changes
+		// and turn the settings off
+		if mdm.MacOSSettings.EnableDiskEncryption.Value && !oldMdm.MacOSSettings.EnableDiskEncryption.Value {
 			invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
 		}
-		if mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
+		if mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value && !oldMdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
 			invalid.Append("apple_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
 		}
-		if mdm.WindowsSettings.EnableDiskEncryption.Value {
+		if mdm.WindowsSettings.EnableDiskEncryption.Value && !oldMdm.WindowsSettings.EnableDiskEncryption.Value {
 			invalid.Append("windows_settings.enable_disk_encryption", ErrMissingLicense.Error())
 		}
-		if mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
+		if mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value && !oldMdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
 			invalid.Append("linux_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
 		}
 	}

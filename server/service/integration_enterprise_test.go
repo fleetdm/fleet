@@ -4721,7 +4721,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Nil(t, getHostResp.Host.MDM.OSSettings)
 
 	// turn on disk encryption enforcement
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 
 	// should be populated after disk encryption is turned on
 	// from host details
@@ -4804,7 +4804,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Equal(t, fleet.MDMProfilesSummary{}, profileSummary.MDMProfilesSummary)
 
 	// turn on disk encryption enforcement for team
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{TeamID: teamID, EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{TeamID: teamID, EnableDiskEncryption: new(true)}, http.StatusNoContent)
 
 	// should show the Linux host as pending
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &profileSummary)

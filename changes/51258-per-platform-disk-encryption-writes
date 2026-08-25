@@ -1,0 +1,3 @@
+- Added `macos_settings`, `windows_settings`, and `linux_settings` objects to `POST /api/v1/fleet/disk_encryption`, and conflict validation (422) when a request changes the deprecated `enable_disk_encryption` and a per-platform setting to disagreeing values.
+- Fixed the BitLocker PIN requirement being ignored for hosts without a fleet when set via `POST /api/v1/fleet/disk_encryption`.
+- Fixed config saves failing on a downgraded (free) license when disk encryption settings were still enabled from a premium license.

@@ -5369,3 +5369,100 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
 	})
 }
+
+func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {
+	// enabling only the BitLocker PIN doesn't enable key escrow, so it must
+	// not require the server private key
+	ds := new(mock.Store)
+	// construct the concrete Service directly to reach the unexported method;
+	// it performs no authorization or license checks of its own
+	svc := &Service{ds: ds} // no server private key configured
+	svc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			t.Fatalf("no activity expected for a PIN-only change, got %s", activity.ActivityName())
+			return nil
+		},
+	})
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				WindowsEnabledAndConfigured: true,
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			},
+		}, nil
+	}
+	var savedConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		savedConfig = info
+		return nil
+	}
+
+	err := svc.updateAppConfigMDMDiskEncryption(ctx, fleet.DiskEncryptionSettingsChanges{}, new(true))
+	require.NoError(t, err)
+	require.NotNil(t, savedConfig)
+	require.True(t, savedConfig.MDM.RequireBitLockerPIN.Value)
+}
+
+func TestResolvePerPlatformDiskEncryptionPayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload fleet.MDMDiskEncryptionSettingsPayload
+		want    fleet.DiskEncryptionSettingsChanges
+		wantErr bool
+	}{
+		{
+			name:    "empty payload changes nothing",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{},
+			want:    fleet.DiskEncryptionSettingsChanges{},
+		},
+		{
+			name:    "flat toggle fans out to all four",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), MacOSEscrow: new(true), WindowsEnable: new(true), LinuxEscrow: new(true),
+			},
+		},
+		{
+			name: "per-platform values pass through",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				MacOSSettings:   &fleet.MacOSDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+				WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(false)},
+			},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), WindowsEnable: new(false),
+			},
+		},
+		{
+			name: "flat agreeing with per-platform fans out",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				EnableDiskEncryption: new(true),
+				WindowsSettings:      &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+			},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), MacOSEscrow: new(true), WindowsEnable: new(true), LinuxEscrow: new(true),
+			},
+		},
+		{
+			name: "flat conflicting with per-platform errors",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				EnableDiskEncryption: new(true),
+				LinuxSettings:        &fleet.LinuxDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(false)},
+			},
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.payload.ResolvePerPlatform()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
