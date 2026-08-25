@@ -8,11 +8,14 @@ import AddHostsModal from "./AddHostsModal";
 
 const ENROLL_SECRET = "abcdefg12345678";
 
-// qrcode.react renders the background as the first path and the encoded
-// modules as the last, so the last path's geometry reflects the encoded value.
+// Joins every path's geometry rather than picking one out, so the comparison
+// does not depend on how many paths qrcode.react emits or in what order.
 const getQrCodeData = () => {
   const paths = screen.getByTestId("enroll-qr-code").querySelectorAll("path");
-  return paths[paths.length - 1].getAttribute("d");
+  expect(paths.length).toBeGreaterThan(0);
+  return Array.from(paths)
+    .map((path) => path.getAttribute("d"))
+    .join("|");
 };
 
 describe("AddHostsModal", () => {
@@ -128,7 +131,7 @@ describe("AddHostsModal", () => {
       screen.getByLabelText("Company-owned (fully-managed)")
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Send this to your end users:/i)
+      screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();
 
     // Company-owned is selected by default — URL has no byod param

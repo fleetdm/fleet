@@ -36,7 +36,9 @@ To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
-To test enrollment yourself, scan the QR code below the enrollment link with the device you want to enroll. It opens the same link you share with your end users.
+To test enrollment yourself, scan the QR code below the enrollment link. It opens the same page you share with your end users.
+
+Company-owned (fully-managed) Android hosts enroll from the setup wizard after a factory reset. That page provides a separate QR code for the wizard to scan.
 
 ## CLI
 

@@ -3,12 +3,10 @@
     // Keeps the frame hugging the code instead of stretching to the
     // `.form-field` column width.
     align-self: flex-start;
-    padding: $pad-medium;
-    // Literal rather than $ui-off-white, which darkens under
-    // `body.dark-mode` and would break the code's quiet zone. Must stay in
-    // sync with BACKGROUND_COLOR in EnrollQrCode.tsx.
-    background-color: #f9fafc;
+    // The SVG paints its own background and quiet zone, so the frame only
+    // rounds the corners. `overflow: hidden` is what clips the square SVG.
     border-radius: $border-radius;
+    overflow: hidden;
     line-height: 0;
   }
 }

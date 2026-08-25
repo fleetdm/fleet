@@ -83,7 +83,9 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
             onChange={() => setEnrollmentType("fullyManaged")}
           />
         </fieldset>
-        <p className={`${baseClass}__heading`}>Enrollment instructions</p>
+        <p className="platform-wrapper__panel-heading">
+          Enrollment instructions
+        </p>
         <InputField
           label="Share this link with your end users:"
           enableCopy
