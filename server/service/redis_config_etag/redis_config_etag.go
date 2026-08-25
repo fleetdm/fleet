@@ -28,9 +28,11 @@ const (
 	// It must be strictly greater than the composed worst-case staleness of
 	// the per-instance in-memory caches that feed the config build:
 	//
-	//	  packConfigCache TTL (1m, server/service/service.go)
-	//	+ max cached_mysql TTL used by the build (1m, defaultPacksExpiration
-	//	  et al. in server/datastore/mysql/cached_mysql)
+	//	  packConfigCache TTL (1m, service.PackConfigCacheTTL)
+	//	+ max cached_mysql TTL feeding the build (1m: defaultPacksExpiration,
+	//	  defaultScheduledQueriesExpiration and
+	//	  defaultTeamAgentOptionsExpiration — AgentOptionsForHost reads the
+	//	  last of these; see cached_mysql.MaxConfigInputTTL)
 	//	+ slack for in-flight requests and clock slop (1m)
 	//	= 3m
 	//

@@ -499,12 +499,20 @@ func (s *Stats) RecordFullConfigResponse(bodyBytes int64, conditional bool) {
 	}
 }
 
-func (s *Stats) RecordConfigNotModified(lastBodyBytes int64) {
+// RecordConfigNotModified records an unchanged response. bodyBytes is what the
+// server actually sent (the constant unchanged body), lastBodyBytes the full
+// config it replaced; only the difference was avoided. Counting the whole prior
+// body as avoided and the unchanged body as nothing would overstate the savings
+// percentage on every unchanged response.
+func (s *Stats) RecordConfigNotModified(bodyBytes, lastBodyBytes int64) {
 	s.l.Lock()
 	defer s.l.Unlock()
 	s.configNotModified++
 	s.configConditionalRequests++
-	s.configEstimatedSavedBytes += lastBodyBytes
+	s.configResponseBodyBytes += bodyBytes
+	if avoided := lastBodyBytes - bodyBytes; avoided > 0 {
+		s.configEstimatedSavedBytes += avoided
+	}
 }
 
 func (s *Stats) IncrementConfigETagDrift() {

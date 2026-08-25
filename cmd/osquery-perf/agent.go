@@ -2462,7 +2462,7 @@ func (a *agent) config() error {
 			a.stats.IncrementConfigErrors()
 			return fmt.Errorf("invalid config unchanged response: sent_etag=%t", sentConditional)
 		}
-		a.stats.RecordConfigNotModified(a.lastConfigBodyBytes)
+		a.stats.RecordConfigNotModified(int64(len(body)), a.lastConfigBodyBytes)
 		return nil
 	}
 

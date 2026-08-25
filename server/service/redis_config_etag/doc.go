@@ -25,7 +25,7 @@
 // Fleet builds the osquery config through two stacked PER-INSTANCE in-memory
 // caches:
 //
-//  1. cached_mysql (server/datastore/mysql/cached_mysql): AppConfig (1s TTL),
+//  1. cached_mysql (server/datastore/cached_mysql): AppConfig (1s TTL),
 //     ListPacksForHost (1m), ListScheduledQueriesInPack (1m),
 //     TeamAgentOptions (1m), ...
 //  2. svc.packConfigCache (server/service/service.go): the marshaled pack
@@ -104,10 +104,15 @@
 //   - label scopes: which scopes have label-scoped reports (shared vs
 //     per-host mode); reset on query CRUD and label deletion.
 //
-// Loaders are trivially cheap deployment-level queries, so concurrent
-// duplicate loads after expiry are harmless (no stampede protection by
-// design — a lock would add a worse failure mode than the ~handful of
-// duplicate 1ms queries it prevents).
+// The loaders are cheap deployment-level queries, but a Redis miss must not
+// become one database query per concurrent config request — and the miss window
+// widens exactly when the database is degraded. Each gate therefore uses
+// NON-BLOCKING leader election (one CAS flag per gate per Fleet instance): the
+// winner runs the loader, and losers return fleet.ErrConfigETagGateLoading
+// immediately rather than waiting or querying. Callers treat that as "state
+// unknown" and bypass for the request. A blocking singleflight is deliberately
+// avoided: it would couple config-request latency to a possibly-hung query.
+// TestGateLoaderLeaderElection pins one loader per miss window.
 //
 // # Key layout
 //

@@ -10244,9 +10244,46 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 
 	// 8. A config change produces a new validator: the old etag downloads
 	// the full new config, and the new etag is then answered "unchanged".
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"agent_options":{"config":{"options":{"logger_tls_period":10}}}}`), http.StatusOK)
+	//
+	// This suite shares one server, so agent options may already hold anything
+	// a previously executed test left behind. Derive the new value from the
+	// current one so the PATCH cannot be a no-op, and restore the previous
+	// options afterwards so this mutation does not leak into later tests.
+	ctx := context.Background()
+	appCfgBefore, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, appCfgBefore.AgentOptions)
+	prevAgentOptions := append(json.RawMessage(nil), *appCfgBefore.AgentOptions...)
+	t.Cleanup(func() {
+		// Restored through the datastore rather than the API: the stored blob is
+		// not necessarily accepted by the write validator (the suite's defaults
+		// carry command-line flags that PATCH rejects inside config.options), and
+		// the point here is to put back exactly what was there.
+		appCfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appCfg.AgentOptions = &prevAgentOptions
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	})
+
+	// logger_tls_period is echoed into the rendered config, so bumping it past
+	// whatever is there now guarantees the body — and therefore the validator —
+	// changes.
+	var currentOptions struct {
+		Config struct {
+			Options struct {
+				LoggerTLSPeriod int `json:"logger_tls_period"`
+			} `json:"options"`
+		} `json:"config"`
+	}
+	require.NoError(t, json.Unmarshal(prevAgentOptions, &currentOptions))
+	newPeriod := currentOptions.Config.Options.LoggerTLSPeriod + 7
+	s.DoRaw("PATCH", "/api/latest/fleet/config",
+		[]byte(fmt.Sprintf(`{"agent_options":{"config":{"options":{"logger_tls_period":%d}}}}`, newPeriod)),
+		http.StatusOK)
 
 	changedBody := readAll(s.DoRaw("POST", "/api/osquery/config", etagRequestBody(expectedETag), http.StatusOK))
+	require.Contains(t, string(changedBody), fmt.Sprintf(`"logger_tls_period": %d`, newPeriod),
+		"the PATCH must actually change the rendered config, or the validator assertion below is vacuous")
 	newETag := etagOf(changedBody)
 	require.NotEmpty(t, newETag)
 	require.NotEqual(t, "ok", newETag)

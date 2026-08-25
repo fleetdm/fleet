@@ -103,8 +103,11 @@ func TestConfigETag_FirstFullThenUnchanged(t *testing.T) {
 	require.Equal(t, int64(1), a.stats.ConfigFullResponses())
 	require.Equal(t, int64(1), a.stats.ConfigNotModified())
 	require.Equal(t, int64(1), a.stats.ConfigConditionalRequests())
-	require.Equal(t, int64(len(fullBody)), a.stats.ConfigResponseBodyBytes())
-	require.Equal(t, int64(len(fullBody)), a.stats.ConfigEstimatedSavedBytes())
+	// The unchanged response contributed its own (tiny) body to the sent
+	// total, and only the difference to the avoided total.
+	unchangedLen := int64(len(`{"etag":"ok"}`))
+	require.Equal(t, int64(len(fullBody))+unchangedLen, a.stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(len(fullBody))-unchangedLen, a.stats.ConfigEstimatedSavedBytes())
 }
 
 func TestConfigETag_ChangedConfig(t *testing.T) {
@@ -396,28 +399,42 @@ func TestStats_RecordFullConfigResponse(t *testing.T) {
 func TestStats_RecordConfigNotModified(t *testing.T) {
 	stats := &osquery_perf.Stats{}
 
-	stats.RecordConfigNotModified(1000)
+	// The unchanged body is counted as sent; only the difference is avoided.
+	stats.RecordConfigNotModified(13, 1000)
 	require.Equal(t, int64(1), stats.ConfigNotModified())
 	require.Equal(t, int64(1), stats.ConfigConditionalRequests())
-	require.Equal(t, int64(1000), stats.ConfigEstimatedSavedBytes())
+	require.Equal(t, int64(13), stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(987), stats.ConfigEstimatedSavedBytes())
 
-	stats.RecordConfigNotModified(500)
+	stats.RecordConfigNotModified(13, 500)
 	require.Equal(t, int64(2), stats.ConfigNotModified())
 	require.Equal(t, int64(2), stats.ConfigConditionalRequests())
-	require.Equal(t, int64(1500), stats.ConfigEstimatedSavedBytes())
+	require.Equal(t, int64(26), stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(1474), stats.ConfigEstimatedSavedBytes())
+
+	// A prior body no larger than the unchanged body avoids nothing, and must
+	// never subtract from the running total.
+	stats.RecordConfigNotModified(13, 5)
+	require.Equal(t, int64(39), stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(1474), stats.ConfigEstimatedSavedBytes())
 }
 
 func TestStats_ConfigSavingsCalculation(t *testing.T) {
 	stats := &osquery_perf.Stats{}
 
-	// Simulate: 1 full response (1000 bytes) + 9 not-modified (each avoiding 1000 bytes)
+	// 1 full response (1000 bytes) + 9 unchanged responses of 13 bytes each,
+	// so 9*987 bytes were actually avoided and 9*13 were still sent.
 	stats.RecordFullConfigResponse(1000, false)
 	for range 9 {
-		stats.RecordConfigNotModified(1000)
+		stats.RecordConfigNotModified(13, 1000)
 	}
 
-	require.Equal(t, int64(1000), stats.ConfigResponseBodyBytes())
-	require.Equal(t, int64(9000), stats.ConfigEstimatedSavedBytes())
+	require.Equal(t, int64(1000+9*13), stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(9*987), stats.ConfigEstimatedSavedBytes())
+
+	// Sent + avoided must equal the bytes a non-conditional agent would have
+	// downloaded; that identity is what makes the reported percentage honest.
+	require.Equal(t, int64(10*1000), stats.ConfigResponseBodyBytes()+stats.ConfigEstimatedSavedBytes())
 }
 
 func TestConfigETag_StatsConcurrency(t *testing.T) {
@@ -433,7 +450,7 @@ func TestConfigETag_StatsConcurrency(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			stats.RecordConfigNotModified(100)
+			stats.RecordConfigNotModified(13, 100)
 		}()
 		go func() {
 			defer wg.Done()
@@ -444,8 +461,10 @@ func TestConfigETag_StatsConcurrency(t *testing.T) {
 
 	require.Equal(t, int64(100), stats.ConfigFullResponses())
 	require.Equal(t, int64(100), stats.ConfigNotModified())
-	require.Equal(t, int64(10000), stats.ConfigResponseBodyBytes())
-	require.Equal(t, int64(10000), stats.ConfigEstimatedSavedBytes())
+	// 100 full responses of 100B, plus 100 unchanged responses of 13B sent and
+	// 87B avoided each.
+	require.Equal(t, int64(100*100+100*13), stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(100*87), stats.ConfigEstimatedSavedBytes())
 	require.Equal(t, int64(100), stats.ConfigETagDrift())
 }
 
@@ -578,8 +597,11 @@ func TestConfigETag_ResponseBodyBytes(t *testing.T) {
 	// Second request: unchanged
 	err = a.config()
 	require.NoError(t, err)
-	require.Equal(t, int64(len(fullBody)), a.stats.ConfigResponseBodyBytes())
-	require.Equal(t, int64(len(fullBody)), a.stats.ConfigEstimatedSavedBytes())
+	// The unchanged response contributed its own (tiny) body to the sent
+	// total, and only the difference to the avoided total.
+	unchangedLen := int64(len(`{"etag":"ok"}`))
+	require.Equal(t, int64(len(fullBody))+unchangedLen, a.stats.ConfigResponseBodyBytes())
+	require.Equal(t, int64(len(fullBody))-unchangedLen, a.stats.ConfigEstimatedSavedBytes())
 }
 
 func TestConfigETag_JsonUnmarshal(t *testing.T) {
