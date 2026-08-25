@@ -2023,7 +2023,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		if diskEncryptionConfig.Enabled {
+		if diskEncryptionConfig.LinuxEscrowEnabled {
 			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")

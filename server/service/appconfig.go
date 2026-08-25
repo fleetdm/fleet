@@ -2386,14 +2386,16 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM migration is also enabled. Please enable only one.")
 	}
 
-	if !mdm.EnableDiskEncryption.Value {
+	// the PIN requirement is a BitLocker feature, so it's judged against the
+	// Windows setting, not the all-platforms aggregate
+	if !mdm.WindowsSettings.EnableDiskEncryption.Value {
 		switch {
-		case !oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+		case !oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
 			invalid.Append(
 				"mdm.windows_require_bitlocker_pin",
 				fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
 			)
-		case oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+		case oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
 			invalid.Append(
 				"mdm.enable_disk_encryption",
 				fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,

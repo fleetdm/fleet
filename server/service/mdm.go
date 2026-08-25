@@ -4113,8 +4113,9 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return nil
 	}
 
-	// Enable FileVault escrow if no-team already has disk encryption enforced
-	if appCfg.MDM.EnableDiskEncryption.Value {
+	// Enable FileVault escrow if no-team already has a macOS disk encryption
+	// setting on: the FileVault profile covers enforcement and escrow as a pair
+	if appCfg.MDM.MacOSSettings.EnableDiskEncryption.Value || appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
 		// Delete the file vault profile first, to ensure we get updated keys.
 		if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "delete no-team FileVault profile")
@@ -4137,7 +4138,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
 		}
-		if diskEncryptionConfig.Enabled {
+		if diskEncryptionConfig.MacOSEnabled || diskEncryptionConfig.MacOSEscrowEnabled {
 			// Delete the file vault profile first, to ensure we get updated keys.
 			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "delete team FileVault profile")

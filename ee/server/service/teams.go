@@ -2543,10 +2543,13 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 	}
 
 	if didUpdateEncryption || didUpdateRequirePIN {
-		if didUpdateEncryption && !tm.Config.MDM.EnableDiskEncryption && tm.Config.MDM.RequireBitLockerPIN {
+		// the PIN requirement is a BitLocker feature, so it's judged against
+		// the Windows setting, not the all-platforms aggregate
+		windowsEncryptionOn := tm.Config.MDM.WindowsSettings.EnableDiskEncryption.Value
+		if didUpdateEncryption && !windowsEncryptionOn && tm.Config.MDM.RequireBitLockerPIN {
 			return ctxerr.New(ctx, fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
 		}
-		if !didUpdateEncryption && !tm.Config.MDM.EnableDiskEncryption && tm.Config.MDM.RequireBitLockerPIN {
+		if !didUpdateEncryption && !windowsEncryptionOn && tm.Config.MDM.RequireBitLockerPIN {
 			return ctxerr.New(ctx, fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
 		}
 

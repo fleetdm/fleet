@@ -1415,7 +1415,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}
 
 	var linux fleet.MDMLinuxDiskEncryptionSummary
-	if diskEncryptionConfig.Enabled {
+	if diskEncryptionConfig.LinuxEscrowEnabled {
 		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")

@@ -1473,12 +1473,16 @@ func TestMDMConfig(t *testing.T) {
 		{
 			name:        "try to disable disk encryption with TPM PIN enabled",
 			licenseTier: "premium",
+			// validateMDM sees the merged config, where a flat toggle write has
+			// already fanned out to the per-platform fields
 			oldMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			newMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(false),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(false)},
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
@@ -1501,10 +1505,12 @@ func TestMDMConfig(t *testing.T) {
 			licenseTier: "premium",
 			oldMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
 				RequireBitLockerPIN:  optjson.SetBool(false),
 			},
 			newMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(false),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(false)},
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
