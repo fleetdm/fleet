@@ -2898,7 +2898,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing start time")
+	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
@@ -2909,7 +2909,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing end time")
+	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
 
 	// Attempt to enable auto-update with less than an hour between start and end time.
 	startTime = "12:00"

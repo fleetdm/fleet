@@ -55,6 +55,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 
 	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -927,8 +928,14 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg := s.getConfig()
 	// ensure windows mdm is always enabled for the next test
 	appCfg.MDM.WindowsEnabledAndConfigured = true
-	// ensure global disk encryption is disabled on exit
+	// ensure global disk encryption is disabled on exit. The flat toggle is
+	// virtual (recomputed as the AND of the per-platform settings on save), so
+	// the per-platform settings are what must be reset.
 	appCfg.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	appCfg.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	// ensure enable release manually is false
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
@@ -1080,9 +1087,43 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
 
+// withDEPDeviceDetails answers Apple's "Get Device Details" endpoint, which host
+// deletion consults to tell a device released from Apple Business apart from one
+// Fleet still owns. Every requested serial is reported as still assigned, which is
+// the state these suites set up; without this the lookup fails and deletes are
+// refused. Tests needing a different answer should serve /devices themselves and
+// bypass this wrapper.
+func withDEPDeviceDetails(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/devices" {
+			handler.ServeHTTP(w, r)
+			return
+		}
+
+		var req struct {
+			Devices []string `json:"devices"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Fail loudly rather than answering an unreadable request, so a client
+			// regression shows up here instead of as a puzzling downstream result.
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		devices := make(map[string]any, len(req.Devices))
+		for _, serial := range req.Devices {
+			devices[serial] = map[string]any{"serial_number": serial, "response_status": "SUCCESS"}
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(map[string]any{"devices": devices}); err != nil {
+			panic(err)
+		}
+	})
+}
+
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
 	t := s.T()
-	srv := httptest.NewServer(handler)
+	srv := httptest.NewServer(withDEPDeviceDetails(handler))
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
 	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
@@ -1768,15 +1809,22 @@ func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(f
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string, opts ...mdmtest.TestWindowsMDMClientOption) *mdmtest.TestWindowsMDMClient {
+	opts = append([]mdmtest.TestWindowsMDMClientOption{
+		mdmtest.TestWindowsMDMClientNotInOOBE(),
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID),
+	}, opts...)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, opts...)
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string, opts ...mdmtest.TestWindowsMDMClientOption) *mdmtest.TestWindowsMDMClient {
+	opts = append([]mdmtest.TestWindowsMDMClientOption{
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID),
+	}, opts...)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, opts...)
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
@@ -2241,21 +2289,27 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
-	// new config takes precedence over old config
+	// the deprecated flat toggle wins when provided: it fans out to every
+	// per-platform setting
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
-	// if new config is not present, old config is applied
+	// without the flat toggle, macos_settings.enable_disk_encryption is the
+	// canonical macOS enforcement setting (no longer an alias of the flat
+	// toggle): it turns on macOS enforcement only, so the flat toggle (the AND
+	// of the per-platform settings) still reads false
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// new config takes precedence over old config again
@@ -2280,16 +2334,18 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	})
 	require.NoError(t, err)
 
-	checkTeamDiskEncryption := func(wantSetting bool) {
+	checkTeamDiskEncryption := func(wantFlat, wantMacOSEnable bool) {
 		var teamResp getTeamResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-		require.Equal(t, wantSetting, teamResp.Team.Config.MDM.EnableDiskEncryption)
+		require.Equal(t, wantFlat, teamResp.Team.Config.MDM.EnableDiskEncryption)
+		require.Equal(t, wantMacOSEnable, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	}
 
 	// after creation, disk encryption is off
-	checkTeamDiskEncryption(false)
+	checkTeamDiskEncryption(false, false)
 
-	// new config takes precedence over old config
+	// the deprecated flat toggle wins when provided: it fans out to every
+	// per-platform setting
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
@@ -2298,10 +2354,12 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
+	checkTeamDiskEncryption(false, false)
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
-	// if new config is not present, old config is applied
+	// without the flat toggle, macos_settings.enable_disk_encryption is the
+	// canonical macOS enforcement setting: it turns on macOS enforcement only,
+	// so the flat toggle (the AND of the per-platform settings) reads false
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
@@ -2309,10 +2367,10 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(true)
+	checkTeamDiskEncryption(false, true)
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// new config takes precedence over old config again
+	// the flat toggle wins again, resetting the macOS enforcement setting
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
@@ -2321,7 +2379,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
+	checkTeamDiskEncryption(false, false)
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
@@ -2333,7 +2391,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
+	checkTeamDiskEncryption(false, false)
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
 
@@ -3403,7 +3461,9 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+			// both macOS settings must be cleared: the FileVault profile
+			// exists whenever either is on
+			MacOSSettings: map[string]any{"enable_disk_encryption": false, "enable_escrow_disk_encryption_key": false},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -10088,9 +10148,14 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	// notification is still false
 	checkNotification(false)
 
-	// configure disk encryption for the global team
+	// configure disk encryption for the global team. NOTE: since the
+	// per-platform split, macos_settings.enable_disk_encryption is the macOS
+	// enforcement setting, no longer an alias of the flat toggle; the orbit
+	// notification gate reads the flat toggle (the AND of the per-platform
+	// settings) until the per-platform behavior split ships (#51259), so this
+	// test uses the flat toggle.
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "macos_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// host still doesn't get the notification because we don't have disk
@@ -10460,9 +10525,19 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			// initialize our test app config
 			ac := appConfig.Copy()
 			ac.AgentOptions = nil
+			// the flat toggle is virtual (recomputed as the AND of the
+			// per-platform settings on save), so keep the per-platform
+			// settings in sync for the direct ds.SaveAppConfig calls below
+			setACDiskEncryption := func(v bool) {
+				ac.MDM.EnableDiskEncryption = optjson.SetBool(v)
+				ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(v)
+				ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
+				ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(v)
+				ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
+			}
 
 			// enable disk encryption
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setACDiskEncryption(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, true, true)                           // both mac and windows mdm enabled
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // enabled
@@ -10481,14 +10556,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// disabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			setACDiskEncryption(false)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true)                           // only windows mdm enabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// enabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setACDiskEncryption(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true)                          // only windows mdm enabled
@@ -10501,14 +10576,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabling mdm doesn't change disk encryption
 
 			// disabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			setACDiskEncryption(false)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, false)                          // no MDM enabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// enabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setACDiskEncryption(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, false)                         // no MDM enabled
@@ -13494,6 +13569,31 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.Empty(t, listCmdResp.Results)
 }
 
+// assertHostMDMCertificates checks the certificates the host details API reports
+// against the templates the device answered CertificateList with. A refetch on
+// the device channel only ever sees the system keychain.
+func (s *integrationMDMTestSuite) assertHostMDMCertificates(t *testing.T, hostID uint, templates []*x509.Certificate) {
+	t.Helper()
+	var resp listHostCertificatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", hostID), nil, http.StatusOK, &resp)
+	require.Len(t, resp.Certificates, len(templates))
+	bySerial := make(map[string]*fleet.HostCertificatePayload, len(resp.Certificates))
+	for _, c := range resp.Certificates {
+		bySerial[c.Serial] = c
+	}
+	for _, tmpl := range templates {
+		serial := tmpl.SerialNumber.Text(16)
+		got, ok := bySerial[serial]
+		require.True(t, ok, "no certificate reported with serial %s", serial)
+		require.Equal(t, fleet.SystemHostCertificate, got.Source)
+		require.Empty(t, got.Username)
+		require.WithinDuration(t, tmpl.NotBefore, got.NotValidBefore, time.Second)
+		require.WithinDuration(t, tmpl.NotAfter, got.NotValidAfter, time.Second)
+		require.NotNil(t, got.Subject)
+		require.Equal(t, tmpl.Subject.Organization[0], got.Subject.Organization)
+	}
+}
+
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	t := s.T()
 
@@ -13586,7 +13686,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
+	s.assertHostMDMCertificates(t, host.ID, testCerts)
 
 	// Install the same app for iPadOS
 	hostIPad, mdmClientIPad := s.createAppleMobileHostThenEnrollMDM("ipados")
@@ -13638,7 +13738,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
+	s.assertHostMDMCertificates(t, hostIPad.ID, testCerts)
 
 	hostIPod, mdmClientIPod := s.createIpodHostThenEnrollMDM()
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hostIPod.ID, false, true, "https://foo.com", true, "", "", false))
@@ -17262,7 +17362,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity := fleet.ActivityAddedDigiCert{}
 	caNames := make([]string, 0, 3)
@@ -17320,7 +17420,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		activity = fleet.ActivityAddedDigiCert{}
 		editActivity := fleet.ActivityEditedDigiCert{}
@@ -17361,7 +17461,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		// Check that 3 deleted activities are present
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		delActivity := fleet.ActivityDeletedDigiCert{}
 		caNames = make([]string, 0, 3)
@@ -18102,7 +18202,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity := fleet.ActivityAddedCustomSCEPProxy{}
 	caNames := make([]string, 0, 3)
@@ -18159,7 +18259,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 
 	listActivities = listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity = fleet.ActivityAddedCustomSCEPProxy{}
 	editActivity := fleet.ActivityEditedCustomSCEPProxy{}
@@ -18199,7 +18299,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 		// Check that 3 deleted activities are present
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
 		caNames = make([]string, 0, 3)
@@ -18998,6 +19098,20 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
 	require.NoError(t, err)
 	require.True(t, coboHostMDM.Enrolled, "host_mdm.enrolled must stay true until the device acks via Pub/Sub DELETED")
+
+	// Reset between sub-cases.
+	didCallAMAPIDelete = false
+	didCallAMAPIIssueWipe = false
+	issuedCommand = nil
+
+	// BYO host where AMAPI returns 404 (device already removed from Google) -> should succeed (204), not 500.
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, _ string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		didCallAMAPIIssueWipe = true
+		return nil, &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}
+	}
+	byoGoneHostID := createAndroidHostForTest(t, s.ds, nil, false)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", byoGoneHostID), nil, http.StatusNoContent)
+	require.True(t, didCallAMAPIIssueWipe, "expected BYO unenroll to attempt IssueCommand even when device is gone")
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
@@ -25245,7 +25359,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Auto-rotation activity exists and is FleetInitiated.
 		var fleetActivities listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &fleetActivities,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "20")
+			"order_key", "id", "order_direction", "desc", "per_page", "20")
 		rotateActivityName := fleet.ActivityTypeRotatedManagedLocalAccountPassword{}.ActivityName()
 		var sawFleetRotation bool
 		for _, a := range fleetActivities.Activities {

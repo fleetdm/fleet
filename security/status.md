@@ -356,6 +356,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:15:39
 
+### [CVE-2026-56865](https://nvd.nist.gov/vuln/detail/CVE-2026-56865)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56865 (GO-2026-6179) is in golang.org/x/mod/sumdb/tlog (tileHashReader.ReadHashes): a malicious GOPROXY could forge sumdb tiles to bypass the GOSUMDB check and persist attacker-controlled module content to the local Go module cache. This code path is only used when downloading Go modules (e.g. by the go command). fleetctl only imports golang.org/x/mod/semver (version string parsing); the vulnerable sumdb packages are not compiled into the fleetctl binary and fleetctl never downloads or verifies Go modules at runtime.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/mod`
+- **Justification:** `vulnerable_code_not_present`
+- **Timestamp:** 2026-08-20 09:04:44
+
+### [CVE-2026-56864](https://nvd.nist.gov/vuln/detail/CVE-2026-56864)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56864 (GO-2026-6180) is in golang.org/x/mod/sumdb (Client.Lookup): a malicious GOSUMDB could serve arbitrary module content not contained within the transparency log. This code path is only used when downloading Go modules (e.g. by the go command). fleetctl only imports golang.org/x/mod/semver (version string parsing); the vulnerable sumdb packages are not compiled into the fleetctl binary and fleetctl never downloads or verifies Go modules at runtime.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/mod`
+- **Justification:** `vulnerable_code_not_present`
+- **Timestamp:** 2026-08-20 09:04:35
+
 ### [CVE-2026-56862](https://nvd.nist.gov/vuln/detail/CVE-2026-56862)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1322,78 +1338,4 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/perl-base`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-10-01 08:36:42
-
-## `fleetdm/bomutils` docker image
-
-### [CVE-2026-4878](https://nvd.nist.gov/vuln/detail/CVE-2026-4878)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** mkbom and xar from fleetdm/bomutils do not call cap_set_file().
-- **Products:** `bomutils`,`pkg:deb/debian/libcap2`,`pkg:deb/debian/libcap2-bin`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-05-19 10:25:00
-
-### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use OpenSSL (e.g. PKCS7_verify) when using fleetdm/bomutils to generate PKG packages.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-06-15 08:42:45
-
-### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:28:25
-
-### [CVE-2026-29111](https://nvd.nist.gov/vuln/detail/CVE-2026-29111)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** mkbom and xar from fleetdm/bomutils do not use systemd IPC APIs.
-- **Products:** `bomutils`,`pkg:deb/debian/libsystemd0`,`pkg:deb/debian/libudev1`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-05-19 10:25:00
-
-### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetdm/bomutils does not connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-20 11:48:55
-
-### [CVE-2026-28389](https://nvd.nist.gov/vuln/detail/CVE-2026-28389)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:29:08
-
-### [CVE-2026-28388](https://nvd.nist.gov/vuln/detail/CVE-2026-28388)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:28:53
-
-### [CVE-2026-28387](https://nvd.nist.gov/vuln/detail/CVE-2026-28387)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:28:43
-
-### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** Use of mkbom and xar from fleetdm/bomutils have admin controlled inputs.
-- **Products:** `bomutils`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
-- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
-- **Timestamp:** 2026-03-24 08:41:27
 

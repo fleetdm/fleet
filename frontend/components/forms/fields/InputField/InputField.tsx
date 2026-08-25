@@ -128,7 +128,7 @@ const InputField = ({
       <div
         className={`${baseClass}__copy-wrapper ${baseClass}__copy-wrapper--text-area`}
       >
-        <CopyButton copyText={copyText} variant="subdued" size="small" />
+        <CopyButton copyText={copyText} variant="secondary" size="small" />
       </div>
     );
   };

@@ -62,6 +62,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	fleetmock "github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -82,6 +83,25 @@ import (
 	googleCalendar "google.golang.org/api/calendar/v3"
 	"gopkg.in/guregu/null.v3"
 )
+
+// withDiskEncryptionDefaults fills in the explicit per-platform disk
+// encryption booleans that every team spec apply now persists (settings
+// absent from the spec are stored as explicit false).
+func withDiskEncryptionDefaults(m fleet.TeamMDM) fleet.TeamMDM {
+	if !m.MacOSSettings.EnableDiskEncryption.Valid {
+		m.MacOSSettings.EnableDiskEncryption = optjson.SetBool(false)
+	}
+	if !m.MacOSSettings.EnableEscrowDiskEncryptionKey.Valid {
+		m.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	}
+	if !m.WindowsSettings.EnableDiskEncryption.Valid {
+		m.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+	}
+	if !m.LinuxSettings.EnableEscrowDiskEncryptionKey.Valid {
+		m.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	}
+	return m
+}
 
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
@@ -315,7 +335,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		AdditionalQueries:       new(json.RawMessage(`{"foo": "bar"}`)),
 		HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 	}, team.Config.Features)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -360,7 +380,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, team.Config.MDM)
+	}), team.Config.MDM)
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
@@ -451,7 +471,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -490,12 +510,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, team.Config.MDM)
+	}), team.Config.MDM)
 
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -534,14 +554,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, getTmResp.Team.Config.MDM)
+	}), getTmResp.Team.Config.MDM)
 
 	// get the team via the list teams endpoint, check that it properly returns the mdm settings
 	var listTmResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listTmResp, "query", teamName)
 	require.True(t, len(listTmResp.Teams) > 0)
 	require.Equal(t, team.ID, listTmResp.Teams[0].ID)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -580,7 +600,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, listTmResp.Teams[0].Config.MDM)
+	}), listTmResp.Teams[0].Config.MDM)
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
@@ -1477,21 +1497,29 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Policies, 3)
 
-	// List with automation_type=software - should return install policy and patch policy only
+	// List with automation_type=software - should return only the install policy, not the patch policy
 	listResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "software")
-	require.Len(t, listResp.Policies, 2)
-	policyIDs := []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
-	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
-	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, installPolicy.Policy.ID, listResp.Policies[0].ID)
 
 	// List with merge_inherited and automation_type=software
 	listResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "software")
-	require.Len(t, listResp.Policies, 2)
-	policyIDs = []uint{listResp.Policies[0].ID, listResp.Policies[1].ID}
-	assert.Contains(t, policyIDs, installPolicy.Policy.ID)
-	assert.Contains(t, policyIDs, patchPolicy.Policy.ID)
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, installPolicy.Policy.ID, listResp.Policies[0].ID)
+
+	// List with automation_type=patch - should return only the patch policy
+	listResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "automation_type", "patch")
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, patchPolicy.Policy.ID, listResp.Policies[0].ID)
+
+	// List with merge_inherited and automation_type=patch
+	listResp = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), nil, http.StatusOK, &listResp, "merge_inherited", "true", "automation_type", "patch")
+	require.Len(t, listResp.Policies, 1)
+	assert.Equal(t, patchPolicy.Policy.ID, listResp.Policies[0].ID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
@@ -3885,7 +3913,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	// settings.
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
-	require.Equal(t, fleet.TeamMDM{
+	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
@@ -3924,7 +3952,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
-	}, getTmResp.Team.Config.MDM)
+	}), getTmResp.Team.Config.MDM)
 
 	// only update the deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
@@ -4165,7 +4193,7 @@ func (s *integrationEnterpriseTestSuite) listRecentExceptionActivities(activityT
 	t := s.T()
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	found := map[string]struct{}{}
 	for _, act := range listActivities.Activities {
 		if act.Type != activityType || act.Details == nil {
@@ -5213,7 +5241,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 
 	// keep the last activity, to detect newly created ones
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 	var lastActivity uint
 	if len(activitiesResp.Activities) > 0 {
 		lastActivity = activitiesResp.Activities[0].ID
@@ -5231,7 +5259,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 		require.Condition(t, func() bool {
 			return (lastActivity == 0 && len(activitiesResp.Activities) == 0) ||
 				(len(activitiesResp.Activities) > 0 && activitiesResp.Activities[0].ID == lastActivity)
@@ -5375,7 +5403,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 
 	// keep the last activity, to detect newly created ones
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 	var lastActivity uint
 	if len(activitiesResp.Activities) > 0 {
 		lastActivity = activitiesResp.Activities[0].ID
@@ -5393,7 +5421,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 
 		// no activity got created
 		activitiesResp = listActivitiesResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "id", "order_direction", "desc")
 		require.Condition(t, func() bool {
 			return (lastActivity == 0 && len(activitiesResp.Activities) == 0) ||
 				(len(activitiesResp.Activities) > 0 && activitiesResp.Activities[0].ID == lastActivity)
@@ -16690,7 +16718,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// Check activity feed
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "id",
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
@@ -16736,7 +16764,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.False(t, hostRespFailedUninstall.Host.RefetchRequested, "RefetchRequested should be false after failed software uninstall")
 
 	// Check activity feed
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h.ID), nil, http.StatusOK, &activitiesResp, "order_key", "id",
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
@@ -16930,7 +16958,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 
 	// Check activity feed
 	var activitiesResp listActivitiesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "id",
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
@@ -32282,6 +32310,85 @@ func (s *integrationEnterpriseTestSuite) TestPolicyResultsForOutOfScopePoliciesA
 	for _, p := range []*fleet.Policy{otherFleet, otherPlatform, otherLabel} {
 		require.Zero(t, countFailingHosts(p.ID), "policy %s", p.Name)
 	}
+}
+
+// Enrollment sets label_updated_at to the "never" sentinel and makes labels and policies come due on the same check-in, so an
+// exclude-label-scoped policy must not be handed to (or accepted from) a host that has not yet computed the label's membership --
+// otherwise its automations fire on a host the exclusion was meant to protect.
+func (s *integrationEnterpriseTestSuite) TestPolicyExcludeLabelHeldUntilLabelsReported() {
+	t := s.T()
+	ctx := t.Context()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	// labels.created_at is second-granular and this test runs well inside one second, so the label report below would tie with
+	// the label's creation and stay (correctly) unknown. Backdate it to the realistic case: the label predates the check-in.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE labels SET created_at = ? WHERE id = ?`, time.Now().Add(-time.Minute), lbl.ID)
+		return err
+	})
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  common_mysql.GetDefaultNonZeroTime(),
+		PolicyUpdatedAt: common_mysql.GetDefaultNonZeroTime(),
+		SeenTime:        time.Now(),
+		LastEnrolledAt:  time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	unscoped, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "unscoped-" + t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	excluded, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name: "excluded-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name},
+	})
+	require.NoError(t, err)
+
+	storedPolicyIDs := func() []uint {
+		var ids []uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT policy_id FROM policy_membership WHERE host_id = ?`, host.ID)
+		})
+		return ids
+	}
+
+	distributedQueries, err := s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(unscoped.ID))
+	require.NotContains(t, distributedQueries, fmt.Sprint(excluded.ID),
+		"exclude-scoped policy sent before the host could evaluate the label")
+
+	// Even if the host reports a failing result for it anyway, ingestion must drop it: everything downstream of this
+	// (script, software, calendar and conditional-access automations) reads the surviving results.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		unscoped.ID: new(false),
+		excluded.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.Equal(t, []uint{unscoped.ID}, storedPolicyIDs())
+
+	// Once the host has reported its labels and is confirmed not to be a member, the policy applies as normal.
+	s.DoJSON("POST", "/api/osquery/distributed/write",
+		genDistributedReqWithLabelResults(host, map[uint]*bool{lbl.ID: new(false)}), http.StatusOK, &distributedResp)
+
+	host, err = s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	distributedQueries, err = s.ds.PolicyQueriesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Contains(t, distributedQueries, fmt.Sprint(excluded.ID))
+
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{
+		unscoped.ID: new(false),
+		excluded.ID: new(false),
+	}), http.StatusOK, &distributedResp)
+	require.ElementsMatch(t, []uint{unscoped.ID, excluded.ID}, storedPolicyIDs())
 }
 
 // TestQueryLabelsIncludeAll mirrors TestPolicyLabelsIncludeAll for queries (reports),

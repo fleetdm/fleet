@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1448,6 +1448,84 @@ func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
 	}
 }
 
+func TestBuiltinLinuxLabelQueries(t *testing.T) {
+	db := CreateMySQLDS(t)
+	ctx := t.Context()
+	require.NoError(t, db.MigrateData(ctx))
+
+	type storedLabel struct {
+		Name     string `db:"name"`
+		Platform string `db:"platform"`
+		Query    string `db:"query"`
+	}
+	var stored []storedLabel
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &stored,
+			"SELECT name, platform, query FROM labels WHERE label_type = ?", fleet.LabelTypeBuiltIn)
+	})
+	require.NotEmpty(t, stored)
+
+	byName := make(map[string]storedLabel, len(stored))
+	for _, l := range stored {
+		byName[l.Name] = l
+		assert.Empty(t, l.Platform, "built-in label %q must not be scoped to a platform", l.Name)
+	}
+
+	sources := map[string]string{"database": byName[fleet.BuiltinLabelNameUbuntuLinux].Query}
+	for _, l := range data.Labels2() {
+		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
+			sources["data migration Labels2"] = l.Query
+		}
+	}
+	for _, l := range test.BuiltinLabels() {
+		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
+			sources["test.BuiltinLabels"] = l.Query
+		}
+	}
+	require.Len(t, sources, 3)
+	for name, query := range sources {
+		require.NotEmpty(t, query, "%s has no %s query", name, fleet.BuiltinLabelNameUbuntuLinux)
+		assert.Equal(t, sources["database"], query,
+			"the %s query in %q disagrees with the migrated database; every copy of it must be updated together",
+			fleet.BuiltinLabelNameUbuntuLinux, name)
+	}
+
+	for i, platform := range []string{
+		"ubuntu", "pop", "linuxmint", "zorin", "debian", "kali",
+		"rhel", "amzn", "opensuse-leap",
+	} {
+		t.Run(platform, func(t *testing.T) {
+			host, err := db.EnrollOsquery(ctx,
+				fleet.WithEnrollOsqueryHostID(fmt.Sprint(i)),
+				fleet.WithEnrollOsqueryNodeKey(fmt.Sprint(i)),
+			)
+			require.NoError(t, err)
+
+			host.Platform = platform
+			require.NoError(t, db.UpdateHost(ctx, host))
+
+			queries, err := db.LabelQueriesForHost(ctx, host)
+			require.NoError(t, err)
+
+			gotQueries := make(map[string]struct{}, len(queries))
+			for _, q := range queries {
+				gotQueries[q] = struct{}{}
+			}
+			for _, name := range []string{
+				fleet.BuiltinLabelNameUbuntuLinux,
+				fleet.BuiltinLabelNameCentOSLinux,
+				fleet.BuiltinLabelNameRedHatLinux,
+				fleet.BuiltinLabelFedoraLinux,
+				fleet.BuiltinLabelNameAllLinux,
+			} {
+				require.Contains(t, byName, name)
+				assert.Contains(t, gotQueries, byName[name].Query,
+					"expected built-in label %q to be distributed to a %q host", name, platform)
+			}
+		})
+	}
+}
+
 func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore) {
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -2354,7 +2432,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	// turn on disk encryption
 	ac, err := db.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	setAppConfigDiskEncryptionForTest(ac, true)
 	require.NoError(t, db.SaveAppConfig(context.Background(), ac))
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included

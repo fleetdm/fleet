@@ -1,0 +1,1 @@
+* Fixed fleetd package installs silently overwriting user-provided `osquery.flags` with an empty file when the package was built without `--osquery-flagfile`.

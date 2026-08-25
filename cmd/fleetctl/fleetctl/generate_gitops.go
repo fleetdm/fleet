@@ -281,11 +281,13 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "generate-gitops",
-		Hidden:      true,
-		Usage:       "Generate GitOps configuration files for Fleet.",
-		Description: "This command generates GitOps configuration files for Fleet.",
-		Action:      createGenerateGitopsAction(nil),
+		Name:  "generate-gitops",
+		Usage: "Migrate an existing Fleet instance's configuration to GitOps YAML files",
+		Description: "Exports an existing Fleet's configuration " +
+			"(policies, queries, labels, scripts, profiles, team settings, etc.) into GitOps-ready " +
+			"YAML files. Use this to migrate an existing Fleet to GitOps.\n\n" +
+			"If you're getting started with GitOps, use `fleetctl new` instead",
+		Action: createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -1848,6 +1850,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				}
 			}
 		}
+
+		// handle profile automation
+		if policy.ResendConfigurationProfile != nil {
+			policySpec["resend_configuration_profile"] = map[string]any{
+				"name": policy.ResendConfigurationProfile.Name,
+			}
+		}
+
 		// Parse any labels.
 		if policy.LabelsIncludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)

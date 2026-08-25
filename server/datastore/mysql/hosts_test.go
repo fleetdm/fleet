@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -106,6 +105,7 @@ func TestHosts(t *testing.T) {
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
+		{"GenerateStatusStatisticsPlatformBreakdownExcludesPending", testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending},
 		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
@@ -1047,7 +1047,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// disk encryption for linux, must enable disk encryption for no team first
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	setAppConfigDiskEncryptionForTest(ac, true)
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -1122,7 +1122,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
 
 	// enable disk encryption for that team
-	team1.Config.MDM.EnableDiskEncryption = true
+	setTeamMDMDiskEncryptionForTest(&team1.Config.MDM, true)
 	_, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
@@ -3652,6 +3652,85 @@ func testHostsGenerateStatusStatisticsDeletedDEPAssignment(t *testing.T, ds *Dat
 	require.NoError(t, err)
 	assert.Equal(t, uint(3), summary.TotalsHostsCount)
 	assert.Equal(t, summary.TotalsHostsCount, platformSum(summary))
+}
+
+// testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending is a regression test for #48880:
+// the per-platform breakdown query did not exclude pending hosts, causing the "Enrolled hosts" chart
+// to include hosts that hadn't actually enrolled yet.
+func testHostsGenerateStatusStatisticsPlatformBreakdownExcludesPending(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	platformSum := func(s *fleet.HostSummary) uint {
+		var total uint
+		for _, p := range s.Platforms {
+			total += p.HostsCount
+		}
+		return total
+	}
+
+	// Create one enrolled darwin host.
+	enrolledHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-enrolled-1"),
+		NodeKey:         new("plat-enrolled-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Mark it as enrolled via MDM (On (automatic)).
+	err = ds.SetOrUpdateMDMData(ctx, enrolledHost.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Create one pending darwin host.
+	pendingHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-pending-1"),
+		NodeKey:         new("plat-pending-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Mark it as pending (enrolled=false, installed_from_dep=true => Pending).
+	err = ds.SetOrUpdateMDMData(ctx, pendingHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Create one host with no MDM data (should always be counted).
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("plat-nomdm-1"),
+		NodeKey:         new("plat-nomdm-key-1"),
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+
+	// Total count includes ALL hosts (including pending) -- this is intentional per product decision.
+	assert.Equal(t, uint(3), summary.TotalsHostsCount, "total should include pending hosts")
+
+	// Platform breakdown should EXCLUDE pending hosts.
+	// Expected: darwin=1 (only the enrolled host), windows=1 (no MDM data, counted).
+	assert.Equal(t, uint(2), platformSum(summary), "platform breakdown should exclude pending hosts")
+
+	// Verify individual platform counts.
+	platformCounts := make(map[string]uint)
+	for _, p := range summary.Platforms {
+		platformCounts[p.Platform] = p.HostsCount
+	}
+	assert.Equal(t, uint(1), platformCounts["darwin"], "darwin platform count should exclude pending host")
+	assert.Equal(t, uint(1), platformCounts["windows"], "windows platform count should include host with no MDM data")
 }
 
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
@@ -9768,7 +9847,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Insert into host_autopilot_devices table (no host FK, cleaned up via hostRefs).
-	err = ds.BatchUpsertHostAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{{
+	err = batchUpsertHostAutopilotDevicesDB(ctx, ds.writer(ctx), []*fleet.HostAutopilotDevice{{
 		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
 	}})
 	require.NoError(t, err)

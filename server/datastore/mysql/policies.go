@@ -1264,10 +1264,13 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 	return ids, nil
 }
 
-// policyQueriesForHostStmt selects the in-scope policies (id, query) for a host: those matching the host's team and platform and
-// satisfying the policy's label scoping. The label scoping is evaluated once for all candidate policies via a LEFT JOIN on an
-// aggregated subquery over policy_labels + label_membership, instead of correlated EXISTS/NOT EXISTS subqueries re-evaluated per
-// policy row.
+// policyLabelScopeSubquery aggregates a host's label scoping for every label-scoped policy in one pass, instead of correlated
+// EXISTS/NOT EXISTS subqueries re-evaluated per policy row. Join it as `LEFT JOIN (<subquery>) pl_agg ON pl_agg.policy_id = p.id`
+// and filter with policyLabelScopeWhere.
+//
+// Every placeholder is the host id: the host's label_updated_at is read from the row rather than taken from the caller's struct,
+// since callers reach here with a minimal &fleet.Host{ID, Platform} (GetHostHealth, conditional access) whose zero timestamp
+// would make every dynamic label look unevaluated.
 //
 // Scope encoding in policy_labels:
 //
@@ -1276,12 +1279,15 @@ func deletePolicyDB(ctx context.Context, q sqlx.ExtContext, ids []uint, teamID *
 //	exclude=1, require_all=0 -> exclude_any
 //	exclude=1, require_all=1 -> exclude_all
 //
-// Placeholder order: lm.host_id, team_id, platform. policyQueriesForHostInScope appends "AND p.id IN (?)" (and its arg) to
-// restrict to specific policies.
-const policyQueriesForHostStmt = `
-		SELECT p.id, p.query
-		FROM policies p
-		LEFT JOIN (
+// The exclude branches also count a label whose membership the host cannot have computed yet: a dynamic label created at or after
+// the host's last label report has never run on it, so the absence of a label_membership row carries no signal. The comparison is
+// inclusive because both columns are second-granular, so a tie cannot tell us which came first. Without this,
+// exclusion fails open on a freshly enrolled host — enrollment sets label_updated_at to the "never" sentinel and makes labels and
+// policies come due on the same check-in — and the host runs, and reports failures that trigger automations for, a policy the
+// exclude label was meant to keep it out of. Inclusion already fails closed, since a non-member is simply not included; manual
+// and host-vitals labels are server-populated, so their membership is always known. Mirrors server/mdm/reconcile's
+// membershipUnknown rule for MDM profiles.
+const policyLabelScopeSubquery = `
 			SELECT pl.policy_id,
 				-- 1 if this policy has any include_any labels
 				MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 THEN 1 ELSE 0 END) AS has_include_any,
@@ -1291,19 +1297,19 @@ const policyQueriesForHostStmt = `
 				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS include_all_count,
 				-- count of include_all labels this host is a member of
 				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
-				-- 1 if this host is a member of at least one exclude_any label
-				MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude_any,
+				-- 1 if this host is a member of at least one exclude_any label, or cannot be known not to be
+				MAX(CASE WHEN pl.exclude = 1 AND pl.require_all = 0 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = ?) <= l.created_at)) THEN 1 ELSE 0 END) AS host_in_exclude_any,
 				-- count of exclude_all labels on this policy
 				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS exclude_all_count,
-				-- count of exclude_all labels this host is a member of
-				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_exclude_all_count
+				-- count of exclude_all labels this host is a member of, or cannot be known not to be
+				SUM(CASE WHEN pl.exclude = 1 AND pl.require_all = 1 AND (lm.host_id IS NOT NULL OR (l.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = ?) <= l.created_at)) THEN 1 ELSE 0 END) AS host_exclude_all_count
 			FROM policy_labels pl
+			LEFT JOIN labels l ON l.id = pl.label_id
 			LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
-			GROUP BY pl.policy_id
-		) pl_agg ON pl_agg.policy_id = p.id
-		WHERE
-			(p.team_id IS NULL OR p.team_id = COALESCE(?, 0)) AND
-			(p.platforms = '' OR FIND_IN_SET(?, p.platforms)) AND
+			GROUP BY pl.policy_id`
+
+// policyLabelScopeWhere is the label-scope filter over policyLabelScopeSubquery's aggregate.
+const policyLabelScopeWhere = `
 			-- Policy has no include_any labels, or host is in at least one
 			(COALESCE(pl_agg.has_include_any, 0) = 0 OR pl_agg.host_in_include_any = 1) AND
 			-- Policy has no include_all labels, or host is in all of them
@@ -1312,6 +1318,25 @@ const policyQueriesForHostStmt = `
 			COALESCE(pl_agg.host_in_exclude_any, 0) = 0 AND
 			-- Policy has no exclude_all labels, or host is not in all of them
 			(COALESCE(pl_agg.exclude_all_count, 0) = 0 OR pl_agg.host_exclude_all_count < pl_agg.exclude_all_count)`
+
+// policyLabelScopeArgs supplies policyLabelScopeSubquery's placeholders: the host id, once per occurrence.
+func policyLabelScopeArgs(host *fleet.Host) []any {
+	return []any{host.ID, host.ID, host.ID}
+}
+
+// policyQueriesForHostStmt selects the in-scope policies (id, query) for a host: those matching the host's team and platform and
+// satisfying the policy's label scoping.
+//
+// Placeholder order: policyLabelScopeArgs, team_id, platform. policyQueriesForHostInScope appends "AND p.id IN (?)" (and its arg)
+// to restrict to specific policies.
+const policyQueriesForHostStmt = `
+		SELECT p.id, p.query
+		FROM policies p
+		LEFT JOIN (` + policyLabelScopeSubquery + `
+		) pl_agg ON pl_agg.policy_id = p.id
+		WHERE
+			(p.team_id IS NULL OR p.team_id = COALESCE(?, 0)) AND
+			(p.platforms = '' OR FIND_IN_SET(?, p.platforms)) AND` + policyLabelScopeWhere
 
 // PolicyQueriesForHost returns the policy queries that are to be executed on the given host.
 func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -1329,7 +1354,7 @@ func (ds *Datastore) policyQueriesForHostInScope(ctx context.Context, host *flee
 	}
 
 	stmt := policyQueriesForHostStmt
-	args := []any{host.ID, host.TeamID, host.FleetPlatform()}
+	args := append(policyLabelScopeArgs(host), host.TeamID, host.FleetPlatform())
 	if restrictToPolicyIDs != nil {
 		stmt = policyQueriesForHostStmt + " AND p.id IN (?)"
 		args = append(args, restrictToPolicyIDs)
@@ -2952,6 +2977,28 @@ func (ds *Datastore) GetPoliciesWithAssociatedVPP(ctx context.Context, teamID ui
 	return policies, nil
 }
 
+func (ds *Datastore) GetPoliciesWithAssociatedProfile(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyProfileData, error) {
+	if len(policyIDs) == 0 {
+		return nil, nil
+	}
+	query := `SELECT p.id AS policy_id, p.name AS policy_name,
+       COALESCE(p.resend_apple_profile_uuid, p.resend_windows_profile_uuid) AS profile_uuid,
+       COALESCE(macp.name, mwcp.name) AS profile_name
+FROM policies p
+LEFT JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = p.resend_apple_profile_uuid
+LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = p.resend_windows_profile_uuid
+WHERE p.team_id = ? AND (p.resend_apple_profile_uuid IS NOT NULL OR p.resend_windows_profile_uuid IS NOT NULL) AND p.id IN (?)`
+	query, args, err := sqlx.In(query, teamID, policyIDs)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated profile")
+	}
+	var policies []fleet.PolicyProfileData
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policies with associated profile")
+	}
+	return policies, nil
+}
+
 func (ds *Datastore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error) {
 	if len(policyIDs) == 0 {
 		return nil, nil
@@ -3139,7 +3186,9 @@ func (ds *Datastore) createAutomationClause(ctx context.Context, automationType 
 
 	switch automationType {
 	case fleet.PolicyAutomationTypeSoftware:
-		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL OR p.type = 'patch')", nil, nil
+		return " AND (p.software_installer_id IS NOT NULL OR p.vpp_apps_teams_id IS NOT NULL)", nil, nil
+	case fleet.PolicyAutomationTypePatch:
+		return " AND p.type = 'patch'", nil, nil
 	case fleet.PolicyAutomationTypeScripts:
 		return " AND p.script_id IS NOT NULL", nil, nil
 	case fleet.PolicyAutomationTypeCalendar:

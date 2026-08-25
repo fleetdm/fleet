@@ -508,7 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
-| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
+| order_key       | string  | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, `fleet_initiated`, and `streamed`.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -5908,7 +5908,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
-| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, and `fleet_initiated`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
@@ -8738,6 +8738,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8945,6 +8946,24 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Delete Android Enterprise
+
+Delete Android Enterprise that's connected to Fleet. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -15416,6 +15435,9 @@ None.
       "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
+      "last_login_at": "2020-12-10T04:15:20Z",
+      "last_activity_at": "2020-12-10T04:32:41Z",
+      "status": "active",
       "fleets": [
         {
           "id": 1,
@@ -15684,6 +15706,9 @@ Returns all information about a specific user.
     "mfa_enabled": false,
     "global_role": "admin",
     "api_only": false,
+    "last_login_at": "2020-12-10T05:24:27Z",
+    "last_activity_at": "2020-12-10T05:31:03Z",
+    "status": "active",
     "fleets": []
   }
 }
