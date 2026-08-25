@@ -483,6 +483,20 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				SoftwareTitleID: 2,
 			},
 		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          4,
+				Name:        "Team Profile policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 4",
+				Resolution:  new("Nothing to do."),
+				Description: "This is a team policy with configuration profile automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			ResendConfigurationProfile: &fleet.PolicyProfile{
+				Name: "Team Profile",
+			},
+		},
 	}
 	// Only add FMA and package install policies for actual teams, not unassigned.
 	if *teamID != 0 {

@@ -353,15 +353,20 @@ type HostMDMProfileRetryCount struct {
 }
 
 // ProfileACMECommandResult bundles the gates needed to decide whether an
-// InstallProfile ack should trigger a CertificateList refetch on macOS:
-// host platform, profile UUID, and whether the delivered profile contains a
-// com.apple.security.acme payload. Computed in a single query keyed on
+// InstallProfile ack should trigger a CertificateList refetch on macOS, and
+// which channel to send it on. Computed in a single query keyed on
 // (host_uuid, command_uuid).
 type ProfileACMECommandResult struct {
 	HostID         uint   `db:"host_id"`
 	Platform       string `db:"platform"`
 	ProfileUUID    string `db:"profile_uuid"`
 	HasACMEPayload bool   `db:"has_acme_payload"`
+	// Scope tells which channel installed the profile, hence which keychain its
+	// ACME cert landed in.
+	Scope PayloadScope `db:"scope"`
+	// UserEnrollmentID is the host's active user-channel enrollment, resolved
+	// only for user-scoped profiles. Empty when there is none.
+	UserEnrollmentID string `db:"user_enrollment_id"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -1439,10 +1444,11 @@ type HostMDMIdentifiers struct {
 }
 
 type NanoMDMEnrollmentDetails struct {
-	LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
-	LastMDMSeenTime       *time.Time `db:"last_seen_at"`
-	HardwareAttested      bool       `db:"hardware_attested"`
-	UnlockToken           *string    `db:"unlock_token"`
+	LastMDMEnrollmentTime  *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime        *time.Time `db:"last_seen_at"`
+	HardwareAttested       bool       `db:"hardware_attested"`
+	UnlockToken            *string    `db:"unlock_token"`
+	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

@@ -79,8 +79,12 @@ spec:
       grace_period_days: 3
     apple_settings:
       configuration_profiles: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     macos_settings:
       custom_settings: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
@@ -110,9 +114,12 @@ spec:
     windows_enrollment: null
     windows_settings:
       custom_settings: null
+      enable_disk_encryption: false
       configuration_profiles: null
       managed_local_account_settings:
         enabled: false
+    linux_settings:
+      enable_escrow_disk_encryption_key: false
     android_settings:
       certificates: null
       custom_settings: null

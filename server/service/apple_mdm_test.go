@@ -3945,12 +3945,16 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 		hostID      = uint(42)
 	)
 
+	const userEnrollmentID = hostUUID + ":user-uuid"
+
 	cases := []struct {
 		name             string
 		probeResult      fleet.ProfileACMECommandResult
 		probeErr         error
 		expectAddCommand bool
 		expectEnqueue    bool
+		// expectTarget defaults to the host's device channel.
+		expectTarget string
 	}{
 		{
 			name: "macOS + ACME profile: enqueues CertificateList",
@@ -3960,6 +3964,38 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 			},
 			expectAddCommand: true,
 			expectEnqueue:    true,
+		},
+		{
+			name: "system-scoped profile: enqueues to the device channel",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true, Scope: fleet.PayloadScopeSystem,
+				// A user enrollment exists but is irrelevant here.
+				UserEnrollmentID: userEnrollmentID,
+			},
+			expectAddCommand: true,
+			expectEnqueue:    true,
+		},
+		{
+			name: "user-scoped profile: enqueues to the user channel",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true, Scope: fleet.PayloadScopeUser,
+				UserEnrollmentID: userEnrollmentID,
+			},
+			expectAddCommand: true,
+			expectEnqueue:    true,
+			expectTarget:     userEnrollmentID,
+		},
+		{
+			name: "user-scoped profile without user enrollment: no trigger",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true, Scope: fleet.PayloadScopeUser,
+			},
+			// Nothing can report the login keychain.
+			expectAddCommand: false,
+			expectEnqueue:    false,
 		},
 		{
 			name: "iOS host: skipped (existing refetch cron handles it)",
@@ -4006,9 +4042,13 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 			pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, NewNanoMDMLogger(slog.New(slog.DiscardHandler)))
 			cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 			var enqueued bool
+			expectTarget := c.expectTarget
+			if expectTarget == "" {
+				expectTarget = hostUUID
+			}
 			mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				enqueued = true
-				require.Equal(t, []string{hostUUID}, id)
+				require.Equal(t, []string{expectTarget}, id)
 				require.Equal(t, "CertificateList", cmd.Command.Command.RequestType)
 				return nil, nil
 			}
@@ -4043,6 +4083,178 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				require.Empty(t, addedCommands)
 			}
 			require.Equal(t, c.expectEnqueue, enqueued)
+		})
+	}
+}
+
+// TestHandleRefetchCertsResultsChannelScoping verifies a CertificateList response
+// is attributed to the answering channel's keychain, that reconciliation spares
+// the other channel's certs, and that the stale-command cleanup uses the
+// enrollment the command was queued on.
+func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
+	ctx := context.Background()
+	const (
+		hostUUID    = "HOST-UUID"
+		hostID      = uint(42)
+		commandUUID = fleet.RefetchCertsCommandUUIDPrefix + "cmd-uuid"
+		userID      = "USER-UUID"
+		shortName   = "alice"
+	)
+	userEnrollmentID := hostUUID + ":" + userID
+
+	// As a device reports it: DER in Data, UserID/UserShortName only on the user channel.
+	certTmpl := mdmtesting.NewTestMDMAppleCertTemplate()
+	certTmpl.Subject.CommonName = "acme-cert"
+	certPEM, _, err := mysqltest.GenerateTestCertBytes(certTmpl)
+	require.NoError(t, err)
+	certBlock, _ := pem.Decode(certPEM)
+	require.NotNil(t, certBlock)
+	rawResponse := func(userChannel bool, reportShortName bool) []byte {
+		resp := fleet.MDMAppleCertificateListResponse{
+			CommandUUID: commandUUID,
+			Status:      "Acknowledged",
+			UDID:        hostUUID,
+			CertificateList: []fleet.MDMAppleCertificateListItem{
+				{CommonName: certTmpl.Subject.CommonName, Data: certBlock.Bytes},
+			},
+		}
+		if userChannel {
+			resp.UserID = userID
+			if reportShortName {
+				resp.UserShortName = shortName
+			}
+		}
+		raw, err := plist.Marshal(resp)
+		require.NoError(t, err)
+		return raw
+	}
+
+	deviceEnrollID := &mdm.EnrollID{Type: mdm.Device, ID: hostUUID}
+	userEnrollID := &mdm.EnrollID{Type: mdm.User, ID: userEnrollmentID, ParentID: hostUUID}
+
+	cases := []struct {
+		name string
+		// enrollID as nanomdm resolved the answering enrollment.
+		enrollID *mdm.EnrollID
+		// reportShortName off mirrors a device that omits UserShortName.
+		reportShortName bool
+		// nanoShortName / nanoUserID are what nano has on record for the host's
+		// first active user enrollment.
+		nanoShortName  string
+		nanoUserID     string
+		wantSource     fleet.HostCertificateSource
+		wantUsername   string
+		wantCleanupID  string
+		wantNanoLookup bool
+		wantErr        bool
+	}{
+		{
+			name:          "device channel: system keychain",
+			enrollID:      deviceEnrollID,
+			wantSource:    fleet.SystemHostCertificate,
+			wantCleanupID: hostUUID,
+		},
+		{
+			name:            "user channel: login keychain of the reporting user",
+			enrollID:        userEnrollID,
+			reportShortName: true,
+			wantSource:      fleet.UserHostCertificate,
+			wantUsername:    shortName,
+			wantCleanupID:   userEnrollmentID,
+		},
+		{
+			name:           "user channel without UserShortName: falls back to nano",
+			enrollID:       userEnrollID,
+			wantSource:     fleet.UserHostCertificate,
+			wantUsername:   shortName,
+			wantCleanupID:  userEnrollmentID,
+			wantNanoLookup: true,
+		},
+		{
+			name:           "user channel with nothing on record: error, no ingest",
+			enrollID:       userEnrollID,
+			nanoShortName:  "",
+			nanoUserID:     userID,
+			wantNanoLookup: true,
+			wantErr:        true,
+		},
+		{
+			name:     "user channel whose enrollment is no longer nano's first: error, no ingest",
+			enrollID: userEnrollID,
+			// A different user enrollment now sorts first, so its short name
+			// says nothing about who answered here.
+			nanoShortName:  "bob",
+			nanoUserID:     "OTHER-USER-UUID",
+			wantNanoLookup: true,
+			wantErr:        true,
+		},
+		{
+			name:          "no enrollment id: treated as device channel",
+			enrollID:      nil,
+			wantSource:    fleet.SystemHostCertificate,
+			wantCleanupID: hostUUID,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
+				require.Equal(t, hostID, command.HostID)
+				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, command.CommandType)
+				return nil
+			}
+			nanoShortName, nanoUserID := c.nanoShortName, c.nanoUserID
+			if nanoShortName == "" && nanoUserID == "" {
+				nanoShortName, nanoUserID = shortName, userID
+			}
+			ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, deviceID string) (string, string, error) {
+				require.Equal(t, hostUUID, deviceID)
+				return nanoShortName, nanoUserID, nil
+			}
+			var gotScopes []fleet.HostCertificateScope
+			var gotCerts []*fleet.HostCertificateRecord
+			ds.UpdateHostCertificatesFunc = func(ctx context.Context, incomingHostID uint, incomingHostUUID string,
+				certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope,
+			) error {
+				require.Equal(t, hostID, incomingHostID)
+				require.Equal(t, hostUUID, incomingHostUUID)
+				require.Equal(t, fleet.HostCertificateOriginMDM, origin)
+				gotCerts, gotScopes = certs, observedScopes
+				return nil
+			}
+			var cleanupEnrollmentID string
+			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+				cleanupEnrollmentID = enrollmentID
+				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, commandUUIDPrefix)
+				require.Equal(t, commandUUID, currentCommandUUID)
+				return nil
+			}
+
+			svc := &MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			host := &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "darwin"}
+			userChannel := c.enrollID != nil && c.enrollID.ParentID != ""
+			_, err := svc.handleRefetchCertsResults(ctx, host, c.enrollID, &mdm.CommandResults{
+				Enrollment:  mdm.Enrollment{UDID: hostUUID},
+				CommandUUID: commandUUID,
+				Status:      "Acknowledged",
+				Raw:         rawResponse(userChannel, c.reportShortName),
+			})
+			if c.wantErr {
+				require.Error(t, err)
+				require.Nil(t, gotCerts, "certificates must not be ingested under an unknown user")
+				require.Equal(t, c.wantNanoLookup, ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFuncInvoked)
+				return
+			}
+			require.NoError(t, err)
+
+			require.Len(t, gotCerts, 1)
+			require.Equal(t, c.wantSource, gotCerts[0].Source)
+			require.Equal(t, c.wantUsername, gotCerts[0].Username)
+			// Only the answering keychain may be reconciled.
+			require.Equal(t, []fleet.HostCertificateScope{{Source: c.wantSource, Username: c.wantUsername}}, gotScopes)
+			require.Equal(t, c.wantCleanupID, cleanupEnrollmentID)
+			require.Equal(t, c.wantNanoLookup, ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFuncInvoked)
 		})
 	}
 }
@@ -4233,6 +4445,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 			return false, nil
 		}
+		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
+			return false, nil
+		}
 		var activityCmdResult *mdm.CommandResults
 		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, c *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 			activityCmdResult = c
@@ -4300,6 +4515,73 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		// Verification path NOT entered (status was not promoted).
 		require.False(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
 	})
+}
+
+// TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure covers the
+// iPad terminal-failure emission path in the InstallApplication handler.
+// Before #45011, this branch called GetPastActivityDataForVPPAppInstall and
+// emitted the activity without ever consulting IsAutoUpdateVPPInstall, so a
+// scheduled auto-update that terminally failed was attributed to actor_full_name
+// instead of Fleet. The InstalledApplicationList success handler already did
+// the right thing; this test locks in parity for the failure path.
+func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testing.T) {
+	const (
+		hostUUID    = "HOST-UUID-AUTO"
+		commandUUID = "CMD-UUID-AUTO"
+	)
+	ctx := t.Context()
+
+	ds := new(mock.Store)
+	var emitted *fleet.ActivityInstalledAppStoreApp
+	svc := MDMAppleCheckinAndCommandService{
+		ds:     ds,
+		logger: slog.New(slog.DiscardHandler),
+		newActivityFn: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+			// Capture the emitted VPP-install activity so we can assert on the
+			// FromAutoUpdate flag downstream.
+			if a, ok := act.(*fleet.ActivityInstalledAppStoreApp); ok {
+				emitted = a
+			}
+			return nil
+		},
+	}
+
+	ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, cmd string) (string, error) {
+		require.Equal(t, commandUUID, cmd)
+		return "InstallApplication", nil
+	}
+	// Retry-exhausted install so we fall through to the failure-activity emission.
+	ds.GetHostVPPInstallByCommandUUIDFunc = func(_ context.Context, _ string) (*fleet.HostVPPSoftwareInstallLite, error) {
+		return &fleet.HostVPPSoftwareInstallLite{HostID: 1, RetryCount: fleet.MaxSoftwareInstallAttempts}, nil
+	}
+	ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
+		return false, nil
+	}
+	ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, cmd string) (bool, error) {
+		require.Equal(t, commandUUID, cmd)
+		return true, nil
+	}
+	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{Type: mdm.Device, ID: hostUUID}},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain: []mdm.ErrorChain{
+				{ErrorCode: 9610, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Cannot establish a connection."},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	require.True(t, ds.IsAutoUpdateVPPInstallFuncInvoked)
+	require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
+	require.NotNil(t, emitted)
+	require.True(t, emitted.FromAutoUpdate, "auto-update terminal failures must carry FromAutoUpdate so the activity is attributed to Fleet")
 }
 
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
