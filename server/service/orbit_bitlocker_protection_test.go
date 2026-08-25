@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -93,7 +94,7 @@ func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 		return svc, ds
 	}
 	ctx := func() context.Context {
-		return host.NewContext(context.Background(), &fleet.Host{ID: 1})
+		return host.NewContext(t.Context(), &fleet.Host{ID: 1})
 	}
 
 	t.Run("restored clears the reason and asks for a refetch", func(t *testing.T) {
@@ -161,5 +162,20 @@ func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed,
 			strings.Repeat("x", bitLockerProtectionErrorMaxLength+50)))
 		require.Len(t, stored, bitLockerProtectionErrorMaxLength)
+	})
+
+	t.Run("truncates a multibyte reason without corrupting it", func(t *testing.T) {
+		svc, ds := setup()
+		var stored string
+		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
+			stored = e
+			return nil
+		}
+
+		// A rune that straddles the cut would be split by a byte-wise slice, and the utf8mb4 write would then fail.
+		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed,
+			strings.Repeat("é", bitLockerProtectionErrorMaxLength+50)))
+		require.True(t, utf8.ValidString(stored))
+		require.Equal(t, bitLockerProtectionErrorMaxLength, utf8.RuneCountInString(stored))
 	})
 }

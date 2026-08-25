@@ -915,6 +915,36 @@ func TestBitlockerOperations(t *testing.T) {
 			require.Equal(t, fleet.DiskEncryptionProtectionDeferred, clientMock.ProtectionOutcome)
 		})
 
+		t.Run("reports and backs off when the protector check fails", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, errors.New("WMI query failed") }
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled, "must not enable without knowing whether the volume can unseal at boot")
+			require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
+			require.Contains(t, clientMock.ProtectionClientError, "WMI query failed")
+			// Without the throttle a persistently broken WMI would be re-queried on every config poll.
+			require.False(t, enrollReceiver.lastProtectionRun.IsZero(), "should back off after a failure")
+		})
+
+		t.Run("reports and backs off when the restart check fails", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+			enrollReceiver.restartPendingFn = func() (bool, error) { return false, errors.New("registry unavailable") }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled, "an unknown restart state could still re-seal against stale measurements")
+			require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
+			require.Contains(t, clientMock.ProtectionClientError, "registry unavailable")
+			require.False(t, enrollReceiver.lastProtectionRun.IsZero(), "should back off after a failure")
+		})
+
 		t.Run("never runs the encrypt path", func(t *testing.T) {
 			setupTest()
 			enrollReceiver.execGetEncryptionStatusFn = suspended
@@ -1012,6 +1042,31 @@ func TestBitlockerOperations(t *testing.T) {
 		require.False(t, encryptFnCalled, "should NOT encrypt again")
 		require.Empty(t, enrollReceiver.pendingRecoveryKey, "cached key should be cleared after successful escrow")
 		require.False(t, enrollReceiver.lastRun.IsZero(), "lastRun should be set after successful escrow")
+	})
+
+	t.Run("cached key is still escrowed when the status is unreadable", func(t *testing.T) {
+		setupTest()
+		shouldFailServerUpdate = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		require.NoError(t, enrollReceiver.Run(makeConfig()))
+		require.Equal(t, "rotated-key-789", enrollReceiver.pendingRecoveryKey)
+
+		// Escrow is a server call that touches no disk state, so an unreadable volume status must not strand a key that
+		// already exists on disk but that Fleet does not hold yet.
+		shouldFailServerUpdate = false
+		rotateKeyFnCalled, encryptFnCalled = false, false
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Err: errors.New("WMI unavailable")}}, nil
+		}
+
+		require.NoError(t, enrollReceiver.Run(makeConfig()))
+		require.Empty(t, enrollReceiver.pendingRecoveryKey, "cached key must be escrowed even when WMI is down")
+		require.False(t, rotateKeyFnCalled, "must not rotate against an unreadable volume")
+		require.False(t, encryptFnCalled, "must not encrypt against an unreadable volume")
 	})
 
 }

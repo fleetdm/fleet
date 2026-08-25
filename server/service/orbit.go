@@ -1494,11 +1494,10 @@ func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, out
 	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
 		return fleet.NewInvalidArgumentError("client_error", fmt.Sprintf("cannot be empty when outcome is %q", outcome))
 	}
-	// The column is bounded, and this is client-supplied. Keeping the head of an over-long message is better than failing
-	// the write and losing the outcome entirely.
-	if len(clientError) > bitLockerProtectionErrorMaxLength {
-		clientError = clientError[:bitLockerProtectionErrorMaxLength]
-	}
+	// clientError is untrusted input from fleetd: truncate by rune (not byte, which could split a multi-byte character)
+	// so it always fits the column and stays valid UTF-8. Keeping the head of an over-long message is better than
+	// failing the write and losing the outcome entirely.
+	clientError = str.TruncateRunes(clientError, bitLockerProtectionErrorMaxLength)
 
 	switch outcome {
 	case fleet.DiskEncryptionProtectionRestored:

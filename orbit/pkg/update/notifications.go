@@ -619,6 +619,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	status, err := w.getEncryptionStatusForVolume(targetVolume)
 	if err != nil || status == nil {
 		log.Error().Err(err).Msgf("cannot read encryption status for %s, not restoring protection", targetVolume)
+		// Deliberately no outcome report: an unreadable status is not evidence of anything (#51098). Still back off, so a
+		// host with a persistently broken WMI does not re-query on every config poll.
+		w.lastProtectionRun = time.Now()
 		return
 	}
 
@@ -638,6 +641,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	hasProtector, err := w.execHasTPMProtectorFn(targetVolume)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot determine whether a TPM protector is present, not restoring protection")
+		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+			fmt.Sprintf("could not determine whether a TPM protector is present: %v", err))
+		w.lastProtectionRun = time.Now()
 		return
 	}
 	if !hasProtector {
@@ -660,6 +666,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	}
 	if pending, err := restartPending(); err != nil {
 		log.Error().Err(err).Msg("cannot determine whether a restart is pending, not restoring protection")
+		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+			fmt.Sprintf("could not determine whether a restart is pending: %v", err))
+		w.lastProtectionRun = time.Now()
 		return
 	} else if pending {
 		log.Info().Msg("a restart is pending, deferring bitlocker protection restore until after it")
@@ -714,15 +723,6 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 		return
 	}
 
-	const targetVolume = "C:"
-	encryptionStatus, err := w.getEncryptionStatusForVolume(targetVolume)
-	if err != nil || encryptionStatus == nil {
-		// An unreadable status is not evidence that the volume is unencrypted. Continuing here would run the encrypt
-		// path against a possibly-encrypted disk, whose first act is to delete every key protector. Stop instead.
-		log.Error().Err(err).Msgf("cannot read encryption status for %s, taking no action on the volume", targetVolume)
-		return
-	}
-
 	// If a previous encryption or rotation succeeded but escrow failed,
 	// retry the escrow with the cached key. This runs before all other
 	// checks because the escrow is just a server API call that doesn't
@@ -736,6 +736,15 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 		}
 		w.pendingRecoveryKey = ""
 		w.lastRun = time.Now()
+		return
+	}
+
+	const targetVolume = "C:"
+	encryptionStatus, err := w.getEncryptionStatusForVolume(targetVolume)
+	if err != nil || encryptionStatus == nil {
+		// An unreadable status is not evidence that the volume is unencrypted. Continuing here would run the encrypt
+		// path against a possibly-encrypted disk, whose first act is to delete every key protector. Stop instead.
+		log.Error().Err(err).Msgf("cannot read encryption status for %s, taking no action on the volume", targetVolume)
 		return
 	}
 
