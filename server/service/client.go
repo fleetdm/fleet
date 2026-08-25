@@ -2836,7 +2836,15 @@ func (c *Client) DoGitOps(
 		defaultPerPlatformKey := func(parent, key string) {
 			m, ok := mdmAppConfig[parent].(map[string]any)
 			if !ok {
+				// the parent may hold a typed default (e.g. fleet.MacOSSettings
+				// with an empty custom_settings): convert it instead of
+				// replacing it so those defaults are preserved
 				m = map[string]any{}
+				if existing, present := mdmAppConfig[parent]; present && existing != nil {
+					if b, err := json.Marshal(existing); err == nil {
+						_ = json.Unmarshal(b, &m)
+					}
+				}
 				mdmAppConfig[parent] = m
 			}
 			// an explicit null means the same as absent: reset to false (the
