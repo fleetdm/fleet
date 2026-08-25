@@ -228,16 +228,13 @@ type GitOpsPolicySpec struct {
 	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
 	RunScript                  *PolicyRunScript                       `json:"run_script"`
 	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
-	ResendConfigurationProfile *PolicyResendConfigurationProfile      `json:"resend_configuration_profile"`
+	ResendConfigurationProfile *string                                `json:"resend_configuration_profile"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
 	// RunScriptName is populated after confirming the script exists on both the file system
 	// and in the controls scripts list for the same team
 	RunScriptName *string `json:"-"`
-	// ResendConfigurationProfileName is populated after confirming the configuration profile exists on both the file system
-	// and in the controls configuration profiles list for the same team
-	ResendConfigurationProfileName *string `json:"-"`
 	// WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets
 	// should be enabled for this policy. This is a gitops-only convenience that
 	// translates to adding the policy's ID to the failing_policies_webhook.policy_ids list.
@@ -2267,7 +2264,8 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 
 func parsePolicyResendConfigurationProfile(baseDir string, parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
 	if policy.ResendConfigurationProfile == nil {
-		policy.ResendConfigurationProfileName = new("") // unset the profile name
+		// unset
+		policy.ResendConfigurationProfile = new("")
 		return nil
 	}
 
@@ -2275,16 +2273,16 @@ func parsePolicyResendConfigurationProfile(baseDir string, parentFilePath string
 		return errors.New("resend_configuration_profile can only be set on team policies")
 	}
 
-	name := strings.TrimSpace(policy.ResendConfigurationProfile.Name)
+	name := strings.TrimSpace(*policy.ResendConfigurationProfile)
 	if name == "" {
-		return errors.New("resend_configuration_profile.name is required")
+		return errors.New("resend_configuration_profile is required")
 	}
 
 	if _, ok := definedProfiles[name]; !ok {
 		return fmt.Errorf("configuration profile %q was not defined in controls in %s", name, filepath.Base(parentFilePath))
 	}
 
-	policy.ResendConfigurationProfileName = &name
+	policy.ResendConfigurationProfile = &name
 
 	return nil
 }

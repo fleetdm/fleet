@@ -5877,21 +5877,19 @@ controls:
 policies:
 - name: Mac policy
   query: SELECT 1;
-  resend_configuration_profile:
-    name: Password policy
+  resend_configuration_profile: Password policy
 - name: Windows policy
   query: SELECT 1;
-  resend_configuration_profile:
-    name: screenlock
+  resend_configuration_profile: screenlock
 - name: No resend policy
   query: SELECT 1;
 `)
 		require.NoError(t, err)
 		require.Len(t, got.Policies, 3)
-		require.Equal(t, new("Password policy"), got.Policies[0].ResendConfigurationProfileName)
-		require.Equal(t, new("screenlock"), got.Policies[1].ResendConfigurationProfileName)
+		require.Equal(t, new("Password policy"), got.Policies[0].ResendConfigurationProfile)
+		require.Equal(t, new("screenlock"), got.Policies[1].ResendConfigurationProfile)
 		// Policies without the key get an empty name so the server unsets any existing profile.
-		require.Equal(t, new(""), got.Policies[2].ResendConfigurationProfileName)
+		require.Equal(t, new(""), got.Policies[2].ResendConfigurationProfile)
 	})
 
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
@@ -5899,8 +5897,7 @@ policies:
 policies:
 - name: Mac policy
   query: SELECT 1;
-  resend_configuration_profile:
-    name: Not a profile
+  resend_configuration_profile: Not a profile
 `)
 		require.ErrorContains(t, err, `configuration profile "Not a profile" was not defined in controls`)
 	})
@@ -5910,8 +5907,7 @@ policies:
 policies:
 - name: Mac policy
   query: SELECT 1;
-  resend_configuration_profile:
-    name: Password policy
+  resend_configuration_profile: Password policy
 `)
 		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
 	})
