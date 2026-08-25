@@ -1420,6 +1420,10 @@ type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDe
 
 type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error
 
+type SetMDMWindowsEnrollmentLoginStatusFunc func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error
+
+type GetMDMWindowsUserContextByHostUUIDFunc func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error)
+
 type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
 
 type SetMDMWindowsManagedLocalAccountEscrowedFunc func(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
@@ -1649,6 +1653,8 @@ type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScript
 type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 type CleanAppleMDMLockFunc func(ctx context.Context, hostUUID string) error
+
+type CancelHostMDMCommandFunc func(ctx context.Context, host *fleet.Host, commandUUID string) (requestType string, err error)
 
 type InsertHostLocationDataFunc func(ctx context.Context, locData fleet.HostLocationData) error
 
@@ -2013,6 +2019,8 @@ type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, compa
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
 type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool, companyOwned bool) error
+
+type AndroidResetOnReenrollmentFunc func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error)
 
 type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
 
@@ -4445,6 +4453,12 @@ type DataStore struct {
 	MDMWindowsEnqueuePollScheduleCommandFunc        MDMWindowsEnqueuePollScheduleCommandFunc
 	MDMWindowsEnqueuePollScheduleCommandFuncInvoked bool
 
+	SetMDMWindowsEnrollmentLoginStatusFunc        SetMDMWindowsEnrollmentLoginStatusFunc
+	SetMDMWindowsEnrollmentLoginStatusFuncInvoked bool
+
+	GetMDMWindowsUserContextByHostUUIDFunc        GetMDMWindowsUserContextByHostUUIDFunc
+	GetMDMWindowsUserContextByHostUUIDFuncInvoked bool
+
 	SetMDMWindowsEnrollmentFleetdSyncCapableFunc        SetMDMWindowsEnrollmentFleetdSyncCapableFunc
 	SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked bool
 
@@ -4789,6 +4803,9 @@ type DataStore struct {
 
 	CleanAppleMDMLockFunc        CleanAppleMDMLockFunc
 	CleanAppleMDMLockFuncInvoked bool
+
+	CancelHostMDMCommandFunc        CancelHostMDMCommandFunc
+	CancelHostMDMCommandFuncInvoked bool
 
 	InsertHostLocationDataFunc        InsertHostLocationDataFunc
 	InsertHostLocationDataFuncInvoked bool
@@ -5335,6 +5352,9 @@ type DataStore struct {
 
 	UpdateAndroidHostFunc        UpdateAndroidHostFunc
 	UpdateAndroidHostFuncInvoked bool
+
+	AndroidResetOnReenrollmentFunc        AndroidResetOnReenrollmentFunc
+	AndroidResetOnReenrollmentFuncInvoked bool
 
 	BulkUpsertMDMAndroidHostProfilesFunc        BulkUpsertMDMAndroidHostProfilesFunc
 	BulkUpsertMDMAndroidHostProfilesFuncInvoked bool
@@ -10729,6 +10749,20 @@ func (s *DataStore) MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, md
 	return s.MDMWindowsEnqueuePollScheduleCommandFunc(ctx, mdmDeviceID, enrollmentID, cmd, relaxed)
 }
 
+func (s *DataStore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+	s.mu.Lock()
+	s.SetMDMWindowsEnrollmentLoginStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsEnrollmentLoginStatusFunc(ctx, enrollmentID, status)
+}
+
+func (s *DataStore) GetMDMWindowsUserContextByHostUUID(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsUserContextByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsUserContextByHostUUIDFunc(ctx, hostUUIDs)
+}
+
 func (s *DataStore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error {
 	s.mu.Lock()
 	s.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked = true
@@ -11532,6 +11566,13 @@ func (s *DataStore) CleanAppleMDMLock(ctx context.Context, hostUUID string) erro
 	s.CleanAppleMDMLockFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanAppleMDMLockFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CancelHostMDMCommand(ctx context.Context, host *fleet.Host, commandUUID string) (requestType string, err error) {
+	s.mu.Lock()
+	s.CancelHostMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelHostMDMCommandFunc(ctx, host, commandUUID)
 }
 
 func (s *DataStore) InsertHostLocationData(ctx context.Context, locData fleet.HostLocationData) error {
@@ -12806,6 +12847,13 @@ func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHo
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll, companyOwned)
+}
+
+func (s *DataStore) AndroidResetOnReenrollment(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
+	s.mu.Lock()
+	s.AndroidResetOnReenrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidResetOnReenrollmentFunc(ctx, hostID, hostUUID, preserveHostActivities)
 }
 
 func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {

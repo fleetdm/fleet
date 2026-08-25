@@ -1415,7 +1415,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}
 
 	var linux fleet.MDMLinuxDiskEncryptionSummary
-	if diskEncryptionConfig.Enabled {
+	if diskEncryptionConfig.LinuxEscrowEnabled {
 		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
@@ -1973,6 +1973,46 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 		Message: "Clearing passcode is only supported on Apple mobile platforms and Android",
 	})
+}
+
+func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
+	// The selective-list gate (rather than host read) admits gitops, which can
+	// send raw MDM commands via POST /commands/run — whoever can send a
+	// command can cancel one. Mirrors authorizeAllHostsTeams on that endpoint.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Non-Apple hosts have no nano queue rows; without this guard they would
+	// fall through to a misleading not-found.
+	if !fleet.IsApplePlatform(host.Platform) {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Couldn't cancel. Only Apple MDM commands can be canceled.",
+		})
+	}
+
+	requestType, err := svc.ds.CancelHostMDMCommand(ctx, host, commandUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel host mdm command")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCanceledMDMCommand{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		CommandType:     requestType,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for canceled mdm command")
+	}
+	return nil
 }
 
 // clearPasscodeAndroid dispatches Clear passcode to the Android Service.

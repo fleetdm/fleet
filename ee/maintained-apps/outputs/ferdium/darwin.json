@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.0",
+      "version": "7.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ferdium.ferdium-app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ferdium.ferdium-app' AND version_compare(bundle_short_version, '7.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ferdium.ferdium-app' AND version_compare(bundle_short_version, '7.2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.ferdium.ferdium-app');"
       },
-      "installer_url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.0/Ferdium-mac-7.2.0-arm64.dmg",
+      "installer_url": "https://github.com/ferdium/ferdium-app/releases/download/v7.2.2/Ferdium-mac-7.2.2-arm64.dmg",
       "install_script_ref": "73eb31a7",
       "uninstall_script_ref": "874c65f1",
-      "sha256": "6ebe427689fcfd2770c28c1095b61d5d5b359fe2357d935d22f1cabd3564284c",
+      "sha256": "4e0905fe491bb0335d7a75b404b904a982ad3a796976b35bd7550dfd9186ddf8",
       "default_categories": [
         "Productivity"
       ]

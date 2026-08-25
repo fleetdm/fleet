@@ -1169,7 +1169,8 @@ When selecting which issue to work on next, prioritize in the following order:
 3. **Customer activation blockers**: Issues with the `~activation-blocker` label.
 4. **Reliability issues**: Issues with the `reliability` label that the product group agreed to work on this release cycle.
 5. **Bugs**: Issues with the `bug` label, ordered by the [bug prioritization](#bug-prioritization) list below.
-6. **Other roadmap stories**: The remaining user stories in the group's **Ready** column.
+6. **Product maturity stories**: User stories with the `~product-maturity` label. Product maturity stories without customer labels are prioritized over non-maturity stories with customer labels.
+7. **Other stories**: The remaining user stories in the group's **Ready** column.
 
 ## Bug prioritization
 

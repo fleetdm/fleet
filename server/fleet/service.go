@@ -1412,6 +1412,10 @@ type Service interface {
 	// Not script based, only MDM based.
 	ClearPasscode(ctx context.Context, hostID uint) (*CommandEnqueueResult, error)
 
+	// CancelHostMDMCommand cancels a pending Apple MDM command (lock, wipe,
+	// clear passcode, enable lost mode) before the host receives it.
+	CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error
+
 	// RotateRecoveryLockPassword rotates the recovery lock password for a macOS host.
 	// This is only available for Apple Silicon Macs that are MDM-enrolled and have
 	// an existing recovery lock password.
