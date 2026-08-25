@@ -2710,8 +2710,7 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 SELECT
 	execution_id,
 	'pending_install' AS status,
-	updated_at,
-	0 AS was_app_open_skip
+	updated_at
 FROM
 	upcoming_activities
 WHERE
@@ -2729,23 +2728,32 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get latest upcoming install")
 	}
 
+	// A pending row never has a resolved skip reason; the caller only reads SkipReason for
+	// completed rows and the zero value already spells "not a skip", so nothing to populate.
 	return &hostLastInstall, nil
 }
 
+// pastInstallRow carries the raw signals fleet.ClassifySoftwareInstallSkipReason needs
+// so the "what counts as a skip" invariant lives in one Go function rather than in the
+// SQL of getLatestPastInstall.
+type pastInstallRow struct {
+	fleet.HostLastInstallData
+	PatchWhenClosed       bool `db:"patch_when_closed"`
+	PreInstallOutputEmpty bool `db:"pre_install_output_empty"`
+}
+
 func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
-	var hostLastInstall fleet.HostLastInstallData
-	// was_app_open_skip is true only when the row is a patch-when-closed policy install
-	// whose managed pre-install query returned no rows (empty pre_install_query_output).
-	// The generated status column already treats that as failed_install, so we don't need
-	// to gate on status here.
+	var row pastInstallRow
+	// Return the raw signals only; classification is a Go call so we can unit test all
+	// combinations and grep for the invariant in one place.
 	stmt := `
 SELECT
 	hsi.execution_id,
 	hsi.status,
 	hsi.updated_at,
-	(COALESCE(p.patch_when_closed, 0) = 1
-		AND hsi.pre_install_query_output IS NOT NULL
-		AND hsi.pre_install_query_output = '') AS was_app_open_skip
+	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+	(hsi.pre_install_query_output IS NOT NULL
+		AND hsi.pre_install_query_output = '') AS pre_install_output_empty
 FROM
 	host_software_installs hsi
 	LEFT JOIN policies p ON p.id = hsi.policy_id
@@ -2758,11 +2766,12 @@ WHERE
 		WHERE
 			hsi.host_id = ? AND hsi.software_installer_id = ? AND hsi.canceled = 0)`
 
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostID, installerID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get latest past install")
 	}
 
-	return &hostLastInstall, nil
+	row.SkipReason = fleet.ClassifySoftwareInstallSkipReason(row.Status, row.PatchWhenClosed, row.PreInstallOutputEmpty)
+	return &row.HostLastInstallData, nil
 }
 
 func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {

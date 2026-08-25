@@ -5597,32 +5597,32 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	installed := fleet.SoftwareInstalled
 	failedInstall := fleet.SoftwareInstallFailed
 
-	setLastInstall := func(status *fleet.SoftwareInstallerStatus, updatedAt time.Time, wasAppOpenSkip bool) {
+	setLastInstall := func(status *fleet.SoftwareInstallerStatus, updatedAt time.Time, skipReason fleet.SoftwareInstallSkipReason) {
 		ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 			return &fleet.HostLastInstallData{
-				ExecutionID:    "prev-exec",
-				Status:         status,
-				UpdatedAt:      updatedAt,
-				WasAppOpenSkip: wasAppOpenSkip,
+				ExecutionID: "prev-exec",
+				Status:      status,
+				UpdatedAt:   updatedAt,
+				SkipReason:  skipReason,
 			}, nil
 		}
 	}
 
 	// Continuous re-fire with a recent successful install => throttled.
 	insertCalled = false
-	setLastInstall(&installed, now.Add(-10*time.Minute), false)
+	setLastInstall(&installed, now.Add(-10*time.Minute), fleet.SoftwareInstallSkipReasonNone)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.False(t, insertCalled, "continuous install should be throttled within the policy update interval")
 
 	// Continuous re-fire after the interval elapsed => fires.
 	insertCalled = false
-	setLastInstall(&installed, now.Add(-2*time.Hour), false)
+	setLastInstall(&installed, now.Add(-2*time.Hour), fleet.SoftwareInstallSkipReasonNone)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire once the cooldown elapses")
 
 	// Newly failing (pass→fail) bypasses the cooldown even with a recent install.
 	insertCalled = false
-	setLastInstall(&installed, now.Add(-1*time.Minute), false)
+	setLastInstall(&installed, now.Add(-1*time.Minute), fleet.SoftwareInstallSkipReasonNone)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, insertCalled, "newly-failing install should fire regardless of cooldown")
 
@@ -5630,27 +5630,13 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	// request the refetch that drives the loop, and failures are retried via the
 	// dedicated retry path.
 	insertCalled = false
-	setLastInstall(&failedInstall, now.Add(-1*time.Minute), false)
+	setLastInstall(&failedInstall, now.Add(-1*time.Minute), fleet.SoftwareInstallSkipReasonNone)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install failed")
 
-	// A recent patch-when-closed app-open skip within the interval => throttled.
-	// The skip is a hold until the user closes the app, not a retryable failure, so we
-	// wait one policy cycle instead of re-firing on every distributed_write.
-	insertCalled = false
-	setLastInstall(&failedInstall, now.Add(-1*time.Minute), true)
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
-	require.False(t, insertCalled, "app-open skip should throttle continuous re-fires within the policy update interval")
-
-	// After the cooldown elapses, an app-open skip stops throttling => fires again.
-	insertCalled = false
-	setLastInstall(&failedInstall, now.Add(-2*time.Hour), true)
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
-	require.True(t, insertCalled, "continuous install should fire again once the app-open cooldown elapses")
-
 	// A recent install with nil status (installed then removed) does not throttle.
 	insertCalled = false
-	setLastInstall(nil, now.Add(-1*time.Minute), false)
+	setLastInstall(nil, now.Add(-1*time.Minute), fleet.SoftwareInstallSkipReasonNone)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install has no resolved status")
 
@@ -5661,6 +5647,22 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	}
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "install should fire when there is no prior install")
+
+	// Sequenced check that the throttle both engages AND releases on the same skip row:
+	// T=0 skip → T=30min re-fire throttled → T=61min re-fire queues a fresh install. Proves
+	// the throttle actually releases on the same row rather than testing engage and release
+	// on two separately-configured rows as the isolated cases above do.
+	setLastInstall(&failedInstall, now, fleet.SoftwareInstallSkipReasonAppOpen)
+
+	insertCalled = false
+	mockClock.AddTime(30 * time.Minute)
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.False(t, insertCalled, "app-open skip 30m in must still be throttling continuous re-fires")
+
+	insertCalled = false
+	mockClock.AddTime(31 * time.Minute)
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.True(t, insertCalled, "app-open skip 61m in must have released the throttle so the next cycle can queue")
 }
 
 // TestProcessVPPForNewlyFailingPoliciesContinuousCooldown is the VPP analog of

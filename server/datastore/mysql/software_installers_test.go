@@ -3253,9 +3253,9 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.Equal(t, installUUID3, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
 	require.Equal(t, fleet.SoftwareInstallFailed, *host1LastInstall.Status)
-	// Ordinary install-script failure (no patch policy involved) must not be flagged
-	// as an app-open skip: the WasAppOpenSkip flag is scoped to patch-when-closed.
-	require.False(t, host1LastInstall.WasAppOpenSkip)
+	// Ordinary install-script failure (no patch policy involved) resolves to no skip
+	// reason: the app-open classification is scoped to patch-when-closed.
+	require.Equal(t, fleet.SoftwareInstallSkipReasonNone, host1LastInstall.SkipReason)
 
 	// No installations on host2.
 	host2LastInstall, err := ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID1)
@@ -3267,10 +3267,11 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 }
 
 // testGetHostLastInstallDataAppOpenSkip verifies that a patch-when-closed policy install
-// that came back with an empty pre-install output (app open) surfaces WasAppOpenSkip=true
-// on GetHostLastInstallData, so the continuous-automation throttle can dampen re-fires
-// while the app remains open. An empty pre-install output on a NON patch-when-closed
-// policy install must not flip the flag.
+// that came back with an empty pre-install output (app open) surfaces
+// SkipReason=SoftwareInstallSkipReasonAppOpen on GetHostLastInstallData, so the
+// continuous-automation throttle can dampen re-fires while the app remains open. An
+// empty pre-install output on a NON patch-when-closed policy install must resolve to no
+// skip reason so it still fails and retries normally.
 func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Author", "author-appopen-skip@example.com", true)
@@ -3329,7 +3330,7 @@ func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
 		return exec
 	}
 
-	// patch-when-closed policy + empty pre-install output => flagged as app-open skip.
+	// patch-when-closed policy + empty pre-install output => classified as app-open skip.
 	pwcExec := queueAndReportSkip(createPolicy(true))
 	last, err := ds.GetHostLastInstallData(ctx, host.ID, installerID)
 	require.NoError(t, err)
@@ -3337,17 +3338,18 @@ func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
 	require.Equal(t, pwcExec, last.ExecutionID)
 	require.NotNil(t, last.Status)
 	require.Equal(t, fleet.SoftwareInstallFailed, *last.Status)
-	require.True(t, last.WasAppOpenSkip, "patch-when-closed empty pre-install output must flag as app-open skip")
+	require.Equal(t, fleet.SoftwareInstallSkipReasonAppOpen, last.SkipReason, "patch-when-closed empty pre-install output must classify as app-open skip")
 
-	// Ordinary patch policy (no patch_when_closed) + empty pre-install output => NOT flagged.
-	// Regression guard for the intentional carve-out: the flag is scoped to patch-when-closed
-	// so ordinary empty pre_install_query results still fail normally and still retry.
+	// Ordinary patch policy (no patch_when_closed) + empty pre-install output => no skip.
+	// Regression guard for the intentional carve-out: the classifier is scoped to
+	// patch-when-closed so ordinary empty pre_install_query results still fail normally
+	// and still retry.
 	ordinaryExec := queueAndReportSkip(createPolicy(false))
 	last, err = ds.GetHostLastInstallData(ctx, host.ID, installerID)
 	require.NoError(t, err)
 	require.NotNil(t, last)
 	require.Equal(t, ordinaryExec, last.ExecutionID)
-	require.False(t, last.WasAppOpenSkip, "ordinary empty pre-install output must not flag as app-open skip")
+	require.Equal(t, fleet.SoftwareInstallSkipReasonNone, last.SkipReason, "ordinary empty pre-install output must not classify as app-open skip")
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {

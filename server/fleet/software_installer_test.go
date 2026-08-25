@@ -475,3 +475,67 @@ func TestValidateTitlePackages(t *testing.T) {
 		})
 	}
 }
+
+func TestClassifySoftwareInstallSkipReason(t *testing.T) {
+	failed := SoftwareInstallFailed
+	installed := SoftwareInstalled
+	pending := SoftwareInstallPending
+
+	cases := []struct {
+		name                  string
+		status                *SoftwareInstallerStatus
+		patchWhenClosed       bool
+		preInstallOutputEmpty bool
+		want                  SoftwareInstallSkipReason
+	}{
+		{
+			name:                  "patch-when-closed with empty pre-install output classifies as app-open skip",
+			status:                &failed,
+			patchWhenClosed:       true,
+			preInstallOutputEmpty: true,
+			want:                  SoftwareInstallSkipReasonAppOpen,
+		},
+		{
+			name:                  "empty pre-install output on a non-patch-when-closed policy is a plain failure",
+			status:                &failed,
+			patchWhenClosed:       false,
+			preInstallOutputEmpty: true,
+			want:                  SoftwareInstallSkipReasonNone,
+		},
+		{
+			name:                  "patch-when-closed with non-empty pre-install output is an install-script failure",
+			status:                &failed,
+			patchWhenClosed:       true,
+			preInstallOutputEmpty: false,
+			want:                  SoftwareInstallSkipReasonNone,
+		},
+		{
+			name:                  "successful install is never a skip",
+			status:                &installed,
+			patchWhenClosed:       true,
+			preInstallOutputEmpty: true,
+			want:                  SoftwareInstallSkipReasonNone,
+		},
+		{
+			name:                  "pending install is never a skip",
+			status:                &pending,
+			patchWhenClosed:       true,
+			preInstallOutputEmpty: true,
+			want:                  SoftwareInstallSkipReasonNone,
+		},
+		{
+			name:                  "nil status (row without a resolved terminal state) is never a skip",
+			status:                nil,
+			patchWhenClosed:       true,
+			preInstallOutputEmpty: true,
+			want:                  SoftwareInstallSkipReasonNone,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifySoftwareInstallSkipReason(tc.status, tc.patchWhenClosed, tc.preInstallOutputEmpty)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

@@ -460,6 +460,41 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	}
 }
 
+// SoftwareInstallSkipReason classifies why a software install ended without running
+// the install script. A skip is stored on the failed_install row (empty payload
+// signals from orbit), but semantically it's a hold, not a retryable failure.
+type SoftwareInstallSkipReason string
+
+const (
+	// SoftwareInstallSkipReasonNone means the row is not a skip: either it succeeded,
+	// it is still pending, or it failed for a reason that consumes a retry attempt.
+	SoftwareInstallSkipReasonNone SoftwareInstallSkipReason = ""
+	// SoftwareInstallSkipReasonAppOpen means the row is a patch-when-closed install
+	// whose managed app-open query returned rows on the host (app is running). The
+	// install did not run; the next continuous-automation cycle re-fires.
+	SoftwareInstallSkipReasonAppOpen SoftwareInstallSkipReason = "app_open"
+)
+
+// ClassifySoftwareInstallSkipReason returns the skip reason for a completed install
+// row based on the three fields that determine it. Keeping this in Go instead of SQL
+// means the "what counts as an app-open skip" invariant lives in one place with
+// exhaustive unit test coverage.
+//
+//   - status must be failed_install for a skip (a nil or non-failed status is never a skip).
+//   - patchWhenClosed gates the app-open reason to policies that opted into it, so an
+//     ordinary empty pre_install_query result on an unrelated policy is not misclassified.
+//   - preInstallOutputEmpty distinguishes the pre-install signal from an install-script
+//     failure, whose failed_install status is not a skip.
+func ClassifySoftwareInstallSkipReason(status *SoftwareInstallerStatus, patchWhenClosed, preInstallOutputEmpty bool) SoftwareInstallSkipReason {
+	if status == nil || *status != SoftwareInstallFailed {
+		return SoftwareInstallSkipReasonNone
+	}
+	if patchWhenClosed && preInstallOutputEmpty {
+		return SoftwareInstallSkipReasonAppOpen
+	}
+	return SoftwareInstallSkipReasonNone
+}
+
 // HostLastInstallData contains data for the last installation of a package on a host.
 type HostLastInstallData struct {
 	// ExecutionID is the installation ID of the package on the host.
@@ -471,12 +506,10 @@ type HostLastInstallData struct {
 	// requests the host refetch; it is used to throttle continuous policy automation
 	// re-installs (see continuousAutomationOnCooldown).
 	UpdatedAt time.Time `db:"updated_at"`
-	// WasAppOpenSkip is true when the last install ended in an app-open skip on a
-	// patch-when-closed policy (managed pre-install query returned no rows). The row
-	// is stored as failed_install but semantically it's a hold, so the continuous-
-	// automation throttle treats it like a success to avoid re-firing on every
-	// distributed_write while the app stays open.
-	WasAppOpenSkip bool `db:"was_app_open_skip"`
+	// SkipReason classifies why the install ended without running (empty for success,
+	// pending, or ordinary failure). Callers use it to decide whether to throttle a
+	// continuous-automation re-fire, or to log the reason for a skipped run.
+	SkipReason SoftwareInstallSkipReason
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.

@@ -2405,15 +2405,22 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		// retry path (see shouldRetryPolicyAutomationSoftwareInstall).
 		// See continuousAutomationOnCooldown.
 		if !newlyFailing && failingPolicyWithInstaller.ContinuousAutomationsEnabled &&
-			hostLastInstall != nil && hostLastInstall.Status != nil &&
-			(*hostLastInstall.Status == fleet.SoftwareInstalled || hostLastInstall.WasAppOpenSkip) &&
-			svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
-			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
-				"last_install_execution_id", hostLastInstall.ExecutionID,
-				"last_install_at", hostLastInstall.UpdatedAt,
-				"was_app_open_skip", hostLastInstall.WasAppOpenSkip,
-			)
-			continue
+			hostLastInstall != nil && hostLastInstall.Status != nil {
+			var throttleReason string
+			switch {
+			case *hostLastInstall.Status == fleet.SoftwareInstalled:
+				throttleReason = "recent_success"
+			case hostLastInstall.SkipReason == fleet.SoftwareInstallSkipReasonAppOpen:
+				throttleReason = "app_open_skip"
+			}
+			if throttleReason != "" && svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
+				logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
+					"last_install_execution_id", hostLastInstall.ExecutionID,
+					"last_install_at", hostLastInstall.UpdatedAt,
+					"reason", throttleReason,
+				)
+				continue
+			}
 		}
 
 		// On a continuous re-fire (policy still failing), reset prior
