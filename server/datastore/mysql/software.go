@@ -227,7 +227,12 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Not using withRetryTxx on purpose.
+	// If we use withRetryTxx, when this table is contended, retrying parks connections
+	// on the same locks for up to another lock-wait timeout each, multiplying the load.
+	// Failing fast is safe because the delta is recomputed from scratch on the
+	// host's next software report.
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
 			return err
 		}
