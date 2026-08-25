@@ -5649,20 +5649,42 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	require.True(t, insertCalled, "install should fire when there is no prior install")
 
 	// Sequenced check that the throttle both engages AND releases on the same skip row:
-	// T=0 skip → T=30min re-fire throttled → T=70min re-fire queues a fresh install. Proves
-	// the throttle actually releases on the same row rather than testing engage and release
-	// on two separately-configured rows as the isolated cases above do.
-	setLastInstall(&failedInstall, now, fleet.SoftwareInstallSkipReasonAppOpen)
+	// T=0 skip → T=30min re-fire throttled → T=70min re-fire queues a fresh install.
+	// Proves the throttle actually releases on the same row rather than testing engage
+	// and release on two separately-configured rows as the isolated cases above do.
+	//
+	// Isolate to a sub-test with its own mock clock so time advancement stays scoped:
+	// the cases above (and any added below) reference `now` captured at T=0 and would
+	// break silently if this block left the shared clock 70min in the future.
+	t.Run("app-open skip throttles then releases on the same row", func(t *testing.T) {
+		subClock := clock.NewMockClock()
+		subSvc, subCtx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Clock: subClock})
+		subSvcImpl := subSvc.(validationMiddleware).Service.(*Service)
+		subNow := subClock.Now()
 
-	insertCalled = false
-	mockClock.AddTime(30 * time.Minute)
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
-	require.False(t, insertCalled, "app-open skip 30m in must still be throttling continuous re-fires")
+		// Sub-test overrides GetHostLastInstallDataFunc to seed an app-open skip; restore
+		// on exit so mock state doesn't leak to any case added after this block.
+		prevGetHostLastInstall := ds.GetHostLastInstallDataFunc
+		defer func() { ds.GetHostLastInstallDataFunc = prevGetHostLastInstall }()
+		ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+			return &fleet.HostLastInstallData{
+				ExecutionID: "prev-exec",
+				Status:      &failedInstall,
+				UpdatedAt:   subNow,
+				SkipReason:  fleet.SoftwareInstallSkipReasonAppOpen,
+			}, nil
+		}
 
-	insertCalled = false
-	mockClock.AddTime(40 * time.Minute)
-	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
-	require.True(t, insertCalled, "app-open skip 70m in must have released the throttle so the next cycle can queue")
+		insertCalled = false
+		subClock.AddTime(30 * time.Minute)
+		require.NoError(t, subSvcImpl.processSoftwareForNewlyFailingPolicies(subCtx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+		require.False(t, insertCalled, "app-open skip 30m in must still be throttling continuous re-fires")
+
+		insertCalled = false
+		subClock.AddTime(40 * time.Minute)
+		require.NoError(t, subSvcImpl.processSoftwareForNewlyFailingPolicies(subCtx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+		require.True(t, insertCalled, "app-open skip 70m in must have released the throttle so the next cycle can queue")
+	})
 }
 
 // TestProcessVPPForNewlyFailingPoliciesContinuousCooldown is the VPP analog of
