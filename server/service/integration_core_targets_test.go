@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +28,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, len(lblMap))
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Teams)
 
 	var lblIDs []uint
 	for _, labelID := range lblMap {
@@ -40,22 +39,22 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
-	require.Len(t, searchResp.Targets.Labels, 0)         // All built-in labels have been omitted (pre-selected)
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Labels)          // All built-in labels have been omitted (pre-selected)
+	require.Empty(t, searchResp.Targets.Teams)
 
 	searchResp = fleet.SearchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(1), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
 	require.Len(t, searchResp.Targets.Labels, len(lblMap)) // labels have not been omitted
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Teams)
 
 	searchResp = fleet.SearchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, 1)
 	require.Len(t, searchResp.Targets.Labels, 1) // with a match query, only matching label names and "All Hosts" can be returned (here, only all hosts)
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Teams)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }
 
@@ -73,7 +72,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Len(t, lblMap, 1)
 
 	for i := range hosts {
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
@@ -82,7 +81,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
-	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(ptr.Uint(team.ID), []uint{hostIDs[0]}))
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(new(team.ID), []uint{hostIDs[0]})) // nolint:nilaway // createHosts always returns at least one host
 	require.NoError(t, err)
 
 	var countResp fleet.CountTargetsResponse

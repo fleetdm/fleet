@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -119,8 +118,8 @@ func (s *integrationTestSuite) TestCrossOriginJSONSecurity() {
 
 	// valid request with no Origin or Referer headers
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
-		Name:       ptr.String("some name"),
+		Email:      new("some email"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 	}}
 	createInviteResp := createInviteResponse{}
@@ -128,8 +127,8 @@ func (s *integrationTestSuite) TestCrossOriginJSONSecurity() {
 	require.NotNil(t, createInviteResp.Invite)
 	require.NotZero(t, createInviteResp.Invite.ID)
 
-	createInviteReq.Email = ptr.String("other@email.com")
-	createInviteReq.Name = ptr.String("other name")
+	createInviteReq.Email = new("other@email.com")
+	createInviteReq.Name = new("other name")
 	req, err := json.Marshal(createInviteReq)
 	require.NoError(t, err)
 
@@ -163,7 +162,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// list teams, none
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
-	assert.Len(t, listResp.Teams, 0)
+	assert.Empty(t, listResp.Teams)
 
 	// get team
 	var getResp getTeamResponse
@@ -195,7 +194,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// list team users
 	var usersResp listUsersResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
-	assert.Len(t, usersResp.Users, 0)
+	assert.Empty(t, usersResp.Users)
 
 	// add team users
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
@@ -208,11 +207,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// get team enroll secrets
 	var secResp teamEnrollSecretsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/123/secrets", nil, http.StatusPaymentRequired, &secResp)
-	assert.Len(t, secResp.Secrets, 0)
+	assert.Empty(t, secResp.Secrets)
 
 	// modify team enroll secrets
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
-	assert.Len(t, secResp.Secrets, 0)
+	assert.Empty(t, secResp.Secrets)
 
 	// get apple BM configuration
 	var appleBMResp getAppleBMResponse
@@ -227,7 +226,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// batch-apply a non-empty set of MDM profiles fails
 	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
-		map[string]interface{}{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
+		map[string]any{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
@@ -349,7 +348,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
 
 	// try to update the enable_release_device_manually setting, requires premium.
-	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusPaymentRequired)
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
@@ -522,7 +521,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 			res = s.Do(route.method, path, params, expectedErr.StatusCode())
 		}
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
+		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -552,7 +551,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 
 	// try to schedule that query on the endpoint that is deprecated
 	// in that version
-	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: new(qr.ID), Interval: new(uint(42))}
 	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
 	res.Body.Close()
 	// use the correct version for that deprecated API

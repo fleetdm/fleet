@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -60,8 +60,8 @@ func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        platform,
@@ -143,8 +143,8 @@ func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Dat
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-time.Minute),
-		OsqueryHostID:   ptr.String(name),
-		NodeKey:         ptr.String(name),
+		OsqueryHostID:   new(name),
+		NodeKey:         new(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
 		ComputerName:    name,
@@ -171,7 +171,7 @@ func (s *integrationTestSuite) cleanupQuery(queryID uint) {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }
 
-func jsonMustMarshal(t testing.TB, v interface{}) []byte {
+func jsonMustMarshal(t testing.TB, v any) []byte {
 	b, err := json.Marshal(v)
 	require.NoError(t, err)
 	return b
@@ -200,7 +200,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
 				_, err := w.Write([]byte(jiraProjectResponsePayload))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -210,7 +210,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
 				_, err := w.Write([]byte(jiraProjectResponsePayload))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -220,7 +220,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
 				_, err := w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -230,7 +230,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
 				_, err := w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -390,7 +390,7 @@ const (
 
 func results(num int, hostID string) string {
 	b := strings.Builder{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		b.WriteString(`    {
       "build_distro": "centos7",
       "build_platform": "linux",
@@ -429,9 +429,9 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			},
 			Device: &android.Device{
 				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
-				EnterpriseSpecificID: ptr.String(uuid.NewString()),
-				AppliedPolicyID:      ptr.String("1"),
-				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
+				EnterpriseSpecificID: new(uuid.NewString()),
+				AppliedPolicyID:      new("1"),
+				LastPolicySyncTime:   new(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
@@ -466,9 +466,9 @@ func createAndroidHostForTest(t *testing.T, ds *mysql.Datastore, teamID *uint, c
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
-			EnterpriseSpecificID: ptr.String(uuid.NewString()),
-			AppliedPolicyID:      ptr.String("1"),
-			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
+			EnterpriseSpecificID: new(uuid.NewString()),
+			AppliedPolicyID:      new("1"),
+			LastPolicySyncTime:   new(time.Now().Add(-time.Hour)),
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)

@@ -13,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +45,7 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &delResp)
 
 	// delete session - non-existing
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp) // nolint:nilaway // createSession fails the test via require internally on error, cannot be nil here
 }
 
 func (s *integrationTestSuite) TestLogLoginAttempts() {
@@ -55,10 +54,10 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	// create a new user
 	var createResp createUserResponse
 	params := fleet.UserPayload{
-		Name:       ptr.String("foobar"),
-		Email:      ptr.String("foobar@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("foobar"),
+		Email:      new("foobar@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -92,7 +91,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	actDetails := fleet.ActivityTypeUserFailedLogin{}
 	err := json.Unmarshal(*activity.Details, &actDetails)
 	require.NoError(t, err)
-	require.Equal(t, actDetails.Email, "foobar@example.com")
+	require.Equal(t, "foobar@example.com", actDetails.Email)
 
 	// login with good password, should succeed
 	res = s.DoRawNoAuth(
@@ -181,11 +180,11 @@ func (s *integrationTestSuite) TestChangePassword() {
 	testUserEmail := "changepwd@example.com"
 	var createResp createUserResponse
 	params := fleet.UserPayload{
-		Name:                     ptr.String("Test Change Password"),
-		Email:                    ptr.String(testUserEmail),
-		Password:                 ptr.String(startPwd),
-		GlobalRole:               ptr.String(fleet.RoleObserver),
-		AdminForcedPasswordReset: ptr.Bool(false),
+		Name:                     new("Test Change Password"),
+		Email:                    new(testUserEmail),
+		Password:                 new(startPwd),
+		GlobalRole:               new(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -215,10 +214,10 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("forgotpwd"),
-		Email:      ptr.String("forgotpwd@example.com"),
-		Password:   ptr.String(userRawPwd),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("forgotpwd"),
+		Email:      new("forgotpwd@example.com"),
+		Password:   new(userRawPwd),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)

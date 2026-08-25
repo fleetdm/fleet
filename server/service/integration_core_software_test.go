@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -129,7 +128,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -241,7 +240,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
 	require.NoError(t, json.Unmarshal(bodyBytes, &lsResp))
-	require.Len(t, lsResp.Software, 0)
+	require.Empty(t, lsResp.Software)
 	assert.Nil(t, lsResp.CountsUpdatedAt)
 
 	var versionsResp listSoftwareVersionsResponse
@@ -250,7 +249,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
 	require.NoError(t, json.Unmarshal(bodyBytes, &versionsResp))
-	require.Len(t, versionsResp.Software, 0)
+	require.Empty(t, versionsResp.Software)
 	require.Equal(t, 0, versionsResp.Count)
 	assert.Nil(t, versionsResp.CountsUpdatedAt)
 
@@ -279,7 +278,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	if soft1.Source == "chrome_extensions" || soft1.Source == "firefox_addons" || soft1.Source == "ie_extensions" || soft1.Source == "safari_extensions" {
 		assert.Equal(t, soft1.ExtensionFor, lsResp.Software[0].Browser)
 	} else {
-		assert.Equal(t, "", lsResp.Software[0].Browser)
+		assert.Empty(t, lsResp.Software[0].Browser)
 	}
 	assert.Len(t, lsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, lsResp.CountsUpdatedAt)
@@ -296,7 +295,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	if soft1.Source == "chrome_extensions" || soft1.Source == "firefox_addons" || soft1.Source == "ie_extensions" || soft1.Source == "safari_extensions" {
 		assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].Browser)
 	} else {
-		assert.Equal(t, "", versionsResp.Software[0].Browser)
+		assert.Empty(t, versionsResp.Software[0].Browser)
 	}
 	assert.Len(t, versionsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
@@ -310,14 +309,14 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	// default sort, not only vulnerable
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp)
-	require.True(t, len(lsResp.Software) >= len(software))
+	require.GreaterOrEqual(t, len(lsResp.Software), len(software))
 	require.NotNil(t, lsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *lsResp.CountsUpdatedAt, time.Second)
 
 	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp)
-	require.True(t, len(versionsResp.Software) >= len(software))
-	require.True(t, versionsResp.Count >= len(software))
+	require.GreaterOrEqual(t, len(versionsResp.Software), len(software))
+	require.GreaterOrEqual(t, versionsResp.Count, len(software))
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *versionsResp.CountsUpdatedAt, time.Second)
 
@@ -331,7 +330,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "page", "0", "per_page", "2", "order_key", "hosts_count", "order_direction", "desc")
 	require.Len(t, versionsResp.Software, 2)
-	require.True(t, versionsResp.Count >= 2)
+	require.GreaterOrEqual(t, versionsResp.Count, 2)
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *versionsResp.CountsUpdatedAt, time.Second)
 
@@ -345,20 +344,20 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
 	require.Len(t, versionsResp.Software, 1)
-	require.True(t, versionsResp.Count >= 2)
+	require.GreaterOrEqual(t, versionsResp.Count, 2)
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *versionsResp.CountsUpdatedAt, time.Second)
 
 	// request one past the last page
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	require.Len(t, lsResp.Software, 0)
+	require.Empty(t, lsResp.Software)
 	require.Nil(t, lsResp.CountsUpdatedAt)
 
 	versionsResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "per_page", "2", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	require.Len(t, versionsResp.Software, 0)
-	require.True(t, versionsResp.Count >= 2)
+	require.Empty(t, versionsResp.Software)
+	require.GreaterOrEqual(t, versionsResp.Count, 2)
 	require.Nil(t, versionsResp.CountsUpdatedAt) // CONFIRM: legacy counts updated at is calculated by the server based on the software entries in the paginated response so how should we handle now?
 
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusBadRequest, &lsResp, "per_page", "2", "page", "-10")
@@ -377,8 +376,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         ptr.String(t.Name() + strconv.Itoa(i)),
-			OsqueryHostID:   ptr.String(t.Name() + strconv.Itoa(i)),
+			NodeKey:         new(t.Name() + strconv.Itoa(i)),
+			OsqueryHostID:   new(t.Name() + strconv.Itoa(i)),
 			UUID:            t.Name() + strconv.Itoa(i),
 			Hostname:        t.Name() + "foo" + strconv.Itoa(i) + ".local",
 			PrimaryIP:       "192.168.1." + strconv.Itoa(i),
@@ -488,7 +487,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			if sw.Source == "chrome_extensions" || sw.Source == "firefox_addons" || sw.Source == "ie_extensions" || sw.Source == "safari_extensions" {
 				assert.Equal(t, sw.ExtensionFor, detailsResp.Software.Browser)
 			} else {
-				assert.Equal(t, "", detailsResp.Software.Browser)
+				assert.Empty(t, detailsResp.Software.Browser)
 			}
 
 			detailsResp = getSoftwareResponse{}
@@ -502,7 +501,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			if sw.Source == "chrome_extensions" || sw.Source == "firefox_addons" || sw.Source == "ie_extensions" || sw.Source == "safari_extensions" {
 				assert.Equal(t, sw.ExtensionFor, detailsResp.Software.Browser)
 			} else {
-				assert.Equal(t, "", detailsResp.Software.Browser)
+				assert.Empty(t, detailsResp.Software.Browser)
 			}
 			if len(sw.Vulnerabilities) > 0 {
 				assert.Len(t, detailsResp.Software.Vulnerabilities, len(sw.Vulnerabilities))
@@ -529,7 +528,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			if want[i].Source == "chrome_extensions" || want[i].Source == "firefox_addons" || want[i].Source == "ie_extensions" || want[i].Source == "safari_extensions" {
 				assert.Equal(t, want[i].ExtensionFor, resp.Software[i].Browser)
 			} else {
-				assert.Equal(t, "", resp.Software[i].Browser)
+				assert.Empty(t, resp.Software[i].Browser)
 			}
 			wantCount, gotCount := counts[i], resp.Software[i].HostsCount
 			assert.Equal(t, wantCount, gotCount)
@@ -565,7 +564,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			if want[i].Source == "chrome_extensions" || want[i].Source == "firefox_addons" || want[i].Source == "ie_extensions" || want[i].Source == "safari_extensions" {
 				assert.Equal(t, want[i].ExtensionFor, resp.Software[i].Browser)
 			} else {
-				assert.Equal(t, "", resp.Software[i].Browser)
+				assert.Empty(t, resp.Software[i].Browser)
 			}
 		}
 		if ts.IsZero() {
@@ -807,15 +806,15 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusPaymentRequired, &resp, "exploit", "true")
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
-	require.Len(s.T(), resp.Vulnerabilities, 0)
+	s.Require().Empty(resp.Vulnerabilities)
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo1.local",
 		PrimaryIP:       "192.168.1.2",
@@ -845,7 +844,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
 		OSID:              os.ID,
 		CVE:               "CVE-2021-12345",
-		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
+		ResolvedInVersion: new("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
@@ -877,8 +876,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.1.2",
@@ -906,34 +905,34 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2021-12345",
-			CVSSScore:        ptr.Float64(7.5),
-			EPSSProbability:  ptr.Float64(0.5),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(7.5),
+			EPSSProbability:  new(0.5),
+			CISAKnownExploit: new(true),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-12345",
 		},
 		{
 			CVE:              "CVE-2021-1235",
-			CVSSScore:        ptr.Float64(5.4),
-			EPSSProbability:  ptr.Float64(0.6),
-			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(5.4),
+			EPSSProbability:  new(0.6),
+			CISAKnownExploit: new(false),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-1235",
 		},
 		{
 			CVE:              "CVE-2021-1246",
-			CVSSScore:        ptr.Float64(5.4),
-			EPSSProbability:  ptr.Float64(0.6),
-			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(5.4),
+			EPSSProbability:  new(0.6),
+			CISAKnownExploit: new(false),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-1246",
 		},
 		{
 			CVE:              knownCVE,
-			CVSSScore:        ptr.Float64(6.4),
-			EPSSProbability:  ptr.Float64(0.61),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(6.4),
+			EPSSProbability:  new(0.61),
+			CISAKnownExploit: new(true),
+			Published:        new(mockTime),
 			Description:      fmt.Sprintf("Test %s", knownCVE),
 		},
 	})
@@ -944,9 +943,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	// test list
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
-	require.Empty(t, resp.Err)
-	require.Len(s.T(), resp.Vulnerabilities, 3)
-	require.Equal(t, resp.Count, uint(3))
+	require.NoError(t, resp.Err)
+	s.Require().Len(resp.Vulnerabilities, 3)
+	require.Equal(t, uint(3), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
@@ -981,9 +980,9 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	// test list with matching query containing leading/trailing whitespace
 	// TODO(jacob) - this may be another parsing bug
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "  123	")
-	require.Empty(t, resp.Err)
-	require.Len(s.T(), resp.Vulnerabilities, 2)
-	require.Equal(t, resp.Count, uint(2))
+	require.NoError(t, resp.Err)
+	s.Require().Len(resp.Vulnerabilities, 2)
+	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
@@ -1014,32 +1013,32 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	// test list with non-matching query
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "CVB")
-	require.Empty(t, resp.Err)
-	require.Len(s.T(), resp.Vulnerabilities, 0)
-	require.Equal(t, resp.Count, uint(0))
+	require.NoError(t, resp.Err)
+	s.Require().Empty(resp.Vulnerabilities)
+	require.Equal(t, uint(0), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
 	// test with a known CVE that does not match on software/OS
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE)
-	require.Empty(t, resp.Err)
-	assert.Len(s.T(), resp.Vulnerabilities, 0)
-	assert.Equal(t, resp.Count, uint(0))
+	require.NoError(t, resp.Err)
+	s.Empty(resp.Vulnerabilities)
+	assert.Equal(t, uint(0), resp.Count)
 	assert.False(t, resp.Meta.HasPreviousResults)
 	assert.False(t, resp.Meta.HasNextResults)
 
 	// test with a substring of a known CVE -- results are returned
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", "CVE-2021-1234")
-	require.Empty(t, resp.Err)
-	assert.Len(s.T(), resp.Vulnerabilities, 1)
-	assert.Equal(t, resp.Count, uint(1))
+	require.NoError(t, resp.Err)
+	s.Len(resp.Vulnerabilities, 1)
+	assert.Equal(t, uint(1), resp.Count)
 	assert.False(t, resp.Meta.HasPreviousResults)
 	assert.False(t, resp.Meta.HasNextResults)
 	_ = s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound)
 
 	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
-	require.Len(s.T(), resp.Vulnerabilities, 0)
+	s.Require().Empty(resp.Vulnerabilities)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -1054,7 +1053,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
-	require.Empty(t, resp.Err)
+	require.NoError(t, resp.Err)
 
 	for _, vuln := range resp.Vulnerabilities {
 		expectedVuln, ok := expected[vuln.CVE.CVE]
@@ -1101,7 +1100,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusOK, &gResp)
-	require.Empty(t, gResp.Err)
+	require.NoError(t, gResp.Err)
 	require.Equal(t, "CVE-2021-12345", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-12345", gResp.Vulnerability.DetailsLink)
@@ -1119,7 +1118,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
-	require.Empty(t, gResp.Err)
+	require.NoError(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
@@ -1148,8 +1147,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
 		Platform:        "windows",
@@ -1282,8 +1281,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
 		Platform:        "darwin",

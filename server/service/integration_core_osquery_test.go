@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -76,8 +75,8 @@ func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -127,7 +126,7 @@ func (s *integrationTestSuite) TestOsqueryConfig() {
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
 
 	// test with invalid node key
-	var errRes map[string]interface{}
+	var errRes map[string]any
 	req.NodeKey += "zzzz"
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusUnauthorized, &errRes)
 	assert.Contains(t, errRes["error"], "invalid node key")
@@ -209,7 +208,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 		HardwareSerial: h.HardwareSerial,
 	}, http.StatusUnauthorized, &resp)
 
-	require.Equal(t, resp.Message, "Authentication failed")
+	require.Equal(t, "Authentication failed", resp.Message)
 }
 
 func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
@@ -228,8 +227,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
 		Platform:        "darwin",
@@ -240,8 +239,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.team", t.Name()),
 		Platform:        "darwin",
@@ -337,8 +336,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		PackID:   userPack1TargetTeam1.ID,
 		QueryID:  nonScheduledGlobalQuery.ID,
 		Interval: 60,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
+		Snapshot: new(true),
+		Removed:  new(true),
 	})
 	require.NoError(t, err)
 
@@ -347,9 +346,9 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	req := getClientConfigRequest{NodeKey: *globalHost.NodeKey}
 	var resp getClientConfigResponse
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
-	packs := resp.Config["packs"].(map[string]interface{})
+	packs := resp.Config["packs"].(map[string]any)
 	require.Len(t, packs, 1)
-	globalQueries := packs["Global"].(map[string]interface{})["queries"].(map[string]interface{})
+	globalQueries := packs["Global"].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, globalQueries, 1)
 	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
 
@@ -358,16 +357,16 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	req = getClientConfigRequest{NodeKey: *team1Host.NodeKey}
 	resp = getClientConfigResponse{}
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
-	packs = resp.Config["packs"].(map[string]interface{})
+	packs = resp.Config["packs"].(map[string]any)
 	require.Len(t, packs, 3)
-	globalQueries = packs["Global"].(map[string]interface{})["queries"].(map[string]interface{})
+	globalQueries = packs["Global"].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, globalQueries, 1)
 	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
-	team1Queries := packs[fmt.Sprintf("team-%d", team1.ID)].(map[string]interface{})["queries"].(map[string]interface{})
+	team1Queries := packs[fmt.Sprintf("team-%d", team1.ID)].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, team1Queries, 2)
 	require.Contains(t, team1Queries, scheduledTeam1Query1.Name)
 	require.Contains(t, team1Queries, scheduledTeam1Query2.Name)
-	userPack1Queries := packs[userPack1TargetTeam1.Name].(map[string]interface{})["queries"].(map[string]interface{})
+	userPack1Queries := packs[userPack1TargetTeam1.Name].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, userPack1Queries, 1)
 	require.Contains(t, userPack1Queries, scheduledQueryOnPack1.Name)
 

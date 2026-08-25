@@ -13,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -58,7 +57,7 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 
 	var deletePoliciesResp fleet.DeleteGlobalPoliciesResponse
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{IDs: policyIDs}, http.StatusOK, &deletePoliciesResp)
-	require.Equal(t, len(policyIDs), len(deletePoliciesResp.Deleted))
+	require.Len(t, deletePoliciesResp.Deleted, len(policyIDs))
 
 	newActivities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &newActivities)
@@ -116,14 +115,14 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	t := s.T()
 
 	// create 3 hosts
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
@@ -185,7 +184,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
@@ -222,20 +221,20 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 
 	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
-	require.Len(t, policiesResponse.Policies, 0)
+	require.Empty(t, policiesResponse.Policies)
 }
 
 func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	t := s.T()
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "darwin",
@@ -337,12 +336,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=failing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
@@ -373,12 +372,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=failing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
@@ -445,12 +444,12 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=failing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{policiesResponse.Policies[0].ID}}
 	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
@@ -458,7 +457,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 
 	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
-	require.Len(t, policiesResponse.Policies, 0)
+	require.Empty(t, policiesResponse.Policies)
 }
 
 func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
@@ -471,14 +470,14 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	})
 	require.NoError(t, err)
 	hosts := make([]uint, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		h, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "darwin",
@@ -551,7 +550,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	require.NotNil(t, policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "some team resolution updated", *policiesResponse.Policies[0].Resolution)
 	assert.Equal(t, "darwin", policiesResponse.Policies[0].Platform)
-	require.Len(t, policiesResponse.InheritedPolicies, 0)
+	require.Empty(t, policiesResponse.InheritedPolicies)
 
 	// test team policy count endpoint
 	tpCountResp := fleet.CountTeamPoliciesResponse{}
@@ -584,7 +583,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?team_id=%d&policy_id=%d&policy_response=passing", team1.ID, policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
-	require.Len(t, listHostsResp.Hosts, 0)
+	require.Empty(t, listHostsResp.Hosts)
 
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
@@ -600,7 +599,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 
 	policiesResponse = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &policiesResponse)
-	require.Len(t, policiesResponse.Policies, 0)
+	require.Empty(t, policiesResponse.Policies)
 }
 
 func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
@@ -647,7 +646,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 		{
 			tname:      "set both QueryID and Query",
 			testUpdate: false,
-			queryID:    ptr.Uint(1),
+			queryID:    new(uint(1)),
 			name:       "Some name",
 			query:      "select * from osquery;",
 		},
@@ -692,8 +691,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				tpReq := fleet.ModifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  ptr.String(tc.name),
-						Query: ptr.String(tc.query),
+						Name:  new(tc.name),
+						Query: new(tc.query),
 					},
 				}
 				tpResp := fleet.ModifyTeamPolicyResponse{}
@@ -714,8 +713,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				gpReq := fleet.ModifyGlobalPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  ptr.String(tc.name),
-						Query: ptr.String(tc.query),
+						Name:  new(tc.name),
+						Query: new(tc.query),
 					},
 				}
 				gpResp := fleet.ModifyGlobalPolicyResponse{}
@@ -765,7 +764,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	_, err = s.ds.RecordPolicyQueryExecutions(
 		context.Background(),
 		host1,
-		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
+		map[uint]*bool{gpResp.Policy.ID: new(true)},
 		time.Now(),
 		false,
 		nil,
@@ -781,17 +780,17 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	}
 	err = json.Unmarshal(b, &r)
 	require.NoError(t, err)
-	require.Nil(t, r.Err)
+	require.NoError(t, r.Err)
 	hd := r.Host.HostDetail
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
 	// Policies that did not run are listed before passing policies
 	// TODO(JVE): verify that this passes once JK merges his code
 	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
-	require.Equal(t, policies[0].Response, "") // policy didn't "run"
+	require.Empty(t, policies[0].Response) // policy didn't "run"
 
 	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[1].PolicyData))
-	require.Equal(t, policies[1].Response, "pass")
+	require.Equal(t, "pass", policies[1].Response)
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)
@@ -886,7 +885,7 @@ func (s *integrationTestSuite) TestGetPolicyByIDCrossTeamAccess() {
 	_, err = s.ds.NewUser(ctx, team2Observer)
 	require.NoError(t, err)
 
-	policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID)
+	policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID) // nolint:nilaway // cannot be nil due to previous require
 
 	// A user with access to the policy's team can read it.
 	s.setTokenForTest(t, team1Observer.Email, password)
@@ -907,7 +906,7 @@ func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 
 	teamPoliciesResponse := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
-	require.Len(t, teamPoliciesResponse.Policies, 0)
+	require.Empty(t, teamPoliciesResponse.Policies)
 
 	deleteTeamPoliciesResp := fleet.DeleteTeamPoliciesResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), fleet.DeleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResp)
@@ -989,7 +988,7 @@ func (s *integrationTestSuite) TestAutofillPolicies() {
 					}
 					switch r.URL.Path {
 					case "/ok":
-						var body map[string]interface{}
+						var body map[string]any
 						err := json.NewDecoder(r.Body).Decode(&body)
 						if err != nil {
 							t.Log(err)
@@ -1080,7 +1079,7 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("foobar"),
+		NodeKey:         new("foobar"),
 		UUID:            "foobar",
 		Hostname:        "com.foobar.local",
 		Platform:        "linux",
@@ -1098,7 +1097,7 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy.ID: ptr.Bool(false),
+			policy.ID: new(false),
 		},
 	), http.StatusOK, &distributedWriteResp)
 
@@ -1113,7 +1112,7 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 	distributedWriteResp = submitDistributedQueryResultsResponse{}
 	results := make(map[string]json.RawMessage)
 	results[hostNoPoliciesWildcard] = json.RawMessage("{\"1\": \"1\"}")
-	statuses := make(map[string]interface{})
+	statuses := make(map[string]any)
 	statuses[hostNoPoliciesWildcard] = 0
 	s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
 		NodeKey:  *host.NodeKey,

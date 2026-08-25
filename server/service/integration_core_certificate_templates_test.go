@@ -12,7 +12,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -161,9 +160,9 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestUpdateHostCertificateTemplate SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID
@@ -262,7 +261,7 @@ INSERT INTO host_certificate_templates (
 			name:                   "Valid Update",
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
-			detail:                 ptr.String("Certificate Verified"),
+			detail:                 new("Certificate Verified"),
 			expectedResponseStatus: http.StatusOK,
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
@@ -310,7 +309,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
 			expectedResponseStatus: http.StatusOK,
-			newOperationType:       ptr.String("install"),
+			newOperationType:       new("install"),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -320,7 +319,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
 			expectedResponseStatus: http.StatusOK,
-			newOperationType:       ptr.String("remove"),
+			newOperationType:       new("remove"),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -330,7 +329,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
 			expectedResponseStatus: http.StatusOK,
-			newOperationType:       ptr.String(""),
+			newOperationType:       new(""),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -341,7 +340,7 @@ INSERT INTO host_certificate_templates (
 			newStatus:               "verified",
 			expectedResponseStatus:  http.StatusUnprocessableEntity,
 			expectedResponseMessage: "must be 'install' or 'remove'",
-			newOperationType:        ptr.String("invalid_operation"),
+			newOperationType:        new("invalid_operation"),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -375,9 +374,9 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestDeleteCertificateTemplate SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestDeleteCertificateTemplate SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID
@@ -547,9 +546,9 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestDeleteCertificateTemplateSpec SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestDeleteCertificateTemplateSpec SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID

@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,9 +36,9 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
-			EnterpriseSpecificID: ptr.String(expectedUUID),
-			AppliedPolicyID:      ptr.String("1"),
-			LastPolicySyncTime:   ptr.Time(time.Now()),
+			EnterpriseSpecificID: new(expectedUUID),
+			AppliedPolicyID:      new("1"),
+			LastPolicySyncTime:   new(time.Now()),
 		},
 	}
 	host.SetNodeKey(expectedUUID)

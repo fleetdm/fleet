@@ -13,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -34,7 +33,7 @@ func (s *integrationTestSuite) TestLabels() {
 		builtinsMap := fleet.ReservedLabelNames()
 		var listResp fleet.ListLabelsResponse
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
-		assert.True(t, len(listResp.Labels) > 0)
+		assert.NotEmpty(t, listResp.Labels)
 		var builtinLbl fleet.Label
 		for _, lbl := range listResp.Labels {
 			_, ok := builtinsMap[lbl.Name]
@@ -43,7 +42,7 @@ func (s *integrationTestSuite) TestLabels() {
 			builtinLbl = lbl.Label
 		}
 		builtInsCount := len(listResp.Labels)
-		require.Equal(t, builtInsCount, len(builtinsMap))
+		require.Len(t, builtinsMap, builtInsCount)
 
 		// labels summary has the built-in ones
 		var summaryResp fleet.GetLabelsSummaryResponse
@@ -140,7 +139,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
 		assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
 		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, getResp.Label.HostIDs)
-		assert.EqualValues(t, 3, getResp.Label.HostCount)
+		assert.Equal(t, 3, getResp.Label.HostCount)
 
 		// create a valid empty manual label
 		createResp = fleet.CreateLabelResponse{}
@@ -162,29 +161,29 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeRegular, getResp.Label.LabelType)
 		assert.Equal(t, fleet.LabelMembershipTypeManual, getResp.Label.LabelMembershipType)
 		assert.Empty(t, getResp.Label.HostIDs)
-		assert.EqualValues(t, 0, getResp.Label.HostCount)
+		assert.Equal(t, 0, getResp.Label.HostCount)
 
 		// get a non-existing label
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), nil, http.StatusNotFound, &getResp)
 
 		// modify dynamic label lbl1
 		var modResp fleet.ModifyLabelResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(t.Name() + "zzz")}, http.StatusOK, &modResp)
 		assert.Equal(t, lbl1.ID, modResp.Label.ID)
 		assert.Empty(t, modResp.Label.HostIDs)
 		assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
 
 		// attempt to modify a label to a reserved name
 		for n := range builtinsMap {
-			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(n)}, http.StatusUnprocessableEntity, &modResp)
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToLower(n))}, http.StatusUnprocessableEntity, &modResp)
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToUpper(n))}, http.StatusUnprocessableEntity, &modResp)
 		}
 
 		// modify a non-existing label
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: new("zzz")}, http.StatusNotFound, &modResp)
 		// modify a built-in label
-		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusUnprocessableEntity)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: new("zzz")}, http.StatusUnprocessableEntity)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "cannot modify built-in label")
 
@@ -197,7 +196,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
-		assert.EqualValues(t, 3, modResp.Label.HostCount)
+		assert.Equal(t, 3, modResp.Label.HostCount)
 		assert.Equal(t, newName, modResp.Label.Name)
 
 		// add a host with the same name as another host to manual label 2, confirm only one host is added
@@ -217,7 +216,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 		assert.ElementsMatch(t, []uint{sameName.ID}, modResp.Label.HostIDs)
-		assert.EqualValues(t, 1, modResp.Label.HostCount)
+		assert.Equal(t, 1, modResp.Label.HostCount)
 
 		// modify manual label 2 adding some hosts
 		modResp = fleet.ModifyLabelResponse{}
@@ -228,7 +227,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 		assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
-		assert.EqualValues(t, 1, modResp.Label.HostCount)
+		assert.Equal(t, 1, modResp.Label.HostCount)
 		assert.Equal(t, newName, modResp.Label.Name)
 		manualLbl2.Name = newName
 
@@ -241,17 +240,17 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
 		assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 		assert.ElementsMatch(t, []uint{manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
-		assert.EqualValues(t, 2, modResp.Label.HostCount)
+		assert.Equal(t, 2, modResp.Label.HostCount)
 		assert.Equal(t, newName, modResp.Label.Name)
 		manualLbl2.Name = newName
 
 		// modify manual label 2 clearing its hosts
 		modResp = fleet.ModifyLabelResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: ptr.String("desc")}, http.StatusOK, &modResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: new("desc")}, http.StatusOK, &modResp)
 		assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
 		assert.Equal(t, "desc", modResp.Label.Description)
 		assert.Empty(t, modResp.Label.HostIDs)
-		assert.EqualValues(t, 0, modResp.Label.HostCount)
+		assert.Equal(t, 0, modResp.Label.HostCount)
 
 		// list labels
 		dynamicLabels := []fleet.Label{lbl1, linuxLbl}
@@ -265,7 +264,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// next page is empty
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "100", "page", "1")
-		assert.Len(t, listResp.Labels, 0)
+		assert.Empty(t, listResp.Labels)
 
 		// list labels with invalid query params
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "per_page", strconv.Itoa(builtInsCount+1), "order_key", "id", "after", "1")
@@ -280,7 +279,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// add lbl2 hosts to that label
 		for _, h := range lbl2Hosts {
-			err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+			err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: new(true)}, time.Now(), false)
 			require.NoError(t, err)
 		}
 
@@ -322,7 +321,7 @@ func (s *integrationTestSuite) TestLabels() {
 		// list hosts in manual label 2
 		listHostsResp = listHostsResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", manualLbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "id")
-		assert.Len(t, listHostsResp.Hosts, 0)
+		assert.Empty(t, listHostsResp.Hosts)
 
 		// list hosts in dynamic label 2 searching by display_name
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", "display_name", "order_direction", "desc")
@@ -359,7 +358,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// lists hosts in label without hosts
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl1.ID), nil, http.StatusOK, &listHostsResp)
-		assert.Len(t, listHostsResp.Hosts, 0)
+		assert.Empty(t, listHostsResp.Hosts)
 
 		// count hosts in label
 		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "label_id", fmt.Sprint(lbl1.ID))
@@ -367,7 +366,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// lists hosts in invalid label
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
-		assert.Len(t, listHostsResp.Hosts, 0)
+		assert.Empty(t, listHostsResp.Hosts)
 
 		// set MDM information on a host
 		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
@@ -666,8 +665,8 @@ func (s *integrationTestSuite) TestLabels() {
 		t.Run("IdP Group Label", func(t *testing.T) {
 			// Create a label for an IdP group
 			criteria := &fleet.HostVitalCriteria{
-				Vital: ptr.String("end_user_idp_group"),
-				Value: ptr.String("group_good"),
+				Vital: new("end_user_idp_group"),
+				Value: new("group_good"),
 			}
 
 			labelParams := fleet.CreateLabelRequest{
@@ -697,7 +696,7 @@ func (s *integrationTestSuite) TestLabels() {
 			assert.Equal(t,
 				"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id",
 				strings.Join(strings.Fields(query), " "))
-			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
+			assert.JSONEq(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
 			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
@@ -727,8 +726,8 @@ func (s *integrationTestSuite) TestLabels() {
 		t.Run("IdP Department Label", func(t *testing.T) {
 			// Create a label for an IdP department
 			criteria := &fleet.HostVitalCriteria{
-				Vital: ptr.String("end_user_idp_department"),
-				Value: ptr.String("department_good"),
+				Vital: new("end_user_idp_department"),
+				Value: new("department_good"),
 			}
 
 			labelParams := fleet.CreateLabelRequest{
@@ -757,7 +756,7 @@ func (s *integrationTestSuite) TestLabels() {
 			assert.Equal(t,
 				"SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN ( WITH RECURSIVE scim_user_group_expanded AS ( SELECT scim_user_id, group_id FROM scim_user_group WHERE scim_user_id IN (SELECT scim_user_id FROM host_scim_user) UNION SELECT e.scim_user_id, gg.parent_group_id AS group_id FROM scim_user_group_expanded e JOIN scim_group_group gg ON gg.child_group_id = e.group_id ) SELECT scim_user_id, group_id FROM scim_user_group_expanded ) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id",
 				strings.Join(strings.Fields(query), " "))
-			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
+			assert.JSONEq(t, `["department_good"]`, string(queryValuesJson))
 
 			// Update label membership.
 			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
@@ -777,8 +776,8 @@ func (s *integrationTestSuite) TestLabels() {
 			t.Run("No Groups", func(t *testing.T) {
 				// Create a label for IdP department to test users with department but no groups
 				criteria := &fleet.HostVitalCriteria{
-					Vital: ptr.String("end_user_idp_department"),
-					Value: ptr.String("department_other_2"),
+					Vital: new("end_user_idp_department"),
+					Value: new("department_other_2"),
 				}
 				labelParams := fleet.CreateLabelRequest{
 					LabelPayload: fleet.LabelPayload{
@@ -836,8 +835,8 @@ func (s *integrationTestSuite) TestLabels() {
 		sortHosts := make([]*fleet.Host, 3)
 		for i := range 3 {
 			h, err := s.ds.NewHost(ctx, &fleet.Host{
-				OsqueryHostID:               ptr.String(fmt.Sprintf("sort-osq-%d", i)),
-				NodeKey:                     ptr.String(fmt.Sprintf("sort-nk-%d", i)),
+				OsqueryHostID:               new(fmt.Sprintf("sort-osq-%d", i)),
+				NodeKey:                     new(fmt.Sprintf("sort-nk-%d", i)),
 				UUID:                        fmt.Sprintf("aaaaaaaa-0000-0000-0000-00000000000%d", i+1),
 				Hostname:                    fmt.Sprintf("sort-host-%d", i),
 				ComputerName:                fmt.Sprintf("sort-comp-%d", i),
@@ -854,7 +853,7 @@ func (s *integrationTestSuite) TestLabels() {
 				DetailUpdatedAt:             base.Add(time.Duration(i+1) * time.Hour),
 				LabelUpdatedAt:              base.Add(time.Duration(i+1) * 2 * time.Hour),
 				PolicyUpdatedAt:             base.Add(time.Duration(i+1) * 3 * time.Hour),
-				RefetchCriticalQueriesUntil: ptr.Time(base.Add(time.Duration(i+1) * 4 * time.Hour)),
+				RefetchCriticalQueriesUntil: new(base.Add(time.Duration(i+1) * 4 * time.Hour)),
 				RefetchRequested:            i == 2, // only the "largest" host has refetch_requested = true
 				TeamID:                      teamIDs[i],
 			})
@@ -1167,7 +1166,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
-	assert.Equal(t, string(hostsJson), string(labelsJson))
+	assert.JSONEq(t, string(hostsJson), string(labelsJson))
 
 	// Do request with include_device_status, since it's an additional feature
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true", "include_device_status", "true")
@@ -1176,7 +1175,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	// Converting to formatted JSON for easier diffs
 	hostsJson, _ = json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ = json.MarshalIndent(labelsResp, "", "  ")
-	assert.Equal(t, string(hostsJson), string(labelsJson))
+	assert.JSONEq(t, string(hostsJson), string(labelsJson))
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -1185,7 +1184,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	// list label specs, only those of the built-ins
 	var listResp fleet.GetLabelSpecsResponse
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
-	assert.True(t, len(listResp.Specs) > 0)
+	assert.NotEmpty(t, listResp.Specs)
 	for _, spec := range listResp.Specs {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
 	}
@@ -1357,7 +1356,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 
 	newHostFunc := func(name string, teamID *uint) *fleet.Host {
 		host, err := s.ds.NewHost(ctx, &fleet.Host{
-			NodeKey:  ptr.String(name),
+			NodeKey:  new(name),
 			UUID:     name,
 			Hostname: "foo.local." + name,
 			TeamID:   teamID,
@@ -1396,7 +1395,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{allHostsLabelID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{allHostsLabelID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	getHostLabels := func(host *fleet.Host) []string {
@@ -1655,8 +1654,8 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	}
 
 	for _, payload := range []fleet.QueryPayload{
-		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
-		{Name: ptr.String("q-all-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
+		{Name: new("q-any-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
+		{Name: new("q-all-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
 	} {
 		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}

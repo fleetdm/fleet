@@ -12,7 +12,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
 	"github.com/jmoiron/sqlx"
@@ -25,10 +24,10 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	t := s.T()
 
 	params := fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("email@asd.com"),
+		Name:       new("user1"),
+		Email:      new("email@asd.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
@@ -41,9 +40,9 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	t := s.T()
 
 	params := fleet.UserPayload{
-		Name:     ptr.String("user1"),
-		Email:    ptr.String("email@asd.com"),
-		Password: ptr.String(test.GoodPassword),
+		Name:     new("user1"),
+		Email:    new("email@asd.com"),
+		Password: new(test.GoodPassword),
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -52,25 +51,25 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 
 func (s *integrationTestSuite) TestUserEmailValidation() {
 	params := fleet.UserPayload{
-		Name:       ptr.String("user_invalid_email"),
-		Email:      ptr.String("invalid"),
+		Name:       new("user_invalid_email"),
+		Email:      new("invalid"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 
-	params.Email = ptr.String("user_valid_mail@example.com")
+	params.Email = new("user_valid_mail@example.com")
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	params := fleet.UserPayload{
-		Name:  ptr.String("user_invalid_email"),
-		Email: ptr.String("test@example.com"),
+		Name:  new("user_invalid_email"),
+		Email: new("test@example.com"),
 		// This is 73 characters long
-		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Password:   new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -81,10 +80,10 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
 	params := fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("email@asd.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String("wrongrole"),
+		Name:       new("user1"),
+		Email:      new("email@asd.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "invalid global role: wrongrole")
@@ -103,9 +102,9 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	}
 
 	params := fleet.UserPayload{
-		Name:     ptr.String("user2"),
-		Email:    ptr.String("email2@asd.com"),
-		Password: ptr.String(test.GoodPassword),
+		Name:     new("user2"),
+		Email:    new("email2@asd.com"),
+		Password: new(test.GoodPassword),
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -118,19 +117,19 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 	// api_endpoints cannot be specified directly on this endpoint.
 	var resp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:         ptr.String("user1"),
-		Email:        ptr.String("apireject@example.com"),
+		Name:         new("user1"),
+		Email:        new("apireject@example.com"),
 		Password:     &test.GoodPassword,
-		GlobalRole:   ptr.String(fleet.RoleObserver),
+		GlobalRole:   new(fleet.RoleObserver),
 		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 	}, http.StatusUnprocessableEntity, &resp)
 
 	var apiOnlyResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("api-only-legacy"),
-		Email:      ptr.String("api-only-legacy@example.com"),
+		Name:       new("api-only-legacy"),
+		Email:      new("api-only-legacy@example.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 		APIOnly:    new(true),
 	}, http.StatusOK, &apiOnlyResp)
 	require.True(t, apiOnlyResp.User.APIOnly)
@@ -143,10 +142,10 @@ func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {
 	// Create a regular user to use as target.
 	var createResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("regular-api-protect"),
-		Email:      ptr.String("regular-api-protect@example.com"),
+		Name:       new("regular-api-protect"),
+		Email:      new("regular-api-protect@example.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 	regularID := createResp.User.ID
@@ -304,10 +303,10 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 
 	var createRegularResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("regular-modify-api-only"),
-		Email:      ptr.String("regular-modify-api-only@example.com"),
+		Name:       new("regular-modify-api-only"),
+		Email:      new("regular-modify-api-only@example.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}, http.StatusOK, &createRegularResp)
 	require.NotZero(t, createRegularResp.User.ID)
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", createRegularResp.User.ID), map[string]any{
@@ -341,24 +340,24 @@ func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
 
 	var createResp createUserResponse
 	params := fleet.UserPayload{
-		Name:       ptr.String("someadmin"),
-		Email:      ptr.String("someadmin@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-		APIOnly:    ptr.Bool(false),
+		Name:       new("someadmin"),
+		Email:      new("someadmin@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleAdmin),
+		APIOnly:    new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
 	assert.Nil(t, createResp.Token)
 
 	params = fleet.UserPayload{
-		Name:       ptr.String("apionly"),
-		Email:      ptr.String("apionly@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleObserver),
-		APIOnly:    ptr.Bool(true),
+		Name:       new("apionly"),
+		Email:      new("apionly@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
+		APIOnly:    new(true),
 		// AdminForcedPasswordReset is set to false when creating api-only users via `fleetctl user create --api-only`.
-		AdminForcedPasswordReset: ptr.Bool(false),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
@@ -377,10 +376,10 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("Gonna B Deleted"),
-		Email:      ptr.String("goingto@delete.com"),
-		Password:   ptr.String(userRawPwd),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("Gonna B Deleted"),
+		Email:      new("goingto@delete.com"),
+		Password:   new(userRawPwd),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
@@ -433,7 +432,7 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 				user := &fleet.User{
 					Name:       role,
 					Email:      fmt.Sprintf("%s@example.com", role),
-					GlobalRole: ptr.String(role),
+					GlobalRole: new(role),
 				}
 				err := user.SetPassword(test.GoodPassword, 10, 10)
 				require.NoError(t, err)
@@ -450,10 +449,10 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 			t.Run("create", func(t *testing.T) {
 				var createResp createUserResponse
 				params := fleet.UserPayload{
-					Name:       ptr.String(role),
-					Email:      ptr.String(fmt.Sprintf("%s@example.com", role)),
-					Password:   ptr.String(test.GoodPassword),
-					GlobalRole: ptr.String(role),
+					Name:       new(role),
+					Email:      new(fmt.Sprintf("%s@example.com", role)),
+					Password:   new(test.GoodPassword),
+					GlobalRole: new(role),
 				}
 				s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusPaymentRequired, &createResp)
 			})
@@ -477,11 +476,11 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 		Name:        t.Name(),
 		Email:       email,
 		GravatarURL: "http://asd.com",
-		GlobalRole:  ptr.String(fleet.RoleObserver),
+		GlobalRole:  new(fleet.RoleObserver),
 	}
 	user, err := s.ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
-	assert.Len(t, user.Teams, 0)
+	assert.Empty(t, user.Teams)
 
 	spec := []byte(fmt.Sprintf(`
   roles:
@@ -531,12 +530,12 @@ func (s *integrationTestSuite) TestInvites() {
 	// list invites, none yet
 	var listResp listInvitesResponse
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
-		Name:       ptr.String("some name"),
+		Email:      new("some email"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 	}}
 	createInviteResp := createInviteResponse{}
@@ -562,7 +561,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// create invite without an email
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
 		Email:      nil,
-		Name:       ptr.String("some other name"),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -571,8 +570,8 @@ func (s *integrationTestSuite) TestInvites() {
 	// create invite for an existing user
 	existingEmail := "admin1@example.com"
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String(existingEmail),
-		Name:       ptr.String("some other name"),
+		Email:      new(existingEmail),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -580,8 +579,8 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// create invite for an existing user with email ALL CAPS
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String(strings.ToUpper(existingEmail)),
-		Name:       ptr.String("some other name"),
+		Email:      new(strings.ToUpper(existingEmail)),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -615,19 +614,19 @@ func (s *integrationTestSuite) TestInvites() {
 	// matches nothing
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "query", " no match                     ")
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// list invites, next page is empty
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2")
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// update a non-existing invite
 	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 		},
-		MFAEnabled: ptr.Bool(true),
+		MFAEnabled: new(true),
 	}}
 	updateInviteResp := updateInviteResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
@@ -641,7 +640,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// update the valid invite: set an email that already exists for a user
 	updateInviteReq = updateInviteRequest{
 		InvitePayload: fleet.InvitePayload{
-			Email: ptr.String(s.users["admin1@example.com"].Email),
+			Email: new(s.users["admin1@example.com"].Email),
 			Teams: []fleet.UserTeam{
 				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 			},
@@ -652,8 +651,8 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// update the valid invite: set an email that already exists for another invite
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some@other.email"),
-		Name:       ptr.String("some name"),
+		Email:      new("some@other.email"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -671,7 +670,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// update the valid invite to an email that is ok
 	updateInviteReq = updateInviteRequest{
 		InvitePayload: fleet.InvitePayload{
-			Email: ptr.String("something@nonexistent.yet123"),
+			Email: new("something@nonexistent.yet123"),
 			Teams: []fleet.UserTeam{
 				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 			},
@@ -681,22 +680,22 @@ func (s *integrationTestSuite) TestInvites() {
 
 	verify, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
-	require.Equal(t, "", verify.GlobalRole.String)
+	require.Empty(t, verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
 	// Try to create an user with an email different that the one associated with the invite
 	var createFromInviteResp createUserResponse
 	userPayload := fleet.UserPayload{
-		Name:        ptr.String("Full Name"),
-		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
-		InviteToken: ptr.String(validInviteToken),
+		Name:        new("Full Name"),
+		Password:    new(test.GoodPassword),
+		Email:       new("a@b.c"),
+		InviteToken: new(validInviteToken),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusUnprocessableEntity, &createFromInviteResp)
 
 	// Adjust email and try again, this should be OK
-	userPayload.Email = ptr.String(verify.Email)
+	userPayload.Email = new(verify.Email)
 	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusOK, &createFromInviteResp)
 
 	// Check that user is associated with unique invite ID
@@ -716,17 +715,17 @@ func (s *integrationTestSuite) TestInvites() {
 	// list invites, is now empty
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// delete a now non-existing invite
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
 
 	// create user from never used but deleted invite
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
-		Name:        ptr.String("Full Name"),
-		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String(inv.Email),
-		InviteToken: ptr.String(deletedInviteToken),
+		Name:        new("Full Name"),
+		Password:    new(test.GoodPassword),
+		Email:       new(inv.Email),
+		InviteToken: new(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
 }
 
@@ -735,8 +734,8 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 
 	// create a valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("a@b.c"),
-		Name:       ptr.String("A"),
+		Email:      new("a@b.c"),
+		Name:       new("A"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp := createInviteResponse{}
@@ -760,70 +759,70 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 		{
 			"empty name",
 			fleet.UserPayload{
-				Name:        ptr.String(""),
+				Name:        new(""),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
+				Email:       new("a@b.c"),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"empty email",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
+				Name:        new("Name"),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String(""),
-				InviteToken: ptr.String(invite.Token),
+				Email:       new(""),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"empty password",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
-				Password:    ptr.String(""),
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
+				Name:        new("Name"),
+				Password:    new(""),
+				Email:       new("a@b.c"),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"empty token",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
+				Name:        new("Name"),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(""),
+				Email:       new("a@b.c"),
+				InviteToken: new(""),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"invalid token",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
+				Name:        new("Name"),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String("invalid"),
+				Email:       new("a@b.c"),
+				InviteToken: new("invalid"),
 			},
 			http.StatusNotFound,
 		},
 		{
 			"invalid password",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
-				Password:    ptr.String("password"), // no number or symbol
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
+				Name:        new("Name"),
+				Password:    new("password"), // no number or symbol
+				Email:       new("a@b.c"),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"api_endpoints not accepted",
 			fleet.UserPayload{
-				Name:         ptr.String("Name"),
+				Name:         new("Name"),
 				Password:     &test.GoodPassword,
-				Email:        ptr.String("a@b.c"),
-				InviteToken:  ptr.String(invite.Token),
+				Email:        new("a@b.c"),
+				InviteToken:  new(invite.Token),
 				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 			},
 			http.StatusUnprocessableEntity,
@@ -977,7 +976,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// with non-matching query
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", "noone")
-	assert.Len(t, listResp.Users, 0)
+	assert.Empty(t, listResp.Users)
 
 	// with matching query containing leading/trailing whitespaces
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", " user 	")
@@ -995,8 +994,8 @@ func (s *integrationTestSuite) TestUsers() {
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
-	assert.Len(t, getMeResp.User.Teams, 0)
-	assert.Len(t, getMeResp.AvailableTeams, 0)
+	assert.Empty(t, getMeResp.User.Teams)
+	assert.Empty(t, getMeResp.AvailableTeams)
 
 	// test user settings from 2 endpoints
 
@@ -1029,7 +1028,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
 	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}}, getResp.Settings)
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -1039,7 +1038,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
 	assert.Nil(t, getMeResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}}, getResp.Settings)
 
 	// modify user ui settings, check they are returned modified
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
@@ -1051,7 +1050,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
 	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}}, getResp.Settings)
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -1061,7 +1060,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
 	assert.Nil(t, getMeResp.User.Settings)
-	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}}, getMeResp.Settings)
 
 	// modify user ui settings, empty array, check they are returned correctly
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
@@ -1073,7 +1072,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
 	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{}}, getResp.Settings)
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -1083,17 +1082,17 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
 	assert.Nil(t, getMeResp.User.Settings)
-	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{}}, getMeResp.Settings)
 
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("extra"),
-		Email:      ptr.String("extra@asd.com"),
-		Password:   ptr.String(userRawPwd),
-		GlobalRole: ptr.String(fleet.RoleObserver),
-		MFAEnabled: ptr.Bool(true),
+		Name:       new("extra"),
+		Email:      new("extra@asd.com"),
+		Password:   new(userRawPwd),
+		GlobalRole: new(fleet.RoleObserver),
+		MFAEnabled: new(true),
 	}
 	// mailer isn't set up, which fails prior to silently ignoring MFA
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusBadRequest, &createResp)
@@ -1178,30 +1177,30 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
 
 	// turn off MFA
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(false)}, http.StatusOK, &modResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: new(false)}, http.StatusOK, &modResp)
 	require.False(t, modResp.User.MFAEnabled)
 
 	// can't turn MFA back on
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(true)}, http.StatusPaymentRequired, &modResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: new(true)}, http.StatusPaymentRequired, &modResp)
 
 	// login as that user and check that teams info is empty
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
-	assert.Len(t, loginResp.User.Teams, 0)
-	assert.Len(t, loginResp.AvailableTeams, 0)
+	assert.Empty(t, loginResp.User.Teams)
+	assert.Empty(t, loginResp.AvailableTeams)
 
 	// get that user from `/users` endpoint and check that teams info is empty
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
-	assert.Len(t, getResp.User.Teams, 0)
-	assert.Len(t, getResp.AvailableTeams, 0)
+	assert.Empty(t, getResp.User.Teams)
+	assert.Empty(t, getResp.AvailableTeams)
 
 	// get non-existing user
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), nil, http.StatusNotFound, &getResp)
 
 	// modify that user - simple name change
 	params = fleet.UserPayload{
-		Name: ptr.String("extraz"),
+		Name: new("extraz"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 	assert.Equal(t, u.ID, modResp.User.ID)
@@ -1215,37 +1214,37 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// modify that user - set an email that has an invite for it
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("colliding@email.com"),
-		Name:       ptr.String("some name"),
+		Email:      new("colliding@email.com"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
-		MFAEnabled: ptr.Bool(true),
+		MFAEnabled: new(true),
 	}}
 	createInviteResp := createInviteResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusPaymentRequired, &createInviteResp)
 	createInviteReq.MFAEnabled = nil
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	params = fleet.UserPayload{
-		Email: ptr.String("colliding@email.com"),
+		Email: new("colliding@email.com"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusConflict, &modResp)
 
 	// modify that user - set a non existent email
 	params = fleet.UserPayload{
-		Email: ptr.String("someemail@qowieuowh.com"),
+		Email: new("someemail@qowieuowh.com"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 
 	// modify user - email change, password does not match
 	params = fleet.UserPayload{
-		Email:    ptr.String("extra2@asd.com"),
-		Password: ptr.String("wrongpass"),
+		Email:    new("extra2@asd.com"),
+		Password: new("wrongpass"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusForbidden, &modResp)
 
 	// modify user - email change, password ok
 	params = fleet.UserPayload{
-		Email:    ptr.String("extra2@asd.com"),
-		Password: ptr.String(test.GoodPassword),
+		Email:    new("extra2@asd.com"),
+		Password: new(test.GoodPassword),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 	assert.Equal(t, u.ID, modResp.User.ID)
@@ -1253,7 +1252,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// modify invalid user
 	params = fleet.UserPayload{
-		Name: ptr.String("nosuchuser"),
+		Name: new("nosuchuser"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
 
@@ -1329,13 +1328,13 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 	user := &fleet.User{
 		Name:       t.Name(),
 		Email:      "testchangeemail@example.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	userRawPwd := "foobarbaz1234!"
 	err := user.SetPassword(userRawPwd, 10, 10)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	user, err = s.ds.NewUser(context.Background(), user)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// try to change email with an invalid token
 	var changeResp changeEmailResponse
@@ -1343,7 +1342,7 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 
 	// create a valid token for the test user
 	err = s.ds.PendingEmailChange(context.Background(), user.ID, "testchangeemail2@example.com", "validtoken")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// try to change email with a valid token, but request made from different user
 	changeResp = changeEmailResponse{}
@@ -1369,11 +1368,11 @@ func (s *integrationTestSuite) TestModifyUser() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:                     ptr.String("moduser"),
-		Email:                    ptr.String("moduser@example.com"),
-		Password:                 ptr.String(userRawPwd),
-		GlobalRole:               ptr.String(fleet.RoleObserver),
-		AdminForcedPasswordReset: ptr.Bool(false),
+		Name:                     new("moduser"),
+		Email:                    new("moduser@example.com"),
+		Password:                 new(userRawPwd),
+		GlobalRole:               new(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -1386,20 +1385,20 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// as the user: modify email without providing current password
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		Email: ptr.String("moduser2@example.com"),
+		Email: new("moduser2@example.com"),
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as the user: modify email with invalid password
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		Email:    ptr.String("moduser2@example.com"),
-		Password: ptr.String("nosuchpwd"),
+		Email:    new("moduser2@example.com"),
+		Password: new("nosuchpwd"),
 	}, http.StatusForbidden, &modResp)
 
 	// as the user: modify email with current password
 	newEmail := "moduser2@example.com"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		Email:    ptr.String(newEmail),
-		Password: ptr.String(userRawPwd),
+		Email:    new(newEmail),
+		Password: new(userRawPwd),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
 	require.Equal(t, u.Email, modResp.User.Email) // new email is pending confirmation, not changed immediately
@@ -1407,21 +1406,21 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// as the user: set new password without providing current one
 	newRawPwd := test.GoodPassword2
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
+		NewPassword: new(newRawPwd),
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as the user: set new password with an invalid current password
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
-		Password:    ptr.String("nosuchpwd"),
+		NewPassword: new(newRawPwd),
+		Password:    new("nosuchpwd"),
 	}, http.StatusForbidden, &modResp)
 
 	// as the user: set new password and change name, with a valid current password
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
-		Password:    ptr.String(userRawPwd),
-		Name:        ptr.String("moduser2"),
+		NewPassword: new(newRawPwd),
+		Password:    new(userRawPwd),
+		Name:        new("moduser2"),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
 	require.Equal(t, "moduser2", modResp.User.Name)
@@ -1432,8 +1431,8 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// any other user that is not admin cannot change another user's password)
 	newRawPwd = userRawPwd + "3"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
-		Password:    ptr.String(testUsers["user2"].PlaintextPassword),
+		NewPassword: new(newRawPwd),
+		Password:    new(testUsers["user2"].PlaintextPassword),
 	}, http.StatusForbidden, &modResp)
 
 	s.token = s.getTestAdminToken()
@@ -1442,17 +1441,17 @@ func (s *integrationTestSuite) TestModifyUser() {
 	newRawPwd = userRawPwd + "4"
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		SSOEnabled:  ptr.Bool(false),
-		NewPassword: ptr.String(newRawPwd),
-		Email:       ptr.String("moduser3@example.com"),
-		Name:        ptr.String("moduser3"),
+		SSOEnabled:  new(false),
+		NewPassword: new(newRawPwd),
+		Email:       new("moduser3@example.com"),
+		Name:        new("moduser3"),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
 
 	// as an admin, set new password that doesn't meet requirements
 	invalidUserPwd := "abc"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(invalidUserPwd),
+		NewPassword: new(invalidUserPwd),
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
@@ -1472,11 +1471,11 @@ func (s *integrationTestSuite) TestModifyUser() {
 
 	// as an admin, create a new user with SSO authentication enabled
 	params = fleet.UserPayload{
-		Name:                     ptr.String("moduser1"),
-		Email:                    ptr.String("moduser1@example.com"),
-		SSOInvite:                ptr.Bool(true),
-		GlobalRole:               ptr.String(fleet.RoleObserver),
-		AdminForcedPasswordReset: ptr.Bool(false),
+		Name:                     new("moduser1"),
+		Email:                    new("moduser1@example.com"),
+		SSOInvite:                new(true),
+		GlobalRole:               new(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -1484,14 +1483,14 @@ func (s *integrationTestSuite) TestModifyUser() {
 
 	// as an admin, try to disable sso for that user without providing a password
 	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		SSOEnabled: ptr.Bool(false),
+		SSOEnabled: new(false),
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "a new password must be provided when disabling SSO")
 
 	// as an admin, try to disable sso for that user while providing a password
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		SSOEnabled:  ptr.Bool(false),
-		NewPassword: ptr.String("Password123#"),
+		SSOEnabled:  new(false),
+		NewPassword: new("Password123#"),
 	}, http.StatusOK)
 }

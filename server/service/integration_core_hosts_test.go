@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -44,7 +44,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
+		Filters: &map[string]any{"team_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -77,11 +77,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	label, err := s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: new(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
+		Filters: &map[string]any{"label_id": float64(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -164,7 +164,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
 
 	// All hosts should be deleted when an empty filter is specified
 	req := deleteHostsRequest{
-		Filters: &map[string]interface{}{},
+		Filters: &map[string]any{},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -184,7 +184,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &map[string]interface{}{"label_id": float64(1)},
+		Filters: &map[string]any{"label_id": float64(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
@@ -210,7 +210,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	label, err := s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: new(true)}, time.Now(), false))
 
 	req := countHostsRequest{}
 	resp := countHostsResponse{}
@@ -355,11 +355,11 @@ func (s *integrationTestSuite) TestListHosts() {
 	for _, h := range resp.Hosts {
 		switch h.ID {
 		case hosts[0].ID:
-			assert.Equal(t, 10.0, h.GigsDiskSpaceAvailable)
-			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+			assert.InDelta(t, 10.0, h.GigsDiskSpaceAvailable, 0.001)
+			assert.InDelta(t, 2.0, h.PercentDiskSpaceAvailable, 0.001)
 		case hosts[1].ID:
-			assert.Equal(t, 40.0, h.GigsDiskSpaceAvailable)
-			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
+			assert.InDelta(t, 40.0, h.GigsDiskSpaceAvailable, 0.001)
+			assert.InDelta(t, 4.0, h.PercentDiskSpaceAvailable, 0.001)
 		}
 		assert.Equal(t, h.SoftwareUpdatedAt, h.CreatedAt)
 	}
@@ -541,20 +541,20 @@ func (s *integrationTestSuite) TestListHosts() {
 	// filter by MDM criteria without any host having such information
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
 	assert.Nil(t, resp.MunkiIssue)
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
 	assert.Nil(t, resp.MunkiIssue)
 	// and same by munki issue id
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(999))
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
 	assert.Nil(t, resp.MunkiIssue)
@@ -602,14 +602,14 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
 	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
 	assert.Nil(t, resp.MunkiIssue)
@@ -638,17 +638,17 @@ func (s *integrationTestSuite) TestListHosts() {
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(9999))
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.SoftwareTitle)
 
 	// Filter by non-existent team.
@@ -693,7 +693,7 @@ func (s *integrationTestSuite) TestListHosts() {
 		return sqlx.GetContext(context.Background(), q, &osID,
 			`SELECT id FROM operating_systems WHERE name = ? AND version = ?`, "fooOS", "4.2")
 	})
-	require.Greater(t, osID, uint(0))
+	require.Positive(t, osID)
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
@@ -710,11 +710,11 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", "unknownOS", "os_version", "4.2")
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
-	require.Len(t, resp.Hosts, 0)
+	require.Empty(t, resp.Hosts)
 
 	// populate software for hosts
 	now := time.Now()
@@ -728,9 +728,9 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{{
 		CVE:              "cve-123-123-123",
-		CVSSScore:        ptr.Float64(5.4),
-		EPSSProbability:  ptr.Float64(0.5),
-		CISAKnownExploit: ptr.Bool(true),
+		CVSSScore:        new(5.4),
+		EPSSProbability:  new(0.5),
+		CISAKnownExploit: new(true),
 		Published:        &now,
 		Description:      "a long description of the cve",
 	}}))
@@ -789,7 +789,7 @@ func (s *integrationTestSuite) TestListHosts() {
 			policies := *h.Policies
 			require.Len(t, policies, 2)
 			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
-			assert.Equal(t, "", policies[0].Response)
+			assert.Empty(t, policies[0].Response)
 			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
 			assert.Equal(t, "pass", policies[1].Response)
 		} else if h.ID == hosts[2].ID {
@@ -856,8 +856,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	require.Contains(t, resp.Hosts[0].Hostname, "local0")
 	require.Len(t, resp.Hosts[0].Users, 2)
-	require.EqualValues(t, resp.Hosts[0].Users[0], users[0])
-	require.EqualValues(t, resp.Hosts[0].Users[1], users[1])
+	require.Equal(t, resp.Hosts[0].Users[0], users[0])
+	require.Equal(t, resp.Hosts[0].Users[1], users[1])
 
 	// With "populate_labels" query param
 	resp = listHostsResponse{}
@@ -887,8 +887,8 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
-		OsqueryHostID:   ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
+		OsqueryHostID:   new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.10",
@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	// Verify second signature information (user-level without team identifier)
 	sigInfo1 := sw.PathSignatureInformation[1]
 	assert.Equal(t, "/Users/test/Applications/Google Chrome.app", sigInfo1.InstalledPath)
-	assert.Equal(t, "", sigInfo1.TeamIdentifier)
+	assert.Empty(t, sigInfo1.TeamIdentifier)
 	assert.Nil(t, sigInfo1.CDHashSHA256)
 	assert.Nil(t, sigInfo1.ExecutableSHA256)
 	assert.Nil(t, sigInfo1.ExecutablePath)
@@ -1033,15 +1033,15 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, new(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, new(1200.0)))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
-	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
-	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
-	assert.Equal(t, 500.0, getHostResp.Host.GigsTotalDiskSpace)
-	assert.Equal(t, ptr.Float64(600.0), getHostResp.Host.GigsAllDiskSpace)
+	assert.InDelta(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable, 0.001)
+	assert.InDelta(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable, 0.001)
+	assert.InDelta(t, 500.0, getHostResp.Host.GigsTotalDiskSpace, 0.001)
+	assert.Equal(t, new(600.0), getHostResp.Host.GigsAllDiskSpace)
 
 	var resp getHostSummaryResponse
 
@@ -1059,7 +1059,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
 	require.Equal(t, uint(3), resp.AllLinuxCount)
-	assert.True(t, len(resp.BuiltinLabels) > 0)
+	assert.NotEmpty(t, resp.BuiltinLabels)
 	for _, lbl := range resp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
@@ -1068,7 +1068,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// host summary builtin labels match list labels response
 	var listResp fleet.ListLabelsResponse
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
-	assert.True(t, len(listResp.Labels) > 0)
+	assert.NotEmpty(t, listResp.Labels)
 	for _, lbl := range listResp.Labels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
@@ -1095,14 +1095,14 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
-	require.Equal(t, resp.TotalsHostsCount, uint(0))
-	require.Len(t, resp.Platforms, 0)
+	require.Equal(t, uint(0), resp.TotalsHostsCount)
+	require.Empty(t, resp.Platforms)
 	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host, low_disk_count is ignored as not premium
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
-	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
@@ -1111,17 +1111,17 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
-	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
-	require.Equal(t, resp.TotalsHostsCount, uint(1))
+	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "rhel", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
-	require.Equal(t, resp.TotalsHostsCount, uint(3))
+	require.Equal(t, uint(3), resp.TotalsHostsCount)
 	require.Equal(t, uint(3), resp.AllLinuxCount)
 	require.Len(t, resp.Platforms, 3)
 	for i, p := range resp.Platforms {
@@ -1132,9 +1132,9 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
-	require.Equal(t, resp.TotalsHostsCount, uint(0))
-	require.Equal(t, resp.AllLinuxCount, uint(0))
-	require.Len(t, resp.Platforms, 0)
+	require.Equal(t, uint(0), resp.TotalsHostsCount)
+	require.Equal(t, uint(0), resp.AllLinuxCount)
+	require.Empty(t, resp.Platforms)
 
 	// invalid low_disk_space value is still validated and results in error
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusBadRequest, &resp, "low_disk_space", "1234")
@@ -1261,7 +1261,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	var addfResp addHostsToTeamByFilterResponse
 	req := addHostsToTeamByFilterRequest{
 		TeamID:  &tm2.ID,
-		Filters: &map[string]interface{}{"query": hosts[2].Hostname},
+		Filters: &map[string]any{"query": hosts[2].Hostname},
 	}
 
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
@@ -1283,13 +1283,13 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	labelID := lblIDs["All Hosts"]
 
 	// Add label to host0
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	// offline status filter request should not move hosts
 	req = addHostsToTeamByFilterRequest{
 		TeamID:  &tm2.ID,
-		Filters: &map[string]interface{}{"status": "offline", "label_id": float64(labelID)},
+		Filters: &map[string]any{"status": "offline", "label_id": float64(labelID)},
 	}
 	var hostsResp listHostsResponse
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
@@ -1302,7 +1302,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	// assign host0 to team 2 with filter
 	req = addHostsToTeamByFilterRequest{
 		TeamID:  &tm2.ID,
-		Filters: &map[string]interface{}{"status": "online", "label_id": float64(labelID)},
+		Filters: &map[string]any{"status": "online", "label_id": float64(labelID)},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 
@@ -1312,7 +1312,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// status filter request should not delete hosts
 	dreq := deleteHostsRequest{
-		Filters: &map[string]interface{}{"status": "offline", "label_id": float64(labelID)},
+		Filters: &map[string]any{"status": "offline", "label_id": float64(labelID)},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &dreq)
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp)
@@ -1320,7 +1320,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// delete host 0 with filter
 	dreq = deleteHostsRequest{
-		Filters: &map[string]interface{}{"status": "online", "label_id": float64(labelID)},
+		Filters: &map[string]any{"status": "online", "label_id": float64(labelID)},
 	}
 	var delHostsResp deleteHostsResponse
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", dreq, http.StatusOK, &delHostsResp)
@@ -1355,11 +1355,11 @@ func (s *integrationTestSuite) TestGetHostByIdentifier() {
 	ctx := context.Background()
 
 	hosts := make([]*fleet.Host, 6)
-	for i := 0; i < len(hosts); i++ {
+	for i := range hosts {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			Hostname:       fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
 			UUID:           fmt.Sprintf("test-uuid-%d", i),
 			Platform:       "darwin",
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
@@ -1400,13 +1400,13 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	// existing host but none yet
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.DeviceMapping, 0)
+	require.Empty(t, listResp.DeviceMapping)
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
-	assert.Len(t, hostResp.Host.EndUsers, 0)
+	assert.Empty(t, hostResp.Host.EndUsers)
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &hostResp)
-	assert.Len(t, hostResp.Host.EndUsers, 0)
+	assert.Empty(t, hostResp.Host.EndUsers)
 
 	// create a custom mapping of a non-existing host
 	var putResp putHostDeviceMappingResponse
@@ -1467,7 +1467,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	// other host still has none
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.DeviceMapping, 0)
+	require.Empty(t, listResp.DeviceMapping)
 
 	var listHosts listHostsResponse
 	// list hosts response includes device mappings
@@ -1545,7 +1545,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	// searching by the old custom installer email doesn't work anymore
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "e@b.c")
-	require.Len(t, listHosts.Hosts, 0)
+	require.Empty(t, listHosts.Hosts)
 
 	// searching by the new custom email address finds it
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "f@b.c")
@@ -1554,7 +1554,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	// searching by a never-used email returns nothing
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "Z@b.c")
-	require.Len(t, listHosts.Hosts, 0)
+	require.Empty(t, listHosts.Hosts)
 }
 
 func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
@@ -1667,7 +1667,7 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 
 	testSize := 50
 	var mappings []*fleet.HostDeviceMapping
-	for i := 0; i < testSize; i++ {
+	for range testSize {
 		testEmail, _ := server.GenerateRandomText(14)
 		mappings = append(mappings, &fleet.HostDeviceMapping{HostID: hosts[0].ID, Email: testEmail, Source: "google_chrome_profiles"})
 	}
@@ -1696,8 +1696,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, new(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, new(1200.0)))
 
 	// no search criteria
 	var searchResp searchHostsResponse
@@ -1706,15 +1706,15 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	for _, h := range searchResp.Hosts {
 		switch h.ID {
 		case hosts[0].ID:
-			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
-			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
-			assert.Equal(t, 500.0, h.GigsTotalDiskSpace)
-			assert.Equal(t, ptr.Float64(600.0), h.GigsAllDiskSpace)
+			assert.InDelta(t, 1.0, h.GigsDiskSpaceAvailable, 0.001)
+			assert.InDelta(t, 2.0, h.PercentDiskSpaceAvailable, 0.001)
+			assert.InDelta(t, 500.0, h.GigsTotalDiskSpace, 0.001)
+			assert.Equal(t, new(600.0), h.GigsAllDiskSpace)
 		case hosts[1].ID:
-			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
-			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
-			assert.Equal(t, 1000.0, h.GigsTotalDiskSpace)
-			assert.Equal(t, ptr.Float64(1200.0), h.GigsAllDiskSpace)
+			assert.InDelta(t, 3.0, h.GigsDiskSpaceAvailable, 0.001)
+			assert.InDelta(t, 4.0, h.PercentDiskSpaceAvailable, 0.001)
+			assert.InDelta(t, 1000.0, h.GigsTotalDiskSpace, 0.001)
+			assert.Equal(t, new(1200.0), h.GigsAllDiskSpace)
 		}
 		assert.Equal(t, h.SoftwareUpdatedAt, h.CreatedAt)
 	}
@@ -1759,7 +1759,7 @@ func (s *integrationTestSuite) TestSearchHosts() {
 
 	// search for non-existent email, shouldn't get anything back
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
-	require.Len(t, searchResp.Hosts, 0)
+	require.Empty(t, searchResp.Hosts)
 }
 
 func (s *integrationTestSuite) TestHostDeviceToken() {
@@ -1820,8 +1820,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	ctx := context.Background()
 
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:       ptr.String(t.Name()),
-		OsqueryHostID: ptr.String(t.Name()),
+		NodeKey:       new(t.Name()),
+		OsqueryHostID: new(t.Name()),
 		UUID:          t.Name(),
 		Hostname:      t.Name() + "foo.local",
 		Platform:      "darwin",
@@ -1914,9 +1914,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths, 2)
-	sort.Slice(getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths, func(i, j int) bool {
-		return getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[i] < getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[j]
-	})
+	slices.Sort(getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths)
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[0])
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].InstalledPaths[1])
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation, 2)
@@ -1924,7 +1922,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		return getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[i].InstalledPath < getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[j].InstalledPath
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
-	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Empty(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
 	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].CDHashSHA256)
 	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutableSHA256)
 	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].ExecutablePath)
@@ -1958,7 +1956,7 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 					`[{"email": "%s"}]`, fmt.Sprintf("user%d@example.com", i),
 				)),
 			},
-			Statuses: map[string]interface{}{
+			Statuses: map[string]any{
 				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
 			},
 			Messages: map[string]string{},
@@ -1975,7 +1973,7 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 		require.False(t, hostResponse.Host.RefetchRequested)
 		require.Len(t, hostResponse.Host.EndUsers, 1)
 		require.Len(t, hostResponse.Host.EndUsers[0].OtherEmails, 1)
-		require.Equal(t, hostResponse.Host.EndUsers[0].OtherEmails[0].Source, "google_chrome_profiles")
+		require.Equal(t, "google_chrome_profiles", hostResponse.Host.EndUsers[0].OtherEmails[0].Source)
 		oldHosts[i] = hostResponse.Host.Host
 	}
 
@@ -1993,7 +1991,7 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 		require.True(t, hostResponse.Host.RefetchRequested)
 		require.Len(t, hostResponse.Host.EndUsers, 1)
 		require.Len(t, hostResponse.Host.EndUsers[0].OtherEmails, 1)
-		require.Equal(t, hostResponse.Host.EndUsers[0].OtherEmails[0].Source, "google_chrome_profiles")
+		require.Equal(t, "google_chrome_profiles", hostResponse.Host.EndUsers[0].OtherEmails[0].Source)
 		require.Equal(t, oldHosts[i].ID, h.ID)
 	}
 
@@ -2004,7 +2002,7 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 			Results: map[string]json.RawMessage{
 				hostDetailQueryPrefix + "google_chrome_profiles": json.RawMessage(`[]`),
 			},
-			Statuses: map[string]interface{}{
+			Statuses: map[string]any{
 				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
 			},
 			Messages: map[string]string{},
@@ -2018,7 +2016,7 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 		var hostResponse getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
 		require.False(t, hostResponse.Host.RefetchRequested)
-		require.Len(t, hostResponse.Host.EndUsers, 0)
+		require.Empty(t, hostResponse.Host.EndUsers)
 		require.Equal(t, oldHosts[i].ID, h.ID)
 	}
 }
