@@ -2259,7 +2259,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 }
 
 func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
-	if teamName == nil {
+	if teamName == nil && policy.ResendConfigurationProfile != "" {
 		return errors.New("resend_configuration_profile can only be set on team policies")
 	}
 

@@ -5886,10 +5886,10 @@ policies:
 `)
 		require.NoError(t, err)
 		require.Len(t, got.Policies, 3)
-		require.Equal(t, new("Password policy"), got.Policies[0].ResendConfigurationProfile)
-		require.Equal(t, new("screenlock"), got.Policies[1].ResendConfigurationProfile)
+		require.Equal(t, "Password policy", got.Policies[0].ResendConfigurationProfile)
+		require.Equal(t, "screenlock", got.Policies[1].ResendConfigurationProfile)
 		// Policies without the key get an empty name so the server unsets any existing profile.
-		require.Equal(t, new(""), got.Policies[2].ResendConfigurationProfile)
+		require.Equal(t, "", got.Policies[2].ResendConfigurationProfile)
 	})
 
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
