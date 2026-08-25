@@ -1544,7 +1544,7 @@ func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
 	}
 
 	globalRequiresPIN := false
-	teamMDMConfig := fleet.TeamMDM{EnableDiskEncryption: true, RequireBitLockerPIN: true}
+	teamMDMConfig := fleet.TeamMDM{EnableDiskEncryption: true, WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)}, RequireBitLockerPIN: true}
 
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1552,6 +1552,7 @@ func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
 		appConfig.MDM.WindowsEnabledAndConfigured = true // Apple MDM stays unconfigured
 		if globalRequiresPIN {
 			appConfig.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			appConfig.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
 			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(true)
 		}
 		return appConfig, nil
@@ -1589,7 +1590,7 @@ func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
 
 	// The reverse: the global config requiring a PIN must not leak to a host whose team does not.
 	globalRequiresPIN = true
-	teamMDMConfig = fleet.TeamMDM{EnableDiskEncryption: true}
+	teamMDMConfig = fleet.TeamMDM{EnableDiskEncryption: true, WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)}}
 	queries, _, err = svc.detailQueriesForHost(t.Context(), &host)
 	require.NoError(t, err)
 	for _, queryName := range pinQueryNames {

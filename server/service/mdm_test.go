@@ -3940,6 +3940,10 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 			MDM: fleet.MDM{
 				EnabledAndConfigured: false,
 				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 			},
 		}, nil
 	}
