@@ -427,11 +427,11 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 
 	// Setup Experience opens the device page in a web view while Setup Assistant
 	// is still running, where the user won't be able to initiate the SSO flow.
-	awaitingConfiguration, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
+	inSetupExperience, err := fleet.HostIsInSetupExperience(ctx, svc.ds, host)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
 	}
-	if awaitingConfiguration {
+	if inSetupExperience {
 		return nil
 	}
 

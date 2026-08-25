@@ -221,8 +221,8 @@ func TestInitiateDeviceSSOMissingHostInContext(t *testing.T) {
 }
 
 func TestRequireDeviceSSOSession(t *testing.T) {
-	host := &fleet.Host{ID: 1, UUID: "host-uuid-1"}
-	otherHost := &fleet.Host{ID: 2, UUID: "host-uuid-2"}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "darwin"}
+	otherHost := &fleet.Host{ID: 2, UUID: "host-uuid-2", Platform: "darwin"}
 
 	// mintFor returns a session ID for h, or "" for the callers that stand in for
 	// a browser with no cookie yet.
@@ -239,7 +239,9 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 	cases := []struct {
 		name                  string
 		ssoEnabled            bool
-		awaitingConfiguration bool
+		platform              string // defaults to darwin
+		awaitingConfiguration bool   // darwin only: the Setup Assistant flag
+		setupExperienceStatus fleet.SetupExperienceStatusResultStatus
 		session               sessionFor
 		advanceClock          time.Duration
 		wantSSORequired       bool
@@ -285,6 +287,31 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 			session:               noSession,
 			wantSessionLookup:     true,
 		},
+		{
+			name:                  "linux host mid setup experience is exempt",
+			ssoEnabled:            true,
+			platform:              "ubuntu",
+			setupExperienceStatus: fleet.SetupExperienceStatusRunning,
+			session:               noSession,
+			wantSessionLookup:     true,
+		},
+		{
+			name:                  "windows host mid setup experience is exempt",
+			ssoEnabled:            true,
+			platform:              "windows",
+			setupExperienceStatus: fleet.SetupExperienceStatusPending,
+			session:               noSession,
+			wantSessionLookup:     true,
+		},
+		{
+			name:                  "linux host past setup experience requires sso",
+			ssoEnabled:            true,
+			platform:              "ubuntu",
+			setupExperienceStatus: fleet.SetupExperienceStatusSuccess,
+			session:               noSession,
+			wantSSORequired:       true,
+			wantSessionLookup:     true,
+		},
 	}
 
 	for _, c := range cases {
@@ -299,14 +326,25 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 				require.Equal(t, host.UUID, hostUUID)
 				return c.awaitingConfiguration, nil
 			}
+			ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+				return []*fleet.SetupExperienceStatusResult{
+					{Name: "install something", Status: c.setupExperienceStatus, HostUUID: hostUUID, SoftwareInstallerID: new(uint(1))},
+				}, nil
+			}
 
 			svc, getKey, mockClock := newDeviceSSOTestService(t, ds, time.Hour)
 			ctx := t.Context()
 
+			caseHost := *host
+			if c.platform != "" {
+				caseHost.Platform = c.platform
+				caseHost.OsqueryHostID = new("osquery-id")
+			}
+
 			sessionID := c.session(t, svc, ctx)
 			mockClock.AddTime(c.advanceClock)
 
-			err := svc.RequireDeviceSSOSession(ctx, host, sessionID)
+			err := svc.RequireDeviceSSOSession(ctx, &caseHost, sessionID)
 
 			if c.wantSSORequired {
 				var ssoRequired *fleet.DeviceSSORequiredError
@@ -327,7 +365,7 @@ func TestRequireDeviceSSOSession(t *testing.T) {
 }
 
 func TestRequireDeviceSSOSessionSetupExperienceSurvivesStoreFailure(t *testing.T) {
-	host := &fleet.Host{ID: 1, UUID: "host-uuid-1"}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "darwin"}
 
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -364,7 +402,7 @@ func TestRequireDeviceSSOSessionMissingSetupExperienceRow(t *testing.T) {
 	svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
 
 	var ssoRequired *fleet.DeviceSSORequiredError
-	require.ErrorAs(t, svc.RequireDeviceSSOSession(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"}, ""), &ssoRequired)
+	require.ErrorAs(t, svc.RequireDeviceSSOSession(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "darwin"}, ""), &ssoRequired)
 }
 
 func TestRequireDeviceSSOSessionStoreFailure(t *testing.T) {
@@ -385,7 +423,7 @@ func TestRequireDeviceSSOSessionStoreFailure(t *testing.T) {
 		},
 	}
 
-	err := svc.RequireDeviceSSOSession(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"}, "some-session")
+	err := svc.RequireDeviceSSOSession(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "darwin"}, "some-session")
 
 	require.ErrorContains(t, err, "redis is down")
 	var ssoRequired *fleet.DeviceSSORequiredError
