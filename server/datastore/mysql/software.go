@@ -227,16 +227,21 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
-			return err
-		}
+	// Delete stale installed paths outside the transaction so each batched
+	// DELETE auto-commits independently and releases row locks immediately.
+	// This prevents lock convoys when many hosts update paths concurrently
+	// (see #49805). The installed_paths table is informational; if the
+	// subsequent INSERT fails, the next hourly check-in will re-populate.
+	if err := deleteHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toD); err != nil {
+		return err
+	}
 
-		if err := insertHostSoftwareInstalledPaths(ctx, tx, toI); err != nil {
-			return err
-		}
-
+	if len(toI) == 0 {
 		return nil
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return insertHostSoftwareInstalledPaths(ctx, tx, toI)
 	})
 }
 
