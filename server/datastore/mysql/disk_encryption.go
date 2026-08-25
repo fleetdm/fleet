@@ -233,6 +233,24 @@ func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID 
 	return err
 }
 
+func (ds *Datastore) GetHostBitLockerProtectionState(ctx context.Context, hostID uint) (*fleet.HostBitLockerProtectionState, error) {
+	var state fleet.HostBitLockerProtectionState
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &state, `
+          SELECT
+            COALESCE(encrypted, false) AS encrypted,
+            bitlocker_protection_status,
+            COALESCE(tpm_pin_set, false) AS tpm_pin_set
+          FROM host_disks
+          WHERE host_id = ?`, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("HostDisks").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting host bitlocker protection state")
+	}
+	return &state, nil
+}
+
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
 	// NOTE(mna): currently we only verify encryption keys for macOS,
 	// Windows/bitlocker uses a different approach where orbit sends the

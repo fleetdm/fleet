@@ -599,7 +599,12 @@ func TestBitlockerOperations(t *testing.T) {
 			lastRun:          time.Now().Add(-2 * time.Hour),
 			EncryptionResult: clientMock,
 			execGetEncryptionStatusFn: func() ([]bitlocker.VolumeStatus, error) {
-				return []bitlocker.VolumeStatus{}, nil
+				// Default: an ordinary unencrypted host. This has to state C: is fully decrypted rather than return an
+				// empty list: a volume missing from the enumeration means "status unreadable", which is deliberately
+				// NOT a licence to encrypt.
+				return []bitlocker.VolumeStatus{
+					{DriveVolume: "C:", Status: &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}},
+				}, nil
 			},
 			execEncryptVolumeFn: func(string) (string, error) {
 				encryptFnCalled = true
@@ -729,6 +734,165 @@ func TestBitlockerOperations(t *testing.T) {
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
+	})
+
+	// Regression for #51098: an unreadable status must never be read as "not encrypted". Before the fix both of these
+	// fell through to the encrypt path, whose first act is deleting every key protector on the volume.
+	t.Run("never encrypts when the status for C: is unreadable", func(t *testing.T) {
+		for _, tc := range []struct {
+			name   string
+			status func() ([]bitlocker.VolumeStatus, error)
+		}{
+			{
+				// getEncryptionStatusOnCOMThread used to drop volumes whose read errored, so C: was simply absent
+				// and no error surfaced at all.
+				name: "C: missing from the enumeration",
+				status: func() ([]bitlocker.VolumeStatus, error) {
+					return []bitlocker.VolumeStatus{
+						{DriveVolume: "D:", Status: &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}},
+					}, nil
+				},
+			},
+			{
+				name: "per-volume read error for C:",
+				status: func() ([]bitlocker.VolumeStatus, error) {
+					return []bitlocker.VolumeStatus{
+						{DriveVolume: "C:", Err: errors.New("execQuery: WMI unavailable")},
+					}, nil
+				},
+			},
+			{
+				name: "whole status call fails",
+				status: func() ([]bitlocker.VolumeStatus, error) {
+					return nil, errors.New("connecting to the volume: WMI unavailable")
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				setupTest()
+				enrollReceiver.execGetEncryptionStatusFn = tc.status
+
+				err := enrollReceiver.Run(makeConfig())
+				require.NoError(t, err)
+				require.False(t, encryptFnCalled, "must not encrypt a volume whose state is unknown")
+				require.False(t, rotateKeyFnCalled, "must not rotate a volume whose state is unknown")
+				require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "must not report a result it did not produce")
+				require.Contains(t, logBuf.String(), "cannot read encryption status")
+			})
+		}
+	})
+
+	// Phase 1: restoring protection on a volume that is encrypted but unprotected.
+	t.Run("restore bitlocker protection", func(t *testing.T) {
+		suspended := func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{
+				DriveVolume: "C:",
+				Status: &bitlocker.EncryptionStatus{
+					ConversionStatus: bitlocker.ConversionStatusFullyEncrypted,
+					ProtectionStatus: bitlocker.ProtectionStatusOff,
+				},
+			}}, nil
+		}
+		protectionCfg := &fleet.OrbitConfig{
+			Notifications: fleet.OrbitConfigNotifications{EnableBitLockerProtection: true},
+		}
+
+		t.Run("enables protection when a TPM protector already exists", func(t *testing.T) {
+			setupTest()
+			var addCalled, enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execAddTPMProtectorFn = func(string) error { addCalled = true; return nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, addCalled, "must not add a protector when one already exists")
+			require.True(t, enableCalled, "should enable protection")
+		})
+
+		t.Run("adds a TPM protector before enabling when none exists", func(t *testing.T) {
+			setupTest()
+			var order []string
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, nil }
+			enrollReceiver.execAddTPMProtectorFn = func(string) error { order = append(order, "add"); return nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { order = append(order, "enable"); return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			// Ordering is the whole safety property: enabling first would leave the host unable to unseal at boot.
+			require.Equal(t, []string{"add", "enable"}, order)
+		})
+
+		t.Run("does not enable when the protector cannot be added", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return false, nil }
+			enrollReceiver.execAddTPMProtectorFn = func(string) error {
+				return errors.New("0x80310066 policy does not permit TPM-only")
+			}
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled, "enabling without an auto-unlock protector would cause a recovery prompt")
+		})
+
+		t.Run("does nothing when the status cannot be read", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+				return []bitlocker.VolumeStatus{{DriveVolume: "C:", Err: errors.New("WMI unavailable")}}, nil
+			}
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled)
+		})
+
+		t.Run("does nothing when the volume is not fully encrypted", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+				return []bitlocker.VolumeStatus{{
+					DriveVolume: "C:",
+					Status:      &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted},
+				}}, nil
+			}
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled)
+		})
+
+		t.Run("does nothing when protection is already on", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+				return []bitlocker.VolumeStatus{{
+					DriveVolume: "C:",
+					Status: &bitlocker.EncryptionStatus{
+						ConversionStatus: bitlocker.ConversionStatusFullyEncrypted,
+						ProtectionStatus: bitlocker.ProtectionStatusOn,
+					},
+				}}, nil
+			}
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled)
+		})
+
+		t.Run("never runs the encrypt path", func(t *testing.T) {
+			setupTest()
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { return nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, encryptFnCalled, "restoring protection must never delete key protectors")
+			require.False(t, rotateKeyFnCalled)
+		})
 	})
 
 	t.Run("encryption skipped if last run too recent", func(t *testing.T) {

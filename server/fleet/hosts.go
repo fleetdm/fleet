@@ -744,6 +744,18 @@ type HostMDMHostNameSetting struct {
 	Detail string                `json:"detail" db:"-" csv:"-"`
 }
 
+// HostBitLockerProtectionState is the volume-protection state Fleet needs in order to decide whether to ask the agent
+// to restore protection. It is deliberately separate from HostMDMDiskEncryption, which is the display-side view.
+type HostBitLockerProtectionState struct {
+	// Encrypted reports host_disks.encrypted, which is derived from the volume's conversion status, i.e. whether the
+	// data is ciphertext. It says nothing about whether the key is protected.
+	Encrypted bool `db:"encrypted"`
+	// ProtectionStatus reports host_disks.bitlocker_protection_status: 0 off, 1 on, nil unknown or never reported.
+	ProtectionStatus *int `db:"bitlocker_protection_status"`
+	// TPMPINSet reports whether a TPM+PIN protector exists. Only maintained on teams with windows_require_bitlocker_pin.
+	TPMPINSet bool `db:"tpm_pin_set"`
+}
+
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`

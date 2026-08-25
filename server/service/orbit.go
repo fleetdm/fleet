@@ -954,6 +954,42 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 	return nil
 }
 
+// shouldEnableBitLockerProtection reports whether Fleet should ask the agent to turn BitLocker protection back on.
+//
+// The condition cannot be expressed with host.DiskEncryptionEnabled alone: that field is derived from the volume's
+// conversion status, so it is true for a suspended host, which is exactly why such hosts are never acted on today.
+// This reads the protection status directly.
+func (svc *Service) shouldEnableBitLockerProtection(ctx context.Context, host *fleet.Host) (bool, error) {
+	state, err := svc.ds.GetHostBitLockerProtectionState(ctx, host.ID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// The host has not reported its disks yet, so there is nothing to act on.
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "getting host bitlocker protection state")
+	}
+
+	// Only act on a volume that is encrypted and positively reported as unprotected. A nil protection status means the
+	// host has not reported one, or reported "unknown", neither of which is grounds for touching the volume.
+	if !state.Encrypted || state.ProtectionStatus == nil || *state.ProtectionStatus != fleet.BitLockerProtectionStatusOff {
+		return false, nil
+	}
+
+	// Where a startup PIN is required, policy forbids a TPM-only protector, so a host that has no PIN cannot be
+	// repaired by Fleet at all: only the end user can enrol one. Asking the agent anyway would fail on every config
+	// poll. Such hosts stay "Action required" until someone sets a PIN, which the existing status logic already
+	// reports independently of protection status.
+	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "getting disk encryption config")
+	}
+	if diskEncryption.BitLockerPINRequired && !state.TPMPINSet {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (svc *Service) setDiskEncryptionNotifications(
 	ctx context.Context,
 	notifs *fleet.OrbitConfigNotifications,
@@ -1000,6 +1036,14 @@ func (svc *Service) setDiskEncryptionNotifications(
 		notifs.EnforceBitLockerEncryption = !isServer &&
 			mdmInfo != nil &&
 			(needsEncryption || encryptedWithoutKey)
+
+		if !isServer && mdmInfo != nil && !notifs.EnforceBitLockerEncryption {
+			enable, err := svc.shouldEnableBitLockerProtection(ctx, host)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "deciding whether to restore bitlocker protection")
+			}
+			notifs.EnableBitLockerProtection = enable
+		}
 	}
 
 	return nil
