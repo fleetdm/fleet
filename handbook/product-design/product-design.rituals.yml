@@ -40,7 +40,7 @@
   description: "Every quarter, Head of Product Design (HPD) meets with the CEO and Head of IT & Enablement (HoIT) to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this. Last, the HPD creates a :help-marketing request to post the blog on socials." 
   dri: "noahtalerman"
   autoIssue:   
-    labels: [ ":product" ]
+    labels: [ "~inbox" ]
     repo: "fleet"
 -
   task: "Release article post"
@@ -49,7 +49,7 @@
   description: "Every Fleet release, Head of Product Design (HPD) meets with Product Education Manager to run through the current release highlights, their user stories, and design decisions. Then, the HPD files an issue on the :help-marketing board to create a deep-dive article for each of the highlights and assigns the PEM." 
   dri: "noahtalerman"
   autoIssue:   
-    labels: [ ":product" ]
+    labels: [ "~inbox" ]
     repo: "fleet"
 -
   task: "🦢🗣 Product office hours"
@@ -78,7 +78,7 @@
   description: "Go back and edit, for the current quarter's roadmap blog post, anything that isn't going to be true."
   dri: "noahtalerman"
   autoIssue:   
-    labels: [ ":product" ]
+    labels: [ "~inbox" ]
     repo: "fleet"
 -
   task: "Regenerate messaging framework"
@@ -116,7 +116,7 @@
   moreInfoUrl: ""
   dri: "rachaelshaw"
   autoIssue:
-    labels: [ ":product" ]
+    labels: [ "~inbox" ]
     repo: "fleet"
 -
   task: "Create release documentation PR"
@@ -126,7 +126,7 @@
   moreInfoUrl: ""
   dri: "rachaelshaw"
   autoIssue:
-    labels: [ ":product" ]
+    labels: [ "~inbox" ]
     repo: "fleet"
 -
   task: "Update release documentation branches"
@@ -136,5 +136,5 @@
   moreInfoUrl: ""
   dri: "rachaelshaw"
   autoIssue:
-    labels: [ ":product" ]
+    labels: [ "~inbox" ]
     repo: "fleet"
