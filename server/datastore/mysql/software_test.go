@@ -13915,7 +13915,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-removal-team"})
 	require.NoError(t, err)
 
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:   `echo 'foo'`,
 			StorageID:       "batch-pending-storage",
@@ -13972,7 +13972,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 		return err
 	})
 
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
 
 	var batchPendingRow struct {

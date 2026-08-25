@@ -43,6 +43,7 @@ type Service struct {
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
 	distributedLock        fleet.Lock
 	keyValueStore          fleet.KeyValueStore
+	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
@@ -66,6 +67,7 @@ func NewService(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	distributedLock fleet.Lock,
 	keyValueStore fleet.KeyValueStore,
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
@@ -100,6 +102,7 @@ func NewService(
 		softwareTitleIconStore: softwareTitleIconStore,
 		distributedLock:        distributedLock,
 		keyValueStore:          keyValueStore,
+		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
 		androidModule:          androidService,

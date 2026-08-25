@@ -1979,11 +1979,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					// Read the count without adding to it, since the retry check below still needs it.
 					attempts, err := svc.installAttemptCounter.CountAttempts(ctx, host.ID, *hsi.SoftwareInstallerID)
 					if err != nil {
-						svc.logger.ErrorContext(ctx, "failed to count policy automation install failures",
-							"host_id", host.ID,
-							"software_installer_id", *hsi.SoftwareInstallerID,
-							"err", err,
-						)
+						svc.logger.ErrorContext(ctx, "failed to count policy automation install failures", "host_id", host.ID, "software_installer_id", *hsi.SoftwareInstallerID, "err", err)
 					} else {
 						failures = attempts
 					}

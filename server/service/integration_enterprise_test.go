@@ -15262,6 +15262,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		next:        http.DefaultTransport,
 	}
 	http.DefaultTransport = mockTransport
+
 	// https://downloads.1password.com/mac/1Password-8.10.82-aarch64.zip
 	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "1Password",
@@ -34159,6 +34160,71 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	submitPolicyResults(false)
 	installs = countInstalls()
 	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, installs)
+
+	// Editing the installer clears the count instead of waiting for it to expire.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript: new("exit 0"),
+		Filename:      "dummy_installer.pkg",
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	// The count is back to zero, so a failing report queues an install again.
+	installsBeforeReset := countInstalls()
+	submitPolicyResults(false)
+	installs = countInstalls()
+	require.Greater(t, installs, installsBeforeReset)
+
+	installUUID = pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 1)
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersClearsFailedInstallCount() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	var installer struct {
+		ID        uint   `db:"id"`
+		StorageID string `db:"storage_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installer, `SELECT id, storage_id FROM software_installers WHERE global_or_team_id = ?`, team.ID)
+	})
+	require.NotZero(t, installer.ID)
+
+	const hostID = 4242
+	_, err = s.attemptCounter.RecordAttempt(ctx, hostID, installer.ID, fleet.PolicyAutomationInstallAttemptExpiry)
+	require.NoError(t, err)
+
+	// The batch matches the already uploaded package by hash, so the installer keeps its
+	// ID and the count recorded against it is cleared instead of waiting for it to expire.
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+		{SHA256: installer.StorageID, InstallScript: "echo edited by batch"},
+	}}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+
+	attempts, err := s.attemptCounter.CountAttempts(ctx, hostID, installer.ID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailuresDoNotCount() {

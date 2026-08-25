@@ -2544,11 +2544,11 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	testing_utils.AddLabelMocks(ds)
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
 		}
-		return nil
+		return nil, nil
 	}
 
 	testing_utils.StartSoftwareInstallerServer(t)

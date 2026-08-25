@@ -1456,4 +1456,7 @@ type SoftwareInstallAttemptCounter interface {
 	CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error)
 	// ResetAttempts deletes the key for this host and installer.
 	ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error
+	// ResetInstallerAttempts deletes the keys for these installers on every host, so an
+	// edited installer counts from zero instead of waiting for the keys to expire.
+	ResetInstallerAttempts(ctx context.Context, softwareInstallerIDs []uint) error
 }

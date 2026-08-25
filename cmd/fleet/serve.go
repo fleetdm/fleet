@@ -619,6 +619,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareTitleIconStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
+			redis_install_attempts.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
 			androidSvc,

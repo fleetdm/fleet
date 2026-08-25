@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -212,12 +213,10 @@ func NewMemSoftwareInstallAttemptCounter() *memSoftwareInstallAttemptCounter {
 }
 
 func memInstallAttemptKey(hostID uint, softwareInstallerID uint) string {
-	return fmt.Sprintf("%d:%d", hostID, softwareInstallerID)
+	return fmt.Sprintf("%d:%d", softwareInstallerID, hostID)
 }
 
-func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint,
-	expireIn time.Duration,
-) (int, error) {
+func (m *memSoftwareInstallAttemptCounter) RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint, expireIn time.Duration) (int, error) {
 	m.mMu.Lock()
 	defer m.mMu.Unlock()
 
@@ -249,5 +248,20 @@ func (m *memSoftwareInstallAttemptCounter) ResetAttempts(ctx context.Context, ho
 	defer m.mMu.Unlock()
 
 	delete(m.m, memInstallAttemptKey(hostID, softwareInstallerID))
+	return nil
+}
+
+func (m *memSoftwareInstallAttemptCounter) ResetInstallerAttempts(ctx context.Context, softwareInstallerIDs []uint) error {
+	m.mMu.Lock()
+	defer m.mMu.Unlock()
+
+	for _, softwareInstallerID := range softwareInstallerIDs {
+		installerPrefix := fmt.Sprintf("%d:", softwareInstallerID)
+		for key := range m.m {
+			if strings.HasPrefix(key, installerPrefix) {
+				delete(m.m, key)
+			}
+		}
+	}
 	return nil
 }

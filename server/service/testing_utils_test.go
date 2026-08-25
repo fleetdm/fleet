@@ -360,6 +360,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareTitleIconStore,
 			distributedLock,
 			keyValueStore,
+			installAttemptCounter,
 			scepConfigService,
 			digiCertService,
 			androidModule,
