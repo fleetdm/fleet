@@ -42,7 +42,10 @@ val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name =
 /**
  * Result of fetching a certificate template, including the computed SCEP URL.
  */
-data class CertificateTemplateResult(val template: GetCertificateTemplateResponse, val scepUrl: String)
+data class CertificateTemplateResult(val template: GetCertificateTemplateResponse, val scepUrl: String) {
+    // scepUrl ends with a one-time challenge, so keep it out of the generated toString().
+    override fun toString(): String = "CertificateTemplateResult(template=$template, scepUrl=${scepUrl.redactSecrets()})"
+}
 
 /**
  * Interface for certificate-related API operations.
@@ -355,7 +358,8 @@ object ApiClient : CertificateApiClient {
             body = UpdateCertificateStatusRequest(
                 status = status,
                 operationType = operationType,
-                detail = detail,
+                // Details come from exception messages, which can carry the SCEP proxy challenge.
+                detail = detail?.redactSecrets(),
                 notAfter = notAfter?.toISO8601String(),
                 notBefore = notBefore?.toISO8601String(),
                 serialNumber = serialNumber?.toString(16), // hex
@@ -643,4 +647,4 @@ data class GetCertificateTemplateResponse(
  * Builds the SCEP proxy URL for this certificate template.
  */
 fun GetCertificateTemplateResponse.buildScepUrl(serverUrl: String, hostUUID: String): String =
-    "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
+    "$serverUrl$SCEP_PROXY_PATH$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"

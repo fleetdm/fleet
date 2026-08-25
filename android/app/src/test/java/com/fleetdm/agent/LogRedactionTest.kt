@@ -3,6 +3,7 @@ package com.fleetdm.agent
 import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -59,8 +60,34 @@ class LogRedactionTest {
         val logged = template.toString()
 
         assertTrue(logged.contains("scepChallenge=null"))
-        assertTrue(logged.contains("""fleetChallenge=""""))
+        assertTrue(logged.contains("fleetChallenge=\"\""))
         assertFalse(logged.contains(REDACTED))
+    }
+
+    @Test
+    fun `certificate template result toString hides the url challenge`() {
+        val template = TestCertificateTemplateFactory.create(fleetChallenge = "fleet-s3cr3t")
+        val result = CertificateTemplateResult(
+            template = template,
+            scepUrl = template.buildScepUrl(serverUrl = "https://fleet.example.com", hostUUID = "host-uuid-1234"),
+        )
+
+        val logged = result.toString()
+
+        assertFalse(logged.contains("fleet-s3cr3t"))
+        assertTrue(logged.contains("host-uuid-1234,g1,SCEP,$REDACTED"))
+    }
+
+    @Test
+    fun `redactSecrets hides the challenge in a url built by buildScepUrl`() {
+        val template = TestCertificateTemplateFactory.create(fleetChallenge = "fleet-s3cr3t")
+
+        val url = template.buildScepUrl(serverUrl = "https://fleet.example.com", hostUUID = "host-uuid-1234")
+        val redacted = url.redactSecrets()
+
+        assertTrue(url.contains("fleet-s3cr3t"))
+        assertFalse(redacted.contains("fleet-s3cr3t"))
+        assertTrue(redacted.endsWith(REDACTED))
     }
 
     @Test
@@ -89,6 +116,16 @@ class LogRedactionTest {
             "https://fleet.example.com/mdm/scep/proxy/host-uuid-1234%2Cg7%2CNDES%2C$REDACTED",
             encoded.redactSecrets(),
         )
+    }
+
+    @Test
+    fun `redactSecrets keeps a closing delimiter after the url`() {
+        val quoted = "{\"url\":\"$proxyUrl\"}"
+
+        val redacted = quoted.redactSecrets()
+
+        assertFalse(redacted.contains("s3cr3t-challenge"))
+        assertEquals("{\"url\":\"https://fleet.example.com/mdm/scep/proxy/host-uuid-1234,g7,NDES,$REDACTED\"}", redacted)
     }
 
     @Test
@@ -129,5 +166,52 @@ class LogRedactionTest {
         assertFalse(redacted.contains("s3cr3t-challenge"))
         assertFalse(redacted.contains("other-secret"))
         assertTrue(redacted.contains("other-uuid,g8,DIGICERT,$REDACTED"))
+    }
+
+    @Test
+    fun `redactSecrets hides challenges quoted from a certificate template body`() {
+        val body = "{\"certificate\":{\"id\":7,\"name\":\"wifi-cert\"," +
+            "\"scep_challenge\":\"scep-s3cr3t\",\"fleet_challenge\": \"fleet-s3cr3t\",\"status\":\"delivered\"}}"
+        val decodingError = "Unexpected JSON token at offset 210: Expected quotation mark\nJSON input: $body"
+
+        val redacted = decodingError.redactSecrets()
+
+        assertFalse(redacted.contains("scep-s3cr3t"))
+        assertFalse(redacted.contains("fleet-s3cr3t"))
+        assertTrue(redacted.contains("\"scep_challenge\":\"$REDACTED\""))
+        assertTrue(redacted.contains("\"fleet_challenge\":\"$REDACTED\""))
+        assertTrue(redacted.contains("\"name\":\"wifi-cert\""))
+    }
+
+    @Test
+    fun `redactSecrets hides a challenge cut off mid value`() {
+        val truncated = "JSON input: {\"certificate\":{\"name\":\"wifi-cert\",\"fleet_challenge\":\"fleet-s3cr"
+
+        val redacted = truncated.redactSecrets()
+
+        assertFalse(redacted.contains("fleet-s3cr"))
+        assertTrue(redacted.endsWith("\"fleet_challenge\":\"$REDACTED\""))
+    }
+
+    @Test
+    fun `renderLogEntry redacts the message and the whole cause chain`() {
+        val cause = java.io.FileNotFoundException(proxyUrl)
+        val throwable = Exception("Error connecting to server", cause)
+
+        val (message, stackTrace) = renderLogEntry("Certificate enrollment failed for $proxyUrl", throwable)
+
+        assertFalse(message.contains("s3cr3t-challenge"))
+        assertTrue(message.endsWith("host-uuid-1234,g7,NDES,$REDACTED"))
+        assertFalse(stackTrace!!.contains("s3cr3t-challenge"))
+        assertTrue(stackTrace.contains("Caused by"))
+        assertTrue(stackTrace.contains("host-uuid-1234,g7,NDES,$REDACTED"))
+    }
+
+    @Test
+    fun `renderLogEntry has no stack trace without a throwable`() {
+        val (message, stackTrace) = renderLogEntry("plain message", null)
+
+        assertEquals("plain message", message)
+        assertNull(stackTrace)
     }
 }

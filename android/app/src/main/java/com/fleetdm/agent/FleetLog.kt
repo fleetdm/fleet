@@ -21,6 +21,9 @@ object FleetLog {
     private const val LOG_FILE_NAME = "fleet_errors.log"
     private const val MAX_SIZE_BYTES = 512 * 1024L // 512 KB
 
+    // logcat drops whatever a single entry carries past ~4 KB of payload.
+    private const val MAX_LOGCAT_CHUNK_CHARS = 3000
+
     @Volatile private var logFile: File? = null
 
     fun initialize(context: Context) {
@@ -28,15 +31,37 @@ object FleetLog {
     }
 
     fun e(tag: String, msg: String, throwable: Throwable? = null) {
-        val message = msg.redactSecrets()
         // Render the throwable ourselves rather than handing it to Log.e: Log.e prints the whole
         // cause chain, and causes raised by the HTTP stack can carry the SCEP proxy URL's challenge.
-        val stackTrace = throwable?.stackTraceToString()?.trimEnd()?.redactSecrets()
-        Log.e(tag, if (stackTrace == null) message else "$message\n$stackTrace")
+        val (message, stackTrace) = renderLogEntry(msg, throwable)
+        logChunked(tag, if (stackTrace == null) message else "$message\n$stackTrace")
         appendToFile(tag, message, stackTrace)
     }
 
-    fun readErrors(): String = logFile?.takeIf { it.exists() }?.readText() ?: ""
+    /**
+     * Writes [text] to logcat, split across entries so a long stack trace isn't cut off. Log.e with
+     * a throwable splits for us; passing pre-rendered text doesn't, it truncates.
+     */
+    private fun logChunked(tag: String, text: String) {
+        val pieces = text.lineSequence().flatMap { line ->
+            if (line.length <= MAX_LOGCAT_CHUNK_CHARS) sequenceOf(line) else line.chunked(MAX_LOGCAT_CHUNK_CHARS).asSequence()
+        }
+        val chunk = StringBuilder()
+        pieces.forEach { piece ->
+            if (chunk.isNotEmpty() && chunk.length + piece.length + 1 > MAX_LOGCAT_CHUNK_CHARS) {
+                Log.e(tag, chunk.toString())
+                chunk.setLength(0)
+            }
+            if (chunk.isNotEmpty()) {
+                chunk.append('\n')
+            }
+            chunk.append(piece)
+        }
+        Log.e(tag, chunk.toString())
+    }
+
+    // Redacted on the way out too: a file written by an older build may still hold secrets.
+    fun readErrors(): String = (logFile?.takeIf { it.exists() }?.readText() ?: "").redactSecrets()
 
     @Synchronized
     private fun appendToFile(tag: String, msg: String, stackTrace: String?) {
