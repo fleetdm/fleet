@@ -271,6 +271,7 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeEditedIPadOSMinVersion{},
 		fleet.ActivityTypeEnabledMacosDiskEncryption{},
 		fleet.ActivityTypeDisabledMacosDiskEncryption{},
+		fleet.ActivityTypeEditedDiskEncryptionSettings{Platform: "macos"},
 		fleet.ActivityTypeEnabledRecoveryLockPasswords{},
 		fleet.ActivityTypeDisabledRecoveryLockPasswords{},
 		fleet.ActivityTypeEditedHostNameTemplate{},

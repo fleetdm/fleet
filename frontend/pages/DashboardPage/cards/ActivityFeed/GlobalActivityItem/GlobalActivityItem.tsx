@@ -912,16 +912,19 @@ const TAGGED_TEMPLATES = {
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
   editedDiskEncryptionSettings: (activity: IActivity) => {
-    const platformDisplay =
-      {
-        macos: "macOS",
-        windows: "Windows",
-        linux: "Linux",
-      }[activity.details?.platform ?? ""] ?? "";
+    // this activity's platform detail is "macos" | "windows" | "linux" — the
+    // settings-key naming, not the osquery-style "darwin" of other activities
+    const platform = (activity.details?.platform as string | undefined) ?? "";
+    const displayNames: Record<string, string> = {
+      macos: "macOS",
+      windows: "Windows",
+      linux: "Linux",
+    };
+    // fall back to the raw value so an unexpected platform degrades visibly
+    const platformDisplay = displayNames[platform] ?? platform;
     const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return (
       <>
-        {" "}
         edited disk encryption settings for {platformDisplay} hosts{suffix}.
       </>
     );

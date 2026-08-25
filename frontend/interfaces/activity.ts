@@ -407,7 +407,6 @@ export interface IActivityDetails {
   fleet_id?: number | null;
   fleet_name?: string | null;
   dataset?: string;
-  platform?: string;
 }
 
 /**
