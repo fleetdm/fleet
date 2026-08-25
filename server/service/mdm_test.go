@@ -1293,7 +1293,12 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
 	}
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-		return fleet.DiskEncryptionConfig{Enabled: true}, nil
+		return fleet.DiskEncryptionConfig{
+			MacOSEnabled:       true,
+			MacOSEscrowEnabled: true,
+			WindowsEnabled:     true,
+			LinuxEscrowEnabled: true,
+		}, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
@@ -3961,10 +3966,10 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		if *teamID == 1 {
-			return fleet.DiskEncryptionConfig{Enabled: true}, nil
+			return fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil
 		}
 
-		return fleet.DiskEncryptionConfig{Enabled: false}, nil
+		return fleet.DiskEncryptionConfig{}, nil
 	}
 
 	deleteCalls := uint(0)

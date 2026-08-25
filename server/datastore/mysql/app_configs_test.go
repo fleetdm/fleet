@@ -462,7 +462,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 
 	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
-	require.False(t, diskEncryptionConfig.Enabled)
+	require.Equal(t, fleet.DiskEncryptionConfig{}, diskEncryptionConfig)
 
 	// Enable disk encryption for no team. The flat toggle is virtual so
 	// the per-platform fields are what gets written.
@@ -480,7 +480,13 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 
 	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
-	require.True(t, diskEncryptionConfig.Enabled)
+	require.Equal(t, fleet.DiskEncryptionConfig{
+		MacOSEnabled:         true,
+		MacOSEscrowEnabled:   true,
+		WindowsEnabled:       true,
+		BitLockerPINRequired: true,
+		LinuxEscrowEnabled:   true,
+	}, diskEncryptionConfig)
 
 	// a mixed state reads the flat toggle as false
 	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
@@ -490,6 +496,17 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, ac.MDM.EnableDiskEncryption.Value)
 	require.True(t, ac.MDM.MacOSSettings.EnableDiskEncryption.Value)
+
+	// the per-platform read reflects the mixed state as-is
+	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DiskEncryptionConfig{
+		MacOSEnabled:         true,
+		MacOSEscrowEnabled:   true,
+		WindowsEnabled:       true,
+		BitLockerPINRequired: true,
+		LinuxEscrowEnabled:   false,
+	}, diskEncryptionConfig)
 
 	// restore the uniform state for the assertions below
 	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
@@ -507,7 +524,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 
 	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
 	require.NoError(t, err)
-	require.False(t, diskEncryptionConfig.Enabled)
+	require.Equal(t, fleet.DiskEncryptionConfig{}, diskEncryptionConfig)
 
 	// Enable disk encryption for the team
 	tm.Config.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
@@ -526,8 +543,13 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 
 	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
 	require.NoError(t, err)
-	require.True(t, diskEncryptionConfig.Enabled)
-	require.True(t, diskEncryptionConfig.BitLockerPINRequired)
+	require.Equal(t, fleet.DiskEncryptionConfig{
+		MacOSEnabled:         true,
+		MacOSEscrowEnabled:   true,
+		WindowsEnabled:       true,
+		BitLockerPINRequired: true,
+		LinuxEscrowEnabled:   true,
+	}, diskEncryptionConfig)
 }
 
 func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {

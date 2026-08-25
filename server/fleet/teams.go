@@ -512,6 +512,21 @@ func (t *TeamMDM) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// DiskEncryptionConfig returns the team's effective per-platform disk
+// encryption settings.
+func (t *TeamMDM) DiskEncryptionConfig() DiskEncryptionConfig {
+	if t == nil {
+		return DiskEncryptionConfig{}
+	}
+	return DiskEncryptionConfig{
+		MacOSEnabled:         t.MacOSSettings.EnableDiskEncryption.Value,
+		MacOSEscrowEnabled:   t.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		WindowsEnabled:       t.WindowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: t.RequireBitLockerPIN,
+		LinuxEscrowEnabled:   t.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	}
+}
+
 // Copy returns a deep copy of the TeamMDM.
 func (t *TeamMDM) Copy() *TeamMDM {
 	if t == nil {

@@ -638,6 +638,9 @@ func TestGetDetailQueries(t *testing.T) {
 				MDM: fleet.MDM{
 					WindowsEnabledAndConfigured: true,
 					EnableDiskEncryption:        optjson.SetBool(true),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
 				},
 			},
 		},
@@ -647,7 +650,28 @@ func TestGetDetailQueries(t *testing.T) {
 				MDM: fleet.MDM{
 					WindowsEnabledAndConfigured: true,
 					EnableDiskEncryption:        optjson.SetBool(true),
-					RequireBitLockerPIN:         optjson.SetBool(true),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
+					RequireBitLockerPIN: optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+		{
+			name: "TPM PIN queries follow the windows setting, not the aggregate",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					// aggregate off because linux escrow is off, but windows on
+					EnableDiskEncryption: optjson.SetBool(false),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
+					LinuxSettings: fleet.LinuxSettings{
+						EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+					},
+					RequireBitLockerPIN: optjson.SetBool(true),
 				},
 			},
 			want: maps.Keys(tpmPINQueries),
@@ -2457,12 +2481,16 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
-	host := &fleet.Host{ID: 1}
+	host := &fleet.Host{ID: 1, Platform: "darwin"}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 			},
 		}, nil
 	}

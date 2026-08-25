@@ -1,0 +1,1 @@
+- Disk encryption enforcement, key escrow, and status reporting now follow each platform's own disk encryption setting instead of the combined value.

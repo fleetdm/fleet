@@ -310,10 +310,16 @@ type MDM struct {
 }
 
 type DiskEncryptionConfig struct {
-	// Enabled indicates if disk encryption is enabled.
-	Enabled bool
+	// MacOSEnabled indicates if FileVault enforcement is enabled for macOS hosts.
+	MacOSEnabled bool
+	// MacOSEscrowEnabled indicates if recovery key escrow is enabled for macOS hosts.
+	MacOSEscrowEnabled bool
+	// WindowsEnabled indicates if BitLocker enforcement is enabled for Windows hosts.
+	WindowsEnabled bool
 	// BitLockerPINRequired indicates if a PIN is required for BitLocker disk encryption.
 	BitLockerPINRequired bool
+	// LinuxEscrowEnabled indicates if LUKS key escrow is enabled for Linux hosts.
+	LinuxEscrowEnabled bool
 }
 
 // DiskEncryptionSettingsAllEnabled returns the AND of the four per-platform
@@ -324,6 +330,18 @@ func (m *MDM) DiskEncryptionSettingsAllEnabled() bool {
 		m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
 		m.WindowsSettings.EnableDiskEncryption.Value &&
 		m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+}
+
+// DiskEncryptionConfig returns the global effective per-platform disk
+// encryption settings.
+func (m *MDM) DiskEncryptionConfig() DiskEncryptionConfig {
+	return DiskEncryptionConfig{
+		MacOSEnabled:         m.MacOSSettings.EnableDiskEncryption.Value,
+		MacOSEscrowEnabled:   m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		WindowsEnabled:       m.WindowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: m.RequireBitLockerPIN.Value,
+		LinuxEscrowEnabled:   m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	}
 }
 
 // normalizeDiskEncryptionSettings makes every serialization (API responses,
