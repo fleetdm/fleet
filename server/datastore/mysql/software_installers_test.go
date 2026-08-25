@@ -3281,7 +3281,7 @@ func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
 
 	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "install",
 		InstallerFile:   tfr,
 		StorageID:       "aos-installer",
@@ -3348,8 +3348,6 @@ func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
 	require.NotNil(t, last)
 	require.Equal(t, ordinaryExec, last.ExecutionID)
 	require.False(t, last.WasAppOpenSkip, "ordinary empty pre-install output must not flag as app-open skip")
-
-	_ = titleID
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
