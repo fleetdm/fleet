@@ -183,6 +183,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
+	var oldName string
 	if payload.Name != nil {
 		*payload.Name = strings.TrimSpace(*payload.Name)
 		if *payload.Name == "" {
@@ -204,7 +205,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 			})
 		}
-
+		oldName = team.Name
 		team.Name = *payload.Name
 	}
 	if payload.Description != nil {
@@ -544,6 +545,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
+	if oldName != "" {
+		// handle team renames for stale appCfg entries
+		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, teamID, oldName, team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "rename team in ABM config")
+		}
+	}
+
 	// Emit activities and enqueue scrub jobs for any historical_data sub-key
 	// whose value flipped on this team. SaveTeam (above) has already
 	// committed; the worker will see the new config when it picks up the
@@ -756,6 +764,73 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	return team, err
+}
+
+func (svc *Service) handleTeamRenameInAppConfig(ctx context.Context, appCfg *fleet.AppConfig, teamID uint, oldName, newName string) error {
+	if oldName == newName {
+		return nil
+	}
+
+	updated := false
+	if abmTeamUpdate, err := handleTeamRenameInABMConfig(svc, ctx, appCfg, teamID, oldName, newName); err != nil {
+		return ctxerr.Wrap(ctx, err, "handle team rename in ABM config")
+	} else if abmTeamUpdate {
+		updated = true
+	}
+
+	if vppTeamUpdate, err := handleTeamRenameInVPPConfig(svc, ctx, appCfg, teamID, oldName, newName); err != nil {
+		return ctxerr.Wrap(ctx, err, "handle team rename in VPP config")
+	} else if vppTeamUpdate {
+		updated = true
+	}
+
+	if !updated {
+		return nil
+	}
+	return ctxerr.Wrap(ctx, svc.ds.SaveAppConfig(ctx, appCfg), "save app config")
+}
+
+func handleTeamRenameInABMConfig(svc *Service, ctx context.Context, appCfg *fleet.AppConfig, teamID uint, oldName, newName string) (bool, error) {
+	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
+	}
+	if len(orgNames) == 0 {
+		return false, nil
+	}
+	var updated bool
+	for _, orgName := range orgNames {
+		for i, token := range appCfg.MDM.AppleBusinessManager.Value {
+			if token.OrganizationName == orgName && token.RenameTeam(oldName, newName) {
+				appCfg.MDM.AppleBusinessManager.Value[i] = token
+				updated = true
+			}
+		}
+	}
+	return updated, nil
+}
+
+func handleTeamRenameInVPPConfig(svc *Service, ctx context.Context, appCfg *fleet.AppConfig, teamID uint, oldName, newName string) (bool, error) {
+	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, ctxerr.Wrap(ctx, err, "get VPP tokens by team ID")
+	}
+	if fleet.IsNotFound(err) {
+		return false, nil
+	}
+
+	if vppToken == nil {
+		return false, nil
+	}
+
+	var updated bool
+	for i, programInfo := range appCfg.MDM.VolumePurchasingProgram.Value {
+		if programInfo.Location == vppToken.Location && programInfo.RenameTeam(oldName, newName) {
+			appCfg.MDM.VolumePurchasingProgram.Value[i] = programInfo
+			updated = true
+		}
+	}
+	return updated, nil
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
@@ -1001,35 +1076,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
-	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
-	}
-
-	// cleanup app config references for the team being deleted
-	if len(orgNames) > 0 {
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get app config")
-		}
-		updated := false
-		for _, orgName := range orgNames {
-			for i, token := range appCfg.MDM.AppleBusinessManager.Value {
-				if token.OrganizationName != orgName {
-					// no-op for this org name/token combo
-					continue
-				}
-
-				token.CleanRemovedTeam(name)
-				appCfg.MDM.AppleBusinessManager.Value[i] = token
-				updated = true
-			}
-		}
-		if updated {
-			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-				return ctxerr.Wrap(ctx, err, "save app config")
-			}
-		}
+	if err := svc.cleanupStaleAppConfigTeamNames(ctx, teamID, name); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup stale app config team names")
 	}
 
 	// If this fleet is the Windows enrollment default, clear it explicitly to revoke the cache.
@@ -1094,6 +1142,77 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 	return nil
+}
+
+func (svc *Service) cleanupStaleAppConfigTeamNames(ctx context.Context, teamID uint, name string) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	updated := false
+	if abmTokenUpdate, err := cleanupStaleAppConfigTeamNamesInABMConfig(svc, ctx, appCfg, teamID, name); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup stale app config team names in ABM config")
+	} else if abmTokenUpdate {
+		updated = true
+	}
+
+	if vppTokenUpdate, err := cleanupStaleAppConfigTeamNamesInVPPConfig(svc, ctx, appCfg, teamID, name); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup stale app config team names in VPP config")
+	} else if vppTokenUpdate {
+		updated = true
+	}
+
+	if !updated {
+		return nil
+	}
+
+	return ctxerr.Wrap(ctx, svc.ds.SaveAppConfig(ctx, appCfg), "save app config")
+}
+
+func cleanupStaleAppConfigTeamNamesInABMConfig(svc *Service, ctx context.Context, appCfg *fleet.AppConfig, teamID uint, name string) (bool, error) {
+	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
+	}
+
+	// cleanup app config references for the team being deleted
+	var updated bool
+	if len(orgNames) > 0 {
+		for _, orgName := range orgNames {
+			for i, token := range appCfg.MDM.AppleBusinessManager.Value {
+				if token.OrganizationName == orgName && token.CleanRemovedTeam(name) {
+					appCfg.MDM.AppleBusinessManager.Value[i] = token
+					updated = true
+
+				}
+			}
+		}
+	}
+	return updated, nil
+}
+
+func cleanupStaleAppConfigTeamNamesInVPPConfig(svc *Service, ctx context.Context, appCfg *fleet.AppConfig, teamID uint, name string) (bool, error) {
+	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, ctxerr.Wrap(ctx, err, "get VPP tokens by team ID")
+	}
+	if fleet.IsNotFound(err) {
+		return false, nil
+	}
+
+	if vppToken == nil {
+		return false, nil
+	}
+
+	var updated bool
+	for i, programInfo := range appCfg.MDM.VolumePurchasingProgram.Value {
+		if programInfo.Location == vppToken.Location && programInfo.CleanRemovedTeam(name) {
+			appCfg.MDM.VolumePurchasingProgram.Value[i] = programInfo
+			updated = true
+		}
+	}
+	return updated, nil
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
@@ -1858,7 +1977,9 @@ func (svc *Service) editTeamFromSpec(
 	secrets []*fleet.EnrollSecret,
 	opts fleet.ApplyTeamSpecOptions,
 ) error {
+	var oldName string
 	if !opts.DryRun {
+		oldName = team.Name
 		// We keep the original name for dry run because subsequent dry run calls may need the original name to fetch the team
 		team.Name = spec.Name
 	}
@@ -2240,6 +2361,12 @@ func (svc *Service) editTeamFromSpec(
 
 	if _, err := svc.ds.SaveTeam(ctx, team); err != nil {
 		return err
+	}
+
+	if oldName != "" {
+		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, team.ID, oldName, team.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "rename team in ABM config")
+		}
 	}
 
 	// If no secrets are provided and user did not explicitly specify an empty list, do not replace secrets. (#6774)

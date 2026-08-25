@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -174,19 +175,14 @@ type MDMAppleABMAssignmentInfo struct {
 	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
-func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
-	if m.MacOSTeam == removedTeamName {
-		m.MacOSTeam = ""
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) bool {
+	var updated bool
+	for _, f := range []*string{&m.MacOSTeam, &m.IOSTeam, &m.IpadOSTeam, &m.BYODTeam} {
+		if *f == removedTeamName {
+			*f, updated = "", true
+		}
 	}
-	if m.IOSTeam == removedTeamName {
-		m.IOSTeam = ""
-	}
-	if m.IpadOSTeam == removedTeamName {
-		m.IpadOSTeam = ""
-	}
-	if m.BYODTeam == removedTeamName {
-		m.BYODTeam = ""
-	}
+	return updated
 }
 
 func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
@@ -225,6 +221,19 @@ func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string
 		}
 	}
 	return renamed
+}
+
+func (m *MDMAppleVolumePurchasingProgramInfo) CleanRemovedTeam(removedTeamName string) bool {
+	var updated bool
+	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool {
+		if t == removedTeamName {
+			updated = true
+			return true
+		}
+
+		return false
+	})
+	return updated
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
