@@ -29,8 +29,8 @@ module.exports.custom = {
   * The TTL (time-to-live) for various sorts of tokens before they expire.  *
   *                                                                         *
   **************************************************************************/
-  passwordResetTokenTTL: 24 * 60 * 60 * 1000,// 24 hours
-  emailProofTokenTTL: 24 * 60 * 60 * 1000,// 24 hours
+  passwordResetTokenTTL: 24*60*60*1000,// 24 hours
+  emailProofTokenTTL:    24*60*60*1000,// 24 hours
 
   /**************************************************************************
   *                                                                         *
@@ -38,7 +38,7 @@ module.exports.custom = {
   * if "Remember Me" was checked while logging in.                          *
   *                                                                         *
   **************************************************************************/
-  rememberMeCookieMaxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  rememberMeCookieMaxAge: 30*24*60*60*1000, // 30 days
 
   /**************************************************************************
   *                                                                         *
@@ -232,7 +232,7 @@ module.exports.custom = {
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
-    '/docs/get-started/faq': ['rynsatterlee', 'ddribeiro', 'zayhanlon'],
+    '/docs/get-started/faq': ['ksatter', 'ddribeiro', 'zayhanlon'],
     'docs/solutions': ['ddribeiro', 'allenhouchins'],
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
@@ -283,10 +283,10 @@ module.exports.custom = {
     //'terraform': [],//Decided against in https://github.com/fleetdm/fleet/pull/12890
 
     // Github workflows
-    '.github/workflows/deploy-fleet-website.yml': ['eashaw', 'mikermcneil'],// (website deploy script)
-    '.github/workflows/test-website.yml': ['eashaw', 'mikermcneil'],//« website CI test script
-    '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw', 'mikermcneil'],// (vulnerabiltiy dashboard deploy script)
-    '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw', 'mikermcneil'],//« vulnerabiltiy dashboard CI test script
+    '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
+    '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
+    '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw','mikermcneil'],// (vulnerabiltiy dashboard deploy script)
+    '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw','mikermcneil'],//« vulnerabiltiy dashboard CI test script
     '.github/workflows': ['lukeheath', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
     '.github/workflows/dogfood-automated-policy-updates.yml': 'allenhouchins',
     '.github/workflows/dogfood-gitops.yml': 'allenhouchins',
@@ -300,7 +300,7 @@ module.exports.custom = {
     'handbook/company': 'mikermcneil',
     'handbook/ceo': 'mikermcneil',
     'handbook/company/brand.md': ['mikermcneil', 'mike-j-thomas'],
-    'handbook/company/product-maturity-assessment': ['mikermcneil', 'noahtalerman', 'allenhouchins'],
+    'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/communications.md': ['mikermcneil', 'ireedy', 'sampfluger88'],
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
@@ -323,7 +323,7 @@ module.exports.custom = {
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['lukeheath', 'xpkoala','noahtalerman'],
     '.github/ISSUE_TEMPLATE/feature-request.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
     '.github/ISSUE_TEMPLATE/release-qa.md': ['lukeheath', 'xpkoala', 'noahtalerman'],
   },
@@ -390,34 +390,34 @@ module.exports.custom = {
 
   // FUTURE: Consolidate these two lists of email domains (And maybe find another word for banned)
   // For the deliver-apple-csr webhook:
-  bannedEmailDomainsForCSRSigning: [
-    'aim.com', 'alice.it', 'aliceadsl.fr', 'aol.com',
-    'arcor.de', 'att.net', 'bellsouth.net', 'bigpond.com',
-    'bigpond.net.au', 'bluewin.ch', 'blueyonder.co.uk', 'bol.com.br',
-    'centurytel.net', 'charter.net', 'chello.nl', 'club-internet.fr',
-    'comcast.net', 'cox.net', 'earthlink.net', 'facebook.com',
-    'free.fr', 'freenet.de', 'frontiernet.net', 'gmail.com',
-    'gmx.de', 'gmx.net', 'googlemail.com', 'hetnet.nl',
-    'home.nl', 'hotmail.ca', 'hotmail.co.uk', 'hotmail.com',
-    'hotmail.de', 'hotmail.es', 'hotmail.fr', 'hotmail.it',
-    'icloud.com', 'ig.com.br', 'juno.com', 'laposte.net',
-    'libero.it', 'live.ca', 'live.co.uk', 'live.com',
-    'live.com.au', 'live.fr', 'live.it', 'live.nl',
-    'mac.com', 'mail.com', 'mail.ru', 'me.com',
-    'msn.com', 'neuf.fr', 'ntlworld.com', 'optonline.net',
-    'optusnet.com.au', 'orange.fr', 'outlook.com', 'planet.nl',
-    'pm.me', 'proton.me', 'protonmail.ch', 'protonmail.com',
-    'qq.com', 'rambler.ru', 'rediffmail.com', 'rocketmail.com',
-    'sbcglobal.net', 'sfr.fr', 'shaw.ca', 'sky.com',
-    'skynet.be', 'sympatico.ca', 't-online.de', 'telenet.be',
-    'terra.com.br', 'tin.it', 'tiscali.co.uk', 'tiscali.it',
-    'tmmbt.net', 'uol.com.br', 'verizon.net', 'virgilio.it',
-    'voila.fr', 'wanadoo.fr', 'web.de', 'windstream.net',
-    'yahoo.ca', 'yahoo.co.id', 'yahoo.co.in', 'yahoo.co.jp',
-    'yahoo.co.uk', 'yahoo.com', 'yahoo.com.ar', 'yahoo.com.au',
-    'yahoo.com.br', 'yahoo.com.mx', 'yahoo.com.sg', 'yahoo.de',
-    'yahoo.es', 'yahoo.fr', 'yahoo.in', 'yahoo.it',
-    'yandex.ru', 'ymail.com', 'zoho.com', 'zonnet.nl',
+  bannedEmailDomainsForCSRSigning:   [
+    'aim.com',         'alice.it',     'aliceadsl.fr',     'aol.com',
+    'arcor.de',        'att.net',      'bellsouth.net',    'bigpond.com',
+    'bigpond.net.au',  'bluewin.ch',   'blueyonder.co.uk', 'bol.com.br',
+    'centurytel.net',  'charter.net',  'chello.nl',        'club-internet.fr',
+    'comcast.net',     'cox.net',      'earthlink.net',    'facebook.com',
+    'free.fr',         'freenet.de',   'frontiernet.net',  'gmail.com',
+    'gmx.de',          'gmx.net',      'googlemail.com',   'hetnet.nl',
+    'home.nl',         'hotmail.ca',   'hotmail.co.uk',    'hotmail.com',
+    'hotmail.de',      'hotmail.es',   'hotmail.fr',       'hotmail.it',
+    'icloud.com',      'ig.com.br',    'juno.com',         'laposte.net',
+    'libero.it',       'live.ca',      'live.co.uk',       'live.com',
+    'live.com.au',     'live.fr',      'live.it',          'live.nl',
+    'mac.com',         'mail.com',     'mail.ru',          'me.com',
+    'msn.com',         'neuf.fr',      'ntlworld.com',     'optonline.net',
+    'optusnet.com.au', 'orange.fr',    'outlook.com',      'planet.nl',
+    'pm.me',           'proton.me',    'protonmail.ch',    'protonmail.com',
+    'qq.com',          'rambler.ru',   'rediffmail.com',   'rocketmail.com',
+    'sbcglobal.net',   'sfr.fr',       'shaw.ca',          'sky.com',
+    'skynet.be',       'sympatico.ca', 't-online.de',      'telenet.be',
+    'terra.com.br',    'tin.it',       'tiscali.co.uk',    'tiscali.it',
+    'tmmbt.net',       'uol.com.br',   'verizon.net',      'virgilio.it',
+    'voila.fr',        'wanadoo.fr',   'web.de',           'windstream.net',
+    'yahoo.ca',        'yahoo.co.id',  'yahoo.co.in',      'yahoo.co.jp',
+    'yahoo.co.uk',     'yahoo.com',    'yahoo.com.ar',     'yahoo.com.au',
+    'yahoo.com.br',    'yahoo.com.mx', 'yahoo.com.sg',     'yahoo.de',
+    'yahoo.es',        'yahoo.fr',     'yahoo.in',         'yahoo.it',
+    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl',
     'email.tst',
   ],
 
