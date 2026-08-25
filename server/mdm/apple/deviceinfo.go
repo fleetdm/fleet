@@ -40,8 +40,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
+	"sync/atomic"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -52,20 +52,45 @@ import (
 
 const DeviceInfoHeader = "x-apple-aspen-deviceinfo"
 
-// DisableMachineInfoVerifyEnvVar is a production kill switch: when set to "1"
-// or "true", failed MachineInfo (deviceinfo) signature verification is logged
-// but does not block enrollment (audit mode). Verification is enforced by
-// default.
-const DisableMachineInfoVerifyEnvVar = "FLEET_MDM_DISABLE_MACHINEINFO_VERIFY"
+// machineInfoVerify controls enforcement of MachineInfo (deviceinfo) signature
+// verification during enrollment. It defaults to enforce and is configured at
+// server startup from config.MDM.AppleMachineInfoVerify via
+// SetMachineInfoVerification. When disabled, verification runs in audit mode:
+// failures are logged but enrollment is allowed to proceed.
+var machineInfoVerify atomic.Bool
 
-// MachineInfoVerificationDisabled reports whether MachineInfo signature
-// verification enforcement is disabled via DisableMachineInfoVerifyEnvVar.
-func MachineInfoVerificationDisabled() bool {
-	v := dev_mode.Env(DisableMachineInfoVerifyEnvVar)
-	if v == "" {
-		v = os.Getenv(DisableMachineInfoVerifyEnvVar)
-	}
-	return v == "1" || strings.EqualFold(v, "true")
+func init() {
+	machineInfoVerify.Store(true)
+}
+
+// SetMachineInfoVerification configures whether MachineInfo signature
+// verification is enforced. Called once at server startup from
+// config.MDM.AppleMachineInfoVerify.
+func SetMachineInfoVerification(enabled bool) {
+	machineInfoVerify.Store(enabled)
+}
+
+// MachineInfoVerificationEnabled reports whether MachineInfo signature
+// verification is enforced. When false, verification runs in audit mode.
+func MachineInfoVerificationEnabled() bool {
+	return machineInfoVerify.Load()
+}
+
+// tbCleanup is the subset of testing.TB that SetMachineInfoVerificationForTest
+// needs, kept as a local interface so the testing package stays out of this
+// file's production import graph.
+type tbCleanup interface {
+	Cleanup(func())
+}
+
+// SetMachineInfoVerificationForTest sets the enforcement flag for the duration
+// of a test, restoring the previous value on cleanup.
+func SetMachineInfoVerificationForTest(t tbCleanup, enabled bool) {
+	prev := machineInfoVerify.Load()
+	machineInfoVerify.Store(enabled)
+	t.Cleanup(func() {
+		machineInfoVerify.Store(prev)
+	})
 }
 
 // appleIphoneDeviceCA is the PEM data defined here converted to DER:
@@ -361,7 +386,7 @@ func ParseDeviceinfo(b64 string) (*fleet.MDMAppleMachineInfo, *pkcs7.PKCS7, erro
 }
 
 // ParseMachineInfoFromPKCS7 parses a MachineInfo plist from a PKCS7 payload without verifying
-// its signature. Callers on must pass the returned PKCS7 payload to VerifyMachineInfoSignature.
+// its signature. Callers must pass the returned PKCS7 payload to VerifyMachineInfoSignature.
 func ParseMachineInfoFromPKCS7(buf []byte) (*fleet.MDMAppleMachineInfo, *pkcs7.PKCS7, error) {
 	if err := cryptoutil.ValidateBERDepth(buf, cryptoutil.MaxBERDepth); err != nil {
 		return nil, nil, fmt.Errorf("invalid pkcs7: %w", err)

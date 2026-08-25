@@ -1617,8 +1617,15 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 		if di != "" {
 			parsed, p7, err := apple_mdm.ParseDeviceinfo(di)
 			if err != nil {
-				// just log the error and continue to next
-				logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo", "err", err)
+				if apple_mdm.MachineInfoVerificationEnabled() {
+					// a present-but-unparseable header can't be verified; reject
+					// it in enforce mode rather than letting it through
+					logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo failed, rejecting request", "err", err)
+					http.Error(w, "unable to parse deviceinfo", http.StatusForbidden)
+					return
+				}
+				// audit mode: log the error and continue to next
+				logger.WarnContext(r.Context(), "parsing x-apple-aspen-deviceinfo failed, continuing because verification is disabled", "err", err)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -1631,7 +1638,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 					"udid", parsed.UDID,
 					"product", parsed.Product,
 				}
-				if !apple_mdm.MachineInfoVerificationDisabled() {
+				if apple_mdm.MachineInfoVerificationEnabled() {
 					logger.ErrorContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, rejecting request", logAttrs...)
 					http.Error(w, "unable to verify deviceinfo signature", http.StatusForbidden)
 					return

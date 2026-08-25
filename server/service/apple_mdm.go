@@ -2658,7 +2658,7 @@ func verifyMachineInfoSignature(ctx context.Context, p7 *pkcs7.PKCS7, info *flee
 		serial, udid, product = info.Serial, info.UDID, info.Product
 	}
 
-	if apple_mdm.MachineInfoVerificationDisabled() {
+	if !apple_mdm.MachineInfoVerificationEnabled() {
 		// surface the failure in the request log at warn level
 		logging.WithLevel(ctx, slog.LevelWarn)
 		logging.WithExtras(ctx,

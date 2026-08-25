@@ -6498,7 +6498,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.setSkipWorkerJobs(t)
 	// machine info blobs in this test are signed with a throwaway cert, not an
 	// Apple device identity
-	dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1", t)
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)
@@ -7090,7 +7090,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	s.setSkipWorkerJobs(t)
 	// machine info blobs in this test are signed with a throwaway cert, not an
 	// Apple device identity
-	dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1", t)
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 	ctx := context.Background()
 
 	lastSubmittedProfile := &godep.Profile{}
@@ -16058,7 +16058,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	t := s.T()
 	// machine info blobs in this test are signed with a throwaway cert, not an
 	// Apple device identity
-	dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1", t)
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 	ctx := context.Background()
 
 	initialConfig, err := s.ds.AppConfig(ctx)
@@ -16193,8 +16193,22 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 		require.Equal(t, http.StatusForbidden, response.StatusCode)
 	})
 
+	t.Run("sso middleware rejects an unparseable deviceinfo header", func(t *testing.T) {
+		request, err := http.NewRequest("GET", s.server.URL+"/mdm/sso", nil)
+		require.NoError(t, err)
+		request.Header.Set("x-apple-aspen-deviceinfo", "not-base64-or-pkcs7!!!")
+		// nolint:gosec // this client is used for testing only
+		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+		response, err := cc.Do(request)
+		require.NoError(t, err)
+		defer response.Body.Close()
+		require.Equal(t, http.StatusForbidden, response.StatusCode)
+	})
+
 	t.Run("audit mode logs but does not block", func(t *testing.T) {
-		dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1", t)
+		apple_mdm.SetMachineInfoVerificationForTest(t, false)
 		// the request proceeds past signature verification and fails later on
 		// the unknown enrollment token instead
 		res := s.DoRawNoAuth("GET", apple_mdm.EnrollPath+"?token=unused&deviceinfo="+di, nil, http.StatusUnauthorized)
@@ -16272,7 +16286,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 		t.Run("if invalid device signature", func(t *testing.T) {
 			dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1", t)
-			dev_mode.SetOverride(apple_mdm.DisableMachineInfoVerifyEnvVar, "1", t)
+			apple_mdm.SetMachineInfoVerificationForTest(t, false)
 			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 			errMsg := extractServerErrorText(httpResp.Body)
 			require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")

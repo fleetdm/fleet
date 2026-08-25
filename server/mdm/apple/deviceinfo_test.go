@@ -15,16 +15,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
 
 // TestVerifyMachineInfoSignatureGenuineCapture verifies a real Apple-signed
-// deviceinfo blob captured from a lab iPad against the pinned Apple roots. The
-// blob has CMS authenticated attributes, a SHA-1/RSA signature, and a chain
-// with intermediates that expired in 2014 and 2022 just like any other Apple
-// device
+// deviceinfo blob captured from a lab iPad against the pinned Apple iPhone
+// Device CA. The blob has CMS authenticated attributes, a SHA-1/RSA signature,
+// and a chain with intermediates that expired in 2014 and 2022 just like any
+// other Apple device.
 func TestVerifyMachineInfoSignatureGenuineCapture(t *testing.T) {
 	buf, err := os.ReadFile("testdata/deviceinfo/machineinfo-ipados.der")
 	require.NoError(t, err)
@@ -186,17 +185,17 @@ func TestVerifyMachineInfoSignatureSyntheticChains(t *testing.T) {
 	})
 }
 
-func TestMachineInfoVerificationDisabled(t *testing.T) {
-	require.False(t, MachineInfoVerificationDisabled())
+func TestMachineInfoVerification(t *testing.T) {
+	require.True(t, MachineInfoVerificationEnabled(), "verification is enforced by default")
 
-	dev_mode.SetOverride(DisableMachineInfoVerifyEnvVar, "1", t)
-	require.True(t, MachineInfoVerificationDisabled())
+	SetMachineInfoVerification(false)
+	require.False(t, MachineInfoVerificationEnabled())
+	SetMachineInfoVerification(true)
+	require.True(t, MachineInfoVerificationEnabled())
 
-	dev_mode.SetOverride(DisableMachineInfoVerifyEnvVar, "true", t)
-	require.True(t, MachineInfoVerificationDisabled())
-
-	dev_mode.SetOverride(DisableMachineInfoVerifyEnvVar, "0", t)
-	require.False(t, MachineInfoVerificationDisabled())
+	// SetMachineInfoVerificationForTest restores the prior value on cleanup.
+	SetMachineInfoVerificationForTest(t, false)
+	require.False(t, MachineInfoVerificationEnabled())
 }
 
 type testIdentity struct {
