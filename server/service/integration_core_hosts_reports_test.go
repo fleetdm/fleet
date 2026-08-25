@@ -1,8 +1,20 @@
 package service
 
+// Host reporting and read-only host detail tests for the core (no-license) suite.
+//
+// Belongs here: reads of a single host's reported state (macadmins/Munki, batteries,
+// disk encryption, maintenance window, iOS/iPadOS vitals, last-opened-at and
+// software-updated-at timestamps), the hosts report CSV endpoint, host health, a
+// host's past and upcoming activities, aggregated OS versions, and a host's report
+// (scheduled query) results.
+//
+// Does not belong here: host CRUD, listing, filtering, or fleet assignment
+// (integration_core_hosts_test.go), and anything creating or configuring the
+// reports themselves rather than reading their results.
+
 import (
 	"bytes"
-	"context" // nolint: gosec
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
