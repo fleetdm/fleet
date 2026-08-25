@@ -604,10 +604,7 @@ type MacOSSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
 
-	// EnableDiskEncryption enforces FileVault on macOS hosts. Before the
-	// per-platform disk encryption split this JSON path was a deprecated alias
-	// for the flat mdm.enable_disk_encryption toggle; it is now the canonical
-	// macOS enforcement setting (#48654).
+	// EnableDiskEncryption enforces FileVault on macOS hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 	// EnableEscrowDiskEncryptionKey makes Fleet escrow the FileVault recovery
 	// key of macOS hosts, independently of whether Fleet enforces FileVault.
@@ -1426,20 +1423,10 @@ func (c *AppConfig) assignDeprecatedFields() {
 		c.Features = *c.DeprecatedHostSettings
 	}
 
-	// NOTE: mdm.macos_settings.enable_disk_encryption is no longer a legacy
-	// alias of the flat mdm.enable_disk_encryption toggle: it is the canonical
-	// macOS enforcement setting of the per-platform disk encryption split. The
-	// flat toggle is the deprecated one; when it carries a value, any
-	// per-platform setting ABSENT from the document inherits it. This keeps
-	// configs correct even if the per-platform keys were dropped from the
-	// stored JSON (e.g. re-saved by a pre-split server after the fan-out
-	// migration ran).
-	//
-	// This is a document-level gap-fill only: a per-platform key explicitly
-	// present (including explicit null, which PATCH-merge semantics translate
-	// to "keep the stored value") is never overridden here — the deprecated
-	// toggle's write-wins rule is the service layer's job, where old and new
-	// values can be told apart.
+	// A per-platform disk encryption setting ABSENT from the document inherits
+	// the deprecated flat toggle, healing configs re-saved by a pre-split
+	// server after the fan-out migration ran. Keys explicitly present
+	// (including explicit null) are never overridden.
 	if c.MDM.EnableDiskEncryption.Valid {
 		for _, f := range []*optjson.Bool{
 			&c.MDM.MacOSSettings.EnableDiskEncryption,
@@ -2286,15 +2273,14 @@ type WindowsSettings struct {
 	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
 	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 
-	// EnableDiskEncryption enforces BitLocker on Windows hosts. The flat
-	// mdm.enable_disk_encryption toggle is deprecated in favor of this.
+	// EnableDiskEncryption enforces BitLocker on Windows hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 }
 
 // LinuxSettings contains MDM-related settings specific to Linux hosts.
 type LinuxSettings struct {
 	// EnableEscrowDiskEncryptionKey makes Fleet escrow the LUKS passphrase of
-	// Linux hosts. Fleet never enforces encryption on Linux.
+	// Linux hosts.
 	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 }
 

@@ -1,1 +1,1 @@
-- Added per-platform disk encryption settings for macOS (enforcement and key escrow), Windows, and Linux (key escrow) to the global and fleet configuration. The flat `mdm.enable_disk_encryption` setting is deprecated: it now reads as true only when every per-platform setting is on, and writing it applies to all platforms.
+- Added per-platform disk encryption settings: enforcement and key escrow for macOS, enforcement for Windows, and key escrow for Linux.

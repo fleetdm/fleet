@@ -328,9 +328,7 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 		msg          string
 		in           json.RawMessage
 		wantFeatures Features
-		// wantDiskEncryption is the marshaled flat mdm.enable_disk_encryption,
-		// virtual since the per-platform split: the AND of the four
-		// per-platform settings.
+		// wantDiskEncryption is the expected flat mdm.enable_disk_encryption.
 		wantDiskEncryption      bool
 		wantMacOSDiskEncryption bool
 	}{
@@ -403,7 +401,6 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			require.True(t, ok)
 			require.EqualValues(t, c.wantDiskEncryption, linuxSettings["enable_escrow_disk_encryption_key"])
 
-			// the flat toggle is virtual: the AND of the four
 			diskEncryption, exists := mdm["enable_disk_encryption"]
 			require.True(t, exists)
 			require.EqualValues(t, c.wantDiskEncryption, diskEncryption)

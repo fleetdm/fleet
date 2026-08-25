@@ -3685,12 +3685,12 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		return err
 	}
 
-	var didUpdate bool
-	var macOSWasOn bool
+	var didUpdateDiskEncryption bool
+	var macOSDiskEncryptionWasOn bool
 	if enabled != nil {
 		// the deprecated flat toggle fans out to every per-platform disk
 		// encryption setting
-		macOSWasOn = ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+		macOSDiskEncryptionWasOn = ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
 			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
 		changed := ac.MDM.MacOSSettings.EnableDiskEncryption.Value != *enabled ||
 			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != *enabled ||
@@ -3707,21 +3707,20 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 			ac.MDM.WindowsSettings.EnableDiskEncryption = v
 			ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = v
 			ac.MDM.EnableDiskEncryption = v
-			didUpdate = true
+			didUpdateDiskEncryption = true
 		}
 	}
-	if didUpdate {
+	if didUpdateDiskEncryption {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
 		// The FileVault profile covers enforcement and escrow as a whole: only
-		// the off<->on transition of the macOS pair creates or deletes it
-		// (payload conditionality ships in #51259).
-		macOSOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+		// the off<->on transition of the macOS pair creates or deletes it.
+		macOSDiskEncryptionOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
 			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		if ac.MDM.EnabledAndConfigured && macOSOn != macOSWasOn { // if macOS MDM is configured, set up FileVault escrow
+		if ac.MDM.EnabledAndConfigured && macOSDiskEncryptionOn != macOSDiskEncryptionWasOn { // if macOS MDM is configured, set up FileVault escrow
 			var act fleet.ActivityDetails
-			if macOSOn {
+			if macOSDiskEncryptionOn {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")

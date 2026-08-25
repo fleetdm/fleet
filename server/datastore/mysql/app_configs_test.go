@@ -464,8 +464,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, diskEncryptionConfig.Enabled)
 
-	// Enable disk encryption for no team. The flat toggle is virtual
-	// (recomputed as the AND of the four per-platform settings on save), so
+	// Enable disk encryption for no team. The flat toggle is virtual so
 	// the per-platform fields are what gets written.
 	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
 	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
@@ -483,7 +482,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, diskEncryptionConfig.Enabled)
 
-	// a mixed state reads the flat toggle as false (it is the AND of the four)
+	// a mixed state reads the flat toggle as false
 	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
@@ -510,8 +509,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, diskEncryptionConfig.Enabled)
 
-	// Enable disk encryption for the team (per-platform fields; the flat
-	// toggle is recomputed as their AND on save)
+	// Enable disk encryption for the team
 	tm.Config.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
 	tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 	tm.Config.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
@@ -778,9 +776,7 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 }
 
 // setAppConfigDiskEncryptionForTest sets the deprecated flat toggle and every
-// per-platform disk encryption setting. The flat toggle is virtual (recomputed
-// as the AND of the per-platform settings on save), so a flat-only write on a
-// loaded config would be discarded.
+// per-platform disk encryption setting.
 func setAppConfigDiskEncryptionForTest(ac *fleet.AppConfig, enabled bool) {
 	ac.MDM.EnableDiskEncryption = optjson.SetBool(enabled)
 	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enabled)

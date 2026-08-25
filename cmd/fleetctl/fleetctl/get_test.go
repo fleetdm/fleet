@@ -305,9 +305,7 @@ func TestGetTeams(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 			if !updateGoldenFile(t, "expectedGetTeamsJson.json", actualJSON.String()) {
-				// cannot use require.JSONEq: this is a list of JSON objects,
-				// not a single JSON value
-				require.Equal(t, expectedJson, actualJSON.String()) //nolint:testifylint
+				require.Equal(t, expectedJson, actualJSON.String()) //nolint:testifylint // this is a list of JSON objects not a single JSON value
 			}
 
 			errBuffer.Reset()

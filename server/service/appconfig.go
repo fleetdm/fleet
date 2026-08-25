@@ -1609,8 +1609,7 @@ func (svc *Service) processSavedAppConfigChanges(
 
 	// The FileVault profile covers enforcement and escrow as a whole: it
 	// exists whenever either macOS setting is on, so only the off<->on
-	// transition of the pair creates or deletes it (payload conditionality
-	// ships in #51259).
+	// transition of the pair creates or deletes it.
 	macOSDiskEncryptionOn := appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
 		appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
 	macOSDiskEncryptionWasOn := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
