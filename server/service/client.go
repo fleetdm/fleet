@@ -2839,7 +2839,9 @@ func (c *Client) DoGitOps(
 				m = map[string]any{}
 				mdmAppConfig[parent] = m
 			}
-			if _, ok := m[key]; !ok {
+			// an explicit null means the same as absent: reset to false (the
+			// server would treat null as "keep the stored value")
+			if v, ok := m[key]; !ok || v == nil {
 				m[key] = false
 			}
 		}
@@ -2871,7 +2873,7 @@ func (c *Client) DoGitOps(
 			windowsDiskEncryption = windowsEnable
 		}
 		if !windowsDiskEncryption && requireBitLockerPIN {
-			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+			return nil, errors.New("enable_disk_encryption (or windows_settings.enable_disk_encryption) cannot be false if windows_require_bitlocker_pin is true")
 		}
 
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
