@@ -86,9 +86,6 @@ export const getTabIndex = (
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-// The OS tab defaults to sorting by version (latest first) instead, since
-// that's a more useful default view than install count for OS versions.
-const OS_TAB_DEFAULT_SORT_HEADER = "version";
 // Increased from 20 to 50 per design spec (#32128). Load test the software
 // endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
@@ -152,16 +149,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     globalConfigFromContext?.partnerships?.enable_primo || false;
 
   const queryParams = location.query;
-  const isOnOSTab = (location?.pathname || "").startsWith(PATHS.SOFTWARE_OS);
 
   // initial values for query params used on this page
-  const defaultSortHeader = isOnOSTab
-    ? OS_TAB_DEFAULT_SORT_HEADER
-    : DEFAULT_SORT_HEADER;
   const sortHeader =
     queryParams && queryParams.order_key
       ? queryParams.order_key
-      : defaultSortHeader;
+      : DEFAULT_SORT_HEADER;
   const sortDirection =
     queryParams?.order_direction === undefined
       ? DEFAULT_SORT_DIRECTION
