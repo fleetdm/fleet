@@ -4405,18 +4405,18 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.intellij",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/windows",
       "platform": "windows",
       "unique_identifier": "IntelliJ IDEA",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
       "name": "Company Portal",
