@@ -1,7 +1,7 @@
 {
   "name": "IntelliJ IDEA Ultimate",
   "slug": "intellij-idea/windows",
-  "package_identifier": "JetBrains.IntelliJIDEA.Ultimate",
+  "package_identifier": "JetBrains.IntelliJIDEA",
   "unique_identifier": "IntelliJ IDEA",
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.';",
   "use_display_version_for_patch": true,
