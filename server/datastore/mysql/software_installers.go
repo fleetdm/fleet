@@ -2728,8 +2728,6 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get latest upcoming install")
 	}
 
-	// A pending row never has a resolved skip reason; the caller only reads SkipReason for
-	// completed rows and the zero value already spells "not a skip", so nothing to populate.
 	return &hostLastInstall, nil
 }
 

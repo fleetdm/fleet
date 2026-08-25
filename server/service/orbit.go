@@ -1860,16 +1860,23 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
-	// A patch-when-closed policy install whose managed app-open query returned no result means the
-	// app was open: a skip, not a failure. Key on the policy flag, not empty output, so an ordinary
-	// empty pre_install_query on a non-managed policy still fails and counts toward the retry cap.
-	isAppOpenSkip := false
-	if result.Status() == fleet.SoftwareInstallFailed &&
-		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {
+	// Classify the incoming result: an app-open skip on a patch-when-closed policy is
+	// treated as a hold, not a retryable failure. Route through the shared classifier so
+	// the read path (throttle) and write path here share one definition of "what counts
+	// as a skip." Guard the DB lookup on status = failed to avoid an extra fetch on
+	// success/pending rows.
+	skipReason := fleet.SoftwareInstallSkipReasonNone
+	if result.Status() == fleet.SoftwareInstallFailed {
 		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
-			isAppOpenSkip = cur.PolicyID != nil && cur.PatchWhenClosed
+			status := result.Status()
+			skipReason = fleet.ClassifySoftwareInstallSkipReason(
+				&status,
+				cur.PolicyID != nil && cur.PatchWhenClosed,
+				result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "",
+			)
 		}
 	}
+	isAppOpenSkip := skipReason == fleet.SoftwareInstallSkipReasonAppOpen
 
 	// Check if a non-policy install failure will be retried so we can skip
 	// updating setup experience status during intermediate retries.

@@ -5649,7 +5649,7 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	require.True(t, insertCalled, "install should fire when there is no prior install")
 
 	// Sequenced check that the throttle both engages AND releases on the same skip row:
-	// T=0 skip → T=30min re-fire throttled → T=61min re-fire queues a fresh install. Proves
+	// T=0 skip → T=30min re-fire throttled → T=70min re-fire queues a fresh install. Proves
 	// the throttle actually releases on the same row rather than testing engage and release
 	// on two separately-configured rows as the isolated cases above do.
 	setLastInstall(&failedInstall, now, fleet.SoftwareInstallSkipReasonAppOpen)
@@ -5660,9 +5660,9 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	require.False(t, insertCalled, "app-open skip 30m in must still be throttling continuous re-fires")
 
 	insertCalled = false
-	mockClock.AddTime(31 * time.Minute)
+	mockClock.AddTime(40 * time.Minute)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
-	require.True(t, insertCalled, "app-open skip 61m in must have released the throttle so the next cycle can queue")
+	require.True(t, insertCalled, "app-open skip 70m in must have released the throttle so the next cycle can queue")
 }
 
 // TestProcessVPPForNewlyFailingPoliciesContinuousCooldown is the VPP analog of
