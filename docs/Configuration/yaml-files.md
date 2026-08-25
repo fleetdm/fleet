@@ -921,7 +921,7 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 
 Setting `host_expiry_enabled: false` on a fleet tells that fleet to use the `org_settings` value. It doesn't exempt the fleet. To apply host expiry to only some fleets, leave it off in `org_settings` and turn it on for those fleets.
 
-Fleet measures the window from the host's last check-in, not from **Last fetched**. Host expiry skips hosts assigned to Fleet in Apple Business or Windows Autopilot. If hosts aren't expiring as expected, see the [FAQ](https://fleetdm.com/docs/get-started/faq#why-arent-my-hosts-being-deleted-after-the-host-expiry-window).
+Fleet measures the window from the host's last check-in, not from **Last fetched**. Host expiry skips hosts assigned to Fleet in Apple Business or Windows Autopilot. If hosts aren't expiring as expected, see [Why aren't my hosts being deleted after the host expiry window?](https://fleetdm.com/docs/get-started/faq#why-arent-my-hosts-being-deleted-after-the-host-expiry-window) in the FAQ.
 
 #### Example
 

@@ -355,7 +355,7 @@ Some hosts are exempt from host expiry, and the window isn't measured against th
 
 * Has it run yet? Host expiry runs hourly. Expired hosts appear in the activity feed as host deletions. That's the quickest way to confirm host expiry is running. You can also trigger a run with `fleetctl trigger --name=cleanups_then_aggregation`.
 
-For more detail on host expiry settings, see the [YAML files documentation](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings).
+For the settings themselves, see [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) in the YAML files reference.
 
 ### How does Fleet deal with IP duplication?
 
