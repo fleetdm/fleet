@@ -777,23 +777,54 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsEntraClientIDs.Value = normalized
 	}
 
-	// EnableDiskEncryption is an optjson.Bool field in order to support the
-	// legacy field under "mdm.macos_settings". If the field provided to the
-	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
-	// null) and no legacy field overwrites it, leave it unchanged (as if not
-	// provided).
-
+	// The per-platform disk encryption settings follow PATCH-merge semantics:
+	// a field explicitly set to null keeps its stored value (as if not
+	// provided). The deprecated flat mdm.enable_disk_encryption wins when
+	// provided: it fans out to every per-platform setting, preserving its
+	// historical semantics.
+	//
 	// TODO: move this logic to the AppConfig unmarshaller? we need to do
 	// this because we unmarshal twice into appConfig:
 	//
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
-	if newAppConfig.MDM.EnableDiskEncryption.Valid {
-		if newAppConfig.MDM.EnableDiskEncryption.Value && svc.config.Server.PrivateKey == "" {
-			return nil, ctxerr.New(ctx,
-				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	legacyDiskEncryption := newAppConfig.MDM.EnableDiskEncryption
+	anyDiskEncryptionSet := legacyDiskEncryption.Valid
+	enablingDiskEncryption := false
+	for _, f := range []struct {
+		incoming optjson.Bool
+		merged   *optjson.Bool
+		old      optjson.Bool
+	}{
+		{newAppConfig.MDM.MacOSSettings.EnableDiskEncryption, &appConfig.MDM.MacOSSettings.EnableDiskEncryption, oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption},
+		{newAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, &appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey},
+		{newAppConfig.MDM.WindowsSettings.EnableDiskEncryption, &appConfig.MDM.WindowsSettings.EnableDiskEncryption, oldAppConfig.MDM.WindowsSettings.EnableDiskEncryption},
+		{newAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, &appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey},
+	} {
+		switch {
+		case legacyDiskEncryption.Valid:
+			*f.merged = optjson.SetBool(legacyDiskEncryption.Value)
+		case f.incoming.Valid:
+			*f.merged = f.incoming
+		case f.merged.Set && !f.merged.Valid:
+			*f.merged = f.old
 		}
-		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
+		anyDiskEncryptionSet = anyDiskEncryptionSet || f.merged.Set
+		enablingDiskEncryption = enablingDiskEncryption || (f.merged.Valid && f.merged.Value && !f.old.Value)
+	}
+	if enablingDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return nil, ctxerr.New(ctx,
+			"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+	// the flat toggle is virtual (the AND of the four); recompute it so
+	// validation, activities, and the saved JSON see the effective value.
+	// For any config previously saved by this version the per-platform fields
+	// always carry state, so the recompute effectively always runs (a no-op
+	// when nothing changed); the else branch covers configs that never had
+	// disk encryption state, where an explicit null on the flat toggle keeps
+	// the stored value, as before.
+	if anyDiskEncryptionSet {
+		appConfig.MDM.EnableDiskEncryption = optjson.SetBool(appConfig.MDM.DiskEncryptionSettingsAllEnabled())
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
 	}
@@ -1576,17 +1607,24 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
+	// The FileVault profile covers enforcement and escrow as a whole: it
+	// exists whenever either macOS setting is on, so only the off<->on
+	// transition of the pair creates or deletes it.
+	macOSDiskEncryptionOn := appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+		appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+	macOSDiskEncryptionWasOn := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+		oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+	if macOSDiskEncryptionOn != macOSDiskEncryptionWasOn {
 		if oldAppConfig.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
-			if appConfig.MDM.EnableDiskEncryption.Value {
+			if macOSDiskEncryptionOn {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
 				}
 			} else {
 				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
@@ -1998,8 +2036,19 @@ func (svc *Service) validateMDM(
 	invalid *fleet.InvalidArgumentError,
 	overwrite bool,
 ) error {
-	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
-		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	if !lic.IsPremium() {
+		if mdm.MacOSSettings.EnableDiskEncryption.Value {
+			invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
+		}
+		if mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
+			invalid.Append("apple_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
+		}
+		if mdm.WindowsSettings.EnableDiskEncryption.Value {
+			invalid.Append("windows_settings.enable_disk_encryption", ErrMissingLicense.Error())
+		}
+		if mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
+			invalid.Append("linux_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
+		}
 	}
 	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())
@@ -2337,14 +2386,16 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM migration is also enabled. Please enable only one.")
 	}
 
-	if !mdm.EnableDiskEncryption.Value {
+	// the PIN requirement is a BitLocker feature, so it's judged against the
+	// Windows setting, not the all-platforms aggregate
+	if !mdm.WindowsSettings.EnableDiskEncryption.Value {
 		switch {
-		case !oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+		case !oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
 			invalid.Append(
 				"mdm.windows_require_bitlocker_pin",
 				fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
 			)
-		case oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+		case oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
 			invalid.Append(
 				"mdm.enable_disk_encryption",
 				fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,

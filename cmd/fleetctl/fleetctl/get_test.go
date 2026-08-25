@@ -304,12 +304,16 @@ func TestGetTeams(t *testing.T) {
 			actualJSON, err := runWithErrWriter([]string{"get", "fleets", "--json"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
-			require.Equal(t, expectedJson, actualJSON.String())
+			if !updateGoldenFile(t, "expectedGetTeamsJson.json", actualJSON.String()) {
+				require.Equal(t, expectedJson, actualJSON.String()) //nolint:testifylint // this is a list of JSON objects not a single JSON value
+			}
 
 			errBuffer.Reset()
 			actualYaml, err := runWithErrWriter([]string{"get", "fleets", "--yaml"}, &errBuffer)
 			require.NoError(t, err)
-			assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			if !updateGoldenFile(t, "expectedGetTeamsYaml.yml", actualYaml.String()) {
+				assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			}
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
 			// Test --remove-deprecated-keys: "fleet" present, "team" absent at spec level

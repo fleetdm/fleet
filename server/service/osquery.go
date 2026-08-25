@@ -816,7 +816,10 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 	}
 
 	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && (appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured) && host.TeamID != nil {
+	// LUKS key escrow needs no MDM, so Linux hosts need their fleet's config
+	// even when no MDM platform is configured
+	if appConfig != nil && host.TeamID != nil &&
+		(appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured || host.FleetPlatform() == "linux") {
 		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")

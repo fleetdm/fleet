@@ -191,6 +191,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -199,6 +200,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -279,6 +281,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: new("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -287,6 +290,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -352,6 +356,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 
@@ -359,6 +364,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}

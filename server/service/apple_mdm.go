@@ -3685,31 +3685,49 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		return err
 	}
 
-	var didUpdate bool
+	var didUpdateDiskEncryption bool
+	var macOSDiskEncryptionWasOn bool
 	if enabled != nil {
-		if ac.MDM.EnableDiskEncryption.Value != *enabled {
+		// the deprecated flat toggle fans out to every per-platform disk
+		// encryption setting
+		macOSDiskEncryptionWasOn = ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+		changed := ac.MDM.MacOSSettings.EnableDiskEncryption.Value != *enabled ||
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != *enabled ||
+			ac.MDM.WindowsSettings.EnableDiskEncryption.Value != *enabled ||
+			ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != *enabled
+		if changed {
 			if *enabled && svc.config.Server.PrivateKey == "" {
 				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 			}
 
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
-			didUpdate = true
+			v := optjson.SetBool(*enabled)
+			ac.MDM.MacOSSettings.EnableDiskEncryption = v
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = v
+			ac.MDM.WindowsSettings.EnableDiskEncryption = v
+			ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = v
+			ac.MDM.EnableDiskEncryption = v
+			didUpdateDiskEncryption = true
 		}
 	}
-	if didUpdate {
+	if didUpdateDiskEncryption {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
-		if ac.MDM.EnabledAndConfigured { // if macOS MDM is configured, set up FileVault escrow
+		// The FileVault profile covers enforcement and escrow as a whole: only
+		// the off<->on transition of the macOS pair creates or deletes it.
+		macOSDiskEncryptionOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+		if ac.MDM.EnabledAndConfigured && macOSDiskEncryptionOn != macOSDiskEncryptionWasOn { // if macOS MDM is configured, set up FileVault escrow
 			var act fleet.ActivityDetails
-			if ac.MDM.EnableDiskEncryption.Value {
+			if macOSDiskEncryptionOn {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
 				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
 				}
 			} else {
 				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
 					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 				}
 			}
@@ -5349,7 +5367,21 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
+			if act == nil {
+				return nil, nil
+			}
+			// Auto-update terminal failures land here (all retries exhausted), so
+			// we need to carry the from_auto_update flag onto the emitted activity
+			// alongside from_setup_experience. Without this, WasFromAutomation()
+			// returns false and the activity is attributed to actor_full_name
+			// instead of Fleet. The success path is handled separately in the
+			// InstalledApplicationList result handler.
+			fromAutoUpdate, err := svc.ds.IsAutoUpdateVPPInstall(r.Context, cmdResult.CommandUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update")
+			}
 			act.FromSetupExperience = fromSetupExperience
+			act.FromAutoUpdate = fromAutoUpdate
 			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}

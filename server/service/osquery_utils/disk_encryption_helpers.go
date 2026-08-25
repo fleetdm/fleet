@@ -8,8 +8,11 @@ import (
 )
 
 // IsDiskEncryptionEnabledForHost checks if disk encryption is enabled for the
-// host team or globally if the host is not assigned to a team.
+// host's platform, in the host's team or globally if the host is not assigned
+// to a team.
 func IsDiskEncryptionEnabledForHost(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, host *fleet.Host) bool {
+	var cfg fleet.DiskEncryptionConfig
+
 	// team
 	if host.TeamID != nil {
 		teamMDM, err := ds.TeamMDMConfig(ctx, *host.TeamID)
@@ -24,17 +27,30 @@ func IsDiskEncryptionEnabledForHost(ctx context.Context, logger *slog.Logger, ds
 		if teamMDM == nil {
 			return false
 		}
-		return teamMDM.EnableDiskEncryption
+		cfg = teamMDM.DiskEncryptionConfig()
+	} else {
+		// global
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			logger.DebugContext(ctx, "failed to get app config for disk encryption check",
+				"host_id", host.ID,
+				"err", err,
+			)
+			return false
+		}
+		cfg = appConfig.MDM.DiskEncryptionConfig()
 	}
 
-	// global
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		logger.DebugContext(ctx, "failed to get app config for disk encryption check",
-			"host_id", host.ID,
-			"err", err,
-		)
+	// the FileVault flow treats the macOS pair as one unit until the
+	// per-payload split ships
+	switch host.FleetPlatform() {
+	case "darwin":
+		return cfg.MacOSEnabled || cfg.MacOSEscrowEnabled
+	case "windows":
+		return cfg.WindowsEnabled
+	case "linux":
+		return cfg.LinuxEscrowEnabled
+	default:
 		return false
 	}
-	return appConfig.MDM.EnableDiskEncryption.Value
 }
