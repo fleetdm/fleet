@@ -753,7 +753,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			&notifs,
 			host,
 			appConfig,
-			mdmConfig.EnableDiskEncryption,
+			mdmConfig.DiskEncryptionConfig(),
 			isConnectedToFleetMDM,
 			mdmInfo,
 		)
@@ -834,7 +834,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		&notifs,
 		host,
 		appConfig,
-		appConfig.MDM.EnableDiskEncryption.Value,
+		appConfig.MDM.DiskEncryptionConfig(),
 		isConnectedToFleetMDM,
 		mdmInfo,
 	)
@@ -959,15 +959,25 @@ func (svc *Service) setDiskEncryptionNotifications(
 	notifs *fleet.OrbitConfigNotifications,
 	host *fleet.Host,
 	appConfig *fleet.AppConfig,
-	diskEncryptionConfigured bool,
+	diskEncryption fleet.DiskEncryptionConfig,
 	isConnectedToFleetMDM bool,
 	mdmInfo *fleet.HostMDM,
 ) error {
+	// each platform's notifications are gated on that platform's own settings;
+	// the FileVault/Escrow Buddy flow treats the macOS pair as one unit until
+	// the per-payload split ships
+	var platformConfigured bool
+	switch host.FleetPlatform() {
+	case "darwin":
+		platformConfigured = diskEncryption.MacOSEnabled || diskEncryption.MacOSEscrowEnabled
+	case "windows":
+		platformConfigured = diskEncryption.WindowsEnabled
+	}
 	anyMDMConfigured := appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured
 	if !anyMDMConfigured ||
 		!isConnectedToFleetMDM ||
 		!host.IsOsqueryEnrolled() ||
-		!diskEncryptionConfigured {
+		!platformConfigured {
 		return nil
 	}
 

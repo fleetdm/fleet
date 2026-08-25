@@ -5387,6 +5387,8 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
@@ -5433,6 +5435,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5476,6 +5479,8 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
 #### Example
 
@@ -5523,6 +5528,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,

@@ -2028,7 +2028,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		if diskEncryptionConfig.Enabled {
+		if diskEncryptionConfig.LinuxEscrowEnabled {
 			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
@@ -2576,34 +2576,39 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			return nil, ctxerr.Wrap(ctx, err, "get host for activity")
 		}
 
-		// Check if the email has changed; if not, return early to avoid
-		// unnecessary database updates and profile resends.
+		// Check if the email has changed; if not, skip the email update
+		// and activity log but still reconcile the SCIM mapping below
+		// (it may be stale from a prior silent failure).
+		emailChanged := true
 		emails, err := svc.ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingIDP)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host emails for idempotency check")
 		}
 		for _, e := range emails {
 			if strings.EqualFold(e, email) {
-				return svc.ds.ListHostDeviceMapping(ctx, hostID)
+				emailChanged = false
+				break
 			}
 		}
 
-		// Store the IDP username for display (accept any value)
-		// This will appear in the host details API under the idp_username field
-		if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
-		}
+		if emailChanged {
+			// Store the IDP username for display (accept any value)
+			// This will appear in the host details API under the idp_username field
+			if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
+			}
 
-		if err := svc.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeEditedHostIdpData{
-				HostID:          host.ID,
-				HostDisplayName: host.DisplayName(),
-				HostIdPUsername: email,
-			},
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create updated host idp activity")
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeEditedHostIdpData{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+					HostIdPUsername: email,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create updated host idp activity")
+			}
 		}
 
 		// Check if the user is a valid SCIM user to manage the join table

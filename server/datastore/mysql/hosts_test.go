@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1048,7 +1047,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// disk encryption for linux, must enable disk encryption for no team first
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	setAppConfigDiskEncryptionForTest(ac, true)
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
@@ -1123,7 +1122,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
 
 	// enable disk encryption for that team
-	team1.Config.MDM.EnableDiskEncryption = true
+	setTeamMDMDiskEncryptionForTest(&team1.Config.MDM, true)
 	_, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 

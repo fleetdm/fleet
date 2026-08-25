@@ -872,7 +872,16 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 
 		// The config round-trips through JSON, which always carries
 		// deadline_days, so it reads back set-but-null rather than unset.
+		// Disk encryption settings are normalized on marshal, so they read
+		// back as explicit false.
 		assert.Equal(t, &fleet.TeamMDM{
+			MacOSSettings: fleet.MacOSSettings{
+				EnableDiskEncryption:          optjson.SetBool(false),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+			LinuxSettings: fleet.LinuxSettings{
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
@@ -909,6 +918,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings:              optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+				EnableDiskEncryption:        optjson.SetBool(false),
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
