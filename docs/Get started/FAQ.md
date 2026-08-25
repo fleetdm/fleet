@@ -343,6 +343,20 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 * Try unenrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](https://fleetdm.com/docs/using-fleet/adding-hosts).
 
+### Why aren't my hosts being deleted after the host expiry window?
+
+Some hosts are exempt from host expiry. The window also isn't measured against the timestamp in the **Last fetched** column. Check the following:
+
+* Is the host assigned to Fleet in Apple Business or Windows Autopilot? Those hosts are never expired, on any platform. This includes hosts that are still **Pending** because they haven't enrolled yet. Fleet keeps them so they can enroll when the device is set up. The exemption lifts once the host is unassigned or released in Apple Business.
+
+* Is the host still checking in? Fleet measures the window from the host's most recent check-in. A check-in is either an osquery check-in from Fleet's agent (fleetd) or an MDM check-in, whichever is more recent. **Last fetched** is a different timestamp. It's the last time the host reported vitals, so a host can show a stale **Last fetched** and still be checking in. That host won't expire. This is common on iOS and iPadOS hosts, which report vitals over MDM.
+
+* Is host expiry turned on? Setting a window isn't enough. Turn on host expiry in **Settings > Organization settings > Advanced options**, or on the fleet. Turning it off on a fleet doesn't exempt that fleet. It tells the fleet to use the organization setting instead.
+
+* Has it run yet? Host expiry runs hourly. Expired hosts appear in the activity feed as host deletions. That's the quickest way to confirm host expiry is running. You can also trigger a run with `fleetctl trigger --name=cleanups_then_aggregation`.
+
+For more detail on host expiry settings, see the [YAML files documentation](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings).
+
 ### How does Fleet deal with IP duplication?
 
 Fleet relies on UUIDs, so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations, as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.

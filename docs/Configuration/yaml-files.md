@@ -917,6 +917,22 @@ If this setting is not defined in your YAML files, unlike all other settings, it
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
+#### How host expiry works
+
+`host_expiry_window` does nothing on its own. `host_expiry_enabled` must be set to `true` in `org_settings` or on the fleet.
+
+Setting `host_expiry_enabled: false` on a fleet means "use the setting from `org_settings`". It does not exempt the fleet. To apply host expiry to only some fleets, leave it off in `org_settings` and turn it on for those fleets.
+
+Fleet measures the window from the host's most recent check-in. A check-in is either an osquery check-in from Fleet's agent (fleetd) or an MDM check-in, whichever is more recent. For a host that has never checked in, Fleet uses **Last fetched** instead, then the date the host was added to Fleet.
+
+**Last fetched** is the last time the host reported vitals, which is not the same as a check-in. A host that reports vitals infrequently but still checks in won't expire. This is common on iOS and iPadOS hosts, which report vitals over MDM.
+
+Hosts assigned to Fleet in Apple Business are never expired. This covers macOS, iOS, and iPadOS hosts, including hosts that are still **Pending** because they haven't enrolled yet. Windows hosts assigned to Fleet in Windows Autopilot are exempt the same way. The exemption lifts once the host is unassigned or released in Apple Business. Manually enrolled hosts and BYOD hosts aren't exempt.
+
+Host expiry runs hourly. Expired hosts appear in the activity feed as host deletions.
+
+For help troubleshooting hosts that aren't being deleted, see the [FAQ](https://fleetdm.com/docs/get-started/faq#why-arent-my-hosts-being-deleted-after-the-host-expiry-window).
+
 #### Example
 
 ```yaml
