@@ -78,7 +78,7 @@ type PolicyPayload struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
-	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
 	NotifyBeforePatching bool
 }
 
@@ -135,7 +135,7 @@ type NewTeamPolicyPayload struct {
 	ContinuousAutomationsEnabled bool
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
-	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
 	NotifyBeforePatching bool
 }
 
@@ -157,6 +157,7 @@ var (
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
 	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\" or \"notify_before_patching\" can be set to true")
+	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -372,7 +373,7 @@ type ModifyPolicyPayload struct {
 	Type string `json:"-"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
-	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
 	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
 }
 
@@ -484,7 +485,7 @@ type PolicyData struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
-	// NotifyBeforePatching skips the install while the app is open, and notifies the end user first.
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
 	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 
 	UpdateCreateTimestamps
@@ -694,6 +695,8 @@ type PolicySpec struct {
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -752,6 +755,12 @@ func (p PolicySpec) Verify() error {
 	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchWhenClosed && p.NotifyBeforePatching {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()
 }

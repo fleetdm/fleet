@@ -223,7 +223,7 @@ type Policy struct {
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
 	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
-	// explicitly vs. omitted, which patch_when_closed validation needs.
+	// explicitly vs. omitted, which the patch option validation needs.
 	ContinuousAutomations optjson.Bool                           `json:"continuous_automations_enabled"`
 	RunScript             *PolicyRunScript                       `json:"run_script"`
 	InstallSoftware       optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
@@ -2055,20 +2055,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// Make sure team name is correct, and do additional validation
 	var patchSlugs []string
 	for _, item := range result.Policies {
-		if item.Name == "" {
-			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
-		} else {
-			item.Name = norm.NFC.String(item.Name)
-		}
+		item.Name = norm.NFC.String(item.Name)
 		// Reconcile the shadow value into the embedded field the apply path reads.
 		if item.ContinuousAutomations.Valid {
 			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
 		}
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
-		}
-		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
-			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
 		}
 		if item.Type == fleet.PolicyTypePatch {
 			if _, ok := fmasBySlug[item.FleetMaintainedAppSlug]; !ok {
@@ -2084,24 +2077,26 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
-			if item.PatchWhenClosed {
+			if item.PatchWhenClosed || item.NotifyBeforePatching {
+				patchOption := "patch_when_closed"
+				if item.NotifyBeforePatching {
+					patchOption = "notify_before_patching"
+				}
 				// Declarative: reject an explicit false instead of letting the datastore silently
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
 				// Fleet manages the app-open query, so a user pre_install_query on the FMA is rejected.
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug))
+						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when %q is true; Fleet manages this query.`,
+						item.Name, item.FleetMaintainedAppSlug, patchOption))
 				}
 			}
-		} else if item.FleetMaintainedAppSlug != "" {
-			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -2110,6 +2105,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
 			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies included in `%s`: %q", filepath.Base(parentFilePath), item.Name))
+		}
+		if err := item.Verify(); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("Couldn't apply policy %q: %w", item.Name, err))
 		}
 	}
 	duplicates := getDuplicateNames(

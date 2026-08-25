@@ -73,11 +73,25 @@ policies:
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
+  notify_before_patching: false
   patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: true
+  critical: false
+  description: This is a team patch policy that notifies before patching
+  fleet_maintained_app_slug: foo/darwin
+  name: My Notify FMA up to date
+  notify_before_patching: true
+  patch_when_closed: false
+  platform: darwin
+  resolution: Install the latest version from self-service
+  type: patch
+  webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
   continuous_automations_enabled: false
@@ -221,6 +235,7 @@ software:
   - self_service: true
     slug: fma3/windows
     version: "^123"
+  - slug: fma4/darwin
   packages:
   - categories:
     - Browsers

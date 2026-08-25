@@ -372,6 +372,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(3),
 				},
 			},
+			{
+				ID:         11,
+				Name:       "My Notify FMA",
+				HashSHA256: new("notify-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-notify-fma.pkg",
+					Platform:             "darwin",
+					Version:              "1",
+					FleetMaintainedAppID: new(uint(4)),
+				},
+			},
 		}, nil
 	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -389,6 +400,7 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 		{ID: 1, Slug: "fma1/darwin", Name: "My FMA", Platform: "darwin", UniqueIdentifier: "com.my.fma"},
 		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
 		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
+		{ID: 4, Slug: "fma4/darwin", Name: "My Notify FMA", Platform: "darwin", UniqueIdentifier: "com.my.notifyfma"},
 	}, nil
 }
 
@@ -467,6 +479,21 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:                           6,
+				Name:                         "My Notify FMA up to date",
+				Resolution:                   new("Install the latest version from self-service"),
+				Description:                  "This is a team patch policy that notifies before patching",
+				Platform:                     "darwin",
+				Type:                         fleet.PolicyTypePatch,
+				NotifyBeforePatching:         true,
+				ContinuousAutomationsEnabled: true,
+			},
+			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 11,
 			},
 		},
 		{
@@ -735,6 +762,26 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
 				PinnedVersion:        new("^123"),
+			},
+		}, nil
+	case 11:
+		return &fleet.SoftwareTitle{
+			ID:   11,
+			Name: "My Notify FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				Platform:             "darwin",
+				FleetMaintainedAppID: new(uint(4)),
+				// Mirrors the API, which returns the managed app open query while
+				// notify_before_patching is on.
+				PreInstallQuery: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'My Notify FMA');",
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           6,
+					Name:                         "My Notify FMA up to date",
+					NotifyBeforePatching:         true,
+					ContinuousAutomationsEnabled: true,
+				},
 			},
 		}, nil
 	default:
@@ -1057,7 +1104,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}, {"name": "My Notify FMA", "slug": "fma4/darwin", "platform": "darwin", "unique_identifier": "com.my.notifyfma"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -2061,6 +2108,9 @@ func TestGenerateSoftware(t *testing.T) {
 	// The windows FMA is patch_when_closed, so its query is not written out.
 	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-windows-fma-windows-preinstallquery.yml")
 
+	// The notify FMA is notify_before_patching, so its query is not written out either.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-notify-fma-darwin-preinstallquery.yml")
+
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
 		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
 	} else {
@@ -2690,6 +2740,10 @@ func TestGeneratePolicies(t *testing.T) {
 				MaintainedAppID: 1,
 				Slug:            "fma1/darwin",
 			},
+			11: {
+				MaintainedAppID: 4,
+				Slug:            "fma4/darwin",
+			},
 		},
 		ScriptList: map[uint]string{
 			1: "/path/to/script1.sh",
@@ -2738,7 +2792,7 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, generatedPolicies)
+	require.Equal(t, expectedTeamPolicies, generatedTeamPolicies)
 }
 
 func TestGenerateQueries(t *testing.T) {

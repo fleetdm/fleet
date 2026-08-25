@@ -258,7 +258,6 @@ const (
 	errPolicyAllFleetsForContinuousAutomations           = "\"All fleets\" policy cannot have continuous_automations_enabled set"
 	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
-	errNotifyBeforePatchingRequiresMacOS                 = "\"notify_before_patching\" is available for macOS Fleet-maintained apps. It's coming soon to Windows."
 )
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -504,6 +503,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// PatchWhenClosed is premium-only.
 		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// NotifyBeforePatching is premium-only.
+		if policy.NotifyBeforePatching && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 
