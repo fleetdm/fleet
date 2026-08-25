@@ -1799,7 +1799,7 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 // is visible before its labels are written) leaks a label-scoped query to
 // out-of-scope hosts (#49502).
 func testQueryLabelsAtomic(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
