@@ -3955,8 +3955,6 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	newActivityCalls := 0
 	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
-		act := fleet.ActivityTypeEnabledMacosDiskEncryption{}
-		require.Equal(t, act.ActivityName(), activity.ActivityName())
 		newActivityCalls++
 		return nil
 	}
@@ -4011,7 +4009,9 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	require.EqualValues(t, 2, newProfileCalls)
 	require.EqualValues(t, 2, deleteCalls)
-	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
+	// no activities: the settings didn't change, the FileVault profile is
+	// (re)created as a side effect of turning on Apple MDM
+	require.Equal(t, 0, newActivityCalls)
 }
 
 func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
@@ -5379,7 +5379,9 @@ func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {
 	svc := &Service{ds: ds} // no server private key configured
 	svc.SetActivityService(&mock.MockActivityService{
 		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
-			t.Fatalf("no activity expected for a PIN-only change, got %s", activity.ActivityName())
+			// the PIN is a Windows disk encryption setting, so its change is
+			// recorded as a windows settings edit
+			require.Equal(t, fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(), activity.ActivityName())
 			return nil
 		},
 	})

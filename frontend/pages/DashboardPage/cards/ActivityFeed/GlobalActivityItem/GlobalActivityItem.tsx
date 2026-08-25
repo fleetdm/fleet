@@ -911,6 +911,21 @@ const TAGGED_TEMPLATES = {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
+  editedDiskEncryptionSettings: (activity: IActivity) => {
+    const platformDisplay =
+      {
+        macos: "macOS",
+        windows: "Windows",
+        linux: "Linux",
+      }[activity.details?.platform ?? ""] ?? "";
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
+    return (
+      <>
+        {" "}
+        edited disk encryption settings for {platformDisplay} hosts{suffix}.
+      </>
+    );
+  },
   enabledRecoveryLockPasswords: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
@@ -2523,6 +2538,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     // Note: This activity is generated for all platforms.
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
+    }
+    case ActivityType.EditedDiskEncryptionSettings: {
+      return TAGGED_TEMPLATES.editedDiskEncryptionSettings(activity);
     }
     case ActivityType.EnabledRecoveryLockPasswords: {
       return TAGGED_TEMPLATES.enabledRecoveryLockPasswords(activity);

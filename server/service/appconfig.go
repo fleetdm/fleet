@@ -1635,30 +1635,44 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	// The FileVault profile covers enforcement and escrow as a whole: it
-	// exists whenever either macOS setting is on, so only the off<->on
-	// transition of the pair creates or deletes it.
-	macOSDiskEncryptionOn := appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
-		appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-	macOSDiskEncryptionWasOn := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
-		oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-	if macOSDiskEncryptionOn != macOSDiskEncryptionWasOn {
-		if oldAppConfig.MDM.EnabledAndConfigured {
-			var act fleet.ActivityDetails
-			if macOSDiskEncryptionOn {
-				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
-				}
-			} else {
-				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
-				}
+	macOSDiskEncryptionChanged := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value != appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+		oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+	windowsDiskEncryptionChanged := oldAppConfig.MDM.WindowsSettings.EnableDiskEncryption.Value != appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value ||
+		oldAppConfig.MDM.RequireBitLockerPIN.Value != appConfig.MDM.RequireBitLockerPIN.Value
+	linuxDiskEncryptionChanged := oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+
+	if macOSDiskEncryptionChanged && oldAppConfig.MDM.EnabledAndConfigured {
+		// The FileVault profile can cover both enforcement and key escrow, so
+		// only the off<->on transition of the pair creates or deletes it.
+		macOSDiskEncryptionOn := appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value || appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+		macOSDiskEncryptionWasOn := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value || oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+		switch {
+		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
+			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
 			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
+			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
 			}
+		}
+	}
+
+	for _, pc := range []struct {
+		platform string
+		changed  bool
+	}{
+		{"macos", macOSDiskEncryptionChanged},
+		{"windows", windowsDiskEncryptionChanged},
+		{"linux", linuxDiskEncryptionChanged},
+	} {
+		if !pc.changed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDiskEncryptionSettings{
+			Platform: pc.platform,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for app config disk encryption settings")
 		}
 	}
 
