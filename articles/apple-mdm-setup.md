@@ -266,16 +266,6 @@ This means you **do not need to delete** an AB host from Fleet before re-enrolli
 
 > For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
-### AB hosts that look stale but are never removed
-
-Host expiry never removes a host assigned to Fleet in AB, no matter how long ago it last reported vitals. This includes hosts that are still **Pending** because they haven't enrolled yet. The exemption lifts once the device is released or reassigned in AB.
-
-**Last fetched** also isn't what host expiry measures. iOS and iPadOS hosts report vitals over MDM, so a host can show a stale **Last fetched** while it's still checking in. See [Why aren't my hosts being deleted after the host expiry window?](https://fleetdm.com/docs/get-started/faq#why-arent-my-hosts-being-deleted-after-the-host-expiry-window) in the FAQ.
-
-### AB hosts that come back after being deleted
-
-Deleting a host in Fleet doesn't change its assignment in AB. A host still assigned to Fleet comes back as **Pending** right after you delete it. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet.
-
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
