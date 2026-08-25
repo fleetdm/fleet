@@ -4389,6 +4389,26 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), nonExistentMemberPayload, http.StatusBadRequest, &errorResp)
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
 	})
+
+	t.Run("Non-existent member ID in a replace", func(t *testing.T) {
+		errorResp := patchGroup(t, s, groupID, http.StatusBadRequest, map[string]any{
+			"op":    "replace",
+			"path":  "members",
+			"value": []map[string]any{{"value": "4294967295"}},
+		})
+		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
+	})
+
+	t.Run("Patched attributes are persisted", func(t *testing.T) {
+		patchGroup(t, s, groupID, http.StatusOK,
+			map[string]any{"op": "replace", "path": "displayName", "value": "Persisted Group Name"},
+			map[string]any{"op": "replace", "path": "externalId", "value": "persisted-external-id"},
+		)
+
+		got := getGroup(t, s, groupID)
+		assert.Equal(t, "Persisted Group Name", got["displayName"], "displayName should be persisted")
+		assert.Equal(t, "persisted-external-id", got["externalId"], "externalId should be persisted")
+	})
 }
 
 func testPatchGroupMembers(t *testing.T, s *Suite) {
@@ -4721,6 +4741,58 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member")
 	})
+
+	t.Run("Member changes are persisted and leave other members alone", func(t *testing.T) {
+		member := func(id string) map[string]any { return map[string]any{"value": id} }
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "members",
+			"value": []map[string]any{member(userIDs[0]), member(userIDs[1])},
+		})
+		require.ElementsMatch(t, []string{userIDs[0], userIDs[1]}, groupMemberValues(t, s, groupID),
+			"replace should be persisted")
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "add", "path": "members", "value": []map[string]any{member(userIDs[2])},
+		})
+		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
+			"adding a member must not drop the members the request never mentioned")
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "displayName", "value": "Renamed Patch Members Group",
+		})
+		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
+			"a displayName-only patch must not touch membership")
+	})
+}
+
+func patchGroup(t *testing.T, s *Suite, groupID string, expectedStatus int, ops ...map[string]any) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), map[string]any{
+		"schemas":    []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": ops,
+	}, expectedStatus, &resp)
+	return resp
+}
+
+func getGroup(t *testing.T, s *Suite, groupID string) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusOK, &resp)
+	return resp
+}
+
+func groupMemberValues(t *testing.T, s *Suite, groupID string) []string {
+	t.Helper()
+	raw, _ := getGroup(t, s, groupID)["members"].([]any)
+	values := make([]string, 0, len(raw))
+	for _, m := range raw {
+		member, ok := m.(map[string]any)
+		require.True(t, ok, "member should be an object")
+		values = append(values, member["value"].(string))
+	}
+	return values
 }
 
 func scimPath(suffix string) string {

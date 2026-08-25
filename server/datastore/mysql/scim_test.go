@@ -41,6 +41,8 @@ func TestScim(t *testing.T) {
 		{"ScimGroupByID", testScimGroupByID},
 		{"ScimGroupByDisplayName", testScimGroupByDisplayName},
 		{"ReplaceScimGroup", testReplaceScimGroup},
+		{"ApplyScimGroupPatch", testApplyScimGroupPatch},
+		{"ApplyScimGroupPatchResendOnRenameWithRemovals", testApplyScimGroupPatchResendOnRenameWithRemovals},
 		{"ReplaceScimGroupValidation", testScimGroupReplaceValidation},
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
@@ -1183,6 +1185,145 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 
 	err = ds.ReplaceScimGroup(t.Context(), &nonExistentGroup)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testApplyScimGroupPatch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	users := createTestScimUsers(t, ds)
+	require.Len(t, users, 2)
+	keptUserID, removedUserID := users[0].ID, users[1].ID
+
+	addedUser := fleet.ScimUser{UserName: "patch-added-user", Emails: []fleet.ScimUserEmail{}}
+	addedUserID, err := ds.CreateScimUser(ctx, &addedUser)
+	require.NoError(t, err)
+
+	newChildGroup := func(name string) uint {
+		id, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: name})
+		require.NoError(t, err)
+		return id
+	}
+	keptChildID, removedChildID, addedChildID := newChildGroup("Kept Child"), newChildGroup("Removed Child"), newChildGroup("Added Child")
+
+	group := &fleet.ScimGroup{
+		DisplayName: "Patch Test Group",
+		ExternalID:  new("ext-patch-group-123"),
+		ScimUsers:   []uint{keptUserID, removedUserID},
+		ChildGroups: []uint{keptChildID, removedChildID},
+	}
+	group.ID, err = ds.CreateScimGroup(ctx, group)
+	require.NoError(t, err)
+
+	const wantExternalID = "ext-patch-group-456"
+
+	// The steps apply in order, each to the state the one before it left behind.
+	// Member slices on the group are left empty on purpose: the deltas drive the
+	// membership write.
+	steps := []struct {
+		name        string
+		displayName string
+		deltas      fleet.ScimGroupMemberDeltas
+	}{
+		{
+			name:        "deltas touch only the members they name",
+			displayName: "Patched Test Group",
+			deltas: fleet.ScimGroupMemberDeltas{
+				AddUsers:          []uint{addedUserID},
+				RemoveUsers:       []uint{removedUserID},
+				AddChildGroups:    []uint{addedChildID},
+				RemoveChildGroups: []uint{removedChildID},
+			},
+		},
+		{
+			name:        "empty deltas update the scalars and leave membership alone",
+			displayName: "Renamed Test Group",
+		},
+		{
+			name:        "re-adding a member and removing a non-member are no-ops",
+			displayName: "Renamed Test Group",
+			deltas: fleet.ScimGroupMemberDeltas{
+				AddUsers:          []uint{keptUserID},
+				RemoveUsers:       []uint{removedUserID},
+				AddChildGroups:    []uint{keptChildID},
+				RemoveChildGroups: []uint{removedChildID},
+			},
+		},
+	}
+
+	// Whatever the step asks for, the membership it leaves behind is the same.
+	wantUsers := []uint{keptUserID, addedUserID}
+	wantChildren := []uint{keptChildID, addedChildID}
+
+	for _, step := range steps {
+		t.Run(step.name, func(t *testing.T) {
+			require.NoError(t, ds.ApplyScimGroupPatch(ctx, &fleet.ScimGroup{
+				ID:          group.ID,
+				DisplayName: step.displayName,
+				ExternalID:  new(wantExternalID),
+			}, step.deltas))
+
+			got, err := ds.ScimGroupByID(ctx, group.ID, false)
+			require.NoError(t, err)
+			require.Equal(t, step.displayName, got.DisplayName)
+			require.Equal(t, new(wantExternalID), got.ExternalID)
+			require.ElementsMatch(t, wantUsers, got.ScimUsers)
+			require.ElementsMatch(t, wantChildren, got.ChildGroups)
+		})
+	}
+
+	t.Run("a group that does not exist is not found", func(t *testing.T) {
+		err := ds.ApplyScimGroupPatch(ctx,
+			&fleet.ScimGroup{ID: 99999, DisplayName: "Non-existent"}, fleet.ScimGroupMemberDeltas{})
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("an over-long display name is rejected", func(t *testing.T) {
+		err := ds.ApplyScimGroupPatch(ctx, &fleet.ScimGroup{
+			ID:          group.ID,
+			DisplayName: strings.Repeat("a", fleet.SCIMMaxFieldLength+1),
+		}, fleet.ScimGroupMemberDeltas{})
+		validationErr := &fleet.SCIMValidationError{}
+		require.ErrorAs(t, err, &validationErr)
+		require.Equal(t, "display_name", validationErr.Field)
+	})
+}
+
+func testApplyScimGroupPatchResendOnRenameWithRemovals(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host1 := test.NewHost(t, ds, "patch-resend-h1", "192.168.1.201", "patch-resend-k1", "patch-resend-uuid1", time.Now())
+	host2 := test.NewHost(t, ds, "patch-resend-h2", "192.168.1.202", "patch-resend-k2", "patch-resend-uuid2", time.Now())
+
+	prof, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("patch-resend", "patch-resend", 0),
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
+	require.NoError(t, err)
+
+	user1, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "patch-resend-1@example.com"})
+	require.NoError(t, err)
+	user2, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "patch-resend-2@example.com"})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host1.ID, user1))
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host2.ID, user2))
+
+	childID, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "patch-resend-child", ScimUsers: []uint{user2}})
+	require.NoError(t, err)
+	groupID, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{
+		DisplayName: "patch-resend-group", ScimUsers: []uint{user1}, ChildGroups: []uint{childID},
+	})
+	require.NoError(t, err)
+
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, prof, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, host2.UUID, prof, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	// A single call that renames the group and removes both the direct member and
+	// the child group must resend to the removed members' hosts: their group
+	// lists changed even though they are no longer part of the renamed group.
+	require.NoError(t, ds.ApplyScimGroupPatch(ctx,
+		&fleet.ScimGroup{ID: groupID, DisplayName: "patch-resend-renamed"},
+		fleet.ScimGroupMemberDeltas{RemoveUsers: []uint{user1}, RemoveChildGroups: []uint{childID}},
+	))
+	assertHostProfileStatus(t, ds, host1.UUID, hostProfileStatus{prof.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host2.UUID, hostProfileStatus{prof.ProfileUUID, fleet.MDMDeliveryPending})
 }
 
 func testScimGroupReplaceValidation(t *testing.T, ds *Datastore) {
