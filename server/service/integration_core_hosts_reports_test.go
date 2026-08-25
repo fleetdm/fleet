@@ -15,7 +15,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -33,12 +32,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   ptr.String("1"),
+		OsqueryHostID:   new("1"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -49,12 +48,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "2"),
+		NodeKey:         new(t.Name() + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
-		OsqueryHostID:   ptr.String("2"),
+		OsqueryHostID:   new("2"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -65,12 +64,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "3"),
+		NodeKey:         new(t.Name() + "3"),
 		UUID:            t.Name() + "3",
 		Hostname:        t.Name() + "foo.local3",
 		PrimaryIP:       "192.168.1.3",
 		PrimaryMac:      "30-65-EC-6F-C4-5F",
-		OsqueryHostID:   ptr.String("3"),
+		OsqueryHostID:   new("3"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -81,12 +80,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "4"),
+		NodeKey:         new(t.Name() + "4"),
 		UUID:            t.Name() + "4",
 		Hostname:        t.Name() + "foo.local4",
 		PrimaryIP:       "192.168.1.4",
 		PrimaryMac:      "30-65-EC-6F-C4-5A",
-		OsqueryHostID:   ptr.String("4"),
+		OsqueryHostID:   new("4"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -97,12 +96,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "5"),
+		NodeKey:         new(t.Name() + "5"),
 		UUID:            t.Name() + "5",
 		Hostname:        t.Name() + "foo.local5",
 		PrimaryIP:       "192.168.1.5",
 		PrimaryMac:      "30-65-EC-6F-D5-5A",
-		OsqueryHostID:   ptr.String("5"),
+		OsqueryHostID:   new("5"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -197,7 +196,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
-	require.Len(t, macadminsData.Macadmins.MunkiIssues, 0)
+	require.Empty(t, macadminsData.Macadmins.MunkiIssues)
 	assert.Equal(t, "https://kandji.io", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "On (automatic)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
@@ -249,10 +248,10 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			HostsCount: 1,
 		},
 	})
-	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
-	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
-	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
-	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 3)
+	assert.Equal(t, 0, agg.Macadmins.MDMStatus.EnrolledManualHostsCount)
+	assert.Equal(t, 2, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount)
+	assert.Equal(t, 1, agg.Macadmins.MDMStatus.UnenrolledHostsCount)
+	assert.Equal(t, 3, agg.Macadmins.MDMStatus.HostsCount)
 	require.Len(t, agg.Macadmins.MDMSolutions, 2)
 	for _, sol := range agg.Macadmins.MDMSolutions {
 		switch sol.ServerURL {
@@ -263,7 +262,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			assert.Equal(t, fleet.WellKnownMDMIru, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		default:
-			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
+			require.Fail(t, fmt.Sprintf("unknown MDM server URL: %s", sol.ServerURL))
 		}
 	}
 
@@ -351,7 +350,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -414,7 +413,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -481,7 +480,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
 	require.NoError(t, err)
-	_, err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil) // nolint:nilaway // cannot be nil due to previous require
 	require.NoError(t, err)
 
 	// create some device mappings for host[2]
@@ -492,8 +491,8 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, new(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, new(1200.0)))
 
 	// create software for host [0]
 	software := []fleet.Software{
@@ -632,7 +631,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 		if row[0] == fmt.Sprint(hosts[2].ID) {
 			require.Equal(t, "a@b.c,b@b.c", row[2], row)
 		} else {
-			require.Equal(t, "", row[2], row)
+			require.Empty(t, row[2], row)
 		}
 	}
 
@@ -718,8 +717,8 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
-	require.Len(t, rows, 2) // headers + member host
-	require.Contains(t, rows[1], hosts[0].Hostname)
+	require.Len(t, rows, 2)                         // headers + member host
+	require.Contains(t, rows[1], hosts[0].Hostname) // nolint:nilaway // createHosts always returns at least one host
 
 	// valid format but an invalid column is provided
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "format", "csv", "columns", "memory,hostname,status,nosuchcolumn")
@@ -795,14 +794,18 @@ func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
 	for _, row := range rows[1:] {
 		byHostname[row[0]] = row
 	}
+	mappedRow, ok := byHostname[mapped.Hostname]
+	require.True(t, ok)
+	unmappedRow, ok := byHostname[unmapped.Hostname]
+	require.True(t, ok)
 
 	// Apple host: raw model plus the mapped marketing name.
-	require.Equal(t, "MacBookPro18,1", byHostname[mapped.Hostname][1])
-	require.Equal(t, fleet.AppleHardwareModelsToMarketingNames["MacBookPro18,1"], byHostname[mapped.Hostname][2])
+	require.Equal(t, "MacBookPro18,1", mappedRow[1])
+	require.Equal(t, fleet.AppleHardwareModelsToMarketingNames["MacBookPro18,1"], mappedRow[2])
 
 	// Non-Apple host: raw model, empty marketing name.
-	require.Equal(t, "Standard PC", byHostname[unmapped.Hostname][1])
-	require.Empty(t, byHostname[unmapped.Hostname][2])
+	require.Equal(t, "Standard PC", unmappedRow[1])
+	require.Empty(t, unmappedRow[2])
 }
 
 func (s *integrationTestSuite) TestGetHostBatteries() {
@@ -813,7 +816,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -855,7 +858,7 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
+		NodeKey:         new("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -940,7 +943,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -975,8 +978,8 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -990,8 +993,8 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.1.2",
@@ -1005,8 +1008,8 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
 		UUID:            t.Name() + "3",
 		Hostname:        t.Name() + "foo3.local",
 		PrimaryIP:       "192.168.1.3",
@@ -1409,7 +1412,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         ptr.String(name),
+			NodeKey:         new(name),
 			UUID:            name,
 			Hostname:        "foo.local." + name,
 		})
@@ -1420,7 +1423,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 
 	hostCount := 10
 	hosts := make([]*fleet.Host, 0, hostCount)
-	for i := 0; i < hostCount; i++ {
+	for i := range hostCount {
 		hosts = append(hosts, newHostFunc(fmt.Sprintf("h%d", i)))
 	}
 
@@ -1484,7 +1487,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 
 	for i := 1; i < len(hosts)+1; i++ {
 		row := rows1[i]
-		require.Equal(t, row[issuesIdx], "1")
+		require.Equal(t, "1", row[issuesIdx])
 	}
 
 	// Running with disable_issues=true (which overrides disable_failing_policies=false) disable the counting of failed policies for a host.
@@ -1502,7 +1505,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
 		row := rows2[i]
-		require.Equal(t, row[issuesIdx], "0")
+		require.Equal(t, "0", row[issuesIdx])
 		row1 := rows1[i]
 		require.Equal(t, row[idIdx], row1[idIdx])
 	}
@@ -1578,11 +1581,11 @@ func (s *integrationTestSuite) TestHostHealth() {
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
-		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
+		OsqueryHostID:   new(t.Name() + "hostid1"),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		NodeKey:         new(t.Name() + "nodekey1"),
 		UUID:            t.Name() + "uuid1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -1661,20 +1664,20 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.NotNil(t, hh.HostHealth)
 	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
-	assert.Equal(t, hh.HostHealth.VulnerableSoftware[0], fleet.HostHealthVulnerableSoftware{
+	assert.Equal(t, fleet.HostHealthVulnerableSoftware{
 		ID:      soft1.ID,
 		Name:    soft1.Name,
 		Version: soft1.Version,
-	})
+	}, hh.HostHealth.VulnerableSoftware[0])
 	assert.Equal(t, 1, hh.HostHealth.FailingPoliciesCount)
 	assert.Nil(t, hh.HostHealth.FailingCriticalPoliciesCount)
 	assert.Len(t, hh.HostHealth.FailingPolicies, 1)
-	assert.Equal(t, hh.HostHealth.FailingPolicies[0], &fleet.HostHealthFailingPolicy{
+	assert.Equal(t, &fleet.HostHealthFailingPolicy{
 		ID:         failingPolicy.ID,
 		Name:       failingPolicy.Name,
 		Resolution: failingPolicy.Resolution,
 		Critical:   nil,
-	})
+	}, hh.HostHealth.FailingPolicies[0])
 	assert.True(t, *hh.HostHealth.DiskEncryptionEnabled)
 	// Check that the TeamID didn't make it into the response
 	assert.Nil(t, hh.HostHealth.TeamID)
@@ -1684,11 +1687,11 @@ func (s *integrationTestSuite) TestHostHealth() {
 	resp := getHostHealthResponse{}
 	host1, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
-		OsqueryHostID:   ptr.String(t.Name() + "hostid2"),
+		OsqueryHostID:   new(t.Name() + "hostid2"),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "nodekey2"),
+		NodeKey:         new(t.Name() + "nodekey2"),
 		UUID:            t.Name() + "uuid2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.2.2",
@@ -1765,7 +1768,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, savedScript.Name, d.ScriptName)
 	require.Equal(t, host.DisplayName(), d.HostDisplayName)
 	require.Equal(t, host.ID, d.HostID)
-	require.Equal(t, true, d.Async)
+	require.True(t, d.Async)
 
 	// sleep to have the created_at timestamps differ
 	time.Sleep(time.Second)
@@ -1818,8 +1821,8 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1931,7 +1934,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
 
 			require.Equal(t, uint(6), listResp.Count)
-			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
+			require.Len(t, listResp.Activities, len(c.wantExecs))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 
 			var gotExecs []string
@@ -1966,8 +1969,8 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "2"),
-		NodeKey:         ptr.String(t.Name() + "2"),
+		OsqueryHostID:   new(t.Name() + "2"),
+		NodeKey:         new(t.Name() + "2"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo2.local", t.Name()),
 		Platform:        "darwin",
@@ -1994,8 +1997,8 @@ func (s *integrationTestSuite) TestListHostReports() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        t.Name() + ".local",
 		Platform:        "linux",
@@ -2038,14 +2041,14 @@ func (s *integrationTestSuite) TestListHostReports() {
 
 	// Insert two result rows for qAlpha on the host (to test has_more_results and first_result).
 	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
-		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: ptr.RawMessage([]byte(`{"col":"older"}`))},
-		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"newest"}`))},
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: new(json.RawMessage(`{"col":"older"}`))},
+		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"newest"}`))},
 	}, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 
 	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
 	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
-		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"discarded"}`))},
+		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"discarded"}`))},
 	}, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 
@@ -2303,8 +2306,8 @@ func (s *integrationTestSuite) TestListHostReports() {
 				LabelUpdatedAt:  time.Now(),
 				PolicyUpdatedAt: time.Now(),
 				SeenTime:        time.Now(),
-				OsqueryHostID:   ptr.String(t.Name() + suffix),
-				NodeKey:         ptr.String(t.Name() + suffix),
+				OsqueryHostID:   new(t.Name() + suffix),
+				NodeKey:         new(t.Name() + suffix),
 				UUID:            uuid.New().String(),
 				Hostname:        t.Name() + "-" + suffix + ".local",
 				Platform:        "linux",

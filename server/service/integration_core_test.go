@@ -40,7 +40,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -205,8 +204,8 @@ func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -251,10 +250,10 @@ func (s *integrationTestSuite) TestDoubleUserCreationErrors() {
 	t := s.T()
 
 	params := fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("email@asd.com"),
+		Name:       new("user1"),
+		Email:      new("email@asd.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
@@ -267,9 +266,9 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 	t := s.T()
 
 	params := fleet.UserPayload{
-		Name:     ptr.String("user1"),
-		Email:    ptr.String("email@asd.com"),
-		Password: ptr.String(test.GoodPassword),
+		Name:     new("user1"),
+		Email:    new("email@asd.com"),
+		Password: new(test.GoodPassword),
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -278,25 +277,25 @@ func (s *integrationTestSuite) TestUserWithoutRoleErrors() {
 
 func (s *integrationTestSuite) TestUserEmailValidation() {
 	params := fleet.UserPayload{
-		Name:       ptr.String("user_invalid_email"),
-		Email:      ptr.String("invalid"),
+		Name:       new("user_invalid_email"),
+		Email:      new("invalid"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 
-	params.Email = ptr.String("user_valid_mail@example.com")
+	params.Email = new("user_valid_mail@example.com")
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	params := fleet.UserPayload{
-		Name:  ptr.String("user_invalid_email"),
-		Email: ptr.String("test@example.com"),
+		Name:  new("user_invalid_email"),
+		Email: new("test@example.com"),
 		// This is 73 characters long
-		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Password:   new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -307,10 +306,10 @@ func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
 	params := fleet.UserPayload{
-		Name:       ptr.String("user1"),
-		Email:      ptr.String("email@asd.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String("wrongrole"),
+		Name:       new("user1"),
+		Email:      new("email@asd.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new("wrongrole"),
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 	assertErrorCodeAndMessage(t, resp, fleet.ErrNoRoleNeeded, "invalid global role: wrongrole")
@@ -329,9 +328,9 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	}
 
 	params := fleet.UserPayload{
-		Name:     ptr.String("user2"),
-		Email:    ptr.String("email2@asd.com"),
-		Password: ptr.String(test.GoodPassword),
+		Name:     new("user2"),
+		Email:    new("email2@asd.com"),
+		Password: new(test.GoodPassword),
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
@@ -344,19 +343,19 @@ func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
 	// api_endpoints cannot be specified directly on this endpoint.
 	var resp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:         ptr.String("user1"),
-		Email:        ptr.String("apireject@example.com"),
+		Name:         new("user1"),
+		Email:        new("apireject@example.com"),
 		Password:     &test.GoodPassword,
-		GlobalRole:   ptr.String(fleet.RoleObserver),
+		GlobalRole:   new(fleet.RoleObserver),
 		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 	}, http.StatusUnprocessableEntity, &resp)
 
 	var apiOnlyResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("api-only-legacy"),
-		Email:      ptr.String("api-only-legacy@example.com"),
+		Name:       new("api-only-legacy"),
+		Email:      new("api-only-legacy@example.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 		APIOnly:    new(true),
 	}, http.StatusOK, &apiOnlyResp)
 	require.True(t, apiOnlyResp.User.APIOnly)
@@ -369,10 +368,10 @@ func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {
 	// Create a regular user to use as target.
 	var createResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("regular-api-protect"),
-		Email:      ptr.String("regular-api-protect@example.com"),
+		Name:       new("regular-api-protect"),
+		Email:      new("regular-api-protect@example.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 	regularID := createResp.User.ID
@@ -530,10 +529,10 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 
 	var createRegularResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("regular-modify-api-only"),
-		Email:      ptr.String("regular-modify-api-only@example.com"),
+		Name:       new("regular-modify-api-only"),
+		Email:      new("regular-modify-api-only@example.com"),
 		Password:   &test.GoodPassword,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}, http.StatusOK, &createRegularResp)
 	require.NotZero(t, createRegularResp.User.ID)
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", createRegularResp.User.ID), map[string]any{
@@ -567,8 +566,8 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	require.NoError(t, err)
 
 	params := fleet.QueryPayload{
-		Name:  ptr.String("user1"),
-		Query: ptr.String("select * from time;"),
+		Name:  new("user1"),
+		Query: new("select * from time;"),
 	}
 	var createQueryResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
@@ -598,16 +597,16 @@ func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
 	// POST /api/v1/fleet/queries with labels_include_any should fail with 402 on free tier
 	var createResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
-		Name:             ptr.String("test-labels-query"),
-		Query:            ptr.String("SELECT 1"),
+		Name:             new("test-labels-query"),
+		Query:            new("SELECT 1"),
 		LabelsIncludeAny: []string{"some-label"},
 	}, http.StatusPaymentRequired, &createResp)
 
 	// Create a query without labels_include_any to use for the PATCH test
 	var createOKResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
-		Name:  ptr.String("test-labels-query-for-patch"),
-		Query: ptr.String("SELECT 1"),
+		Name:  new("test-labels-query-for-patch"),
+		Query: new("SELECT 1"),
 	}, http.StatusOK, &createOKResp)
 	defer s.cleanupQuery(createOKResp.Query.ID)
 
@@ -635,24 +634,24 @@ func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
 
 	var createResp createUserResponse
 	params := fleet.UserPayload{
-		Name:       ptr.String("someadmin"),
-		Email:      ptr.String("someadmin@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-		APIOnly:    ptr.Bool(false),
+		Name:       new("someadmin"),
+		Email:      new("someadmin@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleAdmin),
+		APIOnly:    new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
 	assert.Nil(t, createResp.Token)
 
 	params = fleet.UserPayload{
-		Name:       ptr.String("apionly"),
-		Email:      ptr.String("apionly@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleObserver),
-		APIOnly:    ptr.Bool(true),
+		Name:       new("apionly"),
+		Email:      new("apionly@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
+		APIOnly:    new(true),
 		// AdminForcedPasswordReset is set to false when creating api-only users via `fleetctl user create --api-only`.
-		AdminForcedPasswordReset: ptr.Bool(false),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
@@ -671,10 +670,10 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("Gonna B Deleted"),
-		Email:      ptr.String("goingto@delete.com"),
-		Password:   ptr.String(userRawPwd),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("Gonna B Deleted"),
+		Email:      new("goingto@delete.com"),
+		Password:   new(userRawPwd),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
@@ -727,7 +726,7 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 				user := &fleet.User{
 					Name:       role,
 					Email:      fmt.Sprintf("%s@example.com", role),
-					GlobalRole: ptr.String(role),
+					GlobalRole: new(role),
 				}
 				err := user.SetPassword(test.GoodPassword, 10, 10)
 				require.NoError(t, err)
@@ -744,10 +743,10 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 			t.Run("create", func(t *testing.T) {
 				var createResp createUserResponse
 				params := fleet.UserPayload{
-					Name:       ptr.String(role),
-					Email:      ptr.String(fmt.Sprintf("%s@example.com", role)),
-					Password:   ptr.String(test.GoodPassword),
-					GlobalRole: ptr.String(role),
+					Name:       new(role),
+					Email:      new(fmt.Sprintf("%s@example.com", role)),
+					Password:   new(test.GoodPassword),
+					GlobalRole: new(role),
 				}
 				s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusPaymentRequired, &createResp)
 			})
@@ -1084,7 +1083,7 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 		Name:        t.Name(),
 		Email:       email,
 		GravatarURL: "http://asd.com",
-		GlobalRole:  ptr.String(fleet.RoleObserver),
+		GlobalRole:  new(fleet.RoleObserver),
 	}
 	user, err := s.ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
@@ -1146,7 +1145,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	require.NoError(t, err)
 
 	// schedule that query
-	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: new(qr.ID), Interval: new(uint(42))}
 	r := globalScheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/schedule", gsParams, http.StatusOK, &r)
 
@@ -1164,11 +1163,11 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 
 	// update the scheduled query
 	gs = fleet.GlobalSchedulePayload{}
-	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}
+	gsParams = fleet.ScheduledQueryPayload{Interval: new(uint(55))}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", id), gsParams, http.StatusOK, &gs)
 
 	// update a non-existing schedule
-	gsParams = fleet.ScheduledQueryPayload{Interval: ptr.Uint(66)}
+	gsParams = fleet.ScheduledQueryPayload{Interval: new(uint(66))}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", id+1), gsParams, http.StatusNotFound, &gs)
 
 	// read back that updated scheduled query
@@ -1314,7 +1313,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -1561,8 +1560,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
@@ -1719,8 +1718,8 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	label, err := s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[1], map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: new(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
 		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
@@ -1830,8 +1829,8 @@ func (s *integrationTestSuite) createHosts(t *testing.T, platforms ...string) []
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        platform,
@@ -1875,7 +1874,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	label, err := s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{label.ID: new(true)}, time.Now(), false))
 
 	req := countHostsRequest{}
 	resp := countHostsResponse{}
@@ -2017,7 +2016,7 @@ func (s *integrationTestSuite) TestPacks() {
 	for i := range packs {
 		req := &createPackRequest{
 			PackPayload: fleet.PackPayload{
-				Name: ptr.String(fmt.Sprintf("%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), i)),
+				Name: new(fmt.Sprintf("%s_%d", strings.ReplaceAll(t.Name(), "/", "_"), i)),
 			},
 		}
 
@@ -2062,11 +2061,11 @@ func (s *integrationTestSuite) TestPacks() {
 
 	var modResp modifyPackResponse
 	// modify non-existing pack
-	req := &fleet.PackPayload{Name: ptr.String("updated_" + packs[2].Name)}
+	req := &fleet.PackPayload{Name: new("updated_" + packs[2].Name)}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", packs[2].ID+1), req, http.StatusNotFound, &modResp)
 
 	// modify existing pack
-	req = &fleet.PackPayload{Name: ptr.String("updated_" + packs[2].Name)}
+	req = &fleet.PackPayload{Name: new("updated_" + packs[2].Name)}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", packs[2].ID), req, http.StatusOK, &modResp)
 	require.Equal(t, packs[2].ID, modResp.Pack.ID)
 	require.Contains(t, modResp.Pack.Name, "updated_")
@@ -2465,9 +2464,9 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{{
 		CVE:              "cve-123-123-123",
-		CVSSScore:        ptr.Float64(5.4),
-		EPSSProbability:  ptr.Float64(0.5),
-		CISAKnownExploit: ptr.Bool(true),
+		CVSSScore:        new(5.4),
+		EPSSProbability:  new(0.5),
+		CISAKnownExploit: new(true),
 		Published:        &now,
 		Description:      "a long description of the cve",
 	}}))
@@ -2624,8 +2623,8 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
-		OsqueryHostID:   ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
+		OsqueryHostID:   new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.10",
@@ -2772,8 +2771,8 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
-		Name:       ptr.String("some name"),
+		Email:      new("some email"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 	}}
 	createInviteResp := createInviteResponse{}
@@ -2799,7 +2798,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// create invite without an email
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
 		Email:      nil,
-		Name:       ptr.String("some other name"),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -2808,8 +2807,8 @@ func (s *integrationTestSuite) TestInvites() {
 	// create invite for an existing user
 	existingEmail := "admin1@example.com"
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String(existingEmail),
-		Name:       ptr.String("some other name"),
+		Email:      new(existingEmail),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -2817,8 +2816,8 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// create invite for an existing user with email ALL CAPS
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String(strings.ToUpper(existingEmail)),
-		Name:       ptr.String("some other name"),
+		Email:      new(strings.ToUpper(existingEmail)),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -2864,7 +2863,7 @@ func (s *integrationTestSuite) TestInvites() {
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 		},
-		MFAEnabled: ptr.Bool(true),
+		MFAEnabled: new(true),
 	}}
 	updateInviteResp := updateInviteResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID+1), updateInviteReq, http.StatusNotFound, &updateInviteResp)
@@ -2878,7 +2877,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// update the valid invite: set an email that already exists for a user
 	updateInviteReq = updateInviteRequest{
 		InvitePayload: fleet.InvitePayload{
-			Email: ptr.String(s.users["admin1@example.com"].Email),
+			Email: new(s.users["admin1@example.com"].Email),
 			Teams: []fleet.UserTeam{
 				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 			},
@@ -2889,8 +2888,8 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// update the valid invite: set an email that already exists for another invite
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some@other.email"),
-		Name:       ptr.String("some name"),
+		Email:      new("some@other.email"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 	}}
 	createInviteResp = createInviteResponse{}
@@ -2908,7 +2907,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// update the valid invite to an email that is ok
 	updateInviteReq = updateInviteRequest{
 		InvitePayload: fleet.InvitePayload{
-			Email: ptr.String("something@nonexistent.yet123"),
+			Email: new("something@nonexistent.yet123"),
 			Teams: []fleet.UserTeam{
 				{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleObserver},
 			},
@@ -2925,15 +2924,15 @@ func (s *integrationTestSuite) TestInvites() {
 	// Try to create an user with an email different that the one associated with the invite
 	var createFromInviteResp createUserResponse
 	userPayload := fleet.UserPayload{
-		Name:        ptr.String("Full Name"),
-		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
-		InviteToken: ptr.String(validInviteToken),
+		Name:        new("Full Name"),
+		Password:    new(test.GoodPassword),
+		Email:       new("a@b.c"),
+		InviteToken: new(validInviteToken),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusUnprocessableEntity, &createFromInviteResp)
 
 	// Adjust email and try again, this should be OK
-	userPayload.Email = ptr.String(verify.Email)
+	userPayload.Email = new(verify.Email)
 	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusOK, &createFromInviteResp)
 
 	// Check that user is associated with unique invite ID
@@ -2960,10 +2959,10 @@ func (s *integrationTestSuite) TestInvites() {
 
 	// create user from never used but deleted invite
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
-		Name:        ptr.String("Full Name"),
-		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String(inv.Email),
-		InviteToken: ptr.String(deletedInviteToken),
+		Name:        new("Full Name"),
+		Password:    new(test.GoodPassword),
+		Email:       new(inv.Email),
+		InviteToken: new(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
 }
 
@@ -2972,8 +2971,8 @@ func (s *integrationTestSuite) TestCrossOriginJSONSecurity() {
 
 	// valid request with no Origin or Referer headers
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
-		Name:       ptr.String("some name"),
+		Email:      new("some email"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 	}}
 	createInviteResp := createInviteResponse{}
@@ -2981,8 +2980,8 @@ func (s *integrationTestSuite) TestCrossOriginJSONSecurity() {
 	require.NotNil(t, createInviteResp.Invite)
 	require.NotZero(t, createInviteResp.Invite.ID)
 
-	createInviteReq.Email = ptr.String("other@email.com")
-	createInviteReq.Name = ptr.String("other name")
+	createInviteReq.Email = new("other@email.com")
+	createInviteReq.Name = new("other name")
 	req, err := json.Marshal(createInviteReq)
 	require.NoError(t, err)
 
@@ -3015,8 +3014,8 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 
 	// create a valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("a@b.c"),
-		Name:       ptr.String("A"),
+		Email:      new("a@b.c"),
+		Name:       new("A"),
 		GlobalRole: null.StringFrom(fleet.RoleObserver),
 	}}
 	createInviteResp := createInviteResponse{}
@@ -3040,70 +3039,70 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 		{
 			"empty name",
 			fleet.UserPayload{
-				Name:        ptr.String(""),
+				Name:        new(""),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
+				Email:       new("a@b.c"),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"empty email",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
+				Name:        new("Name"),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String(""),
-				InviteToken: ptr.String(invite.Token),
+				Email:       new(""),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"empty password",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
-				Password:    ptr.String(""),
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
+				Name:        new("Name"),
+				Password:    new(""),
+				Email:       new("a@b.c"),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"empty token",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
+				Name:        new("Name"),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(""),
+				Email:       new("a@b.c"),
+				InviteToken: new(""),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"invalid token",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
+				Name:        new("Name"),
 				Password:    &test.GoodPassword,
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String("invalid"),
+				Email:       new("a@b.c"),
+				InviteToken: new("invalid"),
 			},
 			http.StatusNotFound,
 		},
 		{
 			"invalid password",
 			fleet.UserPayload{
-				Name:        ptr.String("Name"),
-				Password:    ptr.String("password"), // no number or symbol
-				Email:       ptr.String("a@b.c"),
-				InviteToken: ptr.String(invite.Token),
+				Name:        new("Name"),
+				Password:    new("password"), // no number or symbol
+				Email:       new("a@b.c"),
+				InviteToken: new(invite.Token),
 			},
 			http.StatusUnprocessableEntity,
 		},
 		{
 			"api_endpoints not accepted",
 			fleet.UserPayload{
-				Name:         ptr.String("Name"),
+				Name:         new("Name"),
 				Password:     &test.GoodPassword,
-				Email:        ptr.String("a@b.c"),
-				InviteToken:  ptr.String(invite.Token),
+				Email:        new("a@b.c"),
+				InviteToken:  new(invite.Token),
 				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 			},
 			http.StatusUnprocessableEntity,
@@ -3249,15 +3248,15 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, new(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, new(1200.0)))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	assert.Equal(t, 1.0, getHostResp.Host.GigsDiskSpaceAvailable)
 	assert.Equal(t, 2.0, getHostResp.Host.PercentDiskSpaceAvailable)
 	assert.Equal(t, 500.0, getHostResp.Host.GigsTotalDiskSpace)
-	assert.Equal(t, ptr.Float64(600.0), getHostResp.Host.GigsAllDiskSpace)
+	assert.Equal(t, new(600.0), getHostResp.Host.GigsAllDiskSpace)
 
 	var resp getHostSummaryResponse
 
@@ -3365,8 +3364,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "darwin",
@@ -3608,8 +3607,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "darwin",
@@ -3778,7 +3777,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 		{
 			tname:      "set both QueryID and Query",
 			testUpdate: false,
-			queryID:    ptr.Uint(1),
+			queryID:    new(uint(1)),
 			name:       "Some name",
 			query:      "select * from osquery;",
 		},
@@ -3823,8 +3822,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				tpReq := fleet.ModifyTeamPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  ptr.String(tc.name),
-						Query: ptr.String(tc.query),
+						Name:  new(tc.name),
+						Query: new(tc.query),
 					},
 				}
 				tpResp := fleet.ModifyTeamPolicyResponse{}
@@ -3845,8 +3844,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			if testUpdate {
 				gpReq := fleet.ModifyGlobalPolicyRequest{
 					ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-						Name:  ptr.String(tc.name),
-						Query: ptr.String(tc.query),
+						Name:  new(tc.name),
+						Query: new(tc.query),
 					},
 				}
 				gpResp := fleet.ModifyGlobalPolicyResponse{}
@@ -3929,7 +3928,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	_, err = s.ds.RecordPolicyQueryExecutions(
 		context.Background(),
 		host1,
-		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
+		map[uint]*bool{gpResp.Policy.ID: new(true)},
 		time.Now(),
 		false,
 		nil,
@@ -4200,7 +4199,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	labelID := lblIDs["All Hosts"]
 
 	// Add label to host0
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[0], map[uint]*bool{labelID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	// offline status filter request should not move hosts
@@ -4275,8 +4274,8 @@ func (s *integrationTestSuite) TestGetHostByIdentifier() {
 	for i := 0; i < len(hosts); i++ {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			Hostname:       fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
 			UUID:           fmt.Sprintf("test-uuid-%d", i),
 			Platform:       "darwin",
 			HardwareSerial: fmt.Sprintf("serial-%d", i),
@@ -4311,7 +4310,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var createPackResp createPackResponse
 	reqPack := &createPackRequest{
 		PackPayload: fleet.PackPayload{
-			Name: ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
 		},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/packs", reqPack, http.StatusOK, &createPackResp)
@@ -4331,8 +4330,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	sql := "select * from time;"
 	var createQueryResp fleet.CreateQueryResponse
 	reqQuery := &fleet.QueryPayload{
-		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_")),
-		Query: ptr.String(sql),
+		Name:  new(strings.ReplaceAll(t.Name(), "/", "_")),
+		Query: new(sql),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query := createQueryResp.Query
@@ -4439,7 +4438,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// modify scheduled query
 	var modResp fleet.ModifyScheduledQueryResponse
 	reqMod := fleet.ScheduledQueryPayload{
-		Interval: ptr.Uint(4),
+		Interval: new(uint(4)),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sq1.ID), reqMod, http.StatusOK, &modResp)
 	assert.Equal(t, sq1.ID, modResp.Scheduled.ID)
@@ -4447,7 +4446,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// modify non-existing scheduled query
 	reqMod = fleet.ScheduledQueryPayload{
-		Interval: ptr.Uint(5),
+		Interval: new(uint(5)),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sq1.ID+1), reqMod, http.StatusNotFound, &modResp)
 
@@ -4463,7 +4462,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// modify the query
 	var modQryResp fleet.ModifyQueryResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusOK, &modQryResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK, &modQryResp)
 	assert.Equal(t, "updated", modQryResp.Query.Description)
 	assert.Equal(t, sql, modQryResp.Query.Query)
 	assert.Equal(t, sql, modQryResp.Report.Query)
@@ -4473,7 +4472,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// TODO(jahziel): check that the query results were deleted after setting `discard_data`
 
 	// modify a non-existing query
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID+1), fleet.QueryPayload{Description: ptr.String("updated")}, http.StatusNotFound, &modQryResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID+1), fleet.QueryPayload{Description: new("updated")}, http.StatusNotFound, &modQryResp)
 
 	// delete the query by name
 	var delByNameResp fleet.DeleteQueryResponse
@@ -4484,8 +4483,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// create another query
 	reqQuery = &fleet.QueryPayload{
-		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "_2"),
-		Query: ptr.String("select 2"),
+		Name:  new(strings.ReplaceAll(t.Name(), "/", "_") + "_2"),
+		Query: new("select 2"),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query2 := createQueryResp.Query
@@ -4499,8 +4498,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// create another query
 	reqQuery = &fleet.QueryPayload{
-		Name:  ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "_3"),
-		Query: ptr.String("select 3"),
+		Name:  new(strings.ReplaceAll(t.Name(), "/", "_") + "_3"),
+		Query: new("select 3"),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 	query3 := createQueryResp.Query
@@ -5189,22 +5188,22 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// modify dynamic label lbl1
 		var modResp fleet.ModifyLabelResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(t.Name() + "zzz")}, http.StatusOK, &modResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(t.Name() + "zzz")}, http.StatusOK, &modResp)
 		assert.Equal(t, lbl1.ID, modResp.Label.ID)
 		assert.Empty(t, modResp.Label.HostIDs)
 		assert.NotEqual(t, lbl1.Name, modResp.Label.Name)
 
 		// attempt to modify a label to a reserved name
 		for n := range builtinsMap {
-			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: ptr.String(n)}, http.StatusUnprocessableEntity, &modResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(n)}, http.StatusUnprocessableEntity, &modResp)
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToLower(n))}, http.StatusUnprocessableEntity, &modResp)
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", lbl1.ID), &fleet.ModifyLabelPayload{Name: new(strings.ToUpper(n))}, http.StatusUnprocessableEntity, &modResp)
 		}
 
 		// modify a non-existing label
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusNotFound, &modResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", 9999), &fleet.ModifyLabelPayload{Name: new("zzz")}, http.StatusNotFound, &modResp)
 		// modify a built-in label
-		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: ptr.String("zzz")}, http.StatusUnprocessableEntity)
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", builtinLbl.ID), &fleet.ModifyLabelPayload{Name: new("zzz")}, http.StatusUnprocessableEntity)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "cannot modify built-in label")
 
@@ -5267,7 +5266,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// modify manual label 2 clearing its hosts
 		modResp = fleet.ModifyLabelResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: ptr.String("desc")}, http.StatusOK, &modResp)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID), &fleet.ModifyLabelPayload{Hosts: []string{}, Description: new("desc")}, http.StatusOK, &modResp)
 		assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
 		assert.Equal(t, "desc", modResp.Label.Description)
 		assert.Empty(t, modResp.Label.HostIDs)
@@ -5300,7 +5299,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// add lbl2 hosts to that label
 		for _, h := range lbl2Hosts {
-			err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+			err := s.ds.RecordLabelQueryExecutions(context.Background(), h, map[uint]*bool{lbl2.ID: new(true)}, time.Now(), false)
 			require.NoError(t, err)
 		}
 
@@ -5686,8 +5685,8 @@ func (s *integrationTestSuite) TestLabels() {
 		t.Run("IdP Group Label", func(t *testing.T) {
 			// Create a label for an IdP group
 			criteria := &fleet.HostVitalCriteria{
-				Vital: ptr.String("end_user_idp_group"),
-				Value: ptr.String("group_good"),
+				Vital: new("end_user_idp_group"),
+				Value: new("group_good"),
 			}
 
 			labelParams := fleet.CreateLabelRequest{
@@ -5747,8 +5746,8 @@ func (s *integrationTestSuite) TestLabels() {
 		t.Run("IdP Department Label", func(t *testing.T) {
 			// Create a label for an IdP department
 			criteria := &fleet.HostVitalCriteria{
-				Vital: ptr.String("end_user_idp_department"),
-				Value: ptr.String("department_good"),
+				Vital: new("end_user_idp_department"),
+				Value: new("department_good"),
 			}
 
 			labelParams := fleet.CreateLabelRequest{
@@ -5797,8 +5796,8 @@ func (s *integrationTestSuite) TestLabels() {
 			t.Run("No Groups", func(t *testing.T) {
 				// Create a label for IdP department to test users with department but no groups
 				criteria := &fleet.HostVitalCriteria{
-					Vital: ptr.String("end_user_idp_department"),
-					Value: ptr.String("department_other_2"),
+					Vital: new("end_user_idp_department"),
+					Value: new("department_other_2"),
 				}
 				labelParams := fleet.CreateLabelRequest{
 					LabelPayload: fleet.LabelPayload{
@@ -5856,8 +5855,8 @@ func (s *integrationTestSuite) TestLabels() {
 		sortHosts := make([]*fleet.Host, 3)
 		for i := range 3 {
 			h, err := s.ds.NewHost(ctx, &fleet.Host{
-				OsqueryHostID:               ptr.String(fmt.Sprintf("sort-osq-%d", i)),
-				NodeKey:                     ptr.String(fmt.Sprintf("sort-nk-%d", i)),
+				OsqueryHostID:               new(fmt.Sprintf("sort-osq-%d", i)),
+				NodeKey:                     new(fmt.Sprintf("sort-nk-%d", i)),
 				UUID:                        fmt.Sprintf("aaaaaaaa-0000-0000-0000-00000000000%d", i+1),
 				Hostname:                    fmt.Sprintf("sort-host-%d", i),
 				ComputerName:                fmt.Sprintf("sort-comp-%d", i),
@@ -5874,7 +5873,7 @@ func (s *integrationTestSuite) TestLabels() {
 				DetailUpdatedAt:             base.Add(time.Duration(i+1) * time.Hour),
 				LabelUpdatedAt:              base.Add(time.Duration(i+1) * 2 * time.Hour),
 				PolicyUpdatedAt:             base.Add(time.Duration(i+1) * 3 * time.Hour),
-				RefetchCriticalQueriesUntil: ptr.Time(base.Add(time.Duration(i+1) * 4 * time.Hour)),
+				RefetchCriticalQueriesUntil: new(base.Add(time.Duration(i+1) * 4 * time.Hour)),
 				RefetchRequested:            i == 2, // only the "largest" host has refetch_requested = true
 				TeamID:                      teamIDs[i],
 			})
@@ -6467,11 +6466,11 @@ func (s *integrationTestSuite) TestUsers() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("extra"),
-		Email:      ptr.String("extra@asd.com"),
-		Password:   ptr.String(userRawPwd),
-		GlobalRole: ptr.String(fleet.RoleObserver),
-		MFAEnabled: ptr.Bool(true),
+		Name:       new("extra"),
+		Email:      new("extra@asd.com"),
+		Password:   new(userRawPwd),
+		GlobalRole: new(fleet.RoleObserver),
+		MFAEnabled: new(true),
 	}
 	// mailer isn't set up, which fails prior to silently ignoring MFA
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusBadRequest, &createResp)
@@ -6556,11 +6555,11 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: mfaToken}, http.StatusUnauthorized, &loginResp)
 
 	// turn off MFA
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(false)}, http.StatusOK, &modResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: new(false)}, http.StatusOK, &modResp)
 	require.False(t, modResp.User.MFAEnabled)
 
 	// can't turn MFA back on
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: ptr.Bool(true)}, http.StatusPaymentRequired, &modResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{MFAEnabled: new(true)}, http.StatusPaymentRequired, &modResp)
 
 	// login as that user and check that teams info is empty
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
@@ -6579,7 +6578,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// modify that user - simple name change
 	params = fleet.UserPayload{
-		Name: ptr.String("extraz"),
+		Name: new("extraz"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 	assert.Equal(t, u.ID, modResp.User.ID)
@@ -6593,37 +6592,37 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// modify that user - set an email that has an invite for it
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("colliding@email.com"),
-		Name:       ptr.String("some name"),
+		Email:      new("colliding@email.com"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
-		MFAEnabled: ptr.Bool(true),
+		MFAEnabled: new(true),
 	}}
 	createInviteResp := createInviteResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusPaymentRequired, &createInviteResp)
 	createInviteReq.MFAEnabled = nil
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	params = fleet.UserPayload{
-		Email: ptr.String("colliding@email.com"),
+		Email: new("colliding@email.com"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusConflict, &modResp)
 
 	// modify that user - set a non existent email
 	params = fleet.UserPayload{
-		Email: ptr.String("someemail@qowieuowh.com"),
+		Email: new("someemail@qowieuowh.com"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 
 	// modify user - email change, password does not match
 	params = fleet.UserPayload{
-		Email:    ptr.String("extra2@asd.com"),
-		Password: ptr.String("wrongpass"),
+		Email:    new("extra2@asd.com"),
+		Password: new("wrongpass"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusForbidden, &modResp)
 
 	// modify user - email change, password ok
 	params = fleet.UserPayload{
-		Email:    ptr.String("extra2@asd.com"),
-		Password: ptr.String(test.GoodPassword),
+		Email:    new("extra2@asd.com"),
+		Password: new(test.GoodPassword),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), params, http.StatusOK, &modResp)
 	assert.Equal(t, u.ID, modResp.User.ID)
@@ -6631,7 +6630,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// modify invalid user
 	params = fleet.UserPayload{
-		Name: ptr.String("nosuchuser"),
+		Name: new("nosuchuser"),
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), params, http.StatusNotFound, &modResp)
 
@@ -8076,8 +8075,8 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	t := s.T()
 
 	reqQuery := &fleet.QueryPayload{
-		Name:  ptr.String("existing query"),
-		Query: ptr.String("select 42;"),
+		Name:  new("existing query"),
+		Query: new("select 42;"),
 	}
 	createQueryResp := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
@@ -8140,20 +8139,20 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			reqQuery := &fleet.QueryPayload{
-				Name:     ptr.String(tc.name),
-				Query:    ptr.String(tc.query),
-				Platform: ptr.String(tc.platform),
-				Logging:  ptr.String(tc.logging),
+				Name:     new(tc.name),
+				Query:    new(tc.query),
+				Platform: new(tc.platform),
+				Logging:  new(tc.logging),
 			}
 			createQueryResp := fleet.CreateQueryResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
 			require.Nil(t, createQueryResp.Query)
 
 			payload := fleet.QueryPayload{
-				Name:     ptr.String(tc.name),
-				Query:    ptr.String(tc.query),
-				Platform: ptr.String(tc.platform),
-				Logging:  ptr.String(tc.logging),
+				Name:     new(tc.name),
+				Query:    new(tc.query),
+				Platform: new(tc.platform),
+				Logging:  new(tc.logging),
 			}
 			mResp := fleet.ModifyQueryResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", existingQueryID), &payload, http.StatusBadRequest, &mResp)
@@ -8213,7 +8212,7 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 	t := s.T()
 
 	reqPacks := &fleet.PackPayload{
-		Name: ptr.String("existing pack"),
+		Name: new("existing pack"),
 	}
 	createPackResp := createPackResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs", reqPacks, http.StatusOK, &createPackResp)
@@ -8230,13 +8229,13 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
 			reqQuery := &fleet.PackPayload{
-				Name: ptr.String(tc.name),
+				Name: new(tc.name),
 			}
 			createPackResp := createPackResponse{}
 			s.DoJSON("POST", "/api/latest/fleet/packs", reqQuery, http.StatusBadRequest, &createPackResp)
 
 			payload := fleet.PackPayload{
-				Name: ptr.String(tc.name),
+				Name: new(tc.name),
 			}
 			mResp := modifyPackResponse{}
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
@@ -8441,7 +8440,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
 
 	// try to update the enable_release_device_manually setting, requires premium.
-	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusPaymentRequired)
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
@@ -9180,8 +9179,8 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         ptr.String(t.Name() + strconv.Itoa(i)),
-			OsqueryHostID:   ptr.String(t.Name() + strconv.Itoa(i)),
+			NodeKey:         new(t.Name() + strconv.Itoa(i)),
+			OsqueryHostID:   new(t.Name() + strconv.Itoa(i)),
 			UUID:            t.Name() + strconv.Itoa(i),
 			Hostname:        t.Name() + "foo" + strconv.Itoa(i) + ".local",
 			PrimaryIP:       "192.168.1." + strconv.Itoa(i),
@@ -9602,7 +9601,7 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 	user := &fleet.User{
 		Name:       t.Name(),
 		Email:      "testchangeemail@example.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	userRawPwd := "foobarbaz1234!"
 	err := user.SetPassword(userRawPwd, 10, 10)
@@ -9690,8 +9689,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, ptr.Float64(600.0)))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, ptr.Float64(1200.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0, new(600.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0, new(1200.0)))
 
 	// no search criteria
 	var searchResp searchHostsResponse
@@ -9703,12 +9702,12 @@ func (s *integrationTestSuite) TestSearchHosts() {
 			assert.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
 			assert.Equal(t, 500.0, h.GigsTotalDiskSpace)
-			assert.Equal(t, ptr.Float64(600.0), h.GigsAllDiskSpace)
+			assert.Equal(t, new(600.0), h.GigsAllDiskSpace)
 		case hosts[1].ID:
 			assert.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 			assert.Equal(t, 1000.0, h.GigsTotalDiskSpace)
-			assert.Equal(t, ptr.Float64(1200.0), h.GigsAllDiskSpace)
+			assert.Equal(t, new(1200.0), h.GigsAllDiskSpace)
 		}
 		assert.Equal(t, h.SoftwareUpdatedAt, h.CreatedAt)
 	}
@@ -9770,7 +9769,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Len(t, lblMap, 1)
 
 	for i := range hosts {
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: new(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
@@ -9779,7 +9778,7 @@ func (s *integrationTestSuite) TestCountTargets() {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
-	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(ptr.Uint(team.ID), []uint{hostIDs[0]}))
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(new(team.ID), []uint{hostIDs[0]})) // nolint:nilaway // createHosts always returns at least one host
 	require.NoError(t, err)
 
 	var countResp fleet.CountTargetsResponse
@@ -10183,10 +10182,10 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	// create a new user
 	var createResp createUserResponse
 	params := fleet.UserPayload{
-		Name:       ptr.String("foobar"),
-		Email:      ptr.String("foobar@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("foobar"),
+		Email:      new("foobar@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -10309,11 +10308,11 @@ func (s *integrationTestSuite) TestChangePassword() {
 	testUserEmail := "changepwd@example.com"
 	var createResp createUserResponse
 	params := fleet.UserPayload{
-		Name:                     ptr.String("Test Change Password"),
-		Email:                    ptr.String(testUserEmail),
-		Password:                 ptr.String(startPwd),
-		GlobalRole:               ptr.String(fleet.RoleObserver),
-		AdminForcedPasswordReset: ptr.Bool(false),
+		Name:                     new("Test Change Password"),
+		Email:                    new(testUserEmail),
+		Password:                 new(startPwd),
+		GlobalRole:               new(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -10343,10 +10342,10 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("forgotpwd"),
-		Email:      ptr.String("forgotpwd@example.com"),
-		Password:   ptr.String(userRawPwd),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("forgotpwd"),
+		Email:      new("forgotpwd@example.com"),
+		Password:   new(userRawPwd),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -10408,11 +10407,11 @@ func (s *integrationTestSuite) TestModifyUser() {
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:                     ptr.String("moduser"),
-		Email:                    ptr.String("moduser@example.com"),
-		Password:                 ptr.String(userRawPwd),
-		GlobalRole:               ptr.String(fleet.RoleObserver),
-		AdminForcedPasswordReset: ptr.Bool(false),
+		Name:                     new("moduser"),
+		Email:                    new("moduser@example.com"),
+		Password:                 new(userRawPwd),
+		GlobalRole:               new(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -10425,20 +10424,20 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// as the user: modify email without providing current password
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		Email: ptr.String("moduser2@example.com"),
+		Email: new("moduser2@example.com"),
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as the user: modify email with invalid password
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		Email:    ptr.String("moduser2@example.com"),
-		Password: ptr.String("nosuchpwd"),
+		Email:    new("moduser2@example.com"),
+		Password: new("nosuchpwd"),
 	}, http.StatusForbidden, &modResp)
 
 	// as the user: modify email with current password
 	newEmail := "moduser2@example.com"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		Email:    ptr.String(newEmail),
-		Password: ptr.String(userRawPwd),
+		Email:    new(newEmail),
+		Password: new(userRawPwd),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
 	require.Equal(t, u.Email, modResp.User.Email) // new email is pending confirmation, not changed immediately
@@ -10446,21 +10445,21 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// as the user: set new password without providing current one
 	newRawPwd := test.GoodPassword2
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
+		NewPassword: new(newRawPwd),
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as the user: set new password with an invalid current password
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
-		Password:    ptr.String("nosuchpwd"),
+		NewPassword: new(newRawPwd),
+		Password:    new("nosuchpwd"),
 	}, http.StatusForbidden, &modResp)
 
 	// as the user: set new password and change name, with a valid current password
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
-		Password:    ptr.String(userRawPwd),
-		Name:        ptr.String("moduser2"),
+		NewPassword: new(newRawPwd),
+		Password:    new(userRawPwd),
+		Name:        new("moduser2"),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
 	require.Equal(t, "moduser2", modResp.User.Name)
@@ -10471,8 +10470,8 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// any other user that is not admin cannot change another user's password)
 	newRawPwd = userRawPwd + "3"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(newRawPwd),
-		Password:    ptr.String(testUsers["user2"].PlaintextPassword),
+		NewPassword: new(newRawPwd),
+		Password:    new(testUsers["user2"].PlaintextPassword),
 	}, http.StatusForbidden, &modResp)
 
 	s.token = s.getTestAdminToken()
@@ -10481,17 +10480,17 @@ func (s *integrationTestSuite) TestModifyUser() {
 	newRawPwd = userRawPwd + "4"
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		SSOEnabled:  ptr.Bool(false),
-		NewPassword: ptr.String(newRawPwd),
-		Email:       ptr.String("moduser3@example.com"),
-		Name:        ptr.String("moduser3"),
+		SSOEnabled:  new(false),
+		NewPassword: new(newRawPwd),
+		Email:       new("moduser3@example.com"),
+		Name:        new("moduser3"),
 	}, http.StatusOK, &modResp)
 	require.Equal(t, u.ID, modResp.User.ID)
 
 	// as an admin, set new password that doesn't meet requirements
 	invalidUserPwd := "abc"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: ptr.String(invalidUserPwd),
+		NewPassword: new(invalidUserPwd),
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
@@ -10511,11 +10510,11 @@ func (s *integrationTestSuite) TestModifyUser() {
 
 	// as an admin, create a new user with SSO authentication enabled
 	params = fleet.UserPayload{
-		Name:                     ptr.String("moduser1"),
-		Email:                    ptr.String("moduser1@example.com"),
-		SSOInvite:                ptr.Bool(true),
-		GlobalRole:               ptr.String(fleet.RoleObserver),
-		AdminForcedPasswordReset: ptr.Bool(false),
+		Name:                     new("moduser1"),
+		Email:                    new("moduser1@example.com"),
+		SSOInvite:                new(true),
+		GlobalRole:               new(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
@@ -10523,15 +10522,15 @@ func (s *integrationTestSuite) TestModifyUser() {
 
 	// as an admin, try to disable sso for that user without providing a password
 	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		SSOEnabled: ptr.Bool(false),
+		SSOEnabled: new(false),
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "a new password must be provided when disabling SSO")
 
 	// as an admin, try to disable sso for that user while providing a password
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		SSOEnabled:  ptr.Bool(false),
-		NewPassword: ptr.String("Password123#"),
+		SSOEnabled:  new(false),
+		NewPassword: new("Password123#"),
 	}, http.StatusOK)
 }
 
@@ -10597,15 +10596,15 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusPaymentRequired, &resp, "exploit", "true")
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
-	require.Len(s.T(), resp.Vulnerabilities, 0)
+	s.Require().Empty(resp.Vulnerabilities)
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo1.local",
 		PrimaryIP:       "192.168.1.2",
@@ -10635,7 +10634,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
 		OSID:              os.ID,
 		CVE:               "CVE-2021-12345",
-		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
+		ResolvedInVersion: new("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
@@ -10667,8 +10666,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.1.2",
@@ -10696,34 +10695,34 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2021-12345",
-			CVSSScore:        ptr.Float64(7.5),
-			EPSSProbability:  ptr.Float64(0.5),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(7.5),
+			EPSSProbability:  new(0.5),
+			CISAKnownExploit: new(true),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-12345",
 		},
 		{
 			CVE:              "CVE-2021-1235",
-			CVSSScore:        ptr.Float64(5.4),
-			EPSSProbability:  ptr.Float64(0.6),
-			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(5.4),
+			EPSSProbability:  new(0.6),
+			CISAKnownExploit: new(false),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-1235",
 		},
 		{
 			CVE:              "CVE-2021-1246",
-			CVSSScore:        ptr.Float64(5.4),
-			EPSSProbability:  ptr.Float64(0.6),
-			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(5.4),
+			EPSSProbability:  new(0.6),
+			CISAKnownExploit: new(false),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-1246",
 		},
 		{
 			CVE:              knownCVE,
-			CVSSScore:        ptr.Float64(6.4),
-			EPSSProbability:  ptr.Float64(0.61),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(6.4),
+			EPSSProbability:  new(0.61),
+			CISAKnownExploit: new(true),
+			Published:        new(mockTime),
 			Description:      fmt.Sprintf("Test %s", knownCVE),
 		},
 	})
@@ -11191,7 +11190,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 
 	// try to schedule that query on the endpoint that is deprecated
 	// in that version
-	gsParams := fleet.ScheduledQueryPayload{QueryID: ptr.Uint(qr.ID), Interval: ptr.Uint(42)}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: new(qr.ID), Interval: new(uint(42))}
 	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
 	res.Body.Close()
 	// use the correct version for that deprecated API
@@ -11250,8 +11249,8 @@ func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Dat
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-time.Minute),
-		OsqueryHostID:   ptr.String(name),
-		NodeKey:         ptr.String(name),
+		OsqueryHostID:   new(name),
+		NodeKey:         new(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
 		ComputerName:    name,
@@ -11511,8 +11510,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
 		Platform:        "darwin",
@@ -11523,8 +11522,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.team", t.Name()),
 		Platform:        "darwin",
@@ -11620,8 +11619,8 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		PackID:   userPack1TargetTeam1.ID,
 		QueryID:  nonScheduledGlobalQuery.ID,
 		Interval: 60,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
+		Snapshot: new(true),
+		Removed:  new(true),
 	})
 	require.NoError(t, err)
 
@@ -11879,8 +11878,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
 		Platform:        "windows",
@@ -12013,8 +12012,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(uuid.New().String()),
-		NodeKey:         ptr.String(uuid.New().String()),
+		OsqueryHostID:   new(uuid.New().String()),
+		NodeKey:         new(uuid.New().String()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.global", t.Name()),
 		Platform:        "darwin",
@@ -12325,10 +12324,10 @@ func (s *integrationTestSuite) TestQueryReports() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
+		NodeKey:         new("1"),
 		UUID:            "1",
 		Hostname:        "foo.local1",
-		OsqueryHostID:   ptr.String("1"),
+		OsqueryHostID:   new("1"),
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		Platform:        "ubuntu",
@@ -12340,10 +12339,10 @@ func (s *integrationTestSuite) TestQueryReports() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("2"),
+		NodeKey:         new("2"),
 		UUID:            "2",
 		Hostname:        "foo.local2",
-		OsqueryHostID:   ptr.String("2"),
+		OsqueryHostID:   new("2"),
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		Platform:        "ubuntu",
@@ -12355,11 +12354,11 @@ func (s *integrationTestSuite) TestQueryReports() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("3"),
+		NodeKey:         new("3"),
 		UUID:            "3",
 		ComputerName:    "Foo Local3",
 		Hostname:        "foo.local3",
-		OsqueryHostID:   ptr.String("3"),
+		OsqueryHostID:   new("3"),
 		PrimaryIP:       "192.168.1.3",
 		PrimaryMac:      "30-65-EC-6F-C4-60",
 		Platform:        "darwin",
@@ -12374,11 +12373,11 @@ func (s *integrationTestSuite) TestQueryReports() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("4"),
+		NodeKey:         new("4"),
 		UUID:            "4",
 		ComputerName:    "Foo Local4",
 		Hostname:        "foo.local4",
-		OsqueryHostID:   ptr.String("4"),
+		OsqueryHostID:   new("4"),
 		PrimaryIP:       "192.168.1.4",
 		PrimaryMac:      "30-65-EC-6F-C4-61",
 		Platform:        "darwin",
@@ -12409,7 +12408,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		Interval:           60,
 		AutomationsEnabled: true,
 		DiscardData:        false,
-		TeamID:             ptr.Uint(team1.ID),
+		TeamID:             new(team1.ID),
 		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
@@ -13171,7 +13170,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 // Creates a set of results for use in tests for Query Results.
 func results(num int, hostID string) string {
 	b := strings.Builder{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		b.WriteString(`    {
       "build_distro": "centos7",
       "build_platform": "linux",
@@ -13291,7 +13290,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 
 	newHostFunc := func(name string, teamID *uint) *fleet.Host {
 		host, err := s.ds.NewHost(ctx, &fleet.Host{
-			NodeKey:  ptr.String(name),
+			NodeKey:  new(name),
 			UUID:     name,
 			Hostname: "foo.local." + name,
 			TeamID:   teamID,
@@ -13330,7 +13329,7 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{allHostsLabelID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{allHostsLabelID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	getHostLabels := func(host *fleet.Host) []string {
@@ -13669,7 +13668,7 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("foobar"),
+		NodeKey:         new("foobar"),
 		UUID:            "foobar",
 		Hostname:        "com.foobar.local",
 		Platform:        "linux",
@@ -13687,7 +13686,7 @@ func (s *integrationTestSuite) TestHostWithNoPoliciesClearsPolicyCounts() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy.ID: ptr.Bool(false),
+			policy.ID: new(false),
 		},
 	), http.StatusOK, &distributedWriteResp)
 
@@ -13722,8 +13721,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	ctx := context.Background()
 
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:       ptr.String(t.Name()),
-		OsqueryHostID: ptr.String(t.Name()),
+		NodeKey:       new(t.Name()),
+		OsqueryHostID: new(t.Name()),
 		UUID:          t.Name(),
 		Hostname:      t.Name() + "foo.local",
 		Platform:      "darwin",
@@ -13851,7 +13850,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 		Name:  "GitOps",
 		Email: "gitops1@example.com",
 		// GitOps role is premium only, so we use the global admin role.
-		GlobalRole: ptr.String(fleet.RoleAdmin),
+		GlobalRole: new(fleet.RoleAdmin),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(ctx, u)
@@ -14184,7 +14183,7 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	u := &fleet.User{
 		Name:       "Observer",
 		Email:      "observer@example.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(ctx, u)
@@ -14228,9 +14227,9 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
-			EnterpriseSpecificID: ptr.String(expectedUUID),
-			AppliedPolicyID:      ptr.String("1"),
-			LastPolicySyncTime:   ptr.Time(time.Now()),
+			EnterpriseSpecificID: new(expectedUUID),
+			AppliedPolicyID:      new("1"),
+			LastPolicySyncTime:   new(time.Now()),
 		},
 	}
 	host.SetNodeKey(expectedUUID)
@@ -14401,9 +14400,9 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			},
 			Device: &android.Device{
 				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
-				EnterpriseSpecificID: ptr.String(uuid.NewString()),
-				AppliedPolicyID:      ptr.String("1"),
-				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
+				EnterpriseSpecificID: new(uuid.NewString()),
+				AppliedPolicyID:      new("1"),
+				LastPolicySyncTime:   new(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
@@ -14438,9 +14437,9 @@ func createAndroidHostForTest(t *testing.T, ds *mysql.Datastore, teamID *uint, c
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
-			EnterpriseSpecificID: ptr.String(uuid.NewString()),
-			AppliedPolicyID:      ptr.String("1"),
-			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
+			EnterpriseSpecificID: new(uuid.NewString()),
+			AppliedPolicyID:      new("1"),
+			LastPolicySyncTime:   new(time.Now().Add(-time.Hour)),
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
@@ -14689,9 +14688,9 @@ func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestUpdateHostCertificateTemplate SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestUpdateHostCertificateTemplate SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID
@@ -14790,7 +14789,7 @@ INSERT INTO host_certificate_templates (
 			name:                   "Valid Update",
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
-			detail:                 ptr.String("Certificate Verified"),
+			detail:                 new("Certificate Verified"),
 			expectedResponseStatus: http.StatusOK,
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
@@ -14838,7 +14837,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
 			expectedResponseStatus: http.StatusOK,
-			newOperationType:       ptr.String("install"),
+			newOperationType:       new("install"),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -14848,7 +14847,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
 			expectedResponseStatus: http.StatusOK,
-			newOperationType:       ptr.String("remove"),
+			newOperationType:       new("remove"),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -14858,7 +14857,7 @@ INSERT INTO host_certificate_templates (
 			templateID:             certificateTemplateID,
 			newStatus:              "verified",
 			expectedResponseStatus: http.StatusOK,
-			newOperationType:       ptr.String(""),
+			newOperationType:       new(""),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -14869,7 +14868,7 @@ INSERT INTO host_certificate_templates (
 			newStatus:               "verified",
 			expectedResponseStatus:  http.StatusUnprocessableEntity,
 			expectedResponseMessage: "must be 'install' or 'remove'",
-			newOperationType:        ptr.String("invalid_operation"),
+			newOperationType:        new("invalid_operation"),
 			headers: map[string]string{
 				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 			},
@@ -14903,9 +14902,9 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestDeleteCertificateTemplate SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestDeleteCertificateTemplate SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID
@@ -15075,9 +15074,9 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestDeleteCertificateTemplateSpec SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestDeleteCertificateTemplateSpec SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID
@@ -15597,8 +15596,8 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	}
 
 	for _, payload := range []fleet.QueryPayload{
-		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
-		{Name: ptr.String("q-all-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
+		{Name: new("q-any-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
+		{Name: new("q-all-" + t.Name()), Query: new("SELECT 1"), Logging: new(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
 	} {
 		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
@@ -15680,7 +15679,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	maintainerUser := &fleet.User{
 		Name:       "Maintainer Logo",
 		Email:      maintainerEmail,
-		GlobalRole: ptr.String(fleet.RoleMaintainer),
+		GlobalRole: new(fleet.RoleMaintainer),
 	}
 	require.NoError(t, maintainerUser.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(t.Context(), maintainerUser)
