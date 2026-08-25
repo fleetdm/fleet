@@ -2295,6 +2295,11 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if !opts.DryRun {
+		// Fetch fresh appConfig to avoid masked secrets
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
 		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, team.ID, oldName, team.Name); err != nil {
 			return ctxerr.Wrap(ctx, err, "rename team in app config")
 		}

@@ -175,14 +175,10 @@ type MDMAppleABMAssignmentInfo struct {
 	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
+// CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
+// rename to "" ("no fleet").
 func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) bool {
-	var updated bool
-	for _, f := range []*string{&m.MacOSTeam, &m.IOSTeam, &m.IpadOSTeam, &m.BYODTeam} {
-		if *f == removedTeamName {
-			*f, updated = "", true
-		}
-	}
-	return updated
+	return m.RenameTeam(removedTeamName, "")
 }
 
 func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
@@ -224,16 +220,9 @@ func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string
 }
 
 func (m *MDMAppleVolumePurchasingProgramInfo) CleanRemovedTeam(removedTeamName string) bool {
-	var updated bool
-	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool {
-		if t == removedTeamName {
-			updated = true
-			return true
-		}
-
-		return false
-	})
-	return updated
+	before := len(m.Teams)
+	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool { return t == removedTeamName })
+	return len(m.Teams) != before
 }
 
 // MDM is part of AppConfig and defines the mdm settings.

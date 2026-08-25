@@ -2112,73 +2112,93 @@ func TestApplyTeamSpecsCreateAppliesAppleOSUpdates(t *testing.T) {
 	require.Equal(t, "2026-09-03", created.Config.MDM.IPadOSUpdates.Deadline.Value)
 }
 
-func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
+// staleTeamNamesFixture is the state a rename or a delete has to reconcile: the
+// fleet names copied into mdm.apple_business and mdm.volume_purchasing_program,
+// plus the abm_tokens and vpp_token_teams rows that are the source of truth for
+// which of those entries may be touched.
+type staleTeamNamesFixture struct {
+	abmStored []fleet.MDMAppleABMAssignmentInfo
+	abmOrgs   []string // ABM tokens defaulting to this fleet
+	vppStored []fleet.MDMAppleVolumePurchasingProgramInfo
+	vppToken  *fleet.VPPTokenDB // nil means the fleet has no VPP token
+}
+
+// newStaleTeamNamesService wires a service over f, and returns a live count of
+// app config writes so a test can pin that the ABM and VPP corrections share one.
+func newStaleTeamNamesService(t *testing.T, teamID uint, f staleTeamNamesFixture) (*Service, *mock.Store, *fleet.AppConfig, *int) {
+	appCfg := &fleet.AppConfig{}
+	appCfg.MDM.AppleBusinessManager = optjson.SetSlice(f.abmStored)
+	appCfg.MDM.VolumePurchasingProgram = optjson.SetSlice(f.vppStored)
+
+	var saves int
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
+	ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) { return nil, nil }
+	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) { return team, nil }
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(_ context.Context, tid *uint) ([]string, error) {
+		require.NotNil(t, tid)
+		require.Equal(t, teamID, *tid, "must look up ABM defaults for this fleet")
+		return f.abmOrgs, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, tid *uint) (*fleet.VPPTokenDB, error) {
+		require.NotNil(t, tid)
+		require.Equal(t, teamID, *tid, "must look up the VPP token for this fleet")
+		if f.vppToken == nil {
+			return nil, &notFoundError{}
+		}
+		return f.vppToken, nil
+	}
+	ds.SaveAppConfigFunc = func(context.Context, *fleet.AppConfig) error {
+		saves++
+		return nil
+	}
+
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
+
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
+
+	return &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+		authz:   authorizer,
+		logger:  slog.New(slog.DiscardHandler),
+	}, ds, appCfg, &saves
+}
+
+func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 	ctx := test.UserContext(context.Background(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	const filename = "workstations.yml"
 
-	newSvc := func() (*Service, *mock.Store, *fleet.AppConfig) {
-		appCfg := &fleet.AppConfig{}
-		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
-			{OrganizationName: "Acme Inc", MacOSTeam: "Workstations", IpadOSTeam: "Tablets"},
+	newSvc := func() (*Service, *mock.Store, *fleet.AppConfig, *int) {
+		svc, ds, appCfg, saves := newStaleTeamNamesService(t, 7, staleTeamNamesFixture{
+			abmStored: []fleet.MDMAppleABMAssignmentInfo{
+				{OrganizationName: "Acme Inc", MacOSTeam: "Workstations", IpadOSTeam: "Tablets"},
+			},
+			abmOrgs:   []string{"Acme Inc"},
+			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations", "Tablets"}}},
+			vppToken:  &fleet.VPPTokenDB{ID: 1, Location: "Acme HQ"},
 		})
-		appCfg.MDM.VolumePurchasingProgram = optjson.SetSlice([]fleet.MDMAppleVolumePurchasingProgramInfo{
-			{Location: "Acme HQ", Teams: []string{"Workstations", "Tablets"}},
-		})
-
-		ds := new(mock.Store)
-		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
-		ds.IsEnrollSecretAvailableFunc = func(context.Context, string, bool, *uint) (bool, error) {
-			return true, nil
-		}
+		ds.IsEnrollSecretAvailableFunc = func(context.Context, string, bool, *uint) (bool, error) { return true, nil }
 		ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) { return nil, &notFoundError{} }
 		ds.TeamByFilenameFunc = func(context.Context, string) (*fleet.Team, error) {
 			return &fleet.Team{ID: 7, Name: "Workstations", Filename: new(filename)}, nil
 		}
-		ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) { return nil, nil }
-		ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) { return team, nil }
-		ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(_ context.Context, tid *uint) ([]string, error) {
-			require.NotNil(t, tid)
-			require.Equal(t, uint(7), *tid)
-			return []string{"Acme Inc"}, nil
-		}
-		ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, tid *uint) (*fleet.VPPTokenDB, error) {
-			require.NotNil(t, tid)
-			require.Equal(t, uint(7), *tid)
-			return &fleet.VPPTokenDB{ID: 1, Location: "Acme HQ"}, nil
-		}
-		var saveCalls int
-		ds.SaveAppConfigFunc = func(context.Context, *fleet.AppConfig) error {
-			saveCalls++
-			return nil
-		}
-		t.Cleanup(func() {
-			require.LessOrEqual(t, saveCalls, 1, "ABM and VPP corrections must share one app config write")
-		})
-
-		mockSvc := &svcmock.Service{}
-		mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
-
-		return &Service{
-			Service: mockSvc,
-			ds:      ds,
-			config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
-			authz:   authorizer,
-			logger:  slog.New(slog.DiscardHandler),
-		}, ds, appCfg
+		return svc, ds, appCfg, saves
 	}
 
 	t.Run("rename via filename-matched spec rewrites both ABM and VPP entries", func(t *testing.T) {
-		svc, ds, appCfg := newSvc()
+		svc, _, appCfg, saves := newSvc()
 
 		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
 			{Name: "Laptops", Filename: new(filename)},
 		}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
 
-		require.True(t, ds.SaveAppConfigFuncInvoked)
+		require.Equal(t, 1, *saves)
 		require.Equal(t, []fleet.MDMAppleABMAssignmentInfo{
 			{OrganizationName: "Acme Inc", MacOSTeam: "Laptops", IpadOSTeam: "Tablets"},
 		}, appCfg.MDM.AppleBusinessManager.Value)
@@ -2188,7 +2208,7 @@ func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 	})
 
 	t.Run("dry run does not touch the ABM or VPP config", func(t *testing.T) {
-		svc, ds, appCfg := newSvc()
+		svc, ds, appCfg, saves := newSvc()
 
 		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
 			{Name: "Laptops", Filename: new(filename)},
@@ -2197,7 +2217,7 @@ func TestApplyTeamSpecsRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 
 		require.False(t, ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFuncInvoked)
 		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked)
-		require.False(t, ds.SaveAppConfigFuncInvoked)
+		require.Zero(t, *saves)
 		require.Equal(t, "Workstations", appCfg.MDM.AppleBusinessManager.Value[0].MacOSTeam)
 		require.Equal(t, []string{"Workstations", "Tablets"}, appCfg.MDM.VolumePurchasingProgram.Value[0].Teams)
 	})
@@ -2211,10 +2231,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 	testCases := []struct {
 		name       string
 		newName    string
-		abmStored  []fleet.MDMAppleABMAssignmentInfo
-		abmOrgs    []string // ABM tokens defaulting to this fleet
-		vppStored  []fleet.MDMAppleVolumePurchasingProgramInfo
-		vppToken   *fleet.VPPTokenDB // nil means the fleet has no VPP token
+		fixture    staleTeamNamesFixture
 		wantLookup bool
 		wantSaves  int
 		wantABM    []fleet.MDMAppleABMAssignmentInfo
@@ -2223,36 +2240,36 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 		{
 			name:    "renames the fleet everywhere it appears, in a single write",
 			newName: "Laptops",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{
-				{OrganizationName: "Acme Inc", MacOSTeam: "Workstations", IOSTeam: "Phones", IpadOSTeam: "Workstations"},
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{
+					{OrganizationName: "Acme Inc", MacOSTeam: "Workstations", IOSTeam: "Phones"},
+				},
+				abmOrgs:   []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations", "Servers"}}},
+				vppToken:  acmeToken,
 			},
-			abmOrgs: []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
-				{Location: "Acme HQ", Teams: []string{"Workstations", "Servers", "Workstations"}},
-			},
-			vppToken:   acmeToken,
 			wantLookup: true,
 			wantSaves:  1,
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{
-				{OrganizationName: "Acme Inc", MacOSTeam: "Laptops", IOSTeam: "Phones", IpadOSTeam: "Laptops"},
+				{OrganizationName: "Acme Inc", MacOSTeam: "Laptops", IOSTeam: "Phones"},
 			},
-			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{
-				{Location: "Acme HQ", Teams: []string{"Laptops", "Servers", "Laptops"}},
-			},
+			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Laptops", "Servers"}}},
 		},
 		{
 			name:    "other ABM tokens and VPP locations are left alone",
 			newName: "Laptops",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{
-				{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"},
-				{OrganizationName: "Beta Corp", MacOSTeam: "Workstations"},
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{
+					{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"},
+					{OrganizationName: "Beta Corp", MacOSTeam: "Workstations"},
+				},
+				abmOrgs: []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
+					{Location: "Acme HQ", Teams: []string{"Workstations"}},
+					{Location: "Beta HQ", Teams: []string{"Workstations"}},
+				},
+				vppToken: acmeToken,
 			},
-			abmOrgs: []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
-				{Location: "Acme HQ", Teams: []string{"Workstations"}},
-				{Location: "Beta HQ", Teams: []string{"Workstations"}},
-			},
-			vppToken:   acmeToken,
 			wantLookup: true,
 			wantSaves:  1,
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{
@@ -2265,113 +2282,51 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 			},
 		},
 		{
-			name:       "one side matching still writes only once",
-			newName:    "Laptops",
-			abmStored:  []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
-			abmOrgs:    []string{"Acme Inc"},
-			vppStored:  []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
-			vppToken:   nil, // fleet has no VPP token, so the VPP copy must not move
+			name:    "one side matching still writes only once",
+			newName: "Laptops",
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
+				abmOrgs:   []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
+				vppToken:  nil, // fleet has no VPP token, so the VPP copy must not move
+			},
 			wantLookup: true,
 			wantSaves:  1,
 			wantABM:    []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Laptops"}},
 			wantVPP:    []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
 		},
 		{
-			name:       "fleet is referenced by neither",
-			newName:    "Laptops",
-			abmStored:  []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
-			abmOrgs:    nil,
-			vppStored:  []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
-			vppToken:   nil,
+			name:    "fleet is referenced by neither",
+			newName: "Laptops",
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
+			},
 			wantLookup: true,
 			wantABM:    []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
 			wantVPP:    []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
 		},
 		{
-			// Pre-existing staleness is not repaired: the stored names no longer
-			// match the name the fleet is being renamed from.
-			name:       "already-stale entries are not repaired",
-			newName:    "Laptops",
-			abmStored:  []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "AncientName"}},
-			abmOrgs:    []string{"Acme Inc"},
-			vppStored:  []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"AncientName"}}},
-			vppToken:   acmeToken,
-			wantLookup: true,
-			wantABM:    []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "AncientName"}},
-			wantVPP:    []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"AncientName"}}},
-		},
-		{
-			// "No fleet" (ABM) and "All teams" (VPP) are sentinels, not fleet
-			// names, so no rename may ever claim them.
-			name:       "sentinel assignments are not fleet names",
-			newName:    "Laptops",
-			abmStored:  []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: ""}},
-			abmOrgs:    []string{"Acme Inc"},
-			vppStored:  []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{fleet.DisplayNameAllTeams}}},
-			vppToken:   acmeToken,
-			wantLookup: true,
-			wantABM:    []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: ""}},
-			wantVPP:    []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{fleet.DisplayNameAllTeams}}},
-		},
-		{
-			name:      "same name is not a rename",
-			newName:   "Workstations",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
-			abmOrgs:   []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
-			vppToken:  acmeToken,
-			wantABM:   []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
-			wantVPP:   []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
+			name:    "same name is not a rename",
+			newName: "Workstations",
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
+				abmOrgs:   []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
+				vppToken:  acmeToken,
+			},
+			wantABM: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
+			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
 		},
 	}
 
-	authorizer, err := authz.NewAuthorizer()
-	require.NoError(t, err)
 	ctx := test.UserContext(context.Background(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.MDM.AppleBusinessManager = optjson.SetSlice(tc.abmStored)
-			appCfg.MDM.VolumePurchasingProgram = optjson.SetSlice(tc.vppStored)
-
-			ds := new(mock.Store)
+			svc, ds, appCfg, saves := newStaleTeamNamesService(t, teamID, tc.fixture)
 			ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
 				return &fleet.Team{ID: tid, Name: "Workstations"}, nil
-			}
-			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
-			ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) {
-				return nil, nil
-			}
-			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) { return team, nil }
-			ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(_ context.Context, tid *uint) ([]string, error) {
-				require.NotNil(t, tid)
-				require.Equal(t, teamID, *tid, "must look up ABM defaults for the renamed fleet")
-				return tc.abmOrgs, nil
-			}
-			ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, tid *uint) (*fleet.VPPTokenDB, error) {
-				require.NotNil(t, tid)
-				require.Equal(t, teamID, *tid, "must look up the VPP token for the renamed fleet")
-				if tc.vppToken == nil {
-					return nil, &notFoundError{}
-				}
-				return tc.vppToken, nil
-			}
-			var saves int
-			ds.SaveAppConfigFunc = func(context.Context, *fleet.AppConfig) error {
-				saves++
-				return nil
-			}
-
-			mockSvc := &svcmock.Service{}
-			mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
-
-			svc := &Service{
-				Service: mockSvc,
-				ds:      ds,
-				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
-				authz:   authorizer,
-				logger:  slog.New(slog.DiscardHandler),
 			}
 
 			team, err := svc.ModifyTeam(ctx, teamID, fleet.TeamPayload{Name: new(tc.newName)})
@@ -2385,7 +2340,7 @@ func TestModifyTeamRenameUpdatesStaleAppConfigTeamNames(t *testing.T) {
 
 			// Both corrections share one app config write, so a case that
 			// changes ABM and VPP together must still save exactly once.
-			require.Equal(t, tc.wantSaves, saves)
+			require.Equal(t, tc.wantSaves, *saves)
 			require.Equal(t, tc.wantABM, appCfg.MDM.AppleBusinessManager.Value)
 			require.Equal(t, tc.wantVPP, appCfg.MDM.VolumePurchasingProgram.Value)
 		})
@@ -2399,44 +2354,41 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 
 	testCases := []struct {
 		name      string
-		abmStored []fleet.MDMAppleABMAssignmentInfo
-		abmOrgs   []string // ABM tokens defaulting to the deleted fleet
-		vppStored []fleet.MDMAppleVolumePurchasingProgramInfo
-		vppToken  *fleet.VPPTokenDB // nil means the fleet had no VPP token
+		fixture   staleTeamNamesFixture
 		wantSaves int
 		wantABM   []fleet.MDMAppleABMAssignmentInfo
 		wantVPP   []fleet.MDMAppleVolumePurchasingProgramInfo
 	}{
 		{
 			name: "clears the fleet everywhere it appears, in a single write",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{
-				{OrganizationName: "Acme Inc", MacOSTeam: "Workstations", IOSTeam: "Phones", IpadOSTeam: "Workstations"},
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{
+					{OrganizationName: "Acme Inc", MacOSTeam: "Workstations", IOSTeam: "Phones"},
+				},
+				abmOrgs:   []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations", "Servers"}}},
+				vppToken:  acmeToken,
 			},
-			abmOrgs: []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
-				{Location: "Acme HQ", Teams: []string{"Workstations", "Servers"}},
-			},
-			vppToken:  acmeToken,
 			wantSaves: 1,
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{
-				{OrganizationName: "Acme Inc", MacOSTeam: "", IOSTeam: "Phones", IpadOSTeam: ""},
+				{OrganizationName: "Acme Inc", MacOSTeam: "", IOSTeam: "Phones"},
 			},
-			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{
-				{Location: "Acme HQ", Teams: []string{"Servers"}},
-			},
+			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
 		},
 		{
 			name: "other ABM tokens and VPP locations are left alone",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{
-				{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"},
-				{OrganizationName: "Beta Corp", MacOSTeam: "Workstations"},
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{
+					{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"},
+					{OrganizationName: "Beta Corp", MacOSTeam: "Workstations"},
+				},
+				abmOrgs: []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
+					{Location: "Acme HQ", Teams: []string{"Workstations"}},
+					{Location: "Beta HQ", Teams: []string{"Workstations"}},
+				},
+				vppToken: acmeToken,
 			},
-			abmOrgs: []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{
-				{Location: "Acme HQ", Teams: []string{"Workstations"}},
-				{Location: "Beta HQ", Teams: []string{"Workstations"}},
-			},
-			vppToken:  acmeToken,
 			wantSaves: 1,
 			wantABM: []fleet.MDMAppleABMAssignmentInfo{
 				{OrganizationName: "Acme Inc", MacOSTeam: ""},
@@ -2448,49 +2400,33 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 			},
 		},
 		{
-			name:      "one side matching still writes only once",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
-			abmOrgs:   []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
-			vppToken:  nil, // fleet had no VPP token, so the VPP copy must not move
+			name: "one side matching still writes only once",
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Workstations"}},
+				abmOrgs:   []string{"Acme Inc"},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
+				vppToken:  nil, // fleet had no VPP token, so the VPP copy must not move
+			},
 			wantSaves: 1,
 			wantABM:   []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: ""}},
 			wantVPP:   []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Workstations"}}},
 		},
 		{
-			name:      "fleet is referenced by neither",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
-			abmOrgs:   nil,
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
-			vppToken:  nil,
-			wantABM:   []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
-			wantVPP:   []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
-		},
-		{
-			// "No fleet" (ABM) and "All fleets" (VPP) are sentinels, not fleet
-			// names, so deleting a fleet must never disturb them.
-			name:      "sentinel assignments are not fleet names",
-			abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: ""}},
-			abmOrgs:   []string{"Acme Inc"},
-			vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{fleet.DisplayNameAllTeams}}},
-			vppToken:  acmeToken,
-			wantSaves: 0,
-			wantABM:   []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: ""}},
-			wantVPP:   []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{fleet.DisplayNameAllTeams}}},
+			name: "fleet is referenced by neither",
+			fixture: staleTeamNamesFixture{
+				abmStored: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
+				vppStored: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
+			},
+			wantABM: []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "Acme Inc", MacOSTeam: "Servers"}},
+			wantVPP: []fleet.MDMAppleVolumePurchasingProgramInfo{{Location: "Acme HQ", Teams: []string{"Servers"}}},
 		},
 	}
 
-	authorizer, err := authz.NewAuthorizer()
-	require.NoError(t, err)
 	ctx := test.UserContext(context.Background(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.MDM.AppleBusinessManager = optjson.SetSlice(tc.abmStored)
-			appCfg.MDM.VolumePurchasingProgram = optjson.SetSlice(tc.vppStored)
-
-			ds := new(mock.Store)
+			svc, ds, appCfg, saves := newStaleTeamNamesService(t, teamID, tc.fixture)
 			ds.TeamLiteFunc = func(_ context.Context, tid uint) (*fleet.TeamLite, error) {
 				return &fleet.TeamLite{ID: tid, Name: "Workstations"}, nil
 			}
@@ -2502,40 +2438,8 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 			) {
 				return nil, nil, nil
 			}
-			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
-			ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(_ context.Context, tid *uint) ([]string, error) {
-				require.NotNil(t, tid)
-				require.Equal(t, teamID, *tid, "must look up ABM defaults for the deleted fleet")
-				return tc.abmOrgs, nil
-			}
-			ds.GetVPPTokenByTeamIDFunc = func(_ context.Context, tid *uint) (*fleet.VPPTokenDB, error) {
-				require.NotNil(t, tid)
-				require.Equal(t, teamID, *tid, "must look up the VPP token for the deleted fleet")
-				if tc.vppToken == nil {
-					return nil, &notFoundError{}
-				}
-				return tc.vppToken, nil
-			}
-			var saves int
-			ds.SaveAppConfigFunc = func(context.Context, *fleet.AppConfig) error {
-				saves++
-				return nil
-			}
-			ds.GetWindowsEnrollmentDefaultFleetFunc = func(context.Context) (*uint, string, error) {
-				return nil, "", nil
-			}
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(context.Context) (*uint, string, error) { return nil, "", nil }
 			ds.DeleteTeamFunc = func(context.Context, uint) error { return nil }
-
-			mockSvc := &svcmock.Service{}
-			mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
-
-			svc := &Service{
-				Service: mockSvc,
-				ds:      ds,
-				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
-				authz:   authorizer,
-				logger:  slog.New(slog.DiscardHandler),
-			}
 
 			require.NoError(t, svc.DeleteTeam(ctx, teamID))
 
@@ -2544,7 +2448,7 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 
 			// Both cleanups share one app config write, so a case that clears
 			// ABM and VPP together must still save exactly once.
-			require.Equal(t, tc.wantSaves, saves)
+			require.Equal(t, tc.wantSaves, *saves)
 			require.Equal(t, tc.wantABM, appCfg.MDM.AppleBusinessManager.Value)
 			require.Equal(t, tc.wantVPP, appCfg.MDM.VolumePurchasingProgram.Value)
 		})

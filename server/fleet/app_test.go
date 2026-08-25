@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1114,10 +1115,7 @@ func TestMDMAppleVolumePurchasingProgramInfoRenameTeam(t *testing.T) {
 		Teams:    []string{"Workstations", "Servers", "Workstations"},
 	}
 	clone := func() MDMAppleVolumePurchasingProgramInfo {
-		return MDMAppleVolumePurchasingProgramInfo{
-			Location: base.Location,
-			Teams:    append([]string(nil), base.Teams...),
-		}
+		return MDMAppleVolumePurchasingProgramInfo{Location: base.Location, Teams: slices.Clone(base.Teams)}
 	}
 
 	t.Run("renames every occurrence and leaves the rest", func(t *testing.T) {
@@ -1136,7 +1134,7 @@ func TestMDMAppleVolumePurchasingProgramInfoRenameTeam(t *testing.T) {
 		info := clone()
 		info.Teams = append(info.Teams, "")
 		require.False(t, info.RenameTeam("", "Laptops"))
-		require.Equal(t, append(append([]string(nil), base.Teams...), ""), info.Teams)
+		require.Equal(t, append(slices.Clone(base.Teams), ""), info.Teams)
 	})
 
 	t.Run("all-teams is a display name, not a fleet", func(t *testing.T) {
