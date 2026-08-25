@@ -1735,6 +1735,8 @@ func (svc *Service) createTeamFromSpec(
 				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
 				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
 				MacOSUpdates:               spec.MDM.MacOSUpdates,
+				IOSUpdates:                 spec.MDM.IOSUpdates,
+				IPadOSUpdates:              spec.MDM.IPadOSUpdates,
 				WindowsUpdates:             spec.MDM.WindowsUpdates,
 				MacOSSettings:              macOSSettings,
 				MacOSSetup:                 macOSSetup,

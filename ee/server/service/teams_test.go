@@ -1990,3 +1990,73 @@ func TestApplyTeamSpecsOSUpdatesValidation(t *testing.T) {
 		})
 	}
 }
+
+// GitOps creating a brand-new team has to persist the Apple OS update settings
+// the same way editing an existing one does; they were previously dropped.
+func TestApplyTeamSpecsCreateAppliesAppleOSUpdates(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, newB bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+
+	var created *fleet.Team
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		created = team
+		team.ID = 1
+		return team, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	svc := &Service{
+		ds: ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: "something"},
+		},
+		authz: authorizer,
+	}
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	svc.Service = mockSvc
+
+	ctx := test.UserContext(t.Context(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	spec := &fleet.TeamSpec{Name: "Engineering"}
+	spec.MDM.MacOSUpdates = fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("15.0"),
+		Deadline:       optjson.SetString("2026-09-01"),
+	}
+	spec.MDM.IOSUpdates = fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("18.1"),
+		Deadline:       optjson.SetString("2026-09-02"),
+	}
+	spec.MDM.IPadOSUpdates = fleet.AppleOSUpdateSettings{
+		MinimumVersion: optjson.SetString("18.2"),
+		Deadline:       optjson.SetString("2026-09-03"),
+	}
+
+	_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+	require.NoError(t, err)
+	require.True(t, ds.NewTeamFuncInvoked)
+	require.NotNil(t, created)
+
+	// macOS already worked; it's here so a regression that drops all of them is
+	// distinguishable from one that drops only the iOS/iPadOS pair.
+	require.Equal(t, "15.0", created.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "18.1", created.Config.MDM.IOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2026-09-02", created.Config.MDM.IOSUpdates.Deadline.Value)
+	require.Equal(t, "18.2", created.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "2026-09-03", created.Config.MDM.IPadOSUpdates.Deadline.Value)
+}
