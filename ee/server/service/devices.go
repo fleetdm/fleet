@@ -391,6 +391,71 @@ func (svc *Service) createDeviceSSOSession(ctx context.Context, host *fleet.Host
 	return sessionID, ttl, nil
 }
 
+func (svc *Service) validateDeviceSSOSession(ctx context.Context, sessionID string) (*fleet.DeviceSSOSession, error) {
+	if sessionID == "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("device sso session not found"))
+	}
+
+	val, err := svc.keyValueStore.Get(ctx, deviceSSOSessionKeyPrefix+sessionID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get device sso session")
+	}
+	if val == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("device sso session not found"))
+	}
+
+	var session fleet.DeviceSSOSession
+	if err := json.Unmarshal([]byte(*val), &session); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal device sso session")
+	}
+
+	if !svc.clock.Now().Before(session.ExpiresAt) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("device sso session expired"))
+	}
+
+	return &session, nil
+}
+
+func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if !appConfig.FleetDesktop.SSOEnabled {
+		return nil
+	}
+
+	// Setup Experience opens the device page in a web view while Setup Assistant
+	// is still running, where the user won't be able to initiate the SSO flow.
+	inSetupExperience, err := fleet.HostIsInSetupExperience(ctx, svc.ds, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is in setup experience")
+	}
+	if inSetupExperience {
+		return nil
+	}
+
+	session, err := svc.validateDeviceSSOSession(ctx, sessionID)
+	var noSession *fleet.AuthRequiredError
+	switch {
+	case errors.As(err, &noSession):
+		svc.logger.DebugContext(ctx, "no device sso session for request", "host_id", host.ID, "err", err)
+	case err != nil:
+		// Anything else is the session store failing, not the end user being
+		// signed out.
+		return ctxerr.Wrap(ctx, err, "validating device sso session")
+	case session.HostID != host.ID:
+		// The session is bound to the host its device token minted it for, so one
+		// device's cookie cannot unlock another device's page in the same browser.
+		svc.logger.WarnContext(ctx, "device sso session belongs to another host",
+			"host_id", host.ID, "session_host_id", session.HostID)
+	default:
+		return nil
+	}
+
+	return ctxerr.Wrap(ctx, fleet.NewDeviceSSORequiredError("no device sso session"), "require device sso session")
+}
+
 func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
 	// the device middleware already authenticated the host via its device token.
 	svc.authz.SkipAuthorization(ctx)

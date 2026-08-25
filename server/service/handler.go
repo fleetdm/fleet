@@ -965,15 +965,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
-	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
-	de.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	// Deprecated: Device mapping data is now included in host details endpoint
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
-	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
-	de.WithCustomMiddleware(errorLimiter).WithRequestBodySizeLimit(fleet.MaxFleetdErrorReportSize).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install_all", submitSelfServiceSoftwareInstallAll, fleetSelfServiceSoftwareInstallAllRequest{})
@@ -987,6 +983,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
 
+	// Endpoints exempt from the Fleet Desktop SSO gate.
+	deNoSSO := newDeviceSSOExemptEndpointer(svc, logger, opts, r, apiVersions...)
+	deNoSSO.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).WithRequestBodySizeLimit(fleet.MaxFleetdErrorReportSize).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
 	// Device-authenticated, so unlike the unauthenticated SSO routes this needs no
 	// pre-auth flood guard. It is quota-limited for amplification instead: each
 	// successful call refetches the IdP metadata, so one leaked device token could
@@ -996,13 +998,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// at the same rate as the other end-user-facing SSO path, so
 	// auth.sso_rate_limit_per_minute tunes both.
 	deviceSsoLimiter := limiter.Limit("device_sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
-	de.WithCustomMiddleware(errorLimiter, deviceSsoLimiter).POST("/api/_version_/fleet/device/{token}/sso", initiateDeviceSSOEndpoint, initiateDeviceSSORequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter, deviceSsoLimiter).POST("/api/_version_/fleet/device/{token}/sso", initiateDeviceSSOEndpoint, initiateDeviceSSORequest{})
+	// migrate_mdm is posted by the tray app's "Migrate to Fleet" dialog with the
+	// device token alone (orbit/pkg/useraction -> DeviceClient.MigrateMDM), and it
+	// has no browser to complete an IdP round-trip in.
+	deNoSSOmdm := deNoSSO.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	deNoSSOmdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
+
 	// Device authenticated, Apple MDM endpoints.
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
-	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
 	// host-authenticated endpoints
 	//

@@ -959,45 +959,7 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 }
 
 func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
-	switch {
-	case host.Platform == string(fleet.MacOSPlatform):
-		inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
-		}
-		return inSetupExperience, nil
-	case fleet.IsLinux(host.Platform) || host.Platform == "windows":
-		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
-		}
-		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
-		if err != nil && !fleet.IsNotFound(err) {
-			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
-		}
-		return inSetupExperience, nil
-	default:
-		return false, nil
-	}
-}
-
-func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
-	}
-
-	for _, status := range statuses {
-		if err := status.IsValid(); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "invalid row")
-		}
-
-		switch status.Status {
-		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
-			return true, nil
-		}
-	}
-	return false, nil
+	return fleet.HostIsInSetupExperience(ctx, svc.ds, host)
 }
 
 // discardOutOfScopePolicyResults removes, in place, the results for policies that are not in scope for the host.
