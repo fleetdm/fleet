@@ -13262,7 +13262,8 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | form | _Deprecated. Use `configurations`._ The app's managed configuration, applied to every host the app is installed on. Equivalent to a single `configurations` entry with no label fields. Can't be specified together with `configurations`. |
+| configurations | array | form | A list of one or more managed app configurations. For iOS and iPadOS apps each `configuration` is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. Each entry is an object with a `configuration` value and, optionally, one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that configuration to a subset of the hosts the app is installed on. These per-configuration labels are independent of the top-level `labels_include_any`/`labels_include_all`/`labels_exclude_any` above, which control whether the app installs on a host at all. An entry with no label fields is the default, applied to hosts that don't match any other entry — Fleet applies the first matching entry in list order, so list the default last. Up to 10 entries are supported. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -13280,6 +13281,29 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "team_id": 2,
   "platform": "ipados",
   "self_service": true
+}
+```
+
+##### Request body with multiple label-scoped configurations
+
+```json
+{
+  "app_store_id": "546505307",
+  "team_id": 2,
+  "platform": "ios",
+  "configurations": [
+    {
+      "labels_include_any": ["Product"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->"
+    },
+    {
+      "labels_include_any": ["Marketing"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->"
+    },
+    {
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->"
+    }
+  ]
 }
 ```
 
@@ -13328,11 +13352,12 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | body | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | body | _Deprecated. Use `configurations`._ The app's managed configuration, applied to every host the app is installed on. Equivalent to a single `configurations` entry with no label fields. Can't be specified together with `configurations`. |
+| configurations | array | body | A list of one or more managed app configurations. For iOS and iPadOS apps each `configuration` is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. Each entry is an object with a `configuration` value and, optionally, one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that configuration to a subset of the hosts the app is installed on. These per-configuration labels are independent of the top-level `labels_include_any`/`labels_include_all`/`labels_exclude_any` above, which control whether the app installs on a host at all. An entry with no label fields is the default, applied to hosts that don't match any other entry — Fleet applies the first matching entry in list order, so list the default last. Up to 10 entries are supported. Passing `configurations` replaces the app's entire set of configurations. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
-`configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+Each configuration only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
 #### Example
 
@@ -13348,6 +13373,27 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "labels_include_any": [
     "Product",
     "Marketing"
+  ]
+}
+```
+
+##### Request body with multiple label-scoped configurations
+
+```json
+{
+  "team_id": 2,
+  "configurations": [
+    {
+      "labels_include_any": ["Product"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->"
+    },
+    {
+      "labels_include_any": ["Marketing"],
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->"
+    },
+    {
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->"
+    }
   ]
 }
 ```
@@ -13374,6 +13420,29 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
       {
         "name": "Marketing",
         "id": 17
+      }
+    ],
+    "configurations": [
+      {
+        "labels_include_any": [
+          {
+            "name": "Product",
+            "id": 12
+          }
+        ],
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->"
+      },
+      {
+        "labels_include_any": [
+          {
+            "name": "Marketing",
+            "id": 17
+          }
+        ],
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->"
+      },
+      {
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->"
       }
     ],
     "automatic_install_policies": [

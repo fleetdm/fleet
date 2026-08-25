@@ -623,14 +623,23 @@ software:
       auto_update_enabled: true
       auto_update_window_start: "00:00"
       auto_update_window_end: "04:00"
-      configuration:
-        path: ../lib/software/zoom-config.xml
+      configurations:
+        - labels_include_any:
+            - Product
+          path: ../lib/software/zoom-config-product.xml
+        - labels_include_any:
+            - Marketing
+          path: ../lib/software/zoom-config-marketing.xml
+        - path: ../lib/software/zoom-config-default.xml
     - app_store_id: "us.zoom.videomeetings"
       platform: android
       self_service: true
       setup_experience: true
-      configuration:
-        path: ../lib/software/zoom-config.json
+      configurations:
+        - labels_include_all:
+            - Sales
+          path: ../lib/software/zoom-config-sales.json
+        - path: ../lib/software/zoom-config-default.json
   fleet_maintained_apps:
     - slug: slack/darwin
       version: "4.47.65"
@@ -786,9 +795,13 @@ software:
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
-- `configuration.path` is the app managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
+- `configurations` is a list of one or more managed app configurations for this app. For iOS and iPadOS apps each configuration is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
+  + Each entry has a `path` to the configuration file, and optionally one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that specific configuration to a subset of the hosts the app is installed on (e.g. give one IdP group a different VPN configuration than another). These per-configuration labels are independent of the app-level `labels_include_any`/`labels_include_all`/`labels_exclude_any` documented above, which control whether the app is installed on a host at all.
+  + An entry with no label fields is the default and matches any host not matched by an earlier entry. Fleet evaluates entries in list order and applies the first matching one, so an unscoped default entry should be listed last.
+  + Up to 10 configurations are supported per app (same limit as [multiple versions of the same software](#packages)).
   + Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+  + `configuration.path` (deprecated, use `configurations`) sets a single unscoped configuration — equivalent to a `configurations` entry with no label fields. Can't be set together with `configurations`.
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
 - `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
 - `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
