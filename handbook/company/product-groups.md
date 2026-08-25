@@ -481,7 +481,7 @@ Every user story has a product and engineering checklist that is completed befor
 
 When the Product Designer has completed the product checklist, it is reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
 
-When a user story completes the review process, it is assigned to the product group's Tech Lead. The Tech Lead is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer.
+When a user story completes the review process, it is assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer.
 
 
 #### Providing context
