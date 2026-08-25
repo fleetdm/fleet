@@ -47,6 +47,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallerRepointsPolicies", testDeleteSoftwareInstallerRepointsPolicies},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
+		{"GetHostLastInstallDataAppOpenSkip", testGetHostLastInstallDataAppOpenSkip},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
@@ -3252,6 +3253,9 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	require.Equal(t, installUUID3, host1LastInstall.ExecutionID)
 	require.NotNil(t, host1LastInstall.Status)
 	require.Equal(t, fleet.SoftwareInstallFailed, *host1LastInstall.Status)
+	// Ordinary install-script failure (no patch policy involved) must not be flagged
+	// as an app-open skip: the WasAppOpenSkip flag is scoped to patch-when-closed.
+	require.False(t, host1LastInstall.WasAppOpenSkip)
 
 	// No installations on host2.
 	host2LastInstall, err := ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID1)
@@ -3260,6 +3264,92 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	host2LastInstall, err = ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.Nil(t, host2LastInstall)
+}
+
+// testGetHostLastInstallDataAppOpenSkip verifies that a patch-when-closed policy install
+// that came back with an empty pre-install output (app open) surfaces WasAppOpenSkip=true
+// on GetHostLastInstallData, so the continuous-automation throttle can dampen re-fires
+// while the app remains open. An empty pre-install output on a NON patch-when-closed
+// policy install must not flip the flag.
+func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Author", "author-appopen-skip@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "app-open-skip-team"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "aos-host", "aos-1", "aos-key", "aos-uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install",
+		InstallerFile:   tfr,
+		StorageID:       "aos-installer",
+		Filename:        "aos.pkg",
+		Title:           "AOS",
+		Source:          "apps",
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// createPolicy makes a team policy tied to the installer's title, optionally patch-when-closed.
+	// patch_when_closed is set directly since NewTeamPolicy doesn't expose it on this simplified path.
+	createPolicy := func(patchWhenClosed bool) uint {
+		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:  "policy-" + uuid.NewString(),
+			Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+		if patchWhenClosed {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`, p.ID)
+				return err
+			})
+		}
+		return p.ID
+	}
+
+	// queueAndReportSkip queues a policy-triggered install for the host and reports an
+	// empty pre_install_query_output (app-open signal from orbit) so the row lands as
+	// failed_install with the flag pre-conditions met.
+	queueAndReportSkip := func(policyID uint) string {
+		exec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policyID})
+		require.NoError(t, err)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+		require.NoError(t, err)
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               exec,
+			PreInstallConditionOutput: new(""),
+		}, new(0))
+		require.NoError(t, err)
+		return exec
+	}
+
+	// patch-when-closed policy + empty pre-install output => flagged as app-open skip.
+	pwcExec := queueAndReportSkip(createPolicy(true))
+	last, err := ds.GetHostLastInstallData(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, last)
+	require.Equal(t, pwcExec, last.ExecutionID)
+	require.NotNil(t, last.Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *last.Status)
+	require.True(t, last.WasAppOpenSkip, "patch-when-closed empty pre-install output must flag as app-open skip")
+
+	// Ordinary patch policy (no patch_when_closed) + empty pre-install output => NOT flagged.
+	// Regression guard for the intentional carve-out: the flag is scoped to patch-when-closed
+	// so ordinary empty pre_install_query results still fail normally and still retry.
+	ordinaryExec := queueAndReportSkip(createPolicy(false))
+	last, err = ds.GetHostLastInstallData(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, last)
+	require.Equal(t, ordinaryExec, last.ExecutionID)
+	require.False(t, last.WasAppOpenSkip, "ordinary empty pre-install output must not flag as app-open skip")
+
+	_ = titleID
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {

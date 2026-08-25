@@ -471,6 +471,12 @@ type HostLastInstallData struct {
 	// requests the host refetch; it is used to throttle continuous policy automation
 	// re-installs (see continuousAutomationOnCooldown).
 	UpdatedAt time.Time `db:"updated_at"`
+	// WasAppOpenSkip is true when the last install ended in an app-open skip on a
+	// patch-when-closed policy (managed pre-install query returned no rows). The row
+	// is stored as failed_install but semantically it's a hold, so the continuous-
+	// automation throttle treats it like a success to avoid re-firing on every
+	// distributed_write while the app stays open.
+	WasAppOpenSkip bool `db:"was_app_open_skip"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.

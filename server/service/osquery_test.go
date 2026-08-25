@@ -5597,40 +5597,60 @@ func TestProcessSoftwareForNewlyFailingPoliciesContinuousCooldown(t *testing.T) 
 	installed := fleet.SoftwareInstalled
 	failedInstall := fleet.SoftwareInstallFailed
 
-	setLastInstall := func(status *fleet.SoftwareInstallerStatus, updatedAt time.Time) {
+	setLastInstall := func(status *fleet.SoftwareInstallerStatus, updatedAt time.Time, wasAppOpenSkip bool) {
 		ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
-			return &fleet.HostLastInstallData{ExecutionID: "prev-exec", Status: status, UpdatedAt: updatedAt}, nil
+			return &fleet.HostLastInstallData{
+				ExecutionID:    "prev-exec",
+				Status:         status,
+				UpdatedAt:      updatedAt,
+				WasAppOpenSkip: wasAppOpenSkip,
+			}, nil
 		}
 	}
 
 	// Continuous re-fire with a recent successful install => throttled.
 	insertCalled = false
-	setLastInstall(&installed, now.Add(-10*time.Minute))
+	setLastInstall(&installed, now.Add(-10*time.Minute), false)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.False(t, insertCalled, "continuous install should be throttled within the policy update interval")
 
 	// Continuous re-fire after the interval elapsed => fires.
 	insertCalled = false
-	setLastInstall(&installed, now.Add(-2*time.Hour))
+	setLastInstall(&installed, now.Add(-2*time.Hour), false)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire once the cooldown elapses")
 
 	// Newly failing (pass→fail) bypasses the cooldown even with a recent install.
 	insertCalled = false
-	setLastInstall(&installed, now.Add(-1*time.Minute))
+	setLastInstall(&installed, now.Add(-1*time.Minute), false)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, map[uint]struct{}{policyID: {}}))
 	require.True(t, insertCalled, "newly-failing install should fire regardless of cooldown")
 
-	// A recent FAILED install does not throttle: only successful installs request the
-	// refetch that drives the loop, and failures are retried via the dedicated path.
+	// A recent ordinary failed install does not throttle: only successful installs
+	// request the refetch that drives the loop, and failures are retried via the
+	// dedicated retry path.
 	insertCalled = false
-	setLastInstall(&failedInstall, now.Add(-1*time.Minute))
+	setLastInstall(&failedInstall, now.Add(-1*time.Minute), false)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install failed")
 
+	// A recent patch-when-closed app-open skip within the interval => throttled.
+	// The skip is a hold until the user closes the app, not a retryable failure, so we
+	// wait one policy cycle instead of re-firing on every distributed_write.
+	insertCalled = false
+	setLastInstall(&failedInstall, now.Add(-1*time.Minute), true)
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.False(t, insertCalled, "app-open skip should throttle continuous re-fires within the policy update interval")
+
+	// After the cooldown elapses, an app-open skip stops throttling => fires again.
+	insertCalled = false
+	setLastInstall(&failedInstall, now.Add(-2*time.Hour), true)
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
+	require.True(t, insertCalled, "continuous install should fire again once the app-open cooldown elapses")
+
 	// A recent install with nil status (installed then removed) does not throttle.
 	insertCalled = false
-	setLastInstall(nil, now.Add(-1*time.Minute))
+	setLastInstall(nil, now.Add(-1*time.Minute), false)
 	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, noNewlyFailing))
 	require.True(t, insertCalled, "continuous install should fire when the recent install has no resolved status")
 

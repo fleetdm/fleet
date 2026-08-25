@@ -2710,7 +2710,8 @@ func (ds *Datastore) getLatestUpcomingInstall(ctx context.Context, hostID, insta
 SELECT
 	execution_id,
 	'pending_install' AS status,
-	updated_at
+	updated_at,
+	0 AS was_app_open_skip
 FROM
 	upcoming_activities
 WHERE
@@ -2733,15 +2734,23 @@ WHERE
 
 func (ds *Datastore) getLatestPastInstall(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 	var hostLastInstall fleet.HostLastInstallData
+	// was_app_open_skip is true only when the row is a patch-when-closed policy install
+	// whose managed pre-install query returned no rows (empty pre_install_query_output).
+	// The generated status column already treats that as failed_install, so we don't need
+	// to gate on status here.
 	stmt := `
 SELECT
-	execution_id,
-	status,
-	updated_at
+	hsi.execution_id,
+	hsi.status,
+	hsi.updated_at,
+	(COALESCE(p.patch_when_closed, 0) = 1
+		AND hsi.pre_install_query_output IS NOT NULL
+		AND hsi.pre_install_query_output = '') AS was_app_open_skip
 FROM
-	host_software_installs
+	host_software_installs hsi
+	LEFT JOIN policies p ON p.id = hsi.policy_id
 WHERE
-	id = (
+	hsi.id = (
 		SELECT
 			MAX(hsi.id)
 		FROM

@@ -2242,12 +2242,16 @@ func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, ho
 // last fired (queued an install) at lastFiredAt should be skipped on this run.
 //
 // Continuous automations re-fire on every failing policy result, not just on
-// pass→fail transitions. A successful install requests a host vitals refetch, and a
-// refetch makes policies re-run immediately (bypassing the policy update interval).
-// If the policy keeps failing, that creates a tight install→refetch→re-run→install
-// loop. We throttle continuous re-fires to at most once per policy update interval so
-// a perpetually-failing policy retries on the next interval (~1h) instead of
-// continuously. A zero lastFiredAt (no prior automation install) is never on cooldown.
+// pass→fail transitions. Two cases produce a rapid re-fire loop the caller wants to
+// dampen to at most once per policy update interval:
+//   - A successful install requests a host vitals refetch, and a refetch makes policies
+//     re-run immediately (bypassing the policy update interval). If the policy keeps
+//     failing, that creates a tight install→refetch→re-run→install loop.
+//   - A patch-when-closed app-open skip leaves the policy failing without triggering
+//     a refetch, but any refetch from another source (manual, another automation) will
+//     re-fire the policy and queue another skip immediately.
+//
+// A zero lastFiredAt (no prior automation install) is never on cooldown.
 func (svc *Service) continuousAutomationOnCooldown(lastFiredAt time.Time) bool {
 	if lastFiredAt.IsZero() {
 		return false
@@ -2389,20 +2393,25 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 
 		// Throttle continuous policy automation re-installs: if this policy fired only
-		// because continuous_automations_enabled is set (not a pass→fail transition)
-		// and we already queued a successful install within the policy update interval,
-		// skip it. This prevents a tight install→refetch→re-run loop when the install
-		// succeeds but never makes the policy pass. We only throttle on a successful
-		// install because only success requests the refetch that drives the loop; failed
-		// installs are retried via the dedicated retry path (see
-		// shouldRetryPolicyAutomationSoftwareInstall). See continuousAutomationOnCooldown.
+		// because continuous_automations_enabled is set (not a pass→fail transition),
+		// skip re-firing while the last install completed within the policy update
+		// interval. Two throttled cases:
+		//   - Successful install: prevents a tight install→refetch→re-run loop, since
+		//     success is what requests the refetch that drives the loop.
+		//   - App-open skip on a patch-when-closed policy: the skip is a hold until
+		//     the user closes the app, not a retryable failure, so we wait one policy
+		//     cycle instead of re-firing on every distributed_write.
+		// Ordinary failed installs skip this throttle: they retry via the dedicated
+		// retry path (see shouldRetryPolicyAutomationSoftwareInstall).
+		// See continuousAutomationOnCooldown.
 		if !newlyFailing && failingPolicyWithInstaller.ContinuousAutomationsEnabled &&
 			hostLastInstall != nil && hostLastInstall.Status != nil &&
-			*hostLastInstall.Status == fleet.SoftwareInstalled &&
+			(*hostLastInstall.Status == fleet.SoftwareInstalled || hostLastInstall.WasAppOpenSkip) &&
 			svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
 			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
 				"last_install_execution_id", hostLastInstall.ExecutionID,
 				"last_install_at", hostLastInstall.UpdatedAt,
+				"was_app_open_skip", hostLastInstall.WasAppOpenSkip,
 			)
 			continue
 		}
