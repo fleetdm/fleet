@@ -148,9 +148,9 @@ This brings the version bump and CHANGELOG updates to main and removes only the 
 
 After the release is published, close out the associated GitHub issues and milestone. For the canonical checklist, see [Conclude current milestone](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone):
 
-1. **Move associated stories to the Drafting board**: Stories may not be on the [Drafting](https://github.com/orgs/fleetdm/projects/67) board (project 67) yet. For each `story`-labeled issue in the `fleetd-android-v1.X.X` milestone, apply the `:product` label and remove the `:release` label so it moves onto the product drafting board.
+1. **Flag associated stories for Product**: For each `story`-labeled issue in the `fleetd-android-v1.X.X` milestone, apply the `:product` label and remove the `:release` label so the Product Designer knows they need to confirm and celebrate.
 
-2. **Move associated stories to "Confirm and celebrate"**: On the [Drafting](https://github.com/orgs/fleetdm/projects/67) board, filter by the `fleetd-android-v1.X.X` milestone, and move all stories to the "Confirm and celebrate" column. Product will close these issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
+2. **Move associated stories to "Confirm and celebrate"**: On the relevant product group's board, filter by the `fleetd-android-v1.X.X` milestone, and move all stories to the "Confirm and celebrate" column. Product will close these issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
 
 3. **Close associated bugs**: Close the remaining (non-story) issues in the `fleetd-android-v1.X.X` milestone.
 

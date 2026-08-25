@@ -34,7 +34,7 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
 ### Triage new requests
 
-The Head of Product Design is responsible for going through the inbox on the [drafting board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
+The Head of Product Design is responsible for going through new feature requests and bugs labeled `~inbox`. For each one, they add the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label and remove `~inbox`. Adding the product group label moves the issue to the [Inbox column](https://fleetdm.com/handbook/company/product-groups#board-columns) of that product group's board.
 
 Once labeled, each Product Designer (PD) is responsible for reviewing the inbox on their product group's board and deciding whether each new request contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year. If yes, the PD adds the `~product-maturity` label so the request is reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the "Unpacked" checkbox in the feature request issue and either prioritizes a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) to bring through [fast draft or full draft](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft), or removes it from the product group board and adds it to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
 
@@ -50,7 +50,7 @@ If a customer or prospect request is missing a Gong snippet or requires addition
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://github.com/orgs/fleetdm/projects/67) and move it to "In progress."
+1. Take the top user story that is assigned to you in the "Ready" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and move it to "In progress."
   
 2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
    -  **Cover**: This page has a component with the issue number and issue name.
@@ -120,7 +120,7 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Designer (PD) wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
-- A user story on the drafting board hasn't been T-shirt sized and it cannot wait until the next weekly planning.
+- A user story hasn't been T-shirt sized and it cannot wait until the next weekly planning.
 
 What happens during expedited drafting?
 

@@ -395,12 +395,8 @@ func (m model) selectedWorkflowDescription() string {
 		desc = "Add a label to all selected issues. You'll be prompted to type the label name."
 	case BulkRemoveLabel:
 		desc = "Remove a label from all selected issues. You'll be prompted to type the label name."
-	case BulkSprintKickoff:
-		desc = "Add selected issues to a project and set initial sprint kickoff fields (status, estimate sync, labels)."
 	case BulkMilestoneClose:
-		desc = "For selected stories: adds to drafting, sets status to 'confirm and celebrate', removes :release, and adds :product. For selected bugs and ~sub-task: closes the issues. Does not affect the milestone object itself."
-	case BulkKickOutOfSprint:
-		desc = "Remove selected issues from a project and reset sprint-related fields (status, labels)."
+		desc = "For selected stories: sets status to 'confirm and celebrate' on the issue's own product group board, removes :release, and adds :product. For selected bugs and ~sub-task: closes the issues. Does not affect the milestone object itself."
 	case BulkDemoSummary:
 		desc = "Generate a markdown summary of selected issues grouped by feature and bug, with assignees."
 	case BulkMoveToCurrentSprint:
@@ -414,7 +410,7 @@ func (m model) selectedWorkflowDescription() string {
 	switch w {
 	case BulkAddLabel, BulkRemoveLabel:
 		hints = append(hints, "Input required: label name")
-	case BulkSprintKickoff, BulkKickOutOfSprint, BulkMoveToCurrentSprint:
+	case BulkMoveToCurrentSprint:
 		hints = append(hints, "Input required: project ID or alias")
 		if m.projectID != 0 {
 			hints = append(hints, fmt.Sprintf("Current project in context: %d", m.projectID))
@@ -498,12 +494,8 @@ func (m model) RenderLabelInput() string {
 }
 
 func (m model) RenderProjectInput() string {
-	workflowTitle := "Sprint Kickoff"
+	workflowTitle := "Move To Current Sprint"
 	promptText := "Target Project (ID or alias):"
-	if m.workflowType == BulkKickOutOfSprint {
-		workflowTitle = "Kick Out Of Sprint"
-		promptText = "Source Project (ID or alias):"
-	}
 	s := fmt.Sprintf("\n--- %s ---\n", workflowTitle)
 	s += fmt.Sprintf("%s %s_\n", promptText, m.projectInput)
 	s += "Press 'enter' to execute, 'esc' to cancel.\n"
