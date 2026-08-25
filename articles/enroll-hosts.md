@@ -36,6 +36,8 @@ To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
+To test enrollment yourself, scan the QR code below the enrollment link with the device you want to enroll. It opens the same link you share with your end users.
+
 ## CLI
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/guides/fleetctl#installing-fleetctl).
