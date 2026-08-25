@@ -1,1 +1,0 @@
-- Added the `edited_disk_encryption_settings` activity, generated once per platform whose disk encryption settings changed; the `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` activities are no longer generated.
