@@ -159,14 +159,19 @@ try {
         if ($result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
 
         # An NSIS uninstaller relaunches itself from %TEMP%, so the process we waited on
-        # exits while removal is still in flight.
-        for ($waited = 0; $waited -lt 120; $waited++) {
+        # exits while removal is still in flight. Either the directory or the
+        # registration going away means it got there.
+        for ($waited = 0; $waited -lt 60; $waited++) {
             if (-not (Test-Path -LiteralPath $installDir)) { break }
+            if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
+                Start-Sleep -Seconds 3
+                break
+            }
             Start-Sleep -Seconds 1
         }
 
         if (Test-Path -LiteralPath $installDir) {
-            Write-Host "  Uninstaller left $installDir behind after ${waited}s; removing it."
+            Write-Host "  Uninstaller left $installDir behind; removing it."
             Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
             if (Test-Path -LiteralPath $installDir) {
                 Write-Host "  WARNING: could not remove $installDir."
