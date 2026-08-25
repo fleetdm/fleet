@@ -103,9 +103,9 @@ Additionally:
 
 ### Ensure story drafting is complete
 
-Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer brings the story to [user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews). Afterwards, the Product Designer assigns the user story to the appropriate Tech Lead to write the spec.
+Once a story is approved in [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews), the Product Designer brings the story to [user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews). Afterwards, the Product Designer assigns the user story to the appropriate Engineering Manager (EM) to help write specs.
 
-The EM is responsible for bringing the specified user story to estimation. The story stays in the "Drafting" column on the product group's board throughout — there's no separate column for each drafting step.
+The EM is responsible for bringing the specified user story to "Ready".
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
