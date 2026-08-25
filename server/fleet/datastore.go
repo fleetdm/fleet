@@ -2303,12 +2303,6 @@ type Datastore interface {
 	// ListABMTokens lists all of the ABM tokens.
 	ListABMTokens(ctx context.Context) ([]*ABMToken, error)
 
-	// ListABMTokenDefaultFleets returns the default fleet assignments for every
-	// ABM token, with fleet names resolved from the teams table at read time.
-	// Unlike ListABMTokens it does not load or decrypt the tokens themselves,
-	// so it is cheap enough to call on app config reads.
-	ListABMTokenDefaultFleets(ctx context.Context) ([]MDMAppleABMAssignmentInfo, error)
-
 	// DeleteABMToken deletes the given ABM token from the datastore.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
 

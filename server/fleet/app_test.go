@@ -1076,3 +1076,72 @@ func TestManagedLocalAccountSettingsMarshalDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, map[string]any{"enabled": false}, windowsSettings(v.([]byte)))
 }
+
+func TestMDMAppleABMAssignmentInfoRenameTeam(t *testing.T) {
+	base := MDMAppleABMAssignmentInfo{
+		OrganizationName: "Acme Inc",
+		MacOSTeam:        "Workstations",
+		IOSTeam:          "Phones",
+		IpadOSTeam:       "Workstations",
+		BYODTeam:         "",
+	}
+
+	t.Run("renames every platform pointing at the old name", func(t *testing.T) {
+		info := base
+		require.True(t, info.RenameTeam("Workstations", "Laptops"))
+		require.Equal(t, "Laptops", info.MacOSTeam)
+		require.Equal(t, "Laptops", info.IpadOSTeam)
+		require.Equal(t, "Phones", info.IOSTeam, "unrelated fleets must not move")
+		require.Empty(t, info.BYODTeam, `"no fleet" must stay unset`)
+	})
+
+	t.Run("no match reports false and changes nothing", func(t *testing.T) {
+		info := base
+		require.False(t, info.RenameTeam("Servers", "Laptops"))
+		require.Equal(t, base, info)
+	})
+
+	t.Run("empty old name must not claim the unassigned platforms", func(t *testing.T) {
+		info := base
+		require.False(t, info.RenameTeam("", "Laptops"))
+		require.Equal(t, base, info)
+	})
+}
+
+func TestMDMAppleVolumePurchasingProgramInfoRenameTeam(t *testing.T) {
+	base := MDMAppleVolumePurchasingProgramInfo{
+		Location: "Acme HQ",
+		Teams:    []string{"Workstations", "Servers", "Workstations"},
+	}
+	clone := func() MDMAppleVolumePurchasingProgramInfo {
+		return MDMAppleVolumePurchasingProgramInfo{
+			Location: base.Location,
+			Teams:    append([]string(nil), base.Teams...),
+		}
+	}
+
+	t.Run("renames every occurrence and leaves the rest", func(t *testing.T) {
+		info := clone()
+		require.True(t, info.RenameTeam("Workstations", "Laptops"))
+		require.Equal(t, []string{"Laptops", "Servers", "Laptops"}, info.Teams)
+	})
+
+	t.Run("no match reports false and changes nothing", func(t *testing.T) {
+		info := clone()
+		require.False(t, info.RenameTeam("Tablets", "Laptops"))
+		require.Equal(t, base.Teams, info.Teams)
+	})
+
+	t.Run("empty old name must not claim entries", func(t *testing.T) {
+		info := clone()
+		info.Teams = append(info.Teams, "")
+		require.False(t, info.RenameTeam("", "Laptops"))
+		require.Equal(t, append(append([]string(nil), base.Teams...), ""), info.Teams)
+	})
+
+	t.Run("all-teams is a display name, not a fleet", func(t *testing.T) {
+		info := MDMAppleVolumePurchasingProgramInfo{Location: "Acme HQ", Teams: []string{DisplayNameAllTeams}}
+		require.False(t, info.RenameTeam("Workstations", "Laptops"))
+		require.Equal(t, []string{DisplayNameAllTeams}, info.Teams)
+	})
+}

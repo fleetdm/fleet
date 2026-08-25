@@ -163,21 +163,15 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
-// MDMAppleABMAssignmentInfo represents an user definition of the association
+// MDMAppleABMAssignmentInfo represents a user definition of the association
 // between an ABM token (via organization name) and the teams used to associate
 // hosts when they're ingested during the ABM sync.
-//
-// Do NOT read the team names in this struct for logic: like
-// WindowsEnrollment.DefaultFleet, it is the transport/display shape only, and
-// the copy stored in app_config_json goes stale after a fleet rename. The
-// source of truth is the abm_tokens table, read via
-// Datastore.ListABMTokenDefaultFleets.
 type MDMAppleABMAssignmentInfo struct {
-	OrganizationName string `json:"organization_name" db:"organization_name"`
-	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet" db:"macos_team"`
-	IOSTeam          string `json:"ios_team" renameto:"ios_fleet" db:"ios_team"`
-	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet" db:"ipados_team"`
-	BYODTeam         string `json:"byod_team" renameto:"byod_fleet" db:"byod_team"`
+	OrganizationName string `json:"organization_name"`
+	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
+	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
 func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
@@ -195,11 +189,42 @@ func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
 	}
 }
 
+func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
+	// "" spells "no fleet" here (see UpdateABMTokenTeams), so renaming from it
+	// would claim every unassigned platform.
+	if oldName == "" {
+		return false
+	}
+	var renamed bool
+	for _, f := range []*string{&m.MacOSTeam, &m.IOSTeam, &m.IpadOSTeam, &m.BYODTeam} {
+		if *f == oldName {
+			*f, renamed = newName, true
+		}
+	}
+	return renamed
+}
+
 // MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
 // between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
+}
+
+func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
+	// "" spells "no fleet" here (see UpdateVPPTokenTeams), so renaming from it
+	// would claim every unassigned platform.
+	if oldName == "" {
+		return false
+	}
+
+	var renamed bool
+	for i, t := range m.Teams {
+		if t == oldName {
+			m.Teams[i], renamed = newName, true
+		}
+	}
+	return renamed
 }
 
 // MDM is part of AppConfig and defines the mdm settings.

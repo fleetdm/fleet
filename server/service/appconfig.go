@@ -303,49 +303,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		}
 	}
 
-	// Same story for the ABM default fleets: the source of truth is the
-	// abm_tokens table (FKs to teams), while app_config_json stores a copy of
-	// the fleet *names*, which goes stale when a fleet is renamed. Correct the
-	// stored names from the resolved ones, matching entries by organization
-	// name — deliberately not adding, removing or reordering entries, so a
-	// deployment that never assigned a token keeps its current representation.
-	//
-	// Guarded on there being entries at all, unlike the unconditional Windows
-	// lookup above: cached_mysql overrides GetWindowsEnrollmentDefaultFleet, so
-	// that call is usually free, whereas ListABMTokenDefaultFleets has no cache
-	// entry and hits the DB every time. No entries means nothing to correct, so
-	// skip the query rather than pay for it on every config read.
-	//
-	// The result is swapped in as a new slice only when something was actually
-	// stale: ds.AppConfig hands back the cached *fleet.AppConfig pointer itself,
-	// which concurrent readers share, so a steady state read must not write to
-	// it.
-	if ac.MDM.AppleBusinessManager.Set && ac.MDM.AppleBusinessManager.Valid && len(ac.MDM.AppleBusinessManager.Value) > 0 {
-		abmDefaultFleets, err := svc.ds.ListABMTokenDefaultFleets(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "list ABM token default fleets")
-		}
-		resolvedByOrgName := make(map[string]fleet.MDMAppleABMAssignmentInfo, len(abmDefaultFleets))
-		for _, assignment := range abmDefaultFleets {
-			resolvedByOrgName[assignment.OrganizationName] = assignment
-		}
-
-		hydrated := make([]fleet.MDMAppleABMAssignmentInfo, len(ac.MDM.AppleBusinessManager.Value))
-		copy(hydrated, ac.MDM.AppleBusinessManager.Value)
-		var foundStale bool
-		for i, stored := range hydrated {
-			resolved, ok := resolvedByOrgName[stored.OrganizationName]
-			if !ok || stored == resolved {
-				continue
-			}
-			hydrated[i] = resolved
-			foundStale = true
-		}
-		if foundStale {
-			ac.MDM.AppleBusinessManager = optjson.SetSlice(hydrated)
-		}
-	}
-
 	ac.Obfuscate()
 
 	return ac, nil
