@@ -1,8 +1,8 @@
 # How Fleet uses GitHub
 
-Admittedly, Fleet doesn't do things the same way as other companies.
+Fleet doesn't do things the same way as other companies.
 
-How we use GitHub is different to newcomers, customers and employees alike. This article hopes to show that there's a method to the madness.
+How we use GitHub is different to newcomers, customers and employees alike. This article hopes to show folks the Fleet way.
 
 We use a lot of GitHub features that may be familiar:
 
@@ -41,7 +41,7 @@ Bugs follow a simpler process and do not (typically) have sub-issues. Bugs are [
 
 **When will this feature be released? When will this bug be fixed?**
 
-Check the milestone (in the sidebar) of the original issue, and any sub-issues. If there isn't a milestone, the issue does not have a planned release date. Please note that the release version and date are subject to change.
+Check the milestone (in the sidebar) of the original issue, and any sub-issues. If there isn't a milestone, the issue does not have a planned release date. Please note that the release version and date are subject to change. You can check with your Customer Success Manager (CSM) to verify the most accurate status of your request.
 
 **Are there any updates on this issue?**
 
@@ -56,5 +56,5 @@ Issues are considered a living document while being worked on, and it's critical
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-08-19">
-<meta name="description" value="Admittedly, Fleet doesn't do things the same way as other companies.">
+<meta name="publishedOn" value="2026-08-25">
+<meta name="description" value="Fleet doesn't do things the same way as other companies.">
