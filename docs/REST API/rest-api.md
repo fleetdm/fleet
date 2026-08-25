@@ -2574,7 +2574,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
 | alternative_browser_host          | string  | The hostname used to navigate Fleet Desktop traffic through.                     |
-| sso_enabled                       | boolean  | Whether end  users must sign in via SSO before accessing Fleet Desktop. Requires an IdP configured. |
+| sso_enabled                       | boolean | Whether end users must sign in via SSO before accessing Fleet Desktop. Requires an IdP configured. |
 
 <br/>
 

@@ -3390,6 +3390,42 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
+Fleet Premium can require single sign-on in front of these routes. When `fleet_desktop.sso_enabled` is `true`, the device token is no longer enough on its own. Most of these routes also need a device SSO session. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
+
+A request without a valid session for that host returns `401` with an `sso_required` marker:
+
+```json
+{
+  "message": "Single sign-on required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Single sign-on required"
+    }
+  ],
+  "uuid": "e3b0c442-98fc-1c14-9afb-f4c8996fb924",
+  "sso_required": true
+}
+```
+
+An expired device token also returns `401`. The marker is what tells the "My device" page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
+
+Fleet checks the session after it resolves the host. The check covers all three ways a device authenticates: the rotating token, a client certificate, and a device UUID in the URL. This includes iOS and iPadOS.
+
+Two cases stay reachable with the setting on and no session.
+
+First, the exempt routes. Fleet registers these through a separate endpointer, listed in one block in `server/service/handler.go`, so every other device route needs a session by default:
+
+- [Get Fleet Desktop information](#get-fleet-desktop-information) and `HEAD /api/v1/fleet/device/{token}/ping`. The Fleet Desktop tray app polls both.
+- [Report an agent error](#report-an-agent-error), which fleetd posts.
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution). The tray app's migration dialog posts this, and it has no browser to complete an IdP round trip in.
+- [Get device's transparency URL](#get-devices-transparency-url), the "About Fleet" redirect. It exposes nothing about the host.
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on). This has to be reachable before a session exists.
+
+Requiring a session on the fleetd routes would mean changing fleetd. The tray app behaves the same way whether single sign-on is on or off.
+
+Second, hosts still in Setup Experience. Setup Experience opens the device page in a web view during Setup Assistant, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
+
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
@@ -3504,7 +3540,7 @@ In regards to the `notifications` key:
 #### Initiate Fleet Desktop single sign-on
 _Available in Fleet Premium_
 
-Starts the SAML authentication flow for the Fleet Desktop "My device" page. Returns the URL to redirect the browser to for IdP authentication, and sets a handshake cookie used to complete the flow when the IdP redirects back to Fleet.
+Starts the SAML authentication flow for the Fleet Desktop "My device" page. Returns the IdP URL to send the browser to. Fleet also sets a handshake cookie, which it reads back when the IdP redirects to the callback.
 
 `POST /api/v1/fleet/device/{token}/sso`
 
@@ -3528,34 +3564,41 @@ Starts the SAML authentication flow for the Fleet Desktop "My device" page. Retu
 }
 ```
 
-Sets the `__Host-FLEETSSOSESSIONID` cookie, used to validate the SAML response when the IdP redirects back to Fleet's existing MDM SSO callback (`POST /api/v1/fleet/mdm/sso/callback`). On success the callback replies `303` to the device page and sets the `__Host-FLEET_DESKTOP_SESSION` cookie carrying the device SSO session.
+This endpoint sets the `__Host-FLEETSSOSESSIONID` handshake cookie. Fleet uses it to validate the SAML response when the IdP redirects back to the existing MDM SSO callback, `POST /api/v1/fleet/mdm/sso/callback`. There's no new callback route, so IdP apps that already point at that URL keep working. On success, the callback replies `303` to the device page and sets the `__Host-FLEET_DESKTOP_SESSION` cookie that carries the device SSO session.
 
 ##### Error responses
 
 | Status | When |
 | ------ | ---- |
-| `400`  | The configured IdP metadata could not be fetched or parsed. |
+| `400`  | `fleet_desktop.sso_enabled` is `false`, no IdP is configured under `mdm.end_user_authentication`, the device page and the IdP callback aren't served from the same host, or Fleet couldn't fetch and parse the IdP metadata. |
 | `401`  | The device token is invalid or expired. |
 | `402`  | Fleet Premium is required. |
-| `422`  | `fleet_desktop.sso_enabled` is `false`, no IdP is configured for end user authentication (`mdm.end_user_authentication`), or the device page and the IdP callback are not served from the same host (see below). |
+| `429`  | The rate limit was exceeded. This endpoint uses its own bucket, set by `auth.sso_rate_limit_per_minute`. The default is the login rate of 10 requests per minute. |
 
 ##### Which IdP identity is accepted
 
-Any identity the configured IdP authenticates is accepted. Completing the flow proves a human signed in at the IdP; it is not compared against the host's enrollment-time IdP account, so the device token remains the only host-specific secret.
+Fleet accepts any identity the configured IdP authenticates. Completing the flow proves that a person signed in at the IdP. Fleet doesn't compare that identity against the host's enrollment-time IdP account, so the device token stays the only host-specific secret.
 
-The authenticated identity is recorded in `mdm_idp_accounts` (shared with the MDM SSO flows) and referenced by the device SSO session, but this flow never writes a host-to-IdP-account association in `host_mdm_idp_accounts`; that link belongs to enrollment.
+Fleet records the authenticated identity in `mdm_idp_accounts`, which it shares with the MDM SSO flows, and the device SSO session references it. This flow never writes a host-to-IdP-account association in `host_mdm_idp_accounts`. That link belongs to enrollment.
 
 ##### Callback failures
 
 Once the callback has verified the assertion and identified the flow as Fleet Desktop, failures redirect to `/device/{token}?sso_error=<reason>` and set no session cookie. Reasons are `sso_disabled` (the setting was turned off between initiation and the callback) and `server_error`.
 
-Failures before that point cannot know which device page to return to, so they fall back to Fleet's shared MDM SSO callback error page: an assertion that does not verify redirects to `/mdm/sso/callback?error=true`, and a missing or expired handshake cookie to `/mdm/sso/callback?error=true&reason=session_expired`.
+Failures before that point have no SSO session to read the device page URL from. To handle them, Fleet sets `RelayState` to `fleet_desktop` on the SAML `AuthnRequest`, and the IdP echoes it back with the assertion. The callback uses that value to tell a Fleet Desktop flow apart from the MDM flows. It then redirects to a device error page instead of the shared MDM one:
+
+- An assertion that doesn't verify redirects to `/device/sso-error?reason=error`.
+- A missing or expired handshake cookie redirects to `/device/sso-error?reason=session_expired`.
+
+Without a `RelayState` that Fleet recognizes, these fall back to `/mdm/sso/callback?error=true` and `/mdm/sso/callback?error=true&reason=session_expired`.
 
 ##### Hosts and cookies
 
-Both cookies are `__Host-` prefixed and therefore scoped to a single host name, so the device page and the SAML callback must be reached on the same host name (the port may differ, since cookies are not port-scoped). Setting `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` to a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable, and initiation fails with `422` rather than sending the end user into a redirect loop.
+Both cookies use the `__Host-` prefix, which scopes them to a single host name. The device page and the SAML callback must therefore be reached on the same host name. The port can differ, because cookies aren't port-scoped.
 
-The `fleet_desktop` SSO initiator is set server-side, by this endpoint only. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`; accepting it there would mint a device SSO session for an arbitrary host UUID without the caller ever holding that host's device token.
+Pointing `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` at a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable. Neither cookie reaches the leg that needs to read it. Rather than send the end user into a redirect loop, this endpoint fails with `400`.
+
+Only this endpoint sets the `fleet_desktop` SSO initiator, and it sets it server-side. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`. Accepting it there would create a device SSO session for any host UUID, without the caller ever holding that host's device token.
 
 #### Get device's software
 
