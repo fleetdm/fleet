@@ -66,7 +66,7 @@ The engineering output and architecture DRI reviews and triages engineering-init
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "Drafting" on the correct product group's board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
-2. When all sections have been populated, move it to the "User story review" column on the Engineering board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming release.
+2. When all sections have been populated, assign the story to the product group's EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming release.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
