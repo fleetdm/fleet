@@ -3728,7 +3728,12 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	if appConfig != nil && appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
+	// the host fleet's setting is effective when the host is on a fleet
+	luksEscrowEnabled := appConfig != nil && appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	if teamMDMConfig != nil {
+		luksEscrowEnabled = teamMDMConfig.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	}
+	if luksEscrowEnabled {
 		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
 			return func(encrypted string) (string, error) {
 				return mdm.DecodeAndDecrypt(encrypted, privateKey)

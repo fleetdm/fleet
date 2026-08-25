@@ -689,6 +689,35 @@ func TestGetDetailQueries(t *testing.T) {
 	}
 }
 
+func TestLUKSVerifyQueryFollowsEffectiveLinuxEscrowSetting(t *testing.T) {
+	globalOn := &fleet.AppConfig{MDM: fleet.MDM{
+		LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
+	}}
+	globalOff := &fleet.AppConfig{MDM: fleet.MDM{
+		LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)},
+	}}
+	teamOn := &fleet.TeamMDM{LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)}}
+	teamOff := &fleet.TeamMDM{LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)}}
+
+	for _, tc := range []struct {
+		name string
+		ac   *fleet.AppConfig
+		team *fleet.TeamMDM
+		want bool
+	}{
+		{"global on, no team", globalOn, nil, true},
+		{"global off, no team", globalOff, nil, false},
+		{"the team setting overrides global on", globalOn, teamOff, false},
+		{"the team setting overrides global off", globalOff, teamOn, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GetDetailQueries(t.Context(), config.FleetConfig{}, tc.ac, nil, Integrations{}, tc.team)
+			_, ok := got["luks_verify"]
+			require.Equal(t, tc.want, ok)
+		})
+	}
+}
+
 func TestDiskSpaceDarwinLegacyQueryExcludesGigsAll(t *testing.T) {
 	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
 
