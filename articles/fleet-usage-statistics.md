@@ -48,6 +48,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "ticketDestinationConfigured": true,
   "ssoConfiguredFleetUsers": true,
   "ssoConfiguredEndUsers": true,
+  "accountProvisioningConfigured": true,
   "idpSCIMConfigured": true,
   "idpGoogleWorkspaceConfigured": false,
   "certificateAuthorityConfigured": true,
