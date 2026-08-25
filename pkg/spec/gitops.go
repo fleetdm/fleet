@@ -228,7 +228,7 @@ type GitOpsPolicySpec struct {
 	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
 	RunScript                  *PolicyRunScript                       `json:"run_script"`
 	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
-	ResendConfigurationProfile *string                                `json:"resend_configuration_profile"`
+	ResendConfigurationProfile string                                 `json:"resend_configuration_profile"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -250,10 +250,6 @@ type PolicyInstallSoftware struct {
 	AppStoreID             string `json:"app_store_id"`
 	HashSHA256             string `json:"hash_sha256"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
-}
-
-type PolicyResendConfigurationProfile struct {
-	Name string `json:"name"`
 }
 
 type Query struct {
@@ -2098,7 +2094,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
 				continue
 			}
-			if err := parsePolicyResendConfigurationProfile(baseDir, parentFilePath, result.TeamName, &item, definedProfileNames); err != nil {
+			if err := parsePolicyResendConfigurationProfile(parentFilePath, result.TeamName, &item, definedProfileNames); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", item.Name, err))
 				continue
 			}
@@ -2138,7 +2134,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
 								continue
 							}
-							if err := parsePolicyResendConfigurationProfile(filepath.Dir(*item.Path), parentFilePath, result.TeamName, pp, definedProfileNames); err != nil {
+							if err := parsePolicyResendConfigurationProfile(parentFilePath, result.TeamName, pp, definedProfileNames); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", pp.Name, err))
 								continue
 							}
@@ -2262,27 +2258,19 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyResendConfigurationProfile(baseDir string, parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
-	if policy.ResendConfigurationProfile == nil {
-		// unset
-		policy.ResendConfigurationProfile = new("")
-		return nil
-	}
-
+func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
 	if teamName == nil {
 		return errors.New("resend_configuration_profile can only be set on team policies")
 	}
 
-	name := strings.TrimSpace(*policy.ResendConfigurationProfile)
-	if name == "" {
-		return errors.New("resend_configuration_profile is required")
-	}
+	name := strings.TrimSpace(policy.ResendConfigurationProfile)
 
-	if _, ok := definedProfiles[name]; !ok {
+	// name == "" is unsetting.
+	if _, ok := definedProfiles[name]; !ok && name != "" {
 		return fmt.Errorf("configuration profile %q was not defined in controls in %s", name, filepath.Base(parentFilePath))
 	}
 
-	policy.ResendConfigurationProfile = &name
+	policy.ResendConfigurationProfile = name
 
 	return nil
 }

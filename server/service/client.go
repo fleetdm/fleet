@@ -3623,7 +3623,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			// default to empty string to unset, and then override if match is found
 			config.Policies[i].ProfileUUID = new("")
 
-			if config.Policies[i].ResendConfigurationProfile == nil || *config.Policies[i].ResendConfigurationProfile == "" {
+			if config.Policies[i].ResendConfigurationProfile == "" {
 				continue
 			}
 
@@ -3631,10 +3631,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				return fmt.Errorf("error hydrating configuration profiles: %w", err)
 			}
 
-			profileUUID, ok := teamProfiles[*config.Policies[i].ResendConfigurationProfile]
+			profileUUID, ok := teamProfiles[config.Policies[i].ResendConfigurationProfile]
 			if !ok {
 				if !dryRun { // this shouldn't happen
-					logFn("[!] reference to an unknown configuration profile: %s\n", *config.Policies[i].ResendConfigurationProfile)
+					logFn("[!] reference to an unknown configuration profile: %s\n", config.Policies[i].ResendConfigurationProfile)
 				}
 				continue
 			}
