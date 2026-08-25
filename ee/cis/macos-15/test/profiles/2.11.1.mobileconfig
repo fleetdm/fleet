@@ -20,7 +20,7 @@
     </dict>
   </array>
   <key>PayloadDescription</key>
-  <string>$FLEET_VAR_HOST_END_USER_IDP_ID</string>
+  <string>CIS 2.11.1 - Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled</string>
   <key>PayloadDisplayName</key>
   <string>Ensure Screen Saver Inactivity Interval Is 15 Minutes Or Less</string>
   <key>PayloadIdentifier</key>
