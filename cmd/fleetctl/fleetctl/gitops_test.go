@@ -9336,8 +9336,7 @@ policies:
   - name: Resend policy
     query: "SELECT 1"
     platform: darwin
-    resend_configuration_profile:
-      name: %s
+    resend_configuration_profile: %s
   - name: Plain policy
     query: "SELECT 2"
 `, profilePath, macProfileName), 0o600))
