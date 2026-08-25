@@ -3386,9 +3386,46 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
+Fleet Premium can require single sign-on in front of these routes. When `fleet_desktop.sso_enabled` is `true`, the device token is no longer enough on its own. Most of these routes also need a device SSO session. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
+
+A request without a valid session for that host returns `401` with an `sso_required` marker:
+
+```json
+{
+  "message": "Single sign-on required",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Single sign-on required"
+    }
+  ],
+  "uuid": "e3b0c442-98fc-1c14-9afb-f4c8996fb924",
+  "sso_required": true
+}
+```
+
+An expired device token also returns `401`. The marker is what tells the "My device" page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
+
+Fleet checks the session after it resolves the host. The check covers all three ways a device authenticates: the rotating token, a client certificate, and a device UUID in the URL. This includes iOS and iPadOS.
+
+Two cases stay reachable with the setting on and no session.
+
+First, the exempt routes. Fleet registers these through a separate endpointer, listed in one block in `server/service/handler.go`, so every other device route needs a session by default:
+
+- [Get Fleet Desktop information](#get-fleet-desktop-information) and `HEAD /api/v1/fleet/device/{token}/ping`. The Fleet Desktop tray app polls both.
+- [Report an agent error](#report-an-agent-error), which fleetd posts.
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution). The tray app's migration dialog posts this, and it has no browser to complete an IdP round trip in.
+- [Get device's transparency URL](#get-devices-transparency-url), the "About Fleet" redirect. It exposes nothing about the host.
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on). This has to be reachable before a session exists.
+
+Requiring a session on the fleetd routes would mean changing fleetd. The tray app behaves the same way whether single sign-on is on or off.
+
+Second, hosts still in Setup Experience. Setup Experience opens the device page in a web view during Setup Assistant, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
+
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on)
 - [Get device's software](#get-devices-software)
 - [Get device's software install results](#get-devices-software-install-results)
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
@@ -3495,6 +3532,69 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+
+#### Initiate Fleet Desktop single sign-on
+_Available in Fleet Premium_
+
+Starts the SAML authentication flow for the Fleet Desktop "My device" page. Returns the IdP URL to send the browser to. Fleet also sets a handshake cookie, which it reads back when the IdP redirects to the callback.
+
+`POST /api/v1/fleet/device/{token}/sso`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/sso`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "url": "https://idp.example.com/saml/sso?SAMLRequest=..."
+}
+```
+
+This endpoint sets the `__Host-FLEETSSOSESSIONID` handshake cookie. Fleet uses it to validate the SAML response when the IdP redirects back to the existing MDM SSO callback, `POST /api/v1/fleet/mdm/sso/callback`. There's no new callback route, so IdP apps that already point at that URL keep working. On success, the callback replies `303` to the device page and sets the `__Host-FLEET_DESKTOP_SESSION` cookie that carries the device SSO session.
+
+##### Error responses
+
+| Status | When |
+| ------ | ---- |
+| `400`  | `fleet_desktop.sso_enabled` is `false`, no IdP is configured under `mdm.end_user_authentication`, the device page and the IdP callback aren't served from the same host, or Fleet couldn't fetch and parse the IdP metadata. |
+| `401`  | The device token is invalid or expired. |
+| `402`  | Fleet Premium is required. |
+| `429`  | The rate limit was exceeded. This endpoint uses its own bucket, set by `auth.sso_rate_limit_per_minute`. The default is the login rate of 10 requests per minute. |
+
+##### Which IdP identity is accepted
+
+Fleet accepts any identity the configured IdP authenticates. Completing the flow proves that a person signed in at the IdP. Fleet doesn't compare that identity against the host's enrollment-time IdP account, so the device token stays the only host-specific secret.
+
+Fleet records the authenticated identity in `mdm_idp_accounts`, which it shares with the MDM SSO flows, and the device SSO session references it. This flow never writes a host-to-IdP-account association in `host_mdm_idp_accounts`. That link belongs to enrollment.
+
+##### Callback failures
+
+Once the callback has verified the assertion and identified the flow as Fleet Desktop, failures redirect to `/device/{token}?sso_error=<reason>` and set no session cookie. Reasons are `sso_disabled` (the setting was turned off between initiation and the callback) and `server_error`.
+
+Failures before that point have no SSO session to read the device page URL from. To handle them, Fleet sets `RelayState` to `fleet_desktop` on the SAML `AuthnRequest`, and the IdP echoes it back with the assertion. The callback uses that value to tell a Fleet Desktop flow apart from the MDM flows. It then redirects to a device error page instead of the shared MDM one:
+
+- An assertion that doesn't verify redirects to `/device/sso-error?reason=error`.
+- A missing or expired handshake cookie redirects to `/device/sso-error?reason=session_expired`.
+
+Without a `RelayState` that Fleet recognizes, these fall back to `/mdm/sso/callback?error=true` and `/mdm/sso/callback?error=true&reason=session_expired`.
+
+##### Hosts and cookies
+
+Both cookies use the `__Host-` prefix, which scopes them to a single host name. The device page and the SAML callback must therefore be reached on the same host name. The port can differ, because cookies aren't port-scoped.
+
+Pointing `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` at a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable. Neither cookie reaches the leg that needs to read it. Rather than send the end user into a redirect loop, this endpoint fails with `400`.
+
+Only this endpoint sets the `fleet_desktop` SSO initiator, and it sets it server-side. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`. Accepting it there would create a device SSO session for any host UUID, without the caller ever holding that host's device token.
 
 #### Get device's software
 
