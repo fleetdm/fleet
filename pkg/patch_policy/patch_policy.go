@@ -209,6 +209,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"GoLand":                       "IN ('goland.exe','goland64.exe')",
 	"Google Antigravity IDE":       "= 'antigravity.exe'",
 	"Google Chrome":                "= 'chrome.exe'",
+	"IntelliJ IDEA CE":             "IN ('idea.exe','idea64.exe')",
 	"IntelliJ IDEA Ultimate":       "IN ('idea.exe','idea64.exe')",
 	"JetBrains Toolbox":            "IN ('toolbox.exe','jetbrains-toolbox.exe')",
 	"KNIME Analytics Platform":     "= 'knime.exe'",
