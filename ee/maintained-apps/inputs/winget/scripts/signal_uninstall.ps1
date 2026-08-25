@@ -1,28 +1,19 @@
-# Signal installs per user: the payload lands in that user's
-# %LOCALAPPDATA%\Programs\signal-desktop and the uninstall entry in their own
-# registry hive. This script runs as SYSTEM, where HKCU is SYSTEM's own hive, so it
-# searches every hive osquery's "programs" table reads instead.
+# Signal installs per user, so its uninstall entry is in the installing user's
+# registry hive rather than SYSTEM's, and its uninstaller reads the directory to
+# remove out of the hive of whoever runs it -- run as SYSTEM against a user's
+# install it exits 0 and deletes nothing. So search every hive and run the
+# uninstaller as the user who owns the entry.
 #
-# Signal's NSIS uninstaller reads the directory to remove out of the hive of
-# whoever runs it, so it has to run as the user who owns the registration -- run as
-# SYSTEM against a real user's install it exits 0 and deletes nothing. Hence the
-# scheduled task below. Registrations that genuinely belong to SYSTEM (see next
-# paragraph) are the one case where running it directly is correct.
-#
-# Installs left behind by earlier versions of this app's install script need one
-# more fixup. That script ran the 32-bit installer stub as SYSTEM, where the WOW64
-# file system redirector rewrote %LOCALAPPDATA%
-# (C:\Windows\system32\config\systemprofile\...) to
-# C:\Windows\SysWOW64\config\systemprofile\.... The recorded UninstallString still
-# names the system32 path, which does not resolve from 64-bit PowerShell -- that is
-# what failed with "The system cannot find the file specified". Retrying under
-# SysWOW64 is the only way to remove those.
+# Installs left behind by older versions of this app's install script also need the
+# SysWOW64 retry below: that script ran the 32-bit installer as SYSTEM, where the
+# payload landed under C:\Windows\SysWOW64\config\systemprofile\... but the recorded
+# UninstallString still names C:\Windows\system32\..., which 64-bit PowerShell
+# cannot resolve.
 
 $displayNameLike = "Signal*"
 $publisher = "Signal Messenger, LLC"
 $taskName = "fleet-uninstall-signal"
-# SCHED_S_TASK_RUNNING: a scheduled task's result code while it is still going.
-$taskRunning = 267009
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
 $exitCode = 0
 
 function Get-SignalEntries {
@@ -43,8 +34,8 @@ function Get-SignalEntries {
             if ($key.DisplayName -notlike $displayNameLike) { continue }
             if ($key.Publisher -notlike "$publisher*") { continue }
 
-            # Only a real user's registration (S-1-5-21-...) needs the uninstaller run
-            # for them; HKLM and the service SIDs are handled in this SYSTEM context.
+            # Only a real user's entry needs the uninstaller run for them; HKLM and the
+            # service SIDs are already in the right context.
             $sid = $null
             if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
 
@@ -59,8 +50,6 @@ function Get-SignalEntries {
     return $entries
 }
 
-# Splits an uninstall string into its executable and arguments, resolving the
-# system32 -> SysWOW64 redirection described above when the recorded path is missing.
 function Resolve-Uninstaller {
     param([string]$Command)
 
@@ -84,13 +73,11 @@ function Resolve-Uninstaller {
         }
     }
 
-    # \b does not match between a space and a slash, so anchor on whitespace instead.
+    # \b does not match between a space and a slash, so anchor on whitespace.
     if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
     return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
 }
 
-# Runs the uninstaller as the user who owns the registration, so it resolves their
-# install directory rather than SYSTEM's.
 function Invoke-UninstallerAsUser {
     param([string]$Sid, [string]$ExePath, [string]$Arguments)
 
@@ -109,8 +96,8 @@ function Invoke-UninstallerAsUser {
         $startDate = Get-Date
         Start-ScheduledTask -TaskName $taskName
 
-        # Do not wait to observe the "Running" state: a silent uninstaller can finish
-        # between polls. Wait for a result other than "still running" instead.
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls.
         Start-Sleep -Seconds 2
         while ($true) {
             $info = Get-ScheduledTaskInfo -TaskName $taskName
@@ -148,8 +135,7 @@ try {
         $uninstaller = Resolve-Uninstaller $entry.Command
         $installDir = Split-Path $uninstaller.ExePath -Parent
 
-        # The uninstaller cannot delete files that are still mapped. Only stop the copy
-        # of Signal belonging to this install, so another user's session is left alone.
+        # Scope the kill to this install so another user's session is left alone.
         Get-Process -Name "Signal" -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
             Stop-Process -Force -ErrorAction SilentlyContinue
@@ -172,16 +158,13 @@ try {
         Write-Host "  Uninstall exit code: $result"
         if ($result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
 
-        # An NSIS uninstaller relaunches itself from %TEMP% and the process we waited on
-        # exits immediately, so removal is still in flight here.
+        # An NSIS uninstaller relaunches itself from %TEMP%, so the process we waited on
+        # exits while removal is still in flight.
         for ($waited = 0; $waited -lt 120; $waited++) {
             if (-not (Test-Path -LiteralPath $installDir)) { break }
             Start-Sleep -Seconds 1
         }
 
-        # Signal is a self-contained folder of Electron files, so clearing out whatever
-        # the uninstaller could not is safe and keeps a half-removed install from
-        # wasting the better part of a gigabyte.
         if (Test-Path -LiteralPath $installDir) {
             Write-Host "  Uninstaller left $installDir behind after ${waited}s; removing it."
             Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -196,8 +179,6 @@ try {
         }
     }
 
-    # Shortcuts live in the installing user's profile, so a stranded SYSTEM install's
-    # uninstaller never reaches them.
     foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
         foreach ($shortcut in @(
             (Join-Path $profileDir.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Signal.lnk'),

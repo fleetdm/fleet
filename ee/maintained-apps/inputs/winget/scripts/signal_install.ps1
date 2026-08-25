@@ -1,25 +1,17 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# Signal's Nullsoft (NSIS) installer has no machine-wide mode: it always installs
-# into the running user's %LOCALAPPDATA%\Programs\signal-desktop, and /allusers is
-# accepted and then ignored. Installing it from this script's own SYSTEM context
-# therefore drops Signal into SYSTEM's profile, where nobody can launch it. Worse,
-# the installer stub is 32-bit, so the WOW64 file system redirector puts that copy
-# under C:\Windows\SysWOW64\config\systemprofile\... while the uninstall entry it
-# writes still points at C:\Windows\system32\..., leaving an install that cannot be
-# removed afterwards. Hand the installer to the signed-in user instead.
+# Signal installs per user and has no machine-wide mode, so installing it from
+# this script's SYSTEM context would put it in SYSTEM's profile where nobody can
+# launch it. Run the installer as the signed-in user instead.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-signal"
-# SCHED_S_TASK_RUNNING: a scheduled task's result code while it is still going.
-$taskRunning = 267009
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
 $exitCode = 0
 $stagedInstaller = $null
 
 try {
-    # Find the signed-in user to install for. Signal is a per-user app, so there is
-    # nothing sensible to do when nobody is signed in.
     $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
         Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue |
         Where-Object { $_.User } |
@@ -30,8 +22,7 @@ try {
     $userAccount = "$($owner.Domain)\$($owner.User)"
     Write-Host "Installing Signal for $userAccount."
 
-    # Fleet's installer directory is not readable by that user, so stage a copy
-    # somewhere it is.
+    # Fleet's installer directory is not readable by that user.
     $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
     Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
 
@@ -45,10 +36,8 @@ try {
     $startDate = Get-Date
     Start-ScheduledTask -TaskName $taskName
 
-    # Wait for the task to finish. Do not wait to observe the "Running" state first:
-    # the task can get there and back between polls. The installer unpacks ~600MB so
-    # give it room; Signal launches itself at the end, but that is a separate process
-    # and does not hold the task open.
+    # Wait for a result rather than for the "Running" state, which a fast task can
+    # enter and leave between polls.
     Start-Sleep -Seconds 2
     while ($true) {
         $info = Get-ScheduledTaskInfo -TaskName $taskName
