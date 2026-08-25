@@ -1793,7 +1793,6 @@ None.
     ],
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "name_template": "",
     "macos_updates": {
@@ -1859,6 +1858,7 @@ None.
       ],
 
       "enable_disk_encryption": true,
+      "require_bitlocker_pin": true,
       "managed_local_account_settings": {
         "enabled": true
       }
@@ -2189,7 +2189,6 @@ Modifies the Fleet's configuration with the supplied information.
     ],
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
@@ -2266,6 +2265,7 @@ Modifies the Fleet's configuration with the supplied information.
         }
       ],
       "enable_disk_encryption": true,
+      "require_bitlocker_pin": true,
       "managed_local_account_settings": {
         "enabled": true
       }
@@ -2869,7 +2869,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
-| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| windows_require_bitlocker_pin           | boolean | _Deprecated at this level_ Use `windows_settings.require_bitlocker_pin` instead. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
@@ -2880,7 +2880,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | macos_migration          | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
 | macos_settings           | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
-| apple_settings         | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
+| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | linux_settings           | object  | See [`mdm.linux_settings`](#mdm-linux-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
@@ -3041,7 +3041,6 @@ _Available in Fleet Premium._
   "mdm": {
     "windows_enabled_and_configured": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
@@ -3083,6 +3082,7 @@ _Available in Fleet Premium._
         }
       ],
       "enable_disk_encryption": true,
+      "require_bitlocker_pin": true,
       "managed_local_account_settings": {
         "enabled": true
       }
@@ -7593,8 +7593,8 @@ _Available in Fleet Premium_
 | Name                                    | Type    | In    | Description                                                                                 |
 | --------------------------------------- | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_disk_encryption                  | boolean | body  | _Deprecated._ Whether disk encryption should be enforced on all platforms. When set to true, enables `enable_disk_encryption` for all platforms. Use per-platform settings instead. |
-| windows_require_bitlocker_pin           | boolean | body  | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` or `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| enable_disk_encryption                  | boolean | body  | _Deprecated._ Whether disk encryption and/or escrow should be enforced on all platforms. When set to true, enables disk encryption for macOS and Windows hosts, and enables escrow for macOS and Linux hosts. Use per-platform settings instead. |
+| windows_require_bitlocker_pin           | boolean | _Deprecated at this level_ Use `windows_settings.require_bitlocker_pin` instead. |
 | macos_settings                          | object  | body  | See `macos_settings` below. |
 | windows_settings                        | object  | body  | See `windows_settings` below. |
 | linux_settings                          | object  | body  | See `linux_settings` below. |
@@ -7613,6 +7613,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption            | boolean | Whether disk encryption should be enforced on Windows hosts that belong to the fleet (or "Unassigned"). |
+| require_bitlocker_pin             | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 <br/>
 
@@ -14599,7 +14600,6 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
-      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01",
@@ -14656,6 +14656,7 @@ _Available in Fleet Premium_
           }
         ],
         "enable_disk_encryption": true,
+        "require_bitlocker_pin": true
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": true,
@@ -14995,17 +14996,17 @@ Returned when the requested name only differs from another fleet's name by lette
 #### mdm
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| windows_require_bitlocker_pin | boolean | End users on Windows hosts that belong to this fleet will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
-| macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
-| ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
-| ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
-| windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
-| macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
-| apple_settings           | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
-| windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
-| linux_settings           | object  | See [`mdm.linux_settings`](#mdm-linux-settings2). |
-| setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------|
+| windows_require_bitlocker_pin     | boolean | _Deprecated at this level_ Use `windows_settings.require_bitlocker_pin` instead. |
+| macos_updates                     | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
+| ios_updates                       | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
+| ipados_updates                    | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
+| windows_updates                   | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
+| macos_settings                    | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
+| apple_settings                    | object  | See [`mdm.apple_settings`](#mdm-apple-settings2).     |
+| windows_settings                  | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
+| linux_settings                    | object  | See [`mdm.linux_settings`](#mdm-linux-settings2). |
+| setup_experience                  | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
 
 <br/>
 
@@ -15088,13 +15089,13 @@ Returned when the requested name only differs from another fleet's name by lette
 
 `mdm.windows_settings` is an object with the following structure:
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-| managed_local_account_settings         | object  | Settings for the managed local account. |
-| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
-| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
-
+| Name                                    | Type    | Description   |
+| ---------------------                   | ------- | -------------------------------------------------------------------------------------------------------|
+| custom_settings                         | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
+| managed_local_account_settings          | object  | Settings for the managed local account. |
+| managed_local_account_settings.enabled  | boolean | Whether to create the managed local account (default: `false`). |
+| enable_disk_encryption                  | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| require_bitlocker_pin                   | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 <br/>
 
 ##### mdm.linux_settings
@@ -15126,7 +15127,6 @@ Returned when the requested name only differs from another fleet's name by lette
 ```json
 {
   "mdm": {
-    "windows_require_bitlocker_pin": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2025-04-01",
@@ -15176,6 +15176,7 @@ Returned when the requested name only differs from another fleet's name by lette
         }
       ],
       "enable_disk_encryption": true,
+      "require_bitlocker_pin": true,
       "managed_local_account_settings": {
         "enabled": true
       }
@@ -15312,7 +15313,6 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
-      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01",
@@ -15369,6 +15369,7 @@ _Available in Fleet Premium_
           }
         ],
         "enable_disk_encryption": true,
+        "require_bitlocker_pin": false,
         "managed_local_account_settings": {
           "enabled": true
         }
