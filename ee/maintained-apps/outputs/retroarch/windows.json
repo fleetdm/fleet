@@ -4,7 +4,8 @@
       "version": "1.22.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'RetroArch' AND publisher = 'Libretro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RetroArch' AND publisher = 'Libretro' AND version_compare(version, '1.22.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RetroArch' AND publisher = 'Libretro' AND version_compare(version, '1.22.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'retroarch.exe');"
       },
       "installer_url": "https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch-Win64-setup.exe",
       "install_script_ref": "2b4dd196",

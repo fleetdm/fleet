@@ -1192,10 +1192,20 @@ allow {
   action == write
 }
 
-# Any logged in user can read the manual enrollment profile data.
+# The manual enrollment profile embeds the SCEP challenge, so it is restricted
+# to the same roles as enroll secrets.
+
+# Global admins and maintainers can read the manual enrollment profile data.
 allow {
 	object.type == "mdm_apple_manual_enrollment_profile"
-	not is_null(subject)
+	subject.global_role == [admin, maintainer][_]
+	action == read
+}
+
+# Team admins and maintainers can read the manual enrollment profile data.
+allow {
+	object.type == "mdm_apple_manual_enrollment_profile"
+	team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
 	action == read
 }
 
@@ -1448,6 +1458,20 @@ allow {
   object.type == "certificate_template"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
+}
+
+# Global admins, maintainers and gitops can list certificate templates.
+allow {
+  object.type == "certificate_template"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == list
+}
+
+# Team admins, maintainers and gitops can list certificate templates.
+allow {
+  object.type == "certificate_template"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == list
 }
 
 ##

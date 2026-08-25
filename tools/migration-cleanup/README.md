@@ -42,6 +42,12 @@ go build -o build/migration-cleanup ./tools/migration-cleanup
 
 SQL generation is the default mode and does not connect to MySQL.
 
+Exactly one of `--branch`, `--since-commit`, or `--commit` is required.
+
+### `--branch` (default mode)
+
+Scan a branch against `main` for migration renames:
+
 ```sh
 go run ./tools/migration-cleanup -b rc-minor-fleet-v4.86.0
 ```
@@ -64,6 +70,28 @@ go run ./tools/migration-cleanup \
 
 If the branch only exists on the remote, pass the plain branch name. The tool
 tries the local branch first, then `origin/<branch>`.
+
+### `--since-commit`
+
+Scan `main` from a given commit forward:
+
+```sh
+go run ./tools/migration-cleanup --since-commit abc1234
+```
+
+### `--commit`
+
+Inspect a single commit for renames:
+
+```sh
+go run ./tools/migration-cleanup --commit abc1234
+```
+
+Both `--since-commit` and `--commit` accept a full SHA, short SHA, or any ref
+`git rev-parse` understands.
+
+**Note:** `--commit` does not support merge commits (no renames will be
+reported). Use `--since-commit` or `--branch` for merge commits.
 
 ## Dry run
 
@@ -137,12 +165,11 @@ Found 11 migration renumber(s):
 ```
 
 The dry run for the broken local database reported the real duplicate row and
-the id shifts the generated SQL would perform:
+the id rebuild that the generated SQL would perform:
 
 ```text
 migration_status_tables: duplicate version_id=20260522195224; would keep id=518, delete ids=[530]
-migration_status_tables: would make space by shifting 0 row(s) after version_id=20260522195235 by +12
-migration_status_tables: would shift 11 row(s) by +12
+migration_status_tables: would renumber 530 row id(s) into version order, fixing 11 ordering violation(s)
 Dry-run: SQL will apply cleanly.
 ```
 
@@ -166,14 +193,21 @@ Found 2 migration renumber(s):
   [tables] 20250918154557 -> 20250817154557
 ```
 
-For this shape, the generated SQL remaps those version IDs, removes duplicate
-status rows if present, computes the id increment from the current table state,
-and shifts affected rows with `ORDER BY id DESC`. The generated "make space"
-update may affect zero rows; that is expected when there are no later rows to
-move.
+For every shape, the generated SQL remaps the version IDs (in commit order, so
+chained renames resolve to the terminal ID), removes duplicate status rows if
+present, and then rebuilds every row id into version order: rows are first
+rebased above the current `MAX(id)` (collision-free in any update order) and
+then compacted down to ids `1..N`. Rebuilding the total order instead of
+computing a minimal shift handles moves up, moves down, mixed batches, and
+rows stranded at the table tail identically, and the SQL derives everything it
+needs (`MAX(id)`, `ROW_NUMBER()`) at execution time, so the same script is
+correct for any table state. Compaction keeps the final ids below the table's
+`AUTO_INCREMENT` counter, so future migration inserts cannot collide with
+moved rows.
 
 ## Notes
 
+- Exactly one of `--branch`, `--since-commit`, or `--commit` is required; providing more than one is an error.
 - `--branch` should point at the branch with the final migration filenames.
 - The generated SQL is the source of truth for SQL output, dry-run simulation,
   and apply mode.

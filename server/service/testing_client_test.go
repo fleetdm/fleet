@@ -735,7 +735,7 @@ func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint, fleetInitiated *bool) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
-	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	act := listActivities.Activities[0]
@@ -758,7 +758,7 @@ func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint,
 func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string, id uint) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
-	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.NotEmpty(t, listActivities.Activities)
 
 	act := listActivities.Activities[0]
@@ -789,7 +789,7 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	for _, act := range listActivities.Activities {
@@ -814,7 +814,7 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	for _, act := range listActivities.Activities {
@@ -835,7 +835,7 @@ func (ts *withServer) listActivities() []*fleet.Activity {
 	t := ts.s.T()
 	var resp listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
-		"order_key", "a.id", "order_direction", "asc", "per_page", "10000")
+		"order_key", "id", "order_direction", "asc", "per_page", "10000")
 	require.NotNil(t, resp.Activities)
 	return resp.Activities
 }

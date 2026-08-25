@@ -235,9 +235,11 @@ const (
 	// Provisioning Doc Certificate Renewal Period (365 days)
 	WstepCertRenewalPeriodInDays = "365"
 
-	// Provisioning Doc Server supports ROBO auto certificate renewal
-	// TODO: Add renewal support
-	WstepROBOSupport = "true"
+	// WstepROBOSupport tells Windows whether Fleet supports ROBO auto
+	// certificate renewal. Set to "false" because Fleet does not implement
+	// the renewal endpoint. Advertising "true" causes Windows to attempt
+	// renewal, fail, and set EnrollmentState=3 on the host. See #50611.
+	WstepROBOSupport = "false"
 
 	// Provisioning Doc Server retry interval
 	WstepRenewRetryInterval = "4"
@@ -291,6 +293,15 @@ const (
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
 
+	// ReqSecTokenContextItemZeroTouchProvisioning carries the Autopilot ZTDID, ZTD being Microsoft's codename for
+	// Windows Autopilot. It is present only when the enrolling device is registered with Autopilot.
+	ReqSecTokenContextItemZeroTouchProvisioning = "ZeroTouchProvisioning"
+
+	// ReqSecTokenContextItemOfflineAutopilotCorrelator is a second Autopilot identifier that can accompany the item
+	// above. Fleet does not consume it and nothing links on it; it is logged as a diagnostic so that a device supplying
+	// this instead of a ZTDID is distinguishable from one that supplied nothing.
+	ReqSecTokenContextItemOfflineAutopilotCorrelator = "OfflineAutoPilotEnrollmentCorrelator"
+
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"
 
@@ -299,6 +310,11 @@ const (
 
 	// Alert payload user-driven unenrollment request
 	AlertUserUnenrollmentRequest = "com.microsoft:mdm.unenrollment.userrequest"
+
+	// AlertTypeLoginStatus is the Meta/Type of the device alert (CmdAlertClientEvent, "1224") Windows sends in the first message of
+	// every management session to report whether an MDM user is signed in. Microsoft documents it as "DM package #1" under "Determine
+	// when a user is logged in through polling".
+	AlertTypeLoginStatus = "com.microsoft/MDM/LoginStatus"
 
 	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
 	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"

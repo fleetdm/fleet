@@ -1,6 +1,13 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
   .date-tooltip {
     cursor: pointer;
   }
@@ -69,6 +76,13 @@
     .icon {
       flex-shrink: 0;
     }
+  }
+
+  // TooltipWrapper pulls its dashed underline into the element's last pixel
+  // with a negative margin, which DataSet's `dd` then clips away. Keep the
+  // border inside the box so the hover affordance survives on every vital.
+  .component__tooltip-wrapper__underline {
+    margin-bottom: 0;
   }
 
   &__os-version-tooltip {

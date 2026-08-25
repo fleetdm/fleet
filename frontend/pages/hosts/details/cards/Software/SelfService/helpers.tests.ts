@@ -11,6 +11,7 @@ import {
   hasInProgressInstallAllItems,
   filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
+  filterSoftwareByQuery,
 } from "./helpers";
 
 const makeItem = (
@@ -258,6 +259,40 @@ describe("filterSoftwareByCustomCategory", () => {
     expect(filterSoftwareByCustomCategory([security], categories, 1)).toEqual(
       []
     );
+  });
+});
+
+describe("filterSoftwareByQuery", () => {
+  const chrome = makeItem("uninstalled", { name: "Google Chrome" });
+  const firefox = makeItem("uninstalled", { name: "Firefox" });
+  const zoom = makeItem("uninstalled", { name: "Zoom" });
+
+  it("returns the input unchanged when the query is undefined or empty", () => {
+    expect(filterSoftwareByQuery([chrome, firefox], undefined)).toEqual([
+      chrome,
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox], "")).toEqual([
+      chrome,
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox], "   ")).toEqual([
+      chrome,
+      firefox,
+    ]);
+  });
+
+  it("matches case-insensitively on name (substring)", () => {
+    expect(filterSoftwareByQuery([chrome, firefox, zoom], "fox")).toEqual([
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox, zoom], "OOM")).toEqual([
+      zoom,
+    ]);
+  });
+
+  it("returns [] when nothing matches", () => {
+    expect(filterSoftwareByQuery([chrome, firefox], "safari")).toEqual([]);
   });
 });
 

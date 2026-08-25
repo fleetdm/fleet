@@ -9,14 +9,21 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-	return svc.ds.ListPoliciesForHost(ctx, host)
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list policies for host")
+	}
+	// return the device-safe representation of the policies, which excludes
+	// the policy author's identity and the raw SQL query.
+	return fleet.HostPoliciesToDevicePolicies(policies), nil
 }
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM
@@ -100,6 +107,12 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+
+	// iOS/iPadOS devices authenticate by UUID in the URL and don't participate in
+	// conditional access policies, so they can't bypass it.
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
+		return fleet.NewUserMessageError(errors.New("conditional access bypass is not supported on this device"), http.StatusForbidden)
+	}
 
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {

@@ -1,1 +1,0 @@
-- Surface a more detailed error message in GitOps if user doesn't have server_private_key configured.

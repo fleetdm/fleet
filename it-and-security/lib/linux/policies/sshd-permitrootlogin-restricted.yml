@@ -1,4 +1,4 @@
-- name: Linux - SSH PermitRootLogin not set to yes
+- name: SSH PermitRootLogin not set to yes
   query: |-
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM augeas

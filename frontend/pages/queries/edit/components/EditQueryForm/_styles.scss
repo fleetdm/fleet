@@ -24,6 +24,12 @@
     margin: 0;
   }
 
+  &__query-description {
+    p {
+      white-space: pre-wrap;
+    }
+  }
+
   &__query-name-fleet-name {
     display: flex;
     flex-direction: column;

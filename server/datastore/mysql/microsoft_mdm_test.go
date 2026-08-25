@@ -38,7 +38,9 @@ func TestMDMWindows(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestDeleteMDMWindowsConfigProfileWithPolicyAutomation", testDeleteMDMWindowsConfigProfileWithPolicyAutomation},
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
+		{"TestMDMWindowsEnrollmentZTDRegistrationID", testMDMWindowsEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
@@ -65,6 +67,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestUpdateMDMWindowsConfigProfile", testUpdateMDMWindowsConfigProfile},
 		{"TestMDMWindowsProfileLabelsCombined", testMDMWindowsProfileLabelsCombined},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
+		{"TestMDMWindowsUserChannelRejection", testUserChannelRejection},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
@@ -87,6 +90,8 @@ func TestMDMWindows(t *testing.T) {
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
+		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
+		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
 	}
 
 	for _, c := range cases {
@@ -232,6 +237,12 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 		return err
 	})
 
+	// A managed local account escrowed under the outgoing enrollment. The password is kept, but the
+	// per-enrollment flag must not survive, so the re-enrolled device is asked to create the account again.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS"))
+	_, err = ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, true)
+	require.NoError(t, err)
+
 	// Sanity-check pre-population.
 	var profCount, resultCount, activityCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -270,6 +281,22 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, resultCount,
 		"setup_experience_status_results must be cleaned on re-enrollment, even when keyed by OsqueryHostID")
 	assert.Equal(t, 0, activityCount, "upcoming_activities must be cleaned on re-enrollment via JOIN on hosts.uuid")
+
+	// The managed-local-account flag lives on the deleted enrollment row, so the new enrollment starts
+	// unprovisioned and the device is asked to create the account again. The password itself survives
+	// on the host, as the only copy.
+	var escrowedCount, passwordLen int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &escrowedCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE host_uuid = ? AND managed_local_account_escrowed = 1`,
+			host.UUID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &passwordLen,
+			`SELECT LENGTH(encrypted_password) FROM host_managed_local_account_passwords WHERE host_uuid = ?`, host.UUID)
+	})
+	assert.Equal(t, 0, escrowedCount, "the managed local account flag must not survive re-enrollment")
+	assert.Positive(t, passwordLen, "the escrowed password must survive re-enrollment")
 }
 
 func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
@@ -4466,6 +4493,171 @@ func TestCompressWindowsMDMResponse(t *testing.T) {
 	})
 }
 
+// TestTruncateMDMWindowsProfileDetail covers the one thing specific to this wrapper: the cap is the TEXT column's budget in
+// bytes. str.TruncateBytes owns rune-boundary safety, the marker, and the edge cases, and pkg/str tests those.
+//
+// Multi-byte input is what makes this a real check. Capping the same number of multi-byte runes by character count would
+// return several times the byte budget and still overflow the column, so an ASCII-only case would not catch that mistake.
+func TestTruncateMDMWindowsProfileDetail(t *testing.T) {
+	t.Parallel()
+
+	got := truncateMDMWindowsProfileDetail(strings.Repeat("é", maxMDMWindowsProfileDetailLen))
+	require.LessOrEqual(t, len(got), maxMDMWindowsProfileDetailLen)
+}
+
+// testUserChannelRejection covers what the ack path does when the device rejects a user-channel write while Fleet is still
+// waiting for a user context that can arrive. An install must not spend its retry budget, and a removal must not be recorded as
+// complete. Both become real once the user is actually signed in.
+func testUserChannelRejection(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// An Entra-style enrollment: a real UPN binds a user identity, so a user context can still arrive.
+	enrolledDevice := createEnrolledDevice(t, ds)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET enroll_user_id = ? WHERE id = ?`,
+			"victor@example.com", enrolledDevice.ID)
+		return err
+	})
+	enrolledDevice.MDMEnrollUserID = "victor@example.com"
+
+	profileUUID := "w" + uuid.NewString()
+
+	// sendUserChannelFailure queues a user-scoped command, points the host profile row at it, and acks it with a 500 on
+	// the user-channel LocURI: the signature measured on hardware.
+	sendUserChannelFailure := func(t *testing.T) {
+		t.Helper()
+		commandUUID := uuid.NewString()
+		replaceUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: commandUUID,
+			RawCommand: []byte(fmt.Sprintf(
+				`<Atomic><CmdID>%s</CmdID><Replace><CmdID>%s</CmdID><Item><Target>`+
+					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
+					`</Target><Data>0</Data></Item></Replace></Atomic>`, commandUUID, replaceUUID)),
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'user-scoped', ?)
+ON DUPLICATE KEY UPDATE status = 'pending', command_uuid = VALUES(command_uuid)`,
+				enrolledDevice.HostUUID, commandUUID, profileUUID)
+			return err
+		})
+
+		enriched := createResponseAsEnrichedSyncML(t, enrolledDevice, []enrichResponseEntry{
+			{Type: "Atomic", StatusCode: 507, UUID: commandUUID},
+			{Type: "Replace", StatusCode: 500, UUID: replaceUUID},
+		})
+		_, err := ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enriched, []string{})
+		require.NoError(t, err)
+	}
+
+	// sendUserChannelRemoveRejection queues a user-scoped <Delete>, points a remove row at it, and acks it with a 405: what
+	// Windows returns for a user-channel node it cannot reach. Removal is best-effort, so this reads as a completed removal
+	// and drops the row unless the user-context exemption catches it first.
+	sendUserChannelRemoveRejection := func(t *testing.T, removeProfileUUID string) {
+		t.Helper()
+		commandUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: commandUUID,
+			RawCommand: []byte(fmt.Sprintf(
+				`<Delete><CmdID>%s</CmdID><Item><Target>`+
+					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
+					`</Target></Item></Delete>`, commandUUID)),
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'remove', ?, 'user-scoped', ?)
+ON DUPLICATE KEY UPDATE status = 'pending', operation_type = 'remove', command_uuid = VALUES(command_uuid)`,
+				enrolledDevice.HostUUID, commandUUID, removeProfileUUID)
+			return err
+		})
+
+		enriched := createResponseAsEnrichedSyncML(t, enrolledDevice, []enrichResponseEntry{
+			{Type: "Delete", StatusCode: 405, UUID: commandUUID},
+		})
+		_, err := ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enriched, []string{})
+		require.NoError(t, err)
+	}
+
+	type profileRow struct {
+		Status  *string `db:"status"`
+		Retries int     `db:"retries"`
+		Detail  string  `db:"detail"`
+	}
+	// readRow reports whether the row still exists as well as its contents: a resolved removal deletes its row outright.
+	readRow := func(t *testing.T, wantProfileUUID string) (profileRow, bool) {
+		t.Helper()
+		var rows []profileRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT status, retries, detail FROM host_mdm_windows_profiles
+				WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice.HostUUID, wantProfileUUID)
+		})
+		if len(rows) == 0 {
+			return profileRow{}, false
+		}
+		return rows[0], true
+	}
+	setLoginStatus := func(t *testing.T, status fleet.WindowsMDMLoginStatus) {
+		t.Helper()
+		require.NoError(t, ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, &status))
+		enrolledDevice.LastLoginStatus = &status
+	}
+
+	t.Run("no retry is spent while the user context can still arrive", func(t *testing.T) {
+		sendUserChannelFailure(t)
+
+		row, found := readRow(t, profileUUID)
+		require.True(t, found)
+		require.Nil(t, row.Status, "the row returns to pending so the reconciler revisits it")
+		require.Zero(t, row.Retries, "a write Fleet sent too early must not consume the retry budget")
+		require.Equal(t, fleet.WindowsUserScopeHoldDetail, row.Detail)
+	})
+
+	t.Run("the exemption does not repeat once the user is signed in", func(t *testing.T) {
+		// The device now reports a signed-in MDM user, so the same rejection is a real failure.
+		setLoginStatus(t, fleet.WindowsMDMLoginStatusUser)
+
+		sendUserChannelFailure(t)
+
+		row, found := readRow(t, profileUUID)
+		require.True(t, found)
+		require.Equal(t, 1, row.Retries, "normal retry accounting applies once the user context is present")
+	})
+
+	// A rejected removal is the dangerous direction: 405 maps to verified, which deletes the row and reports the profile gone
+	// while its setting is still applied in a signed-out user's hive. This is the sign-out race, the one case the reconciler's
+	// gate cannot catch, since the user context was present when the <Delete> was sent.
+	t.Run("a rejected user-scoped removal is held rather than reported as removed", func(t *testing.T) {
+		setLoginStatus(t, fleet.WindowsMDMLoginStatusOthers)
+		removeProfileUUID := "w" + uuid.NewString()
+
+		sendUserChannelRemoveRejection(t, removeProfileUUID)
+
+		row, found := readRow(t, removeProfileUUID)
+		require.True(t, found, "the row must survive: the setting may still be applied in a signed-out user's hive")
+		require.Nil(t, row.Status, "a NULL status returns the removal to the reconciler, which holds it until a user signs in")
+		require.Equal(t, fleet.WindowsUserScopeRemoveHoldDetail, row.Detail)
+		require.Zero(t, row.Retries, "a removal Fleet sent too early must not consume the retry budget either")
+	})
+
+	t.Run("a rejected user-scoped removal resolves once the user is signed in", func(t *testing.T) {
+		// With a user signed in, 405 means what it says: the node is read-only, so the removal is as done as it will get.
+		setLoginStatus(t, fleet.WindowsMDMLoginStatusUser)
+		removeProfileUUID := "w" + uuid.NewString()
+
+		sendUserChannelRemoveRejection(t, removeProfileUUID)
+
+		_, found := readRow(t, removeProfileUUID)
+		require.False(t, found, "a terminal removal deletes its row rather than leaving it pending forever")
+	})
+}
+
 func testSaveResponse(t *testing.T, ds *Datastore) {
 	// Set up: 3 devices, 1 command, 1 response for 1 device
 	enrolledDevice1 := createEnrolledDevice(t, ds)
@@ -5504,6 +5696,31 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			profile, err = ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 			require.NoError(t, err)
 			require.NotNil(t, profile)
+
+			// A profile being removed must no longer resolve, so its identifier can't be replayed against the unauthenticated SCEP proxy.
+			t.Run("profile being removed is not returned", func(t *testing.T) {
+				upsertOperationType := func(operationType fleet.MDMOperationType) {
+					err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+						{
+							ProfileUUID:   initialCP.ProfileUUID,
+							ProfileName:   initialCP.Name,
+							HostUUID:      host.UUID,
+							Status:        &fleet.MDMDeliveryPending,
+							OperationType: operationType,
+							CommandUUID:   "command-uuid",
+							Checksum:      []byte("checksum"),
+						},
+					})
+					require.NoError(t, err)
+				}
+				// Restore the install operation so the subtests that follow see the original state.
+				defer upsertOperationType(fleet.MDMOperationTypeInstall)
+
+				upsertOperationType(fleet.MDMOperationTypeRemove)
+				removedProfile, err := ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				assert.Nil(t, removedProfile)
+			})
 
 			serial := "8ABADCAFEF684D6348F5EC95AEFF468F237A9D75"
 
@@ -7401,6 +7618,7 @@ type windowsEnrollmentFixture struct {
 	hostUUID              string // optional, links the enrollment to a host row
 	awaitingConfiguration fleet.WindowsMDMAwaitingConfiguration
 	awaitingAt            *time.Time
+	ztdRegistrationID     string // optional, the Autopilot ZTDID the device supplied at enrollment
 }
 
 // insertWindowsEnrolledDevice inserts an MDM-enrollment row with sensible defaults for every field tests don't care
@@ -7427,6 +7645,7 @@ func insertWindowsEnrolledDevice(t *testing.T, ctx context.Context, ds *Datastor
 		HostUUID:                f.hostUUID,
 		AwaitingConfiguration:   f.awaitingConfiguration,
 		AwaitingConfigurationAt: f.awaitingAt,
+		ZTDRegistrationID:       f.ztdRegistrationID,
 	}))
 	return f.mdmDeviceID
 }
@@ -8020,4 +8239,254 @@ func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	require.NotNil(t, row.Status)
 	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
 	require.NotEmpty(t, row.Checksum)
+}
+
+func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(hostUUID string) *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-SERIAL",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollUserID:        "user@example.com",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               hostUUID,
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+
+	// Empty serial → NotFound.
+	_, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// No row with the serial yet → NotFound.
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-1")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Save the serial on an unlinked enrollment, then fetch it by serial.
+	unlinked := newEnrollment("")
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, unlinked.MDMDeviceID, "SER-1"))
+	got, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-1")
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID)
+	require.NotNil(t, got.HardwareSerial)
+	require.Equal(t, "SER-1", *got.HardwareSerial)
+
+	// Saving against a linked enrollment is a no-op: the serial stays nil.
+	linked := newEnrollment("11111111-1111-1111-1111-111111111111")
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, linked.MDMDeviceID, "SER-2"))
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-2")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Once the enrollment is linked, the serial lookup no longer returns it.
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-1")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Two unlinked enrollments sharing a serial is ambiguous, so the lookup refuses rather than picking one.
+	firstTwin := newEnrollment("")
+	secondTwin := newEnrollment("")
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, firstTwin.MDMDeviceID, "SER-3"))
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, secondTwin.MDMDeviceID, "SER-3"))
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Linking one of them resolves the ambiguity: a single unlinked row is left, so the lookup returns it again.
+	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "33333333-3333-3333-3333-333333333333", secondTwin.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
+	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
+	require.NoError(t, err)
+	require.Equal(t, firstTwin.MDMDeviceID, got.MDMDeviceID)
+}
+
+func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Unset: nil team id, empty name.
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.Nil(t, teamID)
+	require.Empty(t, teamName)
+
+	// Set to an existing team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Windows Workstations"})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &team.ID))
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, teamID)
+	require.Equal(t, team.ID, *teamID)
+	require.Equal(t, "Windows Workstations", teamName)
+
+	// The name is resolved at read time via the join, so a rename shows up without touching the setting.
+	team.Name = "Windows Laptops"
+	_, err = ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, teamID)
+	require.Equal(t, team.ID, *teamID)
+	require.Equal(t, "Windows Laptops", teamName)
+
+	// Clear with nil.
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.Nil(t, teamID)
+	require.Empty(t, teamName)
+
+	// Set again, then delete the team: the FK nulls the reference.
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &team.ID))
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.Nil(t, teamID)
+	require.Empty(t, teamName)
+}
+
+// The ZTDID is the exact key that links an Autopilot pending host to its MDM enrollment.
+func testMDMWindowsEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const ztdID = "efdb13f9-44d6-4f99-a93f-08833fccef82"
+
+	hostUUID := uuid.NewString()
+	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+		deviceNameSuffix:  "ZTD",
+		hostUUID:          hostUUID,
+		ztdRegistrationID: ztdID,
+	})
+
+	unlinkedDeviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
+		deviceNameSuffix:  "ZTD-UNLINKED",
+		ztdRegistrationID: ztdID,
+	})
+	const serial = "ZTD-SERIAL-1"
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, unlinkedDeviceID, serial))
+
+	cases := []struct {
+		name string
+		load func() (*fleet.MDMWindowsEnrolledDevice, error)
+	}{
+		{"by device id", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		}},
+		{"by host uuid", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, hostUUID)
+		}},
+		{"unlinked by device name", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "DESKTOP-ZTD-UNLINKED")
+		}},
+		{"unlinked by hardware serial", func() (*fleet.MDMWindowsEnrolledDevice, error) {
+			return ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, serial)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.load()
+			require.NoError(t, err)
+			require.Equal(t, ztdID, got.ZTDRegistrationID)
+		})
+	}
+
+	// A re-enrollment that carries no ZTDID must not erase the one already captured. Re-enrolling means upserting the
+	// same mdm_hardware_id, which is the table's unique key.
+	enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            deviceID,
+		MDMHardwareID:          enrolled.MDMHardwareID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-ZTD",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               hostUUID,
+	}))
+	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+	require.Equal(t, ztdID, got.ZTDRegistrationID, "a re-enrollment without a ZTDID keeps the stored one")
+}
+
+func testDeleteMDMWindowsConfigProfileWithPolicyAutomation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows-policy-automation"})
+	require.NoError(t, err)
+
+	newProfile := func(name, locURI string) *fleet.MDMWindowsConfigProfile {
+		p := windowsConfigProfileForTest(t, name, locURI)
+		p.TeamID = &tm.ID
+		return p
+	}
+
+	profA, err := ds.NewMDMWindowsConfigProfile(ctx, *newProfile("A", "./Device/A"), nil)
+	require.NoError(t, err)
+	profB, err := ds.NewMDMWindowsConfigProfile(ctx, *newProfile("B", "./Device/B"), nil)
+	require.NoError(t, err)
+
+	pol, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{
+		Name:        "resend A",
+		Query:       "SELECT 1;",
+		Platform:    "windows",
+		ProfileUUID: &profA.ProfileUUID,
+	})
+	require.NoError(t, err)
+
+	batchSet := func(profiles []*fleet.MDMWindowsConfigProfile) error {
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, _, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, &tm.ID, profiles, nil)
+			return err
+		})
+	}
+
+	requireConflict := func(err error, wantMsg string) {
+		var conflictErr *fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		require.ErrorContains(t, err, wantMsg)
+	}
+	const batchConflictMsg = "Couldn't delete. Policy automations use one or more of the profiles being deleted. " +
+		"Please disable policy automations for the profiles being deleted and try again."
+
+	// deleting the profile used by the policy automation returns a conflict with a
+	// user-friendly message instead of the raw foreign key error.
+	requireConflict(ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID),
+		"Couldn't delete. Policy automations use this profile. Please disable policy automations for this profile and try again.")
+
+	// batch-setting a new set of profiles that would delete the profile used by the
+	// policy automation returns a conflict mentioning the profiles being deleted.
+	requireConflict(batchSet([]*fleet.MDMWindowsConfigProfile{newProfile("B", "./Device/B")}), batchConflictMsg)
+
+	// the same applies when the batch deletes every profile of the team
+	requireConflict(batchSet(nil), batchConflictMsg)
+
+	// profiles are still there
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, profB.ProfileUUID)
+	require.NoError(t, err)
+
+	// once the policy automation is disabled, both deletes succeed
+	pol.ResendAppleProfileUUID = nil
+	pol.ResendWindowsProfileUUID = nil
+	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
+
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID))
+	require.NoError(t, batchSet(nil))
+	_, err = ds.GetMDMWindowsConfigProfile(ctx, profB.ProfileUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }

@@ -138,18 +138,18 @@ form,
   .button-wrap {
     margin: 0;
     display: flex;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
 
     &--center {
       margin: 0;
       display: flex;
-      gap: $pad-medium;
+      gap: $gap-action-elements;
       justify-content: center;
     }
   }
 
   // Override button width to auto unless icon-only or wide buttons which has fixed widths
-  .button:not(.button--icon):not(.button--icon__small):not(.button__wide):not(.button--icon-only) {
+  .button:not(.button__wide):not(.button--icon-only) {
     width: auto;
   }
 
@@ -171,9 +171,7 @@ form,
   overflow-wrap: break-word; // allow long words to break to avoid overflow
 
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    @include form-label;
     line-height: $line-height;
 
     // compensate for height added by tooltip wrapper underline
@@ -242,9 +240,16 @@ textarea,
 button {
   font-family: "Inter", sans-serif;
 
-  &:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  // Browsers paint their own background on autofilled fields, so cover it with
+  // an inset shadow in the themed surface color. Both selectors are needed:
+  // `:autofill` is the standard (Firefox), `:-webkit-autofill` the legacy
+  // prefix. The colors are theme tokens, so this follows light/dark mode
+  // instead of forcing white.
+  &:-webkit-autofill,
+  &:autofill {
+    box-shadow: 0 0 0 1000px $core-fleet-white inset;
     -webkit-text-fill-color: $core-fleet-black !important; //sass-lint:disable-line no-important
+    caret-color: $core-fleet-black;
   }
 }
 
@@ -327,21 +332,13 @@ body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
   background-color: $dark-mode-nav-hover;
 }
 
-body.dark-mode .card .button--inverse:hover,
-body.dark-mode .card .button--inverse-alert:hover,
-body.dark-mode .card .button--text-icon:hover,
-body.dark-mode .card .button--icon:hover,
 body.dark-mode .card .button--secondary:hover,
 body.dark-mode .card .button--subdued:hover {
   background-color: $core-fleet-white;
 }
 
 // A modal inside a card inherits the .card hover above, which matches the
-// modal surface and hides it. Restore the normal inverse hover.
-body.dark-mode .modal__modal_container .button--inverse:hover,
-body.dark-mode .modal__modal_container .button--inverse-alert:hover,
-body.dark-mode .modal__modal_container .button--text-icon:hover,
-body.dark-mode .modal__modal_container .button--icon:hover,
+// modal surface and hides it. Restore the normal secondary/subdued hover.
 body.dark-mode .modal__modal_container .button--secondary:hover,
 body.dark-mode .modal__modal_container .button--subdued:hover {
   background-color: $ui-fleet-black-5;

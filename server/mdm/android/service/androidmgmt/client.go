@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -45,6 +47,13 @@ type Client interface {
 	// arrives later as a Pub/Sub COMMAND notification correlated by operation name. See:
 	// https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand
 	EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error)
+
+	// EnterprisesDevicesOperationsGet fetches the current state of an Operation returned by
+	// EnterprisesDevicesIssueCommand. It is the authoritative source for a command's outcome and lets
+	// Fleet reconcile commands whose Pub/Sub COMMAND notification never arrived. operationName is the
+	// full AMAPI resource name (enterprises/X/devices/Y/operations/Z). See:
+	// https://developers.google.com/android/management/reference/rest/v1/enterprises.devices.operations/get
+	EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error)
 
 	// EnterprisesDevicesListPartial lists devices for the given enterprise with partial fields.
 	// Page size of 100 devices
@@ -116,9 +125,89 @@ func IsNotModifiedError(err error) bool {
 // IsBadRequestError reports whether the AMAPI error indicates that the
 // request was invalid due to a client error.
 func IsBadRequestError(err error) bool {
-	var ae *googleapi.Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
 		return ae.Code == http.StatusBadRequest
 	}
 	return false
 }
+
+// IsNotFoundError reports whether the AMAPI error indicates that the requested
+// resource does not exist. AMAPI sometimes returns a 500 with "Requested entity
+// was not found" instead of a proper 404.
+func IsNotFoundError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusNotFound ||
+			(ae.Code == http.StatusInternalServerError && strings.Contains(ae.Error(), "Requested entity was not found"))
+	}
+	return false
+}
+
+// IsAuthenticationError reports whether the AMAPI error indicates that the
+// request was rejected over credentials or access, rather than anything about
+// the resource that was requested.
+func IsAuthenticationError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusUnauthorized || ae.Code == http.StatusForbidden
+	}
+	return false
+}
+
+// IsTooManyRequestsError reports whether the AMAPI error indicates that we
+// exceeded the project's request quota.
+func IsTooManyRequestsError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusTooManyRequests
+	}
+	return false
+}
+
+// IsConflictError reports whether the AMAPI error indicates that the device
+// state is incompatible with the requested operation.
+func IsConflictError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusConflict
+	}
+	return false
+}
+
+// FleetErrFromAMAPI maps a *googleapi.Error to the corresponding Fleet error
+// type. Returns nil when err is nil or is not a *googleapi.Error,
+// in which case the caller should fall through to its default error handling.
+func FleetErrFromAMAPI(err error) error {
+	ae, ok := errors.AsType[*googleapi.Error](err)
+	if !ok {
+		return nil
+	}
+	msg := ae.Message
+	if msg == "" {
+		msg = ae.Body
+	}
+	switch {
+	case IsBadRequestError(err):
+		return &fleet.BadRequestError{Message: msg, InternalErr: err}
+	case IsNotFoundError(err):
+		return &notFoundError{message: msg, internalErr: err}
+	case IsConflictError(err):
+		return &fleet.ConflictError{Message: msg}
+	default:
+		return nil
+	}
+}
+
+// notFoundError implements the fleet IsNotFound interface so the HTTP layer
+// returns 404.
+type notFoundError struct {
+	message     string
+	internalErr error
+}
+
+func (e *notFoundError) Error() string {
+	if e.message != "" {
+		return e.message
+	}
+	return "not found"
+}
+
+func (e *notFoundError) IsNotFound() bool    { return true }
+func (e *notFoundError) IsClientError() bool { return true }
+func (e *notFoundError) Unwrap() error       { return e.internalErr }

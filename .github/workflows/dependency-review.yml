@@ -28,3 +28,11 @@ jobs:
 
       - name: 'Dependency Review'
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          # GHSA-mh99-v99m-4gvg (brace-expansion CVE-2026-14257) only lists 5.0.8 as
+          # patched, but the fix was backported in 1.1.16 and 2.1.2, which is what we
+          # install. Remove once the advisory's patched ranges are corrected upstream.
+          # GHSA-j965-2qgj-vjmq (aws-sdk v2 region validation) has no fixed v2
+          # release; the guidance is to migrate to SDK v3. skipper-s3 (used by the
+          # fleet-agent-downloader) supports only v2.
+          allow-ghsas: GHSA-mh99-v99m-4gvg, GHSA-j965-2qgj-vjmq

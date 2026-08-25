@@ -8,7 +8,7 @@
   &__button-wrap {
     display: flex;
     align-items: center;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 
   .ace-fleet {
@@ -104,7 +104,7 @@
         .manage-hosts__table-actions {
           display: flex;
           align-items: center;
-          gap: $pad-medium; // grouping secondary buttons
+          gap: $gap-table-elements; // grouping secondary buttons
         }
 
         .manage-hosts__filter-dropdowns {
@@ -250,4 +250,10 @@
     padding-top: $pad-xxlarge;
     padding-bottom: $pad-large;
   }
+}
+
+// The tooltip renders in a portal outside .manage-hosts, so this can't be
+// nested under that selector.
+.host-table-header-tooltip {
+  text-align: left;
 }

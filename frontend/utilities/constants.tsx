@@ -392,9 +392,8 @@ export const MDM_STATUS_TOOLTIP: Record<
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business (AB).
-      <br /> These will automatically enroll to Fleet <br /> and turn on MDM
-      when they&apos;re unboxed.
+      Hosts ordered via Apple Business (AB). These will automatically enroll to
+      Fleet and turn on MDM when they&apos;re unboxed.
     </span>
   ),
 };
@@ -449,6 +448,7 @@ export const HOST_VITALS_DATA = [
   "uptime",
   "last_enrolled_at",
   "hardware_model",
+  "hardware_marketing_name",
   "hardware_serial",
   "primary_ip",
   "public_ip",

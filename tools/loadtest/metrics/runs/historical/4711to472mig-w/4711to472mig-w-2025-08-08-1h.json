@@ -1,0 +1,114 @@
+{
+  "metadata": {
+    "workspace": "4711to472mig-w",
+    "collected_at": "2025-08-08T00:00:00Z",
+    "interval": "1h",
+    "release": "4.72.0",
+    "category": "migration",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 32
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 74.0
+    },
+    "memory_utilization": {
+      "Average": 4.5
+    },
+    "task_counts": {
+      "runningCount": 20
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 63.0
+    },
+    "memory_utilization": {
+      "Average": 8.5
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 12.5
+    },
+    "write_iops": {
+      "Average": 2650.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 7.0,
+      "maximum": 19.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 42.0
+      },
+      "read_iops": {
+        "Average": 1.0,
+        "Maximum": 4.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 7.0,
+        "maximum": 14.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.05,
+        "Maximum": 2.4
+      },
+      "memory_utilization": {
+        "Average": 0.26
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Migration Test",
+    "one_click": null,
+    "notes": "Error message happens when adding osquery-perf hosts. There \u2026",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "20",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~74%",
+      "fleet_mem": "~4.5%",
+      "errors": "{\"component\":\"service\",\"err\":\"invalid source \",\"level\":\"erro\u2026",
+      "writer_top_sql": "INSERT INTO `host_seen_ti\u2026",
+      "writer_cpu": "~12.5%",
+      "writer_sessions": "4-19 avg 7",
+      "writer_iops": "~2650",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~42%",
+      "reader_sessions": "2-14 avg ~7",
+      "reader_iops": "max 4 otherwise about 1",
+      "redis_cpu": "1.7-2.4%",
+      "redis_mem": "0.26%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "63%",
+      "osquery_mem": "8.50%",
+      "deadlocks": "~0-2 peak at 40"
+    }
+  }
+}

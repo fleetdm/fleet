@@ -337,7 +337,7 @@ WHERE ` + whereTeam
 			)
 		}
 		byUUID[h.UUID] = h
-		switch fleet.MDMPlatform(h.Platform) {
+		switch fleet.ClassicMDMPlatform(h.Platform) {
 		case "darwin":
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
@@ -482,6 +482,8 @@ WHERE
 		listStmt = `SELECT * FROM (` + winStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
 		params = winParams
+	default:
+		return []*fleet.MDMCommand{}, nil, nil, nil
 	}
 
 	// TODO: Maybe move this to the service method? What about pagination metadata?
@@ -848,7 +850,45 @@ FROM (
 		}
 	}
 
+	activations, err := ds.getCustomActivationsForDeclarations(ctx, macDeclUUIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	for declUUID, rawJSON := range activations {
+		if prof, ok := profMap[declUUID]; ok {
+			prof.Activation = rawJSON
+		}
+	}
+
 	return profs, metaData, nil
+}
+
+// Declarations without one are absent from the map, so callers leave
+// MDMConfigProfilePayload.Activation unset and it's omitted from the response.
+func (ds *Datastore) getCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) (map[string][]byte, error) {
+	if len(declUUIDs) == 0 {
+		return nil, nil
+	}
+
+	const selectStmt = `SELECT declaration_uuid, raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid IN (?)`
+	stmt, args, err := sqlx.In(selectStmt, declUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In get declaration activations")
+	}
+
+	var rows []struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		RawJSON         []byte `db:"raw_json"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select declaration activations")
+	}
+
+	activations := make(map[string][]byte, len(rows))
+	for _, r := range rows {
+		activations[r.DeclarationUUID] = r.RawJSON
+	}
+	return activations, nil
 }
 
 func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, androidProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
@@ -1710,7 +1750,14 @@ SELECT
 	h.id                  AS host_id,
 	h.platform            AS platform,
 	hmap.profile_uuid     AS profile_uuid,
-	hmap.has_acme_payload AS has_acme_payload
+	hmap.has_acme_payload AS has_acme_payload,
+	hmap.scope            AS scope,
+	CASE WHEN hmap.scope = ? THEN COALESCE((
+		SELECT ne.id
+		FROM nano_enrollments ne
+		WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = h.uuid
+		ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1
+	), '') ELSE '' END AS user_enrollment_id
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
@@ -1718,7 +1765,7 @@ WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
 	var dest fleet.ProfileACMECommandResult
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, fleet.PayloadScopeUser, commandUUID, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
@@ -2190,8 +2237,9 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 
 func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 	var (
-		appleUUIDs []any
-		winUUIDs   []any
+		appleUUIDs   []any
+		winUUIDs     []any
+		androidUUIDs []any
 	)
 
 	res := make(map[string]bool, len(hosts))
@@ -2201,6 +2249,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
+		case "android":
+			androidUUIDs = append(androidUUIDs, h.UUID)
 		}
 		res[h.UUID] = false
 	}
@@ -2261,6 +2311,17 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 		return nil, err
 	}
 
+	const androidStmt = `
+	  SELECT h.uuid
+	  FROM hosts h
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.uuid IN (?)
+	    AND hm.enrolled = 1
+	`
+	if err := setConnectedUUIDs(androidStmt, androidUUIDs, res); err != nil {
+		return nil, err
+	}
+
 	return res, nil
 }
 
@@ -2301,6 +2362,25 @@ func batchSetProfileVariableAssociationsDB(
 		columnName = "android_profile_uuid"
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
+	}
+
+	return setVariableAssociationsForColumnDB(ctx, tx, profileVariablesByUUID, columnName)
+}
+
+// Profiles, declarations and activations all key into the same table, so the
+// owner column is passed in rather than derived here.
+func setVariableAssociationsForColumnDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
+	columnName string,
+) (didUpdate bool, err error) {
+	// columnName is interpolated below; keep the invariant explicit.
+	switch columnName {
+	case "apple_profile_uuid", "windows_profile_uuid", "apple_declaration_uuid",
+		"android_profile_uuid", "apple_ddm_activation_uuid":
+	default:
+		return false, ctxerr.Errorf(ctx, "unsupported variable association column %q", columnName)
 	}
 
 	// collect the profile uuids to clear

@@ -38,7 +38,11 @@ const AdvancedOptionsForm = ({
   const tooltip = (
     <>
       When enabled, you&apos;re responsible for sending the DeviceConfigured
-      command. (Default: <b>Off</b>)
+      command.
+      <br />
+      <i>
+        (Default: <strong>Off</strong>)
+      </i>
     </>
   );
 
@@ -51,7 +55,6 @@ const AdvancedOptionsForm = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-        variant="secondary"
       />
       {showAdvancedOptions && (
         <form onSubmit={handleSubmit}>

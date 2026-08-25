@@ -378,9 +378,13 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 // process can exit with a status that collides with these values; that
 // ambiguity is accepted.
 const (
-	// ExitCodeScriptTimeout is reported when a script did not terminate
-	// normally, e.g. fleetd killed it at the execution timeout (Go reports -1
-	// for a process that did not exit cleanly). Script results only.
+	// ExitCodeScriptTimeout is reported when a process did not exit cleanly:
+	// either it never started (e.g. exec failed) or it was stopped before
+	// finishing (e.g. fleetd killed it at the execution timeout). Go reports
+	// -1 in both cases, so the two cannot be distinguished from the exit code
+	// alone. For script results, this renders the timeout message; for
+	// software installs, it renders the "couldn't run the install script"
+	// message.
 	ExitCodeScriptTimeout = -1
 	// ExitCodeScriptsDisabled is reported by fleetd when a script or software
 	// install can't run because scripts are disabled on the host.

@@ -167,10 +167,11 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	}
 
 	type existingLabel struct {
-		ID       uint   `db:"id"`
-		Name     string `db:"name"`
-		Platform string `db:"platform"`
-		TeamID   *uint  `db:"team_id"`
+		ID        uint            `db:"id"`
+		Name      string          `db:"name"`
+		Platform  string          `db:"platform"`
+		TeamID    *uint           `db:"team_id"`
+		LabelType fleet.LabelType `db:"label_type"`
 	}
 	existingLabels := make(map[string]existingLabel, len(specs))
 
@@ -179,13 +180,13 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	// should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: do we want to allow on duplicate updating label_type or
-		// label_membership_type or should those always be immutable?
-		// are we ok depending solely on the caller to ensure that these fields
-		// are not changed?
+		// TODO: do we want to allow on duplicate updating label_membership_type
+		// or should that always be immutable?
+		// are we ok depending solely on the caller to ensure that field
+		// is not changed?
 
 		if len(labelNames) > 0 {
-			stmt := `SELECT id, name, platform, team_id FROM labels WHERE name IN (?)`
+			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?)`
 			stmt, args, err := sqlx.In(stmt, labelNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build existing labels query")
@@ -201,10 +202,22 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, spec := range specs {
-				if existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]; ok &&
-					(existingLabel.TeamID != nil && spec.TeamID == nil ||
-						existingLabel.TeamID == nil && spec.TeamID != nil ||
-						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
+				if spec.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
+				}
+				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
+				if !ok {
+					continue
+				}
+				// The lookup above and the unique index the upsert keys on both inherit
+				// the case-insensitive collation of labels.name, so even a spec merely
+				// named as a case variant of a built-in resolves to that built-in row.
+				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
+				}
+				if existingLabel.TeamID != nil && spec.TeamID == nil ||
+					existingLabel.TeamID == nil && spec.TeamID != nil ||
+					(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID) {
 					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}
@@ -567,7 +580,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 	for _, spec := range specs {
 		if spec.LabelType != fleet.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-			if err := ds.getLabelHostIDs(ctx, spec); err != nil {
+			if err := ds.getLabelHostIDs(ctx, spec, filter); err != nil {
 				return nil, err
 			}
 		}
@@ -599,7 +612,7 @@ WHERE l.name = ?`, filter, name)
 	spec := specs[0]
 	if spec.LabelType != fleet.LabelTypeBuiltIn &&
 		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		err := ds.getLabelHostIDs(ctx, spec)
+		err := ds.getLabelHostIDs(ctx, spec, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -608,18 +621,24 @@ WHERE l.name = ?`, filter, name)
 	return spec, nil
 }
 
-func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec) error {
-	sql := `
-		SELECT id
-		FROM hosts
-		WHERE id IN
-		(
-			SELECT host_id
-			FROM label_membership
-			WHERE label_id = (SELECT id FROM labels WHERE name = ?)
+func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec, filter fleet.TeamFilter) error {
+	// Global roles (including gitops, which needs the full list to round-trip
+	// specs) see every member; team-scoped users must not learn about host IDs
+	// outside their teams. filter.TeamID scopes which labels are returned, not
+	// which hosts are visible, so it is left out of the host filter.
+	hostFilter := "TRUE"
+	if filter.User == nil || !filter.User.HasAnyGlobalRole() {
+		hostFilter = ds.whereFilterHostsByTeams(
+			fleet.TeamFilter{User: filter.User, IncludeObserver: filter.IncludeObserver}, "h",
 		)
-	`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.Name)
+	}
+	sql := fmt.Sprintf(`
+		SELECT h.id
+		FROM hosts h
+		JOIN label_membership lm ON lm.host_id = h.id
+		WHERE lm.label_id = ? AND %s
+	`, hostFilter)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hostnames for label")
 	}
@@ -935,25 +954,32 @@ func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams .
 	return maybeIn(query)
 }
 
-func platformForHost(host *fleet.Host) string {
-	if host.Platform != "rhel" {
-		return host.Platform
+// platformsForHost returns the label platform values that match the given
+// host. A host matches labels with its specific platform (with rhel hosts
+// running CentOS matching "centos"), and Linux hosts additionally match the
+// generic "linux" platform regardless of distribution.
+func platformsForHost(host *fleet.Host) []string {
+	specific := host.Platform
+	if host.Platform == "rhel" && strings.Contains(strings.ToLower(host.OSVersion), "centos") {
+		specific = "centos"
 	}
-	if strings.Contains(strings.ToLower(host.OSVersion), "centos") {
-		return "centos"
+	if fleet.IsLinux(specific) && specific != "linux" {
+		return []string{specific, "linux"}
 	}
-	return host.Platform
+	return []string{specific}
 }
 
 func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	var rows *sql.Rows
-	var err error
-	platform := platformForHost(host)
+	platforms := platformsForHost(host)
 	query := `SELECT id, query FROM labels WHERE
-		(platform = ? OR platform = '') AND
+		(platform IN (?) OR platform = '') AND
 		label_membership_type = ? AND
 		(team_id IS NULL OR team_id = ?)`
-	rows, err = ds.reader(ctx).QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic, host.TeamID)
+	query, args, err := sqlx.In(query, platforms, fleet.LabelMembershipTypeDynamic, host.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building label queries for host")
+	}
+	rows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}

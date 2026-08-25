@@ -115,12 +115,18 @@ func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 }
 
 func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
-	return oc.requestWithExternal(verb, path, params, resp, false)
+	ctx := context.Background()
+	if _, ok := resp.(BodyHandler); !ok {
+		timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		ctx = timeoutCtx
+	}
+	return oc.requestWithExternal(ctx, verb, path, params, resp, false)
 }
 
 // requestWithExternal is used to make requests to Fleet or external URLs. If external is true, the pathOrURL
 // is used as the full URL to make the request to.
-func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params any, resp any, external bool) error {
+func (oc *OrbitClient) requestWithExternal(ctx context.Context, verb string, pathOrURL string, params any, resp any, external bool) error {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -132,7 +138,6 @@ func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params
 
 	oc.closeIdleConnections()
 
-	ctx := context.Background()
 	if os.Getenv("FLEETD_TEST_HTTPTRACE") == "1" {
 		ctx = httptrace.WithClientTrace(ctx, testStdoutHTTPTracer)
 	}
@@ -193,6 +198,10 @@ var (
 	configRetryOnNetworkError          = 30 * time.Second
 	defaultOrbitConfigReceiverInterval = 30 * time.Second
 	maxConfigBackoff                   = 5 * time.Minute
+	// downloadStallTimeout bounds a software-installer download that makes no
+	// progress (e.g. a network filter dropping packets mid-transfer). It resets
+	// on any received bytes, so slow-but-healthy downloads are unaffected.
+	downloadStallTimeout = 60 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -499,6 +508,7 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	resp := FileResponse{
 		DestPath:     downloadDirectory,
 		ProgressFunc: progressFunc,
+		StallTimeout: downloadStallTimeout,
 	}
 	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID: installerID,
@@ -514,8 +524,9 @@ func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename str
 		DestFile:      filename,
 		SkipMediaType: true,
 		ProgressFunc:  progressFunc,
+		StallTimeout:  downloadStallTimeout,
 	}
-	if err := oc.requestWithExternal("GET", url, nil, &resp, true); err != nil {
+	if err := oc.requestWithExternal(context.Background(), "GET", url, nil, &resp, true); err != nil {
 		return "", err
 	}
 	return resp.GetFilePath(), nil
@@ -904,6 +915,21 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 		Salt:        lr.Salt,
 		ClientError: lr.Err,
 		KeyType:     lr.KeyType,
+	}, &resp); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SendManagedLocalAccountPassword escrows the password of the managed local admin account that fleetd created on this
+// Windows host. A non-empty clientError reports that creating the account failed, which the server records against the
+// host and which makes it ask this host to try again.
+func (oc *OrbitClient) SendManagedLocalAccountPassword(password, clientError string) error {
+	verb, path := "POST", "/api/fleet/orbit/managed_local_account"
+	var resp fleet.OrbitPostManagedLocalAccountResponse
+	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostManagedLocalAccountRequest{
+		Password:    password,
+		ClientError: clientError,
 	}, &resp); err != nil {
 		return err
 	}

@@ -802,6 +802,152 @@ describe("HostInstallerActionCell component", () => {
       expect(uninstallBtn.closest("button")).toBeEnabled();
     }
   );
+
+  // .tgz and script-only installers may be uploaded without an uninstall
+  // script; gate the Uninstall action on has_uninstall_script.
+  it("does not render Uninstall for a tgz package without an uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "tgz_packages",
+          ui_status: "installed",
+          status: "installed",
+          software_package: createMockHostSoftwarePackage({
+            has_uninstall_script: false,
+          }),
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  it.each([
+    ["sh_packages" as const],
+    ["ps1_packages" as const],
+    ["py_packages" as const],
+  ])(
+    "renders enabled Uninstall for a %s script package that has ran and has an uninstall script",
+    (source) => {
+      render(
+        <HostInstallerActionCell
+          software={{
+            ...defaultSoftware,
+            source,
+            status: "installed",
+            ui_status: "ran_script",
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+            app_store_app: null,
+          }}
+          onClickInstallAction={noop}
+          onClickUninstallAction={noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+        />
+      );
+
+      const uninstallBtn = screen.getByTestId(
+        `${baseClass}__uninstall-button--test`
+      );
+      expect(uninstallBtn).toHaveTextContent("Uninstall");
+      expect(uninstallBtn.closest("button")).toBeEnabled();
+    }
+  );
+
+  it("does not render Uninstall for a script package with no uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "ps1_packages",
+          status: "installed",
+          ui_status: "ran_script",
+          software_package: createMockHostSoftwarePackage({
+            has_uninstall_script: false,
+          }),
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  it("does not render Uninstall for a script package that never ran, even with an uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "sh_packages",
+          status: null,
+          ui_status: "never_ran_script",
+          software_package: mockSoftwarePackage,
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  // Parent returns false on API error (see HostSoftwareLibrary.onClick*Action).
+  // Without the child re-enable, the row's optimistic pending state persists
+  // and the user has to refresh.
+  it.each([
+    ["uninstall" as const, "installed" as const],
+    ["install" as const, "failed_install" as const],
+  ])(
+    "re-enables the %s button after an API failure",
+    async (action, uiStatus) => {
+      const failing = jest.fn().mockResolvedValue(false);
+      const { user } = renderWithSetup(
+        <HostInstallerActionCell
+          software={{ ...defaultSoftware, ui_status: uiStatus }}
+          onClickInstallAction={action === "install" ? failing : noop}
+          onClickUninstallAction={action === "uninstall" ? failing : noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+        />
+      );
+
+      const btn = screen.getByTestId(`${baseClass}__${action}-button--test`);
+      await user.click(btn);
+
+      expect(failing).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(btn.closest("button")).toBeEnabled();
+      });
+    }
+  );
 });
 
 describe("HostInstallerActionCell dropdown on My Device page", () => {
@@ -1024,4 +1170,37 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       expect(uninstallBtn.closest("button")).toBeEnabled();
     }
   );
+
+  it("leaves reinstall/uninstall buttons enabled after clicking Uninstall on My Device (fleet#50856)", async () => {
+    // Empty installed_versions surfaces Uninstall as a standalone button rather
+    // than under the More dropdown, so we can click it directly in a test.
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...createMockHostSoftware({
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+          }),
+          status: "installed",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+
+    await user.click(uninstallBtn);
+
+    expect(uninstallBtn.closest("button")).toBeEnabled();
+    expect(installBtn.closest("button")).toBeEnabled();
+  });
 });
