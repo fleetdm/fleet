@@ -183,7 +183,6 @@ func CreateBulkMilestoneCloseActions(issues []Issue) []Action {
 
 	var actions []Action
 	if len(storyIssues) > 0 {
-		actions = append(actions, CreateBulkAddLableAction(storyIssues, ":product")...)
 		for _, issue := range storyIssues {
 			// Stories already live on their product group's board (there's no
 			// separate drafting board to move them onto) — resolve which board
@@ -370,15 +369,11 @@ func BulkMilestoneClose(issues []Issue) error {
 		}
 	}
 
-	// Process story issues: add :product, set status to confirm and celebrate on
-	// their own product group board, remove :release
+	// Process story issues: set status to confirm and celebrate on their own
+	// product group board, remove :release
 	if len(storyIssues) > 0 {
 		logger.Infof("Processing %d story issues for milestone close", len(storyIssues))
-		// Step 1: Add :product
-		if err := BulkAddLabel(storyIssues, ":product"); err != nil {
-			return err
-		}
-		// Step 2: Set status to confirm and celebrate on each issue's product group board
+		// Step 1: Set status to confirm and celebrate on each issue's product group board
 		for _, issue := range storyIssues {
 			projectID, ok := ProjectIDForLabels(issue.Labels)
 			if !ok {
@@ -391,7 +386,7 @@ func BulkMilestoneClose(issues []Issue) error {
 				return err
 			}
 		}
-		// Step 3: Remove :release
+		// Step 2: Remove :release
 		if err := BulkRemoveLabel(storyIssues, ":release"); err != nil {
 			return err
 		}

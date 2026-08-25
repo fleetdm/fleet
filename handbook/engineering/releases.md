@@ -178,17 +178,15 @@ Immediately after publishing a new release of Fleet or fleetd, close out the ass
 
 1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
 
-2. **Flag user stories for Product**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label so the Product Designer knows they need to confirm and celebrate.
+2. **Confirm and celebrate**: Select all items in "Ready for release" that have the `story` label and move them to the "Confirm and celebrate" column on their product group's board. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
 
 3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
 
-4. **Confirm and celebrate**: On each product group's board, filter by the current milestone and move all `:product`-labeled stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
+4. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
 
-5. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
+5. Announce that the release milestone has been closed in #help-engineering.
 
-6. Announce that the release milestone has been closed in #help-engineering.
-
-7. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
+6. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
 
 
 ## Update the Fleet releases calendar

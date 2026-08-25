@@ -632,14 +632,6 @@ func (m *model) executeWorkflow() tea.Cmd {
 		for i, issue := range selectedIssues {
 			m.tasks = append(m.tasks, WorkflowTask{
 				ID:          i,
-				Description: fmt.Sprintf("Adding ':product' label to #%d issue", issue.Number),
-				Status:      TaskPending,
-				Progress:    0.0,
-			})
-		}
-		for i, issue := range selectedIssues {
-			m.tasks = append(m.tasks, WorkflowTask{
-				ID:          len(selectedIssues) + i,
 				Description: fmt.Sprintf("Setting status to 'confirm and celebrate' for #%d issue on its product group board", issue.Number),
 				Status:      TaskPending,
 				Progress:    0.0,
@@ -647,7 +639,7 @@ func (m *model) executeWorkflow() tea.Cmd {
 		}
 		for i, issue := range selectedIssues {
 			m.tasks = append(m.tasks, WorkflowTask{
-				ID:          (2 * len(selectedIssues)) + i,
+				ID:          len(selectedIssues) + i,
 				Description: fmt.Sprintf("Removing ':release' label from #%d issue", issue.Number),
 				Status:      TaskPending,
 				Progress:    0.0,
