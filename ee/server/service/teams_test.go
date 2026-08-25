@@ -837,9 +837,21 @@ func TestUpdateTeamMDMDiskEncryption(t *testing.T) {
 	}{
 		{
 			name: "try to disable disk encryption with TPM PIN enabled",
+			// per-platform fields set to match the flat toggle, as the
+			// unmarshal gap-fill guarantees for teams loaded from the DB
 			mdmConfig: fleet.TeamMDM{
 				EnableDiskEncryption: true,
-				RequireBitLockerPIN:  true,
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+				LinuxSettings: fleet.LinuxSettings{
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
+				RequireBitLockerPIN: true,
 			},
 			diskEncryption: ptr.Bool(false),
 			requireTPMPIN:  ptr.Bool(true),
@@ -860,7 +872,17 @@ func TestUpdateTeamMDMDiskEncryption(t *testing.T) {
 			name: "try to disable disk encryption with TPM PIN enabled when disk encryption prev enabled",
 			mdmConfig: fleet.TeamMDM{
 				EnableDiskEncryption: true,
-				RequireBitLockerPIN:  false,
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+				LinuxSettings: fleet.LinuxSettings{
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
+				RequireBitLockerPIN: false,
 			},
 			diskEncryption: ptr.Bool(false),
 			requireTPMPIN:  ptr.Bool(true),

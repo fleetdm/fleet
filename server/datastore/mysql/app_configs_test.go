@@ -464,8 +464,12 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, diskEncryptionConfig.Enabled)
 
-	// Enable disk encryption for no team
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	// Enable disk encryption for no team. The flat toggle is virtual so
+	// the per-platform fields are what gets written.
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
+	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 	ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
@@ -477,6 +481,19 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
 	require.True(t, diskEncryptionConfig.Enabled)
+
+	// a mixed state reads the flat toggle as false
+	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	ac, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, ac.MDM.EnableDiskEncryption.Value)
+	require.True(t, ac.MDM.MacOSSettings.EnableDiskEncryption.Value)
+
+	// restore the uniform state for the assertions below
+	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
 
 	// Create team
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -493,13 +510,24 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.False(t, diskEncryptionConfig.Enabled)
 
 	// Enable disk encryption for the team
-	tm.Config.MDM.EnableDiskEncryption = true
+	tm.Config.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+	tm.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+	tm.Config.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
+	tm.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 	tm.Config.MDM.RequireBitLockerPIN = true
 	tm, err = ds.SaveTeam(ctx, tm)
 	require.NoError(t, err)
 	require.NotNil(t, tm)
-	require.True(t, tm.Config.MDM.EnableDiskEncryption)
 	require.True(t, tm.Config.MDM.RequireBitLockerPIN)
+
+	tm, err = ds.TeamWithExtras(ctx, team1.ID)
+	require.NoError(t, err)
+	require.True(t, tm.Config.MDM.EnableDiskEncryption)
+
+	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.True(t, diskEncryptionConfig.Enabled)
+	require.True(t, diskEncryptionConfig.BitLockerPINRequired)
 }
 
 func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {
@@ -745,4 +773,24 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	// Get rule that doesn't exist
 	_, err = ds.YaraRuleByName(ctx, "wildcard.yar")
 	require.Error(t, err)
+}
+
+// setAppConfigDiskEncryptionForTest sets the deprecated flat toggle and every
+// per-platform disk encryption setting.
+func setAppConfigDiskEncryptionForTest(ac *fleet.AppConfig, enabled bool) {
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(enabled)
+	ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+	ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+}
+
+// setTeamMDMDiskEncryptionForTest is the TeamMDM twin of
+// setAppConfigDiskEncryptionForTest.
+func setTeamMDMDiskEncryptionForTest(tm *fleet.TeamMDM, enabled bool) {
+	tm.EnableDiskEncryption = enabled
+	tm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	tm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
+	tm.WindowsSettings.EnableDiskEncryption = optjson.SetBool(enabled)
+	tm.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(enabled)
 }
