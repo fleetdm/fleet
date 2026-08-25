@@ -4405,20 +4405,6 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.intellij.ce",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/windows",
-      "platform": "windows",
-      "unique_identifier": "IntelliJ IDEA Community Edition",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
       "name": "IntelliJ IDEA Ultimate",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
