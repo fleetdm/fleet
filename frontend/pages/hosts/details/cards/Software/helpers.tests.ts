@@ -2,12 +2,7 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import {
-  anyCompletedSoftwareSucceeded,
-  compareVersions,
-  getUiStatus,
-  getSoftwareSubheader,
-} from "./helpers";
+import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -564,28 +559,5 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe("Software installed on this host.");
-  });
-});
-
-describe("anyCompletedSoftwareSucceeded", () => {
-  const software = [
-    createMockHostSoftware({ id: 1, status: "installed" }),
-    createMockHostSoftware({ id: 2, status: "failed_install" }),
-    createMockHostSoftware({ id: 3, status: "failed_uninstall" }),
-    createMockHostSoftware({ id: 4, status: "pending_install" }),
-  ];
-
-  it("returns false when every completion failed", () => {
-    expect(anyCompletedSoftwareSucceeded(["2", "3"], software)).toBe(false);
-  });
-
-  it("returns true when only one of several completions succeeded", () => {
-    expect(anyCompletedSoftwareSucceeded(["1", "2", "3"], software)).toBe(true);
-  });
-
-  // A status the helper does not recognize should still refetch, so a new status
-  // cannot silently suppress it.
-  it("returns true for a completion missing from the software list", () => {
-    expect(anyCompletedSoftwareSucceeded(["404"], software)).toBe(true);
   });
 });

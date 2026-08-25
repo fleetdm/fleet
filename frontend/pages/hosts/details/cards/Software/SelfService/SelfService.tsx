@@ -47,7 +47,7 @@ import {
   getLastInstall,
 } from "../../HostSoftwareLibrary/helpers";
 
-import { anyCompletedSoftwareSucceeded, getUiStatus } from "../helpers";
+import { getUiStatus } from "../helpers";
 
 const baseClass = "software-self-service";
 
@@ -415,11 +415,7 @@ const SoftwareSelfService = ({
           // Refetch host details to:
           // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
           // - Update the software inventory of any changes to software detected by software inventory
-          if (
-            anyCompletedSoftwareSucceeded(completedAppIds, response.software)
-          ) {
-            refetchHostDetails();
-          }
+          refetchHostDetails();
         }
 
         // Compare new set with the previous set
