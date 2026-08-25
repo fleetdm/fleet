@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // matches the software checksum hash, not used for security
 	"strings"
 	"testing"
 
@@ -152,7 +152,7 @@ func TestUp_20260826000000(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT checksum FROM software WHERE id=?`, noBundleID).Scan(&legacyCk))
 	require.NotEqual(t, appsNameExcluded, legacyCk, "pre-v4.76.0 apps row should be repaired")
 	require.Equal(t, appsCanonical("LegacyApp", "1.0", ""), legacyCk)
-	require.Equal(t, []int{9}, hostsOn(int64(noBundleID)))
+	require.Equal(t, []int{9}, hostsOn(noBundleID))
 
 	// 5. Three-member group collapsed onto the lowest id, with all three hosts kept.
 	require.Equal(t, 1, countSW("curl", "8.1"))
