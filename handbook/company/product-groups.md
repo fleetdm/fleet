@@ -368,7 +368,7 @@ To deliver on this mission, we need a clear, repeatable process for turning an i
 
 To make a change to Fleet:
 - First, [write it down](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=)
-  - For every customer/prospect request, file a new GitHub issue. The feature request template automatically applies the `~inbox` label so the request is easy to find alongside other untriaged requests and bugs. Whether the request is the same as an existing request will be determined by the Head of Product Design and a subject matter expert (SME) in the next step.
+  - For every customer/prospect request, file a new GitHub issue. The feature request template automatically applies the `~inbox` label so the request is easy to find alongside other untriaged requests and bugs. Whether the request is the same as an existing request will be determined by the relevant product group's Product Designer and a subject matter expert (SME) in the next step.
 - Then, it will be looked at by Fleet's [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and a SME [unpack the "why"](https://fleetdm.com/handbook/product-design#inbox-review).
   - For customer/prospect requests to be looked at, they must have a Gong snippet.
 - Then, it will be [prioritized](https://fleetdm.com/handbook/company/product-groups#feature-fest) and written up as one or more user stories.
