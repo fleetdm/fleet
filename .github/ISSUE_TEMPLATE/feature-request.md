@@ -2,7 +2,7 @@
 name: 💡  Feature request
 about: Propose a new feature or Fleet-maintained app.
 title: ''
-labels: ':product,~inbox'
+labels: '~inbox'
 assignees: ''
 
 ---
