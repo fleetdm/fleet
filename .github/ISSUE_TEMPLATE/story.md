@@ -83,6 +83,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
 - [ ] Verify any new API endpoints appear in the list when adding an API-only user. The API endpoints display name, method, and path is the same as listed in the API reference docs
 - [ ] Verify error handling for invalid inputs where applicable
+- [ ] Verify that the new endpoints are available for granular API assignment during API-only user creation
 
 #### GitOps (generate + run)
 - [ ] Configure the feature through the UI and run `fleetctl generate-gitops`
@@ -90,6 +91,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Modify the generated `.yml` and run `fleetctl gitops`
 - [ ] Confirm the configuration updates correctly in Fleet
 - [ ] Enable GitOps mode and verify the feature behaves correctly
+- [ ] Create a new fleet and apply the feature for the first time together with the fleet creation
 
 #### Permissions
 - [ ] Verify role restrictions are applied correctly for **global roles** (admin, maintainer, observer, observer+, GitOps)

@@ -640,10 +640,11 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		false,
 	)
 
-	// enable disk encryption
+	// enable disk encryption on every platform (the deprecated flat toggle
+	// fans out to all per-platform settings)
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
+	  "mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.EnableDiskEncryption.Value)
 

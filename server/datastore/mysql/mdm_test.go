@@ -68,6 +68,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
 		{"TestOktaCACleanupTargetForInstallCommand", testOktaCACleanupTargetForInstallCommand},
 		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
+		{"TestGetMDMCommandPlatformAndroid", testGetMDMCommandPlatformAndroid},
+		{"TestListMDMCommandsAndroid", testListMDMCommandsAndroid},
 	}
 
 	for _, c := range cases {
@@ -6061,4 +6063,93 @@ func testListMDMCommandsByHostIdentifier(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, commands)
 	})
+}
+
+func testGetMDMCommandPlatformAndroid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Insert an Android command directly into mdm_android_commands.
+	cmdUUID := uuid.NewString()
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO mdm_android_commands (command_uuid, host_uuid, operation_name, command_type, status)
+		VALUES (?, ?, ?, ?, ?)`,
+		cmdUUID, "host-uuid-platform", "enterprises/E/devices/D/operations/plat-1", "REBOOT", "pending")
+	require.NoError(t, err)
+
+	p, err := ds.GetMDMCommandPlatform(ctx, cmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "android", p)
+
+	// Non-existent command returns not found.
+	_, err = ds.GetMDMCommandPlatform(ctx, "does-not-exist")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testListMDMCommandsAndroid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create an Android host.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "android-list-test",
+		OsqueryHostID: new("osquery-android-list"),
+		NodeKey:       new("node-key-android-list"),
+		UUID:          uuid.NewString(),
+		Platform:      "android",
+	})
+	require.NoError(t, err)
+
+	// Insert Android commands.
+	for i, cmdType := range []string{"REBOOT", "LOCK", "REBOOT"} {
+		status := "pending"
+		if i == 0 {
+			status = "acknowledged"
+		}
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO mdm_android_commands (command_uuid, host_uuid, operation_name, command_type, status)
+			VALUES (?, ?, ?, ?, ?)`,
+			uuid.NewString(), host.UUID,
+			fmt.Sprintf("enterprises/E/devices/D/operations/list-%d", i),
+			cmdType, status)
+		require.NoError(t, err)
+	}
+
+	// List by host identifier (host-scoped path).
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, &fleet.MDMCommandListOptions{
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: host.UUID},
+		ListOptions: fleet.ListOptions{PerPage: 10},
+	})
+	require.NoError(t, err)
+	require.Len(t, cmds, 3)
+
+	// Verify all commands belong to our host.
+	for _, cmd := range cmds {
+		assert.Equal(t, host.UUID, cmd.HostUUID)
+		assert.NotEmpty(t, cmd.CommandUUID)
+		assert.NotEmpty(t, cmd.RequestType)
+	}
+
+	// Filter by request type.
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, &fleet.MDMCommandListOptions{
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: host.UUID, RequestType: "LOCK"},
+		ListOptions: fleet.ListOptions{PerPage: 10},
+	})
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	assert.Equal(t, "LOCK", cmds[0].RequestType)
+
+	// List all commands (non-host-scoped path) — should include our Android commands.
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new("admin")}}, &fleet.MDMCommandListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 100},
+	})
+	require.NoError(t, err)
+
+	// Find our Android commands in the results.
+	var androidCount int
+	for _, cmd := range cmds {
+		if cmd.HostUUID == host.UUID {
+			androidCount++
+		}
+	}
+	assert.Equal(t, 3, androidCount, "expected 3 Android commands in all-hosts listing")
 }

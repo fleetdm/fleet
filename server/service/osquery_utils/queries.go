@@ -3705,13 +3705,13 @@ func GetDetailQueries(
 
 		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
 		if appConfig.MDM.WindowsEnabledAndConfigured {
-			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
+			enableDiskEncryption := appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
 			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
 
 			// If the host is part of a team, we need to look at the related team config
 			// instead of the App config ...
 			if teamMDMConfig != nil {
-				enableDiskEncryption = teamMDMConfig.EnableDiskEncryption
+				enableDiskEncryption = teamMDMConfig.WindowsSettings.EnableDiskEncryption.Value
 				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
 			}
 
@@ -3728,7 +3728,12 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
+	// the host fleet's setting is effective when the host is on a fleet
+	luksEscrowEnabled := appConfig != nil && appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	if teamMDMConfig != nil {
+		luksEscrowEnabled = teamMDMConfig.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	}
+	if luksEscrowEnabled {
 		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
 			return func(encrypted string) (string, error) {
 				return mdm.DecodeAndDecrypt(encrypted, privateKey)
