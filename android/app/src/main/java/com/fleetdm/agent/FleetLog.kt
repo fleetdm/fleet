@@ -11,7 +11,8 @@ import java.time.Instant
  * Persistent error logger that writes to internal storage alongside the normal logcat output.
  *
  * Call [initialize] once in Application.onCreate(). Then use [e] wherever you would call
- * Log.e — it writes to logcat AND appends to fleet_errors.log in filesDir.
+ * Log.e — it writes to logcat AND appends to fleet_errors.log in filesDir. Messages and stack
+ * traces are passed through [redactSecrets] first, so enrollment secrets stay out of both.
  * The log file is capped at 512 KB; when it exceeds that size the current file is renamed
  * to fleet_errors.log.1 and a fresh file is started.
  */
@@ -27,14 +28,18 @@ object FleetLog {
     }
 
     fun e(tag: String, msg: String, throwable: Throwable? = null) {
-        Log.e(tag, msg, throwable)
-        appendToFile(tag, msg, throwable)
+        val message = msg.redactSecrets()
+        // Render the throwable ourselves rather than handing it to Log.e: Log.e prints the whole
+        // cause chain, and causes raised by the HTTP stack can carry the SCEP proxy URL's challenge.
+        val stackTrace = throwable?.stackTraceToString()?.trimEnd()?.redactSecrets()
+        Log.e(tag, if (stackTrace == null) message else "$message\n$stackTrace")
+        appendToFile(tag, message, stackTrace)
     }
 
     fun readErrors(): String = logFile?.takeIf { it.exists() }?.readText() ?: ""
 
     @Synchronized
-    private fun appendToFile(tag: String, msg: String, throwable: Throwable?) {
+    private fun appendToFile(tag: String, msg: String, stackTrace: String?) {
         val file = logFile ?: return
         try {
             if (file.exists() && file.length() > MAX_SIZE_BYTES) {
@@ -48,12 +53,7 @@ object FleetLog {
             val timestamp = Instant.now().toString()
             val sb = StringBuilder()
             sb.append("$timestamp E $tag $msg\n")
-            throwable?.let { t ->
-                sb.append("    $t\n")
-                t.stackTrace.forEach { element ->
-                    sb.append("      at $element\n")
-                }
-            }
+            stackTrace?.let { sb.append(it.prependIndent("    ")).append("\n") }
             file.appendText(sb.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Failed to write to log file: ${e.message}")

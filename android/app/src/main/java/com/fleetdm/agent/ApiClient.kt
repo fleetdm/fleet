@@ -626,7 +626,18 @@ data class GetCertificateTemplateResponse(
 
     @Transient
     val signatureAlgorithm: String = "SHA256withRSA",
-)
+) {
+    // Both challenges are enrollment secrets: scepChallenge is the CA's challenge password and
+    // fleetChallenge authenticates a single request to Fleet's SCEP proxy. The generated data class
+    // toString() prints them, so any log line interpolating a template hands them to logcat.
+    override fun toString(): String = "GetCertificateTemplateResponse(" +
+        "id=$id, name=$name, certificateAuthorityId=$certificateAuthorityId, " +
+        "certificateAuthorityName=$certificateAuthorityName, createdAt=$createdAt, " +
+        "subjectName=$subjectName, subjectAlternativeName=$subjectAlternativeName, " +
+        "certificateAuthorityType=$certificateAuthorityType, status=$status, " +
+        "scepChallenge=${scepChallenge.redacted()}, fleetChallenge=${fleetChallenge.redacted()}, " +
+        "keyLength=$keyLength, signatureAlgorithm=$signatureAlgorithm)"
+}
 
 /**
  * Builds the SCEP proxy URL for this certificate template.
