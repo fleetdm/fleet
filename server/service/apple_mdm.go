@@ -2894,7 +2894,10 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	svc.authz.SkipAuthorization(ctx)
 
 	if machineInfo == nil {
-		// TODO: confirm how we want to handle this case
+		// Requiring machine info here is intentional: it backstops the MachineInfo
+		// signature verification done at request decode time. No enrollment profile
+		// is issued for a request that carried no deviceinfo to verify, so this must
+		// not be relaxed without a replacement gate at the verification point.
 		return nil, ctxerr.New(ctx, "get enrollment profile: missing machine info")
 	}
 
