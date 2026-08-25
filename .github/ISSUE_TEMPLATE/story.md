@@ -90,6 +90,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 - [ ] Modify the generated `.yml` and run `fleetctl gitops`
 - [ ] Confirm the configuration updates correctly in Fleet
 - [ ] Enable GitOps mode and verify the feature behaves correctly
+- [ ] Create a new fleet and apply the feature for the first time together with the fleet creation
 
 #### Permissions
 - [ ] Verify role restrictions are applied correctly for **global roles** (admin, maintainer, observer, observer+, GitOps)
