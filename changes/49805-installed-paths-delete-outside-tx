@@ -1,1 +1,1 @@
-- Reduced database lock contention during software installed paths updates by moving batched DELETEs outside the transaction so each batch auto-commits independently.
+- Reduced database lock contention during software installed paths updates by reordering operations: INSERT new paths first (in a transaction), then DELETE old paths outside the transaction so each batch auto-commits independently.
