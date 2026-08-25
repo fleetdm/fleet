@@ -43,6 +43,7 @@ func TestQueries(t *testing.T) {
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
 		{"QueriesPerHost", testQueriesPerHost},
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
+		{"QueryLabelsAtomic", testQueryLabelsAtomic},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1790,4 +1791,78 @@ func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {
 	has, err = ds.HasLabelScopedScheduledQueries(ctx, &team.ID, true)
 	require.NoError(t, err)
 	assert.False(t, has, "snapshot report with labels should NOT count when queryReportsDisabled=true")
+}
+
+// testQueryLabelsAtomic verifies that a query row and its query_labels rows are
+// written in a single transaction. A scheduled query with no query_labels rows
+// targets every host, so a query row that outlives a failed label write (or
+// is visible before its labels are written) leaks a label-scoped query to
+// out-of-scope hosts (#49502).
+func testQueryLabelsAtomic(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+
+	hostInLabel := test.NewHost(t, ds, "host1", "10.0.0.1", "asdf", "host1", time.Now())
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostInLabel.ID, []uint{label1.ID}))
+	hostNotInLabel := test.NewHost(t, ds, "host2", "10.0.0.2", "asdg", "host2", time.Now())
+
+	// NewQuery: a label that does not exist must roll back the query row too,
+	// otherwise an unscoped (global) scheduled query would be left behind.
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:             "scoped",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "does-not-exist"}},
+	})
+	require.Error(t, err)
+	_, err = ds.QueryByName(ctx, nil, "scoped")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "query row must not persist when its labels fail to save")
+
+	queries, err := ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, queries)
+
+	// A valid scoped query is only delivered to hosts in the label.
+	scoped, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:             "scoped",
+		Query:            "SELECT 1",
+		AuthorID:         &user.ID,
+		Logging:          fleet.LoggingSnapshot,
+		Interval:         10,
+		Saved:            true,
+		LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label1.Name}},
+	})
+	require.NoError(t, err)
+
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostInLabel.ID, false)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, queries)
+
+	// SaveQuery: a failed label write must roll back the column updates and
+	// keep the previous labels, so the query never becomes unscoped.
+	scoped.Name = "renamed"
+	scoped.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: "does-not-exist"}}
+	err = ds.SaveQuery(ctx, scoped, false, false)
+	require.Error(t, err)
+
+	reloaded, err := ds.Query(ctx, scoped.ID)
+	require.NoError(t, err)
+	require.Equal(t, "scoped", reloaded.Name)
+	require.Len(t, reloaded.LabelsIncludeAny, 1)
+	require.Equal(t, label1.ID, reloaded.LabelsIncludeAny[0].LabelID)
+
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNotInLabel.ID, false)
+	require.NoError(t, err)
+	require.Empty(t, queries)
 }
