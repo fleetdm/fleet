@@ -2,7 +2,7 @@
   task: "🦢📊 Product design review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07"
   frequency: "Triweekly"
-  description: "1. Review each product group's board to confirm only active stories remain in the Drafting lane. Update milestones if necessary. 2. Prepare the '🎁 Feature fest' board."
+  description: "1. Review each product group's board to confirm only stories we're working on remain in the "Drafting" column. Update milestones if necessary. 2. Prepare the '🎁 Feature fest' board."
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
