@@ -516,7 +516,7 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 // a cache for hosts without legacy packs and without label-scoped queries,
 // keyed by (teamID, queryReportsDisabled).
 //
-// ██ bypassTeamPackCache ██ When true, the team-keyed packConfigCache is
+// bypassTeamPackCache When true, the team-keyed packConfigCache is
 // neither read NOR written. Per-host cache mode (label-scoped reports in the
 // host's effective scope) requires this: the team-keyed cache stores ONE
 // host's label-filtered render and serves it team-wide (#48702's documented
@@ -674,7 +674,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 // buildClientConfig performs the full osquery config build: agent options +
 // pack config + host intervals reconciliation.
 //
-// ██ SIDE-EFFECT NOTICE ██ Anything added to this function (or anything it
+// SIDE-EFFECT NOTICE Anything added to this function (or anything it
 // calls) does NOT run when GetClientConfigWithETag serves a not-modified
 // response from the Redis ETag short circuit. A side effect that must run on
 // every config check-in belongs in GetClientConfigWithETag BEFORE its
@@ -781,39 +781,16 @@ func clientConfigETagScope(host *fleet.Host) string {
 	return "global"
 }
 
-// GetClientConfigWithETag returns the osquery config plus ETag metadata,
-// implementing the Redis-backed SHORT CIRCUIT documented on the
-// fleet.OsqueryService interface (server/fleet/service.go) and in the
-// server/service/redis_config_etag package.
+// GetClientConfigWithETag implements the ETag-aware config path; the contract
+// is on fleet.OsqueryService and the design in server/service/redis_config_etag.
 //
-// ██ SHORT CIRCUIT ██ When svc.configETagStore is set (which serve.go does
-// ONLY when the osquery.redis_config_etags feature flag is enabled) and the
-// host's body-carried etag matches a generation-valid stored ETag, this
-// returns a NotModified result WITHOUT BUILDING THE CONFIG — skipping every
-// datastore read of the build (AppConfig, ListPacksForHost, agent options,
-// scheduled queries) and the host-intervals reconciliation. See the
-// SIDE-EFFECT NOTICE on buildClientConfig before adding logic to either
-// path.
+// The part to keep in mind while editing: on a short-circuit hit this returns
+// before buildClientConfig runs, so nothing below is guaranteed to execute on a
+// check-in. See the side-effect notice on buildClientConfig.
 //
-// Cache-mode selection (see the plan in updated-optimization-plan.md):
-//
-//   - legacy 2017 packs anywhere → BYPASS (no Redis short circuit at all);
-//   - no label-scoped reports in the host's effective scope (global ∪ team)
-//     → SHARED mode: one record per (scope, platform);
-//   - label-scoped reports in scope → PER-HOST mode: one isolated record per
-//     host, never read by another host, built with the team pack cache
-//     BYPASSED (see getPackConfig) so the record can never be derived from
-//     another host's render.
-//
-// To disable the short circuit for testing or in production: set
-// FLEET_OSQUERY_REDIS_CONFIG_ETAGS=false (it defaults to true) and restart —
-// every request then takes the full-build path below, byte-identical to the
-// behavior without this feature.
-//
-// Every failure mode here degrades to a full build (FAIL OPEN); none can
-// fail the request or serve wrong data. If gate state cannot be read or
-// loaded, the request is treated as BYPASS — never guess that a host is
-// eligible for the shared key.
+// Every failure mode degrades to a full build. Gate state that cannot be read
+// is treated as bypass rather than guessed, because guessing "shared" would
+// publish one host's config under a key its teammates read.
 func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *string) (*fleet.ClientConfigResult, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -823,7 +800,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		return nil, newOsqueryError("internal error: missing host from request context")
 	}
 
-	// ██ ESCAPE HATCH ██ osquery.config_etags=false disables conditional
+	// ESCAPE HATCH osquery.config_etags=false disables conditional
 	// requests entirely: the agent's etag field is ignored (as if never
 	// sent), the response never carries an "etag" key or the "unchanged"
 	// body, and no etag store I/O happens — byte-identical to the
@@ -888,7 +865,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		})
 	}
 
-	// ██ THE SHORT CIRCUIT ██ One Redis MGET; zero database reads on a hit.
+	// THE SHORT CIRCUIT One Redis MGET; zero database reads on a hit.
 	// Gated on a non-empty client etag: an agent that did not opt in (nil)
 	// or holds no validator yet ("") always gets a full build, and can never
 	// be answered "unchanged". The store != nil guard is technically implied
@@ -955,22 +932,10 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	}
 	etag := clientConfigETag(body)
 
-	// Persist the freshly computed ETag so later check-ins can short
-	// circuit. Guards, all load-bearing:
-	//   - mode: only shared/host modes publish (bypass and off never touch
-	//     Redis);
-	//   - !usedLegacyPacks: the legacy gate is cached (~5m) and can be
-	//     momentarily stale — if THIS build saw legacy packs, its config is
-	//     host-specific in ways per-host records don't model (and would
-	//     poison teammates under a shared key), so never publish it;
-	//   - SetIfNoFence / SetHostIfNoFence: the deployment write fence
-	//     suppresses publication for minutes after any config/report
-	//     mutation (stale in-memory cache inputs); the per-host publish
-	//     quarantine additionally suppresses publication right after that
-	//     host's own label invalidation (stale membership reads / replica
-	//     lag).
-	// The store != nil guard mirrors the short-circuit gate above: publish
-	// modes imply a store, but the invariant is kept local and provable.
+	// usedLegacyPacks is checked here, not just in mode selection, because the
+	// legacy gate is cached for minutes and can be stale: if THIS build saw
+	// legacy packs, its config is host-specific in ways even a per-host record
+	// does not model, so it must never be published.
 	if store != nil && !usedLegacyPacks {
 		// Only shared/host modes publish; bypass and off never touch Redis, so
 		// the absence of a case is the "nothing to publish" path.

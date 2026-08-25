@@ -76,31 +76,22 @@ func effectiveRedisConfigETags(cfg config.FleetConfig) bool {
 	return cfg.Osquery.ConfigETags && cfg.Osquery.RedisConfigETags
 }
 
-// initRedis brings up the Redis pool and the datastore wrappers that depend
-// on it: cached_mysql (in-memory caching layer over the datastore),
-// mysqlredis (Redis-backed host lookup and license-enforced host limit), and
-// etag_invalidate (osquery config ETag invalidation hooks). Failures go
-// through initFatal. Returns nil values on the failure path so the function
-// is safe when initFatal does not terminate (e.g., tests using a recorder).
+// initRedis brings up the Redis pool and the datastore wrappers that depend on
+// it: cached_mysql, mysqlredis, and — only when the config ETag feature is
+// effectively enabled — etag_invalidate. Failures go through initFatal, and nil
+// values are returned on that path so this is safe when initFatal does not
+// terminate (tests using a recorder).
 //
-// The returned fleet.Datastore is the fully wrapped chain (etag_invalidate →
-// mysqlredis → cached_mysql → input ds when the config ETag feature is
-// effectively enabled; without the etag_invalidate wrapper otherwise); the
-// returned *mysqlredis.Datastore is the inner wrapper, which a few callers
-// need by concrete type. The returned ConfigETagStore is the Redis-backed
-// osquery config ETag store, nil when the feature is effectively disabled.
+// The returned fleet.Datastore is the fully wrapped chain; the returned
+// *mysqlredis.Datastore is the inner wrapper a few callers need by concrete
+// type; the returned ConfigETagStore is nil when the feature is disabled.
 //
-// ██ NO ETAG REDIS I/O WHEN DISABLED ██ The store and the etag_invalidate
-// write hooks are wired ONLY when effectiveRedisConfigETags is true — with
-// osquery.redis_config_etags off (directly, or gated off by
-// osquery.config_etags=false) no config ETag Redis code runs at all: no
-// reads, no writes, no invalidation traffic. Coherence across flag flips is
-// instead guaranteed by a startup generation bump: every boot that enables
-// the feature invalidates all stored records first, so nothing written under
-// an earlier configuration (including a window with the hooks off) can ever
-// validate. The bump also arms the write fence, so the cache warms a few
-// minutes after (each instance of) an enabling boot — a bounded cold start
-// during rolling deploys, traded for zero Redis traffic while disabled.
+// Wiring the store and the hooks together is deliberate: with the feature off,
+// no config ETag Redis code runs at all. Flipping it back on is still coherent
+// because every enabling boot bumps the generation before serving, so records
+// written during a window without the hooks can never validate. That bump also
+// arms the fence, which is why the cache takes a few minutes to warm after an
+// enabling boot.
 func initRedis(
 	ctx context.Context,
 	cfg config.FleetConfig,

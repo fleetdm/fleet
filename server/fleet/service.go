@@ -60,50 +60,22 @@ type OsqueryService interface {
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetClientConfigWithETag returns the osquery configuration for the host in
-	// the provided context, along with conditional-request (etag) metadata.
-	// The validator travels in the JSON request/response bodies (the config
-	// request is a POST, where HTTP ETag/If-None-Match semantics do not
-	// apply): an agent opts in by sending an "etag" field (clientETag non-nil;
-	// empty string on its first request), and an agent whose etag matches is
-	// answered with the constant body {"etag":"ok"} instead of the config.
-	// Agents that do not send the field (clientETag nil) receive the exact
-	// pre-feature response bytes with no "etag" key.
+	// the provided context plus conditional-request metadata. clientETag is the
+	// agent's "etag" request field: nil means it never opted in and must receive
+	// the pre-feature response bytes with no "etag" key; empty means it opted in
+	// but holds no validator yet. Neither can match, so an agent without history
+	// always receives a full config.
 	//
-	// ██ SHORT CIRCUIT WARNING ████████████████████████████████████████████████
+	// When the Redis-backed store is enabled and the agent's etag matches, this
+	// returns NotModified WITHOUT BUILDING THE CONFIG — no AppConfig read, no
+	// ListPacksForHost, no agent options, no scheduled queries, and no
+	// host-intervals reconciliation. A side effect that must run on every config
+	// check-in therefore cannot live on the full-build path. Every other outcome,
+	// including every error, falls back to a full build; see ConfigETagMode for
+	// the cache modes and server/service/redis_config_etag for the design.
 	//
-	// When the Redis-backed config ETag store is enabled
-	// (FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true) and the host presents a matching
-	// etag, this method returns NotModified=true WITHOUT BUILDING THE CONFIG
-	// AT ALL — no AppConfig read, no ListPacksForHost, no agent options, no
-	// scheduled queries, and no host-intervals reconciliation. Any side effect
-	// that must run on every config check-in must NOT live behind this
-	// method's full-build path; it will be skipped for every not-modified
-	// response.
-	//
-	// The request runs in one of four cache modes (see ClientConfigResult.Mode):
-	//   - "off": no store is configured — either osquery.config_etags or
-	//     osquery.redis_config_etags is false (the store is only injected when
-	//     both are true), or Redis is not set up;
-	//   - "bypass": the deployment has user-created 2017 "legacy" packs, or
-	//     the gate state could not be read/loaded (never guess);
-	//   - "shared": no label-scoped reports in the host's effective scope
-	//     (global ∪ team) — one record per (scope, platform);
-	//   - "host": label-scoped reports make the config host-specific — one
-	//     isolated per-host record, never read by another host, built with
-	//     the team pack cache bypassed.
-	//
-	// The fast path additionally falls back to a full build when the agent
-	// sent no etag (nil) or an empty one, when the stored ETag's generation/
-	// scope/platform is stale or the record is missing/expired, and on any
-	// Redis error (the fast path FAILS OPEN — errors degrade to a full build,
-	// never to a failed request). NotModified is never true for a nil or
-	// empty client etag: an agent without history always receives the full
-	// config.
-	//
-	// █████████████████████████████████████████████████████████████████████████
-	//
-	// GetClientConfig (above) remains the plain, always-full-build variant and
-	// is still used by the launcher (gRPC) service.
+	// GetClientConfig above remains the plain always-full-build variant, still
+	// used by the launcher (gRPC) service.
 	GetClientConfigWithETag(ctx context.Context, clientETag *string) (*ClientConfigResult, error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
 	// the provided context. These may be (depending on update intervals):
@@ -1840,26 +1812,17 @@ func (s ConfigETagLabelScopes) Any() bool {
 // hung loader can never stall config delivery for other requests.
 var ErrConfigETagGateLoading = errors.New("config etag gate state load in flight")
 
-// ConfigETagStore is the Redis-backed store that powers the osquery config
-// ETag SHORT CIRCUIT (see OsqueryService.GetClientConfigWithETag for the
-// request-path contract and the ways to disable it).
+// ConfigETagStore is the Redis-backed store behind the osquery config ETag
+// short circuit. Two properties callers depend on:
 //
-// Correctness model — "write fence" (documented in detail in the
-// server/service/redis_config_etag package):
+//   - stored ETags carry the generation current when they were written, so one
+//     config-affecting write invalidates every record at once by bumping it;
+//   - publication is refused while the write fence is armed, so an ETag
+//     computed from stale in-memory cache data can never be persisted.
 //
-//   - A generation counter is INCRemented by every config-affecting datastore
-//     write (see server/datastore/etag_invalidate). Stored ETags carry the
-//     generation current when written; a mismatch invalidates them for reads.
-//   - The same write arms a fence key whose TTL outlives the composed
-//     lifetime of Fleet's per-instance in-memory caches (cached_mysql +
-//     the service-layer pack config cache). While the fence is armed,
-//     SetIfNoFence refuses to persist ETags, because a config built during
-//     that window may have been assembled from stale in-memory cache data.
-//     Persisting such an ETag would poison every host in the team with "unchanged" responses
-//     against a config that no longer exists ("stale write poisoning").
-//
-// All methods must FAIL OPEN from the caller's perspective: a Redis error
-// disables the optimization for that request, it never fails config delivery.
+// Every method must FAIL OPEN: a Redis error disables the optimization for that
+// request and never fails config delivery. See server/service/redis_config_etag
+// for why each of these is necessary.
 type ConfigETagStore interface {
 	// GetETagIfCurrent returns the stored ETag for (scope, platform) only if its
 	// recorded generation matches the current generation. ok is false on a

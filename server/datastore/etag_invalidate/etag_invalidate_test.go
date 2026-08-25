@@ -57,7 +57,7 @@ func newTestDatastore() (*mock.Store, *stubStore, *Datastore) {
 // reset the label-scope mode state; pack methods must reset the legacy-packs
 // gate flag.
 //
-// ██ If you add a method to the etag_invalidate decorator, add a case here.
+// If you add a method to the etag_invalidate decorator, add a case here.
 
 // hookTestCtx is the context the hook case closures run under. The tables live
 // at package level so TestEveryWrappedMethodHasAHookCase can read them: marking
@@ -363,7 +363,7 @@ func TestPerHostHooksFireOnSuccess(t *testing.T) {
 			require.NoError(t, run())
 			require.True(t, *invoked, "must delegate to the wrapped datastore")
 			require.ElementsMatch(t, c.wantHosts, store.hostInvalidations)
-			// ██ HARD RULE ██ routine label persistence must never arm the
+			// HARD RULE routine label persistence must never arm the
 			// deployment write fence.
 			require.Equal(t, 0, store.invalidateCalls,
 				"per-host hooks must never fire a deployment-wide invalidation")

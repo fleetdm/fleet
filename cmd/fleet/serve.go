@@ -635,7 +635,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
 
-	// ██ OSQUERY CONFIG ETAG SHORT CIRCUIT ██ Injecting the store is the ONE
+	// OSQUERY CONFIG ETAG SHORT CIRCUIT Injecting the store is the ONE
 	// thing that enables it — without this call the service field stays nil
 	// and every config request takes the full-build path. initRedis only
 	// constructs the store (and the etag_invalidate hooks) when
