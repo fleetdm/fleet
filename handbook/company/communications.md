@@ -261,9 +261,10 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- Fleet doesn't use third-party polling apps. To run a poll, post the question in the channel with each option on its own line prefixed by an emoji, then add those same emoji as reactions to your own message so teammates can vote in one click (e.g. "Do you like this?" / "👍 Yes" / "👎 No"). For recurring polls, use a Slack reminder or scheduled message to post it on a schedule.
 - To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
-> **Need an app that you don't see in Fleet Slack?** [Create an IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** Fleet keeps third-party Slack apps to a minimum, and requesting an app install from within Slack is turned off. First check whether Slack's built-in features (emoji-reaction polls, scheduled messages, reminders, workflows, canvases) already cover the need. If they don't, [create an IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) describing the use case. The Head of IT & Enablement is the DRI for approving new Slack apps.
 
 
 ### Key Slack channels
@@ -346,6 +347,20 @@ In practice, this means:
 - **Analysis and summaries:** Check that they reflect the source. AI can hallucinate or oversimplify. If you are summarizing a document or producing a report, verify the output against the original.
 
 The bottom line: don't put your name on something you haven't actually reviewed. That applies to AI-generated work the same as anything else.
+
+
+### Use AI to help you communicate, not to communicate for you
+
+There's a difference between using AI to produce work and using AI to talk to people. Documentation, reports, announcements, and other content meant to inform many people are work products. Use AI to draft and improve them as much as you like, as long as you review and own the result.
+
+Direct conversation is different. When a teammate messages you on Slack or emails you, they expect to be talking to you. AI-generated replies are easy to spot, and once someone suspects they're chatting with a bot instead of a colleague, trust erodes quickly and is hard to earn back. Conversations are how we build relationships at an all-remote company, and they only work if there's a person on both ends.
+
+What this means in practice:
+
+- When you're talking directly with someone, the words should be yours. It's fine to use AI to think through a problem, check your grammar, or tighten something you wrote. It's not fine to paste an AI's response as your own.
+- If English isn't your first language, AI is a great tool for polishing your writing, and we encourage it. Keep your own voice, though. Your teammates would rather read your imperfect words than an AI's perfect ones.
+
+If a conversation matters enough to have, it matters enough to have yourself.
 
 
 ### Protect customer and confidential information

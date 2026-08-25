@@ -482,6 +482,8 @@ WHERE
 		listStmt = `SELECT * FROM (` + winStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
 		params = winParams
+	default:
+		return []*fleet.MDMCommand{}, nil, nil, nil
 	}
 
 	// TODO: Maybe move this to the service method? What about pagination metadata?
@@ -1748,7 +1750,14 @@ SELECT
 	h.id                  AS host_id,
 	h.platform            AS platform,
 	hmap.profile_uuid     AS profile_uuid,
-	hmap.has_acme_payload AS has_acme_payload
+	hmap.has_acme_payload AS has_acme_payload,
+	hmap.scope            AS scope,
+	CASE WHEN hmap.scope = ? THEN COALESCE((
+		SELECT ne.id
+		FROM nano_enrollments ne
+		WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = h.uuid
+		ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1
+	), '') ELSE '' END AS user_enrollment_id
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
@@ -1756,7 +1765,7 @@ WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
 	var dest fleet.ProfileACMECommandResult
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, fleet.PayloadScopeUser, commandUUID, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
@@ -2228,8 +2237,9 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 
 func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 	var (
-		appleUUIDs []any
-		winUUIDs   []any
+		appleUUIDs   []any
+		winUUIDs     []any
+		androidUUIDs []any
 	)
 
 	res := make(map[string]bool, len(hosts))
@@ -2239,6 +2249,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
+		case "android":
+			androidUUIDs = append(androidUUIDs, h.UUID)
 		}
 		res[h.UUID] = false
 	}
@@ -2296,6 +2308,17 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	    AND hm.enrolled = 1
 	`
 	if err := setConnectedUUIDs(winStmt, winUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	const androidStmt = `
+	  SELECT h.uuid
+	  FROM hosts h
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE h.uuid IN (?)
+	    AND hm.enrolled = 1
+	`
+	if err := setConnectedUUIDs(androidStmt, androidUUIDs, res); err != nil {
 		return nil, err
 	}
 
@@ -2960,10 +2983,23 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
 	}
 
+	// manually set IdP mappings (source "idp", written by
+	// SetOrUpdateIDPHostDeviceMapping) are reported by the API under the same
+	// "mdm_idp_accounts" source, so both sources form a single logical mapping
+	// and must be reconciled together to avoid duplicate device mappings.
 	var hostEmails []fleet.HostDeviceMapping
-	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source = ?`
-	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?)`
+	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host_emails")
+	}
+
+	var mdmIdpEmails, manualIdpEmails []fleet.HostDeviceMapping
+	for _, he := range hostEmails {
+		if he.Source == fleet.DeviceMappingIDP {
+			manualIdpEmails = append(manualIdpEmails, he)
+			continue
+		}
+		mdmIdpEmails = append(mdmIdpEmails, he)
 	}
 
 	// TODO: discuss email vs. username with Victor
@@ -2973,11 +3009,13 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		idpAccountUUID = idp.UUID
 	}
 
-	// if we don't have idp info, we can just delete any prior host mdm idp account emails
+	// if we don't have idp info, we can just delete any prior host mdm idp account
+	// emails; manually set mappings are left alone since they don't come from an
+	// enrollment
 	if idpEmail == "" {
-		if len(hostEmails) == 0 {
+		if len(mdmIdpEmails) == 0 {
 			// nothing to do
-			logger.InfoContext(ctx, "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID)
+			logger.InfoContext(ctx, "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID, "manual_idp_mappings", len(manualIdpEmails))
 			return nil, nil
 		}
 		// delete any prior host mdm idp account emails
@@ -2991,13 +3029,19 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	// analyze existing host emails to see if we have a match; we also want to handle potential
 	// duplicates because we don't have good constraints on the host_emails table
 	hits, misses := []fleet.HostDeviceMapping{}, []fleet.HostDeviceMapping{}
-	for _, he := range hostEmails {
+	for _, he := range mdmIdpEmails {
 		if he.Email == idp.Email {
 			hits = append(hits, he)
 		} else {
 			misses = append(misses, he)
 		}
 	}
+
+	// the authenticated IdP account supersedes any manually set mapping; otherwise the
+	// API would report both under the "mdm_idp_accounts" source as a duplicate device
+	// mapping. This mirrors SetOrUpdateIDPHostDeviceMapping, which deletes both sources
+	// before inserting.
+	misses = append(misses, manualIdpEmails...)
 
 	maxCapacity := len(misses)
 	if len(hits) > 1 {

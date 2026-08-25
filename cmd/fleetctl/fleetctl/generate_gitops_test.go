@@ -299,7 +299,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&fleet_id=1":
+	case "available_for_install=1&fleet_id=1&order_key=name":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         1,
@@ -326,7 +326,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
@@ -373,7 +373,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 		}, nil
-	case "available_for_install=1&fleet_id=0":
+	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -481,6 +481,20 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 2,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          4,
+				Name:        "Team Profile policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 4",
+				Resolution:  new("Nothing to do."),
+				Description: "This is a team policy with configuration profile automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			ResendConfigurationProfile: &fleet.PolicyProfile{
+				Name: "Team Profile",
 			},
 		},
 	}
@@ -816,7 +830,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
@@ -828,7 +842,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
@@ -836,7 +850,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   8,
 				Name: "My FMA",
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 					Name:               "my-fma.pkg",
 					Platform:           "darwin",
 				},
@@ -850,7 +864,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(false),
+					InstallDuringSetup: new(false),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
@@ -2219,7 +2233,7 @@ type MockClientWithScriptPackage struct {
 
 func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&fleet_id=2":
+	case "available_for_install=1&fleet_id=2&order_key=name":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         3,
@@ -2360,7 +2374,7 @@ type MockClientPlatformPackages struct {
 }
 
 func (c *MockClientPlatformPackages) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
-	if query == "available_for_install=1&fleet_id=2" {
+	if query == "available_for_install=1&fleet_id=2&order_key=name" {
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         8,
@@ -2456,12 +2470,115 @@ const (
 	santaHashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 )
 
+type MockClientInHouseApp struct {
+	MockClient
+}
+
+func (c *MockClientInHouseApp) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=9&order_key=name" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              20,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0"},
+			},
+			{
+				ID:              21,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0"},
+			},
+		}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientInHouseApp) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
+	case 20:
+		return &fleet.SoftwareTitle{
+			ID:              20,
+			Name:            "Acme",
+			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ios", URL: "https://example.com/acme.ipa"},
+		}, nil
+	case 21:
+		return &fleet.SoftwareTitle{
+			ID:              21,
+			Name:            "Acme",
+			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ipados", URL: "https://example.com/acme.ipa"},
+		}, nil
+	default:
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
+	}
+}
+
+func (c *MockClientInHouseApp) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID != 9 {
+		return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+	}
+	// In-house apps surface whenever the platform list includes a mobile
+	// platform, so the generator's combined query returns them; the "macos"
+	// cross-selection query does not.
+	if strings.Contains(platform, "ios") {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              20,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0", InstallDuringSetup: new(false)},
+			},
+			{
+				ID:              21,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0", InstallDuringSetup: new(true)},
+			},
+		}, nil
+	}
+	return []fleet.SoftwareTitleListResult{}, nil
+}
+
+// TestGenerateSoftwareInHouseAppSetupExperience covers the .ipa dedup in
+// generate: the iOS title is seen first and unflagged, only the iPadOS sibling
+// is selected for setup experience, and the single emitted entry must still
+// carry the selection as setup_experience_platform.
+func TestGenerateSoftwareInHouseAppSetupExperience(t *testing.T) {
+	fleetClient := &MockClientInHouseApp{}
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		SoftwareList: make(map[uint]Software),
+		ScriptList:   make(map[uint]string),
+	}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd.AppConfig = appConfig
+
+	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
+
+	res, err := cmd.generateSoftware("fleets/test.yml", 9, "team-a", false)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	packages, ok := res["packages"].([]map[string]any)
+	require.True(t, ok, "expected packages in result")
+	require.Len(t, packages, 1, "the two .ipa titles must dedupe to one entry")
+
+	pkg := packages[0]
+	assert.Equal(t, "ipados", pkg["setup_experience_platform"])
+	_, hasBoolean := pkg["setup_experience"]
+	assert.False(t, hasBoolean, "per-platform selection must not emit the setup_experience boolean")
+}
+
 type MockClientMultiPackage struct {
 	MockClient
 }
 
 func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
-	if query == "available_for_install=1&fleet_id=2" {
+	if query == "available_for_install=1&fleet_id=2&order_key=name" {
 		return []fleet.SoftwareTitleListResult{{
 			ID:              7,
 			Name:            "Santa",

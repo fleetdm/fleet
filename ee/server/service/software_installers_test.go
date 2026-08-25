@@ -687,8 +687,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 
-	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
-		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "26.0.0"}}, nil
+	// Newest download first, and it is on a major the pin doesn't allow.
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "27.0.0"}, {ID: 2, Version: "26.0.0"}}, nil
 	}
 
 	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
@@ -698,6 +699,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 			Platform:         "darwin",
 			UniqueIdentifier: "com.1password.1password",
 			Slug:             "1password/darwin",
+			Version:          version,
 		}, nil
 	}
 
@@ -734,6 +736,8 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
 				// survives downstream and is persisted to software_title_team_pins.
 				require.Equal(t, vt.version, payload.RollbackVersion)
+				// The cached version on the pinned major, not the newer download on another major.
+				require.Equal(t, "26.0.0", payload.MaintainedApp.Version)
 			}
 		})
 	}
@@ -2287,6 +2291,127 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
+// .py packages are stored with platform='linux'. The uninstall gate has to
+// honour the same unix-like exception as the install gate, or a package that
+// installed fine on a darwin host can never be removed through Fleet.
+func TestUninstallPyScriptOnUnixLike(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"linux", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           1,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     platform,
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return nil, nil
+			}
+
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{
+					InstallerID:              10,
+					Name:                     "script.py",
+					Extension:                "py",
+					Platform:                 "linux",
+					TeamID:                   new(uint(1)),
+					TitleID:                  new(uint(100)),
+					UninstallScriptContentID: 20,
+				}, nil
+			}
+			mockSoftwarePackagesFromMetadata(ds)
+
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return true, nil
+			}
+
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+
+			ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("script"), nil
+			}
+
+			ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
+				return nil
+			}
+
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+				User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			})
+
+			err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+			require.NoError(t, err, ".py uninstall on %s should succeed", platform)
+			require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should be created")
+		})
+	}
+}
+
+// The unix-like exception must not loosen the gate for platforms a script
+// package genuinely can't run on.
+func TestUninstallPyScriptOnWindowsFails(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:              10,
+			Name:                     "script.py",
+			Extension:                "py",
+			Platform:                 "linux",
+			TeamID:                   new(uint(1)),
+			TitleID:                  new(uint(100)),
+			UninstallScriptContentID: 20,
+		}, nil
+	}
+	mockSoftwarePackagesFromMetadata(ds)
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+	require.Error(t, err, ".py uninstall on windows should fail")
+
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
+	require.NotNil(t, bre)
+	// The message has to name both platforms, the way the install path does.
+	require.Contains(t, bre.Message, "can be uninstalled only on macOS and Linux hosts")
+	require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should not be created")
+}
+
 // .py packages are stored with platform='linux'; the self-service install path
 // must still allow them on darwin hosts via the unix-like exception.
 func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
@@ -3003,6 +3128,10 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "py both platforms", input: []string{"darwin", "linux"}, extension: "py", want: []string{"darwin", "linux"}},
 		{name: "py unsupported windows", input: []string{"windows"}, extension: "py", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .py package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
+		{name: "ipa ios", input: []string{"ios"}, extension: "ipa", want: []string{"ios"}},
+		{name: "ipa ipados", input: []string{"ipados"}, extension: "ipa", want: []string{"ipados"}},
+		{name: "ipa both platforms", input: []string{"ios", "ipados"}, extension: "ipa", want: []string{"ios", "ipados"}},
+		{name: "ipa darwin rejected", input: []string{"darwin"}, extension: "ipa", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .ipa package`},
 	}
 
 	for _, c := range cases {
@@ -3020,6 +3149,79 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 				return
 			}
 			assert.Equal(t, c.want, got)
+		})
+	}
+}
+
+// TestSetupExperiencePlatformsForBareIPABoolean is the regression test for the
+// bare setup_experience boolean landing on an arbitrary platform row: on a
+// hash-matched re-apply the base payload can be the iPadOS row, so the boolean
+// must be pinned to an explicit iOS platform list before any per-platform
+// derivation happens.
+func TestSetupExperiencePlatformsForBareIPABoolean(t *testing.T) {
+	t.Parallel()
+
+	explicit := &[]string{"ipados"}
+
+	cases := []struct {
+		name           string
+		extension      string
+		setupPlatforms *[]string
+		installFlag    *bool
+		want           *[]string
+	}{
+		{name: "bare true on ipa pins to ios", extension: "ipa", installFlag: new(true), want: &[]string{"ios"}},
+		{name: "explicit list wins over boolean", extension: "ipa", setupPlatforms: explicit, installFlag: new(true), want: explicit},
+		{name: "bare false passes through", extension: "ipa", installFlag: new(false), want: nil},
+		{name: "nothing set passes through", extension: "ipa", want: nil},
+		{name: "non-ipa passes through", extension: "pkg", installFlag: new(true), want: nil},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := setupExperiencePlatformsForBareIPABoolean(c.extension, c.setupPlatforms, c.installFlag)
+			if c.want == nil {
+				require.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, *c.want, *got)
+		})
+	}
+}
+
+// TestInstallDuringSetupForFannedOutPlatform is the regression test for the
+// .ipa batch fan-out sharing the base payload's InstallDuringSetup pointer:
+// the fanned-out platform must get its own value derived from
+// setup_experience_platform, never the base platform's answer.
+func TestInstallDuringSetupForFannedOutPlatform(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		setupPlatforms *[]string
+		baseFlag       *bool
+		platform       string
+		want           *bool
+	}{
+		{name: "platform list selects the fanned platform", setupPlatforms: &[]string{"ipados"}, baseFlag: new(false), platform: "ipados", want: new(true)},
+		{name: "platform list excludes the fanned platform", setupPlatforms: &[]string{"ios"}, baseFlag: new(true), platform: "ipados", want: new(false)},
+		{name: "platform list selects both", setupPlatforms: &[]string{"ios", "ipados"}, baseFlag: new(true), platform: "ipados", want: new(true)},
+		{name: "bare boolean only targets the base platform", setupPlatforms: nil, baseFlag: new(true), platform: "ipados", want: new(false)},
+		{name: "explicit false stays false on both", setupPlatforms: nil, baseFlag: new(false), platform: "ipados", want: new(false)},
+		{name: "nothing set preserves stored value", setupPlatforms: nil, baseFlag: nil, platform: "ipados", want: nil},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := installDuringSetupForFannedOutPlatform(c.setupPlatforms, c.baseFlag, c.platform)
+			if c.want == nil {
+				require.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, *c.want, *got)
+			require.NotSame(t, c.baseFlag, got, "fanned-out payload must not share the base payload's pointer")
 		})
 	}
 }

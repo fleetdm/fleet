@@ -26,6 +26,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	android "github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -1292,7 +1293,12 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
 	}
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-		return fleet.DiskEncryptionConfig{Enabled: true}, nil
+		return fleet.DiskEncryptionConfig{
+			MacOSEnabled:       true,
+			MacOSEscrowEnabled: true,
+			WindowsEnabled:     true,
+			LinuxEscrowEnabled: true,
+		}, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
@@ -3934,6 +3940,10 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 			MDM: fleet.MDM{
 				EnabledAndConfigured: false,
 				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 			},
 		}, nil
 	}
@@ -3960,10 +3970,10 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		if *teamID == 1 {
-			return fleet.DiskEncryptionConfig{Enabled: true}, nil
+			return fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil
 		}
 
-		return fleet.DiskEncryptionConfig{Enabled: false}, nil
+		return fleet.DiskEncryptionConfig{}, nil
 	}
 
 	deleteCalls := uint(0)
@@ -5153,5 +5163,209 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "even updated=false must refresh in-memory HostUUID")
 		assert.False(t, hasGetForDevDetailSerial(cmds), "in-memory HostUUID is now set; no redundant Get")
+	})
+}
+
+// mockAndroidService is a minimal mock of android.Service for RunMDMCommand tests.
+// Only IssueCustomCommand is implemented; all other methods panic if called.
+type mockAndroidService struct {
+	android.Service        // embed interface — unimplemented methods panic
+	IssueCustomCommandFunc func(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error)
+}
+
+func (m *mockAndroidService) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+	return m.IssueCustomCommandFunc(ctx, hostID, rawJSON)
+}
+
+func TestRunMDMCommandAndroid(t *testing.T) {
+	androidHost := &fleet.Host{
+		ID:       100,
+		UUID:     "android-uuid-1",
+		Platform: "android",
+		Hostname: "Pixel 7",
+		TeamID:   new(uint(1)),
+	}
+
+	setupDS := func(t *testing.T) *mock.Store {
+		ds := new(mock.Store)
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{androidHost}, nil
+		}
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true}, nil
+		}
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+		return ds
+	}
+
+	t.Run("success creates activity", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, hostID uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+				require.Equal(t, androidHost.ID, hostID)
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-1",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			capturedActivity = act
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "cmd-uuid-1", result.CommandUUID)
+		assert.Equal(t, "REBOOT", result.RequestType)
+		assert.Equal(t, "android", result.Platform)
+
+		require.NotNil(t, capturedActivity)
+		act, ok := capturedActivity.(*fleet.ActivityTypeRanCustomMDMCommand)
+		require.True(t, ok)
+		assert.Equal(t, androidHost.ID, act.HostID)
+		assert.Equal(t, "android", act.Platform)
+		assert.Equal(t, "REBOOT", act.RequestType)
+	})
+
+	t.Run("premium gating rejects LOCK without license", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"LOCK"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("premium gating rejects RESET_PASSWORD without license", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"RESET_PASSWORD"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("premium gating allows REBOOT without license", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-reboot",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "REBOOT", result.RequestType)
+	})
+
+	t.Run("premium gating allows LOCK with premium license", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-lock",
+					CommandType: "LOCK",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"LOCK"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "LOCK", result.RequestType)
+	})
+
+	t.Run("rejects multiple Android hosts", func(t *testing.T) {
+		ds := new(mock.Store)
+		androidHost2 := &fleet.Host{ID: 101, UUID: "android-uuid-2", Platform: "android", TeamID: new(uint(1))}
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{androidHost, androidHost2}, nil
+		}
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, _ []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true, androidHost2.UUID: true}, nil
+		}
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID, androidHost2.UUID})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "can only target a single host")
+	})
+
+	t.Run("android MDM not configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{androidHost}, nil
+		}
+		ds.AreHostsConnectedToFleetMDMFunc = func(_ context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+			return map[string]bool{androidHost.UUID: true}, nil
+		}
+		ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: false},
+			}, nil
+		}
+
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Android MDM isn't turned on")
 	})
 }

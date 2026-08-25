@@ -508,7 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
-| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
+| order_key       | string  | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, `fleet_initiated`, and `streamed`.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -4757,6 +4757,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+> `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
+
 ### Delete host
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
@@ -5383,6 +5385,8 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
@@ -5429,6 +5433,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5472,6 +5477,8 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
 #### Example
 
@@ -5519,6 +5526,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5908,7 +5916,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
-| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, and `fleet_initiated`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
@@ -8738,6 +8746,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8945,6 +8954,24 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Delete Android Enterprise
+
+Delete Android Enterprise that's connected to Fleet. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -15416,6 +15443,9 @@ None.
       "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
+      "last_login_at": "2020-12-10T04:15:20Z",
+      "last_activity_at": "2020-12-10T04:32:41Z",
+      "status": "active",
       "fleets": [
         {
           "id": 1,
@@ -15684,6 +15714,9 @@ Returns all information about a specific user.
     "mfa_enabled": false,
     "global_role": "admin",
     "api_only": false,
+    "last_login_at": "2020-12-10T05:24:27Z",
+    "last_activity_at": "2020-12-10T05:31:03Z",
+    "status": "active",
     "fleets": []
   }
 }

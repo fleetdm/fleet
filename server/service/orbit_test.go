@@ -191,6 +191,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -199,6 +200,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -279,6 +281,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: new("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -287,6 +290,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -352,6 +356,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 
@@ -359,6 +364,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -1362,7 +1368,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		act, ok := installedActivities[installUUID]
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
-		require.True(t, act.InstallSkippedWhenAppOpen, "activity should be flagged as an app-open skip")
+		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
@@ -1387,7 +1393,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		act, ok := installedActivities[installUUID]
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
-		require.False(t, act.InstallSkippedWhenAppOpen, "non-managed failure must not be flagged as a skip")
+		require.False(t, act.SkippedInstall, "non-managed failure must not be flagged as a skip")
 	})
 
 	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {

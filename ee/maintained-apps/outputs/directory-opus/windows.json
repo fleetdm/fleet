@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "13.24",
+      "version": "13.25",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Directory Opus' AND publisher = 'GPSoftware';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Directory Opus' AND publisher = 'GPSoftware' AND version_compare(version, '13.24') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Directory Opus' AND publisher = 'GPSoftware' AND version_compare(version, '13.25') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'directory opus.exe');"
       },
-      "installer_url": "https://cdn2.gpsoft.com.au/files/Opus13/DOpusInstall-13.24.exe",
+      "installer_url": "https://cdn.gpsoft.com.au/files/Opus13/DOpusInstall-13.25.exe",
       "install_script_ref": "37fe3170",
       "uninstall_script_ref": "bc24b894",
-      "sha256": "b085fcbd1920a3f9e2fdb7eaa5e39c07084b598d739fd019a4cdb9c89e4ca63c",
+      "sha256": "41fdf3c800f61aebdeec054ab3e43f176a1798cda23c2a953cfc8bff7e6c4975",
       "default_categories": [
         "Productivity"
       ]

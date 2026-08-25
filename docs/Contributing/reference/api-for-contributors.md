@@ -584,7 +584,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
-- [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
@@ -1161,8 +1160,10 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 Example response cookie in the HTTP `Set-Cookie` header:
 ```
-Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=900; HttpOnly; Secure
 ```
+
+`Max-Age` matches `auth.sso_session_validity_period`, which defaults to 15 minutes.
 
 ### Complete SSO during DEP or Account Driven enrollment
 
@@ -1216,6 +1217,16 @@ enrollment flow:
 
  - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
    Enrollment endpoint to download an enrollment profile.
+
+If the credentials can't be validated, the server redirects the client to the Fleet UI with the
+following query parameters:
+
+- `error=true` is set for any failure.
+- `reason=session_expired` is added when the SSO session created by `POST /api/v1/fleet/mdm/sso` is
+  no longer available, so the Fleet UI can tell the end user their sign-in timed out rather than
+  showing a generic error. This happens when the user takes longer than
+  `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
+  or when the callback is replayed (the session is single use).
 
 ### Over the air enrollment
 
@@ -1514,21 +1525,6 @@ This is callback URL that will be open after user completes Google's signup flow
 ```
 <html><!-- self-closing page --></html>
 ```
-
-### Delete Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
-
-`DELETE /api/v1/fleet/android_enterprise/`
-
-#### Example
-
-`DELETE /api/v1/fleet/android_enterprise`
-
-##### Default response
-
-`Status: 200`
 
 ### Get Android enrollment token
 
@@ -3551,6 +3547,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
+        "has_uninstall_script": true,
         "categories": ["Browsers"],
      	"last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",

@@ -74,6 +74,7 @@ import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Andro
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import Variables from "pages/ManageControlsPage/Variables/Variables";
 import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
+import MicrosoftGraphPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MicrosoftGraphPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
@@ -254,6 +255,10 @@ const routes = (
               path="integrations/automatic-enrollment/windows"
               component={WindowsEnrollmentPage}
             />
+            <Route
+              path="integrations/mdm/microsoft-graph"
+              component={MicrosoftGraphPage}
+            />
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
@@ -297,6 +302,7 @@ const routes = (
               <IndexRedirect to="details" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
+              <Route path="controls" component={HostDetailsPage} />
               <Route path="software" component={HostDetailsPage}>
                 <IndexRedirect to="inventory" />
                 <Route path="inventory" component={HostDetailsPage} />
@@ -459,6 +465,7 @@ const routes = (
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />
+            <Route path="controls" component={DeviceUserPage} />
             <Route path="software" component={DeviceUserPage} />
             <Route path="policies" component={DeviceUserPage} />
           </Route>

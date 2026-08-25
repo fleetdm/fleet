@@ -32,6 +32,43 @@ func TestErrorUnwrapsUnderlyingCause(t *testing.T) {
 	assert.Equal(t, "invalid_client", gotRetrieve.ErrorCode)
 }
 
+func TestAsError(t *testing.T) {
+	t.Parallel()
+	_, ok := AsError(nil)
+	assert.False(t, ok, "a nil error is not a Graph error")
+
+	_, ok = AsError(errors.New("dial tcp: timeout"))
+	assert.False(t, ok, "a transport failure is not a Graph error")
+
+	graphErr, ok := AsError(fmt.Errorf("outer: %w", &Error{StatusCode: http.StatusForbidden, Code: "Forbidden"}))
+	require.True(t, ok, "a wrapped Graph error must still be reachable")
+	assert.Equal(t, http.StatusForbidden, graphErr.StatusCode)
+	assert.Equal(t, "Forbidden", graphErr.Code)
+}
+
+func TestCredentialRejected(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"no error", nil, false},
+		{"401 rejects the credential", &Error{StatusCode: http.StatusUnauthorized}, true},
+		{"403 rejects the credential", &Error{StatusCode: http.StatusForbidden}, true},
+		{"429 is transient", &Error{StatusCode: http.StatusTooManyRequests}, false},
+		{"500 is transient", &Error{StatusCode: http.StatusInternalServerError}, false},
+		{"404 is neither", &Error{StatusCode: http.StatusNotFound}, false},
+		{"a non-graph error", errors.New("dial tcp: timeout"), false},
+		{"a wrapped 401", fmt.Errorf("outer: %w", &Error{StatusCode: http.StatusUnauthorized}), true},
+		{"a wrapped non-graph error", fmt.Errorf("outer: %w", errors.New("dial tcp: timeout")), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, CredentialRejected(tc.err))
+		})
+	}
+}
+
 func TestParseRetryAfter(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -71,4 +108,35 @@ func TestGraphErrorBodyIsBounded(t *testing.T) {
 	require.True(t, ok)
 	assert.LessOrEqual(t, len(graphErr.Message), maxErrorBodyBytes+len("... (truncated)"))
 	assert.Contains(t, graphErr.Message, "truncated")
+}
+
+func TestUserFacingMessage(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		err      error
+		contains string
+	}{
+		{"permission", &Error{StatusCode: http.StatusForbidden}, "DeviceManagementServiceConfig.Read.All"},
+		{"auth", &Error{StatusCode: http.StatusUnauthorized}, "rejected the credential"},
+		{"transient", &Error{StatusCode: http.StatusBadGateway}, "temporarily unavailable"},
+		{"other graph error", &Error{StatusCode: http.StatusBadRequest, Message: "AADSTS700016: app not found"}, "AADSTS700016"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Contains(t, UserFacingMessage(tc.err), tc.contains)
+		})
+	}
+
+	t.Run("non-graph error yields no message", func(t *testing.T) {
+		// The caller describes a failure that never reached Graph, since only it knows what it was attempting.
+		assert.Empty(t, UserFacingMessage(errors.New("dial tcp: timeout")))
+	})
+
+	t.Run("wrapped graph error is still classified", func(t *testing.T) {
+		wrapped := fmt.Errorf("list windows autopilot devices: %w", &Error{StatusCode: http.StatusUnauthorized})
+		msg := UserFacingMessage(wrapped)
+		assert.Contains(t, msg, "rejected the credential")
+		assert.NotContains(t, msg, "list windows autopilot devices", "the wrap chain must never reach the UI")
+	})
 }

@@ -488,7 +488,7 @@ func (svc *Service) VerifyAnyMDMConfigured(ctx context.Context) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Run Apple or Windows MDM Command
+// Run MDM Command (Apple, Windows, or Android)
 ////////////////////////////////////////////////////////////////////////////////
 
 type runMDMCommandRequest struct {
@@ -547,19 +547,22 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	for platform := range platforms {
 		commandPlatform = platform
 	}
-	if !fleet.ClassicMDMSupported(commandPlatform) {
-		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows or Apple hosts.")
+	if !fleet.MDMTurnedOnSupported(commandPlatform) {
+		err := fleet.NewInvalidArgumentError("host_uuids", "Invalid platform. You can only run MDM commands on Windows, Apple, or Android hosts.")
 		return nil, ctxerr.Wrap(ctx, err, "check host platform")
 	}
 
-	// check that the platform-specific MDM is enabled (not sure this check can
-	// ever happen, since we verify that the hosts are enrolled, but just to be
-	// safe)
+	// check that the platform-specific MDM is enabled
 	switch commandPlatform {
 	case "windows":
 		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 			err := fleet.NewInvalidArgumentError("host_uuids", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+	case "android":
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("host_uuids", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")
 		}
 	default:
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -569,16 +572,10 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	}
 
 	// We're supporting both padded and unpadded base64.
-	rawXMLCmd, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
+	rawPayload, err := server.Base64DecodePaddingAgnostic(rawBase64Cmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode base64 command").WithStatus(http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
-	}
-
-	if commandPlatform == "darwin" {
-		if err := svc.validateAppleMDMCommand(ctx, rawXMLCmd, hosts); err != nil {
-			return nil, err
-		}
 	}
 
 	// Use UUIDs from the resolved hosts so the enqueue and activity creation
@@ -591,10 +588,15 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
 	switch commandPlatform {
+	case "android":
+		result, err = svc.enqueueAndroidMDMCommand(ctx, rawPayload, hosts)
 	case "windows":
-		result, err = svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, resolvedUUIDs)
+		result, err = svc.enqueueMicrosoftMDMCommand(ctx, rawPayload, resolvedUUIDs)
 	default:
-		result, err = svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, resolvedUUIDs)
+		if err := svc.validateAppleMDMCommand(ctx, rawPayload, hosts); err != nil {
+			return nil, err
+		}
+		result, err = svc.enqueueAppleMDMCommand(ctx, rawPayload, resolvedUUIDs)
 	}
 	if err != nil {
 		return nil, err
@@ -616,14 +618,65 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 			RequestType:     result.RequestType,
 			Platform:        commandPlatform,
 		}); err != nil {
-			// Activity logging is best-effort: the command was already enqueued
-			// successfully, so returning an error here could cause clients to retry
-			// and send duplicate MDM commands to devices.
 			svc.logger.ErrorContext(ctx, "failed to log activity for ran custom mdm command", "err", err, "host_uuid", h.UUID)
 		}
 	}
 
 	return result, nil
+}
+
+var androidMDMPremiumCommands = map[string]struct{}{
+	"LOCK":           {},
+	"RESET_PASSWORD": {},
+}
+
+// enqueueAndroidMDMCommand issues an AMAPI custom command for each targeted Android host.
+// rawJSON is the base64-decoded JSON bytes of the AMAPI Command object.
+// For now, only single-host targeting is supported.
+func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte, hosts []*fleet.Host) (*fleet.CommandEnqueueResult, error) {
+	if len(hosts) != 1 {
+		return nil, fleet.NewInvalidArgumentError("host_uuids",
+			"Android custom commands can only target a single host at a time.").WithStatus(http.StatusBadRequest)
+	}
+
+	// Parse the command type and sensitive fields for premium gating.
+	var cmdPayload struct {
+		Type        string `json:"type"`
+		NewPassword string `json:"newPassword"`
+	}
+	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
+		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
+	}
+
+	// Normalize to uppercase to match AMAPI convention and our premium map keys.
+	cmdType := strings.ToUpper(strings.TrimSpace(cmdPayload.Type))
+
+	// If type is omitted but newPassword is set, AMAPI infers RESET_PASSWORD.
+	if cmdType == "" && cmdPayload.NewPassword != "" {
+		cmdType = "RESET_PASSWORD"
+	}
+
+	if _, ok := androidMDMPremiumCommands[cmdType]; ok {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	host := hosts[0]
+	cmd, err := svc.androidSvc.IssueCustomCommand(ctx, host.ID, rawJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.CommandType,
+		Platform:    "android",
+	}, nil
 }
 
 // validateAppleMDMCommand validates an Apple MDM command before it is enqueued.
@@ -1519,7 +1572,6 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 	if isAppleProfileUUID(req.ProfileUUID) { //nolint:gocritic // ignore ifElseChain
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else if isAppleDeclarationUUID(req.ProfileUUID) {
-		// TODO: we could potentially combined with the other service methods
 		err = svc.DeleteMDMAppleDeclaration(ctx, req.ProfileUUID)
 	} else if isAndroidProfileUUID(req.ProfileUUID) {
 		err = svc.DeleteMDMAndroidConfigProfile(ctx, req.ProfileUUID)
@@ -3660,9 +3712,14 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "authorizing profile team")
 	}
 
-	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	err = nil
+	// A user asked for this resend, so everything goes back to them, rejection or not.
+	onError := func(innerErr error, _ bool) {
+		err = innerErr
+	}
+	checkAndResendHostMDMProfile(ctx, svc, host, onError, profileUUID, profileName, nil)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "checking and resending host mdm profile")
 	}
 
 	return nil
@@ -3674,44 +3731,66 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 		return err
 	}
 
-	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	err = nil
+	// A user asked for this resend, so everything goes back to them, rejection or not.
+	onError := func(innerErr error, _ bool) {
+		err = innerErr
+	}
+	checkAndResendHostMDMProfile(ctx, svc, host, onError, profileUUID, profileName, nil)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "checking and resending host mdm profile")
 	}
 
 	return nil
 }
 
-func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, profileUUID string, profileName string) error {
+type checkAndResendPolicyArgs struct {
+	PolicyID   uint
+	PolicyName string
+}
+
+func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, onError func(err error, rejected bool), profileUUID string, profileName string, policyArgs *checkAndResendPolicyArgs) {
 	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Unable to match profile to host.").WithStatus(http.StatusNotFound), "getting host mdm profile status")
+			onError(fleet.NewInvalidArgumentError("HostMDMProfile", "Unable to match profile to host.").WithStatus(http.StatusNotFound), true)
+			return
 		}
-		return ctxerr.Wrap(ctx, err, "getting host mdm profile status")
+		onError(ctxerr.Wrap(ctx, err, "getting host mdm profile status"), false)
+		return
 	}
 	if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status")
+		onError(ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status"), true)
+		return
 	}
 	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
 		// this should never happen, but just in case
-		return ctxerr.Errorf(ctx, "unrecognized profile status %s", status)
+		onError(ctxerr.Errorf(ctx, "unrecognized profile status %s", status), false)
+		return
 	}
 
 	if err := svc.ds.ResendHostMDMProfile(ctx, host.UUID, profileUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "resending host mdm profile")
+		onError(ctxerr.Wrap(ctx, err, "resending host mdm profile"), false)
+		return
+	}
+
+	details := &fleet.ActivityTypeResentConfigurationProfile{
+		HostID:          &host.ID,
+		HostDisplayName: new(host.DisplayName()),
+		ProfileName:     profileName,
+		ProfileUUID:     profileUUID,
+	}
+
+	if policyArgs != nil {
+		details.PolicyID = &policyArgs.PolicyID
+		details.PolicyName = &policyArgs.PolicyName
 	}
 
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfile{
-			HostID:          &host.ID,
-			HostDisplayName: ptr.String(host.DisplayName()),
-			ProfileName:     profileName,
-			ProfileUUID:     profileUUID,
-		}); err != nil {
-		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
+		ctx, authz.UserFromContext(ctx), details); err != nil {
+		onError(ctxerr.Wrap(ctx, err, "logging activity for resend config profile"), false)
+		return
 	}
-	return nil
 }
 
 // getPRofileToResendDetails returns the team ID and name of the profile to be resent.
@@ -4034,8 +4113,9 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return nil
 	}
 
-	// Enable FileVault escrow if no-team already has disk encryption enforced
-	if appCfg.MDM.EnableDiskEncryption.Value {
+	// Enable FileVault escrow if no-team already has a macOS disk encryption
+	// setting on: the FileVault profile covers enforcement and escrow as a pair
+	if appCfg.MDM.MacOSSettings.EnableDiskEncryption.Value || appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
 		// Delete the file vault profile first, to ensure we get updated keys.
 		if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "delete no-team FileVault profile")
@@ -4058,7 +4138,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
 		}
-		if diskEncryptionConfig.Enabled {
+		if diskEncryptionConfig.MacOSEnabled || diskEncryptionConfig.MacOSEscrowEnabled {
 			// Delete the file vault profile first, to ensure we get updated keys.
 			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "delete team FileVault profile")
@@ -4484,4 +4564,32 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type cancelHostMDMCommandRequest struct {
+	HostID      uint   `url:"id"`
+	CommandUUID string `url:"command_uuid"`
+}
+
+type cancelHostMDMCommandResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r cancelHostMDMCommandResponse) Error() error { return r.Err }
+func (r cancelHostMDMCommandResponse) Status() int  { return http.StatusNoContent }
+
+func cancelHostMDMCommandEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*cancelHostMDMCommandRequest)
+	if err := svc.CancelHostMDMCommand(ctx, req.HostID, req.CommandUUID); err != nil {
+		return cancelHostMDMCommandResponse{Err: err}, nil
+	}
+	return cancelHostMDMCommandResponse{}, nil
+}
+
+func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

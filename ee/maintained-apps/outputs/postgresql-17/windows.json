@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.10-2",
+      "version": "17.11-1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PostgreSQL 17' AND publisher = 'PostgreSQL Global Development Group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 17' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '17.10-2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PostgreSQL 17' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '17.11-1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'postgresql 17.exe');"
       },
-      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-17.10-2-windows-x64.exe",
+      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-17.11-1-windows-x64.exe",
       "install_script_ref": "a335a7d0",
       "uninstall_script_ref": "b5dcc995",
-      "sha256": "81554536268e499f431efa3fa20736736c64102c719308a03ceb32aa0cb6ae06",
+      "sha256": "f104c552d8495a6f20738c2a03f643164bc64b9985363329e314dec24559f0b7",
       "default_categories": [
         "Developer tools"
       ]

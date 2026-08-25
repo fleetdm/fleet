@@ -21,6 +21,7 @@ import {
 import { ICommandResult } from "interfaces/command";
 import { isAndroid, isAppleDevice, isMacOS } from "interfaces/platform";
 import { secondsToDhms } from "utilities/helpers";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
@@ -413,7 +414,9 @@ export const VppInstallDetailsModal = ({
         : commandAPI.getCommandResults(commandUuid).then(responseHandler);
     },
     {
-      refetchOnWindowFocus: false,
+      // Brings in the shared retry rule, which skips 4xx. A 404 here means the
+      // result doesn't exist yet — a definitive answer, so don't retry it.
+      ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
       // Pre-flight Fleet failures (e.g. unresolvable managed-config var) never
       // enqueue an MDM command, so there's no command result to fetch — the

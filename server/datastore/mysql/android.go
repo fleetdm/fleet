@@ -338,6 +338,102 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	return err
 }
 
+// AndroidResetOnReenrollment clears the state a re-enrolling Android host no longer
+// has: dynamic label membership, pending MDM commands and their host_mdm_actions refs,
+// and pending software installs. Past host activities are only cleared when
+// preserveHostActivities is false.
+//
+// Note that it deliberately does not clear the host's vitals (host_disks,
+// host_operating_system) the way appleHostRefsForMDMReset does. The enrollment
+// overwrites both unconditionally, so deleting them buys nothing, and it is unsafe
+// with a read replica: SetOrUpdateHostDisksSpace and UpdateHostOperatingSystem both
+// read the current row from the replica and skip the write when the values are
+// unchanged, so a lagging replica makes the enrollment skip a write that the delete
+// was counting on and leaves the host with no vitals row at all.
+//
+// Pending installs are failed rather than deleted, so it returns the users and
+// activities the caller must emit, the same contract as
+// MarkAllPendingVPPInstallsAsFailedForAndroidHost.
+//
+// This must run before the enrollment's own data is written back (see
+// Service.updateHost), otherwise it deletes the vitals that were just reported.
+func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint, hostUUID string,
+	preserveHostActivities bool,
+) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	// Both are used unqualified in DELETEs below, so a zero value would widen them to
+	// every host with an empty uuid rather than affecting nothing.
+	if hostID == 0 || hostUUID == "" {
+		return nil, nil, ctxerr.New(ctx, "resetting android enrollment requires a host id and uuid")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// withRetryTxx re-runs this closure on a deadlock, so start from empty rather
+		// than appending a second copy of everything.
+		users, activities = nil, nil
+
+		// Clear dynamic label membership only.
+		//
+		// Host-vitals membership (IdP group/department) is deliberately kept: it is
+		// derived from the IdP account, which survives the re-enroll, and only the
+		// 5-minute host-vitals cron re-derives it. Deleting it would open a window in
+		// which the profile scope query reads the host as a confirmed non-member (it
+		// counts any label_membership_type <> 0 as reported), so an explicitly excluded
+		// profile would install and host-vitals-scoped setup experience apps would drop
+		// out of scope for this enrollment entirely.
+		//
+		// Builtin labels are kept for the opposite reason: "All Hosts" is dynamic, and
+		// nothing re-adds the Android builtin memberships outside NewAndroidHost, so a
+		// host that lost them would disappear from the host list for good.
+		if _, err := tx.ExecContext(ctx, `
+			DELETE lm FROM label_membership lm
+			JOIN labels l ON l.id = lm.label_id
+			WHERE lm.host_id = ? AND l.label_membership_type = ? AND l.label_type != ?`,
+			hostID, fleet.LabelMembershipTypeDynamic, fleet.LabelTypeBuiltIn); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear dynamic label membership on android reenroll")
+		}
+
+		// Cancel pending AMAPI commands. These are keyed by host_uuid, and the device that
+		// just re-enrolled will never acknowledge a command issued to the previous install.
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM mdm_android_commands WHERE host_uuid = ? AND status = 'pending'`, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel pending android commands on reenroll")
+		}
+
+		// Drop the lock/wipe/clear-passcode refs in the same transaction as the commands
+		// they point at. Service.updateHost clears these again later, but doing it here
+		// means a failure in between cannot leave a ref pointing at a deleted command.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear host_mdm_actions on android reenroll")
+		}
+
+		// Fail every install that never reached a verdict, and return the activities so
+		// the caller can emit them. This is the same helper the Android unenroll path
+		// uses, so a device that unenrolls and one that re-enrolls report their
+		// interrupted installs identically. Note that it also fails rows flagged
+		// removed = 1 that never reached a verdict, which is the helper's existing
+		// behaviour rather than anything specific to re-enrollment.
+		//
+		// Marking the installs canceled instead would hide them from the host software
+		// list and from the activity feed, losing the record entirely.
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fail pending android software installs on reenroll")
+		}
+
+		if !preserveHostActivities {
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM activity_host_past WHERE host_id = ?`, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear past host activities on android reenroll")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return users, activities, nil
+}
+
 func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs []string, teamID *uint) error {
 	hostUUIDs = slices.DeleteFunc(hostUUIDs, func(s string) bool { return s == "" })
 	if len(hostUUIDs) == 0 {
@@ -1195,8 +1291,8 @@ func (ds *Datastore) GetMDMAndroidCommandByOperationName(ctx context.Context, op
 func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value string) (*android.MDMAndroidCommand, error) {
 	stmt := `
 		SELECT
-			command_uuid, host_uuid, operation_name, command_type, status,
-			error_code, error_message, created_at, updated_at
+			command_uuid, host_uuid, operation_name, command_type, raw_command, status,
+			error_code, error_message, raw_result, created_at, updated_at
 		FROM mdm_android_commands
 		WHERE ` + column + ` = ?
 	`
@@ -1229,6 +1325,23 @@ func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *f
 	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
 }
 
+// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
+// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
+func (ds *Datastore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	const stmt = `
+		INSERT INTO mdm_android_commands
+			(command_uuid, host_uuid, operation_name, command_type, raw_command, status)
+		VALUES
+			(?, ?, ?, ?, ?, ?)
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for custom command")
+	}
+	return nil
+}
+
 // ClearHostMDMActions deletes the host_mdm_actions row for the given host. Used by the Android
 // pub/sub re-enrollment path to drop stale lock/wipe/clear-passcode refs from a previous enrollment
 // cycle.
@@ -1244,12 +1357,12 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands
-				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
+				(command_uuid, host_uuid, operation_name, command_type, raw_command, status, error_code, error_message)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?)
+				(?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		if _, err := tx.ExecContext(ctx, insertCmdStmt,
-			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.Status,
+			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
 			cmd.ErrorCode, cmd.ErrorMessage,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for "+refColumn)
@@ -1270,19 +1383,19 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 // mdmAndroidCommandErrorMessageMaxRunes mirrors the VARCHAR(1024) limit on mdm_android_commands.error_message.
 const mdmAndroidCommandErrorMessageMaxRunes = 1024
 
-// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional error code / message).
+// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional error code / message / raw result).
 // NotFound is returned if no row matches command_uuid.
-func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
 	if errorMessage != nil {
 		trimmed := truncateRunes(*errorMessage, mdmAndroidCommandErrorMessageMaxRunes)
 		errorMessage = &trimmed
 	}
 	const stmt = `
 		UPDATE mdm_android_commands
-		SET status = ?, error_code = ?, error_message = ?
+		SET status = ?, error_code = ?, error_message = ?, raw_result = ?
 		WHERE command_uuid = ?
 	`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorCode, errorMessage, commandUUID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorCode, errorMessage, rawResult, commandUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating mdm android command status")
 	}
