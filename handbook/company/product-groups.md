@@ -775,7 +775,7 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). The [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md) automatically applies the `~inbox` label, and the bug is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the QA Manager is responsible for going through bugs labeled `~inbox` and adding the correct product group label. This moves the bug to the Inbox column on the product group's board. The QA Manager then removes the `~inbox` label.
+At this state, the QA Manager is responsible for going through bugs labeled `~inbox` and adding the bug to the correct product group's board. The QA Manager then removes the `~inbox` label.
 
 Then, it's the product groups Engineering Manager's (EM) responsibility to review bugs during standup. It's up to the Product Designer to decide if it's a bug and specify the expected behavior.
 
