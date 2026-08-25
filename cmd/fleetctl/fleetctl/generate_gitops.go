@@ -281,10 +281,10 @@ type GenerateGitopsCommand struct {
 
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "generate-gitops",
-		Usage: "Exports existing Fleet configuration to YAML files to migrate an existing Fleet to GitOps",
+		Name:        "generate-gitops",
+		Usage:       "Exports existing Fleet configuration to YAML files to migrate an existing Fleet to GitOps",
 		Description: "If you're getting started with GitOps, use `fleetctl new` instead",
-		Action: createGenerateGitopsAction(nil),
+		Action:      createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
