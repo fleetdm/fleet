@@ -345,9 +345,9 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 ### Why aren't my hosts being deleted after the host expiry window?
 
-Some hosts are exempt from host expiry. The window also isn't measured against the timestamp in the **Last fetched** column. Check the following:
+Some hosts are exempt from host expiry, and the window isn't measured against the **Last fetched** column. Check the following:
 
-* Is the host assigned to Fleet in Apple Business or Windows Autopilot? Those hosts are never expired, on any platform. This includes hosts that are still **Pending** because they haven't enrolled yet. Fleet keeps them so they can enroll when the device is set up. The exemption lifts once the host is unassigned or released in Apple Business.
+* Is the host assigned to Fleet in Apple Business or Windows Autopilot? Host expiry skips those hosts, on any platform. This includes hosts that are still **Pending** because they haven't enrolled yet. Fleet keeps them so they can enroll when the device is set up. The exemption lifts once the host is unassigned or released in Apple Business.
 
 * Is the host still checking in? Fleet measures the window from the host's most recent check-in. A check-in is either an osquery check-in from Fleet's agent (fleetd) or an MDM check-in, whichever is more recent. **Last fetched** is a different timestamp. It's the last time the host reported vitals, so a host can show a stale **Last fetched** and still be checking in. That host won't expire. This is common on iOS and iPadOS hosts, which report vitals over MDM.
 
