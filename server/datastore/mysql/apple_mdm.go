@@ -7533,7 +7533,8 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	// those same lines authenticate_at gets updated only at the authenticate step during the
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
-	SELECT nd.authenticate_at, ne.last_seen_at, ne.hardware_attested, nd.unlock_token
+	SELECT nd.authenticate_at, ne.last_seen_at, ne.hardware_attested, nd.unlock_token,
+	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`

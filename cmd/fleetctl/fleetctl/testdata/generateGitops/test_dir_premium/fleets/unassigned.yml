@@ -84,8 +84,7 @@ policies:
   name: Team Profile policy
   platform: darwin
   query: SELECT * FROM team_policy WHERE id = 4
-  resend_configuration_profile:
-    name: Team Profile
+  resend_configuration_profile: Team Profile
   resolution: Nothing to do.
   type: dynamic
   webhooks_and_tickets_enabled: false

@@ -1454,10 +1454,11 @@ type HostMDMIdentifiers struct {
 }
 
 type NanoMDMEnrollmentDetails struct {
-	LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
-	LastMDMSeenTime       *time.Time `db:"last_seen_at"`
-	HardwareAttested      bool       `db:"hardware_attested"`
-	UnlockToken           *string    `db:"unlock_token"`
+	LastMDMEnrollmentTime  *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime        *time.Time `db:"last_seen_at"`
+	HardwareAttested       bool       `db:"hardware_attested"`
+	UnlockToken            *string    `db:"unlock_token"`
+	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO
