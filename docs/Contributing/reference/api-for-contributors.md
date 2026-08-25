@@ -4696,6 +4696,40 @@ Body: <blob>
 
 `Status: 204`
 
+### Report disk encryption protection outcome
+
+Reports the result of the agent's attempt to turn BitLocker key protection back on for a Windows host that is already encrypted but unprotected. The agent only calls this endpoint when the server asked it to act, via the `enable_bitlocker_protection` orbit config notification.
+
+This endpoint never touches the escrowed recovery key. It records why protection could not be turned back on so the reason can be shown to an admin in the host's disk encryption details.
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                                                    |
+| -------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                                          |
+| outcome        | string | body | One of `restored`, `deferred`, or `failed`.                                                                     |
+| client_error   | string | body | Why protection was not turned back on. Required for `deferred` and `failed`; ignored for `restored`. Truncated to 255 characters. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "outcome": "failed",
+  "client_error": "BitLocker policy does not allow a TPM-only protector"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
 ---
 
 ## Setup

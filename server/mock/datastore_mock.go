@@ -902,6 +902,8 @@ type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase6
 
 type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
+type SetOrUpdateHostBitLockerProtectionErrorFunc func(ctx context.Context, hostID uint, protectionError string) error
+
 type GetHostBitLockerProtectionStateFunc func(ctx context.Context, hostID uint) (*fleet.HostBitLockerProtectionState, error)
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
@@ -3677,6 +3679,9 @@ type DataStore struct {
 
 	DeleteLUKSDataFunc        DeleteLUKSDataFunc
 	DeleteLUKSDataFuncInvoked bool
+
+	SetOrUpdateHostBitLockerProtectionErrorFunc        SetOrUpdateHostBitLockerProtectionErrorFunc
+	SetOrUpdateHostBitLockerProtectionErrorFuncInvoked bool
 
 	GetHostBitLockerProtectionStateFunc        GetHostBitLockerProtectionStateFunc
 	GetHostBitLockerProtectionStateFuncInvoked bool
@@ -8939,6 +8944,13 @@ func (s *DataStore) DeleteLUKSData(ctx context.Context, hostID uint, keySlot uin
 	s.DeleteLUKSDataFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteLUKSDataFunc(ctx, hostID, keySlot)
+}
+
+func (s *DataStore) SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostBitLockerProtectionErrorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostBitLockerProtectionErrorFunc(ctx, hostID, protectionError)
 }
 
 func (s *DataStore) GetHostBitLockerProtectionState(ctx context.Context, hostID uint) (*fleet.HostBitLockerProtectionState, error) {

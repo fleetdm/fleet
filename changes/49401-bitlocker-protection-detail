@@ -1,0 +1,1 @@
+* Fleet now reports why it could not restore BitLocker protection on a Windows host, in the host's disk encryption details, instead of inferring a reason from the protection status.

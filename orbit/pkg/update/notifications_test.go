@@ -560,11 +560,22 @@ func TestRunScripts(t *testing.T) {
 type mockDiskEncryptionKeySetter struct {
 	SetOrUpdateDiskEncryptionKeyImpl    func(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
 	SetOrUpdateDiskEncryptionKeyInvoked bool
+
+	ProtectionOutcome       fleet.DiskEncryptionProtectionOutcome
+	ProtectionClientError   string
+	ProtectionReportInvoked bool
 }
 
 func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
 	m.SetOrUpdateDiskEncryptionKeyInvoked = true
 	return m.SetOrUpdateDiskEncryptionKeyImpl(diskEncryptionStatus)
+}
+
+func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	m.ProtectionReportInvoked = true
+	m.ProtectionOutcome = outcome
+	m.ProtectionClientError = clientError
+	return nil
 }
 
 func TestBitlockerOperations(t *testing.T) {
@@ -629,6 +640,9 @@ func TestBitlockerOperations(t *testing.T) {
 		encryptFnCalled = false
 		rotateKeyFnCalled = false
 		clientMock.SetOrUpdateDiskEncryptionKeyInvoked = false
+		clientMock.ProtectionReportInvoked = false
+		clientMock.ProtectionOutcome = ""
+		clientMock.ProtectionClientError = ""
 		logBuf.Reset()
 	}
 
@@ -808,6 +822,7 @@ func TestBitlockerOperations(t *testing.T) {
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.False(t, addCalled, "must not add a protector when one already exists")
 			require.True(t, enableCalled, "should enable protection")
+			require.Equal(t, fleet.DiskEncryptionProtectionRestored, clientMock.ProtectionOutcome)
 		})
 
 		t.Run("adds a TPM protector before enabling when none exists", func(t *testing.T) {
@@ -835,6 +850,9 @@ func TestBitlockerOperations(t *testing.T) {
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.False(t, enableCalled, "enabling without an auto-unlock protector would cause a recovery prompt")
+			// The admin needs the real reason, not an inferred one: this is what reaches the disk encryption detail.
+			require.Equal(t, fleet.DiskEncryptionProtectionFailed, clientMock.ProtectionOutcome)
+			require.Contains(t, clientMock.ProtectionClientError, "policy does not permit TPM-only")
 		})
 
 		t.Run("does nothing when the status cannot be read", func(t *testing.T) {
@@ -848,6 +866,7 @@ func TestBitlockerOperations(t *testing.T) {
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.False(t, enableCalled)
+			require.False(t, clientMock.ProtectionReportInvoked, "must not report an outcome it could not determine")
 		})
 
 		t.Run("does nothing when the volume is not fully encrypted", func(t *testing.T) {
@@ -881,6 +900,19 @@ func TestBitlockerOperations(t *testing.T) {
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.False(t, enableCalled)
+		})
+
+		t.Run("reports deferred and does not enable when a restart is pending", func(t *testing.T) {
+			setupTest()
+			var enableCalled bool
+			enrollReceiver.execGetEncryptionStatusFn = suspended
+			enrollReceiver.execHasTPMProtectorFn = func(string) (bool, error) { return true, nil }
+			enrollReceiver.execEnableProtectionFn = func(string) error { enableCalled = true; return nil }
+			enrollReceiver.restartPendingFn = func() (bool, error) { return true, nil }
+
+			require.NoError(t, enrollReceiver.Run(protectionCfg))
+			require.False(t, enableCalled, "re-sealing before a staged update applies risks a recovery prompt")
+			require.Equal(t, fleet.DiskEncryptionProtectionDeferred, clientMock.ProtectionOutcome)
 		})
 
 		t.Run("never runs the encrypt path", func(t *testing.T) {

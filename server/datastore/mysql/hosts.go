@@ -5073,11 +5073,41 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 // whether BitLocker protection is active (0=off, 1=on) separately from
 // whether the disk data is encrypted. Pass nil for non-Windows hosts (stored as NULL).
 func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error {
-	return ds.updateOrInsert(
+	if err := ds.updateOrInsert(
 		ctx,
 		`UPDATE host_disks SET encrypted = ?, bitlocker_protection_status = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
 		`INSERT INTO host_disks (encrypted, bitlocker_protection_status, host_id) VALUES (?, ?, ?)`,
 		encrypted, bitlockerProtectionStatus, hostID,
+	); err != nil {
+		return err
+	}
+
+	// Clear any recorded reason once the host reports protection back on. This has to happen here, on the source of
+	// truth, rather than only when the agent says it succeeded: once a host is repaired the server stops asking it to
+	// act, so the agent never reports again and a stale reason would otherwise sit in the row forever.
+	if bitlockerProtectionStatus != nil && *bitlockerProtectionStatus == fleet.BitLockerProtectionStatusOn {
+		if _, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_disks SET bitlocker_protection_error = NULL
+			 WHERE host_id = ? AND bitlocker_protection_error IS NOT NULL`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing bitlocker protection error")
+		}
+	}
+	return nil
+}
+
+// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection, so the host's
+// disk encryption detail can state the real reason. Deliberately writes only host_disks: the disk encryption key table
+// owns base64_encrypted, and reporting an error through that path would blank the escrowed recovery key.
+func (ds *Datastore) SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error {
+	var value *string
+	if protectionError != "" {
+		value = &protectionError
+	}
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disks SET bitlocker_protection_error = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (bitlocker_protection_error, host_id) VALUES (?, ?)`,
+		value, hostID,
 	)
 }
 

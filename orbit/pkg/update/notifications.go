@@ -2,6 +2,7 @@ package update
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -476,6 +477,9 @@ func (h *runScriptsConfigReceiver) scriptsEnabled() bool {
 
 type DiskEncryptionKeySetter interface {
 	SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
+	// SetOrUpdateDiskEncryptionProtection reports the outcome of an attempt to restore protection. It must not be
+	// routed through SetOrUpdateDiskEncryptionKey, which would blank the host's escrowed recovery key.
+	SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
 }
 
 // execEncryptVolumeFunc handles the encryption of a volume identified by its
@@ -536,6 +540,9 @@ type windowsMDMBitlockerConfigReceiver struct {
 	execHasTPMProtectorFn  execHasTPMProtectorFunc
 	execAddTPMProtectorFn  execAddTPMProtectorFunc
 	execEnableProtectionFn execEnableProtectionFunc
+
+	// restartPendingFn reports whether a restart is staged. Overridden in tests.
+	restartPendingFn func() (bool, error)
 
 	// lastProtectionRun throttles the restore path independently of lastRun. A host that cannot be repaired, because
 	// policy forbids a TPM-only protector or the TPM is not ready, would otherwise retry on every config poll forever.
@@ -639,17 +646,25 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			// Policy can forbid a TPM-only protector, in which case a startup PIN has to be enrolled by the end user
 			// and Fleet cannot repair this host. Back off so this does not retry on every config poll.
 			log.Error().Err(err).Msg("could not add a TPM protector, not restoring protection")
+			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+				fmt.Sprintf("could not add a TPM protector, so protection was not re-enabled: %v", err))
 			w.lastProtectionRun = time.Now()
 			return
 		}
 	}
 
 	// Step 4.
-	if pending, err := isRestartPending(); err != nil {
+	restartPending := w.restartPendingFn
+	if restartPending == nil {
+		restartPending = isRestartPending
+	}
+	if pending, err := restartPending(); err != nil {
 		log.Error().Err(err).Msg("cannot determine whether a restart is pending, not restoring protection")
 		return
 	} else if pending {
 		log.Info().Msg("a restart is pending, deferring bitlocker protection restore until after it")
+		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionDeferred,
+			"a restart is pending on this host; protection will be restored after it completes")
 		w.lastProtectionRun = time.Now()
 		return
 	}
@@ -657,12 +672,30 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	// Step 5.
 	if err := w.execEnableProtectionFn(targetVolume); err != nil {
 		log.Error().Err(err).Msg("failed to restore bitlocker protection")
+		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed, err.Error())
 		w.lastProtectionRun = time.Now()
 		return
 	}
 
 	log.Info().Msgf("restored bitlocker protection on %s", targetVolume)
+	w.reportProtectionOutcome(fleet.DiskEncryptionProtectionRestored, "")
 	w.lastProtectionRun = time.Now()
+}
+
+// reportProtectionOutcome tells the server what happened so the host's disk encryption detail can say why, rather than
+// the admin being left with an inferred guess. A reporting failure is logged and swallowed: the disk-side work has
+// already happened and the next osquery report carries the authoritative state anyway.
+func (w *windowsMDMBitlockerConfigReceiver) reportProtectionOutcome(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) {
+	if w.EncryptionResult == nil {
+		return
+	}
+	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
+		// The server rejects a blank reason, which would drop the outcome entirely. An unhelpful reason still beats none.
+		clientError = fmt.Sprintf("bitlocker protection was not re-enabled (%s), but the agent reported no reason", outcome)
+	}
+	if err := w.EncryptionResult.SetOrUpdateDiskEncryptionProtection(outcome, clientError); err != nil {
+		log.Error().Err(err).Msgf("failed to report disk encryption protection outcome %q to Fleet", outcome)
+	}
 }
 
 func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {

@@ -1899,7 +1899,8 @@ SELECT
 	END AS status,
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
-	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set
+	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
+	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -1923,6 +1924,7 @@ WHERE
 		Detail           string                     `db:"detail"`
 		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
 		TpmPinSet        bool                       `db:"tpm_pin_set"`
+		ProtectionError  string                     `db:"bitlocker_protection_error"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -1947,6 +1949,11 @@ WHERE
 		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
 
 		switch {
+		// Prefer what the agent actually reported over anything inferred from status. Fleet used to guess here, which
+		// is why the message hedged; the agent knows whether policy refused a TPM-only protector, whether the TPM is
+		// not ready, or whether it is simply waiting on a restart.
+		case protectionOff && dest.ProtectionError != "":
+			dest.Detail = fmt.Sprintf("BitLocker protection is off. Fleet could not turn it back on: %s", dest.ProtectionError)
 		case protectionOff && pinMissing:
 			dest.Detail = "BitLocker protection is off and a required startup PIN is not set. The disk is encrypted but the TPM protector is not active, and a BitLocker PIN must be configured."
 		case protectionOff:

@@ -1461,6 +1461,67 @@ func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}
 	return fleet.OrbitPostDiskEncryptionKeyResponse{}, nil
 }
 
+func postOrbitDiskEncryptionProtectionEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.OrbitPostDiskEncryptionProtectionRequest)
+	if err := svc.SetOrUpdateDiskEncryptionProtection(ctx, req.Outcome, req.ClientError); err != nil {
+		return fleet.OrbitPostDiskEncryptionProtectionResponse{Err: err}, nil
+	}
+	return fleet.OrbitPostDiskEncryptionProtectionResponse{}, nil
+}
+
+// SetOrUpdateDiskEncryptionProtection records what the agent did about a host whose volume was encrypted but
+// unprotected, so the host's disk encryption detail can state the real reason rather than inferring one.
+// bitLockerProtectionErrorMaxLength matches the width of host_disks.bitlocker_protection_error.
+const bitLockerProtectionErrorMaxLength = 255
+
+func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return badRequest("host is not enrolled with fleet")
+	}
+
+	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
+		return fleet.NewInvalidArgumentError("client_error", fmt.Sprintf("cannot be empty when outcome is %q", outcome))
+	}
+	// The column is bounded, and this is client-supplied. Keeping the head of an over-long message is better than failing
+	// the write and losing the outcome entirely.
+	if len(clientError) > bitLockerProtectionErrorMaxLength {
+		clientError = clientError[:bitLockerProtectionErrorMaxLength]
+	}
+
+	switch outcome {
+	case fleet.DiskEncryptionProtectionRestored:
+		// The agent's report is a claim, not an observation of record: osquery owns bitlocker_protection_status. Clear
+		// the recorded reason and ask the host to refetch, so the status flips on evidence within the next check-in
+		// rather than sitting at "Action required" until the next detail cycle.
+		if err := svc.ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing disk encryption protection error")
+		}
+		if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "requesting refetch after restoring protection")
+		}
+	case fleet.DiskEncryptionProtectionDeferred, fleet.DiskEncryptionProtectionFailed:
+		if err := svc.ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, clientError); err != nil {
+			return ctxerr.Wrap(ctx, err, "set disk encryption protection error")
+		}
+	default:
+		return &fleet.BadRequestError{Message: fmt.Sprintf("unknown outcome %q", outcome)}
+	}
+
+	return nil
+}
+
 func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
