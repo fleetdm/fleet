@@ -74,13 +74,6 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			svc := &Service{ds: ds}
-
-			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-				return fleet.DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: tc.pinRequired}, nil
-			}
-
 			host := &fleet.Host{
 				ID:                        1,
 				TeamID:                    new(uint(1)),
@@ -88,10 +81,9 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 				BitLockerProtectionStatus: tc.protection,
 				TPMPINSet:                 tc.tpmPINSet,
 			}
+			diskEncryption := fleet.DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: tc.pinRequired}
 
-			got, err := svc.shouldEnableBitLockerProtection(t.Context(), host)
-			require.NoError(t, err)
-			require.Equal(t, tc.wantNotified, got)
+			require.Equal(t, tc.wantNotified, shouldEnableBitLockerProtection(host, diskEncryption))
 		})
 	}
 }

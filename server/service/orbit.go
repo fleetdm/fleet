@@ -971,28 +971,27 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 //
 // It therefore requires a host loaded by LoadHostByOrbitNodeKey. A host from a loader that does not select those
 // columns reports nil, which this reads as "nothing to act on" rather than as an error.
-func (svc *Service) shouldEnableBitLockerProtection(ctx context.Context, host *fleet.Host) (bool, error) {
+//
+// diskEncryption is passed in rather than re-read: the caller already resolved it for the platform gate, and
+// GetConfigEnableDiskEncryption would only recompute it from the same team or app config.
+func shouldEnableBitLockerProtection(host *fleet.Host, diskEncryption fleet.DiskEncryptionConfig) bool {
 	// Only act on a volume that is encrypted and positively reported as unprotected. A nil on either field means the
 	// host has not reported its disks yet, or reported "unknown", neither of which is grounds for touching the volume.
 	encrypted := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
 	if !encrypted || host.BitLockerProtectionStatus == nil ||
 		*host.BitLockerProtectionStatus != fleet.BitLockerProtectionStatusOff {
-		return false, nil
+		return false
 	}
 
 	// Where a startup PIN is required, policy forbids a TPM-only protector, so a host that has no PIN cannot be
 	// repaired by Fleet at all: only the end user can enrol one. Asking the agent anyway would fail on every config
 	// poll. Such hosts stay "Action required" until someone sets a PIN, which the existing status logic already
 	// reports independently of protection status.
-	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "getting disk encryption config")
-	}
 	if diskEncryption.BitLockerPINRequired && !host.TPMPINSet {
-		return false, nil
+		return false
 	}
 
-	return true, nil
+	return true
 }
 
 func (svc *Service) setDiskEncryptionNotifications(
@@ -1053,11 +1052,7 @@ func (svc *Service) setDiskEncryptionNotifications(
 			(needsEncryption || encryptedWithoutKey)
 
 		if !isServer && mdmInfo != nil && !notifs.EnforceBitLockerEncryption {
-			enable, err := svc.shouldEnableBitLockerProtection(ctx, host)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "deciding whether to restore bitlocker protection")
-			}
-			notifs.EnableBitLockerProtection = enable
+			notifs.EnableBitLockerProtection = shouldEnableBitLockerProtection(host, diskEncryption)
 		}
 	}
 
