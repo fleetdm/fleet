@@ -935,6 +935,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(false)
 	appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	appCfg.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+	appCfg.MDM.RequireBitLockerPIN = optjson.SetBool(false)
 	appCfg.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	// ensure enable release manually is false
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
@@ -2283,41 +2285,53 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() {
 	t := s.T()
 
+	// the deprecated flat toggle reads as the AND of the four per-platform
+	// settings; a legacy-only write fans out to all of them
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
-	// the deprecated flat toggle wins when provided: it fans out to every
-	// per-platform setting
+	// a per-platform change wins over an unchanged flat toggle sent alongside
+	// it: macOS enforcement turns on, the flat toggle still reads false (not
+	// all platforms are on) and the FileVault profile exists
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
-
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// without the flat toggle, macos_settings.enable_disk_encryption is the
-	// canonical macOS enforcement setting (no longer an alias of the flat
-	// toggle): it turns on macOS enforcement only, so the flat toggle (the AND
-	// of the per-platform settings) still reads false
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// new config takes precedence over old config again
+	// changing the flat toggle and a per-platform setting to disagreeing
+	// values in one request is a conflict
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enable_disk_encryption": true, "macos_settings": {"enable_disk_encryption": false} }
+  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// changing the flat toggle fans out to every per-platform setting, winning
+	// over per-platform values it does not change
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
+	  "mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// turning the flat toggle off turns everything off and removes the profile
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enable_disk_encryption": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
@@ -2344,55 +2358,65 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	// after creation, disk encryption is off
 	checkTeamDiskEncryption(false, false)
 
-	// the deprecated flat toggle wins when provided: it fans out to every
-	// per-platform setting
+	// a per-platform change wins over an unchanged flat toggle sent alongside it
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false, false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// without the flat toggle, macos_settings.enable_disk_encryption is the
-	// canonical macOS enforcement setting: it turns on macOS enforcement only,
-	// so the flat toggle (the AND of the per-platform settings) reads false
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	checkTeamDiskEncryption(false, true)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// the flat toggle wins again, resetting the macOS enforcement setting
+	// changing the flat toggle fans out over per-platform values it does not change
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	checkTeamDiskEncryption(false, true) // no change: same spec re-applied
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// changing the flat toggle and a per-platform setting to disagreeing
+	// values in one request is a conflict
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			EnableDiskEncryption: optjson.SetBool(true),
+			MacOSSettings:        map[string]any{"enable_disk_encryption": false},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// a legacy-only write fans out to all platforms
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			EnableDiskEncryption: optjson.SetBool(false),
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	checkTeamDiskEncryption(false, false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"custom_settings": []interface{}{"A", "B"}},
+			MacOSSettings:        map[string]any{"custom_settings": []any{"A", "B"}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	checkTeamDiskEncryption(false, false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
 
 func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
@@ -3049,6 +3073,191 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
 }
 
+// TestBitLockerPINRequiresWindowsDiskEncryption covers the fleet write paths
+// that previously persisted a PIN requirement without Windows disk encryption.
+func (s *integrationMDMTestSuite) TestBitLockerPINRequiresWindowsDiskEncryption() {
+	t := s.T()
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	team := createResp.Team
+
+	// PATCH the fleet: the PIN alone, with Windows disk encryption off
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// creating a fleet from a spec with the PIN but no Windows disk encryption
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t.Name() + "-created",
+		MDM:  fleet.TeamSpecMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// editing an existing fleet via spec, same story
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM:  fleet.TeamSpecMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// the PIN together with Windows disk encryption is accepted
+	s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(true),
+			WindowsSettings:     fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
+		},
+	}}}, http.StatusOK)
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	assert.True(t, teamResp.Team.Config.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, teamResp.Team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value)
+
+	// turning encryption off while the PIN stays required is rejected, blaming
+	// the encryption field
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				RequireBitLockerPIN: optjson.SetBool(true),
+			},
+			EnableDiskEncryption: optjson.SetBool(false),
+		},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+
+	// the disk_encryption endpoint reports the same validation failure as a 422
+	// rather than a server error
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		TeamID:          new(team.ID),
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(false)},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+}
+
+// TestBitLockerPINAliasConflict covers the deprecated windows_require_bitlocker_pin
+// key disagreeing with its canonical windows_settings home across write paths.
+func (s *integrationMDMTestSuite) TestBitLockerPINAliasConflict() {
+	t := s.T()
+	const conflictErr = "conflicts with mdm.windows_settings.require_bitlocker_pin"
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	team := createResp.Team
+
+	// global config: disagreeing values are rejected rather than silently
+	// resolved to one of them
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {
+	  "windows_require_bitlocker_pin": false,
+	  "windows_settings": {"enable_disk_encryption": true, "require_bitlocker_pin": true}
+	}}`), http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// agreeing values are accepted: a round-tripped document carries both
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {
+	  "windows_require_bitlocker_pin": true,
+	  "windows_settings": {"enable_disk_encryption": true, "require_bitlocker_pin": true}
+	}}`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, acResp.MDM.RequireBitLockerPIN.Value)
+
+	// PATCH the fleet
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				RequireBitLockerPIN: optjson.SetBool(true),
+			},
+		},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// editing a fleet from a spec
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings:     fleet.WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+		},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// creating a fleet from a spec
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t.Name() + "-created",
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings:     fleet.WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+		},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+}
+
+func (s *integrationMDMTestSuite) TestDiskEncryptionEndpointPerPlatform() {
+	t := s.T()
+
+	// a single per-platform object changes only that platform
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+	}, http.StatusNoContent)
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	// nil objects leave other platforms untouched
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		MacOSSettings: &fleet.MacOSDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+
+	// the deprecated flat toggle conflicts with a disagreeing per-platform value
+	res := s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		EnableDiskEncryption: new(true),
+		LinuxSettings:        &fleet.LinuxDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(false)},
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// the flat toggle with agreeing per-platform values fans out to all four
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		EnableDiskEncryption: new(true),
+		WindowsSettings:      &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.True(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// the BitLocker PIN is settable via its canonical windows_settings home,
+	// and the response mirrors the deprecated top-level key
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, acResp.MDM.RequireBitLockerPIN.Value)
+
+	// the deprecated PIN key conflicting with its canonical home is rejected
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		RequireBitLockerPIN: new(false),
+		WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with windows_settings.require_bitlocker_pin")
+}
+
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	t := s.T()
 
@@ -3105,7 +3314,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 
 	// use the MDM disk encryption endpoint to set it to true
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
@@ -3150,13 +3359,13 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 
 	// flip and verify the value
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -3508,7 +3717,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// use the MDM settings endpoint to set it to true
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
@@ -3534,7 +3743,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// use the MDM settings endpoint with an unknown team id
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(9999), EnableDiskEncryption: true}, http.StatusNotFound)
+		updateDiskEncryptionRequest{TeamID: new(uint(9999)), EnableDiskEncryption: new(true)}, http.StatusNotFound)
 
 	// mdm/apple/settings works for windows as well as it's being used by
 	// clients (UI) this way
@@ -3555,13 +3764,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// flip and verify the value
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: false}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
@@ -20451,7 +20660,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	require.NoError(t, err)
 
 	// first a quick stats check without disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20460,7 +20669,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
 
 	// enable disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20542,7 +20751,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	require.NoError(t, err)
 
 	// ensure disk encryption is disabled
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20573,7 +20782,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	}
 
 	// now turn disk encryption on
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)

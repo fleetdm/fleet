@@ -673,7 +673,7 @@ type MDMAppleEnableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint
 
 type MDMAppleDisableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint) error
 
-type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
+type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error
 
 type UpdateMDMHostNameTemplateFunc func(ctx context.Context, fleetID *uint, nameTemplate string) error
 
@@ -4757,11 +4757,11 @@ func (s *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID 
 	return s.MDMAppleDisableFileVaultAndEscrowFunc(ctx, teamID)
 }
 
-func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error {
+func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error {
 	s.mu.Lock()
 	s.UpdateMDMDiskEncryptionFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMDiskEncryptionFunc(ctx, teamID, enableDiskEncryption, requireBitLockerPIN)
+	return s.UpdateMDMDiskEncryptionFunc(ctx, teamID, payload)
 }
 
 func (s *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint, nameTemplate string) error {

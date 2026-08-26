@@ -286,6 +286,8 @@ type MDM struct {
 
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
+	// RequireBitLockerPIN is deprecated: use
+	// WindowsSettings.RequireBitLockerPIN, which it mirrors.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
@@ -322,6 +324,95 @@ type DiskEncryptionConfig struct {
 	LinuxEscrowEnabled bool
 }
 
+// MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
+// POST /disk_encryption. Nil fields mean "don't change".
+type MacOSDiskEncryptionSettingsPayload struct {
+	EnableDiskEncryption          *bool `json:"enable_disk_encryption"`
+	EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// WindowsDiskEncryptionSettingsPayload is the windows_settings object accepted
+// by POST /disk_encryption. Nil fields mean "don't change".
+type WindowsDiskEncryptionSettingsPayload struct {
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  *bool `json:"require_bitlocker_pin"`
+}
+
+// LinuxDiskEncryptionSettingsPayload is the linux_settings object accepted by
+// POST /disk_encryption. Nil fields mean "don't change".
+type LinuxDiskEncryptionSettingsPayload struct {
+	EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// MDMDiskEncryptionSettingsPayload carries a POST /disk_encryption update
+// through the service layer. The deprecated flat EnableDiskEncryption fans out
+// to every per-platform setting; ResolvePerPlatform applies the fan-out and
+// conflict rules and returns the effective per-platform values.
+type MDMDiskEncryptionSettingsPayload struct {
+	// EnableDiskEncryption is deprecated: when set it applies to all platforms.
+	EnableDiskEncryption *bool
+	RequireBitLockerPIN  *bool
+	MacOSSettings        *MacOSDiskEncryptionSettingsPayload
+	WindowsSettings      *WindowsDiskEncryptionSettingsPayload
+	LinuxSettings        *LinuxDiskEncryptionSettingsPayload
+}
+
+// DiskEncryptionSettingsChanges holds the effective per-platform disk
+// encryption values of a settings write. Nil means "leave unchanged".
+type DiskEncryptionSettingsChanges struct {
+	MacOSEnable   *bool
+	MacOSEscrow   *bool
+	WindowsEnable *bool
+	LinuxEscrow   *bool
+}
+
+// ResolveBitLockerPIN resolves the deprecated windows_require_bitlocker_pin
+// field against its canonical windows_settings.require_bitlocker_pin home:
+// both may be sent when they agree, and the canonical one wins.
+func (p MDMDiskEncryptionSettingsPayload) ResolveBitLockerPIN() (*bool, error) {
+	if p.WindowsSettings == nil || p.WindowsSettings.RequireBitLockerPIN == nil {
+		return p.RequireBitLockerPIN, nil
+	}
+	if p.RequireBitLockerPIN != nil && *p.RequireBitLockerPIN != *p.WindowsSettings.RequireBitLockerPIN {
+		return nil, NewInvalidArgumentError(
+			"windows_require_bitlocker_pin", "conflicts with windows_settings.require_bitlocker_pin",
+		)
+	}
+	return p.WindowsSettings.RequireBitLockerPIN, nil
+}
+
+// ResolvePerPlatform applies the deprecated-key fan-out and conflict rules:
+// the legacy flat value fans out to every per-platform setting, and any
+// per-platform value explicitly sent alongside it must agree with it.
+func (p MDMDiskEncryptionSettingsPayload) ResolvePerPlatform() (DiskEncryptionSettingsChanges, error) {
+	var changes DiskEncryptionSettingsChanges
+	if p.MacOSSettings != nil {
+		changes.MacOSEnable = p.MacOSSettings.EnableDiskEncryption
+		changes.MacOSEscrow = p.MacOSSettings.EnableEscrowDiskEncryptionKey
+	}
+	if p.WindowsSettings != nil {
+		changes.WindowsEnable = p.WindowsSettings.EnableDiskEncryption
+	}
+	if p.LinuxSettings != nil {
+		changes.LinuxEscrow = p.LinuxSettings.EnableEscrowDiskEncryptionKey
+	}
+	if p.EnableDiskEncryption != nil {
+		legacy := *p.EnableDiskEncryption
+		for _, v := range []*bool{changes.MacOSEnable, changes.MacOSEscrow, changes.WindowsEnable, changes.LinuxEscrow} {
+			if v != nil && *v != legacy {
+				return DiskEncryptionSettingsChanges{}, NewInvalidArgumentError(
+					"enable_disk_encryption", "conflicts with per-platform disk encryption settings",
+				)
+			}
+		}
+		changes.MacOSEnable = &legacy
+		changes.MacOSEscrow = &legacy
+		changes.WindowsEnable = &legacy
+		changes.LinuxEscrow = &legacy
+	}
+	return changes, nil
+}
+
 // DiskEncryptionSettingsAllEnabled returns the AND of the four per-platform
 // disk encryption settings — the value the deprecated flat
 // mdm.enable_disk_encryption key reports.
@@ -339,9 +430,57 @@ func (m *MDM) DiskEncryptionConfig() DiskEncryptionConfig {
 		MacOSEnabled:         m.MacOSSettings.EnableDiskEncryption.Value,
 		MacOSEscrowEnabled:   m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
 		WindowsEnabled:       m.WindowsSettings.EnableDiskEncryption.Value,
-		BitLockerPINRequired: m.RequireBitLockerPIN.Value,
+		BitLockerPINRequired: m.BitLockerPINRequired(),
 		LinuxEscrowEnabled:   m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
 	}
+}
+
+// ResolveBitLockerPINAlias resolves the deprecated windows_require_bitlocker_pin
+// key against its canonical windows_settings.require_bitlocker_pin home for the
+// config and fleet-spec shapes. Both keys may be sent when they agree, and the
+// canonical one is authoritative; disagreeing values are rejected.
+//
+// This is stricter than the deprecated mdm.enable_disk_encryption toggle, which
+// resolves by which value the request changed: that toggle is derived from the
+// four per-platform settings, so a round-tripped document always carries a value
+// that may legitimately disagree with a per-platform edit. This pair is always
+// mirrored, so a disagreement can only be a contradiction.
+//
+// The returned value is invalid when neither key carries one, meaning "leave the
+// stored value alone".
+func ResolveBitLockerPINAlias(deprecated, canonical optjson.Bool) (optjson.Bool, error) {
+	if canonical.Valid && deprecated.Valid && canonical.Value != deprecated.Value {
+		return optjson.Bool{}, NewInvalidArgumentError("mdm.windows_require_bitlocker_pin",
+			"conflicts with mdm.windows_settings.require_bitlocker_pin")
+	}
+	if canonical.Valid {
+		return canonical, nil
+	}
+	return deprecated, nil
+}
+
+// BitLockerPINRequirementError reports requiring a BitLocker PIN while Windows
+// disk encryption is off, returning the offending field and message, or empty
+// strings when the pair is valid. Turning encryption off blames the encryption
+// field; turning the PIN on blames the PIN field.
+func BitLockerPINRequirementError(oldWindowsEnabled bool, cfg DiskEncryptionConfig) (field, msg string) {
+	if !cfg.BitLockerPINRequired || cfg.WindowsEnabled {
+		return "", ""
+	}
+	if oldWindowsEnabled {
+		return "mdm.windows_settings.enable_disk_encryption", CantDisableDiskEncryptionIfPINRequiredErrMsg
+	}
+	return "mdm.windows_settings.require_bitlocker_pin", CantEnablePINRequiredIfDiskEncryptionEnabled
+}
+
+// BitLockerPINRequired returns the effective BitLocker PIN requirement: the
+// canonical windows_settings.require_bitlocker_pin when set, falling back to
+// the deprecated top-level key.
+func (m *MDM) BitLockerPINRequired() bool {
+	if m.WindowsSettings.RequireBitLockerPIN.Valid {
+		return m.WindowsSettings.RequireBitLockerPIN.Value
+	}
+	return m.RequireBitLockerPIN.Value
 }
 
 // normalizeDiskEncryptionSettings makes every serialization (API responses,
@@ -359,6 +498,23 @@ func (m *MDM) normalizeDiskEncryptionSettings() {
 		&m.LinuxSettings.EnableEscrowDiskEncryptionKey,
 	)
 	m.EnableDiskEncryption = optjson.SetBool(flat)
+	m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN = normalizeBitLockerPINFields(
+		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN)
+}
+
+// normalizeBitLockerPINFields keeps the deprecated windows_require_bitlocker_pin
+// key and its canonical windows_settings.require_bitlocker_pin home in sync on
+// serialization: the canonical value wins when set, the deprecated one fills in
+// otherwise, and both default to explicit false.
+func normalizeBitLockerPINFields(deprecated, canonical optjson.Bool) (optjson.Bool, optjson.Bool) {
+	switch {
+	case canonical.Valid:
+		return optjson.SetBool(canonical.Value), canonical
+	case deprecated.Valid:
+		return deprecated, optjson.SetBool(deprecated.Value)
+	default:
+		return optjson.SetBool(false), optjson.SetBool(false)
+	}
 }
 
 // normalizeDiskEncryptionFields is the virtual-flat-key rule shared by
@@ -1457,6 +1613,11 @@ func (c *AppConfig) assignDeprecatedFields() {
 			}
 		}
 	}
+	// the BitLocker PIN's canonical home inherits the deprecated top-level key
+	// the same way when absent from the document
+	if !c.MDM.WindowsSettings.RequireBitLockerPIN.Set && c.MDM.RequireBitLockerPIN.Valid {
+		c.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(c.MDM.RequireBitLockerPIN.Value)
+	}
 
 	// ensure the legacy configs are always nil
 	c.DeprecatedHostSettings = nil
@@ -2293,6 +2454,10 @@ type WindowsSettings struct {
 
 	// EnableDiskEncryption enforces BitLocker on Windows hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	// RequireBitLockerPIN requires end users on Windows hosts to set a
+	// BitLocker PIN. Requires EnableDiskEncryption.
+	RequireBitLockerPIN optjson.Bool `json:"require_bitlocker_pin"`
 }
 
 // LinuxSettings contains MDM-related settings specific to Linux hosts.
