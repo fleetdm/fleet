@@ -1,6 +1,9 @@
 package tables
 
 import (
+	"database/sql"
+	"fmt"
+
 	"crypto/md5" //nolint:gosec // matches the software checksum hash, not used for security
 	"strings"
 	"testing"
@@ -49,6 +52,15 @@ func TestUp_20260810160000(t *testing.T) {
 	execNoErr(t, db,
 		`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (2, ?, '/opt/homebrew/Cellar/giflib')`,
 		giflibStale)
+	// Host 2's link carries a last_opened_at that must survive the repoint, and both rows
+	// carry the derived/vuln rows the merge has to clean up on the duplicate only.
+	execNoErr(t, db, `UPDATE host_software SET last_opened_at = '2026-01-02 03:04:05' WHERE host_id = 2 AND software_id = ?`, giflibStale)
+	for _, id := range []int64{giflibCanon, giflibStale} {
+		execNoErr(t, db, `INSERT INTO software_cve (software_id, cve) VALUES (?, 'CVE-2024-45993')`, id)
+		execNoErr(t, db, `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`, id, fmt.Sprintf("cpe-%d", id))
+		execNoErr(t, db, `INSERT INTO software_host_counts (software_id, hosts_count, team_id, global_stats) VALUES (?, 1, 0, 1)`, id)
+		execNoErr(t, db, `INSERT INTO kernel_host_counts (software_id, os_version_id, team_id, hosts_count) VALUES (?, ?, 0, 1)`, id, id)
+	}
 
 	// 2. Lone legacy row (no twin yet): must be recomputed to canonical so it can't
 	//    re-duplicate when its host reports again.
@@ -127,6 +139,21 @@ func TestUp_20260810160000(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT software_id FROM host_software_installed_paths WHERE host_id=2 AND installed_path='/opt/homebrew/Cellar/giflib'`).Scan(&pathSWID))
 	require.Equal(t, giflibID, pathSWID)
 
+	// The duplicate's derived rows are gone and the survivor's are intact, and the
+	// repointed link kept its last_opened_at.
+	countFor := func(table string, id int64) int {
+		var n int
+		require.NoError(t, db.QueryRow(fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE software_id = ?`, table), id).Scan(&n))
+		return n
+	}
+	for _, table := range []string{"software_cve", "software_cpe", "software_host_counts", "kernel_host_counts"} {
+		require.Zerof(t, countFor(table, giflibStale), "%s rows for the duplicate should be deleted", table)
+		require.Equalf(t, 1, countFor(table, giflibCanon), "%s rows for the survivor should be kept", table)
+	}
+	var lastOpened sql.NullString
+	require.NoError(t, db.QueryRow(`SELECT last_opened_at FROM host_software WHERE host_id = 2 AND software_id = ?`, giflibID).Scan(&lastOpened))
+	require.True(t, lastOpened.Valid, "repointed link should keep last_opened_at")
+
 	// 2. Lone legacy row: same row kept, checksum recomputed to canonical, host retained.
 	require.Equal(t, 1, countSW("zlib", "1.0"))
 	zlibID, zlibCk := getOne("zlib", "1.0")
@@ -165,4 +192,99 @@ func TestUp_20260810160000(t *testing.T) {
 		require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software WHERE id=?`, staleID).Scan(&n))
 		require.Zerof(t, n, "stale row %d should be deleted", staleID)
 	}
+}
+
+// The migration merges rows that share a checksum identity, so the dangerous direction is
+// over-merging: if a column that feeds the checksum were dropped from the partition key,
+// genuinely different software would be collapsed into one row and host data lost. Assert
+// that rows differing in exactly one identity column are always left alone, and that the
+// NULL/” handling for the optional columns matches ComputeRawChecksum.
+func TestUp_20260810160000_DoesNotMergeDistinctSoftware(t *testing.T) {
+	db := applyUpToPrev(t)
+
+	base := map[string]any{
+		"name": "base", "version": "1.0", "source": "deb_packages",
+		"bundle_identifier": "com.example", "release": "1", "arch": "amd64",
+		"vendor": "vendorA", "extension_for": "chrome", "extension_id": "extA",
+		"application_id": "app-a", "upgrade_code": "upgrade-a",
+	}
+	cols := []string{
+		"name", "version", "source", "bundle_identifier", "release", "arch",
+		"vendor", "extension_for", "extension_id", "application_id", "upgrade_code",
+	}
+	insert := func(row map[string]any, checksum string) int64 {
+		args := make([]any, 0, len(cols)+1)
+		for _, c := range cols {
+			args = append(args, row[c])
+		}
+		sum := md5.Sum([]byte(checksum)) //nolint:gosec // arbitrary distinct checksum
+		args = append(args, sum[:])
+		return execNoErrLastID(t, db,
+			"INSERT INTO software (name, version, source, bundle_identifier, `release`, arch, vendor, "+
+				"extension_for, extension_id, application_id, upgrade_code, checksum) "+
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", args...)
+	}
+	exists := func(id int64) bool {
+		var n int
+		require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software WHERE id = ?`, id).Scan(&n))
+		return n == 1
+	}
+
+	// One pair per identity column, each differing only in that column.
+	pairs := make(map[string][2]int64, len(cols))
+	for _, col := range cols {
+		a := map[string]any{}
+		for k, v := range base {
+			a[k] = v
+		}
+		a["name"] = "distinct-" + col // keep each pair in its own identity group
+		b := map[string]any{}
+		for k, v := range a {
+			b[k] = v
+		}
+		b[col] = a[col].(string) + "-variant"
+		pairs[col] = [2]int64{insert(a, "a-"+col), insert(b, "b-"+col)}
+	}
+
+	// NULL and '' are equivalent for the optional columns, so these two ARE duplicates.
+	nullish := map[string]any{}
+	for k, v := range base {
+		nullish[k] = v
+	}
+	nullish["name"] = "nullish"
+	nullish["application_id"], nullish["upgrade_code"] = nil, nil
+	emptyish := map[string]any{}
+	for k, v := range nullish {
+		emptyish[k] = v
+	}
+	emptyish["application_id"], emptyish["upgrade_code"] = "", ""
+	nullID, emptyID := insert(nullish, "nullish"), insert(emptyish, "emptyish")
+
+	applyNext(t, db)
+
+	for _, col := range cols {
+		require.Truef(t, exists(pairs[col][0]), "rows differing only in %q must not be merged", col)
+		require.Truef(t, exists(pairs[col][1]), "rows differing only in %q must not be merged", col)
+	}
+
+	var nullishRows int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software WHERE name = 'nullish'`).Scan(&nullishRows))
+	require.Equal(t, 1, nullishRows, "NULL and '' optional columns are the same identity and must merge")
+	require.True(t, exists(nullID) != exists(emptyID), "exactly one of the pair survives")
+}
+
+// A fresh install has no software at all. The merge step must be skipped (a zero total)
+// and the recompute must cope with MAX(id) being NULL rather than erroring or looping.
+func TestUp_20260810160000_EmptySoftwareTable(t *testing.T) {
+	db := applyUpToPrev(t)
+
+	execNoErr(t, db, `DELETE FROM software`)
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software`).Scan(&count))
+	require.Zero(t, count, "fixture should start with an empty software table")
+
+	applyNext(t, db)
+
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software`).Scan(&count))
+	require.Zero(t, count)
 }
