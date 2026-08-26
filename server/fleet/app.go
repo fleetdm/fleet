@@ -444,9 +444,9 @@ func BitLockerPINRequirementError(oldWindowsEnabled bool, cfg DiskEncryptionConf
 		return "", ""
 	}
 	if oldWindowsEnabled {
-		return "mdm.enable_disk_encryption", CantDisableDiskEncryptionIfPINRequiredErrMsg
+		return "mdm.windows_settings.enable_disk_encryption", CantDisableDiskEncryptionIfPINRequiredErrMsg
 	}
-	return "mdm.windows_require_bitlocker_pin", CantEnablePINRequiredIfDiskEncryptionEnabled
+	return "mdm.windows_settings.require_bitlocker_pin", CantEnablePINRequiredIfDiskEncryptionEnabled
 }
 
 // BitLockerPINRequired returns the effective BitLocker PIN requirement: the

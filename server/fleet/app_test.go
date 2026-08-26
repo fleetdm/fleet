@@ -1139,14 +1139,14 @@ func TestBitLockerPINRequirementError(t *testing.T) {
 		{
 			name:      "enabling the PIN without encryption blames the PIN field",
 			cfg:       DiskEncryptionConfig{BitLockerPINRequired: true},
-			wantField: "mdm.windows_require_bitlocker_pin",
+			wantField: "mdm.windows_settings.require_bitlocker_pin",
 			wantMsg:   CantEnablePINRequiredIfDiskEncryptionEnabled,
 		},
 		{
 			name:              "disabling encryption while the PIN is required blames the encryption field",
 			oldWindowsEnabled: true,
 			cfg:               DiskEncryptionConfig{BitLockerPINRequired: true},
-			wantField:         "mdm.enable_disk_encryption",
+			wantField:         "mdm.windows_settings.enable_disk_encryption",
 			wantMsg:           CantDisableDiskEncryptionIfPINRequiredErrMsg,
 		},
 	} {
