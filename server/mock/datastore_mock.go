@@ -576,8 +576,6 @@ type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
-type ReconcileSoftwareChecksumsFunc func(ctx context.Context) error
-
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
@@ -2048,6 +2046,8 @@ type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Ho
 
 type InsertMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
+type GetMDMAndroidCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
+
 type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
 
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
@@ -3186,9 +3186,6 @@ type DataStore struct {
 
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
-
-	ReconcileSoftwareChecksumsFunc        ReconcileSoftwareChecksumsFunc
-	ReconcileSoftwareChecksumsFuncInvoked bool
 
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
@@ -5394,6 +5391,9 @@ type DataStore struct {
 
 	InsertMDMAndroidCommandFunc        InsertMDMAndroidCommandFunc
 	InsertMDMAndroidCommandFuncInvoked bool
+
+	GetMDMAndroidCommandResultsFunc        GetMDMAndroidCommandResultsFunc
+	GetMDMAndroidCommandResultsFuncInvoked bool
 
 	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
 	ClearHostMDMActionsFuncInvoked bool
@@ -7793,13 +7793,6 @@ func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.
 	s.SyncHostsSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
-}
-
-func (s *DataStore) ReconcileSoftwareChecksums(ctx context.Context) error {
-	s.mu.Lock()
-	s.ReconcileSoftwareChecksumsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ReconcileSoftwareChecksumsFunc(ctx)
 }
 
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
@@ -12945,6 +12938,13 @@ func (s *DataStore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MD
 	s.InsertMDMAndroidCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMAndroidCommandFunc(ctx, cmd)
+}
+
+func (s *DataStore) GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
 func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {

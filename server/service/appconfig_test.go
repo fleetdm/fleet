@@ -926,6 +926,16 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
 			},
 		},
+		{
+			name:             "enabling SSO on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{SSOEnabled: true},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "sso_enabled", "reason": "missing or invalid license"},
+			},
+		},
 	}
 
 	for _, tt := range testCases {
@@ -980,11 +990,13 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			if modified != nil {
 				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
 				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
+				require.Equal(t, tt.expectedSettings.SSOEnabled, modified.FleetDesktop.SSOEnabled)
 
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
 				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
+				require.Equal(t, tt.expectedSettings.SSOEnabled, ac.FleetDesktop.SSOEnabled)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL
@@ -1007,6 +1019,131 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			require.Equal(t, expectedSecureframeURL, transparencyURL)
 		})
 	}
+}
+
+func TestModifyAppConfigFleetDesktopSSOActivities(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	configuredIdP := fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+		IDPName:     "Test IdP",
+		EntityID:    "https://idp.example.com/entity",
+		MetadataURL: "https://idp.example.com/metadata",
+	}}
+
+	newSvc := func(t *testing.T, licenseTier string, initialSSOEnabled bool, initialIdP fleet.MDMEndUserAuthentication) (
+		fleet.Service, context.Context, *fleet.AppConfig, *[]string,
+	) {
+		ds := new(mock.Store)
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			FleetDesktop:   fleet.FleetDesktopSettings{SSOEnabled: initialSSOEnabled},
+		}
+		dsAppConfig.MDM.EndUserAuthentication = initialIdP
+
+		// AppConfigFunc must return a fresh copy each call: ModifyAppConfig
+		// mutates the struct it reads in place while validating, even on
+		// requests that ultimately fail, so returning the same pointer would
+		// leak those in-progress mutations into dsAppConfig on error paths.
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig.Copy(), nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) { return nil, nil }
+		// Changing MDM.EndUserAuthentication triggers a DEP profile re-sync job.
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: licenseTier}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		var firedActivities []string
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			firedActivities = append(firedActivities, act.ActivityName())
+			return nil
+		}
+
+		return svc, ctx, dsAppConfig, &firedActivities
+	}
+
+	t.Run("premium enabling SSO and IdP in the same payload succeeds", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, false, fleet.MDMEndUserAuthentication{})
+
+		raw, err := json.Marshal(map[string]any{
+			"fleet_desktop": fleet.FleetDesktopSettings{SSOEnabled: true},
+			"mdm":           map[string]any{"end_user_authentication": configuredIdP},
+		})
+		require.NoError(t, err)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, modified.FleetDesktop.SSOEnabled)
+		require.True(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Equal(t, []string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
+	})
+
+	t.Run("disabling SSO fires the disabled activity", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+
+		raw := []byte(`{"fleet_desktop":{"sso_enabled":false}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Equal(t, []string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
+	})
+
+	t.Run("reasserting the same value fires no activity", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+
+		raw := []byte(`{"fleet_desktop":{"sso_enabled":true}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, modified.FleetDesktop.SSOEnabled)
+		require.True(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Empty(t, *firedActivities)
+	})
+
+	t.Run("free tier downgrade resets the stored value and fires the disabled activity", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierFree, true, configuredIdP)
+
+		raw := []byte(`{"org_info":{"org_name":"Renamed"}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Equal(t, "Renamed", dsAppConfig.OrgInfo.OrgName)
+		require.Equal(t, []string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
+	})
+
+	t.Run("gitops omitting sso_enabled turns it off", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+		dsAppConfig.FleetDesktop.TransparencyURL = "https://kept.example.com"
+
+		raw := []byte(`{"org_info":{"org_name":"Test"}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{Overwrite: true})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		// Overwrite also replaces Features, which emits its own activities here,
+		// so assert on the SSO ones rather than the whole list.
+		require.Contains(t, *firedActivities, fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName())
+		require.NotContains(t, *firedActivities, fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName())
+		// The reset is scoped to sso_enabled: siblings still preserve on omit.
+		require.Equal(t, "https://kept.example.com", dsAppConfig.FleetDesktop.TransparencyURL)
+	})
+
+	t.Run("free tier reset fires no activity when already disabled", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierFree, false, fleet.MDMEndUserAuthentication{})
+
+		raw := []byte(`{"org_info":{"org_name":"Renamed"}}`)
+		_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Empty(t, *firedActivities)
+	})
 }
 
 // TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
@@ -1228,6 +1365,7 @@ func TestMDMConfig(t *testing.T) {
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+				RequireBitLockerPIN:         optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -1473,12 +1611,16 @@ func TestMDMConfig(t *testing.T) {
 		{
 			name:        "try to disable disk encryption with TPM PIN enabled",
 			licenseTier: "premium",
+			// validateMDM sees the merged config, where a flat toggle write has
+			// already fanned out to the per-platform fields
 			oldMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			newMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(false),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(false)},
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
@@ -1501,10 +1643,12 @@ func TestMDMConfig(t *testing.T) {
 			licenseTier: "premium",
 			oldMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
 				RequireBitLockerPIN:  optjson.SetBool(false),
 			},
 			newMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(false),
+				WindowsSettings:      fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(false)},
 				RequireBitLockerPIN:  optjson.SetBool(true),
 			},
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
@@ -3735,6 +3879,119 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			}
 			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsEnrollment.Value.DefaultFleet,
 				"the app config JSON must store the canonical fleet name")
+		})
+	}
+}
+
+func TestDiskEncryptionPrecedence(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	// stored state: windows on, everything else off (the flat toggle reads as
+	// the AND of the four, so it's false)
+	mixedStored := func() fleet.MDM {
+		return fleet.MDM{
+			EnableDiskEncryption: optjson.SetBool(false),
+			MacOSSettings: fleet.MacOSSettings{
+				EnableDiskEncryption:          optjson.SetBool(false),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+			WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
+			LinuxSettings:   fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)},
+		}
+	}
+	allOff := func() fleet.MDM {
+		m := mixedStored()
+		m.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+		return m
+	}
+
+	for _, tc := range []struct {
+		name          string
+		stored        fleet.MDM
+		payload       string
+		expectedError string
+		check         func(t *testing.T, mdm fleet.MDM)
+	}{
+		{
+			name:   "changing flat and per-platform to disagreeing values conflicts",
+			stored: mixedStored(),
+			payload: `{"mdm": {"enable_disk_encryption": true,
+				"windows_settings": {"enable_disk_encryption": false}}}`,
+			expectedError: "conflicts with per-platform disk encryption settings",
+		},
+		{
+			name:   "per-platform change wins over an unchanged flat toggle",
+			stored: allOff(),
+			payload: `{"mdm": {"enable_disk_encryption": false,
+				"windows_settings": {"enable_disk_encryption": true}}}`,
+			check: func(t *testing.T, mdm fleet.MDM) {
+				require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+				require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+				require.False(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+				require.False(t, mdm.EnableDiskEncryption.Value)
+			},
+		},
+		{
+			name:   "changed flat toggle wins over restated per-platform values",
+			stored: mixedStored(),
+			payload: `{"mdm": {"enable_disk_encryption": true,
+				"windows_settings": {"enable_disk_encryption": true}}}`,
+			check: func(t *testing.T, mdm fleet.MDM) {
+				require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+				require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+				require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+				require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+				require.True(t, mdm.EnableDiskEncryption.Value)
+			},
+		},
+		{
+			name:    "flat toggle alone fans out over a mixed stored state",
+			stored:  mixedStored(),
+			payload: `{"mdm": {"enable_disk_encryption": false}}`,
+			check: func(t *testing.T, mdm fleet.MDM) {
+				require.False(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+				require.False(t, mdm.EnableDiskEncryption.Value)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			cfg := config.TestConfig()
+			cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				MDM:            tc.stored,
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				return nil, sql.ErrNoRows
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			tc.check(t, modified.MDM)
+			tc.check(t, dsAppConfig.MDM)
 		})
 	}
 }

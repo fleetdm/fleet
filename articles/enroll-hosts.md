@@ -174,6 +174,20 @@ In the Google Admin console:
 
 > The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
+## Delete a host
+
+Deleting a host removes it from Fleet. It does not unenroll the device or change anything in Apple Business (AB). The MDM enrollment and the management profile stay on the device. The device also stays assigned to Fleet in AB.
+
+Because that assignment is still in place, deleting a host assigned to Fleet in AB brings it straight back as a **Pending** host. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet. If Fleet can't reach AB to check the assignment, the delete fails. Retry once AB is reachable.
+
+Deleting a host also cancels its upcoming activities and removes Fleet's record of the MDM commands it has already sent. Delete a host while a wipe or another command is still in flight, and Fleet can no longer report whether that command completed.
+
+To decommission a host:
+
+1. Unenroll or [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) in Fleet, and confirm it finished.
+2. For Apple hosts, release or reassign the device in AB.
+3. Delete the host in Fleet.
+
 ## Debugging
 
 If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. See our [troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) for more info.

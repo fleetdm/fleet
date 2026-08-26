@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.123.1",
+      "version": "1.124.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd' AND version_compare(version, '1.123.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd' AND version_compare(version, '1.124.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'canva.exe');"
       },
-      "installer_url": "https://desktop-release.canva.com/Canva%20Setup%201.123.1.exe",
+      "installer_url": "https://desktop-release.canva.com/Canva%20Setup%201.124.0.exe",
       "install_script_ref": "af334744",
       "uninstall_script_ref": "f683286d",
-      "sha256": "e7851e3f4656075bc61f5fb5a9b1c22fa2acb3a8038f7fbada118bf6c6b33710",
+      "sha256": "0ff6a6da02e984c108c322a2848baa4c61077afd8d39d8d678c138f9633cec46",
       "default_categories": [
         "Productivity"
       ]

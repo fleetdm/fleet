@@ -491,9 +491,10 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{
-			LastMDMEnrollmentTime: &ts1,
-			LastMDMSeenTime:       &ts2,
-			HardwareAttested:      false,
+			LastMDMEnrollmentTime:  &ts1,
+			LastMDMSeenTime:        &ts2,
+			HardwareAttested:       false,
+			BootstrapTokenEscrowed: true,
 		}, nil
 	}
 
@@ -532,6 +533,12 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				assert.False(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
+			}
+			if testcase.platform == "darwin" {
+				require.NotNil(t, hostDetail.MDM.BootstrapTokenEscrowed)
+				assert.True(t, *hostDetail.MDM.BootstrapTokenEscrowed)
+			} else {
+				assert.Nil(t, hostDetail.MDM.BootstrapTokenEscrowed)
 			}
 		})
 	}
@@ -5002,13 +5009,25 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 				ctx = capabilities.NewContext(ctx, &r)
 			}
 
+			// "configured" means configured for every platform; per-platform
+			// gating has its own cases below the table-driven run
+			var diskEncryption fleet.DiskEncryptionConfig
+			if tt.diskEncryptionConfigured {
+				diskEncryption = fleet.DiskEncryptionConfig{
+					MacOSEnabled:       true,
+					MacOSEscrowEnabled: true,
+					WindowsEnabled:     true,
+					LinuxEscrowEnabled: true,
+				}
+			}
+
 			notifs := &fleet.OrbitConfigNotifications{}
 			err := svc.setDiskEncryptionNotifications(
 				ctx,
 				notifs,
 				tt.host,
 				tt.appConfig,
-				tt.diskEncryptionConfigured,
+				diskEncryption,
 				tt.isConnectedToFleetMDM,
 				tt.mdmInfo,
 			)
@@ -5021,6 +5040,47 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
+
+	t.Run("notifications follow the host platform's setting, not the aggregate", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return nil, newNotFoundError()
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+
+		windowsHost := &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")}
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// only Windows configured: the Windows host is notified even though the
+		// aggregate (AND of the four settings) is off
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.EnforceBitLockerEncryption)
+
+		// only macOS configured: the Windows host is not notified
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.EnforceBitLockerEncryption)
+
+		// only Windows configured: the macOS host's key-fetch path is skipped
+		// entirely, so no rotation is requested
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
 }
 
 func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {

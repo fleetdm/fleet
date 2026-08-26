@@ -2550,6 +2550,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil
 	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
 
 	testing_utils.StartSoftwareInstallerServer(t)
 
@@ -9336,8 +9342,7 @@ policies:
   - name: Resend policy
     query: "SELECT 1"
     platform: darwin
-    resend_configuration_profile:
-      name: %s
+    resend_configuration_profile: %s
   - name: Plain policy
     query: "SELECT 2"
 `, profilePath, macProfileName), 0o600))

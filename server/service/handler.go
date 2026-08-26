@@ -949,18 +949,38 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
 
+	// Rate limiters shared across the login/SSO endpoints.
+	limiter := ratelimit.NewMiddleware(limitStore)
+
+	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
+	// own rate limit bucket.
+	loginRateLimit := throttled.PerMin(10)
+	if extra.loginRateLimit != nil {
+		loginRateLimit = *extra.loginRateLimit
+	}
+	loginLimiter := limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})
+	mdmSsoLimiter := loginLimiter
+	if extra.mdmSsoRateLimit != nil {
+		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
+	}
+	// The SSO callback gets its own dedicated bucket (separate from the login
+	// bucket) so a flood on the unauthenticated callback can't exhaust the
+	// rate-limit budget that legitimate password logins depend on. The rate
+	// defaults to the login rate unless explicitly overridden.
+	ssoRateLimit := loginRateLimit
+	if extra.ssoRateLimit != nil {
+		ssoRateLimit = *extra.ssoRateLimit
+	}
+	ssoLimiter := limiter.Limit("sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
+
 	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
-	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
-	de.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	// Deprecated: Device mapping data is now included in host details endpoint
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
-	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
-	de.WithCustomMiddleware(errorLimiter).WithRequestBodySizeLimit(fleet.MaxFleetdErrorReportSize).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install_all", submitSelfServiceSoftwareInstallAll, fleetSelfServiceSoftwareInstallAllRequest{})
@@ -973,12 +993,34 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+
+	// Endpoints exempt from the Fleet Desktop SSO gate.
+	deNoSSO := newDeviceSSOExemptEndpointer(svc, logger, opts, r, apiVersions...)
+	deNoSSO.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).WithRequestBodySizeLimit(fleet.MaxFleetdErrorReportSize).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
+	// Device-authenticated, so unlike the unauthenticated SSO routes this needs no
+	// pre-auth flood guard. It is quota-limited for amplification instead: each
+	// successful call refetches the IdP metadata, so one leaked device token could
+	// drive sustained outbound traffic at the customer's IdP from Fleet's own IP,
+	// and errorLimiter cannot see it because those requests succeed. Own bucket so
+	// device traffic cannot exhaust the budget logins and enrollments depend on,
+	// at the same rate as the other end-user-facing SSO path, so
+	// auth.sso_rate_limit_per_minute tunes both.
+	deviceSsoLimiter := limiter.Limit("device_sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
+	deNoSSO.WithCustomMiddleware(errorLimiter, deviceSsoLimiter).POST("/api/_version_/fleet/device/{token}/sso", initiateDeviceSSOEndpoint, initiateDeviceSSORequest{})
+	// migrate_mdm is posted by the tray app's "Migrate to Fleet" dialog with the
+	// device token alone (orbit/pkg/useraction -> DeviceClient.MigrateMDM), and it
+	// has no browser to complete an IdP round-trip in.
+	deNoSSOmdm := deNoSSO.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	deNoSSOmdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
+
 	// Device authenticated, Apple MDM endpoints.
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
-	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
 	// host-authenticated endpoints
 	//
@@ -1210,32 +1252,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	)
 	ne.WithCustomMiddleware(orgLogoLimiter).
 		GET("/api/_version_/fleet/logo", getOrgLogoEndpoint, getOrgLogoRequest{})
-
-	// Rate limiters shared across the login/SSO endpoints. These are defined
-	// here (ahead of the password-login registrations below) so the
-	// unauthenticated SSO callback can reuse the same login bucket.
-	limiter := ratelimit.NewMiddleware(limitStore)
-
-	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
-	// own rate limit bucket.
-	loginRateLimit := throttled.PerMin(10)
-	if extra.loginRateLimit != nil {
-		loginRateLimit = *extra.loginRateLimit
-	}
-	loginLimiter := limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})
-	mdmSsoLimiter := loginLimiter
-	if extra.mdmSsoRateLimit != nil {
-		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
-	}
-	// The SSO callback gets its own dedicated bucket (separate from the login
-	// bucket) so a flood on the unauthenticated callback can't exhaust the
-	// rate-limit budget that legitimate password logins depend on. The rate
-	// defaults to the login rate unless explicitly overridden.
-	ssoRateLimit := loginRateLimit
-	if extra.ssoRateLimit != nil {
-		ssoRateLimit = *extra.ssoRateLimit
-	}
-	ssoLimiter := limiter.Limit("sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
 
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	// The SSO callback is unauthenticated and internet-reachable. Rate-limit it
@@ -1642,12 +1658,35 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os version
 		di := r.Header.Get("x-apple-aspen-deviceinfo")
 		if di != "" {
-			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+			parsed, p7, err := apple_mdm.ParseDeviceinfo(di)
 			if err != nil {
-				// just log the error and continue to next
-				logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo", "err", err)
+				if apple_mdm.MachineInfoVerificationEnabled() {
+					// a present-but-unparseable header can't be verified; reject
+					// it in enforce mode rather than letting it through
+					logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo failed, rejecting request", "err", err)
+					http.Error(w, "unable to parse deviceinfo", http.StatusForbidden)
+					return
+				}
+				// audit mode: log the error and continue to next
+				logger.WarnContext(r.Context(), "parsing x-apple-aspen-deviceinfo failed, continuing because verification is disabled", "err", err)
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			if err := apple_mdm.VerifyMachineInfoSignature(p7); err != nil {
+				logAttrs := []any{
+					"lane", "mdm_sso",
+					"machine_info_verify_reason", err.Error(),
+					"serial", parsed.Serial,
+					"udid", parsed.UDID,
+					"product", parsed.Product,
+				}
+				if apple_mdm.MachineInfoVerificationEnabled() {
+					logger.ErrorContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, rejecting request", logAttrs...)
+					http.Error(w, "unable to verify deviceinfo signature", http.StatusForbidden)
+					return
+				}
+				logger.WarnContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, continuing because verification is disabled", logAttrs...)
 			}
 
 			// TODO: skip os version check if deviceinfo query param is present? or find another way

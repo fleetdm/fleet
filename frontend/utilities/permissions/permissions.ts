@@ -25,6 +25,13 @@ export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
   return Boolean(config.mdm.android_enabled_and_configured);
 };
 
+export const isEndUserIdPConfigured = (config: IConfig): boolean => {
+  const idp = config.mdm.end_user_authentication;
+  return (
+    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
+  );
+};
+
 export const isGlobalAdmin = (user: IUser): boolean => {
   return user.global_role === "admin";
 };
@@ -234,6 +241,7 @@ export default {
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
   isAndroidMdmEnabledAndConfigured,
+  isEndUserIdPConfigured,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,

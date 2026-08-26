@@ -817,13 +817,6 @@ type Datastore interface {
 	// software_titles_host_counts table.
 	SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error
 
-	// ReconcileSoftwareChecksums repairs software rows whose checksum predates
-	// the field-ordering change in Fleet v4.76.0, which produced duplicate
-	// software inventory entries (same name/version/source, different checksum).
-	// It merges each duplicate group onto a single canonical row in batched
-	// transactions and self-limits once no duplicates remain.
-	ReconcileSoftwareChecksums(ctx context.Context) error
-
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
@@ -4115,6 +4108,10 @@ type AndroidDatastore interface {
 	// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
 	// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
 	InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+	// GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
+	// If hostUUID is non-empty, results are filtered to that host.
+	GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.
