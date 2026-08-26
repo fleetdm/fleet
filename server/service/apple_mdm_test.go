@@ -3934,7 +3934,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 }
 
 func TestMDMCommandAndReportResultsDeclarativeManagementDetail(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	hostUUID := "DDM-HOST-UUID"
 	commandUUID := "DDM-CMD-UUID"
 
