@@ -3,7 +3,7 @@ import { screen } from "@testing-library/react";
 
 import { renderWithSetup } from "test/test-utils";
 
-import { getErrorMessage } from "./helpers";
+import { getDiskEncryptionSettings, getErrorMessage } from "./helpers";
 
 const createApiError = (reason: string) => ({
   response: { data: { errors: [{ name: "base", reason }] } },
@@ -40,5 +40,77 @@ describe("getErrorMessage", () => {
     expect(getErrorMessage(new Error("network"))).toBe(
       "Could not update the disk encryption settings. Please try again."
     );
+  });
+});
+
+describe("getDiskEncryptionSettings", () => {
+  const perPlatform = {
+    enable_disk_encryption: false,
+    windows_require_bitlocker_pin: false,
+    windows_settings: {
+      enable_disk_encryption: true,
+      require_bitlocker_pin: true,
+    },
+    linux_settings: { enable_escrow_disk_encryption_key: true },
+  };
+
+  it("reads the Apple settings from a single-fleet or config response", () => {
+    expect(
+      getDiskEncryptionSettings({
+        ...perPlatform,
+        apple_settings: {
+          configuration_profiles: null,
+          enable_disk_encryption: true,
+          enable_escrow_disk_encryption_key: false,
+        },
+      })
+    ).toEqual({
+      macOSEnabled: true,
+      macOSEscrowEnabled: false,
+      windowsEnabled: true,
+      windowsPINRequired: true,
+      linuxEscrowEnabled: true,
+    });
+  });
+
+  it("reads the Apple settings from a fleet list response, which still spells them macos_settings", () => {
+    const settings = getDiskEncryptionSettings({
+      ...perPlatform,
+      macos_settings: {
+        enable_disk_encryption: true,
+        enable_escrow_disk_encryption_key: false,
+      },
+    } as never);
+
+    expect(settings.macOSEnabled).toBe(true);
+    expect(settings.macOSEscrowEnabled).toBe(false);
+  });
+
+  it("falls back to the deprecated top-level key when per-platform fields are absent", () => {
+    const settings = getDiskEncryptionSettings({
+      enable_disk_encryption: true,
+      windows_require_bitlocker_pin: true,
+    } as never);
+
+    expect(settings).toEqual({
+      macOSEnabled: true,
+      macOSEscrowEnabled: true,
+      windowsEnabled: true,
+      windowsPINRequired: true,
+      linuxEscrowEnabled: true,
+    });
+  });
+
+  it("ignores a PIN requirement when Windows disk encryption is off", () => {
+    const settings = getDiskEncryptionSettings({
+      ...perPlatform,
+      windows_settings: {
+        enable_disk_encryption: false,
+        require_bitlocker_pin: true,
+      },
+    } as never);
+
+    expect(settings.windowsEnabled).toBe(false);
+    expect(settings.windowsPINRequired).toBe(false);
   });
 });

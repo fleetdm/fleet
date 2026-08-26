@@ -38,9 +38,17 @@ export interface IDiskEncryptionSettings {
   linuxEscrowEnabled: boolean;
 }
 
-export type IMdmDiskEncryptionSource =
+interface IAppleDiskEncryptionSettings {
+  enable_disk_encryption?: boolean;
+  enable_escrow_disk_encryption_key?: boolean;
+}
+
+/** Fleet list responses (`teams`) still spell the Apple settings
+ * `macos_settings`; single-fleet and config responses use `apple_settings`. */
+export type IMdmDiskEncryptionSource = (
   | IMdmConfig
-  | NonNullable<ITeamConfig["mdm"]>;
+  | NonNullable<ITeamConfig["mdm"]>
+) & { macos_settings?: IAppleDiskEncryptionSettings };
 
 export const getDiskEncryptionSettings = (
   mdm?: IMdmDiskEncryptionSource
@@ -49,12 +57,13 @@ export const getDiskEncryptionSettings = (
   // don't return the per-platform fields yet still render their effective
   // state
   const legacyEnabled = mdm?.enable_disk_encryption ?? false;
+  const appleSettings = mdm?.apple_settings ?? mdm?.macos_settings;
   const windowsEnabled =
     mdm?.windows_settings?.enable_disk_encryption ?? legacyEnabled;
   return {
-    macOSEnabled: mdm?.apple_settings?.enable_disk_encryption ?? legacyEnabled,
+    macOSEnabled: appleSettings?.enable_disk_encryption ?? legacyEnabled,
     macOSEscrowEnabled:
-      mdm?.apple_settings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
+      appleSettings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
     windowsEnabled,
     // the server rejects a PIN requirement without encryption, so a stale PIN
     // flag must not make it into the form
