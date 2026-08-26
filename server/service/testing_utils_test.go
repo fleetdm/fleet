@@ -13,9 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -1537,87 +1535,6 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		}
 		require.NoError(t, json.NewEncoder(w).Encode(manifest))
 	}))
-	t.Cleanup(func() {
-		manifestServer.Close()
-		installerServer.Close()
-	})
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
-
-	require.NoError(t, maintained_apps.SyncAppsList(t.Context(), ds))
-}
-
-// startRealFMAManifestServers serves the manifest files checked into
-// ee/maintained-apps/outputs for the given slugs, rewriting only the installer
-// URL and its hash so the bytes come from a local server instead of a vendor.
-// The scripts, versions and installer filenames stay exactly as Fleet publishes
-// them, so a real script reaches script_contents through the same Hydrate and
-// endpoint code production uses.
-func startRealFMAManifestServers(t *testing.T, ds fleet.Datastore, slugs ...string) {
-	installerBytes := []byte("fake installer bytes")
-	sum := sha256.Sum256(installerBytes)
-	installerHash := hex.EncodeToString(sum[:])
-
-	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write(installerBytes)
-	}))
-
-	_, thisFile, _, ok := runtime.Caller(0)
-	require.True(t, ok, "could not locate myself to serve the manifest files")
-	outputsDir := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(thisFile))),
-		"ee", "maintained-apps", "outputs")
-
-	// no slugs means serve every manifest in the directory
-	wanted := make(map[string]struct{}, len(slugs))
-	for _, slug := range slugs {
-		wanted["/"+slug+".json"] = struct{}{}
-	}
-
-	// Failures are reported over HTTP rather than with require, which would call
-	// FailNow on the server's goroutine and leave the test running.
-	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/apps.json" {
-			b, err := os.ReadFile(filepath.Join(outputsDir, "apps.json"))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			_, _ = w.Write(b)
-			return
-		}
-		if _, found := wanted[r.URL.Path]; !found && len(wanted) > 0 {
-			http.NotFound(w, r)
-			return
-		}
-
-		b, err := os.ReadFile(filepath.Join(outputsDir, filepath.FromSlash(strings.TrimPrefix(r.URL.Path, "/"))))
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		var manifest ma.FMAManifestFile
-		if err := json.Unmarshal(b, &manifest); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Serve the installer under its published filename, since that is what the
-		// filename column ends up holding.
-		for _, version := range manifest.Versions {
-			published, err := url.Parse(version.InstallerURL)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			version.InstallerURL = installerServer.URL + "/" + path.Base(published.Path)
-			version.SHA256 = installerHash
-		}
-		if err := json.NewEncoder(w).Encode(manifest); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}))
-
 	t.Cleanup(func() {
 		manifestServer.Close()
 		installerServer.Close()
