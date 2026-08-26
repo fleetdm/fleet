@@ -1,0 +1,1 @@
+* Fixed osquery and orbit config endpoints returning HTTP 500 when a host references a team that no longer exists. Hosts now gracefully fall back to global configuration.
