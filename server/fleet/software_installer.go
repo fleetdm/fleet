@@ -159,6 +159,11 @@ type SoftwarePackageResponse struct {
 	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
+	// InstallerID is the row ID of the specific software_installers entry this
+	// response describes. Zero for in-house apps, which come from a different
+	// table. GitOps uses this to pin a policy to the exact package the YAML
+	// referenced when several installers share a title.
+	InstallerID uint `json:"installer_id" db:"installer_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// HashSHA256 is the SHA256 hash of the software installer.

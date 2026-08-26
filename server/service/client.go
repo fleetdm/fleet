@@ -3490,34 +3490,47 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 // policy by trying each available identifier in order: URL, App Store ID, hash,
 // then FMA slug. Returns the resolved title ID and true if found, or 0 and
 // false if no identifier matched.
+//
+// When the URL or hash lookup succeeds, installerID additionally carries the
+// specific installer_id for that package so the caller can pin the policy to
+// it (avoiding the datastore's first-added fallback for multi-package titles).
+// installerID is nil for AppStoreID and slug matches, which don't map to a
+// single software installer row.
 func resolvePolicySoftwareTitleID(
 	policy *spec.GitOpsPolicySpec,
 	byURL, byAppStoreID, byHash, bySlug map[string]uint,
-) (titleID uint, resolved bool) {
+	installerIDsByURL, installerIDsByHash map[string]uint,
+) (titleID uint, installerID *uint, resolved bool) {
 	if policy.InstallSoftwareURL != "" {
 		if id, ok := byURL[policy.InstallSoftwareURL]; ok {
-			return id, true
+			if instID, ok := installerIDsByURL[policy.InstallSoftwareURL]; ok {
+				return id, &instID, true
+			}
+			return id, nil, true
 		}
 	}
 	if policy.InstallSoftware.Other == nil {
-		return 0, false
+		return 0, nil, false
 	}
 	if policy.InstallSoftware.Other.AppStoreID != "" {
 		if id, ok := byAppStoreID[policy.InstallSoftware.Other.AppStoreID]; ok {
-			return id, true
+			return id, nil, true
 		}
 	}
 	if policy.InstallSoftware.Other.HashSHA256 != "" {
 		if id, ok := byHash[policy.InstallSoftware.Other.HashSHA256]; ok {
-			return id, true
+			if instID, ok := installerIDsByHash[policy.InstallSoftware.Other.HashSHA256]; ok {
+				return id, &instID, true
+			}
+			return id, nil, true
 		}
 	}
 	if policy.InstallSoftware.Other.FleetMaintainedAppSlug != "" {
 		if id, ok := bySlug[policy.InstallSoftware.Other.FleetMaintainedAppSlug]; ok {
-			return id, true
+			return id, nil, true
 		}
 	}
-	return 0, false
+	return 0, nil, false
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
@@ -3555,6 +3568,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		softwareTitleIDsByAppStoreAppID := make(map[string]uint)
 		softwareTitleIDsByHash := make(map[string]uint)
 		softwareTitleIDsBySlug := make(map[string]uint)
+		// Parallel maps keyed by URL/hash but returning the specific installer_id
+		// rather than the title id. Used to pin a policy to the exact package the
+		// GitOps YAML referenced when several packages share a title.
+		installerIDsByURL := make(map[string]uint)
+		installerIDsByHash := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
@@ -3568,6 +3586,16 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
 			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+			// In-house apps return InstallerID == 0 and shouldn't be pinned this
+			// way; they'd fail the datastore's software_installers-table validation.
+			if softwareInstaller.InstallerID != 0 {
+				if softwareInstaller.URL != "" {
+					installerIDsByURL[softwareInstaller.URL] = softwareInstaller.InstallerID
+				}
+				if softwareInstaller.HashSHA256 != "" {
+					installerIDsByHash[softwareInstaller.HashSHA256] = softwareInstaller.InstallerID
+				}
+			}
 
 			if softwareInstaller.Slug != "" {
 				softwareTitleIDsBySlug[softwareInstaller.Slug] = *softwareInstaller.TitleID
@@ -3613,15 +3641,23 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			// both URL and hash are set (from the referenced YAML file). If the primary
 			// identifier (URL) fails, fall back to secondary identifiers rather than
 			// skipping the policy entirely.
-			softwareTitleID, resolved := resolvePolicySoftwareTitleID(
+			softwareTitleID, installerID, resolved := resolvePolicySoftwareTitleID(
 				config.Policies[i],
 				softwareTitleIDsByInstallerURL,
 				softwareTitleIDsByAppStoreAppID,
 				softwareTitleIDsByHash,
 				softwareTitleIDsBySlug,
+				installerIDsByURL,
+				installerIDsByHash,
 			)
 			if resolved {
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
+				// Pin the resolved installer so the datastore doesn't fall back to
+				// the title's first-added package. Only set for URL/hash matches
+				// (AppStoreID and slug don't map to a specific installer row).
+				if installerID != nil {
+					config.Policies[i].SoftwarePackageID = installerID
+				}
 				// Log a warning if URL was set but didn't match (resolved via fallback).
 				if !dryRun && config.Policies[i].InstallSoftwareURL != "" {
 					if _, urlOK := softwareTitleIDsByInstallerURL[config.Policies[i].InstallSoftwareURL]; !urlOK {
