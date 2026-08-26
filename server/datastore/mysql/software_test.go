@@ -583,9 +583,8 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 	}
 
 	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
-	typ := reflect.TypeOf(fleet.Software{})
-	for i := range typ.NumField() {
-		field := typ.Field(i)
+	typ := reflect.TypeFor[fleet.Software]()
+	for field := range typ.Fields() {
 		column := field.Tag.Get("db")
 		if column == "" {
 			continue

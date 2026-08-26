@@ -863,7 +863,7 @@ func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allow
 	}
 
 	// An order key may name more than one column, e.g. "name,version".
-	for _, key := range strings.Split(opts.OrderKey, ",") {
+	for key := range strings.SplitSeq(opts.OrderKey, ",") {
 		key = strings.TrimSpace(key)
 		if key == "" {
 			continue
