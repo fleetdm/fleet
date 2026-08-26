@@ -21,8 +21,8 @@ object FleetLog {
     private const val LOG_FILE_NAME = "fleet_errors.log"
     private const val MAX_SIZE_BYTES = 512 * 1024L // 512 KB
 
-    // logcat drops whatever a single entry carries past ~4 KB of payload.
-    private const val MAX_LOGCAT_CHUNK_CHARS = 3000
+    // logcat drops whatever a single entry carries past ~4 KB of payload, measured in bytes.
+    private const val MAX_LOGCAT_CHUNK_BYTES = 3000
 
     @Volatile private var logFile: File? = null
 
@@ -38,32 +38,8 @@ object FleetLog {
         appendToFile(tag, message, stackTrace)
     }
 
-    /**
-     * Writes [text] to logcat, split across entries so a long stack trace isn't cut off. Log.e with
-     * a throwable splits for us; passing pre-rendered text doesn't, it truncates.
-     */
     private fun logChunked(tag: String, text: String) {
-        if (text.length <= MAX_LOGCAT_CHUNK_CHARS) {
-            Log.e(tag, text)
-            return
-        }
-        val pieces = text.lineSequence().flatMap { line ->
-            if (line.length <= MAX_LOGCAT_CHUNK_CHARS) sequenceOf(line) else line.chunked(MAX_LOGCAT_CHUNK_CHARS).asSequence()
-        }
-        val chunk = StringBuilder()
-        pieces.forEach { piece ->
-            if (chunk.isNotEmpty() && chunk.length + piece.length + 1 > MAX_LOGCAT_CHUNK_CHARS) {
-                Log.e(tag, chunk.toString())
-                chunk.setLength(0)
-            }
-            if (chunk.isNotEmpty()) {
-                chunk.append('\n')
-            }
-            chunk.append(piece)
-        }
-        if (chunk.isNotEmpty()) {
-            Log.e(tag, chunk.toString())
-        }
+        chunkForLogcat(text, MAX_LOGCAT_CHUNK_BYTES).forEach { Log.e(tag, it) }
     }
 
     // Redacted on the way out too: a file written by an older build may still hold secrets.
@@ -90,4 +66,75 @@ object FleetLog {
             Log.e(TAG, "Failed to write to log file: ${e.message}")
         }
     }
+}
+
+/**
+ * Splits [text] into pieces of at most [maxBytes] UTF-8 bytes, breaking at line boundaries where it
+ * can. Log.e with a throwable splits a long trace across entries for us; pre-rendered text is
+ * truncated instead, and the limit logcat applies is a byte count, so measuring characters would
+ * still lose the tail of non-ASCII text.
+ */
+internal fun chunkForLogcat(text: String, maxBytes: Int): List<String> {
+    if (text.utf8Size() <= maxBytes) {
+        return listOf(text)
+    }
+
+    val chunks = mutableListOf<String>()
+    var current = StringBuilder()
+    var currentBytes = 0
+    for (piece in text.lineSequence().flatMap { splitByUtf8Bytes(it, maxBytes) }) {
+        val pieceBytes = piece.utf8Size()
+        if (current.isNotEmpty() && currentBytes + 1 + pieceBytes > maxBytes) {
+            chunks.add(current.toString())
+            current = StringBuilder()
+            currentBytes = 0
+        }
+        if (current.isNotEmpty()) {
+            current.append('\n')
+            currentBytes++
+        }
+        current.append(piece)
+        currentBytes += pieceBytes
+    }
+    if (current.isNotEmpty()) {
+        chunks.add(current.toString())
+    }
+    return chunks
+}
+
+/** Splits one line into pieces of at most [maxBytes] UTF-8 bytes, never mid-character. */
+private fun splitByUtf8Bytes(line: String, maxBytes: Int): Sequence<String> {
+    if (line.utf8Size() <= maxBytes) {
+        return sequenceOf(line)
+    }
+    return sequence {
+        val piece = StringBuilder()
+        var pieceBytes = 0
+        var index = 0
+        while (index < line.length) {
+            val codePoint = line.codePointAt(index)
+            val width = Character.charCount(codePoint)
+            val size = utf8Size(codePoint)
+            if (pieceBytes + size > maxBytes) {
+                yield(piece.toString())
+                piece.setLength(0)
+                pieceBytes = 0
+            }
+            piece.append(line, index, index + width)
+            pieceBytes += size
+            index += width
+        }
+        if (piece.isNotEmpty()) {
+            yield(piece.toString())
+        }
+    }
+}
+
+private fun String.utf8Size(): Int = toByteArray(Charsets.UTF_8).size
+
+private fun utf8Size(codePoint: Int): Int = when {
+    codePoint < 0x80 -> 1
+    codePoint < 0x800 -> 2
+    codePoint < 0x10000 -> 3
+    else -> 4
 }
