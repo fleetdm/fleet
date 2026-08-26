@@ -161,6 +161,8 @@ To trigger software install, when policy fails, specify one of:
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
+> Adding a second package to a YAML that policies already reference makes those policies fail to apply until a sub-selector (`hash_sha256` or `package_url`) is added.
+
 ##### Run script
 
 _Available in Fleet Premium_
