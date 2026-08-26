@@ -2822,68 +2822,11 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.RequireBitLockerPIN != nil {
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
 		}
-
-		// per-platform disk encryption settings: read a key from the config,
-		// or default an absent one to false so the config stays declarative
-		perPlatformKey := func(parent, key string) (value, present bool) {
-			m, ok := mdmAppConfig[parent].(map[string]any)
-			if !ok {
-				return false, false
-			}
-			v, ok := m[key].(bool)
-			return v, ok
-		}
-		defaultPerPlatformKey := func(parent, key string) {
-			m, ok := mdmAppConfig[parent].(map[string]any)
-			if !ok {
-				// the parent may hold a typed default (e.g. fleet.MacOSSettings
-				// with an empty custom_settings): convert it instead of
-				// replacing it so those defaults are preserved
-				m = map[string]any{}
-				if existing, present := mdmAppConfig[parent]; present && existing != nil {
-					if b, err := json.Marshal(existing); err == nil {
-						_ = json.Unmarshal(b, &m)
-					}
-				}
-				mdmAppConfig[parent] = m
-			}
-			// an explicit null means the same as absent: reset to false (the
-			// server would treat null as "keep the stored value")
-			if v, ok := m[key]; !ok || v == nil {
-				m[key] = false
-			}
-		}
-		_, macOSEnablePresent := perPlatformKey("macos_settings", "enable_disk_encryption")
-		_, macOSEscrowPresent := perPlatformKey("macos_settings", "enable_escrow_disk_encryption_key")
-		windowsEnable, windowsEnablePresent := perPlatformKey("windows_settings", "enable_disk_encryption")
-		_, linuxEscrowPresent := perPlatformKey("linux_settings", "enable_escrow_disk_encryption_key")
-		anyPerPlatformPresent := macOSEnablePresent || macOSEscrowPresent || windowsEnablePresent || linuxEscrowPresent
-
-		switch {
-		case anyPerPlatformPresent && incoming.Controls.EnableDiskEncryption == nil:
-			// per-platform form: absent settings reset to explicit false, and
-			// the deprecated flat key is not sent — the server would treat it
-			// as an authoritative fan-out and stomp the per-platform values
-			defaultPerPlatformKey("macos_settings", "enable_disk_encryption")
-			defaultPerPlatformKey("macos_settings", "enable_escrow_disk_encryption_key")
-			defaultPerPlatformKey("windows_settings", "enable_disk_encryption")
-			defaultPerPlatformKey("linux_settings", "enable_escrow_disk_encryption_key")
-		default:
-			// legacy form (or both, which the server conflict-checks): the
-			// flat key fans out server-side, filling absent per-platform keys
-			mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		if !enableDiskEncryption && requireBitLockerPIN {
+			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
 		}
 
-		// the PIN is a BitLocker feature: the Windows per-platform setting
-		// satisfies the requirement even when the flat toggle is off
-		windowsDiskEncryption := enableDiskEncryption
-		if windowsEnablePresent {
-			windowsDiskEncryption = windowsEnable
-		}
-		if !windowsDiskEncryption && requireBitLockerPIN {
-			return nil, errors.New("enable_disk_encryption (or windows_settings.enable_disk_encryption) cannot be false if windows_require_bitlocker_pin is true")
-		}
-
+		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
 		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
