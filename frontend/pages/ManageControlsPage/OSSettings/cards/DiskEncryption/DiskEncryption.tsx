@@ -1,13 +1,20 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
 import { ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
+import {
+  DISK_ENCRYPTION_SETTINGS_PLATFORMS,
+  DiskEncryptionSettingsPlatform,
+  isDiskEncryptionSettingsPlatform,
+} from "interfaces/platform";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import diskEncryptionAPI, {
   IUpdateDiskEncryptionFormData,
@@ -31,8 +38,6 @@ import DiskEncryptionTable from "./components/DiskEncryptionTable";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
-
-type DiskEncryptionPlatform = "macos" | "windows" | "linux";
 
 interface IDiskEncryptionSettings {
   macOSEnabled: boolean;
@@ -82,17 +87,19 @@ const getDiskEncryptionSettings = (
   };
 };
 
-const PLATFORM_BY_INDEX: DiskEncryptionPlatform[] = [
-  "macos",
-  "windows",
-  "linux",
-];
-
-const PLATFORM_TAB_NAMES: Record<DiskEncryptionPlatform, string> = {
+const PLATFORM_TAB_NAMES: Record<DiskEncryptionSettingsPlatform, string> = {
   macos: "macOS",
   windows: "Windows",
   linux: "Linux",
 };
+
+const getPlatformTabPath = (
+  platform: DiskEncryptionSettingsPlatform,
+  teamId: number
+) =>
+  getPathWithQueryParams(PATHS.CONTROLS_DISK_ENCRYPTION_PLATFORM(platform), {
+    fleet_id: teamId,
+  });
 
 export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
@@ -100,6 +107,7 @@ const DiskEncryption = ({
   currentTeamId,
   onMutation,
   router,
+  urlPlatformParam,
 }: IDiskEncryptionProps) => {
   const {
     isPremiumTier,
@@ -111,6 +119,25 @@ const DiskEncryption = ({
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
   const gitOpsModeEnabled = config?.gitops?.gitops_mode_enabled;
+
+  const selectedPlatform = isDiskEncryptionSettingsPlatform(urlPlatformParam)
+    ? urlPlatformParam
+    : undefined;
+
+  useEffect(() => {
+    if (!selectedPlatform) {
+      router.replace(getPlatformTabPath("macos", currentTeamId));
+    }
+  }, [selectedPlatform, router, currentTeamId]);
+
+  const onSelectPlatformTab = (index: number) => {
+    router.push(
+      getPlatformTabPath(
+        DISK_ENCRYPTION_SETTINGS_PLATFORMS[index],
+        currentTeamId
+      )
+    );
+  };
 
   const [isLoadingTeam, setIsLoadingTeam] = useState(currentTeamId !== 0);
   const [formSettings, setFormSettings] = useState<IDiskEncryptionSettings>(
@@ -147,7 +174,7 @@ const DiskEncryption = ({
       enabled: currentTeamId !== 0,
       select: (res) => res.fleet,
       onSuccess: (res) => {
-        const settings = getDiskEncryptionSettings(res.mdm);
+        const settings = getDiskEncryptionSettings(res?.mdm);
         setFormSettings(settings);
         setSavedSettings(settings);
         setIsLoadingTeam(false);
@@ -168,7 +195,9 @@ const DiskEncryption = ({
     });
   };
 
-  const onSaveDiskEncryption = async (platform: DiskEncryptionPlatform) => {
+  const onSaveDiskEncryption = async (
+    platform: DiskEncryptionSettingsPlatform
+  ) => {
     let formData: IUpdateDiskEncryptionFormData;
     let updatedSettings: Partial<IDiskEncryptionSettings>;
     switch (platform) {
@@ -242,7 +271,7 @@ const DiskEncryption = ({
     }
   };
 
-  const renderSaveButton = (platform: DiskEncryptionPlatform) => (
+  const renderSaveButton = (platform: DiskEncryptionSettingsPlatform) => (
     <GitOpsModeTooltipWrapper
       renderChildren={(disableChildren) => (
         <Button
@@ -308,7 +337,7 @@ const DiskEncryption = ({
   );
 
   const renderPlatformTabPanel = (
-    platform: DiskEncryptionPlatform,
+    platform: DiskEncryptionSettingsPlatform,
     isEnabled: boolean,
     formFields: JSX.Element
   ) => (
@@ -336,15 +365,21 @@ const DiskEncryption = ({
   );
 
   const renderContent = () => {
-    if (isLoadingTeam) {
+    // no selected platform means the redirect to the macOS tab is in flight
+    if (isLoadingTeam || !selectedPlatform) {
       return <Spinner />;
     }
 
     return (
       <TabNav secondary>
-        <Tabs>
+        <Tabs
+          selectedIndex={DISK_ENCRYPTION_SETTINGS_PLATFORMS.indexOf(
+            selectedPlatform
+          )}
+          onSelect={onSelectPlatformTab}
+        >
           <TabList>
-            {PLATFORM_BY_INDEX.map((platform) => (
+            {DISK_ENCRYPTION_SETTINGS_PLATFORMS.map((platform) => (
               <Tab key={platform}>
                 <TabText>{PLATFORM_TAB_NAMES[platform]}</TabText>
               </Tab>

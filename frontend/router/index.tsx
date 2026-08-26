@@ -336,6 +336,10 @@ const routes = (
                   to="os-settings/configuration-profiles"
                 />
                 <Route path="os-settings/:section" component={OSSettings} />
+                <Route
+                  path="os-settings/:section/:platform"
+                  component={OSSettings}
+                />
 
                 <Route path="setup-experience" component={SetupExperience} />
                 <Redirect

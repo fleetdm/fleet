@@ -2,6 +2,9 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 
+import PATHS from "router/paths";
+import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
+import { getPathWithQueryParams } from "utilities/url";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -57,15 +60,25 @@ const createGetTeamHandler = ({
   });
 };
 
-const renderDiskEncryption = ({
-  teamId = 1,
-  gitOpsModeEnabled = false,
-  isPremiumTier = true,
-}: {
+interface IRenderOptions {
   teamId?: number;
+  /** Omit to render the default (macOS) tab; pass `undefined` explicitly to
+   * simulate a URL without a platform segment. */
+  urlPlatformParam?: string;
   gitOpsModeEnabled?: boolean;
   isPremiumTier?: boolean;
-} = {}) => {
+}
+
+const renderDiskEncryption = (options: IRenderOptions = {}) => {
+  const {
+    teamId = 1,
+    gitOpsModeEnabled = false,
+    isPremiumTier = true,
+  } = options;
+  const urlPlatformParam =
+    "urlPlatformParam" in options ? options.urlPlatformParam : "macos";
+  const router = createMockRouter();
+
   const render = createCustomRenderer({
     withBackendMock: true,
     context: {
@@ -83,14 +96,26 @@ const renderDiskEncryption = ({
     },
   });
 
-  return render(
-    <DiskEncryption
-      currentTeamId={teamId}
-      onMutation={jest.fn()}
-      router={createMockRouter()}
-    />
-  );
+  return {
+    ...render(
+      <DiskEncryption
+        currentTeamId={teamId}
+        onMutation={jest.fn()}
+        router={router}
+        urlPlatformParam={urlPlatformParam}
+      />
+    ),
+    router,
+  };
 };
+
+const platformTabPath = (
+  platform: DiskEncryptionSettingsPlatform,
+  teamId: number
+) =>
+  getPathWithQueryParams(PATHS.CONTROLS_DISK_ENCRYPTION_PLATFORM(platform), {
+    fleet_id: teamId,
+  });
 
 const findEnforceCheckbox = () =>
   screen.findByRole("checkbox", { name: "Enable disk encryption" });
@@ -107,30 +132,79 @@ describe("DiskEncryption", () => {
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
-  it("switches between the macOS, Windows, and Linux tabs", async () => {
+  it.each([
+    [
+      "macos",
+      "macOS",
+      ["Enable disk encryption", "Escrow recovery key with Fleet"],
+      ["Require BitLocker PIN"],
+    ],
+    [
+      "windows",
+      "Windows",
+      ["Enable disk encryption", "Require BitLocker PIN"],
+      ["Escrow recovery key with Fleet"],
+    ],
+    [
+      "linux",
+      "Linux",
+      ["Escrow recovery key with Fleet"],
+      ["Enable disk encryption", "Require BitLocker PIN"],
+    ],
+  ] as const)(
+    "selects the %s tab from the URL and renders its checkboxes",
+    async (platform, tabName, present, absent) => {
+      mockServer.use(createGetTeamHandler());
+      mockServer.use(createGetDiskEncryptionSummaryHandler());
+      const { router } = renderDiskEncryption({ urlPlatformParam: platform });
+
+      expect(await screen.findByRole("tab", { name: tabName })).toHaveAttribute(
+        "aria-selected",
+        "true"
+      );
+      present.forEach((name) => {
+        expect(screen.getByRole("checkbox", { name })).toBeInTheDocument();
+      });
+      absent.forEach((name) => {
+        expect(screen.queryByRole("checkbox", { name })).toBeNull();
+      });
+      expect(router.replace).not.toHaveBeenCalled();
+    }
+  );
+
+  it("navigates to the platform route when a tab is clicked", async () => {
     mockServer.use(createGetTeamHandler());
     mockServer.use(createGetDiskEncryptionSummaryHandler());
-    const { user } = renderDiskEncryption();
+    const { user, router } = renderDiskEncryption();
 
-    // macOS tab is selected by default and has both checkboxes
-    expect(await findEnforceCheckbox()).toBeInTheDocument();
-    expect(await findEscrowCheckbox()).toBeInTheDocument();
-    expect(
-      screen.queryByRole("checkbox", { name: "Require BitLocker PIN" })
-    ).toBeNull();
-
-    await user.click(screen.getByRole("tab", { name: "Windows" }));
-    expect(await findEnforceCheckbox()).toBeInTheDocument();
-    expect(await findPINCheckbox()).toBeInTheDocument();
-    expect(
-      screen.queryByRole("checkbox", { name: "Escrow recovery key with Fleet" })
-    ).toBeNull();
+    await user.click(await screen.findByRole("tab", { name: "Windows" }));
+    expect(router.push).toHaveBeenCalledWith(platformTabPath("windows", 1));
 
     await user.click(screen.getByRole("tab", { name: "Linux" }));
-    expect(await findEscrowCheckbox()).toBeInTheDocument();
-    expect(
-      screen.queryByRole("checkbox", { name: "Enable disk encryption" })
-    ).toBeNull();
+    expect(router.push).toHaveBeenCalledWith(platformTabPath("linux", 1));
+  });
+
+  it("redirects to the macOS tab when the URL platform is missing or invalid", async () => {
+    mockServer.use(createGetTeamHandler());
+    mockServer.use(createGetDiskEncryptionSummaryHandler());
+
+    const missing = renderDiskEncryption({ urlPlatformParam: undefined });
+    await waitFor(() => {
+      expect(missing.router.replace).toHaveBeenCalledWith(
+        platformTabPath("macos", 1)
+      );
+    });
+    missing.unmount();
+
+    const invalid = renderDiskEncryption({
+      teamId: 0,
+      urlPlatformParam: "ios",
+    });
+    await waitFor(() => {
+      expect(invalid.router.replace).toHaveBeenCalledWith(
+        platformTabPath("macos", 0)
+      );
+    });
   });
 
   it("toggles the macOS checkboxes independently and saves only macOS settings", async () => {
@@ -180,9 +254,8 @@ describe("DiskEncryption", () => {
         requestBody = body;
       })
     );
-    const { user } = renderDiskEncryption();
+    const { user } = renderDiskEncryption({ urlPlatformParam: "windows" });
 
-    await user.click(await screen.findByRole("tab", { name: "Windows" }));
     await user.click(await findEnforceCheckbox());
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -206,9 +279,8 @@ describe("DiskEncryption", () => {
         requestBody = body;
       })
     );
-    const { user } = renderDiskEncryption();
+    const { user } = renderDiskEncryption({ urlPlatformParam: "linux" });
 
-    await user.click(await screen.findByRole("tab", { name: "Linux" }));
     await user.click(await findEscrowCheckbox());
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -255,9 +327,7 @@ describe("DiskEncryption", () => {
         requestBody = body;
       })
     );
-    const { user } = renderDiskEncryption();
-
-    await user.click(await screen.findByRole("tab", { name: "Windows" }));
+    const { user } = renderDiskEncryption({ urlPlatformParam: "windows" });
 
     const enforceCheckbox = await findEnforceCheckbox();
     const pinCheckbox = await findPINCheckbox();
@@ -286,36 +356,35 @@ describe("DiskEncryption", () => {
     });
   });
 
-  it("disables all checkboxes and Save on every tab in GitOps mode", async () => {
-    mockServer.use(createGetTeamHandler());
-    mockServer.use(createGetDiskEncryptionSummaryHandler());
-    const { user } = renderDiskEncryption({ gitOpsModeEnabled: true });
+  it.each(["macos", "windows", "linux"] as const)(
+    "disables all checkboxes and Save on the %s tab in GitOps mode",
+    async (platform) => {
+      mockServer.use(createGetTeamHandler());
+      mockServer.use(createGetDiskEncryptionSummaryHandler());
+      renderDiskEncryption({
+        urlPlatformParam: platform,
+        gitOpsModeEnabled: true,
+      });
 
-    const assertAllDisabled = async () => {
       const checkboxes = await screen.findAllByRole("checkbox");
       checkboxes.forEach((checkbox) => {
         expect(checkbox).toHaveAttribute("aria-disabled", "true");
       });
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    };
-
-    await assertAllDisabled();
-    await user.click(screen.getByRole("tab", { name: "Windows" }));
-    await assertAllDisabled();
-    await user.click(screen.getByRole("tab", { name: "Linux" }));
-    await assertAllDisabled();
-  });
+    }
+  );
 
   it("renders the status table only for platforms with a setting enabled", async () => {
     mockServer.use(createGetTeamHandler({ windowsEnabled: true }));
     mockServer.use(createGetDiskEncryptionSummaryHandler());
-    const { user } = renderDiskEncryption();
 
     // macOS tab has no settings enabled, so no status table
+    const macos = renderDiskEncryption({ urlPlatformParam: "macos" });
     expect(await findEnforceCheckbox()).toBeInTheDocument();
     expect(screen.queryByText("Verified")).toBeNull();
+    macos.unmount();
 
-    await user.click(screen.getByRole("tab", { name: "Windows" }));
+    renderDiskEncryption({ urlPlatformParam: "windows" });
     expect(await screen.findByText("Verified")).toBeInTheDocument();
   });
 });
