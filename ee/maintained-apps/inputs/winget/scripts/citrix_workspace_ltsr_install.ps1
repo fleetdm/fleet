@@ -1,10 +1,8 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 
-# The installer leaves resident processes running and its bootstrap installs
-# several components as separate MSI transactions, so Start-Process -Wait
-# never returns reliably. Poll for the core entry instead, and wait for
-# msiexec to go idle so we don't race the later components.
+# The bootstrap installs components as separate MSI transactions, so -Wait
+# can't be used; poll for the core entry and for msiexec to go idle.
 
 $softwareName = "Citrix Workspace Inside"
 $paths = @(
