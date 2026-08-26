@@ -1,1 +1,1 @@
-* Fleet now restores BitLocker protection on Windows hosts that are encrypted but whose protection is off, where disk encryption is enforced. Previously these hosts reported "Action required" indefinitely and Fleet took no action.
+- Fleet now restores BitLocker protection on Windows hosts that are encrypted but whose protection is off, where disk encryption is enforced. Fleet now reports why it could not restore BitLocker protection on a Windows host, in the host's disk encryption details.
