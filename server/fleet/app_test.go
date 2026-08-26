@@ -1144,7 +1144,6 @@ func TestMDMAppleVolumePurchasingProgramInfoRenameTeam(t *testing.T) {
 	})
 }
 
-
 func TestBitLockerPINAliasSync(t *testing.T) {
 	t.Run("marshal mirrors the deprecated key and its canonical home", func(t *testing.T) {
 		for _, tc := range []struct {
