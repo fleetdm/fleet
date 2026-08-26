@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -163,7 +164,7 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
-// MDMAppleABMAssignmentInfo represents an user definition of the association
+// MDMAppleABMAssignmentInfo represents a user definition of the association
 // between an ABM token (via organization name) and the teams used to associate
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
@@ -174,19 +175,25 @@ type MDMAppleABMAssignmentInfo struct {
 	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
-func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
-	if m.MacOSTeam == removedTeamName {
-		m.MacOSTeam = ""
+// CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
+// rename to "" ("no fleet").
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) bool {
+	return m.RenameTeam(removedTeamName, "")
+}
+
+func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
+	// "" spells "no fleet" here (see UpdateABMTokenTeams), so renaming from it
+	// would claim every unassigned platform.
+	if oldName == "" {
+		return false
 	}
-	if m.IOSTeam == removedTeamName {
-		m.IOSTeam = ""
+	var renamed bool
+	for _, f := range []*string{&m.MacOSTeam, &m.IOSTeam, &m.IpadOSTeam, &m.BYODTeam} {
+		if *f == oldName {
+			*f, renamed = newName, true
+		}
 	}
-	if m.IpadOSTeam == removedTeamName {
-		m.IpadOSTeam = ""
-	}
-	if m.BYODTeam == removedTeamName {
-		m.BYODTeam = ""
-	}
+	return renamed
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
@@ -194,6 +201,28 @@ func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
+}
+
+func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
+	// "" spells "no fleet" here (see UpdateVPPTokenTeams), so renaming from it
+	// would claim every unassigned platform.
+	if oldName == "" {
+		return false
+	}
+
+	var renamed bool
+	for i, t := range m.Teams {
+		if t == oldName {
+			m.Teams[i], renamed = newName, true
+		}
+	}
+	return renamed
+}
+
+func (m *MDMAppleVolumePurchasingProgramInfo) CleanRemovedTeam(removedTeamName string) bool {
+	before := len(m.Teams)
+	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool { return t == removedTeamName })
+	return len(m.Teams) != before
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -286,6 +315,8 @@ type MDM struct {
 
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
+	// RequireBitLockerPIN is deprecated: use
+	// WindowsSettings.RequireBitLockerPIN, which it mirrors.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
@@ -322,14 +353,107 @@ type DiskEncryptionConfig struct {
 	LinuxEscrowEnabled bool
 }
 
+// AllEnabled returns the AND of the four per-platform disk encryption settings
+// — the value the deprecated flat enable_disk_encryption key reports. The
+// BitLocker PIN is a modifier of Windows enforcement, not one of the four.
+func (c DiskEncryptionConfig) AllEnabled() bool {
+	return c.MacOSEnabled && c.MacOSEscrowEnabled && c.WindowsEnabled && c.LinuxEscrowEnabled
+}
+
+// MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
+// POST /disk_encryption. Nil fields mean "don't change".
+type MacOSDiskEncryptionSettingsPayload struct {
+	EnableDiskEncryption          *bool `json:"enable_disk_encryption"`
+	EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// WindowsDiskEncryptionSettingsPayload is the windows_settings object accepted
+// by POST /disk_encryption. Nil fields mean "don't change".
+type WindowsDiskEncryptionSettingsPayload struct {
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  *bool `json:"require_bitlocker_pin"`
+}
+
+// LinuxDiskEncryptionSettingsPayload is the linux_settings object accepted by
+// POST /disk_encryption. Nil fields mean "don't change".
+type LinuxDiskEncryptionSettingsPayload struct {
+	EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+}
+
+// MDMDiskEncryptionSettingsPayload carries a POST /disk_encryption update
+// through the service layer. The deprecated flat EnableDiskEncryption fans out
+// to every per-platform setting; ResolvePerPlatform applies the fan-out and
+// conflict rules and returns the effective per-platform values.
+type MDMDiskEncryptionSettingsPayload struct {
+	// EnableDiskEncryption is deprecated: when set it applies to all platforms.
+	EnableDiskEncryption *bool
+	RequireBitLockerPIN  *bool
+	MacOSSettings        *MacOSDiskEncryptionSettingsPayload
+	WindowsSettings      *WindowsDiskEncryptionSettingsPayload
+	LinuxSettings        *LinuxDiskEncryptionSettingsPayload
+}
+
+// DiskEncryptionSettingsChanges holds the effective per-platform disk
+// encryption values of a settings write. Nil means "leave unchanged".
+type DiskEncryptionSettingsChanges struct {
+	MacOSEnable   *bool
+	MacOSEscrow   *bool
+	WindowsEnable *bool
+	LinuxEscrow   *bool
+}
+
+// ResolveBitLockerPIN resolves the deprecated windows_require_bitlocker_pin
+// field against its canonical windows_settings.require_bitlocker_pin home:
+// both may be sent when they agree, and the canonical one wins.
+func (p MDMDiskEncryptionSettingsPayload) ResolveBitLockerPIN() (*bool, error) {
+	if p.WindowsSettings == nil || p.WindowsSettings.RequireBitLockerPIN == nil {
+		return p.RequireBitLockerPIN, nil
+	}
+	if p.RequireBitLockerPIN != nil && *p.RequireBitLockerPIN != *p.WindowsSettings.RequireBitLockerPIN {
+		return nil, NewInvalidArgumentError(
+			"windows_require_bitlocker_pin", "conflicts with windows_settings.require_bitlocker_pin",
+		)
+	}
+	return p.WindowsSettings.RequireBitLockerPIN, nil
+}
+
+// ResolvePerPlatform applies the deprecated-key fan-out and conflict rules:
+// the legacy flat value fans out to every per-platform setting, and any
+// per-platform value explicitly sent alongside it must agree with it.
+func (p MDMDiskEncryptionSettingsPayload) ResolvePerPlatform() (DiskEncryptionSettingsChanges, error) {
+	var changes DiskEncryptionSettingsChanges
+	if p.MacOSSettings != nil {
+		changes.MacOSEnable = p.MacOSSettings.EnableDiskEncryption
+		changes.MacOSEscrow = p.MacOSSettings.EnableEscrowDiskEncryptionKey
+	}
+	if p.WindowsSettings != nil {
+		changes.WindowsEnable = p.WindowsSettings.EnableDiskEncryption
+	}
+	if p.LinuxSettings != nil {
+		changes.LinuxEscrow = p.LinuxSettings.EnableEscrowDiskEncryptionKey
+	}
+	if p.EnableDiskEncryption != nil {
+		legacy := *p.EnableDiskEncryption
+		for _, v := range []*bool{changes.MacOSEnable, changes.MacOSEscrow, changes.WindowsEnable, changes.LinuxEscrow} {
+			if v != nil && *v != legacy {
+				return DiskEncryptionSettingsChanges{}, NewInvalidArgumentError(
+					"enable_disk_encryption", "conflicts with per-platform disk encryption settings",
+				)
+			}
+		}
+		changes.MacOSEnable = &legacy
+		changes.MacOSEscrow = &legacy
+		changes.WindowsEnable = &legacy
+		changes.LinuxEscrow = &legacy
+	}
+	return changes, nil
+}
+
 // DiskEncryptionSettingsAllEnabled returns the AND of the four per-platform
 // disk encryption settings — the value the deprecated flat
 // mdm.enable_disk_encryption key reports.
 func (m *MDM) DiskEncryptionSettingsAllEnabled() bool {
-	return m.MacOSSettings.EnableDiskEncryption.Value &&
-		m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
-		m.WindowsSettings.EnableDiskEncryption.Value &&
-		m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	return m.DiskEncryptionConfig().AllEnabled()
 }
 
 // DiskEncryptionConfig returns the global effective per-platform disk
@@ -339,9 +463,57 @@ func (m *MDM) DiskEncryptionConfig() DiskEncryptionConfig {
 		MacOSEnabled:         m.MacOSSettings.EnableDiskEncryption.Value,
 		MacOSEscrowEnabled:   m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
 		WindowsEnabled:       m.WindowsSettings.EnableDiskEncryption.Value,
-		BitLockerPINRequired: m.RequireBitLockerPIN.Value,
+		BitLockerPINRequired: m.BitLockerPINRequired(),
 		LinuxEscrowEnabled:   m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
 	}
+}
+
+// ResolveBitLockerPINAlias resolves the deprecated windows_require_bitlocker_pin
+// key against its canonical windows_settings.require_bitlocker_pin home for the
+// config and fleet-spec shapes. Both keys may be sent when they agree, and the
+// canonical one is authoritative; disagreeing values are rejected.
+//
+// This is stricter than the deprecated mdm.enable_disk_encryption toggle, which
+// resolves by which value the request changed: that toggle is derived from the
+// four per-platform settings, so a round-tripped document always carries a value
+// that may legitimately disagree with a per-platform edit. This pair is always
+// mirrored, so a disagreement can only be a contradiction.
+//
+// The returned value is invalid when neither key carries one, meaning "leave the
+// stored value alone".
+func ResolveBitLockerPINAlias(deprecated, canonical optjson.Bool) (optjson.Bool, error) {
+	if canonical.Valid && deprecated.Valid && canonical.Value != deprecated.Value {
+		return optjson.Bool{}, NewInvalidArgumentError("mdm.windows_require_bitlocker_pin",
+			"conflicts with mdm.windows_settings.require_bitlocker_pin")
+	}
+	if canonical.Valid {
+		return canonical, nil
+	}
+	return deprecated, nil
+}
+
+// BitLockerPINRequirementError reports requiring a BitLocker PIN while Windows
+// disk encryption is off, returning the offending field and message, or empty
+// strings when the pair is valid. Turning encryption off blames the encryption
+// field; turning the PIN on blames the PIN field.
+func BitLockerPINRequirementError(oldWindowsEnabled bool, cfg DiskEncryptionConfig) (field, msg string) {
+	if !cfg.BitLockerPINRequired || cfg.WindowsEnabled {
+		return "", ""
+	}
+	if oldWindowsEnabled {
+		return "mdm.windows_settings.enable_disk_encryption", CantDisableDiskEncryptionIfPINRequiredErrMsg
+	}
+	return "mdm.windows_settings.require_bitlocker_pin", CantEnablePINRequiredIfDiskEncryptionEnabled
+}
+
+// BitLockerPINRequired returns the effective BitLocker PIN requirement: the
+// canonical windows_settings.require_bitlocker_pin when set, falling back to
+// the deprecated top-level key.
+func (m *MDM) BitLockerPINRequired() bool {
+	if m.WindowsSettings.RequireBitLockerPIN.Valid {
+		return m.WindowsSettings.RequireBitLockerPIN.Value
+	}
+	return m.RequireBitLockerPIN.Value
 }
 
 // normalizeDiskEncryptionSettings makes every serialization (API responses,
@@ -359,6 +531,23 @@ func (m *MDM) normalizeDiskEncryptionSettings() {
 		&m.LinuxSettings.EnableEscrowDiskEncryptionKey,
 	)
 	m.EnableDiskEncryption = optjson.SetBool(flat)
+	m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN = normalizeBitLockerPINFields(
+		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN)
+}
+
+// normalizeBitLockerPINFields keeps the deprecated windows_require_bitlocker_pin
+// key and its canonical windows_settings.require_bitlocker_pin home in sync on
+// serialization: the canonical value wins when set, the deprecated one fills in
+// otherwise, and both default to explicit false.
+func normalizeBitLockerPINFields(deprecated, canonical optjson.Bool) (optjson.Bool, optjson.Bool) {
+	switch {
+	case canonical.Valid:
+		return optjson.SetBool(canonical.Value), canonical
+	case deprecated.Valid:
+		return deprecated, optjson.SetBool(deprecated.Value)
+	default:
+		return optjson.SetBool(false), optjson.SetBool(false)
+	}
 }
 
 // normalizeDiskEncryptionFields is the virtual-flat-key rule shared by
@@ -416,6 +605,23 @@ func (c *AppConfig) MDMUrl() string {
 		return c.ServerSettings.ServerURL
 	}
 	return c.MDM.AppleServerURL
+}
+
+// FleetDesktopBrowserUrl returns the base URL an end user's browser reaches
+// Fleet on, which is the server URL unless fleet_desktop.alternative_browser_host
+// overrides its host.
+func (c *AppConfig) FleetDesktopBrowserUrl() (*url.URL, error) {
+	base, err := url.Parse(c.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
+	if altHost := c.FleetDesktop.AlternativeBrowserHost; altHost != "" {
+		if parsed, err := url.Parse(altHost); err == nil && parsed.Host != "" {
+			altHost = parsed.Host
+		}
+		base.Host = altHost
+	}
+	return base, nil
 }
 
 func (c *AppConfigUrls) MDMUrl() string {
@@ -1457,6 +1663,11 @@ func (c *AppConfig) assignDeprecatedFields() {
 			}
 		}
 	}
+	// the BitLocker PIN's canonical home inherits the deprecated top-level key
+	// the same way when absent from the document
+	if !c.MDM.WindowsSettings.RequireBitLockerPIN.Set && c.MDM.RequireBitLockerPIN.Valid {
+		c.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(c.MDM.RequireBitLockerPIN.Value)
+	}
 
 	// ensure the legacy configs are always nil
 	c.DeprecatedHostSettings = nil
@@ -1833,6 +2044,9 @@ type FleetDesktopSettings struct {
 	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
 	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
 	AlternativeBrowserHost string `json:"alternative_browser_host"`
+	// SSOEnabled requires end users to authenticate with the IdP configured in
+	// mdm.end_user_authentication, which must be set before this can be enabled.
+	SSOEnabled bool `json:"sso_enabled"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
@@ -2293,6 +2507,10 @@ type WindowsSettings struct {
 
 	// EnableDiskEncryption enforces BitLocker on Windows hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	// RequireBitLockerPIN requires end users on Windows hosts to set a
+	// BitLocker PIN. Requires EnableDiskEncryption.
+	RequireBitLockerPIN optjson.Bool `json:"require_bitlocker_pin"`
 }
 
 // LinuxSettings contains MDM-related settings specific to Linux hosts.

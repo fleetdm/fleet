@@ -817,13 +817,6 @@ type Datastore interface {
 	// software_titles_host_counts table.
 	SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error
 
-	// ReconcileSoftwareChecksums repairs software rows whose checksum predates
-	// the field-ordering change in Fleet v4.76.0, which produced duplicate
-	// software inventory entries (same name/version/source, different checksum).
-	// It merges each duplicate group onto a single canonical row in batched
-	// transactions and self-limits once no duplicates remain.
-	ReconcileSoftwareChecksums(ctx context.Context) error
-
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
 	HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]HostVulnerabilitySummary, error)
@@ -958,7 +951,17 @@ type Datastore interface {
 	BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
-	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
+	// UnblockHostsUpcomingActivityQueue activates the queue of up to maxHosts
+	// hosts that have pending activities but none activated. When
+	// skipFleetInitiated is true, hosts waiting solely on deferred
+	// fleet-initiated activities are left for ReleaseFleetInitiatedUpcomingActivities
+	// so its per-minute budget isn't bypassed.
+	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error)
+	// ReleaseFleetInitiatedUpcomingActivities activates the queue of up to
+	// maxHosts hosts whose pending fleet-initiated activities were enqueued
+	// with deferred activation (policy automations), oldest first. It is the
+	// release valve for the activity.fleet_initiated_release_per_minute budget.
+	ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error)
 	// ReapStuckActivatedMDMInstalls fails App Store and in-house app installs that have been
 	// activated longer than olderThan and can no longer make progress, releasing the activity
 	// queue each one is holding. See ReapStuckMDMInstalls for why such an install blocks a queue
@@ -4115,6 +4118,10 @@ type AndroidDatastore interface {
 	// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
 	// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
 	InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+	// GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
+	// If hostUUID is non-empty, results are filtered to that host.
+	GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.

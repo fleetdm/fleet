@@ -52,6 +52,7 @@ features:
     vulnerabilities: true
 fleet_desktop:
   alternative_browser_host: musica.alternativa
+  sso_enabled: false
   transparency_url: https://fleetdm.com/transparency
 host_expiry_settings:
   host_expiry_enabled: false

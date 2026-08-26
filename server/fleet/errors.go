@@ -186,6 +186,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
 
+// DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
+type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
+
+// NewDeviceSSORequiredError is an alias for platform_http.NewDeviceSSORequiredError.
+var NewDeviceSSORequiredError = platform_http.NewDeviceSSORequiredError
+
 // AuthHeaderRequiredError is an alias for platform_http.AuthHeaderRequiredError.
 type AuthHeaderRequiredError = platform_http.AuthHeaderRequiredError
 
