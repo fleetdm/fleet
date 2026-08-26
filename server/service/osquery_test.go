@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -40,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -262,6 +265,85 @@ func TestGetClientConfigNullConfig(t *testing.T) {
 	}`,
 		string(conf["packs"].(json.RawMessage)),
 	)
+}
+
+func TestGetClientConfigStripsDistributedPluginWhenWebSocketTransportEnabled(t *testing.T) {
+	setup := func(t *testing.T, wsEnabled bool) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+			return nil, nil
+		}
+		ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+			return nil, nil
+		}
+		// Fleet's default agent options include distributed_plugin: tls, which
+		// osquery applies at runtime, overriding the fleetd-managed command line.
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				AgentOptions: new(json.RawMessage(`{"config":{"options":{"distributed_plugin":"tls","distributed_interval":10,"pack_delimiter":"/"}}}`)),
+			}, nil
+		}
+		ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+			return nil
+		}
+		ds.UpdateHostOsqueryIntervalsFunc = func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error {
+			return nil
+		}
+
+		cfg := config.TestConfig()
+		cfg.WebSocket.TransportEnabled = wsEnabled
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+		return svc, ctx
+	}
+
+	t.Run("enabled strips distributed_plugin", func(t *testing.T) {
+		svc, ctx := setup(t, true)
+		conf, err := svc.GetClientConfig(ctx)
+		require.NoError(t, err)
+		opts, ok := conf["options"].(map[string]any)
+		require.True(t, ok)
+		assert.NotContains(t, opts, "distributed_plugin")
+		// Unrelated options are preserved.
+		assert.InDelta(t, 10, opts["distributed_interval"], 0)
+		assert.Equal(t, "/", opts["pack_delimiter"])
+	})
+
+	t.Run("disabled preserves distributed_plugin", func(t *testing.T) {
+		svc, ctx := setup(t, false)
+		conf, err := svc.GetClientConfig(ctx)
+		require.NoError(t, err)
+		opts, ok := conf["options"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "tls", opts["distributed_plugin"])
+	})
+}
+
+func TestRecordDistributedReadStats(t *testing.T) {
+	hub := agentws.NewHub(slog.New(slog.DiscardHandler), time.Minute, 30*time.Second)
+	var innerCalls int
+	wrapped := recordDistributedReadStats(hub, func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+		innerCalls++
+		return getDistributedQueriesResponse{}, nil
+	})
+
+	newCtx := func(path string) context.Context {
+		ctx := hostctx.NewContext(t.Context(), &fleet.Host{ID: 9})
+		return context.WithValue(ctx, kithttp.ContextKeyRequestPath, path)
+	}
+
+	_, err := wrapped(newCtx("/api/osquery/distributed/read"), nil, nil)
+	require.NoError(t, err)
+	_, err = wrapped(newCtx("/api/v1/osquery/distributed/read"), nil, nil)
+	require.NoError(t, err)
+	// Missing host in ctx: counts nothing, still calls through.
+	_, err = wrapped(context.WithValue(t.Context(), kithttp.ContextKeyRequestPath, "/api/osquery/distributed/read"), nil, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, 3, innerCalls)
+	stats := hub.ReadStats()
+	require.Len(t, stats, 1)
+	assert.Equal(t, agentws.ReadStats{HostID: 9, OrbitReads: 1, LegacyReads: 1}, stats[0])
 }
 
 func TestAgentOptionsForHost(t *testing.T) {
@@ -562,6 +644,162 @@ func TestAuthenticateHostFailure(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "test")
 	require.NotNil(t, err)
+}
+
+func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
+	ds := new(mock.Store)
+	task := async.NewTask(ds, nil, clock.C, nil)
+	cfg := config.TestConfig()
+	cfg.WebSocket.TransportEnabled = true
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Task: task})
+
+	host := fleet.Host{ID: 42, Hostname: "orbit-host", HasHostIdentityCert: new(false)}
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return nil, newNotFoundError()
+	}
+	ds.LoadHostByOrbitNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		if nodeKey == "orbit-key" {
+			return &host, nil
+		}
+		return nil, newNotFoundError()
+	}
+	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	// An orbit node key authenticates via the fallback lookup.
+	gotHost, _, err := svc.AuthenticateHost(ctx, "orbit-key")
+	require.NoError(t, err)
+	assert.Equal(t, uint(42), gotHost.ID)
+	assert.True(t, ds.LoadHostByNodeKeyFuncInvoked)
+	assert.True(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
+
+	// A key that matches neither lookup is rejected with an invalid-node error.
+	ds.LoadHostByNodeKeyFuncInvoked = false
+	ds.LoadHostByOrbitNodeKeyFuncInvoked = false
+	_, _, err = svc.AuthenticateHost(ctx, "bogus")
+	require.Error(t, err)
+	var osqueryErr *OsqueryError
+	require.ErrorAs(t, err, &osqueryErr)
+	assert.True(t, osqueryErr.NodeInvalid())
+	assert.True(t, ds.LoadHostByNodeKeyFuncInvoked)
+	assert.True(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
+
+	// An osquery node key never reaches the fallback lookup.
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return &host, nil
+	}
+	ds.LoadHostByOrbitNodeKeyFuncInvoked = false
+	_, _, err = svc.AuthenticateHost(ctx, "osquery-key")
+	require.NoError(t, err)
+	assert.False(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
+}
+
+func TestAuthenticateHostNoOrbitNodeKeyFallbackWhenTransportDisabled(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return nil, newNotFoundError()
+	}
+
+	_, _, err := svc.AuthenticateHost(ctx, "orbit-key")
+	require.Error(t, err)
+	var osqueryErr *OsqueryError
+	require.ErrorAs(t, err, &osqueryErr)
+	assert.True(t, osqueryErr.NodeInvalid())
+	assert.False(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
+}
+
+func TestListHostIDsDueForDistributedRead(t *testing.T) {
+	now := time.Now()
+	fresh := now.Add(-time.Minute)
+	// TestConfig sets the label/policy/detail update intervals to 1 hour with
+	// zero jitter.
+	stale := now.Add(-2 * time.Hour)
+
+	hosts := []*fleet.Host{
+		{ID: 1, DetailUpdatedAt: fresh, LabelUpdatedAt: fresh, PolicyUpdatedAt: fresh},                                                        // not due
+		{ID: 2, DetailUpdatedAt: stale, LabelUpdatedAt: fresh, PolicyUpdatedAt: fresh},                                                        // stale details
+		{ID: 3, DetailUpdatedAt: fresh, LabelUpdatedAt: stale, PolicyUpdatedAt: fresh},                                                        // stale labels
+		{ID: 4, DetailUpdatedAt: fresh, LabelUpdatedAt: fresh, PolicyUpdatedAt: stale},                                                        // stale policies
+		{ID: 5, DetailUpdatedAt: fresh, LabelUpdatedAt: fresh, PolicyUpdatedAt: fresh, RefetchRequested: true},                                // refetch requested
+		{ID: 6, DetailUpdatedAt: fresh, LabelUpdatedAt: fresh, PolicyUpdatedAt: fresh, RefetchCriticalQueriesUntil: new(now.Add(time.Hour))},  // critical queries window
+		{ID: 7, DetailUpdatedAt: fresh, LabelUpdatedAt: fresh, PolicyUpdatedAt: fresh, RefetchCriticalQueriesUntil: new(now.Add(-time.Hour))}, // expired critical queries window
+	}
+	allIDs := []uint{1, 2, 3, 4, 5, 6, 7}
+	intervalDue := map[uint]string{
+		2: fleet.AgentWSReasonDetail,
+		3: fleet.AgentWSReasonLabel,
+		4: fleet.AgentWSReasonPolicy,
+		5: fleet.AgentWSReasonRefetch,
+		6: fleet.AgentWSReasonRefetch,
+	}
+
+	// The mock live query store fails the test on any call without a matching
+	// expectation, so each subtest's expectations double as assertions that no
+	// other store calls are made.
+	setup := func(t *testing.T) (fleet.Service, context.Context, *live_query_mock.MockLiveQuery, *[]uint) {
+		ds := new(mock.Store)
+		lq := live_query_mock.New(t)
+		svc, ctx := newTestService(t, ds, nil, lq)
+		gotIDs := new([]uint)
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			*gotIDs = ids
+			return hosts, nil
+		}
+		return svc, ctx, lq, gotIDs
+	}
+
+	t.Run("interval work, no active campaigns", func(t *testing.T) {
+		svc, ctx, lq, gotIDs := setup(t)
+		// No active campaigns: the per-host live query check is skipped.
+		lq.On("LoadActiveQueryNames").Return([]string{}, nil)
+
+		due, err := svc.ListHostIDsDueForDistributedRead(ctx, allIDs)
+		require.NoError(t, err)
+		assert.Equal(t, allIDs, *gotIDs)
+		assert.Equal(t, intervalDue, due)
+	})
+
+	t.Run("active campaign targeting a host", func(t *testing.T) {
+		svc, ctx, lq, _ := setup(t)
+		lq.On("LoadActiveQueryNames").Return([]string{"42"}, nil)
+		// Only the hosts without interval work (1 and 7) are checked: host 1 is
+		// targeted by campaign 42 and hasn't answered, host 7 is not (or already
+		// answered).
+		lq.On("QueriesForHost", uint(1)).Return(map[string]string{"42": "SELECT 1"}, nil)
+		lq.On("QueriesForHost", uint(7)).Return(map[string]string{}, nil)
+
+		due, err := svc.ListHostIDsDueForDistributedRead(ctx, allIDs)
+		require.NoError(t, err)
+		want := map[uint]string{1: fleet.AgentWSReasonLiveQuery(42)}
+		maps.Copy(want, intervalDue)
+		assert.Equal(t, want, due)
+	})
+
+	t.Run("live query store errors are non-fatal", func(t *testing.T) {
+		svc, ctx, lq, _ := setup(t)
+		lq.On("LoadActiveQueryNames").Return([]string{"42"}, nil)
+		lq.On("QueriesForHost", uint(1)).Return(map[string]string(nil), errors.New("boom"))
+		lq.On("QueriesForHost", uint(7)).Return(map[string]string(nil), errors.New("boom"))
+
+		due, err := svc.ListHostIDsDueForDistributedRead(ctx, allIDs)
+		require.NoError(t, err)
+		assert.Equal(t, intervalDue, due)
+	})
+
+	t.Run("active campaign listing errors are non-fatal", func(t *testing.T) {
+		svc, ctx, lq, _ := setup(t)
+		lq.On("LoadActiveQueryNames").Return([]string(nil), errors.New("boom"))
+
+		due, err := svc.ListHostIDsDueForDistributedRead(ctx, allIDs)
+		require.NoError(t, err)
+		assert.Equal(t, intervalDue, due)
+	})
 }
 
 func TestAuthenticateHostContextCanceled(t *testing.T) {
@@ -4133,7 +4371,6 @@ func TestOutOfScopePolicyResultsAreDiscarded(t *testing.T) {
 		require.NotNil(t, savedAdditional)
 		require.JSONEq(t, `{"extra_bits":[{"n":"1"}]}`, string(*savedAdditional))
 	})
-
 }
 
 func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
