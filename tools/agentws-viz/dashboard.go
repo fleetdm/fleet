@@ -77,14 +77,26 @@ const dashboardHTML = `<!doctype html>
   td.os { width: 24px; }
   td.mono { font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
   tr.offline td { color: var(--dim); font-style: italic; }
+  #tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  #tabs button {
+    background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    padding: 8px 14px; color: var(--text-secondary); font: inherit; cursor: pointer;
+  }
+  #tabs button:hover { color: var(--text); }
+  #tabs button.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+  #tabs button .n { color: var(--dim); font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  #tabs button.stale { color: var(--dim); font-style: italic; }
+  #tabs .pending { color: var(--dim); font-size: 12px; padding: 8px 14px; align-self: center; }
 </style>
 </head>
 <body>
 <header>
   <div id="status"></div>
-  <h1>agentws <span class="sub">— live WebSocket connections (this Fleet instance)</span></h1>
+  <h1>agentws <span class="sub">— live WebSocket connections per Fleet instance</span></h1>
   <div id="banner"></div>
 </header>
+
+<div id="tabs"></div>
 
 <div class="stats">
   <div class="panel stat"><div class="n" id="online">–</div><div class="l">online (all hosts)</div></div>
@@ -96,7 +108,7 @@ const dashboardHTML = `<!doctype html>
   <div class="panel stat"><div class="n" id="bytesout">–</div><div class="l">bytes out</div></div>
   <div class="panel stat"><div class="n" id="orbitreads">–</div><div class="l">reads (orbit)</div></div>
   <div class="panel stat"><div class="n" id="legacyreads">–</div><div class="l">reads (v1 legacy)</div></div>
-  <div class="panel"><canvas id="spark" width="360" height="64"></canvas><div class="l" style="color:var(--dim);font-size:12px">connections, last 5 min</div></div>
+  <div class="panel"><canvas id="spark" width="360" height="64"></canvas><div class="l" style="color:var(--dim);font-size:12px" id="sparklabel">connections</div></div>
 </div>
 
 <div class="row">
@@ -119,10 +131,83 @@ const dashboardHTML = `<!doctype html>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
+const HISTORY_MAX = 300;       // samples; window = HISTORY_MAX * poll interval
+let intervalMs = 0;            // poll interval, reported by the tool on the first poll
+
+// Per-instance state, keyed by instance id. Every instance is diffed on every
+// poll (so event logs stay complete in the background); only the active tab
+// is rendered.
+const states = new Map();
+let active = null;             // active instance id
+// Aliases into the active instance's state, rebound by setActive().
 let prev = new Map();          // host_id -> last snapshot row
 let history = [];              // connection counts for the sparkline
-const HISTORY_MAX = 300;       // 5 min at 1s polls
 let flashHosts = new Set();
+
+function stateFor(id) {
+  let st = states.get(id);
+  if (!st) {
+    st = { prev: new Map(), history: [], flashHosts: new Set(), nextSyncAt: null, log: [], data: null };
+    states.set(id, st);
+  }
+  return st;
+}
+
+function bind(st) {
+  prev = st.prev; history = st.history; flashHosts = st.flashHosts; nextSyncAt = st.nextSyncAt;
+}
+
+function unbind(st) {
+  st.prev = prev; st.flashHosts = flashHosts; st.nextSyncAt = nextSyncAt;
+}
+
+function setActive(id) {
+  if (id === active) return;
+  active = id;
+  const st = stateFor(id);
+  // Rebuild the log panel from this instance's stored entries.
+  const log = $("log");
+  log.replaceChildren();
+  for (const e of st.log) log.appendChild(logNode(e));
+  bind(st);
+  if (st.data) {
+    updateNextSync();
+    render(st.data.connections || [], st.data.read_stats || [], st.data);
+    sparkline();
+  }
+  renderTabs(lastInstances);
+}
+
+let lastInstances = { want: 1, instances: [] };
+
+function renderTabs(info) {
+  lastInstances = info;
+  const tabs = $("tabs");
+  tabs.replaceChildren();
+  for (const inst of info.instances) {
+    const b = document.createElement("button");
+    const id = inst.id;
+    b.textContent = inst.label;
+    b.title = "instance " + inst.id;
+    const st = states.get(id);
+    if (st && st.data && st.data.connections) {
+      const n = document.createElement("span");
+      n.className = "n";
+      n.textContent = st.data.connections.length;
+      b.appendChild(n);
+    }
+    if (id === active) b.classList.add("active");
+    if (inst.stale) { b.classList.add("stale"); b.title += " — not seen recently"; }
+    b.onclick = () => setActive(id);
+    tabs.appendChild(b);
+  }
+  if (info.instances.length < info.want) {
+    const p = document.createElement("span");
+    p.className = "pending";
+    p.textContent = "discovering instances… " + info.instances.length + "/" + info.want;
+    tabs.appendChild(p);
+  }
+}
 
 // Inline SVG OS icons keyed by icon class; viewBox 0 0 16 16.
 const OS_ICONS = {
@@ -172,19 +257,33 @@ function ago(iso) {
   return Math.floor(s / 3600) + "h" + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + "m";
 }
 
-function logEvent(cls, text) {
+function logNode(entry) {
   const e = document.createElement("div");
   e.className = "e";
   const t = document.createElement("span");
   t.className = "t";
-  t.textContent = new Date().toLocaleTimeString();
+  t.textContent = entry.time;
   const m = document.createElement("span");
-  m.className = cls;
-  m.textContent = text;
+  m.className = entry.cls;
+  m.textContent = entry.text;
   e.append(t, m);
-  const log = $("log");
-  log.prepend(e);
-  while (log.childElementCount > 200) log.lastChild.remove();
+  return e;
+}
+
+// logEvent records an event for the instance currently being diffed
+// (diffing) and, if that is the active tab, shows it immediately.
+let diffing = null;
+
+function logEvent(cls, text) {
+  const entry = { cls, text, time: new Date().toLocaleTimeString() };
+  const st = stateFor(diffing);
+  st.log.unshift(entry);
+  if (st.log.length > 200) st.log.pop();
+  if (diffing === active) {
+    const log = $("log");
+    log.prepend(logNode(entry));
+    while (log.childElementCount > 200) log.lastChild.remove();
+  }
 }
 
 function diff(conns) {
@@ -404,34 +503,89 @@ function sparkline() {
   ctx.fillText(String(max), 2, 10);
 }
 
+// pollInstance fetches one instance's snapshot and updates its state,
+// rendering only if it is the active tab.
+async function pollInstance(id) {
+  const resp = await fetch("/api/snapshot?instance=" + encodeURIComponent(id));
+  if (!resp.ok) throw new Error(await resp.text() || resp.status);
+  const data = await resp.json();
+  if (!data.enabled) {
+    throw new Error("websocket transport is disabled on the server (set FLEET_WEBSOCKET_TRANSPORT_ENABLED=1)");
+  }
+  // Swap the module-level aliases to this instance's state for the
+  // synchronous diff below, then swap the active tab's state back.
+  const st = stateFor(id), act = stateFor(active);
+  unbind(act);
+  bind(st);
+  diffing = id;
+  const conns = data.connections || [];
+  nextSyncAt = data.next_check_in_ms != null ? Date.now() + data.next_check_in_ms : null;
+  diff(conns);
+  history.push(conns.length);
+  if (history.length > HISTORY_MAX) history.shift();
+  st.data = data;
+  if (id === active) {
+    updateNextSync();
+    render(conns, data.read_stats || [], data);
+    sparkline();
+  } else {
+    flashHosts = new Set(); // flashes are only meaningful when rendered live
+  }
+  unbind(st);
+  bind(act);
+}
+
 async function poll() {
   try {
-    const resp = await fetch("/api/snapshot");
+    const resp = await fetch("/api/instances");
     if (!resp.ok) throw new Error(await resp.text() || resp.status);
-    const data = await resp.json();
-    if (!data.enabled) {
+    const info = await resp.json();
+    const ids = info.instances.map(i => i.id);
+    // Drop state for instances that expired so they don't come back stale.
+    for (const id of states.keys()) if (!ids.includes(id)) states.delete(id);
+    if ((active == null || !ids.includes(active)) && ids.length > 0) { active = null; setActive(ids[0]); }
+    renderTabs(info);
+    if (info.interval_ms && info.interval_ms !== intervalMs) {
+      intervalMs = info.interval_ms;
+      const mins = HISTORY_MAX * intervalMs / 60000;
+      $("sparklabel").textContent = "connections, last " + (mins >= 1 ? Math.round(mins) + " min" : Math.round(mins * 60) + "s");
+    }
+    if (info.disabled) {
       $("status").className = "err";
       $("banner").textContent = "websocket transport is disabled on the server (set FLEET_WEBSOCKET_TRANSPORT_ENABLED=1)";
       return;
     }
-    const conns = data.connections || [];
-    nextSyncAt = data.next_check_in_ms != null ? Date.now() + data.next_check_in_ms : null;
-    updateNextSync();
-    diff(conns);
-    render(conns, data.read_stats || [], data);
-    history.push(conns.length);
-    if (history.length > HISTORY_MAX) history.shift();
-    sparkline();
-    $("status").className = "ok";
-    $("banner").textContent = "";
+    if (ids.length === 0) {
+      $("status").className = info.error ? "err" : "";
+      $("banner").textContent = info.error ? String(info.error).slice(0, 120) : "discovering instances…";
+      return;
+    }
+    const results = await Promise.allSettled(ids.map(pollInstance));
+    const errs = results.filter(r => r.status === "rejected");
+    if (errs.length > 0) {
+      $("status").className = errs.length === ids.length ? "err" : "ok";
+      $("banner").textContent = String(errs[0].reason).slice(0, 120);
+    } else if (info.error) {
+      $("status").className = "ok";
+      $("banner").textContent = String(info.error).slice(0, 120);
+    } else if (info.no_instance_id) {
+      $("status").className = "ok";
+      $("banner").textContent = "server reports no instance_id; all instances are merged into one tab (upgrade the server)";
+    } else {
+      $("status").className = "ok";
+      $("banner").textContent = "";
+    }
   } catch (err) {
     $("status").className = "err";
     $("banner").textContent = String(err).slice(0, 120);
   }
 }
 
-poll();
-setInterval(poll, 1000);
+// Chain polls on a timer so the cadence follows the tool's -interval.
+(async function loop() {
+  await poll();
+  setTimeout(loop, intervalMs || 1000);
+})();
 // Tick the countdown between polls so it never appears to stall.
 setInterval(updateNextSync, 250);
 </script>

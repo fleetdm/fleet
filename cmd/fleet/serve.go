@@ -660,6 +660,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if config.WebSocket.TransportEnabled {
 		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
 			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
+		agentWSHub.InstanceID = instanceID
 		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
 		// Delay live query wake-ups by the live query store's in-memory cache
 		// TTL so a notified read can't be served from a cache snapshot

@@ -111,8 +111,8 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 	})).Methods(http.MethodGet)
 	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
 	// Agent WebSocket transport observability: a point-in-time view of the
-	// connections held by THIS server instance (in a multi-instance
-	// deployment, query each instance directly). Read-path counters are
+	// connections held by THIS server instance; instance_id lets consumers
+	// behind a load balancer tell instances apart. Read-path counters are
 	// collected only with debug logging enabled (see metrics_enabled).
 	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
 		if agentWSHub == nil {
@@ -122,6 +122,7 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 		readStats := agentWSHub.ReadStats()
 		payload := map[string]any{
 			"enabled":         true,
+			"instance_id":     agentWSHub.InstanceID,
 			"metrics_enabled": config.Logging.Debug,
 			"connections":     connections,
 			"read_stats":      readStats,

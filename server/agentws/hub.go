@@ -32,6 +32,10 @@ type Hub struct {
 	// nextCheckNano is the interval check job's next tick (unix nanos), for
 	// the /debug/agentws "next sync" countdown; zero until the job first runs.
 	nextCheckNano atomic.Int64
+
+	// InstanceID identifies the Fleet server process owning this hub, so
+	// /debug/agentws consumers behind a load balancer can tell instances apart.
+	InstanceID string
 }
 
 // RecordNextCheck stores when the interval check job runs next.
