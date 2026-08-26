@@ -166,7 +166,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// unrelated app can't match.
 			if (appName == "Citrix Workspace LTSR" || appName == "Citrix Workspace") &&
 				result.Publisher == "Citrix Systems, Inc." &&
-				strings.HasPrefix(result.Name, "Citrix Workspace") {
+				result.Name == "Citrix Workspace Inside" {
 				logger.InfoContext(ctx, "Citrix Workspace detected - version mismatch but app is installed, skipping version check due to internal component versioning")
 				return true, nil
 			}
