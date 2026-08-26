@@ -11,9 +11,7 @@
   }
 
   &__tab-panel {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+    @include vertical-page-tab-panel-layout;
 
     p {
       margin: 0;
@@ -28,9 +26,7 @@
   }
 
   &__form-fields {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
+    @include flex-column-16px-gap;
 
     .form-field {
       margin: 0;

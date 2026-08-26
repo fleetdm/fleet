@@ -1,6 +1,6 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 
 import PATHS from "router/paths";
 import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
@@ -11,7 +11,8 @@ import {
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import createMockConfig from "__mocks__/configMock";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockTeam from "__mocks__/teamMock";
 import { createGetConfigHandler } from "test/handlers/config-handlers";
 import {
   createGetDiskEncryptionSummaryHandler,
@@ -38,10 +39,8 @@ const createGetTeamHandler = ({
   return http.get(baseUrl("/fleets/:id"), () => {
     return HttpResponse.json({
       fleet: {
-        id: 1,
-        name: "Team 1",
-        mdm: {
-          enable_disk_encryption: false,
+        ...createMockTeam(),
+        mdm: createMockMdmConfig({
           apple_settings: {
             configuration_profiles: null,
             enable_disk_encryption: macOSEnabled,
@@ -54,7 +53,7 @@ const createGetTeamHandler = ({
           linux_settings: {
             enable_escrow_disk_encryption_key: linuxEscrowEnabled,
           },
-        },
+        }),
       },
     });
   });
@@ -205,6 +204,42 @@ describe("DiskEncryption", () => {
         platformTabPath("macos", 0)
       );
     });
+  });
+
+  it("shows an error state when the fleet's settings fail to load", async () => {
+    mockServer.use(
+      http.get(baseUrl("/fleets/:id"), () =>
+        HttpResponse.json({ message: "error" }, { status: 500 })
+      )
+    );
+    renderDiskEncryption();
+
+    expect(
+      await screen.findByText(/Something.s gone wrong/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).toBeNull();
+  });
+
+  it("disables the form and marks Save as loading while a save is in flight", async () => {
+    mockServer.use(createGetTeamHandler());
+    mockServer.use(createGetDiskEncryptionSummaryHandler());
+    mockServer.use(
+      http.post(baseUrl("/disk_encryption"), async () => {
+        await delay(150);
+        return HttpResponse.json({});
+      })
+    );
+    const { user } = renderDiskEncryption();
+
+    const enforceCheckbox = await findEnforceCheckbox();
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+
+    expect(saveButton).toBeDisabled();
+    expect(enforceCheckbox).toHaveAttribute("aria-disabled", "true");
+
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    expect(enforceCheckbox).toHaveAttribute("aria-disabled", "false");
   });
 
   it("toggles the macOS checkboxes independently and saves only macOS settings", async () => {

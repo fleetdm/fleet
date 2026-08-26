@@ -5,8 +5,8 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
+import { IMdmConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
-import { getErrorReason } from "interfaces/errors";
 import {
   DISK_ENCRYPTION_SETTINGS_PLATFORMS,
   DiskEncryptionSettingsPlatform,
@@ -26,6 +26,7 @@ import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
+import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -35,6 +36,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
+import { getErrorMessage } from "./helpers";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
@@ -47,23 +49,7 @@ interface IDiskEncryptionSettings {
   linuxEscrowEnabled: boolean;
 }
 
-/** Structural subset of the global (`IMdmConfig`) and fleet
- * (`ITeamConfig["mdm"]`) mdm config shapes this card reads. */
-interface IMdmDiskEncryptionSource {
-  enable_disk_encryption?: boolean;
-  windows_require_bitlocker_pin?: boolean;
-  apple_settings?: {
-    enable_disk_encryption?: boolean;
-    enable_escrow_disk_encryption_key?: boolean;
-  };
-  windows_settings?: {
-    enable_disk_encryption?: boolean;
-    require_bitlocker_pin?: boolean;
-  };
-  linux_settings?: {
-    enable_escrow_disk_encryption_key?: boolean;
-  };
-}
+type IMdmDiskEncryptionSource = IMdmConfig | NonNullable<ITeamConfig["mdm"]>;
 
 const getDiskEncryptionSettings = (
   mdm?: IMdmDiskEncryptionSource
@@ -139,7 +125,7 @@ const DiskEncryption = ({
     );
   };
 
-  const [isLoadingTeam, setIsLoadingTeam] = useState(currentTeamId !== 0);
+  const [isSaving, setIsSaving] = useState(false);
   const [formSettings, setFormSettings] = useState<IDiskEncryptionSettings>(
     () =>
       currentTeamId === 0
@@ -165,22 +151,21 @@ const DiskEncryption = ({
     }
   };
 
-  useQuery<ILoadTeamResponse, Error, ITeamConfig>(
-    ["team", currentTeamId],
-    () => teamsAPI.load(currentTeamId),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      enabled: currentTeamId !== 0,
-      select: (res) => res.fleet,
-      onSuccess: (res) => {
-        const settings = getDiskEncryptionSettings(res?.mdm);
-        setFormSettings(settings);
-        setSavedSettings(settings);
-        setIsLoadingTeam(false);
-      },
-    }
-  );
+  const { isLoading: isLoadingTeam, isError: isTeamError } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: currentTeamId !== 0,
+    select: (res) => res.fleet,
+    onSuccess: (res) => {
+      const settings = getDiskEncryptionSettings(res?.mdm);
+      setFormSettings(settings);
+      setSavedSettings(settings);
+    },
+  });
 
   const onToggleSetting = (key: keyof IDiskEncryptionSettings) => (
     value: boolean
@@ -198,6 +183,8 @@ const DiskEncryption = ({
   const onSaveDiskEncryption = async (
     platform: DiskEncryptionSettingsPlatform
   ) => {
+    if (isSaving) return;
+
     let formData: IUpdateDiskEncryptionFormData;
     let updatedSettings: Partial<IDiskEncryptionSettings>;
     switch (platform) {
@@ -237,6 +224,7 @@ const DiskEncryption = ({
         };
     }
 
+    setIsSaving(true);
     try {
       await diskEncryptionAPI.updateDiskEncryption(formData, currentTeamId);
       notify.success("Successfully updated disk encryption settings.");
@@ -246,28 +234,9 @@ const DiskEncryption = ({
         getUpdatedAppConfig();
       }
     } catch (e) {
-      if (getErrorReason(e).includes("Missing required private key")) {
-        const link =
-          "https://fleetdm.com/learn-more-about/fleet-server-private-key";
-        notify.error(
-          <>
-            Couldn&apos;t enable disk encryption. Please configure a private
-            key.{" "}
-            <CustomLink
-              url={link}
-              text="Learn how"
-              newTab
-              variant="flash-message-link"
-            />
-          </>,
-          { response: e }
-        );
-      } else {
-        const errorMsg =
-          getErrorReason(e) ??
-          "Could not update the disk encryption settings. Please try again.";
-        notify.error(errorMsg, { response: e });
-      }
+      notify.error(getErrorMessage(e), { response: e });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -275,7 +244,8 @@ const DiskEncryption = ({
     <GitOpsModeTooltipWrapper
       renderChildren={(disableChildren) => (
         <Button
-          disabled={disableChildren}
+          disabled={disableChildren || isSaving}
+          isLoading={isSaving}
           className={`${baseClass}__save-button`}
           onClick={() => onSaveDiskEncryption(platform)}
         >
@@ -285,12 +255,12 @@ const DiskEncryption = ({
     />
   );
 
-  const enforceCheckbox = (
+  const renderEnforceCheckbox = (
     key: "macOSEnabled" | "windowsEnabled",
     value: boolean
   ) => (
     <Checkbox
-      disabled={gitOpsModeEnabled}
+      disabled={gitOpsModeEnabled || isSaving}
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
@@ -309,13 +279,13 @@ const DiskEncryption = ({
     </Checkbox>
   );
 
-  const escrowCheckbox = (
+  const renderEscrowCheckbox = (
     key: "macOSEscrowEnabled" | "linuxEscrowEnabled",
     value: boolean,
     learnMoreLink?: string
   ) => (
     <Checkbox
-      disabled={gitOpsModeEnabled}
+      disabled={gitOpsModeEnabled || isSaving}
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
@@ -365,6 +335,10 @@ const DiskEncryption = ({
   );
 
   const renderContent = () => {
+    if (isTeamError) {
+      return <DataError />;
+    }
+
     // no selected platform means the redirect to the macOS tab is in flight
     if (isLoadingTeam || !selectedPlatform) {
       return <Spinner />;
@@ -390,8 +364,11 @@ const DiskEncryption = ({
               "macos",
               savedSettings.macOSEnabled || savedSettings.macOSEscrowEnabled,
               <>
-                {enforceCheckbox("macOSEnabled", formSettings.macOSEnabled)}
-                {escrowCheckbox(
+                {renderEnforceCheckbox(
+                  "macOSEnabled",
+                  formSettings.macOSEnabled
+                )}
+                {renderEscrowCheckbox(
                   "macOSEscrowEnabled",
                   formSettings.macOSEscrowEnabled
                 )}
@@ -403,9 +380,16 @@ const DiskEncryption = ({
               "windows",
               savedSettings.windowsEnabled,
               <>
-                {enforceCheckbox("windowsEnabled", formSettings.windowsEnabled)}
+                {renderEnforceCheckbox(
+                  "windowsEnabled",
+                  formSettings.windowsEnabled
+                )}
                 <Checkbox
-                  disabled={gitOpsModeEnabled || !formSettings.windowsEnabled}
+                  disabled={
+                    gitOpsModeEnabled ||
+                    isSaving ||
+                    !formSettings.windowsEnabled
+                  }
                   onChange={onToggleSetting("windowsPINRequired")}
                   value={formSettings.windowsPINRequired}
                   className={`${baseClass}__checkbox`}
@@ -433,7 +417,7 @@ const DiskEncryption = ({
             {renderPlatformTabPanel(
               "linux",
               savedSettings.linuxEscrowEnabled,
-              escrowCheckbox(
+              renderEscrowCheckbox(
                 "linuxEscrowEnabled",
                 formSettings.linuxEscrowEnabled,
                 `${LEARN_MORE_ABOUT_BASE_LINK}/linux-disk-encryption`
