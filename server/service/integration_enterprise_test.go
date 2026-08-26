@@ -29033,7 +29033,15 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
+	// Non-ASCII on purpose. The backfill migration matches a stored script by
+	// hashing script_contents in MySQL against hashes the generator took over the
+	// manifest text, so the two only agree if Fleet stores the manifest bytes
+	// unchanged, and a charset problem would only show up on multi-byte characters.
+	const manifestScript = "#!/bin/sh\n# café — naïve ✓ 你好\ninstaller -pkg \"$TMPDIR/cloudflare-warp.msi\" -target /\n"
+	warp := &fmaTestState{
+		version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi",
+		patchQuery: warpQueryV1, installScript: manifestScript,
+	}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
@@ -29077,6 +29085,23 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
 		})
 		return row.Install, row.Uninstall
+	}
+	// LENGTH is the stored byte count, CHAR_LENGTH the character count. Comparing
+	// bytes against Go's view of the same string catches a transcode on the way in,
+	// which reading the text back through the same connection would hide.
+	activeScriptBytes := func(teamID, titleID uint) (bytes int, chars int) {
+		var row struct {
+			Bytes int `db:"stored_bytes"`
+			Chars int `db:"stored_chars"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT LENGTH(sc.contents) AS stored_bytes, CHAR_LENGTH(sc.contents) AS stored_chars
+				FROM software_installers si
+				JOIN script_contents sc ON sc.id = si.install_script_content_id
+				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
+		})
+		return row.Bytes, row.Chars
 	}
 	// Both flags move together here, since the batch payload always sets or omits
 	// both scripts at once.
@@ -29138,6 +29163,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		return resp.Policy.Query
 	}
 	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
+	// The manifest script has to survive the add byte for byte, or the backfill
+	// migration can't recognize it as one Fleet published.
+	gotInstall, _ := activeScripts(team.ID, titleID)
+	require.Equal(t, manifestScript, gotInstall)
+	storedBytes, storedChars := activeScriptBytes(team.ID, titleID)
+	require.Equal(t, len(manifestScript), storedBytes)
+	require.Greater(t, storedBytes, storedChars, "fixture lost its multi-byte characters")
 
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
