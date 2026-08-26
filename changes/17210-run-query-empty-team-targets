@@ -1,1 +1,1 @@
-- Fixed authorization for running a live query against a global report so that an empty team selection requires global permission instead of being treated as an already-validated target list.
+- Fixed live query authorization so that an empty team selection is authorized like an omitted one.

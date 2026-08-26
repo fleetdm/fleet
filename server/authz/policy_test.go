@@ -1618,11 +1618,13 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserObserver, object: globalQuery, action: write, allow: false},
 				{user: test.UserObserver, object: teamAdminQuery, action: write, allow: false},
 				{user: test.UserObserver, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserObserver, object: globalQueryEmptyTeamTargets, action: run, allow: false}, // same as no targets
 				{user: test.UserObserver, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: test.UserObserver, object: globalQuery, action: runNew, allow: false},
 				{user: test.UserObserver, object: globalObserverQuery, action: read, allow: true},
 				{user: test.UserObserver, object: globalObserverQuery, action: write, allow: false},
 				{user: test.UserObserver, object: globalObserverQueryEmptyTargets, action: run, allow: true},            // can run observer query
+				{user: test.UserObserver, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},        // same as no targets
 				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
 				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
 				{user: test.UserObserver, object: globalObserverQuery, action: runNew, allow: false},
