@@ -75,7 +75,7 @@ const defaultTableHeaders: IDataColumn[] = [
     },
   },
   {
-    title: "macOS hosts",
+    title: "Hosts",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -84,41 +84,7 @@ const defaultTableHeaders: IDataColumn[] = [
       />
     ),
     disableSortBy: true,
-    accessor: "macosHosts",
-    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
-      return (
-        <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} />
-        </div>
-      );
-    },
-  },
-  {
-    title: "Windows hosts",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy
-      />
-    ),
-    disableSortBy: true,
-    accessor: "windowsHosts",
-    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
-      return <TextCell value={aggregateCount} />;
-    },
-  },
-  {
-    title: "Linux hosts",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-        disableSortBy
-      />
-    ),
-    disableSortBy: true,
-    accessor: "linuxHosts",
+    accessor: "hosts",
     Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return <TextCell value={aggregateCount} />;
     },
@@ -203,6 +169,7 @@ const STATUS_ORDER = [
 ] as const;
 
 export const generateTableData = (
+  platform: keyof IDiskEncryptionStatusAggregate,
   data?: IDiskEncryptionSummaryResponse,
   currentTeamId?: number
 ) => {
@@ -213,9 +180,7 @@ export const generateTableData = (
     statusAggregate: IDiskEncryptionStatusAggregate
   ) => ({
     status: STATUS_CELL_VALUES[status],
-    macosHosts: statusAggregate.macos,
-    windowsHosts: statusAggregate.windows,
-    linuxHosts: statusAggregate.linux,
+    hosts: statusAggregate[platform],
     teamId: currentTeamId,
   });
 

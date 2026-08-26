@@ -8,6 +8,7 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import diskEncryptionAPI, {
+  IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
 } from "services/entities/disk_encryption";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
@@ -25,6 +26,7 @@ import {
 const baseClass = "disk-encryption-table";
 
 interface IDiskEncryptionTableProps {
+  platform: keyof IDiskEncryptionStatusAggregate;
   currentTeamId?: number;
   router: InjectedRouter;
 }
@@ -37,6 +39,7 @@ interface IDiskEncryptionRowProps extends Row {
 }
 
 const DiskEncryptionTable = ({
+  platform,
   currentTeamId,
   router,
 }: IDiskEncryptionTableProps) => {
@@ -68,7 +71,11 @@ const DiskEncryptionTable = ({
   );
 
   const tableHeaders = generateTableHeaders();
-  const tableData = generateTableData(diskEncryptionStatusData, currentTeamId);
+  const tableData = generateTableData(
+    platform,
+    diskEncryptionStatusData,
+    currentTeamId
+  );
 
   if (diskEncryptionStatusError) {
     return <DataError />;

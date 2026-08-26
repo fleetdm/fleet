@@ -5,12 +5,41 @@
     margin: 0;
   }
 
-  .disk-encryption-content {
-    animation: fade-in 250ms ease-out;
-  }
   .section-header__sub-title a {
     font-size: inherit;
     color: inherit;
+  }
+
+  &__tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__settings-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-large;
+  }
+
+  &__form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    .form-field {
+      margin: 0;
+    }
+
+    // indent descriptions to align with the checkbox label
+    .form-field__help-text {
+      margin-left: $pad-large;
+    }
   }
 
   .data-table {
