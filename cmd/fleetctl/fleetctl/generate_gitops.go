@@ -1850,6 +1850,12 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				}
 			}
 		}
+
+		// handle profile automation
+		if policy.ResendConfigurationProfile != nil {
+			policySpec["resend_configuration_profile"] = policy.ResendConfigurationProfile.Name
+		}
+
 		// Parse any labels.
 		if policy.LabelsIncludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)

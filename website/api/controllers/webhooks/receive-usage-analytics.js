@@ -31,6 +31,7 @@ module.exports = {
     organization: { type: 'string', defaultsTo: 'unknown', description: 'For Fleet Premium deployments, the organization registered with the license.', },
     mdmMacOsEnabled: {type: 'boolean', defaultsTo: false},
     mdmWindowsEnabled: {type: 'boolean', defaultsTo: false},
+    mdmAndroidEnabled: {type: 'boolean', defaultsTo: false},
     liveQueryDisabled: {type: 'boolean', defaultsTo: false},
     hostExpiryEnabled: {type: 'boolean', defaultsTo: false},
     numSoftwareVersions: {type: 'number', defaultsTo: 0},

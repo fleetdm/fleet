@@ -20,6 +20,25 @@ describe("TooltipWrapper", () => {
     });
   });
 
+  it("does not render tooltip when tipContent is empty", async () => {
+    // Guarantees callers can pass a conditional/empty tipContent without
+    // the tooltip's empty background flashing on hover.
+    const { user } = renderWithSetup(
+      <TooltipWrapper tipContent="">
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+
+    const anchor = screen.getByText("Hover me");
+    await user.hover(anchor);
+
+    // The tooltip's root gets role="tooltip"; hovering an empty-content wrapper
+    // must not mount one.
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    });
+  });
+
   it("does not render tooltip when disableTooltip is true", async () => {
     const { user } = renderWithSetup(
       <TooltipWrapper tipContent="Tooltip text" disableTooltip>
@@ -45,6 +64,26 @@ describe("TooltipWrapper", () => {
     const element = screen.getByText("Hover me").parentElement;
     expect(element).toHaveClass("component__tooltip-wrapper__element");
     expect(element).toHaveClass("component__tooltip-wrapper__underline");
+  });
+
+  it("does not apply underline class when tipContent is empty", () => {
+    render(
+      <TooltipWrapper tipContent="">
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+    const element = screen.getByText("Hover me").parentElement;
+    expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
+  });
+
+  it("does not apply underline class when disableTooltip is true", () => {
+    render(
+      <TooltipWrapper tipContent="Tooltip text" disableTooltip>
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+    const element = screen.getByText("Hover me").parentElement;
+    expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
   });
 
   it("does not apply underline class when underline is false", () => {

@@ -100,11 +100,11 @@ export const filterSoftwareByCustomCategory = (
   });
 };
 
-// Client-side match filter used by the desktop "Install all" count, the
-// desktop `SelfServiceTable`, and the mobile tile list. Matches the backend
-// `MatchQuery` columns on `software_titles` (name, bundle_identifier, custom
-// display_name) so a rename-only admin edit is still findable and so the
-// Install all button installs exactly what the user sees on screen.
+// Client-side match filter used by the desktop `SelfServiceTable`, the mobile
+// tile list, and the "Install all" count. Matches the backend `MatchQuery`
+// columns on `software_titles` (name, bundle_identifier, custom display_name)
+// so a rename-only admin edit is still findable and the Install all button
+// installs exactly what the user sees on screen.
 export const filterSoftwareByQuery = (
   software: IDeviceSoftwareWithUiStatus[],
   query: string | undefined
