@@ -84,7 +84,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingesting homebrew app")
+			return nil, ctxerr.Wrapf(ctx, err, "ingesting homebrew app %s", input.Slug)
 		}
 
 		manifestApps = append(manifestApps, outApp)

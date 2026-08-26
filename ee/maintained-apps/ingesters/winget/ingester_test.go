@@ -3,6 +3,7 @@ package winget
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -616,6 +617,79 @@ func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Serv
 	}))
 }
 
+// newMismatchedInstallerServer serves a package whose newest version dirs publish only
+// an MSIX installer while an older version still publishes the machine-scope MSI. This
+// is the shape ImageGlass took when its winget manifest went MSIX-only for a release.
+// The MSI lives in version "1.0"; every version in msixVersions gets an MSIX-only manifest.
+func newMismatchedInstallerServer(t *testing.T, msixVersions []string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+
+		if r.URL.Path == "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo" {
+			content := []github.RepositoryContent{{Name: new("1.0"), Type: new("dir")}}
+			for _, v := range msixVersions {
+				content = append(content, github.RepositoryContent{Name: new(v), Type: new("dir")})
+			}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+			return
+		}
+
+		for _, v := range msixVersions {
+			if r.URL.Path == fmt.Sprintf("/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/%s/Foo.installer.yaml", v) {
+				writeYAMLContent(installerManifest{
+					InstallerType:  "msix",
+					PackageVersion: v,
+					Installers: []installer{
+						{Architecture: "x64", InstallerURL: fmt.Sprintf("https://example.com/foo-%s.msix", v)},
+						{Architecture: "arm64", InstallerURL: fmt.Sprintf("https://example.com/foo-%s-arm.msix", v)},
+					},
+				})
+				return
+			}
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(installerManifest{
+				ProductCode:    "{ABCDEF}",
+				InstallerType:  "msi",
+				PackageVersion: "1.0",
+				Installers: []installer{
+					{
+						Architecture:  "x64",
+						InstallerType: "msi",
+						Scope:         "machine",
+						ProductCode:   "{ABCDEF}",
+						InstallerURL:  "https://example.com/foo-1.0.msi",
+					},
+				},
+			})
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			// Locale manifests for skipped versions are never fetched: the installer
+			// match is decided before we spend a second API call on the version.
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
 func TestIngestOneVersionWalk(t *testing.T) {
 	ctx := context.Background()
 	input := inputApp{
@@ -663,6 +737,30 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "504")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+
+	t.Run("latest version without a matching installer falls through to the next", func(t *testing.T) {
+		srv := newMismatchedInstallerServer(t, []string{"2.0"})
+		t.Cleanup(srv.Close)
+
+		out, err := newIngester(srv).ingestOne(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+		require.Equal(t, "https://example.com/foo-1.0.msi", out.InstallerURL)
+	})
+
+	t.Run("the fallback walk is bounded so a misconfigured input fails fast", func(t *testing.T) {
+		// Enough MSIX-only versions to exhaust the budget before the walk reaches the
+		// "1.0" MSI it would otherwise have matched.
+		var msix []string
+		for v := maxInstallerFallbackVersions + 1; v >= 2; v-- {
+			msix = append(msix, fmt.Sprintf("%d.0", v))
+		}
+		srv := newMismatchedInstallerServer(t, msix)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.ErrorContains(t, err, "failed to find installer for app")
 	})
 }
 
