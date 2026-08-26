@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.07.1+147",
+      "version": "2026.08.1+195",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'RStudio' AND publisher = 'Posit Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RStudio' AND publisher = 'Posit Software' AND version_compare(version, '2026.07.1+147') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RStudio' AND publisher = 'Posit Software' AND version_compare(version, '2026.08.1+195') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('rgui.exe','rsession.exe','rstudio.exe'));"
       },
-      "installer_url": "https://download1.rstudio.org/electron/windows/RStudio-2026.07.1-147.exe",
+      "installer_url": "https://download1.rstudio.org/electron/windows/RStudio-2026.08.1-195.exe",
       "install_script_ref": "85f22f37",
       "uninstall_script_ref": "d294a15f",
-      "sha256": "6c22bd2cf2af0af4365e74dd0f84573d30385a3b6fe0afa8c112fa34ff408d1b",
+      "sha256": "b867e71732ca89c5fe5de8b3f6a1b038e2a8545e4a8083c381fb12362fc81480",
       "default_categories": [
         "Developer tools"
       ]
