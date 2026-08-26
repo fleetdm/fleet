@@ -13374,6 +13374,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 Each configuration only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
+If multiple configurations match the same host, Fleet applies the one that was added first. Each entry in the response includes a `created_at` timestamp so you can confirm which configuration takes precedence.
+
 #### Example
 
 `PATCH /api/v1/fleet/software/titles/3467/app_store_app`
@@ -13445,7 +13447,8 @@ Each configuration only supports `managedConfiguration` and `workProfileWidgets`
             "id": 12
           }
         ],
-        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->"
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Product config -->",
+        "created_at": "2026-08-25T14:20:11Z"
       },
       {
         "labels_include_any": [
@@ -13454,10 +13457,12 @@ Each configuration only supports `managedConfiguration` and `workProfileWidgets`
             "id": 17
           }
         ],
-        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->"
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Marketing config -->",
+        "created_at": "2026-08-25T14:22:03Z"
       },
       {
-        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->"
+        "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- default config -->",
+        "created_at": "2026-08-25T14:23:41Z"
       }
     ],
     "automatic_install_policies": [

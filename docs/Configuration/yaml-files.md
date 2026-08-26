@@ -799,7 +799,7 @@ software:
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `configurations` is a list of one or more managed app configurations for this app. For iOS and iPadOS apps each configuration is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   - Each entry has a `path` to the configuration file, and optionally one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that specific configuration to a subset of the hosts the app is installed on (e.g. give one IdP group a different VPN configuration than another).
-  - An entry with no label fields is the default and matches any host not matched by an earlier entry. Fleet evaluates entries in list order and applies the first matching one, so an unscoped default entry should be listed last.
+  - An entry with no label fields is the default and matches any host not matched by an earlier entry. If multiple entries match the same host, Fleet applies the one that was added first (same precedence rule as [multiple versions of the same software](#packages)), so an unscoped default entry should be listed last. In GitOps, the first entry added is the first one in the list on the initial run that adds the app's configurations; reordering the list on a later run doesn't change the order. The [API response](https://fleetdm.com/docs/rest-api/rest-api#update-app-store-app) includes each configuration's `created_at` so you can confirm the order.
   - Up to 10 configurations are supported per app (same limit as [multiple versions of the same software](#packages)).
   - Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   - Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
@@ -810,6 +810,37 @@ software:
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
+
+#### Example
+
+##### Multiple label-scoped configurations
+
+You can add multiple managed app configurations for the same App Store app. This lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group).
+
+`labels_include_any`, `labels_include_all`, `labels_exclude_any`, and `path` are defined per configuration.
+
+If multiple configurations target the same host, Fleet will apply the one that was added first.
+
+> In GitOps, the first configuration added is the first one in the app's `configurations` list on the initial run that adds the app's configurations. Reordering the list on a later run doesn't change the order.
+>
+> You can preview the order of the configurations in the UI. The first configuration in the list is always a fallback in case multiple configurations are scoped to the same host.
+
+`fleets/fleet-name.yml`, or `fleets/unassigned.yml`
+
+```yaml
+software:
+  app_store_apps:
+    - app_store_id: "546505307"
+      platform: ios
+      configurations:
+        - labels_include_any:
+            - Product
+          path: ../lib/software/zoom-config-product.xml
+        - labels_include_any:
+            - Marketing
+          path: ../lib/software/zoom-config-marketing.xml
+        - path: ../lib/software/zoom-config-default.xml
+```
 
 ### fleet_maintained_apps
 
