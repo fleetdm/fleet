@@ -2869,7 +2869,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
-| windows_require_bitlocker_pin           | boolean | _Deprecated at this level_ Use `windows_settings.require_bitlocker_pin` instead. |
+| windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
@@ -7594,7 +7594,7 @@ _Available in Fleet Premium_
 | --------------------------------------- | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_disk_encryption                  | boolean | body  | _Deprecated._ Whether disk encryption and/or escrow should be enforced on all platforms. When set to true, enables disk encryption for macOS and Windows hosts, and enables escrow for macOS and Linux hosts. Use per-platform settings instead. |
-| windows_require_bitlocker_pin           | boolean | _Deprecated at this level_ Use `windows_settings.require_bitlocker_pin` instead. |
+| windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | macos_settings                          | object  | body  | See `macos_settings` below. |
 | windows_settings                        | object  | body  | See `windows_settings` below. |
 | linux_settings                          | object  | body  | See `linux_settings` below. |
@@ -14997,7 +14997,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------|
-| windows_require_bitlocker_pin     | boolean | _Deprecated at this level_ Use `windows_settings.require_bitlocker_pin` instead. |
+| windows_require_bitlocker_pin     | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | macos_updates                     | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates                       | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates                    | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
