@@ -103,6 +103,17 @@ func withDiskEncryptionDefaults(m fleet.TeamMDM) fleet.TeamMDM {
 	return m
 }
 
+// withCreateDefaults adds the defaults only fleet creation persists on top of
+// withDiskEncryptionDefaults: the canonical BitLocker PIN home is stored as
+// explicit false for new fleets, while edits leave an absent value untouched.
+func withCreateDefaults(m fleet.TeamMDM) fleet.TeamMDM {
+	m = withDiskEncryptionDefaults(m)
+	if !m.WindowsSettings.RequireBitLockerPIN.Valid {
+		m.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+	}
+	return m
+}
+
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
@@ -335,7 +346,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		AdditionalQueries:       new(json.RawMessage(`{"foo": "bar"}`)),
 		HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 	}, team.Config.Features)
-	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -471,7 +482,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
-	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -515,7 +526,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
-	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -561,7 +572,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listTmResp, "query", teamName)
 	require.True(t, len(listTmResp.Teams) > 0)
 	require.Equal(t, team.ID, listTmResp.Teams[0].ID)
-	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2021-01-01"),
@@ -3913,7 +3924,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	// settings.
 	var getTmResp getTeamResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams/"+fmt.Sprint(team.ID), nil, http.StatusOK, &getTmResp)
-	require.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
+	require.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},

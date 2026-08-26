@@ -2430,19 +2430,10 @@ func (svc *Service) validateMDM(
 
 	// the PIN requirement is a BitLocker feature, so it's judged against the
 	// Windows setting, not the all-platforms aggregate
-	if !mdm.WindowsSettings.EnableDiskEncryption.Value {
-		switch {
-		case !oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.BitLockerPINRequired():
-			invalid.Append(
-				"mdm.windows_require_bitlocker_pin",
-				fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
-			)
-		case oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.BitLockerPINRequired():
-			invalid.Append(
-				"mdm.enable_disk_encryption",
-				fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
-			)
-		}
+	if field, msg := fleet.BitLockerPINRequirementError(
+		oldMdm.WindowsSettings.EnableDiskEncryption.Value, mdm.DiskEncryptionConfig(),
+	); msg != "" {
+		invalid.Append(field, msg)
 	}
 
 	return nil

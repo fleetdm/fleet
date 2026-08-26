@@ -341,6 +341,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
+		// captured before the disk encryption merges below overwrite it, so the
+		// BitLocker PIN validation can tell "turning encryption off" apart from
+		// "turning the PIN on"
+		oldWindowsDiskEncryption := team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value
+
 		if payload.MDM.EnableDiskEncryption.Valid {
 			// the deprecated flat toggle fans out to every per-platform disk
 			// encryption setting
@@ -393,6 +398,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if incomingPIN.Valid {
 			team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
 			team.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(incomingPIN.Value)
+		}
+
+		// the BitLocker PIN requires the Windows disk encryption setting
+		if field, msg := fleet.BitLockerPINRequirementError(oldWindowsDiskEncryption,
+			team.Config.MDM.DiskEncryptionConfig()); msg != "" {
+			return nil, fleet.NewInvalidArgumentError(field, msg)
 		}
 
 		if payload.MDM.HostNameTemplate.Set {
@@ -1704,6 +1715,14 @@ func (svc *Service) createTeamFromSpec(
 		requireBitLockerPIN = windowsSettings.RequireBitLockerPIN.Value
 	}
 	windowsSettings.RequireBitLockerPIN = optjson.SetBool(requireBitLockerPIN)
+	// the BitLocker PIN requires the Windows disk encryption setting; a new
+	// fleet has no previous state, so this is always the "enabling the PIN" case
+	if field, msg := fleet.BitLockerPINRequirementError(false, fleet.DiskEncryptionConfig{
+		WindowsEnabled:       windowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: requireBitLockerPIN,
+	}); msg != "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
+	}
 	linuxSettings := spec.MDM.LinuxSettings
 	if spec.MDM.EnableDiskEncryption.Valid {
 		linuxSettings.EnableEscrowDiskEncryptionKey = spec.MDM.EnableDiskEncryption
@@ -2060,6 +2079,12 @@ func (svc *Service) editTeamFromSpec(
 	if incomingPIN.Valid {
 		team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
 		team.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(incomingPIN.Value)
+	}
+
+	// the BitLocker PIN requires the Windows disk encryption setting
+	if field, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled,
+		team.Config.MDM.DiskEncryptionConfig()); msg != "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
 	}
 
 	var didUpdateRecoveryLockPassword bool
@@ -2611,11 +2636,8 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 
 	// the BitLocker PIN requires the Windows disk encryption setting
 	newDiskEncryption := tm.Config.MDM.DiskEncryptionConfig()
-	if newDiskEncryption.BitLockerPINRequired && !newDiskEncryption.WindowsEnabled {
-		if oldDiskEncryption.WindowsEnabled {
-			return ctxerr.New(ctx, fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
-		}
-		return ctxerr.New(ctx, fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+	if _, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled, newDiskEncryption); msg != "" {
+		return ctxerr.New(ctx, msg)
 	}
 
 	// the flat toggle is virtual: keep the stored value consistent

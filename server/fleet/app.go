@@ -435,6 +435,20 @@ func (m *MDM) DiskEncryptionConfig() DiskEncryptionConfig {
 	}
 }
 
+// BitLockerPINRequirementError reports requiring a BitLocker PIN while Windows
+// disk encryption is off, returning the offending field and message, or empty
+// strings when the pair is valid. Turning encryption off blames the encryption
+// field; turning the PIN on blames the PIN field.
+func BitLockerPINRequirementError(oldWindowsEnabled bool, cfg DiskEncryptionConfig) (field, msg string) {
+	if !cfg.BitLockerPINRequired || cfg.WindowsEnabled {
+		return "", ""
+	}
+	if oldWindowsEnabled {
+		return "mdm.enable_disk_encryption", CantDisableDiskEncryptionIfPINRequiredErrMsg
+	}
+	return "mdm.windows_require_bitlocker_pin", CantEnablePINRequiredIfDiskEncryptionEnabled
+}
+
 // BitLockerPINRequired returns the effective BitLocker PIN requirement: the
 // canonical windows_settings.require_bitlocker_pin when set, falling back to
 // the deprecated top-level key.

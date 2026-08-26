@@ -3071,6 +3071,61 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
 }
 
+// TestBitLockerPINRequiresWindowsDiskEncryption covers the fleet write paths
+// that previously persisted a PIN requirement without Windows disk encryption.
+func (s *integrationMDMTestSuite) TestBitLockerPINRequiresWindowsDiskEncryption() {
+	t := s.T()
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	team := createResp.Team
+
+	// PATCH the fleet: the PIN alone, with Windows disk encryption off
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// creating a fleet from a spec with the PIN but no Windows disk encryption
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t.Name() + "-created",
+		MDM:  fleet.TeamSpecMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// editing an existing fleet via spec, same story
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM:  fleet.TeamSpecMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// the PIN together with Windows disk encryption is accepted
+	s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(true),
+			WindowsSettings:     fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
+		},
+	}}}, http.StatusOK)
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	assert.True(t, teamResp.Team.Config.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, teamResp.Team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value)
+
+	// turning encryption off while the PIN stays required is rejected, blaming
+	// the encryption field
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				RequireBitLockerPIN: optjson.SetBool(true),
+			},
+			EnableDiskEncryption: optjson.SetBool(false),
+		},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+}
+
 func (s *integrationMDMTestSuite) TestDiskEncryptionEndpointPerPlatform() {
 	t := s.T()
 

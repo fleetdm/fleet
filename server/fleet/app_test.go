@@ -1119,3 +1119,41 @@ func TestBitLockerPINAliasSync(t *testing.T) {
 		require.False(t, ac.MDM.BitLockerPINRequired())
 	})
 }
+
+func TestBitLockerPINRequirementError(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		oldWindowsEnabled bool
+		cfg               DiskEncryptionConfig
+		wantField         string
+		wantMsg           string
+	}{
+		{
+			name: "PIN with encryption on is valid",
+			cfg:  DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: true},
+		},
+		{
+			name: "no PIN with encryption off is valid",
+			cfg:  DiskEncryptionConfig{},
+		},
+		{
+			name:      "enabling the PIN without encryption blames the PIN field",
+			cfg:       DiskEncryptionConfig{BitLockerPINRequired: true},
+			wantField: "mdm.windows_require_bitlocker_pin",
+			wantMsg:   CantEnablePINRequiredIfDiskEncryptionEnabled,
+		},
+		{
+			name:              "disabling encryption while the PIN is required blames the encryption field",
+			oldWindowsEnabled: true,
+			cfg:               DiskEncryptionConfig{BitLockerPINRequired: true},
+			wantField:         "mdm.enable_disk_encryption",
+			wantMsg:           CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			field, msg := BitLockerPINRequirementError(tc.oldWindowsEnabled, tc.cfg)
+			require.Equal(t, tc.wantField, field)
+			require.Equal(t, tc.wantMsg, msg)
+		})
+	}
+}

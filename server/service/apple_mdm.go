@@ -3722,11 +3722,8 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 	}
 
 	// the BitLocker PIN requires the Windows disk encryption setting
-	if !ac.MDM.WindowsSettings.EnableDiskEncryption.Value && ac.MDM.BitLockerPINRequired() {
-		if oldWindowsDiskEncryption {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption", fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg))
-		}
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.windows_require_bitlocker_pin", fleet.CantEnablePINRequiredIfDiskEncryptionEnabled))
+	if field, msg := fleet.BitLockerPINRequirementError(oldWindowsDiskEncryption, ac.MDM.DiskEncryptionConfig()); msg != "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
 	}
 
 	// the flat toggle is virtual: keep the stored value consistent
