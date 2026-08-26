@@ -639,6 +639,53 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
+  it("renders an 'edited_disk_encryption_settings' type activity for a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDiskEncryptionSettings,
+      details: { fleet_name: "Alphas", platform: "windows" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "edited disk encryption settings for Windows hosts assigned to the",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_disk_encryption_settings' type activity with a missing platform", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDiskEncryptionSettings,
+      details: { fleet_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "edited disk encryption settings for unknown hosts assigned to the",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_disk_encryption_settings' type activity for hosts that are unassigned.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDiskEncryptionSettings,
+      details: { platform: "linux" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "edited disk encryption settings for Linux hosts that are unassigned."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
   it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
     // Test deprecated activity type
     const activity = createMockActivity({

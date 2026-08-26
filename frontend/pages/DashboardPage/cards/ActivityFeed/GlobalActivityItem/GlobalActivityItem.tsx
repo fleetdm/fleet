@@ -911,6 +911,27 @@ const TAGGED_TEMPLATES = {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
+  editedDiskEncryptionSettings: (activity: IActivity) => {
+    // this activity's platform detail is "macos" | "windows" | "linux" — the
+    // settings-key naming, not the osquery-style "darwin" of other activities
+    const platform = activity.details?.platform as string | undefined;
+    const displayNames: Record<string, string> = {
+      macos: "macOS",
+      windows: "Windows",
+      linux: "Linux",
+    };
+    // an unexpected value renders as-is and a missing one as "unknown", so
+    // either degrades visibly rather than leaving a gap in the sentence
+    const platformDisplay = platform
+      ? displayNames[platform] ?? platform
+      : "unknown";
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
+    return (
+      <>
+        edited disk encryption settings for {platformDisplay} hosts{suffix}.
+      </>
+    );
+  },
   enabledRecoveryLockPasswords: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
@@ -2523,6 +2544,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     // Note: This activity is generated for all platforms.
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
+    }
+    case ActivityType.EditedDiskEncryptionSettings: {
+      return TAGGED_TEMPLATES.editedDiskEncryptionSettings(activity);
     }
     case ActivityType.EnabledRecoveryLockPasswords: {
       return TAGGED_TEMPLATES.enabledRecoveryLockPasswords(activity);
