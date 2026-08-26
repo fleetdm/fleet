@@ -2275,26 +2275,6 @@ func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *stri
 	return nil
 }
 
-// selectMultiPackage picks one package out of a multi-package software YAML
-// based on the hash_sha256 sub-selector on install_software.
-func selectMultiPackage(pkgs []fleet.SoftwarePackageSpec, installSoftwareObj *PolicyInstallSoftware) (fleet.SoftwarePackageSpec, error) {
-	if installSoftwareObj.HashSHA256 == "" {
-		return fleet.SoftwarePackageSpec{}, fmt.Errorf(
-			"file %q contains multiple packages; add install_software.hash_sha256 to select one",
-			installSoftwareObj.PackagePath,
-		)
-	}
-	for _, p := range pkgs {
-		if p.SHA256 == installSoftwareObj.HashSHA256 {
-			return p, nil
-		}
-	}
-	return fleet.SoftwarePackageSpec{}, fmt.Errorf(
-		"install_software.hash_sha256 %q does not match any package in file %q",
-		installSoftwareObj.HashSHA256, installSoftwareObj.PackagePath,
-	)
-}
-
 func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
@@ -2320,12 +2300,18 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
 	}
-	// app_store_id and fleet_maintained_app_slug are standalone selectors.
+	// All four selectors are mutually exclusive. package_path targets a
+	// single-package YAML; hash_sha256 pins one package by hash when the
+	// title has multiple; app_store_id and fleet_maintained_app_slug are
+	// their own paths.
 	if hasAppStore && (hasPath || hasHash || hasFMA) {
 		return wrapErrs(errors.New("install_software.app_store_id cannot be combined with other selectors"))
 	}
 	if hasFMA && (hasPath || hasHash || hasAppStore) {
 		return wrapErrs(errors.New("install_software.fleet_maintained_app_slug cannot be combined with other selectors"))
+	}
+	if hasPath && hasHash {
+		return wrapErrs(errors.New("install_software.hash_sha256 replaces install_software.package_path for multi-package titles; use one, not both"))
 	}
 
 	var errs []error
@@ -2349,22 +2335,12 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 
-			if len(multiplePackages) == 1 {
-				policyInstallSoftwareSpec = multiplePackages[0]
-			} else {
-				selected, err := selectMultiPackage(multiplePackages, installSoftwareObj)
-				if err != nil {
-					return wrapErrs(err)
-				}
-				policyInstallSoftwareSpec = selected
+			if len(multiplePackages) > 1 {
+				return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
 			}
+			policyInstallSoftwareSpec = multiplePackages[0]
 		} else {
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
-			// Single-package file: if the user supplied a hash_sha256 sub-selector, it must match the sole entry.
-			// A mismatch is almost certainly a typo or a stale reference, so fail loud.
-			if installSoftwareObj.HashSHA256 != "" && policyInstallSoftwareSpec.SHA256 != installSoftwareObj.HashSHA256 {
-				return wrapErrs(fmt.Errorf("install_software.hash_sha256 %q does not match the package in file %q", installSoftwareObj.HashSHA256, installSoftwareObj.PackagePath))
-			}
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -2384,6 +2360,23 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
 		policy.InstallSoftware.Other.HashSHA256 = policyInstallSoftwareSpec.SHA256
+	}
+
+	// Bare hash_sha256: resolve by searching the team's packages. Used when the
+	// title has multiple packages and the admin pins one by its file fingerprint
+	// rather than pointing at a single-package YAML.
+	if installSoftwareObj.HashSHA256 != "" && installSoftwareObj.PackagePath == "" {
+		matched := false
+		for _, pkg := range packages {
+			if pkg.SHA256 != "" && pkg.SHA256 == installSoftwareObj.HashSHA256 {
+				policy.InstallSoftwareURL = pkg.URL
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on team", installSoftwareObj.HashSHA256)))
+		}
 	}
 
 	if policy.InstallSoftware.Other.AppStoreID != "" {

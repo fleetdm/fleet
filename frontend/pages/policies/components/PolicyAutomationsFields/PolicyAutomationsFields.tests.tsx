@@ -309,7 +309,7 @@ describe("PolicyAutomationsFields — payload", () => {
     jest.clearAllMocks();
   });
 
-  it("carries software_installer_id (auto-selected first-added) for a multi-package title", async () => {
+  it("carries software_package_id (auto-selected first-added) for a multi-package title", async () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
     };
@@ -332,11 +332,11 @@ describe("PolicyAutomationsFields — payload", () => {
     const payload = handleRef.current?.getAutomationsPayload();
     expect(payload?.isValid).toBe(true);
     // First-added by smallest installer_id = 200
-    expect(payload?.policyUpdate?.software_installer_id).toBe(200);
+    expect(payload?.policyUpdate?.software_package_id).toBe(200);
     expect(payload?.policyUpdate?.software_title_id).toBe(20);
   });
 
-  it("does not error on save for a VPP title (must-fix: previously required non-null software_installer_id even without packages[])", () => {
+  it("does not error on save for a VPP title (must-fix: previously required non-null software_package_id even without packages[])", () => {
     const handleRef: React.MutableRefObject<IPolicyAutomationsFieldsHandle | null> = {
       current: null,
     };
@@ -358,7 +358,7 @@ describe("PolicyAutomationsFields — payload", () => {
     expect(payload?.isValid).toBe(true);
     // Backend picks the VPP install target from software_title_id; we send
     // installer_id as null on the wire.
-    expect(payload?.policyUpdate?.software_installer_id ?? null).toBeNull();
+    expect(payload?.policyUpdate?.software_package_id ?? null).toBeNull();
   });
 
   it("maps Patch when app is closed to both policy flags", () => {
