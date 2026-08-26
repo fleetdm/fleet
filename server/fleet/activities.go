@@ -654,6 +654,9 @@ func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
+// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeEnabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -663,6 +666,9 @@ func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
 	return "enabled_macos_disk_encryption"
 }
 
+// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeDisabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -670,6 +676,20 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+// ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
+// effective disk encryption settings changed. It replaces the deprecated
+// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
+// pair.
+type ActivityTypeEditedDiskEncryptionSettings struct {
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+	Platform  string  `json:"platform"` // "macos" | "windows" | "linux"
+}
+
+func (a ActivityTypeEditedDiskEncryptionSettings) ActivityName() string {
+	return "edited_disk_encryption_settings"
 }
 
 type ActivityTypeSetHostRecoveryLockPassword struct {
@@ -777,6 +797,18 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeEnabledSSOFleetDesktop) ActivityName() string {
+	return "enabled_sso_fleet_desktop"
+}
+
+type ActivityTypeDisabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeDisabledSSOFleetDesktop) ActivityName() string {
+	return "disabled_sso_fleet_desktop"
 }
 
 // ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account

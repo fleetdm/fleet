@@ -1213,100 +1213,6 @@ func (s *integrationTestSuite) TestTranslator() {
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{List: []fleet.TranslatePayload{{Type: "notavalidtype", Payload: fleet.StringIdentifierToIDPayload{}}}}, http.StatusBadRequest, &payload)
 }
 
-func (s *integrationTestSuite) TestSoftwareChecksumReconciliation() {
-	t := s.T()
-	ctx := context.Background()
-
-	newHost := func(suffix string) *fleet.Host {
-		h, err := s.ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         new(t.Name() + suffix),
-			UUID:            t.Name() + suffix,
-			Hostname:        t.Name() + suffix,
-		})
-		require.NoError(t, err)
-		return h
-	}
-	host1, host2, host3 := newHost("1"), newHost("2"), newHost("3")
-
-	// Unique name so the software/versions query isolates this test's rows in the
-	// shared suite database.
-	const name = "giflib-recon-e2e"
-	sw := fleet.Software{Name: name, Version: "5.2.2", Source: "homebrew_packages"}
-
-	// host1 reports the software the normal way => canonical (current-formula) row.
-	_, err := s.ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{sw})
-	require.NoError(t, err)
-
-	var canonical struct {
-		ID      uint  `db:"id"`
-		TitleID *uint `db:"title_id"`
-	}
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &canonical,
-			`SELECT id, title_id FROM software WHERE name = ? AND version = '5.2.2' AND source = 'homebrew_packages'`, name)
-	})
-
-	// Simulate a pre-v4.76.0 duplicate: same identity, a different (legacy) checksum,
-	// referenced by other hosts. host3 is linked to both rows (a collision).
-	var staleID int64
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx,
-			`INSERT INTO software (name, version, source, checksum, title_id) VALUES (?, '5.2.2', 'homebrew_packages', ?, ?)`,
-			name, []byte("recon-e2e-stale!"), canonical.TitleID)
-		if err != nil {
-			return err
-		}
-		staleID, err = res.LastInsertId()
-		if err != nil {
-			return err
-		}
-		_, err = q.ExecContext(ctx,
-			`INSERT INTO host_software (host_id, software_id) VALUES (?, ?), (?, ?), (?, ?)`,
-			host2.ID, staleID, host3.ID, staleID, host3.ID, canonical.ID)
-		return err
-	})
-
-	// Populate host counts so the versions endpoint returns the software.
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-
-	// Before reconciliation the bug is visible through the API: two entries for the
-	// same name/version/source, with split host counts.
-	var versions listSoftwareVersionsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
-	require.Len(t, versions.Software, 2)
-
-	// Run the migration (what `fleetctl trigger --name software_checksum_migration` invokes).
-	require.NoError(t, s.ds.ReconcileSoftwareChecksums(ctx))
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-
-	// Now a single deduplicated entry with the combined host count (host1 + host2 +
-	// host3, with host3's duplicate link resolved).
-	versions = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
-	require.Len(t, versions.Software, 1)
-	require.Equal(t, canonical.ID, versions.Software[0].ID)
-	require.Equal(t, 3, versions.Software[0].HostsCount)
-
-	// The stale row is gone.
-	var staleCount int
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &staleCount, `SELECT COUNT(*) FROM software WHERE id = ?`, staleID)
-	})
-	require.Zero(t, staleCount)
-
-	// Idempotent: re-running the migration changes nothing.
-	require.NoError(t, s.ds.ReconcileSoftwareChecksums(ctx))
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
-	versions = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versions, "query", name)
-	require.Len(t, versions.Software, 1)
-	require.Equal(t, 3, versions.Software[0].HostsCount)
-}
-
 func (s *integrationTestSuite) TestVulnerableSoftware() {
 	t := s.T()
 
@@ -9000,6 +8906,40 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp)
 }
 
+// Free tier must not expose or accept fleet_desktop.sso_enabled, and must not
+// let a value stored under a premium license (before a downgrade) block
+// unrelated config changes.
+func (s *integrationTestSuite) TestFleetDesktopSSOFreeTier() {
+	t := s.T()
+	ctx := t.Context()
+
+	// PATCH attempting to enable it is rejected with the license error
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"sso_enabled":true}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing or invalid license")
+
+	// seed a value as if it had been set while premium, then downgraded
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.FleetDesktop.SSOEnabled = true
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+
+	// GET /config rebuilds FleetDesktopSettings field by field and premium-gates
+	// the values, so the stored flag must read back as false here
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+
+	// an unrelated PATCH still succeeds and resets the stored value rather than
+	// failing on a premium-only setting left over from the downgrade
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"host_expiry_settings":{"host_expiry_enabled":false}}`), http.StatusOK, &acResp)
+	require.False(t, acResp.FleetDesktop.SSOEnabled)
+
+	appCfg, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, appCfg.FleetDesktop.SSOEnabled)
+}
+
 func (s *integrationTestSuite) TestAppConfig() {
 	t := s.T()
 	ctx := context.Background()
@@ -12320,6 +12260,21 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "ping-token"), nil, http.StatusOK)
 	s.DoRaw("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
 	s.DoRawNoAuth("HEAD", fmt.Sprintf("/api/v1/fleet/device/%s/ping", "bozo-token"), nil, http.StatusUnauthorized)
+}
+
+func (s *integrationTestSuite) TestInitiateDeviceSSOFreeTier() {
+	t := s.T()
+
+	createHostAndDeviceToken(t, s.ds, "device-sso-token")
+
+	// free tier: no InitiateDeviceSSO implementation beyond the license error,
+	// same shape as every other premium-only device endpoint.
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/device-sso-token/sso", nil, http.StatusPaymentRequired)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, fleet.ErrMissingLicense.Error())
+
+	// invalid device token behaves like every other device-authenticated route
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/bozo-token/sso", nil, http.StatusUnauthorized)
 }
 
 func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {

@@ -497,7 +497,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		mdmConfig := fleet.TeamMDM{
 			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
-			RequireBitLockerPIN:        cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
+			RequireBitLockerPIN:        cmd.AppConfig.MDM.BitLockerPINRequired(),
 			HostNameTemplate:           cmd.AppConfig.MDM.HostNameTemplate.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,
@@ -1853,9 +1853,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 
 		// handle profile automation
 		if policy.ResendConfigurationProfile != nil {
-			policySpec["resend_configuration_profile"] = map[string]any{
-				"name": policy.ResendConfigurationProfile.Name,
-			}
+			policySpec["resend_configuration_profile"] = policy.ResendConfigurationProfile.Name
 		}
 
 		// Parse any labels.

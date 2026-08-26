@@ -500,7 +500,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 	t.Run("Disk encryption disabled", func(t *testing.T) {
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
-		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+		setAppConfigDiskEncryptionForTest(ac, false)
 		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 		ac, err = ds.AppConfig(ctx)
 		require.NoError(t, err)
@@ -514,7 +514,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 	t.Run("Disk encryption enabled", func(t *testing.T) {
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
-		ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		setAppConfigDiskEncryptionForTest(ac, true)
 		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 		ac, err = ds.AppConfig(ctx)
 		require.NoError(t, err)
@@ -675,6 +675,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		t.Run("BitLocker profile status with PIN required", func(t *testing.T) {
 			// Turn on Bitlocker requirement
 			ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+			ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 			ac, err = ds.AppConfig(ctx)
 			require.NoError(t, err)
@@ -714,6 +715,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			// Reset "RequireBitLockerPIN" to false
 			ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+			ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 			ac, err = ds.AppConfig(ctx)
 			require.NoError(t, err)
@@ -744,7 +746,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			})
 
 			// Enable disk encryption for the team
-			tm.Config.MDM.EnableDiskEncryption = true
+			setTeamMDMDiskEncryptionForTest(&tm.Config.MDM, true)
 			tm, err = ds.SaveTeam(ctx, tm)
 			require.NoError(t, err)
 			require.NotNil(t, tm)
@@ -1052,7 +1054,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		t.Run("bitlocker disabled", func(t *testing.T) {
 			ac, err := ds.AppConfig(ctx)
 			require.NoError(t, err)
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			setAppConfigDiskEncryptionForTest(ac, false)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 			ac, err = ds.AppConfig(ctx)
 			require.NoError(t, err)
@@ -1089,7 +1091,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		t.Run("bitlocker enabled", func(t *testing.T) {
 			ac, err := ds.AppConfig(ctx)
 			require.NoError(t, err)
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setAppConfigDiskEncryptionForTest(ac, true)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 			ac, err = ds.AppConfig(ctx)
 			require.NoError(t, err)
@@ -1306,7 +1308,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 			})
 
 			// turn off disk encryption so that the rest of the tests can focus on profiles status
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			setAppConfigDiskEncryptionForTest(ac, false)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 		})
 	})
@@ -1407,7 +1409,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		// turn on disk encryption
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
-		ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+		setAppConfigDiskEncryptionForTest(ac, true)
 		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 
 		// hosts[0:3] are now pending because disk encryption is enabled, hosts[4] is still failed,
@@ -1481,7 +1483,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		cleanupTables(t)
 
 		// turn off disk encryption for future tests
-		ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+		setAppConfigDiskEncryptionForTest(ac, false)
 		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 	})
 }
@@ -7171,7 +7173,7 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 	// Use the profiles-only summary path (disk encryption disabled).
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	setAppConfigDiskEncryptionForTest(ac, false)
 	require.NoError(t, ds.SaveAppConfig(ctx, ac))
 
 	newEnrolledWindowsHost := func(t *testing.T) (*fleet.Host, string) {
@@ -7411,7 +7413,7 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	// Keep us on the profiles-only summary path (no BitLocker branches).
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	setAppConfigDiskEncryptionForTest(ac, false)
 	require.NoError(t, ds.SaveAppConfig(ctx, ac))
 
 	type profileShape struct {

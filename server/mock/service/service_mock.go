@@ -63,6 +63,10 @@ type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) 
 
 type GetFleetDesktopSummaryFunc func(ctx context.Context) (fleet.DesktopSummary, error)
 
+type InitiateDeviceSSOFunc func(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error)
+
+type RequireDeviceSSOSessionFunc func(ctx context.Context, host *fleet.Host, sessionID string) error
+
 type SetEnterpriseOverridesFunc func(overrides fleet.EnterpriseOverrides)
 
 type CreateUserFromInviteFunc func(ctx context.Context, p fleet.UserPayload) (user *fleet.User, err error)
@@ -105,7 +109,7 @@ type InitiateMDMSSOFunc func(ctx context.Context, initiator string, customOrigin
 
 type InitSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (auth fleet.Auth, redirectURL string, err error)
 
-type MDMSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string)
+type MDMSSOCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int)
 
 type GetMDMAccountDrivenEnrollmentSSOURLFunc func(ctx context.Context, enrollmentToken string) (string, error)
 
@@ -673,7 +677,7 @@ type MDMAppleEnableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint
 
 type MDMAppleDisableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint) error
 
-type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
+type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error
 
 type UpdateMDMHostNameTemplateFunc func(ctx context.Context, fleetID *uint, nameTemplate string) error
 
@@ -1064,6 +1068,12 @@ type Service struct {
 
 	GetFleetDesktopSummaryFunc        GetFleetDesktopSummaryFunc
 	GetFleetDesktopSummaryFuncInvoked bool
+
+	InitiateDeviceSSOFunc        InitiateDeviceSSOFunc
+	InitiateDeviceSSOFuncInvoked bool
+
+	RequireDeviceSSOSessionFunc        RequireDeviceSSOSessionFunc
+	RequireDeviceSSOSessionFuncInvoked bool
 
 	SetEnterpriseOverridesFunc        SetEnterpriseOverridesFunc
 	SetEnterpriseOverridesFuncInvoked bool
@@ -2622,6 +2632,20 @@ func (s *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSumm
 	return s.GetFleetDesktopSummaryFunc(ctx)
 }
 
+func (s *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+	s.mu.Lock()
+	s.InitiateDeviceSSOFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateDeviceSSOFunc(ctx, deviceURL)
+}
+
+func (s *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
+	s.mu.Lock()
+	s.RequireDeviceSSOSessionFuncInvoked = true
+	s.mu.Unlock()
+	return s.RequireDeviceSSOSessionFunc(ctx, host, sessionID)
+}
+
 func (s *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
 	s.mu.Lock()
 	s.SetEnterpriseOverridesFuncInvoked = true
@@ -2769,7 +2793,7 @@ func (s *Service) InitSSOCallback(ctx context.Context, sessionID string, samlRes
 	return s.InitSSOCallbackFunc(ctx, sessionID, samlResponse)
 }
 
-func (s *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string) {
+func (s *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string, byodCookieValue string, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int) {
 	s.mu.Lock()
 	s.MDMSSOCallbackFuncInvoked = true
 	s.mu.Unlock()
@@ -4757,11 +4781,11 @@ func (s *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID 
 	return s.MDMAppleDisableFileVaultAndEscrowFunc(ctx, teamID)
 }
 
-func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error {
+func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error {
 	s.mu.Lock()
 	s.UpdateMDMDiskEncryptionFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMDiskEncryptionFunc(ctx, teamID, enableDiskEncryption, requireBitLockerPIN)
+	return s.UpdateMDMDiskEncryptionFunc(ctx, teamID, payload)
 }
 
 func (s *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint, nameTemplate string) error {

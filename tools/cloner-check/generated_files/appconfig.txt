@@ -71,6 +71,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	SSOServerURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	FleetDesktop	fleet.FleetDesktopSettings
 github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	TransparencyURL	string
 github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	AlternativeBrowserHost	string
+github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	SSOEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	VulnerabilitySettings	fleet.VulnerabilitySettings
 github.com/fleetdm/fleet/v4/server/fleet/VulnerabilitySettings	DatabasesPath	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	WebhookSettings	fleet.WebhookSettings
@@ -161,7 +162,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
-github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	EnableDiskEncryption	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	EnableEscrowDiskEncryptionKey	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	Assets	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
@@ -213,6 +215,8 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Value	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	ManagedLocalAccountSettings	fleet.ManagedLocalAccountSettings
 github.com/fleetdm/fleet/v4/server/fleet/ManagedLocalAccountSettings	Enabled	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	EnableDiskEncryption	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	RequireBitLockerPIN	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	VolumePurchasingProgram	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]	Valid	bool
@@ -230,6 +234,8 @@ github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	LinuxSettings	fleet.LinuxSettings
+github.com/fleetdm/fleet/v4/server/fleet/LinuxSettings	EnableEscrowDiskEncryptionKey	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleAccountProvisioning	fleet.AppleAccountProvisioning
 github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPTokenURL	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientID	optjson.String
