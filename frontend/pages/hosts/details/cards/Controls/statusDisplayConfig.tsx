@@ -144,12 +144,10 @@ const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
     ) : (
       <>
         <b>{props.hostDisplayName}</b> acknowledged the MDM command to apply{" "}
-        <b>{props.settingName}</b>.{" "}
-        {
-          !isDDMProfile({ profile_uuid: props.profileUUID }) && (
-            <>Fleet is verifying with osquery.</>
-          ) // do not show osquery for DDM profiles.
-        }
+        <b>{props.settingName}</b>.
+        {!isDDMProfile({ profile_uuid: props.profileUUID }) && (
+          <> Fleet is verifying with osquery.</>
+        )}
       </>
     ),
 };
