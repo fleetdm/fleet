@@ -104,10 +104,24 @@ module.exports = {
           'Third-party Apple payloads: https://github.com/ProfileManifests/ProfileManifests',
         ],
         rules: [
-          'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values (<string>, <integer>, <true/>, <array>, <dict>).',
-          'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration".',
-          'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
+          // Document shape.
+          'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
+          'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
           'Keep the plist indented and readable across multiple lines.  Do not collapse it onto one line.',
+          // Key fidelity.  The mirror image of the DDM PascalCase defect.
+          'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
+          'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
+          'If you cannot recall a payload type\'s exact key names, do not guess a casing and do not adapt a key from a DDM declaration -- return the "couldNotGenerateProfile" shape and name the payload type you were unsure about.',
+          // Value typing.
+          'Type every value as plist: <true/> or <false/> for booleans, never <string>true</string>; <integer> for whole numbers; <real> for decimals; <data> with base64 for binary; <date> with an ISO 8601 timestamp.',
+          // Identifiers.
+          'PayloadUUID is a distinct uppercase UUID in 8-4-4-4-12 form on every dict, including the root.  Two dicts sharing a UUID is a profile that installs unpredictably.',
+          'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
+          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile does.',
+          // Structure.
+          'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
+          // Third-party payloads.
+          'For a third-party application\'s settings, PayloadType is that application\'s preference domain -- com.google.Chrome, us.zoom.config, and so on -- and its keys come from the ProfileManifests reference rather than Apple\'s payload reference.',
         ],
       },
 
@@ -137,67 +151,70 @@ module.exports = {
       .map((rule, idx)=>`${idx + 1}. ${rule}`)
       .join('\n    ');
 
+
+    let systemPrompt = `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
+
+You generate a ${promptConfig.description} from an IT admin's instructions.
+
+Draw setting names, types, and allowed values from these published references:
+${promptConfig.references.map((reference)=>`- ${reference}`).join('\n    ')}
+
+When generating the profile:
+${numberedRules}
+
+Respond in JSON with this data shape:
+{
+  "configurationProfile": "TODO",
+  "profileFilename": "TODO",
+  // Things the admin must do or decide that are not visible in the profile itself.
+  // Empty string when there is nothing exceptional, which is the common case.
+  "deliveryNotes": "",
+  "settingsEnforced": [// For each setting enforced by the configuration profile.
+    {
+      // The name (key) of the setting that is enforced. e.g., LoginwindowText
+      name: "TODO",
+      // The value of the setting that is enforced
+      value: "TODO",
+      // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
+      schemaReference: "TODO",
+      // The documented range, enum, or type this setting accepts, including the declared format.
+      allowedValues: "TODO",
+      // What the value above actually does, in words. e.g., "0 = a password is required"
+      valueMeaning: "TODO",
+      // The Apple or Microsoft reference page for this setting.
+      documentationUrl: "TODO",
+      // Applicability, dependencies, and any condition under which this setting deploys but does nothing. Empty string if there are none.
+      caveats: "TODO"
+    },
+    {...}
+  ]
+}
+
+If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
+{
+  "couldNotGenerateProfile": true,
+  // Explain why a profile could not be generated, naming the specific setting, node, or key you could not confirm.
+  "reasonWhyAProfileCouldNotBeGenerated": TODO
+}
+`;
+
+
     let configurationProfilePrompt = `Given these instructions from an IT admin, generate a ${promptConfig.description}.
 
     Here are the instructions:
     \`\`\`
     ${naturalLanguageInstructions}
-    \`\`\`
-
-    When generating the profile:
-    ${numberedRules}
-
-    Please give me all of the above in JSON, with this data shape:
-
-    {
-      "configurationProfile": "TODO",
-      "profileFilename": "TODO",
-      // Things the admin must do or decide that are not visible in the profile itself.
-      // Empty string when there is nothing exceptional, which is the common case.
-      "deliveryNotes": "",
-      "settingsEnforced": [// For each setting enforced by the configuration profile.
-        {
-          // The name (key) of the setting that is enforced. e.g., LoginwindowText
-          name: "TODO",
-          // The value of the setting that is enforced
-          value: "TODO",
-          // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
-          schemaReference: "TODO",
-          // The documented range, enum, or type this setting accepts, including the declared format.
-          allowedValues: "TODO",
-          // What the value above actually does, in words. e.g., "0 = a password is required"
-          valueMeaning: "TODO",
-          // The Apple or Microsoft reference page for this setting.
-          documentationUrl: "TODO",
-          // Applicability, dependencies, and any condition under which this setting deploys but does nothing. Empty string if there are none.
-          caveats: "TODO"
-        },
-        {...}
-      ]
-    }
-
-    If a configuration profile cannot be generated from the provided instructions do not return the datashape above and instead return this JSON in this exact data shape:
-
-    {
-      "couldNotGenerateProfile": true
-      // explain to the maintainer of this code why a configuration profile could not be generated.
-      "reasonWhyAProfileCouldNotBeGenerated": TODO
-    }
-    `;
-
-    let systemPrompt = 'Return ONLY a raw JSON object.'+
-      'Do not include ```json, ```, or any markdown formatting.'+
-      'Do not include any explanation or text before or after the JSON.'+
-      'Your entire response must be valid JSON.';
+    \`\`\``;
     // console.log(configurationProfilePrompt);
     let configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-      prompt: configurationProfilePrompt,
       systemPrompt: systemPrompt,
+      prompt: configurationProfilePrompt,
       baseModel: 'claude-sonnet-5',
       expectJson: true,
     })
     .intercept((err)=>{
-      return new Error(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      return 'couldNotGenerateProfile';
     });
     sails.log(configurationProfileGenerationResult);
     // let jsonResult = JSON.parse(configurationProfileGenerationResult);
