@@ -143,6 +143,8 @@ func TestSoftware(t *testing.T) {
 		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 		{"CreateIntermediateInstallFailureRecordAfterDeletion", testCreateIntermediateInstallFailureRecordAfterDeletion},
 		{"ListHostSoftwareSortByDisplayName", testListHostSoftwareSortByDisplayName},
+		{"CleanupSoftwareTitlesRepairsUnlinkedSoftware", testCleanupSoftwareTitlesRepairsUnlinkedSoftware},
+		{"NullDanglingTitleLinks", testNullDanglingTitleLinks},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -10703,7 +10705,7 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 	}
 
 	// Pre-insert once
-	err := ds.preInsertSoftwareInventory(ctx, nil, softwareChecksums, nil)
+	_, err := ds.preInsertSoftwareInventory(ctx, nil, softwareChecksums, nil, false)
 	require.NoError(t, err)
 
 	// Count inserted software
@@ -10714,7 +10716,7 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 	require.Equal(t, 10, count)
 
 	// Pre-insert again (should be idempotent)
-	err = ds.preInsertSoftwareInventory(ctx, nil, softwareChecksums, nil)
+	_, err = ds.preInsertSoftwareInventory(ctx, nil, softwareChecksums, nil, false)
 	require.NoError(t, err)
 
 	// Count should remain the same

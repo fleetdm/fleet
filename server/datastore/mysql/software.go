@@ -604,9 +604,27 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			return nil, ctxerr.Wrap(ctx, err, "update software titles upgrade code")
 		}
 		// Pre-insert software and titles in small batches
-		err = ds.preInsertSoftwareInventory(ctx, existingSoftwareSummaries, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles)
+		missing, err := ds.preInsertSoftwareInventory(ctx, existingSoftwareSummaries, incomingSoftwareByChecksum, incomingChecksumsToExistingTitles, false)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "pre-insert software inventory")
+		}
+		// A missed title means it is not in the database: a concurrent
+		// CleanupSoftwareTitles deleted it right after the pre-insert (it was briefly
+		// orphaned outside the transaction), or cleanup on another Fleet instance
+		// deleted it and this instance's stale title cache skipped re-inserting it.
+		// The miss evicted those cache entries, so retrying the unresolved software
+		// re-inserts its titles; only rows whose title also misses the retry are
+		// written with a NULL title_id, for the hourly cleanup's repair to re-link.
+		if len(missing) > 0 {
+			retry := make(map[string]fleet.Software, len(missing))
+			for _, checksum := range missing {
+				if sw, ok := incomingSoftwareByChecksum[checksum]; ok {
+					retry[checksum] = sw
+				}
+			}
+			if _, err := ds.preInsertSoftwareInventory(ctx, nil, retry, incomingChecksumsToExistingTitles, true); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "retry pre-insert software inventory")
+			}
 		}
 
 	}
@@ -1126,13 +1144,17 @@ func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAP
 }
 
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
-// to reduce lock contention. These operations are idempotent due to INSERT IGNORE.
+// to reduce lock contention. These operations are idempotent due to INSERT IGNORE, so the caller
+// retries the returned checksums — the ones whose software title could not be resolved — with a
+// second call. Unless finalAttempt is true, software rows with an unresolved title are left
+// uninserted; on the final attempt they are inserted with a NULL title_id as a last resort.
 func (ds *Datastore) preInsertSoftwareInventory(
 	ctx context.Context,
 	existingSoftwareSummaries []softwareSummary,
 	incomingSoftwareByChecksum map[string]fleet.Software,
 	incomingChecksumsToExistingTitleSummaries map[string]fleet.SoftwareTitleSummary,
-) error {
+	finalAttempt bool,
+) ([]string, error) {
 	type titleKey struct {
 		name         string
 		source       string
@@ -1168,7 +1190,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	}
 
 	if len(needsInsert) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	bestTitleNames := make(map[titleKey]string)
@@ -1225,6 +1247,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	winFMAPrefixes := windowsFMAPrefixes(winFMANames)
 
 	// Process in smaller batches to reduce lock time
+	var missing []string
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
 		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
 		for _, key := range batchKeys {
@@ -1347,7 +1370,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		}
 
 		// Each batch in its own transaction (for SELECT title IDs + INSERT software).
-		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var batchMissing []string
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Map to store title IDs for all titles (both existing and new)
 			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitleSummaries))
 
@@ -1529,28 +1553,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 			// Insert software entries
 			const numberOfArgsPerSoftware = 13
-			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
-			)
-			stmt := fmt.Sprintf(
-				`INSERT IGNORE INTO software (
-					name,
-					version,
-					source,
-					`+"`release`"+`,
-					vendor,
-					arch,
-					bundle_identifier,
-					extension_id,
-					extension_for,
-					title_id,
-					checksum,
-					application_id,
-					upgrade_code
-				) VALUES %s`,
-				values,
-			)
-
 			args := make([]any, 0, len(batchKeys)*numberOfArgsPerSoftware)
 			var missingChecksums []string
 			for _, checksum := range batchKeys {
@@ -1560,9 +1562,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if id, ok := titleIDsByChecksum[checksum]; ok {
 					titleID = &id
 				} else {
-					// Track software missing title IDs; titles inserted outside the
-					// transaction may have been deleted by a concurrent CleanupSoftwareTitles.
+					// The title this software needs is not in the database; leave the row
+					// uninserted (except on the final attempt) so the caller can retry it.
 					missingChecksums = append(missingChecksums, checksum)
+					if !finalAttempt {
+						continue
+					}
 				}
 
 				// Use FMA canonical name if available, otherwise use osquery-reported name.
@@ -1596,19 +1601,13 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				)
 			}
 
-			// When title IDs are missing, a concurrent CleanupSoftwareTitles likely
-			// deleted the titles we just inserted (they were orphaned briefly outside the
-			// transaction). Clear those cache entries so they are re-inserted on the next
-			// agent check-in. The software row proceeds with NULL title_id; the next
-			// ingestion cycle will re-create the title and link it.
+			// A missing title was deleted between its pre-insert above and this lookup —
+			// by a concurrent CleanupSoftwareTitles, or by one on another Fleet instance
+			// that left this instance's title cache stale, which skipped the pre-insert
+			// entirely. Evict those cache entries so the caller's retry re-creates the
+			// titles instead of skipping them again.
 			if len(missingChecksums) > 0 {
-				var examples []string
 				for _, checksum := range missingChecksums {
-					sw := batchSoftware[checksum]
-					if len(examples) < 3 {
-						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
-					}
-					// Evict from the in-process cache so the next ingestion cycle re-inserts the title.
 					if title, ok := newTitlesNeeded[checksum]; ok {
 						bundleID := ""
 						if title.BundleIdentifier != nil {
@@ -1618,27 +1617,64 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						ds.deleteKnownSoftwareTitleKey(cacheKey)
 					}
 				}
-				// Log rather than return a hard error: the title INSERT is outside the
-				// transaction, so withRetryTxx cannot re-insert the title on retry.
-				// The software row proceeds with NULL title_id and the evicted cache
-				// entry ensures the title is re-created on the next ingestion cycle.
-				if ds.logger != nil {
+				// Last resort, when the caller's retry also missed: the rows are inserted
+				// with a NULL title_id rather than dropping the inventory. Such rows are
+				// invisible to every query that joins software to software_titles until
+				// the hourly cleanup's repairUnlinkedSoftware re-links them.
+				if finalAttempt && ds.logger != nil {
+					var examples []string
+					for _, checksum := range missingChecksums {
+						if len(examples) >= 3 {
+							break
+						}
+						sw := batchSoftware[checksum]
+						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
+					}
 					ds.logger.ErrorContext(ctx, "inserting software without title_id",
 						"count", len(missingChecksums),
 						"examples", strings.Join(examples, "; "),
 					)
 				}
 			}
+			batchMissing = missingChecksums
 
-			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "pre-insert software")
+			if len(args) > 0 {
+				values := strings.TrimSuffix(
+					strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?),", len(args)/numberOfArgsPerSoftware), ",",
+				)
+				stmt := fmt.Sprintf(
+					`INSERT IGNORE INTO software (
+						name,
+						version,
+						source,
+						`+"`release`"+`,
+						vendor,
+						arch,
+						bundle_identifier,
+						extension_id,
+						extension_for,
+						title_id,
+						checksum,
+						application_id,
+						upgrade_code
+					) VALUES %s`,
+					values,
+				)
+				if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "pre-insert software")
+				}
 			}
 
 			return nil
-		})
+		}); err != nil {
+			return err
+		}
+
+		missing = append(missing, batchMissing...)
+		return nil
 	})
 
-	return err
+	return missing, err
 }
 
 // linkSoftwareToHost links pre-inserted software to a host.
@@ -3310,12 +3346,21 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
+	var repaired int
 	defer func(start time.Time) {
 		ds.logger.DebugContext(ctx, "cleanup orphaned software titles",
 			"rows_affected", n,
+			"software_relinked", repaired,
 			"took", time.Since(start),
 		)
 	}(time.Now())
+
+	// Re-link broken software rows before deleting orphaned titles, so that a title this
+	// repair just created or matched is not considered orphaned in the same run.
+	repaired, err := ds.repairUnlinkedSoftware(ctx)
+	if err != nil {
+		return err
+	}
 
 	const (
 		findOrphanedSoftwareTitlesStmt = `
@@ -3341,6 +3386,7 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	)
 
 	var lastID uint
+	var deletedTitleIDs []uint
 	for range cleanupMaxIterations {
 		var ids []uint
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, findOrphanedSoftwareTitlesStmt, lastID, cleanupBatchSize); err != nil {
@@ -3361,6 +3407,28 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 		}
 		ra, _ := res.RowsAffected()
 		n += ra
+
+		// A concurrent ingestion can link a row to one of these titles between the
+		// DELETE's reference re-check and its commit, leaving it pointing at a title that
+		// no longer exists — as invisible as a NULL title_id. NULL those links while the
+		// deleted ids are known; finding them later would cost a full pass over software's
+		// title_id index. Per batch, so earlier batches stay covered if a later one fails.
+		if ra > 0 {
+			if err := ds.nullDanglingTitleLinks(ctx, ids); err != nil {
+				return err
+			}
+			deletedTitleIDs = append(deletedTitleIDs, ids...)
+		}
+	}
+
+	// Recheck every title deleted this run: an ingestion that committed its link after its
+	// batch's nulling above is caught here, widening the window from milliseconds to the
+	// whole run. Usually a fast no-op over already-clean ids.
+	for start := 0; start < len(deletedTitleIDs); start += cleanupBatchSize {
+		end := min(start+cleanupBatchSize, len(deletedTitleIDs))
+		if err := ds.nullDanglingTitleLinks(ctx, deletedTitleIDs[start:end]); err != nil {
+			return err
+		}
 	}
 
 	// If any titles were deleted, clear the in-process title cache so that future

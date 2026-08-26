@@ -2297,16 +2297,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, h
 	return nil
 }
 
-const (
-	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	rpmKernelName   = "kernel"
-	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
-)
-
-var (
-	kernelRegex     = regexp.MustCompile(linuxImageRegex)
-	archKernelRegex = regexp.MustCompile(archKernelName)
-)
+const rpmKernelName = "kernel"
 
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
@@ -2342,7 +2333,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == rpmKernelName || archKernelRegex.MatchString(s.Name)) {
+		if fleet.IsLinux(host.Platform) && fleet.IsKernelSoftwareName(s.Name) {
 			s.IsKernel = true
 		}
 

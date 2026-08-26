@@ -229,6 +229,22 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+const (
+	linuxImageKernelPattern = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	rpmKernelName           = "kernel"
+	archKernelPattern       = `^linux(?:-(?:lts|zen|hardened))?$`
+)
+
+var (
+	linuxImageKernelRegex = regexp.MustCompile(linuxImageKernelPattern)
+	archKernelRegex       = regexp.MustCompile(archKernelPattern)
+)
+
+// IsKernelSoftwareName reports whether name is the name of a Linux kernel package.
+func IsKernelSoftwareName(name string) bool {
+	return linuxImageKernelRegex.MatchString(name) || name == rpmKernelName || archKernelRegex.MatchString(name)
+}
+
 // ComputeRawChecksum computes the checksum for a software entry.
 //
 // This is the SOLE source of truth for the software checksum. The checksum is
