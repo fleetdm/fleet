@@ -3447,6 +3447,35 @@ This activity contains the following fields:
 }
 ```
 
+## added_end_user_agreement
+
+Generated when a user uploads a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
+
+This activity contains the following fields:
+- "platform": the platform of the agreement ("macos" or "windows").
+
+#### Example
+
+```json
+{
+  "platform": "windows"
+}
+```
+
+## deleted_end_user_agreement
+
+Generated when a user deletes a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
+
+This activity contains the following fields:
+- "platform": the platform of the agreement ("macos" or "windows").
+
+#### Example
+
+```json
+{
+  "platform": "macos"
+}
+
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
