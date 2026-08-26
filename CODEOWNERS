@@ -107,6 +107,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/security-compliance         @sharon-fdm @juan-fdz-hawa
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
 
+# Website
+/website/api/models                                     @eashaw
+
 ##############################################################################################
 # 🌐 Repo automation and change control settings
 ##############################################################################################
