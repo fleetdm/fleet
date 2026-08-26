@@ -226,10 +226,6 @@ const (
 )
 
 // OrbitPostDiskEncryptionProtectionRequest reports the outcome of an attempt to restore disk encryption protection.
-//
-// This is deliberately separate from OrbitPostDiskEncryptionKeyRequest. That endpoint owns the escrowed key and blanks
-// base64_encrypted whenever a client error is reported, so reusing it here would destroy the recovery key of the very
-// hosts that still need it.
 type OrbitPostDiskEncryptionProtectionRequest struct {
 	OrbitNodeKey string                          `json:"orbit_node_key"`
 	Outcome      DiskEncryptionProtectionOutcome `json:"outcome"`

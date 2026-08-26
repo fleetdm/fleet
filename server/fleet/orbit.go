@@ -49,10 +49,7 @@ type OrbitConfigNotifications struct {
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
 	// EnableBitLockerProtection tells Orbit that the volume is encrypted but its protection is off, and that it should
-	// turn protection back on. This is a different operation from EnforceBitLockerEncryption: no data is encrypted or
-	// decrypted, only the key protection is restored, so the two must not be conflated. Sending
-	// EnforceBitLockerEncryption for this state would route the host into the encrypt path, which deletes key
-	// protectors on a volume that is already encrypted.
+	// turn protection back on.
 	EnableBitLockerProtection bool `json:"enable_bitlocker_protection,omitempty"`
 
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
