@@ -346,6 +346,8 @@ In practice, this means:
 - **Emails and communication:** Apply judgment to tone and substance. AI doesn't know your audience, your relationships, or the full context of a situation. An AI-drafted email may be technically fine but miss the mark entirely. Edit with intent.
 - **Analysis and summaries:** Check that they reflect the source. AI can hallucinate or oversimplify. If you are summarizing a document or producing a report, verify the output against the original.
 
+Only generate content you can validate yourself. If you need someone else to fact-check what you wrote, they should be the one writing it instead. Otherwise, you're not saving them work, you're adding to it: they have to catch your mistakes and then rewrite it, instead of just writing it correctly once.
+
 The bottom line: don't put your name on something you haven't actually reviewed. That applies to AI-generated work the same as anything else.
 
 
