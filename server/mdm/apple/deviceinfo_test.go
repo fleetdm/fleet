@@ -106,6 +106,36 @@ func TestVerifyMachineInfoSignatureAccountDrivenCapture(t *testing.T) {
 	require.NoError(t, VerifyMachineInfoSignature(p7))
 }
 
+// TestOTAPhase2FleetSignatureCapture verifies a real OTA phase-2 request body
+// captured from a lab iPhone. Phase 2 is signed by the Fleet SCEP identity the
+// device obtained in phase 1 (not the Apple device identity), so it's verified
+// with smallstep's p7.Verify() — a standard CMS signature check — rather than
+// the Apple device-CA verifier. This pins the behavior the OTA decoder relies
+// on: a genuine Fleet-signed body verifies, and tampering the content breaks it.
+func TestOTAPhase2FleetSignatureCapture(t *testing.T) {
+	buf, err := os.ReadFile("testdata/deviceinfo/ota-phase2-iphone.der")
+	require.NoError(t, err)
+
+	p7, err := pkcs7.Parse(buf)
+	require.NoError(t, err)
+
+	signer := p7.GetOnlySigner()
+	require.NotNil(t, signer)
+	require.Equal(t, "Fleet Identity", signer.Subject.CommonName)
+
+	// genuine Fleet-signed phase-2 body verifies (signature over the
+	// authenticated attributes, plus messageDigest == hash(content))
+	require.NoError(t, p7.Verify())
+
+	// tampering the content breaks the signature
+	tampered := *p7
+	content := make([]byte, len(p7.Content))
+	copy(content, p7.Content)
+	content[len(content)/2] ^= 0xff
+	tampered.Content = content
+	require.Error(t, tampered.Verify())
+}
+
 func TestVerifyMachineInfoSignatureSyntheticChains(t *testing.T) {
 	content := []byte("<plist><dict></dict></plist>")
 

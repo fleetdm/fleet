@@ -16317,6 +16317,24 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.NoError(t, httpResp.Body.Close())
 		})
 
+		t.Run("if phase 2 signature is invalid", func(t *testing.T) {
+			// a genuine Fleet-signed phase-2 body with its content tampered: the
+			// signer cert still chains to Fleet, but the CMS signature no longer
+			// matches, so it must be rejected at decode.
+			raw, err := os.ReadFile("../mdm/apple/testdata/deviceinfo/ota-phase2-iphone.der")
+			require.NoError(t, err)
+			tampered := bytes.Clone(raw)
+			// flip a printable byte inside the PRODUCT string so the plist still
+			// parses but the signed messageDigest no longer matches
+			i := bytes.Index(tampered, []byte("iPhone14,5"))
+			require.Positive(t, i)
+			tampered[i] ^= 0x01
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", tampered, http.StatusBadRequest)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "invalid request signature")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
 		t.Run("if serial is missing", func(t *testing.T) {
 			signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

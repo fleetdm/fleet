@@ -8431,13 +8431,25 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
 
-	// OTA phase 1 requests are signed by the Apple built-in device identity
-	// (the same predicate the service uses to distinguish the phases), so the
-	// full signature must verify. Phase 2 requests are signed by Fleet's own
-	// SCEP certificate and are validated in the service instead.
+	// OTA is two phases, distinguished by who signed the request (the same
+	// predicate the service uses to decide its response).
 	if apple_mdm.VerifyFromAppleIphoneDeviceCA(request.RootSigner) == nil {
+		// Phase 1: signed by the Apple built-in device identity. Verify the
+		// Apple device signature over the body.
 		if err := verifyMachineInfoSignature(ctx, p7, &request.DeviceInfo, "ota_phase1"); err != nil {
 			return nil, err
+		}
+	} else {
+		// Phase 2: signed by the Fleet SCEP identity issued in phase 1. Verify
+		// the CMS signature over the body, proving possession of that
+		// certificate's private key (a copied certificate alone must not pass).
+		// The certificate itself is verified against Fleet's SCEP CA in the
+		// service (MDMAppleProcessOTAEnrollment).
+		if err := p7.Verify(); err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "invalid request signature",
+				InternalErr: err,
+			}
 		}
 	}
 
