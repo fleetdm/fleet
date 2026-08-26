@@ -753,7 +753,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			&notifs,
 			host,
 			appConfig,
-			mdmConfig.EnableDiskEncryption,
+			mdmConfig.DiskEncryptionConfig(),
 			isConnectedToFleetMDM,
 			mdmInfo,
 		)
@@ -834,7 +834,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		&notifs,
 		host,
 		appConfig,
-		appConfig.MDM.EnableDiskEncryption.Value,
+		appConfig.MDM.DiskEncryptionConfig(),
 		isConnectedToFleetMDM,
 		mdmInfo,
 	)
@@ -959,15 +959,25 @@ func (svc *Service) setDiskEncryptionNotifications(
 	notifs *fleet.OrbitConfigNotifications,
 	host *fleet.Host,
 	appConfig *fleet.AppConfig,
-	diskEncryptionConfigured bool,
+	diskEncryption fleet.DiskEncryptionConfig,
 	isConnectedToFleetMDM bool,
 	mdmInfo *fleet.HostMDM,
 ) error {
+	// each platform's notifications are gated on that platform's own settings;
+	// the FileVault/Escrow Buddy flow treats the macOS pair as one unit until
+	// the per-payload split ships
+	var platformConfigured bool
+	switch host.FleetPlatform() {
+	case "darwin":
+		platformConfigured = diskEncryption.MacOSEnabled || diskEncryption.MacOSEscrowEnabled
+	case "windows":
+		platformConfigured = diskEncryption.WindowsEnabled
+	}
 	anyMDMConfigured := appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured
 	if !anyMDMConfigured ||
 		!isConnectedToFleetMDM ||
 		!host.IsOsqueryEnrolled() ||
-		!diskEncryptionConfigured {
+		!platformConfigured {
 		return nil
 	}
 
@@ -1860,6 +1870,17 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return err
 	}
 
+	// A patch-when-closed policy install whose managed app-open query returned no result means the
+	// app was open: a skip, not a failure. Key on the policy flag, not empty output, so an ordinary
+	// empty pre_install_query on a non-managed policy still fails and counts toward the retry cap.
+	isAppOpenSkip := false
+	if result.Status() == fleet.SoftwareInstallFailed &&
+		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == "" {
+		if cur, curErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID); curErr == nil && cur != nil {
+			isAppOpenSkip = cur.PolicyID != nil && cur.PatchWhenClosed
+		}
+	}
+
 	// Check if a non-policy install failure will be retried so we can skip
 	// updating setup experience status during intermediate retries.
 	willRetryNonPolicyOnFailure := false
@@ -1899,7 +1920,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 
-	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result, attemptNumber)
+	// attempt_number=0 keeps the skip out of the retry-sequence count, so it never consumes an attempt.
+	attemptToStore := attemptNumber
+	if isAppOpenSkip {
+		attemptToStore = new(0)
+	}
+
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result, attemptToStore)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
@@ -1929,7 +1956,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 
-			if status == fleet.SoftwareInstallFailed {
+			// Skip the immediate-retry ladder for app-open skips; the next continuous run re-fires.
+			if status == fleet.SoftwareInstallFailed && !isAppOpenSkip {
 				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi)
 				if err != nil {
 					svc.logger.ErrorContext(ctx,
@@ -1994,6 +2022,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				PolicyID:            hsi.PolicyID,
 				PolicyName:          policyName,
 				FromSetupExperience: fromSetupExperience,
+				SkippedInstall:      isAppOpenSkip,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")

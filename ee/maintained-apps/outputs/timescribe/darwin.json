@@ -4,7 +4,8 @@
       "version": "1.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'de.amplussoftware.timescribe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.amplussoftware.timescribe' AND version_compare(bundle_short_version, '1.15.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.amplussoftware.timescribe' AND version_compare(bundle_short_version, '1.15.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'de.amplussoftware.timescribe');"
       },
       "installer_url": "https://github.com/WINBIGFOX/TimeScribe/releases/download/v1.15.0/TimeScribe-1.15.0-arm64.zip",
       "install_script_ref": "5015178b",

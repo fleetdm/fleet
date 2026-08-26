@@ -62,7 +62,7 @@ const SelfServicePreview = ({
           <img
             className={`${baseClass}__preview-img--mobile`}
             src={PreviewSelfServiceMobileIcon}
-            alt="Preview icon on Fleet Desktop > Self-service"
+            alt="Preview icon on Fleet Desktop > Self service"
           />
         </div>
         <div className={`${baseClass}__self-service-preview--mobile`}>

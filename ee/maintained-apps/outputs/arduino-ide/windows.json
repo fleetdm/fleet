@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.3.8",
+      "version": "2.3.10",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Arduino IDE' AND publisher = 'Arduino SA';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Arduino IDE' AND publisher = 'Arduino SA' AND version_compare(version, '2.3.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Arduino IDE' AND publisher = 'Arduino SA' AND version_compare(version, '2.3.10') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'arduino ide.exe');"
       },
-      "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.8/arduino-ide_2.3.8_Windows_64bit.msi",
+      "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.10/arduino-ide_2.3.10_Windows_64bit.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "8390d636",
-      "sha256": "1baa827a821dff67efce9b4d426ff708dcb19b25bc38a63939e37cbf4d03ffa1",
+      "sha256": "aebbd1efeac5cfb02a6cad0d93af8221054fc983a5b3c5ce6da8a6bfb9425165",
       "default_categories": [
         "Developer tools"
       ],

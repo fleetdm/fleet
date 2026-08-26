@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -326,6 +327,127 @@ osquery:
 				})
 				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
 				require.Equal(t, c.wantLabelCfg, got)
+			}
+		})
+	}
+}
+
+func TestServerConfigEndpointRequestSizeOverrides(t *testing.T) {
+	cases := []struct {
+		desc              string
+		yaml              string
+		env               []string
+		panics            bool
+		expectedOverrides EndpointRequestSizeOverrides
+	}{
+		{
+			desc:              "unset",
+			expectedOverrides: nil,
+		},
+		{
+			desc: "YAML list",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}"
+      max_request_size: "50MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}": 50 * units.MiB,
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Enviroment variable - JSON array",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/log", "max_request_size": "20MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Environment variable replaces YAML list instead of merging with it",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/distributed/write", "max_request_size": "10MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/distributed/write": 10 * units.MiB,
+			},
+		},
+		{
+			desc: "Duplicate endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "10MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			// expectedOverrides: EndpointRequestSizeOverrides{
+			// 	"/api/osquery/log": 20 * units.MiB,
+			// },
+			panics: true,
+		},
+		{
+			desc: "Malformed JSON in environment variable panics",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=not-json`,
+			},
+			panics: true,
+		},
+		{
+			desc: "Malformed size string panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "not-a-size"`,
+			panics: true,
+		},
+		{
+			desc: "Empty endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: ""
+      max_request_size: "20MiB"`,
+			panics: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.env {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			if c.panics {
+				require.Panics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+			} else {
+				require.NotPanics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
 			}
 		})
 	}
@@ -771,6 +893,50 @@ func TestValidateCloudfrontURL(t *testing.T) {
 				}
 			}
 			s3.ValidateCloudFrontURL(initFatal)
+		})
+	}
+}
+
+func TestValidateSoftwareInstallersSignedURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		enabled    bool
+		endpoint   string
+		accessKey  string
+		secret     string
+		gcsIAMAuth bool
+		wantFatal  bool
+	}{
+		{"disabled skips validation", false, "https://s3.amazonaws.com", "", "", false, false},
+		{"gcs host with hmac creds", true, "https://storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"gcs bucket virtual host", true, "https://my-bucket.storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"scheme-less endpoint rejected", true, "storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"http scheme rejected", true, "http://storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"look-alike host rejected", true, "https://storage.googleapis.com.evil.com", "GOOG-key", "secret", false, true},
+		{"substring in path rejected", true, "https://evil.com/storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"non-gcs host rejected", true, "https://s3.amazonaws.com", "GOOG-key", "secret", false, true},
+		{"missing access key rejected", true, "https://storage.googleapis.com", "", "secret", false, true},
+		{"missing secret rejected", true, "https://storage.googleapis.com", "GOOG-key", "", false, true},
+		{"iam auth skips hmac cred check", true, "https://storage.googleapis.com", "", "", true, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersSignedURL:       c.enabled,
+				SoftwareInstallersEndpointURL:     c.endpoint,
+				SoftwareInstallersAccessKeyID:     c.accessKey,
+				SoftwareInstallersSecretAccessKey: c.secret,
+				SoftwareInstallersGCSIAMAuth:      c.gcsIAMAuth,
+			}
+			var gotFatal bool
+			initFatal := func(err error, msg string) {
+				gotFatal = true
+				require.Error(t, err)
+			}
+			s3.ValidateSoftwareInstallersSignedURL(initFatal)
+			require.Equal(t, c.wantFatal, gotFatal)
 		})
 	}
 }

@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "workspace": "482loadtest",
+    "collected_at": "2026-03-10T00:00:00Z",
+    "interval": "1h",
+    "release": "4.82.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 61
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 58.0
+    },
+    "memory_utilization": {
+      "Average": 4.0
+    },
+    "task_counts": {
+      "runningCount": 25
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 17.0
+    },
+    "memory_utilization": {
+      "Average": 9.59
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 24.0
+    },
+    "write_iops": {
+      "Average": 2750.0
+    },
+    "deadlocks": {
+      "Sum": 0
+    }
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 7.0,
+      "maximum": 250.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 44.0
+      },
+      "read_iops": {
+        "Average": 2.0,
+        "Maximum": 48.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 9.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.1,
+        "Maximum": 2.5
+      },
+      "memory_utilization": {
+        "Average": 0.38
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Baseline test with 25 fleet containers",
+    "one_click": "yes",
+    "notes": "We tried using 25 containers which led to higher DB load, we\u2026",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "25",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~58%",
+      "fleet_mem": "~4.0%",
+      "errors": "Numerous errors related to server crashes due to high DB loa\u2026",
+      "writer_top_sql": "DELETE FROM `host_softwar\u2026",
+      "writer_cpu": "~24%",
+      "writer_sessions": "avg 7 spikes to 250",
+      "writer_iops": "~2750",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~44%",
+      "reader_sessions": "avg 9",
+      "reader_iops": "avg 2 spikes to 48",
+      "redis_cpu": "1.7-2.5%",
+      "redis_mem": "0.38%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "17%",
+      "osquery_mem": "9.59%",
+      "deadlocks": "~0"
+    }
+  }
+}

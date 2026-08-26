@@ -202,7 +202,7 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -421,7 +421,7 @@ spec:
 	// then apply for real
 	assert.Contains(t, runAppForTestDeprecated(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
-	assert.Equal(t, fleet.TeamMDM{
+	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
@@ -440,7 +440,7 @@ spec:
 			DeadlineDays:    optjson.SetInt(0),
 			GracePeriodDays: optjson.SetInt(1),
 		},
-	}, savedTeam.Config.MDM)
+	}), savedTeam.Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, teamEnrollSecrets)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	assert.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -466,7 +466,7 @@ spec:
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
 	// all left untouched, only setup assistant added
-	assert.Equal(t, fleet.TeamMDM{
+	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
@@ -486,7 +486,7 @@ spec:
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
-	}, savedTeam.Config.MDM)
+	}), savedTeam.Config.MDM)
 
 	// add bootstrap package to team
 	name = writeTmpYml(t, fmt.Sprintf(`
@@ -506,7 +506,7 @@ spec:
 	// then apply for real
 	assert.Contains(t, runAppForTestDeprecated(t, []string{"apply", "-f", name}), "[+] applied 1 fleet\n")
 	// all left untouched, only bootstrap package added
-	assert.Equal(t, fleet.TeamMDM{
+	assert.Equal(t, withDiskEncryptionDefaults(fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
@@ -527,7 +527,7 @@ spec:
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
-	}, savedTeam.Config.MDM)
+	}), savedTeam.Config.MDM)
 
 	// Apply policies.
 	var appliedPolicySpecs []*fleet.PolicySpec
@@ -2479,6 +2479,8 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
+			// an explicit null means "not provided", matching the app config
+			// path (the per-platform optjson fields serialize unset as null)
 			desc: "team config macos_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
@@ -2490,7 +2492,7 @@ spec:
       macos_settings:
         enable_disk_encryption:
 `,
-			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got <nil>`,
+			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption with invalid value type",

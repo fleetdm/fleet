@@ -266,7 +266,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting setup experience information")
 			}
-			if sec.Installers != 0 || sec.VPP != 0 {
+			if sec.Installers != 0 || sec.VPP != 0 || sec.InHouseApps != 0 {
 				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
 			}
 			if sec.Scripts != 0 {
@@ -935,7 +935,10 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
-		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+		if errors.Is(err, sso.ErrSessionNotFound) {
+			return apple_mdm.FleetUISSOCallbackSessionExpired, ""
+		}
+		return apple_mdm.FleetUISSOCallbackError, ""
 	}
 
 	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience {
@@ -946,7 +949,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		// supports not just Apple MDM).
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			logging.WithErr(ctx, err)
-			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+			return apple_mdm.FleetUISSOCallbackError, ""
 		}
 	}
 
@@ -971,7 +974,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 			token, err := svc.ds.GetABMTokenByUniqueToken(ctx, uniqueToken)
 			if err != nil {
 				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get ABM token by unique token for account driven enrollment"))
-				return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+				return apple_mdm.FleetUISSOCallbackError, ""
 			}
 			abmTokenID = &token.ID
 		}
@@ -979,7 +982,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		challenge, err := svc.ds.InsertADUEEnrollmentChallenge(ctx, abmTokenID, enrollmentRef, fleet.ADUEEnrollmentChallengeExpiration)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "insert ADUE enrollment challenge for account driven enrollment"))
-			return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
+			return apple_mdm.FleetUISSOCallbackError, ""
 		}
 
 		// For account driven enrollment we have to use this special protocol URL scheme to pass the
@@ -1412,7 +1415,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}
 
 	var linux fleet.MDMLinuxDiskEncryptionSummary
-	if diskEncryptionConfig.Enabled {
+	if diskEncryptionConfig.LinuxEscrowEnabled {
 		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
@@ -1524,7 +1527,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars)
+	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars, fleet.MDMAppleActivationKeep)
 	if err != nil {
 		return err
 	}
@@ -1970,6 +1973,46 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 		Message: "Clearing passcode is only supported on Apple mobile platforms and Android",
 	})
+}
+
+func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
+	// The selective-list gate (rather than host read) admits gitops, which can
+	// send raw MDM commands via POST /commands/run — whoever can send a
+	// command can cancel one. Mirrors authorizeAllHostsTeams on that endpoint.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Non-Apple hosts have no nano queue rows; without this guard they would
+	// fall through to a misleading not-found.
+	if !fleet.IsApplePlatform(host.Platform) {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Couldn't cancel. Only Apple MDM commands can be canceled.",
+		})
+	}
+
+	requestType, err := svc.ds.CancelHostMDMCommand(ctx, host, commandUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel host mdm command")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeCanceledMDMCommand{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		CommandType:     requestType,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for canceled mdm command")
+	}
+	return nil
 }
 
 // clearPasscodeAndroid dispatches Clear passcode to the Android Service.

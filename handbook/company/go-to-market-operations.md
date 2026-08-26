@@ -47,7 +47,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
-## Customer support service level objectives (SLOs)
+## Customer support service level objectives (SLAs)
 
 **Fleet Free:**
 
@@ -243,7 +243,7 @@ ADRs research accounts to ensure there's a practical need Fleet can solve before
 
 ## Warm-up actions
 
-Warm-up actions are actions that will take at any point in time to help move the psychological progress of contacts on any account.
+Warm-up actions are actions that will be taken at any point in time to help move the psychological progress of contacts on any account.
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
 
 
@@ -328,8 +328,13 @@ Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 mi
 
 ## "Let's get you set up" calls
 
-"Let's get you set up" calls happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when he is unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
+"Let's get you set up" calls are open to all (with attendee limits) and happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) *([@ds0x](https://github.com/ds0x))* on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
 
+### Coverage for "Let's get you set up" calls
+
+When the point person is out of office or otherwise unable to attend, they will arrange coverage by posting in the [#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8) Slack channel and `@`-mentioning the Solutions Consultants. Preference is given to available Solutions Consultants during their working hours. 
+
+The Solutions Specialist side of the call coordinates its own coverage within the [Solutions Specialist team](https://fleetdm.com/handbook/company/go-to-market-operations#enterprise).
 
 ## Proof of value (POV)
 
@@ -341,7 +346,7 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
 - **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://github.com/fleetdm/confidential/issues/new?template=new-fleet-instance.md).  Then, once the environment is set up, you'll get a notification and you can let the user know.
-- **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/try, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
+- **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/try, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleetctl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
 
 
 ### NFR instances
@@ -492,6 +497,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
+- [Meraki goes EoL](https://docs.google.com/presentation/d/19_aV9Xx94RClPdO34YBWdDo1FGBP_75MlttV8IcE4TM/edit?slide=id.g3f521d67c72_1_0#slide=id.g3f521d67c72_1_0)
 
 <!--
 - [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
@@ -510,7 +516,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 > 
 > DRI: @Sampfluger88 (`@`-mention the DRI in [#help-gtm-ops](https://fleetdm.slack.com/archives/C08BTMFTUCR))
 > - Does the Eventbrite page have an "order form" attached? If so, remove it! « This breaks the flow by adding another required form submission not tied to the `New Attendee Registered` action. Attendee name and email will be returned as "Info Requested".
-> - Does the SFDC campaign exists?
+> - Does the SFDC campaign exist?
 > - Is the `Event_key` populated correctly on the corresponding SFDC campaign?
 
 
@@ -576,7 +582,7 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 #### Quotes
 
-##### Change which fields are visable when editing selected quote line items
+##### Change which fields are visible when editing selected quote line items
 
 <img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
 
@@ -699,7 +705,7 @@ In every case, the website first calls `updateOrCreateContactAndAccount` to ensu
 | `Website_visit_reason__c` | Ad attribution string, if the user arrived via an ad within the last 30 minutes. |
 | `Related_campaign__c` | Related Salesforce campaign, if applicable. |
 
-> Historical event records are only created in the production environment. When deleting a contact's data (e.g. for a data deletion request), any related Historical event records associated with that contact are also automaticly deleted.
+> Historical event records are only created in the production environment. When deleting a contact's data (e.g. for a data deletion request), any related Historical event records associated with that contact are also automatically deleted.
 
 
 ##  Go-to-market attribution
@@ -760,8 +766,6 @@ Here are the values for the contact source:
 
 -->
 
-
-<!--
 
 ## Attribution framework
 
@@ -832,109 +836,83 @@ At the top of the hierarchy, there are 6 “Source” buckets, where all our con
 
 For all unpaid, inbound traffic and brand-driven interest.
 
-| Source detail | Code | Campaign examples (always-on) |
-| :---- | :---- | :---- |
-| Organic search | OS | Default-OS |
-| Direct traffic | DT | Default-DT |
-| Web referral | WR | Default-WR |
-| Organic social | SOC | Default-SOC |
-| Organic AI | AI | Default-AI, Default-AI-ChatGPT |
+| Source detail | Campaign examples (always-on) |
+| :---- | :---- |
+| Search (ORGSRC) | Organic - Search (ORGSRC) |
+| Direct traffic (DIRTRF) | Organic - Direct traffic (DIRTRF) |
+| Web referral (WEBREF) | Organic - Web Referral (WEBREF) |
+| Social (ORGSOC) | Organic - Social (ORGSOC) |
+| AI (ORGAI) | Organic - AI (ORGAI) - Claude |
 
 
 #### 🗣️ Word-of-mouth
 
 For all manually tracked, human-to-human recommendations.
 
-| Source detail | Code | Campaign examples |
-| :---- | :---- | :---- |
-| Customer referral | CR | Default-CR  |
-| Employee referral | ER | Default-ER  |
-| Analyst/influencer | AR | AR-gartner\_mention |
+| Source detail | Campaign examples |
+| :---- | :---- |
+| Customer referral (CSTREF) | Word-of-mouth - Customer referral (CSTREF) |
+| Employee referral (EMPREF) | Word-of-mouth - Employee referral (EMPREF) |
+| Analyst influencer (ANLREF) | Word-of-mouth - Analyst influencer (ANLREF) |
 
 
 #### 🗓️ Event
 
 For all in-person or virtual events, sponsored or hosted.
 
-| Source detail | Code | Campaign examples (discrete) |
-| :---- | :---- | :---- |
-| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
-| Regional conference | RC | 2026\_03-RC-secureworld\_boston |
-| Local event / meetup | LE | 2026\_02-LE-osquery\_meetup\_nyc |
-| Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
-| Field event / sales event (workshop, hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
-| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent |
-| Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
-| Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
-| Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
+| Source detail | Campaign examples (discrete) |
+| :---- | :---- |
+| Conference (CONF) | 2026-09 - Event - Conference (CONF) - MacSysAdmins - Sweden |
+| Party (PRTY) | 2026-09 - Event - Party (PRTY) - Macadmins meetup - Austin |
+| Gala (GALA) | 2026-05 - Event - Gala (GALA) - Apex_Assembly - San Jose |
+| Workshop (WRKSHP) | 2026-10 - Event - Workshop (WRKSHP) - GitOps - Richmond, VA |
+| Partner event (PTREVT) | 2025-11 - Event - Partner event (PTREVT) - Aws reinvent |
+| Webinar (WBINR) | 2026-04 - Event - Webinar (WBINR) - AI-MDM Webinar |
 
 
 #### 💻 Digital
 
 For all paid and owned online media and content.
 
-| Source detail | Code | Campaign examples |
-| :---- | :---- | :---- |
-| Paid search | PS | 2025\_11-PS-google\_brand\_usa |
-| Paid social | SO | 2025\_11-SO-linkedin\_video\_ciso |
-| Paid media | PM | 2025\_11-PM-riskybiz\_podcast |
-| Content syndication & 3rd-party | CS | 2025\_12-CS-techtarget\_survey |
-| Email marketing (owned list) | EM | 2025\_11-EM-newsletter\_promo |
-| Press Release | PR | 2025\_11-PR-Abc\_launch |  
+| Source detail | Campaign examples |
+| :---- | :---- |
+| Paid search (PAYSRC) | 	Digital - Paid search (PAYSRC) - Brand |
+| Paid social (PAYSOC) | 2025-11 Digital - Paid social (PAYSOC) - linkedin video ciso |
+| Paid media (PAYMED) | 2025-11 Digital - Paid media (PAYMED) - riskybiz podcast |
+| Content syndication (CONSYD) | 2025-12 Digital - Content syndication (CONSYD) - techtarget survey |
+| Email marketing (EMLMRK) | 2025-11 Digital - Email marketing (EMLMRK) - newsletter promo |
+| Website workshop request (WRKREQ) | Digital - Website workshop request (WRKREQ) |
+| Website chat (WEBCHT) | Digital - Website chat (WEBCHT) |
+| Press release (PRSREL) | 2025-11 Digital - Press release (PRSREL) - Abc launch |  
 
 
 #### 🎯 Prospecting
 
 For all outbound activities initiated by sales or a 3rd-party vendor.
 
-| Source detail | Code | Campaign examples |
-| :---- | :---- | :---- |
-| SDR outbound | SDR | Default-SDR-General\_Prospecting (Always-On) or 2025\_11-SDR-q4\_fintech\_sequence (a discrete campaign) |
-| AE outbound | AE | Default-AE-General\_Prospecting |
-| Meeting Service | MS | 2025\_11-MS-VIB 2026\_01-MS-SageTap |
-
-Other exmaples of campaigns:
-Default-AE-Dripify_LinkedIn
-Default-SDR-Dripify_LinkedIn
+| Source detail | Campaign examples |
+| :---- | :---- |
+| SDR outbound (SDROUT) | Prospecting - SDR outbound (SDROUT) |
+| AE outbound (AEOUT) | Prospecting - AE outbound (AEOUT) |
+| Meeting service (MTGSER) | 2025-11 Prospecting - Meeting service (MTGSER) - SageTap |
 
 
 #### 🤝 Partner
 
 For all co-marketing and contacts generated from formal channel partners.
 
-| Source detail | Code | Campaign examples |
-| :---- | :---- | :---- |
-| Tech partner | TP | Default-TP-TechPartner\_Referral or 2025\_11-TP-aws\_marketplace |
-| Reseller / VAR | RE | Default-RE-Reseller\_Referral |
-| Co-marketing | CM | 2026\_01-CM-crowdstrike\_whitepaper |
+| Source detail | Campaign examples |
+| :---- | :---- |
+| Tech partner (TECPTR) | Partner - Tech partner (TECPTR) - aws marketplace |
+| Reseller referral (VARREF) | Partner - Reseller referral (VARREF) - CDW |
+| Co-marketing (COMRK) | 2026-01 Partner - Co-marketing (COMRK) - crowdstrike whitepaper |
 
 
 ### Campaigns
 
 **The golden rule:** Every single contact-generating activity *must* have a unique campaign in the CRM before it launches. 
 
-There are only two types of campaigns:
-1. "Always-on" campaigns (continuous)
-2. Discrete campaigns (time-based)
-
-
-#### Discrete campaigns
-
-Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade show, quarterly ad). Use the following naming convention when naming a "Discrete" campaign: 
-- **Structure:** YYYY\_MM-\[Code\]-\[Name\]  
-  - **YYYY\_MM:** The start month. (e.g., 2026\_02)  
-  - **\[Code\]:** The 2-4 letter code from the table above. (e.g., MC, PS, WH)  
-  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat, google\_brand)  
-- **Full example:** 2026\_08-MC-blackhat
-
-
-#### Always-on campaigns
-
-These are generic "buckets" for continuous inbound channels that don't have a start/end date.  They are “Default” campaigns, since they do not have a start or stop date. Use the following naming convention when naming an "Always-on" campaign:
-- **Structure:** Default-\[Code\]  
-  - **\[Name\]:** Default, Always\_On, or General.
-  - **\[Code\]:** The 2-4 letter code.
-- **Full example:** Default-OS (for all Organic Search)
+Use the following naming convention when naming a campaign YYYY-MM `SOURCE` - `SOURCE DETAIL` - `OTHER DETAILS`.
 
 
 ## SFDC field mapping
@@ -982,7 +960,7 @@ The attribution system is driven by a single trigger: **when Most Recent Campaig
 
 **Step 4 — Populate Opportunity on creation.** When an opportunity is created, the Most Recent Channel, Most Recent Channel Detail, and Most Recent Campaign values are copied to the Converting fields on the Opportunity record, capturing the converting-touch at that exact moment.
 
-Note: The Most Recent values on the contact are updated with each engagemet with the contact, overwriting historical values.
+Note: The Most Recent values on the contact are updated with each engagement with the contact, overwriting historical values.
 
 ## SFDC campaign hierarchy
 
@@ -1141,8 +1119,6 @@ All campaigns must utilize the following status values. Custom statuses outside 
 #### Website chat (qualified)
 - **Engaged:** We chatted and learned about the prospect
 - **Meeting Requested:** The prospect has booked a meeting
-
--->
 
 
 ## 📧 Contact marketability & compliance
@@ -1315,7 +1291,7 @@ Fleet uses an **opt-in** model for all marketing communications.
 - Contacts must explicitly consent before being added to the Marketing Contacts or Newsletter lists. Consent is captured at the point of form submission (newsletter sign-up, content downloads, event registration) or when a contact responds to an SDR or AE outreach.
 - Contacts collected at events (e.g., badge scans) are considered opted-in at the point of scanning and are added to Marketing Contacts with `ls: prospect`.
 - Contacts with Role = ⛄️ Non-prospect are tagged `ls: non-prospect` and excluded from marketing sends even if they are on a marketing list.
-- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The defualt value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
+- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The default value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
 - Unsubscribing removes a contact from the relevant list and halts all active automations tied to it. Unsubscribed contacts should not be re-subscribed without explicit re-consent.
 - Transactional and product emails (e.g., billing notifications, security alerts) are not managed in ActiveCampaign and are not subject to marketing list opt-in requirements.
 

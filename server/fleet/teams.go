@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -46,6 +46,11 @@ func IsReservedTeamName(name string) bool {
 	normalizedName := strings.ToLower(norm.NFC.String(name))
 	return normalizedName == "no team" || normalizedName == "all teams" ||
 		normalizedName == "unassigned" || normalizedName == "all fleets"
+}
+
+// IsUnassignedFleetName checks if the name provided is the display name of the "Unassigned" pseudo-fleet, i.e. hosts with no fleet (case-insensitive).
+func IsUnassignedFleetName(name string) bool {
+	return strings.ToLower(name) == "unassigned"
 }
 
 type TeamPayload struct {
@@ -290,6 +295,89 @@ type TeamWebhookSettings struct {
 	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
 	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	// HostActivitiesWebhook is nil when not provided so partial updates and
+	// team specs can leave the stored value untouched.
+	HostActivitiesWebhook *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
+}
+
+// HostActivitiesWebhookSettings is the per-fleet webhook fired when an
+// activity linked to one of the fleet's hosts is created. The payload has the
+// same format as the global activities webhook (ActivitiesWebhookSettings).
+type HostActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_host_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
+}
+
+// HostActivitiesWebhookLookup is the subset of Datastore reads needed to
+// resolve the host-activities webhooks of the fleets a set of hosts belong to.
+type HostActivitiesWebhookLookup interface {
+	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
+	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
+}
+
+// HostActivitiesWebhookDelivery is one fleet's resolved host-activities
+// webhook destination together with the subset of the activity's hosts that
+// belong to that fleet. Payloads are scoped this way so a delivery is always
+// exactly one fleet's subscription — it never mixes fleets' host IDs.
+type HostActivitiesWebhookDelivery struct {
+	DestinationURL string
+	HostIDs        []uint
+}
+
+// ResolveHostActivitiesWebhooks returns one enabled host-activities webhook delivery per fleet the given hosts belong to.
+func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhookLookup, hostIDs []uint) ([]HostActivitiesWebhookDelivery, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	hosts, err := ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// fleetKeys keeps delivery order deterministic (map iteration is
+	// randomized). Key 0 is reserved for "Unassigned" hosts (nil TeamID), so
+	// it can't collide with a real fleet.
+	fleetKeys := make([]uint, 0, len(hosts))
+	hostsByFleet := make(map[uint][]uint)
+	for _, host := range hosts {
+		var fleetKey uint
+		if host.TeamID != nil {
+			fleetKey = *host.TeamID
+		}
+		if _, ok := hostsByFleet[fleetKey]; !ok {
+			fleetKeys = append(fleetKeys, fleetKey)
+		}
+		hostsByFleet[fleetKey] = append(hostsByFleet[fleetKey], host.ID)
+	}
+
+	fleets, err := ds.TeamLitesByIDs(ctx, fleetKeys)
+	if err != nil {
+		return nil, err
+	}
+	fleetsByID := make(map[uint]*TeamLite, len(fleets))
+	for _, f := range fleets {
+		fleetsByID[f.ID] = f
+	}
+
+	// Resolve each fleet's webhook into its own delivery.
+	var deliveries []HostActivitiesWebhookDelivery
+	for _, fleetKey := range fleetKeys {
+		team, ok := fleetsByID[fleetKey]
+		if !ok { // deleted fleet
+			continue
+		}
+		webhook := team.Config.WebhookSettings.HostActivitiesWebhook
+		if webhook == nil || !webhook.Enable || webhook.DestinationURL == "" {
+			continue
+		}
+		deliveries = append(deliveries, HostActivitiesWebhookDelivery{
+			DestinationURL: webhook.DestinationURL,
+			HostIDs:        hostsByFleet[fleetKey],
+		})
+	}
+
+	return deliveries, nil
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
@@ -307,6 +395,7 @@ type DefaultTeamConfig struct {
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
 }
 
 // DefaultTeamIntegrations contains only the integrations supported for team ID 0
@@ -363,6 +452,8 @@ type TeamMDM struct {
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
 
+	LinuxSettings LinuxSettings `json:"linux_settings"`
+
 	// HostNameTemplate is the template used to compute a host's display name from
 	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
 	HostNameTemplate string `json:"name_template"`
@@ -377,6 +468,63 @@ type TeamMDM struct {
 // Clone implements cloner for TeamMDM.
 func (t *TeamMDM) Clone() (Cloner, error) {
 	return t.Copy(), nil
+}
+
+// MarshalJSON keeps the deprecated flat EnableDiskEncryption toggle virtual:
+// every serialization (API responses, teams.config storage) recomputes it as
+// the AND of the four per-platform disk encryption settings, and unset
+// per-platform settings become explicit booleans (fanned out from the flat
+// value when none was ever set).
+func (t TeamMDM) MarshalJSON() ([]byte, error) {
+	t.EnableDiskEncryption = normalizeDiskEncryptionFields(
+		t.EnableDiskEncryption,
+		&t.MacOSSettings.EnableDiskEncryption,
+		&t.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&t.WindowsSettings.EnableDiskEncryption,
+		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	)
+	// the alias type has no methods, so marshaling it avoids infinite recursion
+	type alias TeamMDM
+	return json.Marshal(alias(t))
+}
+
+// UnmarshalJSON fills per-platform disk encryption settings ABSENT from the
+// stored document from the flat toggle. This keeps team configs correct even
+// if the per-platform keys were dropped from the stored JSON (e.g. re-saved by
+// a pre-split server after the fan-out migration ran). A key explicitly
+// present (including explicit null) is never overridden here.
+func (t *TeamMDM) UnmarshalJSON(b []byte) error {
+	// the alias type has no methods, so unmarshaling it avoids infinite recursion
+	type alias TeamMDM
+	if err := json.Unmarshal(b, (*alias)(t)); err != nil {
+		return err
+	}
+	for _, f := range []*optjson.Bool{
+		&t.MacOSSettings.EnableDiskEncryption,
+		&t.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&t.WindowsSettings.EnableDiskEncryption,
+		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	} {
+		if !f.Set {
+			*f = optjson.SetBool(t.EnableDiskEncryption)
+		}
+	}
+	return nil
+}
+
+// DiskEncryptionConfig returns the team's effective per-platform disk
+// encryption settings.
+func (t *TeamMDM) DiskEncryptionConfig() DiskEncryptionConfig {
+	if t == nil {
+		return DiskEncryptionConfig{}
+	}
+	return DiskEncryptionConfig{
+		MacOSEnabled:         t.MacOSSettings.EnableDiskEncryption.Value,
+		MacOSEscrowEnabled:   t.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		WindowsEnabled:       t.WindowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: t.RequireBitLockerPIN,
+		LinuxEscrowEnabled:   t.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	}
 }
 
 // Copy returns a deep copy of the TeamMDM.
@@ -396,9 +544,6 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		for i, mps := range t.MacOSSettings.CustomSettings {
 			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
 		}
-	}
-	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
-		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
 	if t.WindowsSettings.CustomSettings.Set {
 		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
@@ -452,6 +597,7 @@ type TeamSpecMDM struct {
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	AndroidSettings  AndroidSettings `json:"android_settings"`
+	LinuxSettings    LinuxSettings   `json:"linux_settings"`
 	HostNameTemplate optjson.String  `json:"name_template"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
@@ -508,6 +654,10 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	if t.WebhookSettings.HostStatusWebhook != nil {
 		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
 		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if t.WebhookSettings.HostActivitiesWebhook != nil {
+		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
+		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
 	}
 	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -737,6 +887,7 @@ type TeamSpec struct {
 type TeamSpecWebhookSettings struct {
 	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings  `json:"host_activities_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'
@@ -773,23 +924,55 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		agentOptions = *t.Config.AgentOptions
 	}
 
+	// normalize a local copy so the spec always carries explicit per-platform
+	// disk encryption booleans, even for configs stored before the
+	// per-platform split.
+	mdm := t.Config.MDM
+	flat := normalizeDiskEncryptionFields(
+		mdm.EnableDiskEncryption,
+		&mdm.MacOSSettings.EnableDiskEncryption,
+		&mdm.MacOSSettings.EnableEscrowDiskEncryptionKey,
+		&mdm.WindowsSettings.EnableDiskEncryption,
+		&mdm.LinuxSettings.EnableEscrowDiskEncryptionKey,
+	)
+
 	var mdmSpec TeamSpecMDM
-	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
-	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
-	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
-	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
+	mdmSpec.MacOSUpdates = mdm.MacOSUpdates
+	mdmSpec.WindowsUpdates = mdm.WindowsUpdates
+	mdmSpec.MacOSSettings = mdm.MacOSSettings.ToMap()
 	// assets are only present in ToMap for GitOps request validation; they are
 	// not stored on the team config, so keep them out of the generated spec.
 	delete(mdmSpec.MacOSSettings, "assets")
-	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
-	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
-	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
-	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
-	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
+	mdmSpec.MacOSSetup = mdm.MacOSSetup
+	// emit the deprecated flat toggle only when it agrees with every
+	// per-platform setting: the flat toggle wins when provided, so emitting it
+	// for a mixed state would reset the per-platform values on re-apply.
+	uniformDiskEncryption := true
+	for _, v := range []bool{
+		mdm.MacOSSettings.EnableDiskEncryption.Value,
+		mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		mdm.WindowsSettings.EnableDiskEncryption.Value,
+		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	} {
+		if v != flat {
+			uniformDiskEncryption = false
+			break
+		}
+	}
+	if uniformDiskEncryption {
+		mdmSpec.EnableDiskEncryption = optjson.SetBool(flat)
+	}
+	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(mdm.EnableRecoveryLockPassword)
+	mdmSpec.WindowsSettings = mdm.WindowsSettings
+	mdmSpec.AndroidSettings = mdm.AndroidSettings
+	mdmSpec.LinuxSettings = mdm.LinuxSettings
 
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {
 		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+	if t.Config.WebhookSettings.HostActivitiesWebhook != nil {
+		webhookSettings.HostActivitiesWebhook = t.Config.WebhookSettings.HostActivitiesWebhook
 	}
 
 	var integrations TeamSpecIntegrations

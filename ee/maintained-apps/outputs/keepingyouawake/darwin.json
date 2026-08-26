@@ -4,7 +4,8 @@
       "version": "1.6.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'info.marcel-dierkes.KeepingYouAwake';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'info.marcel-dierkes.KeepingYouAwake' AND version_compare(bundle_short_version, '1.6.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'info.marcel-dierkes.KeepingYouAwake' AND version_compare(bundle_short_version, '1.6.8') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'info.marcel-dierkes.KeepingYouAwake');"
       },
       "installer_url": "https://github.com/newmarcel/KeepingYouAwake/releases/download/1.6.8/KeepingYouAwake-1.6.8.zip",
       "install_script_ref": "c3416a87",

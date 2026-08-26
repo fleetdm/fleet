@@ -153,12 +153,6 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 		return ctxerr.Wrap(ctx, err, "clear removed maintained apps during refresh")
 	}
 
-	// Normalize software names to canonical FMA names. Runs after the loop so it
-	// sees every app at once, which matters for FMAs sharing a bundle identifier.
-	if err := ds.ReconcileMaintainedAppSoftwareNames(ctx); err != nil {
-		return ctxerr.Wrap(ctx, err, "reconcile maintained app software names during refresh")
-	}
-
 	return nil
 }
 
@@ -202,6 +196,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 			app.Categories = cached.Categories
 			app.UpgradeCode = cached.UpgradeCode
 			app.PatchQuery = cached.PatchQuery
+			app.AppOpenQuery = cached.AppOpenQuery
 			return app, nil
 		}
 		// Cache miss: fall through to the remote manifest so a not-yet-cached
@@ -258,6 +253,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	app.Categories = selected.DefaultCategories
 	app.UpgradeCode = selected.UpgradeCode
 	app.PatchQuery = selected.Queries.Patched
+	app.AppOpenQuery = selected.Queries.Open
 
 	return app, nil
 }

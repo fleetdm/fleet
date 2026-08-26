@@ -4,7 +4,8 @@
       "version": "6.3.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'ClipboardFusion%' AND publisher = 'Binary Fortress Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'ClipboardFusion%' AND publisher = 'Binary Fortress Software' AND version_compare(version, '6.3.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'ClipboardFusion%' AND publisher = 'Binary Fortress Software' AND version_compare(version, '6.3.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clipboardfusion.exe');"
       },
       "installer_url": "https://binaryfortressdownloads.com/Download/BFSFiles/104/ClipboardFusionSetup-6.3c.exe",
       "install_script_ref": "c5eecbb4",

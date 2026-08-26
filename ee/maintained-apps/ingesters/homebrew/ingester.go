@@ -231,9 +231,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 	if input.Token == "docker-desktop" {
-		// Docker's updater can leave Docker.app.back; do not treat it as the installed app for
-		// patch status. Match ".back" anywhere in the path (not just as a suffix) because the
-		// stale bundle can surface as a nested app, e.g.
+		// Docker's updater can leave Docker.app.back, which reports the same bundle
+		// identifier as the real app at its old version; do not treat it as the installed
+		// app for patch status. Match ".back" anywhere in the path (not just as a suffix)
+		// because the stale bundle also surfaces as a nested app, e.g.
 		// "/Applications/Docker.app.back/Contents/MacOS/Docker Desktop.app".
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.back%%' AND version_compare(bundle_short_version, '%s') < 0);",
@@ -245,6 +246,18 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
 		// the unrelated marketing version (e.g. "17.2.3"). Compare bundle_version so
 		// patch status reflects the actual installed build.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "steam" {
+		// Steam.app ships without a CFBundleShortVersionString, so osquery's
+		// bundle_short_version is empty and version_compare('', '<version>') < 0 is
+		// always true — the default patch policy can never pass on a host that has
+		// Steam installed. Compare bundle_version (CFBundleVersion, "6.0", which the
+		// cask version tracks); that's also the value software inventory falls back
+		// to, so patch status and inventory agree.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
@@ -280,6 +293,8 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			)
 		}
 	}
+
+	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
 
 	return out, nil
 }

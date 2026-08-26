@@ -22,6 +22,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -471,6 +472,18 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 			}
 			extByName[name] = ext
 
+			var activationContents []byte
+			if profile.Activation != "" {
+				if platform != "macos" || ext != ".json" {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg,
+						"activation is only supported for declaration (DDM) profiles.")
+				}
+				activationContents, err = os.ReadFile(resolveApplyRelativePath(baseDir, profile.Activation))
+				if err != nil {
+					return nil, fmt.Errorf("%s: reading activation: %w", prefixErrMsg, err)
+				}
+			}
+
 			result = append(result, fleet.MDMProfileBatchPayload{
 				Name:             name,
 				Contents:         fileContents,
@@ -478,6 +491,7 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				LabelsIncludeAll: profile.LabelsIncludeAll,
 				LabelsIncludeAny: profile.LabelsIncludeAny,
 				LabelsExcludeAny: profile.LabelsExcludeAny,
+				Activation:       activationContents,
 			})
 
 		}
@@ -617,6 +631,17 @@ func (c *Client) ApplyGroup(
 				return nil, nil, nil, nil, fmt.Errorf("applying packs: %w", err)
 			}
 			logfn(appliedFormat, numberWithPluralization(len(specs.Packs), "pack", "packs"))
+		}
+	}
+
+	// The endpoint is Premium only.
+	if specs.MicrosoftGraphCredentials != nil && appconfig != nil && appconfig.License != nil && appconfig.License.IsPremium() {
+		if err := c.ApplyMicrosoftGraphCredentials(*specs.MicrosoftGraphCredentials, opts.ApplySpecOptions.DryRun); err != nil {
+			// The server answers 402, which ParseResponse converts to client.ErrMissingLicense.
+			if errors.Is(err, client.ErrMissingLicense) && viaGitOps && filename != nil {
+				return nil, nil, nil, nil, fmt.Errorf("Couldn't edit \"%s\" at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.", *filename)
+			}
+			return nil, nil, nil, nil, fmt.Errorf("applying microsoft graph credentials: %w", err)
 		}
 	}
 
@@ -2270,6 +2295,15 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
+		// Microsoft Graph credentials are applied through their own endpoint too, so they are lifted out of
+		// OrgSettings for the same reason and must not reach the AppConfig PATCH.
+		graphCreds, err := fleet.ParseMicrosoftGraphCredentials(incoming.OrgSettings["microsoft_graph_credentials"])
+		if err != nil {
+			return nil, fmt.Errorf("invalid microsoft_graph_credentials: %w", err)
+		}
+		group.MicrosoftGraphCredentials = &graphCreds
+		delete(incoming.OrgSettings, "microsoft_graph_credentials")
+
 		// Plan PUT uploads and strip the gitops-only `path` keys, which
 		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
 		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
@@ -2569,6 +2603,15 @@ func (c *Client) DoGitOps(
 		}
 		if _, ok := failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"]; !ok {
 			failingPoliciesWebhook.(map[string]any)["enable_failing_policies_webhook"] = false
+		}
+
+		hostActivitiesWebhook, ok := webhookSettings.(map[string]any)["host_activities_webhook"]
+		if !ok || hostActivitiesWebhook == nil {
+			hostActivitiesWebhook = map[string]any{}
+			webhookSettings.(map[string]any)["host_activities_webhook"] = hostActivitiesWebhook
+		}
+		if _, ok := hostActivitiesWebhook.(map[string]any)["enable_host_activities_webhook"]; !ok {
+			hostActivitiesWebhook.(map[string]any)["enable_host_activities_webhook"] = false
 		}
 
 		team["webhook_settings"] = webhookSettings
@@ -3207,6 +3250,27 @@ func extractFailingPoliciesWebhook(webhookSettings interface{}) fleet.FailingPol
 	return ws.FailingPoliciesWebhook
 }
 
+func extractHostActivitiesWebhook(webhookSettings any) *fleet.HostActivitiesWebhookSettings {
+	disabled := &fleet.HostActivitiesWebhookSettings{Enable: false}
+
+	jsonBytes, err := json.Marshal(webhookSettings)
+	if err != nil {
+		return disabled
+	}
+
+	var ws struct {
+		HostActivitiesWebhook *fleet.HostActivitiesWebhookSettings `json:"host_activities_webhook"`
+	}
+	if err := json.Unmarshal(jsonBytes, &ws); err != nil {
+		return disabled
+	}
+	if ws.HostActivitiesWebhook == nil {
+		return disabled
+	}
+
+	return ws.HostActivitiesWebhook
+}
+
 func (c *Client) doGitOpsNoTeamWebhookSettings(
 	config *spec.GitOps,
 	appCfg *fleet.EnrichedAppConfig,
@@ -3219,10 +3283,13 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	}
 
 	// Apply webhook settings for "No Team"
-	// If webhook_settings are not specified, they will be applied as nil to clear existing settings
+	// If webhook_settings are not specified, they will be applied as disabled to clear existing settings
 	teamPayload := fleet.TeamPayload{
 		WebhookSettings: &fleet.TeamWebhookSettings{
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: false,
+			},
+			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable: false,
 			},
 		},
@@ -3233,6 +3300,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
 			fpw := extractFailingPoliciesWebhook(webhookSettings)
 			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+			teamPayload.WebhookSettings.HostActivitiesWebhook = extractHostActivitiesWebhook(webhookSettings)
 		}
 	}
 
@@ -3532,6 +3600,45 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				continue
 			}
 			config.Policies[i].ScriptID = &scriptID
+		}
+
+		var teamProfiles map[string]string
+		hydrateProfiles := func() error {
+			if teamProfiles != nil {
+				return nil
+			}
+
+			profiles, err := c.ListConfigurationProfiles(teamID)
+			if err != nil {
+				return fmt.Errorf("error listing configuration profiles: %w", err)
+			}
+			teamProfiles = make(map[string]string, len(profiles))
+			for _, profile := range profiles {
+				teamProfiles[profile.Name] = profile.ProfileUUID
+			}
+			return nil
+		}
+		// assign profile UUIDs for policies with resend configuration profiles
+		for i := range config.Policies {
+			// default to empty string to unset, and then override if match is found
+			config.Policies[i].ProfileUUID = new("")
+
+			if config.Policies[i].ResendConfigurationProfile == "" {
+				continue
+			}
+
+			if err := hydrateProfiles(); err != nil {
+				return fmt.Errorf("error hydrating configuration profiles: %w", err)
+			}
+
+			profileUUID, ok := teamProfiles[config.Policies[i].ResendConfigurationProfile]
+			if !ok {
+				if !dryRun { // this shouldn't happen
+					logFn("[!] reference to an unknown configuration profile: %s\n", config.Policies[i].ResendConfigurationProfile)
+				}
+				continue
+			}
+			config.Policies[i].ProfileUUID = &profileUUID
 		}
 
 		// Get patch policy title IDs for the team

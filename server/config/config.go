@@ -114,7 +114,12 @@ const (
 	TLSProfileKey          = "server.tls_compatibility"
 	TLSProfileModern       = "modern"
 	TLSProfileIntermediate = "intermediate"
+
+	EndpointRequestSizeOverridesKey = "server.endpoint_request_size_overrides"
 )
+
+// EndpointRequestSizeOverrides maps a literal registered endpoint path (e.g. "/api/_version_/fleet/...") to its maximum allowed body size.
+type EndpointRequestSizeOverrides map[string]int64
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
@@ -136,6 +141,7 @@ type ServerConfig struct {
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	VPPInstallReapTimeout            time.Duration `yaml:"vpp_install_reap_timeout"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
@@ -143,6 +149,7 @@ type ServerConfig struct {
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
 	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
+	EndpointRequestSizeOverrides     EndpointRequestSizeOverrides
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -511,6 +518,12 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a presigned
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads, so clients fetch directly from the
+	// object store. Only supported against a GCS (storage.googleapis.com)
+	// endpoint. This is the GCS counterpart to the CloudFront signing config.
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
@@ -542,6 +555,44 @@ func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
 	}
 }
 
+// ValidateSoftwareInstallersSignedURL validates the GCS presigned-URL download
+// option. Presigned downloads are only supported against a GCS endpoint, so we
+// fail fast on any other endpoint to avoid silently proxying large files.
+func (s S3Config) ValidateSoftwareInstallersSignedURL(initFatal func(err error, msg string)) {
+	if !s.SoftwareInstallersSignedURL {
+		return
+	}
+	// Presigned URLs point clients straight at the object store, so require an
+	// https scheme (no plaintext, and newS3Store's resolver needs one) and match
+	// the parsed hostname, not a substring, so a look-alike host can't satisfy it.
+	u, err := url.Parse(s.SoftwareInstallersEndpointURL)
+	if err != nil {
+		initFatal(fmt.Errorf("invalid s3_software_installers_endpoint_url: %w", err),
+			"S3 software installers signed URL")
+		return
+	}
+	if u.Scheme != "https" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to be an https URL (e.g. https://storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "storage.googleapis.com" && !strings.HasSuffix(host, ".storage.googleapis.com") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_endpoint_url` to point at a GCS endpoint (storage.googleapis.com)."),
+			"S3 software installers signed URL")
+		return
+	}
+	// Presigning needs HMAC credentials. Without them it fails at request time and
+	// Fleet silently proxies every download, which is what this check prevents.
+	// IAM auth doesn't use HMAC creds and is rejected at store init, so skip it then.
+	if !s.SoftwareInstallersGCSIAMAuth &&
+		(s.SoftwareInstallersAccessKeyID == "" || s.SoftwareInstallersSecretAccessKey == "") {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_signed_url` requires `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key` for presigning."),
+			"S3 software installers signed URL")
+		return
+	}
+}
+
 func (s S3Config) BucketsAndPrefixesMatch() bool {
 	cb := s.CarvesBucket
 	if cb == "" {
@@ -569,6 +620,7 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
 		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
+		SignedURL:        s.SoftwareInstallersSignedURL,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -644,6 +696,7 @@ type S3ConfigInternal struct {
 	ForceS3PathStyle bool
 	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
+	SignedURL        bool
 }
 
 type S3CloudFrontConfig struct {
@@ -949,6 +1002,10 @@ type MDMConfig struct {
 	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
+	// AllowCustomActivations opts in to custom DDM activations. Off by default
+	// because a predicate Fleet cannot validate can wedge a host's MDM
+	// subsystem beyond remote recovery -- see Apple FB24193230 and #50764.
+	AllowCustomActivations bool `yaml:"allow_custom_activations"`
 
 	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
 	// not complete end user authentication is allowed to enroll into a team that
@@ -1462,6 +1519,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
+		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
@@ -1470,6 +1529,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
+	man.addConfigString(EndpointRequestSizeOverridesKey, "", "Per-endpoint max request body size overrides, as a list of {endpoint, max_request_size} objects")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1703,6 +1763,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
+	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1862,6 +1923,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -1992,6 +2054,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			VPPInstallReapTimeout:            man.getConfigDuration("server.vpp_install_reap_timeout"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
@@ -1999,6 +2062,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
 			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
+			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2223,6 +2287,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
 			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
@@ -2301,6 +2366,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
+		SoftwareInstallersSignedURL:                       man.getConfigBool("s3.software_installers_signed_url"),
 	}
 }
 
@@ -2499,6 +2565,63 @@ func (man Manager) getConfigByteSize(key string) int64 {
 	}
 
 	return byteSize
+}
+
+// getConfigEndpointRequestSizeOverrides retrieves and parses server.endpoint_request_size_overrides.
+func (man Manager) getConfigEndpointRequestSizeOverrides() EndpointRequestSizeOverrides {
+	interfaceVal := man.getInterfaceVal(EndpointRequestSizeOverridesKey)
+
+	// Raw shape of the config
+	var rawConfig []struct {
+		Endpoint       string `json:"endpoint" yaml:"endpoint"`
+		MaxRequestSize string `json:"max_request_size" yaml:"max_request_size"`
+	}
+
+	switch v := interfaceVal.(type) {
+	case string: // Viper returns a string when the value is from env variable or CLI flag.
+		if v == "" {
+			return nil
+		}
+		if err := json.Unmarshal([]byte(v), &rawConfig); err != nil {
+			panic(fmt.Sprintf("Unable to parse %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+	case []any: // Viper returns a native []any when the value is from YAML config file.
+		if len(v) == 0 {
+			return nil
+		}
+		b, err := json.Marshal(v)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to encode value for key %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+		if err := json.Unmarshal(b, &rawConfig); err != nil {
+			panic(fmt.Sprintf("Unable to encode value for key %s: %s", EndpointRequestSizeOverridesKey, err.Error()))
+		}
+	case nil:
+		return nil
+	default:
+		panic(fmt.Sprintf("Unexpected type %T for key %s", interfaceVal, EndpointRequestSizeOverridesKey))
+	}
+
+	cfgOverrides := make(EndpointRequestSizeOverrides, len(rawConfig))
+
+	for _, o := range rawConfig {
+		if o.Endpoint == "" {
+			panic(fmt.Sprintf("Empty endpoint in %s", EndpointRequestSizeOverridesKey))
+		}
+
+		size, err := units.RAMInBytes(o.MaxRequestSize)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to parse byte size for key %s, endpoint %s: %s", EndpointRequestSizeOverridesKey, o.Endpoint, err.Error()))
+		}
+
+		if _, ok := cfgOverrides[o.Endpoint]; ok {
+			panic(fmt.Sprintf("Duplicate config entry found for endpoint %s in %s", o.Endpoint, EndpointRequestSizeOverridesKey))
+		}
+
+		cfgOverrides[o.Endpoint] = size
+	}
+
+	return cfgOverrides
 }
 
 // panics if the config is invalid, this is handled by Viper (this is how all

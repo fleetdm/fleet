@@ -694,6 +694,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].AssetsUpdatedAt = items[0].AssetsUpdatedAt
 	fieldsInEqualMethod++
+	items[1].ActivationUpdatedAt = items[0].ActivationUpdatedAt
+	fieldsInEqualMethod++
 	items[1].Scope = items[0].Scope
 	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
@@ -725,27 +727,27 @@ func TestEffectiveDDMToken(t *testing.T) {
 	const layout = "2006-01-02 15:04:05.000000"
 
 	t.Run("no vars, no assets returns static token unchanged", func(t *testing.T) {
-		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil))
+		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil, nil))
 	})
 
 	t.Run("only variables", func(t *testing.T) {
-		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil))
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil, nil))
 	})
 
 	t.Run("only assets", func(t *testing.T) {
-		got := EffectiveDDMToken(staticToken, nil, &assets)
+		got := EffectiveDDMToken(staticToken, nil, &assets, nil)
 		require.Equal(t, md5Hex(staticToken, assets.Format(layout)), got)
 		// An asset update must change the effective token away from the static one.
 		require.NotEqual(t, staticToken, got)
 	})
 
 	t.Run("both variables and assets, order is static+vars+assets", func(t *testing.T) {
-		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets))
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets, nil))
 	})
 
 	t.Run("different asset timestamps yield different tokens", func(t *testing.T) {
 		later := assets.Add(time.Second)
-		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets), EffectiveDDMToken(staticToken, nil, &later))
+		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets, nil), EffectiveDDMToken(staticToken, nil, &later, nil))
 	})
 }
 
@@ -1015,6 +1017,86 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 	}
 }
 
+func TestIsMacIdentifier(t *testing.T) {
+	cases := []struct {
+		product string
+		want    bool
+		wantErr bool
+	}{
+		// --- MacBookPro ---
+		{product: "MacBookPro16,1", want: true},
+		{product: "MacBookPro16,4", want: true},
+		{product: "MacBookPro17,1", want: true},
+		{product: "MacBookPro18,3", want: true},
+		{product: "MacBookPro18,4", want: true},
+
+		// --- MacBookAir ---
+		{product: "MacBookAir9,1", want: true},
+		{product: "MacBookAir10,1", want: true},
+		{product: "MacBookAir14,2", want: true},
+
+		// --- Macmini ---
+		{product: "Macmini8,1", want: true},
+		{product: "Macmini9,1", want: true},
+		{product: "Macmini9,2", want: true},
+
+		// --- iMac ---
+		{product: "iMac20,1", want: true},
+		{product: "iMac20,2", want: true},
+		{product: "iMac21,1", want: true},
+		{product: "iMac21,2", want: true},
+
+		// --- MacBook (no suffix) — all x86, line discontinued before Apple Silicon ---
+		{product: "MacBook10,1", want: true},
+		{product: "MacBook9,1", want: true},
+
+		// --- iMacPro — all x86, discontinued before Apple Silicon ---
+		{product: "iMacPro1,1", want: true},
+
+		// --- MacPro — old numbering, all x86 ---
+		{product: "MacPro7,1", want: true},
+		{product: "MacPro6,1", want: true},
+
+		// --- Mac (bare prefix) — unified Apple Silicon naming ---
+		{product: "Mac13,1", want: true},
+		{product: "Mac13,2", want: true},
+		{product: "Mac14,8", want: true},
+		{product: "Mac16,10", want: true},
+
+		// --- Non-Mac Apple devices — return false without error ---
+		{product: "iPhone15,2", want: false},
+		{product: "iPhone14,3", want: false},
+		{product: "iPad13,18", want: false},
+		{product: "iPodTouch9,1", want: false},
+
+		// --- Virtual Mac machines ---
+		{product: "VirtualMac2,1", want: true},
+
+		// --- Error cases ---
+		// Empty string
+		{product: "", wantErr: true},
+		// No comma separator
+		{product: "MacBookPro18", wantErr: true},
+		// Garbage input
+		{product: "not-a-model", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
+		{product: "AppleTV6,2", wantErr: true},
+		{product: "AppleTV14,1", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.product, func(t *testing.T) {
+			got, _, _, err := IsMacIdentifier(tc.product)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
 func TestIsMacAppleSilicon(t *testing.T) {
 	cases := []struct {
 		product string
@@ -1089,6 +1171,7 @@ func TestIsMacAppleSilicon(t *testing.T) {
 		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
 		{product: "AppleTV6,2", wantErr: true},
 		{product: "AppleTV14,1", wantErr: true},
+		{product: "VirtualMac2,1", wantErr: true},
 	}
 
 	for _, tc := range cases {
@@ -1152,13 +1235,13 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "missing type",
 			activation:  rawActivation("", "com.fleet.act.passcode", configIdentifier),
 			wantErr:     true,
-			errContains: "Activation must include a Type.",
+			errContains: "The custom activation must include a Type.",
 		},
 		{
 			name:        "whitespace type",
 			activation:  rawActivation("      ", "com.fleet.act.passcode", configIdentifier),
 			wantErr:     true,
-			errContains: "Activation must include a Type.",
+			errContains: "The custom activation must include a Type.",
 		},
 		{
 			name: "configuration type is not an activation",
@@ -1171,7 +1254,7 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "missing identifier",
 			activation:  rawActivation("com.apple.activation.simple", "   ", configIdentifier),
 			wantErr:     true,
-			errContains: "Activation must include an Identifier.",
+			errContains: "The custom activation must include an Identifier.",
 		},
 		{
 			name:        "identifier over Apple's 64 octet limit",
@@ -1183,14 +1266,14 @@ func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
 			name:        "no configurations referenced",
 			activation:  rawActivation("com.apple.activation.simple", "com.fleet.act.passcode"),
 			wantErr:     true,
-			errContains: "Activation must reference the configuration profile it's uploaded with.",
+			errContains: "The custom activation must reference the identifier of the configuration profile used to upload it.",
 		},
 		{
 			name: "more than one configuration referenced",
 			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
 				configIdentifier, "com.fleet.cfg.firewall"),
 			wantErr:     true,
-			errContains: "Activation can only reference one configuration profile.",
+			errContains: "The custom activation can only have one referenced configuration profile.",
 		},
 		{
 			name: "references a different configuration",

@@ -84,7 +84,7 @@
       "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,
+      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -116,10 +116,14 @@
         "webhook_url": ""
       },
       "apple_settings": {
-        "configuration_profiles": null
+        "configuration_profiles": null,
+        "enable_disk_encryption": false,
+        "enable_escrow_disk_encryption_key": false
       },
       "macos_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "enable_disk_encryption": false,
+        "enable_escrow_disk_encryption_key": false
       },
       "macos_setup": {
         "bootstrap_package": null,
@@ -152,10 +156,14 @@
       "windows_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
+        "enable_disk_encryption": false,
         "configuration_profiles": null,
         "managed_local_account_settings": {
           "enabled": false
         }
+      },
+      "linux_settings": {
+        "enable_escrow_disk_encryption_key": false
       },
       "android_settings": {
         "certificates": null,
@@ -284,6 +292,7 @@
         }
       }
     },
+    "max_software_package_size": 537919488,
     "gitops": {
       "gitops_mode_enabled": false,
       "repository_url": "",

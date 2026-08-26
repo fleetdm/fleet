@@ -952,6 +952,12 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
+	"mdm_macos_software_update_id": {
+		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'bridge-model', 'board-id');`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMDMMacOSSoftwareUpdateID,
+		Discovery:        discoveryTable("ioreg"),
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -1181,6 +1187,52 @@ SELECT
 FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
 	Discovery: discoveryTable("jetbrains_plugins"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+// softwareAdobePlugins collects Adobe plugins (CEP and UXP extensions) reported by
+// fleetd's adobe_plugins table. The table emits one row per plugin, including a user
+// column for per-user installs, so there's no need to join with cached_users.
+//
+// The default (standard) scan level is used, which covers CEP and UXP extensions. The
+// deep scan level additionally reports native plug-ins, which have no manifest and thus
+// no version.
+//
+// Neither bundle_identifier nor extension_for is stored, following vscode_extensions and
+// jetbrains_plugins: the plugin's bundle id goes in extension_id instead, which is not part of
+// a software title's identity.
+//
+// software_titles keys titles on (unique_identifier, source, extension_for) and on
+// (bundle_identifier, additional_identifier), where unique_identifier falls back to the name
+// and additional_identifier is 0 for every source except ios_apps and ipados_apps. Storing the
+// bundle id or the manifest's host applications therefore puts plugin titles on keys they can
+// collide with:
+//   - a plugin sharing a bundle id with a macOS app, which is keyed the same way;
+//   - a plugin whose extension directory name matches its own bundle id, on a host where the
+//     manifest can't be read and fleetd falls back to the directory name;
+//   - a plugin whose manifest changes which applications it supports, since host_application
+//     changes while the bundle id stays the same.
+//
+// Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
+// at all: invisible on the Software page, and an error logged on every check-in. Nothing
+// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// the host application.
+var softwareAdobePlugins = DetailQuery{
+	Query: `
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  bundle_id AS extension_id,
+  '' AS extension_for,
+  'adobe_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM adobe_plugins`,
+	Platforms: []string{"darwin", "windows"},
+	Discovery: discoveryTable("adobe_plugins"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -2834,6 +2886,15 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 			}
 		}
 	}
+	// A host the Autopilot sync created is an automatic enrollment by definition, whatever the enrollment's OOBE flag says.
+	if enrolled && !automatic {
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, host.ID)
+		if err != nil {
+			return err
+		}
+		automatic = isAutopilot
+	}
+
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
 	mdmSolutionName := deduceMDMNameWindows(data)
@@ -3222,10 +3283,16 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		ctxerr.Handle(ctx, err)
 	}
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
-	// reflect this state.
+	// reflect this state. A pending Autopilot host is the exception.
 	if device.MDMNotInOOBE {
-		if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
-			return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, hostID)
+		if err != nil {
+			return updated, err
+		}
+		if !isAutopilot {
+			if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
+				return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+			}
 		}
 	}
 	mapping := []*fleet.HostDeviceMapping{
@@ -3294,6 +3361,50 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
 		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
+}
+
+func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	// Use bridge-model (T2), board-id (Intel), or compatible (Apple Silicon) depending on what's present.
+	var boardID, bridgeModel, compatible string
+	for _, row := range rows {
+		if val, ok := row["key"]; ok && val == "board-id" {
+			// board-id identifies Intel-based Macs.
+			boardID = row["value"]
+		} else if val, ok := row["key"]; ok && val == "bridge-model" {
+			// bridge-model identifies Intel Macs with a T2 chip; takes priority over board-id.
+			bridgeModel = row["value"]
+		} else if val, ok := row["key"]; ok && val == "compatible" {
+			// compatible identifies Apple Silicon Macs. On Intel Macs it may also
+			// be present, but board-id or bridge-model will take precedence below.
+			v := row["value"]
+			compatible = strings.Split(v, "\x00")[0] // take the first element of the null-separated list. While queries checked does not return multiple, the HEX value does (indicating truncation happens indirectly elsewhere upstream.)
+		}
+	}
+
+	var deviceID string
+	if compatible != "" {
+		deviceID = compatible
+	}
+
+	// Always take boardID over compatible.
+	if boardID != "" {
+		deviceID = boardID
+	}
+
+	// Always take bridge-model over boardID
+	if bridgeModel != "" {
+		deviceID = bridgeModel
+	}
+
+	if deviceID == "" {
+		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID empty software update device ID")
+	}
+
+	return ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, deviceID)
 }
 
 var luksVerifyQuery = DetailQuery{
@@ -3567,6 +3678,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
+		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {
@@ -3593,13 +3705,13 @@ func GetDetailQueries(
 
 		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
 		if appConfig.MDM.WindowsEnabledAndConfigured {
-			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
+			enableDiskEncryption := appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
 			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
 
 			// If the host is part of a team, we need to look at the related team config
 			// instead of the App config ...
 			if teamMDMConfig != nil {
-				enableDiskEncryption = teamMDMConfig.EnableDiskEncryption
+				enableDiskEncryption = teamMDMConfig.WindowsSettings.EnableDiskEncryption.Value
 				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
 			}
 
@@ -3616,7 +3728,12 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
+	// the host fleet's setting is effective when the host is on a fleet
+	luksEscrowEnabled := appConfig != nil && appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	if teamMDMConfig != nil {
+		luksEscrowEnabled = teamMDMConfig.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	}
+	if luksEscrowEnabled {
 		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
 			return func(encrypted string) (string, error) {
 				return mdm.DecodeAndDecrypt(encrypted, privateKey)
@@ -3887,4 +4004,18 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
 
 	// Update the last restarted at time.
 	host.LastRestartedAt = newLastRestartedAt
+}
+
+// hostHasLiveAutopilotRecord reports whether the host was created by the Windows Autopilot sync and its device is still
+// registered, which is what distinguishes an Autopilot enrollment from an ordinary Windows one.
+func hostHasLiveAutopilotRecord(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {
+	_, err := ds.GetHostAutopilotDevice(ctx, hostID)
+	switch {
+	case err == nil:
+		return true, nil
+	case fleet.IsNotFound(err):
+		return false, nil
+	default:
+		return false, ctxerr.Wrap(ctx, err, "get host autopilot device")
+	}
 }

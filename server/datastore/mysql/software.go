@@ -227,7 +227,12 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Not using withRetryTxx on purpose.
+	// If we use withRetryTxx, when this table is contended, retrying parks connections
+	// on the same locks for up to another lock-wait timeout each, multiplying the load.
+	// Failing fast is safe because the delta is recomputed from scratch on the
+	// host's next software report.
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
 			return err
 		}
@@ -4140,29 +4145,30 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-	ExitCode              *int       `db:"exit_code"`
-	LastOpenedAt          *time.Time `db:"last_opened_at"`
-	BundleIdentifier      *string    `db:"bundle_identifier"`
-	TitleBundleIdentifier *string    `db:"title_bundle_identifier"`
-	Version               *string    `db:"version"`
-	SoftwareID            *uint      `db:"software_id"`
-	SoftwareSource        *string    `db:"software_source"`
-	SoftwareExtensionFor  *string    `db:"software_extension_for"`
-	InstallerID           *uint      `db:"installer_id"`
-	PackageSelfService    *bool      `db:"package_self_service"`
-	PackageName           *string    `db:"package_name"`
-	PackagePlatform       *string    `db:"package_platform"`
-	PackageVersion        *string    `db:"package_version"`
-	VPPAppSelfService     *bool      `db:"vpp_app_self_service"`
-	VPPAppAdamID          *string    `db:"vpp_app_adam_id"`
-	VPPAppVersion         *string    `db:"vpp_app_version"`
-	VPPAppPlatform        *string    `db:"vpp_app_platform"`
-	VPPAppIconURL         *string    `db:"vpp_app_icon_url"`
-	InHouseAppID          *uint      `db:"in_house_app_id"`
-	InHouseAppName        *string    `db:"in_house_app_name"`
-	InHouseAppPlatform    *string    `db:"in_house_app_platform"`
-	InHouseAppVersion     *string    `db:"in_house_app_version"`
-	InHouseAppSelfService *bool      `db:"in_house_app_self_service"`
+	ExitCode                  *int       `db:"exit_code"`
+	LastOpenedAt              *time.Time `db:"last_opened_at"`
+	BundleIdentifier          *string    `db:"bundle_identifier"`
+	TitleBundleIdentifier     *string    `db:"title_bundle_identifier"`
+	Version                   *string    `db:"version"`
+	SoftwareID                *uint      `db:"software_id"`
+	SoftwareSource            *string    `db:"software_source"`
+	SoftwareExtensionFor      *string    `db:"software_extension_for"`
+	InstallerID               *uint      `db:"installer_id"`
+	PackageSelfService        *bool      `db:"package_self_service"`
+	PackageName               *string    `db:"package_name"`
+	PackagePlatform           *string    `db:"package_platform"`
+	PackageVersion            *string    `db:"package_version"`
+	PackageHasUninstallScript *bool      `db:"package_has_uninstall_script"`
+	VPPAppSelfService         *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID              *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion             *string    `db:"vpp_app_version"`
+	VPPAppPlatform            *string    `db:"vpp_app_platform"`
+	VPPAppIconURL             *string    `db:"vpp_app_icon_url"`
+	InHouseAppID              *uint      `db:"in_house_app_id"`
+	InHouseAppName            *string    `db:"in_house_app_name"`
+	InHouseAppPlatform        *string    `db:"in_house_app_platform"`
+	InHouseAppVersion         *string    `db:"in_house_app_version"`
+	InHouseAppSelfService     *bool      `db:"in_house_app_self_service"`
 
 	VulnerabilitiesList       *string `db:"vulnerabilities_list"`
 	SoftwareIDList            *string `db:"software_id_list"`
@@ -4476,9 +4482,12 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 				COUNT(label_membership.label_id) AS count_host_labels,
 				SUM(
 					CASE
+						-- only dynamic labels (membership type 0) need to wait for the host to
+						-- report label results; manual and host vitals membership is populated by
+						-- the server.
 						WHEN labels.created_at IS NOT NULL AND (
-							labels.label_membership_type = 1 OR
-							(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
+							labels.label_membership_type <> 0 OR
+							:host_label_updated_at >= labels.created_at
 						) THEN 1
 						ELSE 0
 					END
@@ -4743,8 +4752,7 @@ func filterVPPAppsByLabel(
 					COUNT(label_membership.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at THEN 1
-							WHEN labels.created_at IS NOT NULL AND labels.label_membership_type = 1 THEN 1
+							WHEN labels.created_at IS NOT NULL AND (labels.label_membership_type <> 0 OR :host_label_updated_at >= labels.created_at) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -4925,8 +4933,7 @@ func filterInHouseAppsByLabel(
 					COUNT(lm.label_id) AS count_host_labels,
 					SUM(
 						CASE
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 							ELSE 0
 						END
 					) AS count_host_updated_after_labels
@@ -5353,10 +5360,11 @@ func hydrateHostSoftwareRecordFromDb(hydrated *hostSoftware, softwareTitle *host
 		platform = *hydrated.PackagePlatform
 	}
 	hydrated.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-		Name:        *hydrated.PackageName,
-		Version:     version,
-		Platform:    platform,
-		SelfService: hydrated.PackageSelfService,
+		Name:               *hydrated.PackageName,
+		Version:            version,
+		Platform:           platform,
+		SelfService:        hydrated.PackageSelfService,
+		HasUninstallScript: hydrated.PackageHasUninstallScript,
 	}
 
 	// promote the last install info to the proper destination fields
@@ -6295,6 +6303,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				si.filename as package_name,
 				si.version as package_version,
 				si.platform as package_platform,
+				EXISTS(SELECT 1 FROM script_contents sc WHERE sc.id = si.uninstall_script_content_id AND sc.contents REGEXP '[^ \t\n\r]') as package_has_uninstall_script,
 				vat.self_service as vpp_app_self_service,
 				vat.adam_id as vpp_app_adam_id,
 				vap.latest_version as vpp_app_version,
@@ -6451,8 +6460,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(
-									CASE WHEN lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1
-									WHEN lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL THEN 1
+									CASE WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 									ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								software_installer_labels sil
@@ -6510,8 +6518,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+								WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 								ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								vpp_app_team_labels vatl
@@ -6568,8 +6575,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								COUNT(*) AS count_installer_labels,
 								COUNT(lm.label_id) AS count_host_labels,
 								SUM(CASE
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-								WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+								WHEN lbl.created_at IS NOT NULL AND (lbl.label_membership_type <> 0 OR :host_label_updated_at >= lbl.created_at) THEN 1
 								ELSE 0 END) as count_host_updated_after_labels
 							FROM
 								in_house_app_labels ihl
@@ -7323,6 +7329,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.filename AS package_name,
 					software_installers.version AS package_version,
 					software_installers.platform as package_platform,
+					EXISTS(SELECT 1 FROM script_contents sc WHERE sc.id = software_installers.uninstall_script_content_id AND sc.contents REGEXP '[^ \t\n\r]') AS package_has_uninstall_script,
 					GROUP_CONCAT(software.id) AS software_id_list,
 					GROUP_CONCAT(software.source) AS software_source_list,
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
@@ -7370,6 +7377,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS package_name,
 					NULL AS package_version,
 					NULL as package_platform,
+					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,
@@ -7413,6 +7421,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS package_name,
 					NULL AS package_version,
 					NULL as package_platform,
+					NULL AS package_has_uninstall_script,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS software_extension_for_list,

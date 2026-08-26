@@ -75,7 +75,7 @@ const FleetDesktop = ({
   const getAlternativeBrowserHostUrlTooltip = () => (
     <>
       If you are using mTLS for your agent-server communication, specify an
-      alternative host to direct Fleet Desktop through.
+      alternative host to direct Fleet Desktop through.{" "}
       <CustomLink
         url="https://fleetdm.com/learn-more-about/alternative-browser-host"
         text="Learn more "

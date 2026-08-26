@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -43,6 +44,8 @@ type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary,
 type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
 
 type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
+
+type GetHostActivitiesWebhookSettingsFunc func(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error)
 
 type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
@@ -316,6 +319,8 @@ type ModifyAppConfigFunc func(ctx context.Context, p []byte, applyOpts fleet.App
 
 type SandboxEnabledFunc func() bool
 
+type MaxInstallerSizeBytesFunc func() int64
+
 type AppConfigUrlsFunc func(ctx context.Context) (urls *fleet.AppConfigUrls, err error)
 
 type ApplyEnrollSecretSpecFunc func(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error
@@ -498,6 +503,8 @@ type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bo
 
 type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
 
+type InstallInHouseAppForSetupExperienceFunc func(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error)
+
 type UninstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error)
@@ -508,7 +515,7 @@ type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName st
 
 type SelfServiceInstallSoftwareTitleFunc func(ctx context.Context, host *fleet.Host, softwareTitleID uint) error
 
-type SelfServiceInstallAllSoftwareTitlesFunc func(ctx context.Context, host *fleet.Host, categoryID *uint) error
+type SelfServiceInstallAllSoftwareTitlesFunc func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) error
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
@@ -536,7 +543,7 @@ type ListSoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) (
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -544,7 +551,7 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
@@ -760,7 +767,7 @@ type NewMDMActivationUnsupportedProfileFunc func(ctx context.Context, teamID uin
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
-type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error
+type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
@@ -835,6 +842,8 @@ type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, er
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
 type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
+
+type CancelHostMDMCommandFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
@@ -988,6 +997,10 @@ type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName
 
 type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
+type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
+
+type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -1024,6 +1037,9 @@ type Service struct {
 
 	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
 	GetActivitiesWebhookSettingsFuncInvoked bool
+
+	GetHostActivitiesWebhookSettingsFunc        GetHostActivitiesWebhookSettingsFunc
+	GetHostActivitiesWebhookSettingsFuncInvoked bool
 
 	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
 	ActivateNextUpcomingActivityForHostFuncInvoked bool
@@ -1433,6 +1449,9 @@ type Service struct {
 	SandboxEnabledFunc        SandboxEnabledFunc
 	SandboxEnabledFuncInvoked bool
 
+	MaxInstallerSizeBytesFunc        MaxInstallerSizeBytesFunc
+	MaxInstallerSizeBytesFuncInvoked bool
+
 	AppConfigUrlsFunc        AppConfigUrlsFunc
 	AppConfigUrlsFuncInvoked bool
 
@@ -1705,6 +1724,9 @@ type Service struct {
 
 	InstallVPPAppPostValidationFunc        InstallVPPAppPostValidationFunc
 	InstallVPPAppPostValidationFuncInvoked bool
+
+	InstallInHouseAppForSetupExperienceFunc        InstallInHouseAppForSetupExperienceFunc
+	InstallInHouseAppForSetupExperienceFuncInvoked bool
 
 	UninstallSoftwareTitleFunc        UninstallSoftwareTitleFunc
 	UninstallSoftwareTitleFuncInvoked bool
@@ -2213,6 +2235,9 @@ type Service struct {
 	ClearPasscodeFunc        ClearPasscodeFunc
 	ClearPasscodeFuncInvoked bool
 
+	CancelHostMDMCommandFunc        CancelHostMDMCommandFunc
+	CancelHostMDMCommandFuncInvoked bool
+
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
 
@@ -2441,6 +2466,12 @@ type Service struct {
 	ReleaseABDevicesFunc        ReleaseABDevicesFunc
 	ReleaseABDevicesFuncInvoked bool
 
+	ListMicrosoftGraphCredentialsFunc        ListMicrosoftGraphCredentialsFunc
+	ListMicrosoftGraphCredentialsFuncInvoked bool
+
+	ApplyMicrosoftGraphCredentialsFunc        ApplyMicrosoftGraphCredentialsFunc
+	ApplyMicrosoftGraphCredentialsFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -2526,6 +2557,13 @@ func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Activ
 	s.GetActivitiesWebhookSettingsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetActivitiesWebhookSettingsFunc(ctx)
+}
+
+func (s *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error) {
+	s.mu.Lock()
+	s.GetHostActivitiesWebhookSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostActivitiesWebhookSettingsFunc(ctx, hostIDs)
 }
 
 func (s *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
@@ -3480,6 +3518,13 @@ func (s *Service) SandboxEnabled() bool {
 	return s.SandboxEnabledFunc()
 }
 
+func (s *Service) MaxInstallerSizeBytes() int64 {
+	s.mu.Lock()
+	s.MaxInstallerSizeBytesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaxInstallerSizeBytesFunc()
+}
+
 func (s *Service) AppConfigUrls(ctx context.Context) (urls *fleet.AppConfigUrls, err error) {
 	s.mu.Lock()
 	s.AppConfigUrlsFuncInvoked = true
@@ -4117,6 +4162,13 @@ func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.H
 	return s.InstallVPPAppPostValidationFunc(ctx, host, vppApp, token, opts)
 }
 
+func (s *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	s.mu.Lock()
+	s.InstallInHouseAppForSetupExperienceFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallInHouseAppForSetupExperienceFunc(ctx, host, inHouseAppID, softwareTitleID)
+}
+
 func (s *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	s.mu.Lock()
 	s.UninstallSoftwareTitleFuncInvoked = true
@@ -4152,11 +4204,11 @@ func (s *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fle
 	return s.SelfServiceInstallSoftwareTitleFunc(ctx, host, softwareTitleID)
 }
 
-func (s *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+func (s *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) error {
 	s.mu.Lock()
 	s.SelfServiceInstallAllSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
-	return s.SelfServiceInstallAllSoftwareTitlesFunc(ctx, host, categoryID)
+	return s.SelfServiceInstallAllSoftwareTitlesFunc(ctx, host, categoryID, matchQuery)
 }
 
 func (s *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -4250,7 +4302,7 @@ func (s *Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.NewTea
 	return s.NewTeamPolicyFunc(ctx, teamID, p)
 }
 
-func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
@@ -4278,7 +4330,7 @@ func (s *Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID u
 	return s.GetTeamPolicyByIDFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
@@ -5034,7 +5086,7 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
 }
 
-func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
+func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error {
 	s.mu.Lock()
 	s.UpdateMDMConfigProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -5298,6 +5350,13 @@ func (s *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comman
 	s.ClearPasscodeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearPasscodeFunc(ctx, hostID)
+}
+
+func (s *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
+	s.mu.Lock()
+	s.CancelHostMDMCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelHostMDMCommandFunc(ctx, hostID, commandUUID)
 }
 
 func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
@@ -5830,4 +5889,18 @@ func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*flee
 	s.ReleaseABDevicesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReleaseABDevicesFunc(ctx, hostIDs)
+}
+
+func (s *Service) ListMicrosoftGraphCredentials(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+	s.mu.Lock()
+	s.ListMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMicrosoftGraphCredentialsFunc(ctx)
+}
+
+func (s *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error {
+	s.mu.Lock()
+	s.ApplyMicrosoftGraphCredentialsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyMicrosoftGraphCredentialsFunc(ctx, creds, dryRun)
 }

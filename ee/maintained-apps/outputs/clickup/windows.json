@@ -4,7 +4,8 @@
       "version": "3.5.262",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp' AND version_compare(version, '3.5.262') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp' AND version_compare(version, '3.5.262') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clickup.exe');"
       },
       "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp-3.5.262-build-260717dcrpwg7m0-x64.msi",
       "install_script_ref": "22e48c46",

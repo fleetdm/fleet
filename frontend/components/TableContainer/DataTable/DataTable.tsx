@@ -267,6 +267,12 @@ const DataTable = ({
             b: { values: Record<string, unknown[]> },
             id: string
           ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
+
+          version: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.versionAsc(a.values[id] as string, b.values[id] as string),
         }),
         []
       ),
@@ -587,7 +593,11 @@ const DataTable = ({
           <Spinner />
         </div>
       )}
-      <div className="data-table data-table__wrapper">
+      <div
+        className={classnames("data-table", "data-table__wrapper", {
+          "data-table__wrapper--no-rows": !rows.length,
+        })}
+      >
         <table className={tableStyles}>
           {!suppressHeaderActions &&
             Object.keys(selectedRowIds).length !== 0 &&

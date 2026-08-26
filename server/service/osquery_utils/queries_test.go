@@ -583,7 +583,7 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
@@ -638,6 +638,9 @@ func TestGetDetailQueries(t *testing.T) {
 				MDM: fleet.MDM{
 					WindowsEnabledAndConfigured: true,
 					EnableDiskEncryption:        optjson.SetBool(true),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
 				},
 			},
 		},
@@ -647,7 +650,28 @@ func TestGetDetailQueries(t *testing.T) {
 				MDM: fleet.MDM{
 					WindowsEnabledAndConfigured: true,
 					EnableDiskEncryption:        optjson.SetBool(true),
-					RequireBitLockerPIN:         optjson.SetBool(true),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
+					RequireBitLockerPIN: optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+		{
+			name: "TPM PIN queries follow the windows setting, not the aggregate",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					// aggregate off because linux escrow is off, but windows on
+					EnableDiskEncryption: optjson.SetBool(false),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
+					LinuxSettings: fleet.LinuxSettings{
+						EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+					},
+					RequireBitLockerPIN: optjson.SetBool(true),
 				},
 			},
 			want: maps.Keys(tpmPINQueries),
@@ -661,6 +685,35 @@ func TestGetDetailQueries(t *testing.T) {
 				_, ok := got[name]
 				require.True(t, ok)
 			}
+		})
+	}
+}
+
+func TestLUKSVerifyQueryFollowsEffectiveLinuxEscrowSetting(t *testing.T) {
+	globalOn := &fleet.AppConfig{MDM: fleet.MDM{
+		LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
+	}}
+	globalOff := &fleet.AppConfig{MDM: fleet.MDM{
+		LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)},
+	}}
+	teamOn := &fleet.TeamMDM{LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)}}
+	teamOff := &fleet.TeamMDM{LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)}}
+
+	for _, tc := range []struct {
+		name string
+		ac   *fleet.AppConfig
+		team *fleet.TeamMDM
+		want bool
+	}{
+		{"global on, no team", globalOn, nil, true},
+		{"global off, no team", globalOff, nil, false},
+		{"the team setting overrides global on", globalOn, teamOff, false},
+		{"the team setting overrides global off", globalOff, teamOn, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GetDetailQueries(t.Context(), config.FleetConfig{}, tc.ac, nil, Integrations{}, tc.team)
+			_, ok := got["luks_verify"]
+			require.Equal(t, tc.want, ok)
 		})
 	}
 }
@@ -1190,6 +1243,9 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return nil, &notFoundErrorForTest{}
+	}
 	cases := []struct {
 		name                 string
 		data                 []map[string]string
@@ -2454,12 +2510,16 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
-	host := &fleet.Host{ID: 1}
+	host := &fleet.Host{ID: 1, Platform: "darwin"}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 			},
 		}, nil
 	}
@@ -2781,6 +2841,9 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
 		return returnEnrollmentsUpdated, nil
+	}
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return nil, &notFoundErrorForTest{}
 	}
 	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
@@ -3891,6 +3954,142 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 	}
 }
 
+// adobePluginsColumns are the columns the software_adobe_plugins query reports, which
+// are also the row keys the software ingestion reads.
+var adobePluginsColumns = []string{
+	"name", "version", "bundle_identifier", "extension_id", "extension_for",
+	"source", "vendor", "last_opened_at", "installed_path",
+}
+
+// selectedColumns returns the output column names of a single-table SELECT query: the
+// alias when an item has one, the column name otherwise. It splits the SELECT list on
+// commas rather than on newlines, so reformatting the query doesn't change the result.
+func selectedColumns(t *testing.T, query string) []string {
+	t.Helper()
+	_, selectList, ok := strings.Cut(query, "SELECT")
+	require.True(t, ok, "query has no SELECT")
+	selectList, _, ok = strings.Cut(selectList, "FROM")
+	require.True(t, ok, "query has no FROM")
+
+	var columns []string
+	for item := range strings.SplitSeq(selectList, ",") {
+		item = strings.TrimSpace(item)
+		require.NotEmpty(t, item, "empty item in SELECT list")
+		if _, alias, ok := strings.Cut(item, " AS "); ok {
+			item = alias
+		}
+		columns = append(columns, strings.TrimSpace(item))
+	}
+	require.NotEmpty(t, columns, "no columns parsed out of query")
+	return columns
+}
+
+func TestSoftwareAdobePlugins(t *testing.T) {
+	// Adobe Creative Cloud doesn't run on Linux, and the adobe_plugins table only
+	// exists on fleetd builds that ship it.
+	require.Equal(t, []string{"darwin", "windows"}, softwareAdobePlugins.Platforms)
+	require.Equal(t, discoveryTable("adobe_plugins"), softwareAdobePlugins.Discovery)
+
+	// The results of this query are appended to the main software queries, so it
+	// must not ingest anything on its own.
+	require.Nil(t, softwareAdobePlugins.IngestFunc)
+	require.Nil(t, softwareAdobePlugins.DirectIngestFunc)
+	require.Nil(t, softwareAdobePlugins.DirectTaskIngestFunc)
+
+	// The query reports exactly the columns the software ingestion reads, so a renamed
+	// or dropped alias (e.g. bundle_id not aliased to bundle_identifier) fails here
+	// instead of silently ingesting an empty field.
+	require.Equal(t, adobePluginsColumns, selectedColumns(t, softwareAdobePlugins.Query))
+	require.Contains(t, softwareAdobePlugins.Query, "FROM adobe_plugins")
+
+	// The fleetd table emits its own rows, one per plugin, including a user column, so
+	// there is no cached_users join.
+	require.NotContains(t, strings.ToUpper(softwareAdobePlugins.Query), "JOIN")
+	// No scan_level constraint, so the table's default (standard) scan level is used.
+	require.NotContains(t, softwareAdobePlugins.Query, "scan_level")
+
+	// bundle_identifier and extension_for stay empty, and the plugin's bundle id goes in
+	// extension_id, which is not part of a software title's identity. Storing either of the
+	// other two puts plugin titles on keys they can collide with (a macOS app with the same
+	// bundle id, the extension directory name when the manifest can't be read, or a manifest
+	// that changes which applications it supports), and a dropped title leaves the software
+	// row with no title at all.
+	require.Contains(t, softwareAdobePlugins.Query, "'' AS bundle_identifier")
+	require.Contains(t, softwareAdobePlugins.Query, "bundle_id AS extension_id")
+	require.Contains(t, softwareAdobePlugins.Query, "'' AS extension_for")
+	require.NotContains(t, softwareAdobePlugins.Query, "bundle_id AS bundle_identifier")
+	require.NotContains(t, softwareAdobePlugins.Query, "host_application")
+}
+
+func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
+	ds := new(mock.Store)
+	host := fleet.Host{ID: 1, Platform: "darwin"}
+
+	// Rows as the software_adobe_plugins query reports them: one plugin with a manifest, and
+	// one whose manifest is missing or unparseable, for which fleetd falls back to the
+	// extension's directory name and leaves the other fields empty. extension_for is empty for
+	// every row, because the query doesn't select the table's host_application.
+	withManifest := map[string]string{
+		"name":              "Artisan Pro X",
+		"version":           "1.3.3",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendorx.artisanprox",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/CEP/extensions/com.vendorx.artisanprox",
+	}
+	withoutManifest := map[string]string{
+		"name":              "com.vendory.colorizer",
+		"version":           "",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
+	}
+	for _, row := range []map[string]string{withManifest, withoutManifest} {
+		require.ElementsMatch(t, adobePluginsColumns, maps.Keys(row))
+	}
+
+	var gotSoftware []fleet.Software
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		gotSoftware = software
+		return nil, nil
+	}
+	var gotPaths []string
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		gotPaths = maps.Keys(sPaths)
+		return nil
+	}
+
+	require.NoError(t, directIngestSoftware(t.Context(), slog.New(slog.DiscardHandler), &host, ds,
+		[]map[string]string{withManifest, withoutManifest}))
+
+	require.Equal(t, []fleet.Software{
+		{
+			Name:        "Artisan Pro X",
+			Version:     "1.3.3",
+			Source:      "adobe_plugins",
+			Vendor:      "VendorX",
+			ExtensionID: "com.vendorx.artisanprox",
+		},
+		{
+			Name:   "com.vendory.colorizer",
+			Source: "adobe_plugins",
+		},
+	}, gotSoftware)
+
+	require.Len(t, gotPaths, 2)
+	for _, row := range []map[string]string{withManifest, withoutManifest} {
+		require.Contains(t, strings.Join(gotPaths, " "),
+			row["installed_path"]+fleet.SoftwareFieldSeparator)
+	}
+}
+
 func TestWindowsAcrobatDC(t *testing.T) {
 	processFunc := SoftwareOverrideQueries["windows_acrobat_dc"].SoftwareProcessResults
 	softwareResults := []map[string]string{
@@ -4668,6 +4867,206 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 			if tc.defaultTeamID == nil {
 				require.False(t, ds.HostLiteByIDFuncInvoked, "no host lookup needed when no default is configured")
 			}
+		})
+	}
+}
+
+func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+	hostUUID := "test-uuid"
+	host := fleet.Host{ID: 1, UUID: hostUUID}
+	var insertedDeviceID string
+	ds.InsertAppleSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
+		insertedDeviceID = updateDeviceID
+		return nil
+	}
+
+	t.Run("no rows returns with no error", func(t *testing.T) {
+		require.NoError(t, directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{}))
+		require.False(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("empty value return error", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"value": ""},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty software update device ID")
+		require.False(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("intel mac takes board-id", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-id", insertedDeviceID)
+
+		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+
+	t.Run("intel T2 mac takes bridge-model", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "bridge-model", "value": "valid-bridge-model"},
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-bridge-model", insertedDeviceID)
+	})
+
+	t.Run("apple silicon mac takes compatible", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Apple Silicon\x00Mac16,7"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "Apple Silicon", insertedDeviceID)
+
+		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+}
+
+type notFoundErrorForTest struct{}
+
+func (e *notFoundErrorForTest) Error() string    { return "not found" }
+func (e *notFoundErrorForTest) IsNotFound() bool { return true }
+
+// A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE.
+func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name            string
+		hasAutopilotRow bool
+		wantDEPCleared  bool
+	}{
+		{"an ordinary Windows host is demoted to manual", false, true},
+		{"a pending Autopilot host keeps its marker", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var depCleared bool
+
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+				return true, nil
+			}
+			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return &fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true}, nil
+			}
+			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+				if tc.hasAutopilotRow {
+					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
+				}
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
+				depCleared = !enrolledFromDEP
+				return nil
+			}
+			// No default fleet configured, so the assignment helper returns before touching anything else.
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+				return nil
+			}
+			ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+				return nil, nil
+			}
+
+			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1")
+			require.NoError(t, err)
+			require.True(t, updated)
+			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+// osquery detail ingest runs on every refetch and derives installed_from_dep from the enrollment's OOBE flag. An
+// already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception the next refetch would clear
+// the marker and demote the host to manual.
+func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	var gotAutomatic, gotEnrolled bool
+
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
+	}
+	ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		return &fleet.MDMWindowsEnrolledDevice{MDMNotInOOBE: true}, nil
+	}
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string,
+		installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool,
+	) error {
+		gotEnrolled, gotAutomatic = enrolled, installedFromDep
+		return nil
+	}
+
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+	rows := []map[string]string{{
+		"discovery_service_url": "https://example.com/api/mdm/microsoft/discovery",
+		"aad_resource_id":       "https://example.com",
+		"provider_id":           fleet.WellKnownMDMFleet,
+		"installation_type":     "Client",
+	}}
+	require.NoError(t, directIngestMDMWindows(t.Context(), slog.New(slog.DiscardHandler), host, ds, rows))
+
+	assert.True(t, gotEnrolled)
+	assert.True(t, gotAutomatic, "an Autopilot host that re-enrolls out of OOBE must still read as automatic")
+}
+
+// The Windows enrollment default fleet is assigned only to hosts created at or after their enrollment row.
+func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
+	t.Parallel()
+
+	enrollmentCreated := time.Now()
+	for _, tc := range []struct {
+		name        string
+		hostCreated time.Time
+		wantMoved   bool
+	}{
+		{"a host the autopilot sync created days earlier is left alone", enrollmentCreated.Add(-72 * time.Hour), false},
+		{"a host created by the enrollment itself is assigned", enrollmentCreated.Add(time.Second), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			teamID := uint(7)
+			var moved bool
+
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return &teamID, "Workstations", nil
+			}
+			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: id, CreatedAt: tc.hostCreated}, nil
+			}
+			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+				moved = true
+				return nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint,
+				profileUUIDs, hostUUIDs []string,
+			) (fleet.MDMProfilesUpdates, error) {
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			device := &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID: "device-1",
+				CreatedAt:   enrollmentCreated,
+			}
+			require.NoError(t, maybeAssignWindowsEnrollmentDefaultFleet(t.Context(), slog.New(slog.DiscardHandler), ds, 1, device))
+			assert.Equal(t, tc.wantMoved, moved)
 		})
 	}
 }

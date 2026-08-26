@@ -307,8 +307,10 @@ const TAGGED_TEMPLATES = {
           <TooltipWrapper
             tipContent={
               <>
-                The host expiry window configured in <br />
-                <b>Settings &gt; Organization settings &gt; Advanced options</b>
+                The host expiry window configured in{" "}
+                <strong>
+                  Settings &gt; Organization settings &gt; Advanced options
+                </strong>
               </>
             }
           >
@@ -520,6 +522,19 @@ const TAGGED_TEMPLATES = {
     ) : (
       <>unassigned</>
     );
+
+    // "latest" isn't a minimum -- the target floats with what Apple publishes --
+    // so the sentence drops "the minimum" rather than contradicting itself.
+    // There's no deadline to report either: it's derived from deadline_days,
+    // which the activity doesn't record.
+    if (activity.details?.minimum_version === "latest") {
+      return (
+        <>
+          {editedActivity} {applePlatform} version to <b>latest</b> on hosts
+          assigned to {teamSection}.
+        </>
+      );
+    }
 
     return (
       <>
@@ -1423,13 +1438,11 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
-    const actor = activity.actor_full_name
-      ? activity.actor_full_name
-      : "An end user";
+    const actor = activity.actor_full_name ? activity.actor_full_name : "Fleet";
     return (
       <>
-        <b>{actor}</b> resent {activity.details?.profile_name} configuration
-        profile to {activity.details?.host_display_name}.
+        <b>{actor}</b> resent <b>{activity.details?.profile_name}</b> to{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -1513,12 +1526,22 @@ const TAGGED_TEMPLATES = {
       source,
       self_service,
       from_setup_experience,
+      skipped_install,
     } = details;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+
+    if (skipped_install) {
+      return (
+        <>
+          {" "}
+          skipped install of <b>{title}</b> on <b>{hostName}</b>.
+        </>
+      );
+    }
 
     // Self-service actions: drop the actor and switch to passive voice so the
     // sentence reads "<title> was installed on <host> (self-service)." without
@@ -1534,8 +1557,8 @@ const TAGGED_TEMPLATES = {
             isScriptPackageSource
           )}{" "}
           on <b>{hostName}</b>
-          {from_setup_experience ? " during setup experience" : ""}{" "}
-          (self-service).
+          {from_setup_experience ? " during setup experience" : ""} (self
+          service).
         </>
       );
     }
@@ -1576,7 +1599,7 @@ const TAGGED_TEMPLATES = {
           <b>{title}</b>
           {showSoftwarePackage && ` (${details.software_package})`}{" "}
           {getInstallUninstallStatusPredicatePassive(status)} on{" "}
-          <b>{hostName}</b> (self-service).
+          <b>{hostName}</b> (self service).
         </>
       );
     }
@@ -1604,7 +1627,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        <b>End user</b> installed all the software in self-service.
+        <b>End user</b> installed all the software in self service.
       </>
     );
   },
@@ -1803,6 +1826,16 @@ const TAGGED_TEMPLATES = {
         {" "}
         canceled {formatScriptNameForActivityItem(scriptName)} on{" "}
         <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledMdmCommand: (activity: IActivity) => {
+    const { command_type: commandType, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled the pending <b>{commandType}</b> command on <b>{hostName}</b>.
       </>
     );
   },
@@ -2248,6 +2281,21 @@ const TAGGED_TEMPLATES = {
     return (
       <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
     );
+  },
+  addedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> added Microsoft Graph credential{suffix}.</>;
+  },
+  editedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> edited Microsoft Graph credential{suffix}.</>;
+  },
+  deletedMicrosoftGraphCredential: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
+    const suffix = tenantId ? ` (${tenantId})` : "";
+    return <> deleted Microsoft Graph credential{suffix}.</>;
   },
   addedMicrosoftEntraClientId: (activity: IActivity) => {
     const clientId = activity.details?.client_id;
@@ -2698,6 +2746,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CanceledRunScript: {
       return TAGGED_TEMPLATES.canceledRunScript(activity);
     }
+    case ActivityType.CanceledMdmCommand: {
+      return TAGGED_TEMPLATES.canceledMdmCommand(activity);
+    }
     case ActivityType.CanceledInstallSoftware:
     case ActivityType.CanceledInstallAppStoreApp: {
       return TAGGED_TEMPLATES.canceledInstallSoftware(activity);
@@ -2789,6 +2840,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedMicrosoftEntraClientId: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
     }
+    case ActivityType.AddedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.addedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.EditedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.editedMicrosoftGraphCredential(activity);
+    }
+    case ActivityType.DeletedMicrosoftGraphCredential: {
+      return TAGGED_TEMPLATES.deletedMicrosoftGraphCredential(activity);
+    }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);
     }
@@ -2841,7 +2901,17 @@ const GlobalActivityItem = ({
         // Self-service activities render as a passive-voice sentence in the
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
-        return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+        if (activity.details?.self_service) return null;
+        // Auto-update installs are Fleet-initiated even if the stored actor
+        // says otherwise (e.g. legacy rows written before the fleet_initiated
+        // flag was wired up).
+        if (activity.details?.from_auto_update) return <b>Fleet </b>;
+        // A missing actor here means the initiating admin has been deleted
+        // since the install was queued (the LEFT JOIN on users returns nil).
+        // Trim so whitespace-only names also count as missing. Fall back to
+        // Fleet so the sentence doesn't render as a blank actor.
+        if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
+        return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.
         return null;

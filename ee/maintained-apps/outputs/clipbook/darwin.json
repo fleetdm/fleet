@@ -4,7 +4,8 @@
       "version": "1.36.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '1.36.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '1.36.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.ikryanov.clipbook');"
       },
       "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-1.36.0-arm64.dmg",
       "install_script_ref": "d0558c9f",

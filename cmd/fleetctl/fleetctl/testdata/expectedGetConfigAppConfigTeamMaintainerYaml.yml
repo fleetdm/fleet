@@ -53,6 +53,7 @@ spec:
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
+    microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
     macos_migration:
       enable: false
@@ -78,8 +79,12 @@ spec:
       grace_period_days: 3
     apple_settings:
       configuration_profiles: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     macos_settings:
       custom_settings: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
@@ -109,9 +114,12 @@ spec:
     windows_enrollment: null
     windows_settings:
       custom_settings: null
+      enable_disk_encryption: false
       configuration_profiles: null
       managed_local_account_settings:
         enabled: false
+    linux_settings:
+      enable_escrow_disk_encryption_key: false
     android_settings:
       certificates: null
       custom_settings: null
