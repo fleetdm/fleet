@@ -385,15 +385,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		// the deprecated top-level windows_require_bitlocker_pin mirrors the
-		// canonical windows_settings.require_bitlocker_pin home; whichever the
-		// request changes wins
-		incomingPIN := payload.MDM.RequireBitLockerPIN
-		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.RequireBitLockerPIN.Valid {
-			canonical := payload.MDM.WindowsSettings.RequireBitLockerPIN
-			oldPIN := team.Config.MDM.DiskEncryptionConfig().BitLockerPINRequired
-			if !incomingPIN.Valid || incomingPIN.Value == oldPIN || canonical.Value != oldPIN {
-				incomingPIN = canonical
-			}
+		// canonical windows_settings.require_bitlocker_pin home
+		var canonicalPIN optjson.Bool
+		if payload.MDM.WindowsSettings != nil {
+			canonicalPIN = payload.MDM.WindowsSettings.RequireBitLockerPIN
+		}
+		incomingPIN, err := fleet.ResolveBitLockerPINAlias(payload.MDM.RequireBitLockerPIN, canonicalPIN)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 		if incomingPIN.Valid {
 			team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
@@ -1706,14 +1705,12 @@ func (svc *Service) createTeamFromSpec(
 	windowsSettings.EnableDiskEncryption = optjson.SetBool(windowsSettings.EnableDiskEncryption.Value)
 	// the deprecated top-level windows_require_bitlocker_pin mirrors the
 	// canonical windows_settings.require_bitlocker_pin home
-	requireBitLockerPIN := spec.MDM.RequireBitLockerPIN.Value
-	if windowsSettings.RequireBitLockerPIN.Valid {
-		if spec.MDM.RequireBitLockerPIN.Valid && spec.MDM.RequireBitLockerPIN.Value != windowsSettings.RequireBitLockerPIN.Value {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.windows_require_bitlocker_pin",
-				"conflicts with windows_settings.require_bitlocker_pin"))
-		}
-		requireBitLockerPIN = windowsSettings.RequireBitLockerPIN.Value
+	resolvedPIN, err := fleet.ResolveBitLockerPINAlias(
+		spec.MDM.RequireBitLockerPIN, windowsSettings.RequireBitLockerPIN)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
 	}
+	requireBitLockerPIN := resolvedPIN.Value
 	windowsSettings.RequireBitLockerPIN = optjson.SetBool(requireBitLockerPIN)
 	// the BitLocker PIN requires the Windows disk encryption setting; a new
 	// fleet has no previous state, so this is always the "enabling the PIN" case
@@ -2066,15 +2063,11 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// the deprecated top-level windows_require_bitlocker_pin mirrors the
-	// canonical windows_settings.require_bitlocker_pin home; whichever the
-	// spec changes wins
-	incomingPIN := spec.MDM.RequireBitLockerPIN
-	if spec.MDM.WindowsSettings.RequireBitLockerPIN.Valid {
-		canonical := spec.MDM.WindowsSettings.RequireBitLockerPIN
-		if !incomingPIN.Valid || incomingPIN.Value == oldDiskEncryption.BitLockerPINRequired ||
-			canonical.Value != oldDiskEncryption.BitLockerPINRequired {
-			incomingPIN = canonical
-		}
+	// canonical windows_settings.require_bitlocker_pin home
+	incomingPIN, err := fleet.ResolveBitLockerPINAlias(
+		spec.MDM.RequireBitLockerPIN, spec.MDM.WindowsSettings.RequireBitLockerPIN)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
 	}
 	if incomingPIN.Valid {
 		team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value

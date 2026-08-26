@@ -435,6 +435,30 @@ func (m *MDM) DiskEncryptionConfig() DiskEncryptionConfig {
 	}
 }
 
+// ResolveBitLockerPINAlias resolves the deprecated windows_require_bitlocker_pin
+// key against its canonical windows_settings.require_bitlocker_pin home for the
+// config and fleet-spec shapes. Both keys may be sent when they agree, and the
+// canonical one is authoritative; disagreeing values are rejected.
+//
+// This is stricter than the deprecated mdm.enable_disk_encryption toggle, which
+// resolves by which value the request changed: that toggle is derived from the
+// four per-platform settings, so a round-tripped document always carries a value
+// that may legitimately disagree with a per-platform edit. This pair is always
+// mirrored, so a disagreement can only be a contradiction.
+//
+// The returned value is invalid when neither key carries one, meaning "leave the
+// stored value alone".
+func ResolveBitLockerPINAlias(deprecated, canonical optjson.Bool) (optjson.Bool, error) {
+	if canonical.Valid && deprecated.Valid && canonical.Value != deprecated.Value {
+		return optjson.Bool{}, NewInvalidArgumentError("mdm.windows_require_bitlocker_pin",
+			"conflicts with mdm.windows_settings.require_bitlocker_pin")
+	}
+	if canonical.Valid {
+		return canonical, nil
+	}
+	return deprecated, nil
+}
+
 // BitLockerPINRequirementError reports requiring a BitLocker PIN while Windows
 // disk encryption is off, returning the offending field and message, or empty
 // strings when the pair is valid. Turning encryption off blames the encryption

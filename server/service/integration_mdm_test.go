@@ -935,6 +935,8 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(false)
 	appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	appCfg.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+	appCfg.MDM.RequireBitLockerPIN = optjson.SetBool(false)
 	appCfg.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	// ensure enable release manually is false
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
@@ -3132,6 +3134,65 @@ func (s *integrationMDMTestSuite) TestBitLockerPINRequiresWindowsDiskEncryption(
 		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(false)},
 	}, http.StatusUnprocessableEntity)
 	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+}
+
+// TestBitLockerPINAliasConflict covers the deprecated windows_require_bitlocker_pin
+// key disagreeing with its canonical windows_settings home across write paths.
+func (s *integrationMDMTestSuite) TestBitLockerPINAliasConflict() {
+	t := s.T()
+	const conflictErr = "conflicts with mdm.windows_settings.require_bitlocker_pin"
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	team := createResp.Team
+
+	// global config: disagreeing values are rejected rather than silently
+	// resolved to one of them
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {
+	  "windows_require_bitlocker_pin": false,
+	  "windows_settings": {"enable_disk_encryption": true, "require_bitlocker_pin": true}
+	}}`), http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// agreeing values are accepted: a round-tripped document carries both
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {
+	  "windows_require_bitlocker_pin": true,
+	  "windows_settings": {"enable_disk_encryption": true, "require_bitlocker_pin": true}
+	}}`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, acResp.MDM.RequireBitLockerPIN.Value)
+
+	// PATCH the fleet
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				RequireBitLockerPIN: optjson.SetBool(true),
+			},
+		},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// editing a fleet from a spec
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings:     fleet.WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+		},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// creating a fleet from a spec
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t.Name() + "-created",
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings:     fleet.WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+		},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
 }
 
 func (s *integrationMDMTestSuite) TestDiskEncryptionEndpointPerPlatform() {

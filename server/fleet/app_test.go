@@ -1157,3 +1157,56 @@ func TestBitLockerPINRequirementError(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveBitLockerPINAlias(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		deprecated optjson.Bool
+		canonical  optjson.Bool
+		want       optjson.Bool
+		wantErr    bool
+	}{
+		{name: "neither provided leaves the stored value alone"},
+		{
+			name:       "deprecated only",
+			deprecated: optjson.SetBool(true),
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:      "canonical only",
+			canonical: optjson.SetBool(true),
+			want:      optjson.SetBool(true),
+		},
+		{
+			name:       "both agreeing is accepted, as a round-tripped document sends",
+			deprecated: optjson.SetBool(true),
+			canonical:  optjson.SetBool(true),
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:       "explicit null on the canonical key falls back to the deprecated one",
+			deprecated: optjson.SetBool(true),
+			canonical:  optjson.Bool{Set: true},
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:       "disagreeing values are rejected",
+			deprecated: optjson.SetBool(false),
+			canonical:  optjson.SetBool(true),
+			wantErr:    true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolveBitLockerPINAlias(tc.deprecated, tc.canonical)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want.Valid, got.Valid)
+			if tc.want.Valid {
+				require.Equal(t, tc.want.Value, got.Value)
+			}
+		})
+	}
+}
