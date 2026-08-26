@@ -97,11 +97,32 @@ This feature is available for macOS hosts that automatically enroll via Apple Bu
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden  admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
+1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
 
 2. Wipe and re-enroll any existing hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
+
+### Password complexity
+
+Fleet generates a cryptographically random password for each host's managed local account. The password is formatted as six groups of four characters separated by hyphens (for example, `A3BC-D5EF-GH7J-KL9M-NP2Q-RS4T`) so it can be read aloud and typed at a login prompt.
+
+The following character classes are used. Characters that are easily confused when transcribed by hand (`0`/`O`/`o` and `1`/`I`/`l`) are omitted:
+
+| Platform | Character classes | Alphabet size |
+| --- | --- | --- |
+| macOS | Digits (`23456789`) + uppercase (`ABCDEFGHJKLMNPQRSTUVWXYZ`) | 32 |
+| Windows | Digits + uppercase + lowercase (`abcdefghijkmnpqrstuvwxyz`) | 56 |
+
+Each generated password is guaranteed to contain at least one character from every enabled class.
+
+### Password rotation
+
+Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
+
+> Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
+
+A manual rotation cancels any active auto-rotation timer for that host.
 
 ### macOS
 > The managed account is hidden from the macOS login window. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
@@ -112,6 +133,7 @@ To view the password for a host's managed account, head to **Host details > Acti
 
 ### Windows
 > The managed account is hidden from the Windows sign-in screen. To log in as _fleetadmin, select **Other user** on the sign-in screen and enter the username and password manually.
+
 
 ## Platform SSO
 
@@ -124,18 +146,6 @@ Fleet also supports using the Fleet Desktop app's built-in PSSO extension to ach
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
 Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business (AB).
-
-## Managed local account
-Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
-
-Admins can view the current password from **Host details > Show managed account** in the Fleet UI or via the API.
-
-### Password rotation
-Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
-
-> Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
-
-A manual rotation cancels any active auto-rotation timer for that host.
 
 ## Bootstrap package
 
