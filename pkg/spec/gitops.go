@@ -2311,7 +2311,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		return wrapErrs(errors.New("install_software.fleet_maintained_app_slug cannot be combined with other selectors"))
 	}
 	if hasPath && hasHash {
-		return wrapErrs(errors.New("install_software.hash_sha256 replaces install_software.package_path for multi-package titles; use one, not both"))
+		return wrapErrs(errors.New("install_software.hash_sha256 cannot be combined with install_software.package_path"))
 	}
 
 	var errs []error

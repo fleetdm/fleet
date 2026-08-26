@@ -5309,7 +5309,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software.hash_sha256 replaces install_software.package_path for multi-package titles; use one, not both")
+		assert.Contains(t, errs[0].Error(), "install_software.hash_sha256 cannot be combined with install_software.package_path")
 	})
 }
 
