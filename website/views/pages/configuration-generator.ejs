@@ -43,7 +43,7 @@
             <div v-for="item in parsedItemsInProfile">
               <p>{{item.name}}: {{item.value}}</p>
             </div>
-            <p v-if="deliveryNotes"><strong>Note:</strong> {{deliveryNotes}}</p>
+            <p v-if="deliveryNotes"><strong>Deployment note:</strong> {{deliveryNotes}}</p>
             <div purpose="generate-button" @click="clickEditGeneratedOutput()"><i class="p-3 fa fa-pencil"></i></div>
           </div>
         </div>
