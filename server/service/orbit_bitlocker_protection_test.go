@@ -78,7 +78,7 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			svc := &Service{ds: ds}
 
 			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-				return fleet.DiskEncryptionConfig{Enabled: true, BitLockerPINRequired: tc.pinRequired}, nil
+				return fleet.DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: tc.pinRequired}, nil
 			}
 
 			host := &fleet.Host{
