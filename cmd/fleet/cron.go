@@ -2468,6 +2468,7 @@ func newUpcomingActivitiesSchedule(
 	installReapTimeout time.Duration,
 	verifyTimeout time.Duration,
 	newActivityFn fleet.NewActivityFunc,
+	fleetInitiatedReleaseEnabled bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpcomingActivitiesMaintenance)
@@ -2501,11 +2502,55 @@ func newUpcomingActivitiesSchedule(
 	}
 	opts = append(opts, schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
 		const maxUnblockHosts = 500
-		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+		// when the fleet-initiated release budget is enabled, hosts waiting
+		// solely on deferred fleet-initiated activities are not blocked — they
+		// belong to the release cron, and unblocking them here would bypass
+		// its budget
+		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts, fleetInitiatedReleaseEnabled)
 		return err
 	}))
 
 	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
+}
+
+// newFleetInitiatedActivitiesReleaseSchedule activates deferred
+// fleet-initiated upcoming activities (policy-automation installs and
+// scripts) at the configured hosts-per-minute budget, pacing the downstream
+// execution and result-ingestion load. Only registered when
+// activity.fleet_initiated_release_per_minute > 0.
+func newFleetInitiatedActivitiesReleaseSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	hostsPerMinute int,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronFleetInitiatedActivitiesRelease)
+		defaultInterval = 1 * time.Minute
+	)
+	logger = logger.With("cron", name)
+
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("release_fleet_initiated_activities", func(ctx context.Context) error {
+			// a partial failure still releases the healthy hosts (per-host
+			// isolation in the datastore), so log progress before returning
+			// any per-host activation errors
+			released, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, hostsPerMinute)
+			if released > 0 {
+				logger.InfoContext(ctx, "released fleet-initiated upcoming activities",
+					"hosts_released", released,
+					"budget_per_minute", hostsPerMinute,
+					// released == budget means more hosts are likely still waiting
+					"budget_exhausted", released == hostsPerMinute,
+				)
+			}
+			return err
+		}),
+	)
+	return s, nil
 }
 
 func newBatchActivitiesSchedule(

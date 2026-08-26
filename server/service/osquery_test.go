@@ -6148,6 +6148,67 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 	})
 }
 
+// TestPolicyAutomationDeferredActivation verifies that policy-automation
+// installs are enqueued with deferred activation when the fleet-initiated
+// release budget (activity.fleet_initiated_release_per_minute) is enabled, and
+// with inline activation when it is not.
+func TestPolicyAutomationDeferredActivation(t *testing.T) {
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	setupMocks := func(ds *mock.Store) *bool {
+		ds.GetPoliciesWithAssociatedInstallerFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+			return []fleet.PolicySoftwareInstallerData{{ID: policyID, InstallerID: installerID}}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "windows"}, nil
+		}
+		ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) { return true, nil }
+		ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+			return nil, nil
+		}
+		var deferred bool
+		ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, swInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			deferred = opts.DeferActivation
+			return "exec-uuid", nil
+		}
+		return &deferred
+	}
+
+	orbitKey := "orbit-key"
+	policyFailed := false
+	failing := map[uint]*bool{policyID: &policyFailed}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+
+	t.Run("release budget enabled defers activation", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Activity.FleetInitiatedReleasePerMinute = 1000
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{})
+		svcImpl := svc.(validationMiddleware).Service.(*Service)
+		deferred := setupMocks(ds)
+
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.True(t, *deferred, "policy automation must defer activation when the release budget is on")
+	})
+
+	t.Run("release budget disabled activates inline", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+		svcImpl := svc.(validationMiddleware).Service.(*Service)
+		deferred := setupMocks(ds)
+
+		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.False(t, *deferred, "with the budget off, enqueue must keep inline activation")
+	})
+}
+
 // TestProcessProfileResendsForNewlyFailingPolicies covers the policy automation that resends a
 // configuration profile when its policy fails on a host: which policies trigger a resend, and the
 // activity recorded for each one. The activity is the only record of an automated resend, so it

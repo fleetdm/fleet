@@ -42,6 +42,7 @@ func TestActivity(t *testing.T) {
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
+		{"ReleaseFleetInitiatedUpcomingActivities", testReleaseFleetInitiatedUpcomingActivities},
 		{"ReapStuckActivatedMDMInstalls", testReapStuckActivatedMDMInstalls},
 		{"ActivateScriptPackageInstallWithCorruptPayload", testActivateScriptPackageInstallWithCorruptPayload},
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
@@ -1948,7 +1949,7 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	}
 
 	// run without anything in any host queue
-	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -1976,14 +1977,14 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[4])
 
 	// nothing to unblock
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
 	// block queue for host 0
 	deleteUpcomingActivityToBlockQueue(host0ScriptA.ExecutionID)
 
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
@@ -2019,7 +2020,7 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	deleteUpcomingActivityToBlockQueue(host3ScriptC.ExecutionID)
 	deleteUpcomingActivityToBlockQueue(host4ScriptC.ExecutionID)
 
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 3, n)
 
@@ -2065,15 +2066,15 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	deleteUpcomingActivityToBlockQueue(host4ScriptD.ExecutionID)
 
 	// process max 3 hosts
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3, false)
 	require.NoError(t, err)
 	require.Equal(t, 3, n)
 	// run again, should process the next 2 hosts
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 	// run again, nothing to unblock
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -2082,6 +2083,193 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
+}
+
+func testReleaseFleetInitiatedUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	policy, err := ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{Name: "release-budget-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		hosts[i] = test.NewHost(t, ds, fmt.Sprintf("hr%d.local", i+1), fmt.Sprintf("10.20.10.%d", i+1),
+			fmt.Sprintf("release-%d", i+1), fmt.Sprintf("release-%d", i+1), time.Now())
+	}
+
+	enqueueGated := func(hostID uint, contents string) *fleet.HostScriptResult {
+		hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  contents,
+			PolicyID:        &policy.ID,
+			DeferActivation: true,
+		})
+		require.NoError(t, err)
+		return hsr
+	}
+
+	readyExecIDs := func(hostID uint) []string {
+		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID, false)
+		require.NoError(t, err)
+		ids := make([]string, 0, len(ready))
+		for _, r := range ready {
+			ids = append(ids, r.ExecutionID)
+		}
+		return ids
+	}
+
+	// nothing gated yet
+	n, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// gated enqueues are not activated: invisible to the host
+	gated0 := enqueueGated(hosts[0].ID, "A")
+	gated1 := enqueueGated(hosts[1].ID, "A")
+	require.Empty(t, readyExecIDs(hosts[0].ID))
+	require.Empty(t, readyExecIDs(hosts[1].ID))
+
+	// the unblock job must not bypass the release budget
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, true)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	require.Empty(t, readyExecIDs(hosts[0].ID))
+
+	// release honors the budget, oldest host first
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{gated0.ExecutionID}, readyExecIDs(hosts[0].ID))
+	require.Empty(t, readyExecIDs(hosts[1].ID))
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{gated1.ExecutionID}, readyExecIDs(hosts[1].ID))
+
+	// nothing left to release
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// a host with an in-flight (activated) activity is not double-released even
+	// with gated work behind it: per-host serialization is preserved
+	enqueueGated(hosts[0].ID, "B")
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	require.Equal(t, []string{gated0.ExecutionID}, readyExecIDs(hosts[0].ID))
+
+	// a user-initiated script on a host with only gated work activates
+	// immediately and jumps ahead of the gated activity (higher priority)
+	gated2 := enqueueGated(hosts[2].ID, "G")
+	userScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hosts[2].ID,
+		ScriptContents: "U",
+		UserID:         &u.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{userScript.ExecutionID}, readyExecIDs(hosts[2].ID))
+
+	// while the user script is in flight, release leaves the host alone
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// completing the user script chain-activates the gated activity (a person
+	// touching the host releases its queue early, by design)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      hosts[2].ID,
+		ExecutionID: userScript.ExecutionID,
+		Output:      "ok",
+		ExitCode:    0,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{gated2.ExecutionID}, readyExecIDs(hosts[2].ID))
+
+	// legacy unblock behavior (skipFleetInitiated=false) still rescues hosts
+	// with gated-only work, for deployments without the release budget
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, gated2.ExecutionID)
+		return err
+	})
+	enqueueGated(hosts[2].ID, "H")
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Len(t, readyExecIDs(hosts[2].ID), 1)
+
+	// the software-install enqueue path honors DeferActivation the same way:
+	// invisible to the host until released
+	installHost := test.NewHost(t, ds, "hr4.local", "10.20.10.4", "release-4", "release-4", time.Now())
+	installerFile, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installerFile,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           uuid.NewString(),
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		UninstallScript: "uninstall foo",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	installExecID, err := ds.InsertSoftwareInstallRequest(ctx, installHost.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID:        &policy.ID,
+		DeferActivation: true,
+	})
+	require.NoError(t, err)
+
+	installs, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, installHost.ID)
+	require.NoError(t, err)
+	require.Empty(t, installs)
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	installs, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, installHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{installExecID}, installs)
+
+	// a "poison" host whose activation deterministically fails must not wedge
+	// the release pipeline: with oldest-first selection it would otherwise be
+	// re-picked every run and roll back every other host in its chunk
+	poisonHost := test.NewHost(t, ds, "hr5.local", "10.20.10.5", "release-5", "release-5", time.Now())
+	healthyHost := test.NewHost(t, ds, "hr6.local", "10.20.10.6", "release-6", "release-6", time.Now())
+	poisonScript := enqueueGated(poisonHost.ID, "P")
+	healthyScript := enqueueGated(healthyHost.ID, "Q")
+	// pre-seed a host_script_results row with the poison activity's execution
+	// ID so its activation INSERT hits the unique key and fails
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output)
+			SELECT ua.host_id, ua.execution_id, sua.script_content_id, ''
+			FROM upcoming_activities ua
+			JOIN script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
+			WHERE ua.execution_id = ?`, poisonScript.ExecutionID)
+		return err
+	})
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.Error(t, err, "the poison host's activation error must be reported")
+	require.ErrorContains(t, err, fmt.Sprintf("host %d", poisonHost.ID))
+	require.Equal(t, 1, n, "the healthy host must be released despite the poison host")
+	require.Equal(t, []string{healthyScript.ExecutionID}, readyExecIDs(healthyHost.ID))
+
+	// unwedge the poison host and confirm it releases on the next run
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id = ?`, poisonScript.ExecutionID)
+		return err
+	})
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{poisonScript.ExecutionID}, readyExecIDs(poisonHost.ID))
 }
 
 // TestReapableActivatedInstallArgs pins the conversion the reap predicate depends on. A duration
