@@ -37,7 +37,6 @@
         <div class="d-flex flex-lg-row flex-column mb-4">
           <div purpose="profile-editor">
             <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
-            <div purpose="generate-button" @click="clickEditGeneratedOutput()"><i class="fa fa-pencil"></i></div>
           </div>
           <div purpose="enforced-settings">
             <p><strong>Settings enforced:</strong></p>
@@ -45,6 +44,7 @@
               <p>{{item.name}}: {{item.value}}</p>
             </div>
             <p v-if="deliveryNotes"><strong>Note:</strong> {{deliveryNotes}}</p>
+            <div purpose="generate-button" @click="clickEditGeneratedOutput()"><i class="p-3 fa fa-pencil"></i></div>
           </div>
         </div>
         <p><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
