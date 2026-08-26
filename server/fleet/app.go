@@ -324,6 +324,13 @@ type DiskEncryptionConfig struct {
 	LinuxEscrowEnabled bool
 }
 
+// AllEnabled returns the AND of the four per-platform disk encryption settings
+// — the value the deprecated flat enable_disk_encryption key reports. The
+// BitLocker PIN is a modifier of Windows enforcement, not one of the four.
+func (c DiskEncryptionConfig) AllEnabled() bool {
+	return c.MacOSEnabled && c.MacOSEscrowEnabled && c.WindowsEnabled && c.LinuxEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {
@@ -417,10 +424,7 @@ func (p MDMDiskEncryptionSettingsPayload) ResolvePerPlatform() (DiskEncryptionSe
 // disk encryption settings — the value the deprecated flat
 // mdm.enable_disk_encryption key reports.
 func (m *MDM) DiskEncryptionSettingsAllEnabled() bool {
-	return m.MacOSSettings.EnableDiskEncryption.Value &&
-		m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
-		m.WindowsSettings.EnableDiskEncryption.Value &&
-		m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	return m.DiskEncryptionConfig().AllEnabled()
 }
 
 // DiskEncryptionConfig returns the global effective per-platform disk
