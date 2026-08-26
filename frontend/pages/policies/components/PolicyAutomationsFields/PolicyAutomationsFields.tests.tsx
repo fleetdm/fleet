@@ -352,12 +352,12 @@ describe("PolicyAutomationsFields — payload", () => {
 
     const payload = handleRef.current?.getAutomationsPayload();
     // Regression guard for the VPP path: validate() must NOT flag the
-    // missing installer_id when the selected title has no packages[]. The
+    // missing package_id when the selected title has no packages[]. The
     // payload can still be dirty on legacy-load (form pre-fill logic); the
     // point of this test is that isValid stays true so the parent can save.
     expect(payload?.isValid).toBe(true);
     // Backend picks the VPP install target from software_title_id; we send
-    // installer_id as null on the wire.
+    // package_id as null on the wire.
     expect(payload?.policyUpdate?.software_package_id ?? null).toBeNull();
   });
 

@@ -2302,11 +2302,10 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	}
 	// All four selectors are mutually exclusive. package_path and hash_sha256
 	// is the combo admins actually reach for (trying to sub-select a package
-	// inside a multi-package YAML), so it gets a specific, teaching message.
-	// The other combos are unusual and share a generic "pick one" hint.
-	if hasPath && hasHash {
-		return wrapErrs(errors.New("install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split the multi-package YAML into single-package YAML files and use package_path."))
-	}
+	// inside a multi-package YAML), so when it's the ONLY conflict we surface
+	// a specific, teaching message. Any other multi-selector combination (or
+	// three+ selectors including path+hash) gets the generic "pick one" hint,
+	// because a targeted message would leave the extra selector unaddressed.
 	setCount := 0
 	for _, s := range []string{
 		installSoftwareObj.PackagePath,
@@ -2319,6 +2318,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 	}
 	if setCount > 1 {
+		if setCount == 2 && hasPath && hasHash {
+			return wrapErrs(errors.New("install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split the multi-package YAML into single-package YAML files and use package_path."))
+		}
 		return wrapErrs(errors.New("install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug"))
 	}
 

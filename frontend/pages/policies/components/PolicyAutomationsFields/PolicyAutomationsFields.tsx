@@ -449,9 +449,9 @@ const PolicyAutomationsFields = forwardRef<
                 software_title_id: effectiveInstallSoftware
                   ? effectiveSoftwareTitleId
                   : null,
-                // Send the pinned installer id when install-software is on.
+                // Send the pinned package id when install-software is on.
                 // Null clears the automation or lets the backend select the
-                // Fleet-maintained app's installer when a Patch radio owns it.
+                // Fleet-maintained app's package when a Patch radio owns it.
                 software_package_id: effectiveInstallSoftware
                   ? effectiveSoftwarePackageId
                   : null,

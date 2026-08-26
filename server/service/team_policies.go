@@ -972,7 +972,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	if softwareTitleID == nil || *softwareTitleID == 0 {
 		if installerChosen {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "software_installer_id can only be set together with software_title_id",
+				Message: "software_package_id can only be set together with software_title_id",
 			})
 		}
 		return nil, nil, nil
