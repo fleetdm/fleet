@@ -379,8 +379,20 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.MDM.EnableRecoveryLockPassword = payload.MDM.EnableRecoveryLockPassword.Value
 		}
 
-		if payload.MDM.RequireBitLockerPIN.Valid {
-			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		// the deprecated top-level windows_require_bitlocker_pin mirrors the
+		// canonical windows_settings.require_bitlocker_pin home; whichever the
+		// request changes wins
+		incomingPIN := payload.MDM.RequireBitLockerPIN
+		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.RequireBitLockerPIN.Valid {
+			canonical := payload.MDM.WindowsSettings.RequireBitLockerPIN
+			oldPIN := team.Config.MDM.DiskEncryptionConfig().BitLockerPINRequired
+			if !incomingPIN.Valid || incomingPIN.Value == oldPIN || canonical.Value != oldPIN {
+				incomingPIN = canonical
+			}
+		}
+		if incomingPIN.Valid {
+			team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
+			team.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(incomingPIN.Value)
 		}
 
 		if payload.MDM.HostNameTemplate.Set {
@@ -1681,6 +1693,17 @@ func (svc *Service) createTeamFromSpec(
 		windowsSettings.EnableDiskEncryption = spec.MDM.EnableDiskEncryption
 	}
 	windowsSettings.EnableDiskEncryption = optjson.SetBool(windowsSettings.EnableDiskEncryption.Value)
+	// the deprecated top-level windows_require_bitlocker_pin mirrors the
+	// canonical windows_settings.require_bitlocker_pin home
+	requireBitLockerPIN := spec.MDM.RequireBitLockerPIN.Value
+	if windowsSettings.RequireBitLockerPIN.Valid {
+		if spec.MDM.RequireBitLockerPIN.Valid && spec.MDM.RequireBitLockerPIN.Value != windowsSettings.RequireBitLockerPIN.Value {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.windows_require_bitlocker_pin",
+				"conflicts with windows_settings.require_bitlocker_pin"))
+		}
+		requireBitLockerPIN = windowsSettings.RequireBitLockerPIN.Value
+	}
+	windowsSettings.RequireBitLockerPIN = optjson.SetBool(requireBitLockerPIN)
 	linuxSettings := spec.MDM.LinuxSettings
 	if spec.MDM.EnableDiskEncryption.Valid {
 		linuxSettings.EnableEscrowDiskEncryptionKey = spec.MDM.EnableDiskEncryption
@@ -1782,7 +1805,7 @@ func (svc *Service) createTeamFromSpec(
 			MDM: fleet.TeamMDM{
 				EnableDiskEncryption:       enableDiskEncryption,
 				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
-				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
+				RequireBitLockerPIN:        requireBitLockerPIN,
 				MacOSUpdates:               spec.MDM.MacOSUpdates,
 				IOSUpdates:                 spec.MDM.IOSUpdates,
 				IPadOSUpdates:              spec.MDM.IPadOSUpdates,
@@ -2023,8 +2046,20 @@ func (svc *Service) editTeamFromSpec(
 		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
-	if spec.MDM.RequireBitLockerPIN.Valid {
-		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
+	// the deprecated top-level windows_require_bitlocker_pin mirrors the
+	// canonical windows_settings.require_bitlocker_pin home; whichever the
+	// spec changes wins
+	incomingPIN := spec.MDM.RequireBitLockerPIN
+	if spec.MDM.WindowsSettings.RequireBitLockerPIN.Valid {
+		canonical := spec.MDM.WindowsSettings.RequireBitLockerPIN
+		if !incomingPIN.Valid || incomingPIN.Value == oldDiskEncryption.BitLockerPINRequired ||
+			canonical.Value != oldDiskEncryption.BitLockerPINRequired {
+			incomingPIN = canonical
+		}
+	}
+	if incomingPIN.Valid {
+		team.Config.MDM.RequireBitLockerPIN = incomingPIN.Value
+		team.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(incomingPIN.Value)
 	}
 
 	var didUpdateRecoveryLockPassword bool
@@ -2558,9 +2593,12 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 	linuxChanged := apply(&tm.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, changes.LinuxEscrow)
 	// the PIN is updated outside of apply: it doesn't enable key escrow, so it
 	// must not trigger the private-key requirement
-	pinChanged := requireBitLockerPIN != nil && tm.Config.MDM.RequireBitLockerPIN != *requireBitLockerPIN
-	if pinChanged {
+	pinChanged := requireBitLockerPIN != nil && oldDiskEncryption.BitLockerPINRequired != *requireBitLockerPIN
+	if requireBitLockerPIN != nil {
+		// the deprecated top-level key mirrors the canonical
+		// windows_settings.require_bitlocker_pin home
 		tm.Config.MDM.RequireBitLockerPIN = *requireBitLockerPIN
+		tm.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(*requireBitLockerPIN)
 	}
 
 	if !macOSChanged && !windowsChanged && !linuxChanged && !pinChanged {
@@ -2573,7 +2611,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 
 	// the BitLocker PIN requires the Windows disk encryption setting
 	newDiskEncryption := tm.Config.MDM.DiskEncryptionConfig()
-	if tm.Config.MDM.RequireBitLockerPIN && !newDiskEncryption.WindowsEnabled {
+	if newDiskEncryption.BitLockerPINRequired && !newDiskEncryption.WindowsEnabled {
 		if oldDiskEncryption.WindowsEnabled {
 			return ctxerr.New(ctx, fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
 		}

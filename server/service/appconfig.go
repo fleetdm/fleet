@@ -845,6 +845,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
 	}
 
+	// The deprecated windows_require_bitlocker_pin key mirrors its canonical
+	// windows_settings.require_bitlocker_pin home; whichever the request
+	// changes wins. A one-boolean pair can't be changed to disagreeing values
+	// (changed means "not the stored value"), so no conflict is possible.
+	{
+		oldPIN := oldAppConfig.MDM.BitLockerPINRequired()
+		canonical := newAppConfig.MDM.WindowsSettings.RequireBitLockerPIN
+		deprecated := newAppConfig.MDM.RequireBitLockerPIN
+		switch {
+		case canonical.Valid && canonical.Value != oldPIN:
+			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(canonical.Value)
+			appConfig.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(canonical.Value)
+		case deprecated.Valid && deprecated.Value != oldPIN:
+			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(deprecated.Value)
+			appConfig.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(deprecated.Value)
+		case canonical.Valid || deprecated.Valid:
+			appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(oldPIN)
+			appConfig.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(oldPIN)
+		}
+		// absent or explicit null passes through: the stored values were the
+		// base of the merge
+	}
+
 	// Apple account provisioning (Platform SSO): the IdP client secret is never
 	// persisted in the AppConfig JSON — it's stored encrypted in
 	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
@@ -2409,12 +2432,12 @@ func (svc *Service) validateMDM(
 	// Windows setting, not the all-platforms aggregate
 	if !mdm.WindowsSettings.EnableDiskEncryption.Value {
 		switch {
-		case !oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+		case !oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.BitLockerPINRequired():
 			invalid.Append(
 				"mdm.windows_require_bitlocker_pin",
 				fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
 			)
-		case oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+		case oldMdm.WindowsSettings.EnableDiskEncryption.Value && mdm.BitLockerPINRequired():
 			invalid.Append(
 				"mdm.enable_disk_encryption",
 				fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,

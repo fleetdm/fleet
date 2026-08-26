@@ -497,7 +497,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		mdmConfig := fleet.TeamMDM{
 			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
-			RequireBitLockerPIN:        cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
+			RequireBitLockerPIN:        cmd.AppConfig.MDM.BitLockerPINRequired(),
 			HostNameTemplate:           cmd.AppConfig.MDM.HostNameTemplate.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,

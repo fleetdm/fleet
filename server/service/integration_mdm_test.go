@@ -3114,6 +3114,24 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionEndpointPerPlatform() {
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	assert.True(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// the BitLocker PIN is settable via its canonical windows_settings home,
+	// and the response mirrors the deprecated top-level key
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, acResp.MDM.RequireBitLockerPIN.Value)
+
+	// the deprecated PIN key conflicting with its canonical home is rejected
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		RequireBitLockerPIN: new(false),
+		WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with windows_settings.require_bitlocker_pin")
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {

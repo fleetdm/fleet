@@ -1076,3 +1076,46 @@ func TestManagedLocalAccountSettingsMarshalDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, map[string]any{"enabled": false}, windowsSettings(v.([]byte)))
 }
+
+func TestBitLockerPINAliasSync(t *testing.T) {
+	t.Run("marshal mirrors the deprecated key and its canonical home", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			mdm  MDM
+			want bool
+		}{
+			{"deprecated only", MDM{RequireBitLockerPIN: optjson.SetBool(true)}, true},
+			{"canonical only", MDM{WindowsSettings: WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)}}, true},
+			{"canonical wins", MDM{
+				RequireBitLockerPIN: optjson.SetBool(false),
+				WindowsSettings:     WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+			}, true},
+			{"neither defaults to false", MDM{}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				b, err := json.Marshal(&AppConfig{MDM: tc.mdm})
+				require.NoError(t, err)
+				var doc map[string]any
+				require.NoError(t, json.Unmarshal(b, &doc))
+				mdm := doc["mdm"].(map[string]any)
+				require.Equal(t, tc.want, mdm["windows_require_bitlocker_pin"])
+				require.Equal(t, tc.want, mdm["windows_settings"].(map[string]any)["require_bitlocker_pin"])
+			})
+		}
+	})
+
+	t.Run("unmarshal fills the canonical home from a legacy document", func(t *testing.T) {
+		var ac AppConfig
+		require.NoError(t, json.Unmarshal([]byte(`{"mdm": {"windows_require_bitlocker_pin": true}}`), &ac))
+		require.True(t, ac.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+		require.True(t, ac.MDM.BitLockerPINRequired())
+
+		// an explicitly present canonical value is never overridden
+		ac = AppConfig{}
+		require.NoError(t, json.Unmarshal([]byte(`{"mdm": {
+			"windows_require_bitlocker_pin": true,
+			"windows_settings": {"require_bitlocker_pin": false}
+		}}`), &ac))
+		require.False(t, ac.MDM.BitLockerPINRequired())
+	})
+}

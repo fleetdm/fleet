@@ -24,6 +24,7 @@ spec:
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       windows_settings:
+        require_bitlocker_pin: false
         configuration_profiles: null
         enable_disk_encryption: false
         managed_local_account_settings:
@@ -94,6 +95,7 @@ spec:
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       windows_settings:
+        require_bitlocker_pin: false
         custom_settings: null
         enable_disk_encryption: false
         managed_local_account_settings:

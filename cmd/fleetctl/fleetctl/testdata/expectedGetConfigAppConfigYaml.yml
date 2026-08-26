@@ -48,7 +48,7 @@ spec:
     enable_disk_encryption: false
     name_template: null
     enable_recovery_lock_password: false
-    windows_require_bitlocker_pin: null
+    windows_require_bitlocker_pin: false
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
@@ -113,6 +113,7 @@ spec:
       software:
     windows_enrollment: null
     windows_settings:
+      require_bitlocker_pin: false
       custom_settings: null
       enable_disk_encryption: false
       configuration_profiles: null

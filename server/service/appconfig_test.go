@@ -1228,6 +1228,7 @@ func TestMDMConfig(t *testing.T) {
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+				RequireBitLockerPIN:         optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},

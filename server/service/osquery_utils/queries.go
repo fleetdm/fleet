@@ -3706,13 +3706,13 @@ func GetDetailQueries(
 		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
 		if appConfig.MDM.WindowsEnabledAndConfigured {
 			enableDiskEncryption := appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
-			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
+			requireTPMPin := appConfig.MDM.BitLockerPINRequired()
 
 			// If the host is part of a team, we need to look at the related team config
 			// instead of the App config ...
 			if teamMDMConfig != nil {
 				enableDiskEncryption = teamMDMConfig.WindowsSettings.EnableDiskEncryption.Value
-				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
+				requireTPMPin = teamMDMConfig.DiskEncryptionConfig().BitLockerPINRequired
 			}
 
 			if enableDiskEncryption && requireTPMPin {

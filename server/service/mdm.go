@@ -3539,14 +3539,19 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, p
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	requireBitLockerPIN, err := payload.ResolveBitLockerPIN()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
 	if teamID != nil {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
 		if err != nil {
 			return err
 		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, changes, payload.RequireBitLockerPIN)
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, changes, requireBitLockerPIN)
 	}
-	return svc.updateAppConfigMDMDiskEncryption(ctx, changes, payload.RequireBitLockerPIN)
+	return svc.updateAppConfigMDMDiskEncryption(ctx, changes, requireBitLockerPIN)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

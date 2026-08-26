@@ -82,9 +82,10 @@
       "enable_disk_encryption": false,
       "name_template": null,
       "enable_recovery_lock_password": false,
-      "windows_require_bitlocker_pin": null,
+      "windows_require_bitlocker_pin": false,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
+      "windows_entra_client_ids": null,
+      "microsoft_graph_credential_invalid": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -160,7 +161,8 @@
         "configuration_profiles": null,
         "managed_local_account_settings": {
           "enabled": false
-        }
+        },
+        "require_bitlocker_pin": false
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": false

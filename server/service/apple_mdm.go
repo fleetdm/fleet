@@ -3705,9 +3705,12 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 	linuxChanged := apply(&ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, changes.LinuxEscrow)
 	// the PIN is updated outside of apply: it doesn't enable key escrow, so it
 	// must not trigger the private-key requirement (mirrors the team path)
-	pinChanged := requireBitLockerPIN != nil && ac.MDM.RequireBitLockerPIN.Value != *requireBitLockerPIN
-	if pinChanged {
+	pinChanged := requireBitLockerPIN != nil && ac.MDM.BitLockerPINRequired() != *requireBitLockerPIN
+	if requireBitLockerPIN != nil {
+		// the deprecated top-level key mirrors the canonical
+		// windows_settings.require_bitlocker_pin home
 		ac.MDM.RequireBitLockerPIN = optjson.SetBool(*requireBitLockerPIN)
+		ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(*requireBitLockerPIN)
 	}
 
 	if !macOSChanged && !windowsChanged && !linuxChanged && !pinChanged {
@@ -3719,7 +3722,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 	}
 
 	// the BitLocker PIN requires the Windows disk encryption setting
-	if !ac.MDM.WindowsSettings.EnableDiskEncryption.Value && ac.MDM.RequireBitLockerPIN.Value {
+	if !ac.MDM.WindowsSettings.EnableDiskEncryption.Value && ac.MDM.BitLockerPINRequired() {
 		if oldWindowsDiskEncryption {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption", fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg))
 		}

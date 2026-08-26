@@ -5466,3 +5466,48 @@ func TestResolvePerPlatformDiskEncryptionPayload(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveBitLockerPINPayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload fleet.MDMDiskEncryptionSettingsPayload
+		want    *bool
+		wantErr bool
+	}{
+		{"neither provided", fleet.MDMDiskEncryptionSettingsPayload{}, nil, false},
+		{"deprecated only", fleet.MDMDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)}, new(true), false},
+		{
+			"canonical only",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+			},
+			new(true), false,
+		},
+		{
+			"both agreeing",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				RequireBitLockerPIN: new(false),
+				WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(false)},
+			},
+			new(false), false,
+		},
+		{
+			"both disagreeing conflicts",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				RequireBitLockerPIN: new(true),
+				WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(false)},
+			},
+			nil, true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.payload.ResolveBitLockerPIN()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
