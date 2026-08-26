@@ -119,11 +119,12 @@ Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option t
 
 Fleet also supports using the Fleet Desktop app's built-in PSSO extension to achieve initial account provisioning during setup and password sync with any OAuth ROPG IdP for use cases where a native IdP PSSO integration is unavailable or is not configured. See [Deploying Apple Account Provisioning with Fleet](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet).
 
-## End user license agreement (EULA)
+## End user agreement
 
-To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
+To require an end user agreement, in Fleet, head to **Settings > Integrations > MDM > End user agreement** or use the [Fleet API](/docs/rest-api/rest-api#create-end-user-agreement).
 
-Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business (AB).
+- **macOS**: The end user license agreement (EULA) is displayed as a PDF for macOS hosts that automatically enroll via Apple Business (AB).
+- **Windows**: The terms and conditions are displayed as an HTML page for Windows hosts that automatically enroll via Microsoft Entra. If no custom terms and conditions are uploaded, Fleet uses a default terms of service page.
 
 ## Managed local account
 Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
