@@ -1138,18 +1138,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// ignore MDM.MicrosoftGraphCredentialInvalid because the server recomputes it from the credentials table
 	appConfig.MDM.MicrosoftGraphCredentialInvalid = oldAppConfig.MDM.MicrosoftGraphCredentialInvalid
 
-	// fleet_desktop.sso_enabled requires a configured IdP.
-	// Only enforced on premium: the setting is a no-op on Free.
-	if lic.IsPremium() && appConfig.FleetDesktop.SSOEnabled && appConfig.MDM.EndUserAuthentication.IsEmpty() {
-		// These deliberately don't name a Settings page: the same error reaches
-		// GitOps runs, where those pages are read-only.
-		if oldAppConfig.FleetDesktop.SSOEnabled {
-			// IdP is being cleared while the feature is on
-			return nil, fleet.NewInvalidArgumentError("mdm.end_user_authentication",
-				"Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
-		}
-		return nil, fleet.NewInvalidArgumentError("fleet_desktop.sso_enabled",
-			"Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
+	if invalid := validateFleetDesktopSSOIdP(
+		oldAppConfig.FleetDesktop, appConfig.FleetDesktop, appConfig.MDM.EndUserAuthentication, lic,
+	); invalid != nil {
+		return nil, invalid
 	}
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
@@ -1310,16 +1302,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.FleetDesktop.SSOEnabled != appConfig.FleetDesktop.SSOEnabled {
-		var act fleet.ActivityDetails
-		if appConfig.FleetDesktop.SSOEnabled {
-			act = fleet.ActivityTypeEnabledSSOFleetDesktop{}
-		} else {
-			act = fleet.ActivityTypeDisabledSSOFleetDesktop{}
-		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
-		}
+	if err := svc.newFleetDesktopSSOActivity(ctx, oldAppConfig.FleetDesktop, appConfig.FleetDesktop); err != nil {
+		return nil, err
 	}
 
 	// Best-effort: drop orphan blobs whose URL was just replaced with an
@@ -1913,6 +1897,44 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
+	return nil
+}
+
+// validateFleetDesktopSSOIdP enforces that fleet_desktop.sso_enabled has an IdP
+// to authenticate against, in both directions: enabling it without one, and
+// clearing one while it is on. Without the second direction the gate would
+// demand SSO against a nonexistent IdP, locking end users out of the device
+// page. Only enforced on premium, where the setting has any effect.
+func validateFleetDesktopSSOIdP(
+	oldFleetDesktop, fleetDesktop fleet.FleetDesktopSettings,
+	endUserAuth fleet.MDMEndUserAuthentication,
+	lic *fleet.LicenseInfo,
+) *fleet.InvalidArgumentError {
+	if !lic.IsPremium() || !fleetDesktop.SSOEnabled || !endUserAuth.IsEmpty() {
+		return nil
+	}
+	if oldFleetDesktop.SSOEnabled {
+		return fleet.NewInvalidArgumentError("mdm.end_user_authentication",
+			"Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
+	}
+	return fleet.NewInvalidArgumentError("fleet_desktop.sso_enabled",
+		"Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
+}
+
+// newFleetDesktopSSOActivity records a fleet_desktop.sso_enabled toggle, and
+// nothing when the value is re-asserted unchanged.
+func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesktop, fleetDesktop fleet.FleetDesktopSettings) error {
+	if oldFleetDesktop.SSOEnabled == fleetDesktop.SSOEnabled {
+		return nil
+	}
+
+	var act fleet.ActivityDetails = fleet.ActivityTypeDisabledSSOFleetDesktop{}
+	if fleetDesktop.SSOEnabled {
+		act = fleet.ActivityTypeEnabledSSOFleetDesktop{}
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+	}
 	return nil
 }
 
