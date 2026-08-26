@@ -2636,8 +2636,8 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 
 	// the BitLocker PIN requires the Windows disk encryption setting
 	newDiskEncryption := tm.Config.MDM.DiskEncryptionConfig()
-	if _, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled, newDiskEncryption); msg != "" {
-		return ctxerr.New(ctx, msg)
+	if field, msg := fleet.BitLockerPINRequirementError(oldDiskEncryption.WindowsEnabled, newDiskEncryption); msg != "" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, msg))
 	}
 
 	// the flat toggle is virtual: keep the stored value consistent
