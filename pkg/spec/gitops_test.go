@@ -2016,7 +2016,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software.app_store_id cannot be combined with other selectors")
+	assert.ErrorContains(t, err, "install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -5147,7 +5147,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software.fleet_maintained_app_slug cannot be combined with other selectors")
+		assert.Contains(t, errs[0].Error(), "install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug")
 	})
 
 	t.Run("fleet_maintained_app_slug on global policy errors", func(t *testing.T) {
@@ -5309,7 +5309,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software.hash_sha256 cannot be combined with install_software.package_path")
+		assert.Contains(t, errs[0].Error(), "install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split a multi-package YAML into single-package files and use package_path.")
 	})
 }
 

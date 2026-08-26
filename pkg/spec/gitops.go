@@ -2300,18 +2300,26 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
 	}
-	// All four selectors are mutually exclusive. package_path targets a
-	// single-package YAML; hash_sha256 pins one package by hash when the
-	// title has multiple; app_store_id and fleet_maintained_app_slug are
-	// their own paths.
-	if hasAppStore && (hasPath || hasHash || hasFMA) {
-		return wrapErrs(errors.New("install_software.app_store_id cannot be combined with other selectors"))
-	}
-	if hasFMA && (hasPath || hasHash || hasAppStore) {
-		return wrapErrs(errors.New("install_software.fleet_maintained_app_slug cannot be combined with other selectors"))
-	}
+	// All four selectors are mutually exclusive. package_path and hash_sha256
+	// is the combo admins actually reach for (trying to sub-select a package
+	// inside a multi-package YAML), so it gets a specific, teaching message.
+	// The other combos are unusual and share a generic "pick one" hint.
 	if hasPath && hasHash {
-		return wrapErrs(errors.New("install_software.hash_sha256 cannot be combined with install_software.package_path"))
+		return wrapErrs(errors.New("install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split a multi-package YAML into single-package files and use package_path."))
+	}
+	setCount := 0
+	for _, s := range []string{
+		installSoftwareObj.PackagePath,
+		installSoftwareObj.AppStoreID,
+		installSoftwareObj.HashSHA256,
+		installSoftwareObj.FleetMaintainedAppSlug,
+	} {
+		if s != "" {
+			setCount++
+		}
+	}
+	if setCount > 1 {
+		return wrapErrs(errors.New("install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug"))
 	}
 
 	var errs []error
