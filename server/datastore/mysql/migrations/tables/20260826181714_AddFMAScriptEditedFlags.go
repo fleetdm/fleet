@@ -26,10 +26,10 @@ const (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260824183354, Down_20260824183354)
+	MigrationClient.AddMigration(Up_20260826181714, Down_20260826181714)
 }
 
-func Up_20260824183354(tx *sql.Tx) error {
+func Up_20260826181714(tx *sql.Tx) error {
 	if !columnExists(tx, "software_installers", "install_script_edited") {
 		if _, err := tx.Exec(`
 			ALTER TABLE software_installers
@@ -228,6 +228,6 @@ func parseScriptHashMap(contents string) (scriptHashMap, time.Time, error) {
 	return hashes, hashMapCutoff, nil
 }
 
-func Down_20260824183354(tx *sql.Tx) error {
+func Down_20260826181714(tx *sql.Tx) error {
 	return nil
 }
