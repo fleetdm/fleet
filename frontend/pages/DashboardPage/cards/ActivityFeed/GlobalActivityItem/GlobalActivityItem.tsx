@@ -914,14 +914,17 @@ const TAGGED_TEMPLATES = {
   editedDiskEncryptionSettings: (activity: IActivity) => {
     // this activity's platform detail is "macos" | "windows" | "linux" — the
     // settings-key naming, not the osquery-style "darwin" of other activities
-    const platform = (activity.details?.platform as string | undefined) ?? "";
+    const platform = activity.details?.platform as string | undefined;
     const displayNames: Record<string, string> = {
       macos: "macOS",
       windows: "Windows",
       linux: "Linux",
     };
-    // fall back to the raw value so an unexpected platform degrades visibly
-    const platformDisplay = displayNames[platform] ?? platform;
+    // an unexpected value renders as-is and a missing one as "unknown", so
+    // either degrades visibly rather than leaving a gap in the sentence
+    const platformDisplay = platform
+      ? displayNames[platform] ?? platform
+      : "unknown";
     const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return (
       <>

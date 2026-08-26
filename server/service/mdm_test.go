@@ -5382,6 +5382,9 @@ func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {
 			// the PIN is a Windows disk encryption setting, so its change is
 			// recorded as a windows settings edit
 			require.Equal(t, fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(), activity.ActivityName())
+			edited, ok := activity.(fleet.ActivityTypeEditedDiskEncryptionSettings)
+			require.True(t, ok)
+			require.Equal(t, "windows", edited.Platform)
 			return nil
 		},
 	})

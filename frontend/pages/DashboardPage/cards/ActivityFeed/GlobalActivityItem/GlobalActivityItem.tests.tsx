@@ -656,6 +656,21 @@ describe("Activity Feed", () => {
     expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
   });
 
+  it("renders an 'edited_disk_encryption_settings' type activity with a missing platform", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDiskEncryptionSettings,
+      details: { fleet_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "edited disk encryption settings for unknown hosts assigned to the",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+  });
+
   it("renders an 'edited_disk_encryption_settings' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedDiskEncryptionSettings,
