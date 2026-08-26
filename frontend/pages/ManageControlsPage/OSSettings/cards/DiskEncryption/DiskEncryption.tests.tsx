@@ -355,6 +355,36 @@ describe("DiskEncryption", () => {
     });
   });
 
+  it("ignores a saved BitLocker PIN requirement when Windows disk encryption is off", async () => {
+    let requestBody: Record<string, unknown> | undefined;
+    mockServer.use(
+      createGetTeamHandler({ windowsEnabled: false, windowsPINRequired: true })
+    );
+    mockServer.use(createGetDiskEncryptionSummaryHandler());
+    mockServer.use(
+      createUpdateDiskEncryptionHandler((body) => {
+        requestBody = body;
+      })
+    );
+    const { user } = renderDiskEncryption({ urlPlatformParam: "windows" });
+
+    const pinCheckbox = await findPINCheckbox();
+    expect(pinCheckbox).not.toBeChecked();
+    expect(pinCheckbox).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(requestBody).toEqual({
+        windows_settings: {
+          enable_disk_encryption: false,
+          require_bitlocker_pin: false,
+        },
+        fleet_id: 1,
+      });
+    });
+  });
+
   it("disables and unchecks the BitLocker PIN checkbox when Windows disk encryption is turned off", async () => {
     let requestBody: Record<string, unknown> | undefined;
     mockServer.use(

@@ -59,16 +59,20 @@ const getDiskEncryptionSettings = (
   // don't return the per-platform fields yet still render their effective
   // state
   const legacyEnabled = mdm?.enable_disk_encryption ?? false;
+  const windowsEnabled =
+    mdm?.windows_settings?.enable_disk_encryption ?? legacyEnabled;
   return {
     macOSEnabled: mdm?.apple_settings?.enable_disk_encryption ?? legacyEnabled,
     macOSEscrowEnabled:
       mdm?.apple_settings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
-    windowsEnabled:
-      mdm?.windows_settings?.enable_disk_encryption ?? legacyEnabled,
+    windowsEnabled,
+    // the server rejects a PIN requirement without encryption, so a stale PIN
+    // flag must not make it into the form
     windowsPINRequired:
-      mdm?.windows_settings?.require_bitlocker_pin ??
-      mdm?.windows_require_bitlocker_pin ??
-      false,
+      windowsEnabled &&
+      (mdm?.windows_settings?.require_bitlocker_pin ??
+        mdm?.windows_require_bitlocker_pin ??
+        false),
     linuxEscrowEnabled:
       mdm?.linux_settings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
   };
