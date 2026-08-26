@@ -56,6 +56,13 @@
     font-weight: $bold;
   }
 
+  // `h3` has no font size of its own in the global stylesheet, so without this
+  // it inherits the browser default and renders larger than the form labels
+  // below it.
+  &__panel-heading {
+    font-size: $x-small;
+  }
+
   &__chromeos--info {
     display: flex;
     flex-direction: column;

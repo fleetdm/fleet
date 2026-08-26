@@ -70,9 +70,9 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
-        <p className="platform-wrapper__panel-heading">
+        <h3 className="platform-wrapper__panel-heading">
           Enrollment instructions
-        </p>
+        </h3>
         <InputField
           label="Share this link with your end users:"
           enableCopy

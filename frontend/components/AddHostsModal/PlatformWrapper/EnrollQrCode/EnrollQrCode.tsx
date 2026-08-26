@@ -27,7 +27,7 @@ interface IEnrollQrCodeProps {
 
 const EnrollQrCode = ({ url }: IEnrollQrCodeProps) => (
   <div className={`${baseClass} form-field`}>
-    <span className="form-field__label">To test, scan the QR code:</span>
+    <div className="form-field__label">To test, scan the QR code:</div>
     <div className={`${baseClass}__frame`} data-testid="enroll-qr-code">
       <QRCodeSVG
         value={url}
