@@ -296,6 +296,6 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+		log.Fatal(err) //nolint:gocritic // exitAfterDefer: dev tool, nothing to clean up on exit
 	}
 }
