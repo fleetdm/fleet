@@ -4,9 +4,7 @@ import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
 
 /** Hand-authored icons stay inline SVG components. The ~1100 Fleet-maintained
  * app icons are raster images extracted to /assets, so they arrive as URLs. */
-export type TMatchedIcon =
-  | string
-  | React.FC<React.SVGProps<SVGSVGElement>>;
+export type TMatchedIcon = string | React.FC<React.SVGProps<SVGSVGElement>>;
 
 interface IMatchedIconProps {
   icon: TMatchedIcon;
