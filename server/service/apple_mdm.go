@@ -5286,7 +5286,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// to that channel — cmdResult.Identifier() is the device UDID on both
 		// channels, while r.EnrollID distinguishes them.
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
-		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		var detail string
+		if status != nil && *status == fleet.MDMDeliveryFailed {
+			detail = fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		}
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), ddmScopeForRequest(r), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
