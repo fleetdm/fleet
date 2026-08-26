@@ -747,8 +747,6 @@ type HostMDMHostNameSetting struct {
 // HostBitLockerProtectionState is the volume-protection state Fleet needs in order to decide whether to ask the agent
 // to restore protection.
 type HostBitLockerProtectionState struct {
-	// Encrypted reports host_disks.encrypted, which is derived from the volume's conversion status, i.e. whether the
-	// data is ciphertext. It says nothing about whether the key is protected.
 	Encrypted bool `db:"encrypted"`
 	// ProtectionStatus reports host_disks.bitlocker_protection_status: 0 off, 1 on, nil unknown or never reported.
 	ProtectionStatus *int `db:"bitlocker_protection_status"`

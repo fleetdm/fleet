@@ -830,7 +830,7 @@ func (w *windowsMDMBitlockerConfigReceiver) getEncryptionStatusForVolume(volume 
 		}
 	}
 
-	return nil, bitlocker.ErrVolumeNotFound
+	return nil, fmt.Errorf("volume %s not found in enumeration", volume)
 }
 
 // bitLockerActionInProgress determines an encryption/decription action is in

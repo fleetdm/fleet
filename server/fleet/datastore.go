@@ -1325,12 +1325,10 @@ type Datastore interface {
 	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
 	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
-	// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection. Pass an
-	// empty string to clear it.
+	// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection.
 	SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error
-
 	// GetHostBitLockerProtectionState returns the volume protection state used to decide whether Fleet should ask the
-	// agent to restore BitLocker protection. Returns a NotFoundError if the host has no host_disks row yet.
+	// agent to restore BitLocker protection.
 	GetHostBitLockerProtectionState(ctx context.Context, hostID uint) (*HostBitLockerProtectionState, error)
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that

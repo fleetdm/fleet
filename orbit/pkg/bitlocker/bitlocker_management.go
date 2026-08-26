@@ -1,7 +1,5 @@
 package bitlocker
 
-import "errors"
-
 // Volume encryption/decryption status.
 //
 // Values and their meanings were taken from:
@@ -76,18 +74,16 @@ type EncryptionStatus struct {
 type VolumeStatus struct {
 	DriveVolume string            // driveVolume is the identifier of the drive (e.g., "C:").
 	Status      *EncryptionStatus // status holds the encryption status of the volume.
-	// Err is set when the status for this volume could not be read. Status is nil in that case. A volume whose status
-	// could not be read must never be treated as "not encrypted": callers that act on the volume have to be able to tell
-	// "we know it is decrypted" apart from "we do not know", because deciding wrong destroys key protectors.
+	// Err is set when the status for this volume could not be read. A volume whose status could not be read must never be treated as
+	// "not encrypted".
 	Err error
 }
 
 // Volume protection status, as returned by GetProtectionStatus.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
 const (
-	ProtectionStatusOff     int32 = 0
-	ProtectionStatusOn      int32 = 1
-	ProtectionStatusUnknown int32 = 2
+	ProtectionStatusOff int32 = 0
+	ProtectionStatusOn  int32 = 1
 )
 
 // Key protector types for GetKeyProtectors.
@@ -110,7 +106,3 @@ var TPMFamilyProtectorTypes = []int32{
 	KeyProtectorTypeTPMAndStartupKey,
 	KeyProtectorTypeTPMAndPINAndStartupKey,
 }
-
-// ErrVolumeNotFound is returned when the requested volume was not present in the enumeration at all, which is different
-// from the volume being present but unreadable.
-var ErrVolumeNotFound = errors.New("volume not found")
