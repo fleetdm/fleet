@@ -21,8 +21,10 @@ private const val NON_SECRET_IDENTIFIER_FIELDS = 3
 
 // Challenges as they appear in a certificate template JSON body. kotlinx.serialization quotes the
 // offending input in its decoding errors, so a body that fails to parse can reach a log line. The
-// closing quote is optional because that quoted input may be cut off mid-value.
-private val JSON_CHALLENGE_FIELD = Regex("\"(scep_challenge|fleet_challenge)\"\\s*:\\s*\"[^\"]*(\"|$)")
+// value is matched as a JSON string, escapes included, so a challenge holding a quote doesn't cut
+// the match short. The closing quote is optional because the quoted input may be cut off mid-value.
+private val JSON_CHALLENGE_FIELD =
+    Regex("\"(scep_challenge|fleet_challenge)\"\\s*:\\s*\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\\\\?(\"|$)")
 
 /**
  * Strips enrollment secrets from text on its way to a log, log file, or status detail.

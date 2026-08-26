@@ -43,6 +43,10 @@ object FleetLog {
      * a throwable splits for us; passing pre-rendered text doesn't, it truncates.
      */
     private fun logChunked(tag: String, text: String) {
+        if (text.length <= MAX_LOGCAT_CHUNK_CHARS) {
+            Log.e(tag, text)
+            return
+        }
         val pieces = text.lineSequence().flatMap { line ->
             if (line.length <= MAX_LOGCAT_CHUNK_CHARS) sequenceOf(line) else line.chunked(MAX_LOGCAT_CHUNK_CHARS).asSequence()
         }
@@ -57,7 +61,9 @@ object FleetLog {
             }
             chunk.append(piece)
         }
-        Log.e(tag, chunk.toString())
+        if (chunk.isNotEmpty()) {
+            Log.e(tag, chunk.toString())
+        }
     }
 
     // Redacted on the way out too: a file written by an older build may still hold secrets.

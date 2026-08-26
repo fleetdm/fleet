@@ -194,6 +194,28 @@ class LogRedactionTest {
     }
 
     @Test
+    fun `redactSecrets hides a challenge containing an escaped quote`() {
+        // The JSON value is pass\"word-s3cr3t: a quote escaped inside the challenge itself.
+        val body = """JSON input: {"certificate":{"scep_challenge":"pass\"word-s3cr3t","status":"delivered"}}"""
+
+        val redacted = body.redactSecrets()
+
+        assertFalse(redacted.contains("word-s3cr3t"))
+        assertTrue(redacted.contains("\"scep_challenge\":\"$REDACTED\""))
+        assertTrue(redacted.contains("\"status\":\"delivered\""))
+    }
+
+    @Test
+    fun `redactSecrets hides a challenge cut off on an escape`() {
+        val truncated = "JSON input: {\"certificate\":{\"fleet_challenge\":\"fleet-s3cr\\"
+
+        val redacted = truncated.redactSecrets()
+
+        assertFalse(redacted.contains("fleet-s3cr"))
+        assertTrue(redacted.endsWith("\"fleet_challenge\":\"$REDACTED\""))
+    }
+
+    @Test
     fun `renderLogEntry redacts the message and the whole cause chain`() {
         val cause = java.io.FileNotFoundException(proxyUrl)
         val throwable = Exception("Error connecting to server", cause)
