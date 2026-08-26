@@ -1898,11 +1898,17 @@ func TestGenerateControls(t *testing.T) {
 	require.True(t, ok, "expected a windows_settings section")
 	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
 
+	// read the teamConfig.json
+	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &mdmConfig)
+	require.NoError(t, err)
+
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
 	// Note that this team has setup experience software, so we expect a macos_setup section.
-	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
+	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)

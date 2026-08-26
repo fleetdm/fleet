@@ -1,7 +1,9 @@
 controls:
   android_enabled_and_configured: true
   apple_require_hardware_attestation: false
-  enable_disk_encryption: true
+  apple_settings:
+    enable_disk_encryption: false
+    enable_escrow_disk_encryption_key: false
   enable_recovery_lock_password: false
   enable_turn_on_windows_mdm_manually: false
   ios_updates:
@@ -14,6 +16,8 @@ controls:
     deadline_days:
     minimum_version: "18.2"
     update_new_hosts:
+  linux_settings:
+    enable_escrow_disk_encryption_key: false
   macos_migration:
     enable: true
     mode: voluntary
@@ -34,7 +38,9 @@ controls:
   - 5b84b6dd-d257-415e-b8b4-0240666ba4d4
   - 9d30f55f-d117-4574-acf0-ff593e3e06e3
   windows_migration_enabled: true
-  windows_require_bitlocker_pin: false
+  windows_settings:
+    enable_disk_encryption: true
+    require_bitlocker_pin: false
   windows_updates:
     deadline_days: 5
     grace_period_days: 2

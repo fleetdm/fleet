@@ -132,7 +132,12 @@
             "grace_period_days": 92
         },
         "macos_settings": {
-            "custom_settings": null
+            "custom_settings": null,
+            "enable_disk_encryption": false,
+            "enable_escrow_disk_encryption_key": true
+        },
+        "linux_settings": {
+            "enable_escrow_disk_encryption_key": true
         },
         "macos_setup": {
             "bootstrap_package": "",
@@ -143,7 +148,9 @@
             "software": []
         },
         "windows_settings": {
-            "custom_settings": null
+            "custom_settings": null,
+            "enable_disk_encryption": true,
+            "require_bitlocker_pin": false
         },
         "android_settings": {
             "certificates": [

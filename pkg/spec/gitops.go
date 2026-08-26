@@ -191,6 +191,7 @@ type GitOpsControls struct {
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
 	AndroidSettings                any `json:"android_settings"`
+	LinuxSettings                  any `json:"linux_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
