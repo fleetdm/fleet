@@ -962,6 +962,11 @@ type MDMConfig struct {
 
 	// AppleEnable enables Apple MDM functionality on Fleet.
 	AppleEnable bool `yaml:"apple_enable"`
+	// AppleMachineInfoVerify controls whether the CMS/PKCS7 signature on Apple's
+	// x-apple-aspen-deviceinfo (MachineInfo) blob is verified during enrollment.
+	// Enabled by default; set to false to run verification in audit mode (log
+	// failures without blocking enrollment).
+	AppleMachineInfoVerify bool `yaml:"apple_machineinfo_verify"`
 	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
 	// (fetching and setting of DEP profiles).
 	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
@@ -1544,7 +1549,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
-		"Number of allowed requests per minute to the SSO callback endpoint (default uses the login rate limit value in a dedicated bucket)")
+		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1909,6 +1914,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
+	man.addConfigBool("mdm.apple_machineinfo_verify", true, "Verify the signature on Apple's x-apple-aspen-deviceinfo (MachineInfo) blob during enrollment")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
@@ -2273,6 +2279,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
 			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
+			AppleMachineInfoVerify:            man.getConfigBool("mdm.apple_machineinfo_verify"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
