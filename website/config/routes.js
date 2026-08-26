@@ -652,6 +652,10 @@ module.exports.routes = {
     }
   },
 
+  'GET /configuration-generator': {
+    action: 'view-configuration-generator'
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
