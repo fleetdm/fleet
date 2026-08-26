@@ -37,6 +37,12 @@ module.exports = {
 
   fn: async function ({profileType, naturalLanguageInstructions}) {
 
+    // Generate a random room name.
+    let roomId = await sails.helpers.strings.random();
+    if(this.req.isSocket) {
+      // Add the requesting socket to the room.
+      sails.sockets.join(this.req, roomId);
+    }
 
     // Rules that apply to every profile type.  Ordered by consequence: a violation of an
     // early rule produces a profile that deploys cleanly and does nothing.
@@ -214,24 +220,47 @@ If a configuration profile cannot be generated from the provided instructions, r
     })
     .intercept((err)=>{
       sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      if(this.req.isSocket){
+        // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+        sails.sockets.broadcast(roomId, 'error', {error: err});
+        sails.sockets.leave(this.req, roomId);
+      }
       return 'couldNotGenerateProfile';
     });
-    sails.log(configurationProfileGenerationResult);
+    // sails.log(configurationProfileGenerationResult);
     // let jsonResult = JSON.parse(configurationProfileGenerationResult);
     // console.log(configurationProfileGenerationResult);
     // All done.
-    if(configurationProfileGenerationResult.couldNotGenerateProfile) {
-      throw 'couldNotGenerateProfile';
+    if(
+      configurationProfileGenerationResult.couldNotGenerateProfile ||
+      !configurationProfileGenerationResult.configurationProfile ||
+      !configurationProfileGenerationResult.profileFilename ||
+      !configurationProfileGenerationResult.settingsEnforced
+    ) {
+      if(this.req.isSocket){
+        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+        sails.sockets.leave(this.req, roomId);
+        return;
+      } else {
+        throw 'couldNotGenerateProfile';
+      }
     }
-    if(!configurationProfileGenerationResult.configurationProfile || !configurationProfileGenerationResult.profileFilename || !configurationProfileGenerationResult.settingsEnforced){
-      throw 'couldNotGenerateProfile';
-    }
-    return {
+
+    let generatedProfile = {
       profile: configurationProfileGenerationResult.configurationProfile,
       profileFilename: configurationProfileGenerationResult.profileFilename,
       deliveryNotes: configurationProfileGenerationResult.deliveryNotes,
       items: configurationProfileGenerationResult.settingsEnforced
     };
+
+    // If this request was from a socket, we'll broadcast a 'profileGenerated' event with the generated profile and unsubscribe the socket.
+    if(this.req.isSocket){
+      sails.sockets.broadcast(roomId, 'profileGenerated', {result: generatedProfile});
+      sails.sockets.leave(this.req, roomId);
+    } else {
+      // Otherwise, return the generated profile as JSON.
+      return generatedProfile;
+    }
 
   }
 

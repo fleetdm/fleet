@@ -25,8 +25,15 @@ parasails.registerPage('configuration-generator', {
     queryResult: '',
     // Server error state
     cloudError: '',
-    filenameOfGeneratedProfile: 'Generated profile',
+    filenameOfGeneratedProfile: undefined,
     hasGeneratedProfile: false,
+    // Filename and mimetype to fall back on when the generated profile doesn't come with a filename.
+    downloadInfoByProfileType: {
+      ddm: { filename: 'ddm-command.json', mimeType: 'application/json' },
+      mobileconfig: { filename: 'configuration-profile.mobileconfig', mimeType: 'application/x-apple-aspen-config' },
+      csp: { filename: 'configuration-profile.xml', mimeType: 'application/xml' },
+      // android: { filename: 'android-policy.json', mimeType: 'application/json' },
+    },
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -48,23 +55,33 @@ parasails.registerPage('configuration-generator', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function() {
-      let argins = this.formData;
       this.syncing = true;
-      let generatedResult = await Cloud.getLlmGeneratedConfigurationProfile.with(argins)
-      .tolerate((err)=>{
-        this.cloudError = err;
-        this.syncing = false;
-      });
-      if(!this.cloudError) {
-        this.generatedOutput = generatedResult.profile;
-        this.filenameOfGeneratedProfile = generatedResult.profileFilename;
-        this.hasGeneratedProfile = true;
-        this.deliveryNotes = generatedResult.deliveryNotes;
-        ace.edit('editor').setValue(generatedResult.profile);
-        this.parsedItemsInProfile = generatedResult.items;
-        this.modal = '';
-        this.syncing = false;
-      }
+      io.socket.get('/api/v1/get-llm-generated-configuration-profile', {
+        profileType: this.formData.profileType,
+        naturalLanguageInstructions: this.formData.naturalLanguageInstructions,
+      }, ()=>{});
+      // Detach first, so that retrying after an error doesn't leave duplicate listeners attached.
+      io.socket.off('profileGenerated', this._onProfileGenerated);
+      io.socket.off('error', this._onProfileGenerationError);
+      io.socket.on('profileGenerated', this._onProfileGenerated);
+      io.socket.on('error', this._onProfileGenerationError);
+    },
+    _onProfileGenerated: function(response) {
+      this.generatedOutput = response.result.profile;
+      this.filenameOfGeneratedProfile = response.result.profileFilename;
+      this.deliveryNotes = response.result.deliveryNotes;
+      this.parsedItemsInProfile = response.result.items;
+      this.hasGeneratedProfile = true;
+      ace.edit('editor').setValue(response.result.profile);
+      this.modal = '';
+      this.syncing = false;
+      // Disable the socket event listener after we display the results.
+      io.socket.off('profileGenerated', this._onProfileGenerated);
+    },
+    _onProfileGenerationError: function(response) {
+      this.cloudError = response.error;
+      this.syncing = false;
+      io.socket.off('error', this._onProfileGenerationError);
     },
     closeModal: async function() {
       if(!this.syncing){
@@ -77,22 +94,11 @@ parasails.registerPage('configuration-generator', {
       this.generatedOutput = ace.edit('editor').getValue();
     },
     clickDownloadResult: function() {
-      let exportUrl = URL.createObjectURL(new Blob([this.generatedOutput], { type: 'text/xml;' }));
+      let downloadInfo = this.downloadInfoByProfileType[this.formData.profileType];
+      let exportUrl = URL.createObjectURL(new Blob([this.generatedOutput], { type: downloadInfo.mimeType }));
       let exportDownloadLink = document.createElement('a');
       exportDownloadLink.href = exportUrl;
-      // Parse the XML to determine if it is a .mobileconfig or a CSP.
-      let parser = new DOMParser();
-      let xmlDoc = parser.parseFromString(this.generatedOutput, 'application/xml');
-      let hasPlistNode = xmlDoc.getElementsByTagName('plist')[0];
-      if(!this.filenameOfGeneratedProfile) {
-        if(hasPlistNode){
-          exportDownloadLink.download = `Generated configuration profile.mobileconfig`;
-        } else {
-          exportDownloadLink.download = 'Generated CSP.xml';
-        }
-      } else {
-        exportDownloadLink.download = this.filenameOfGeneratedProfile;
-      }
+      exportDownloadLink.download = this.filenameOfGeneratedProfile ? this.filenameOfGeneratedProfile : downloadInfo.filename;
       exportDownloadLink.click();
       URL.revokeObjectURL(exportUrl);
     },
