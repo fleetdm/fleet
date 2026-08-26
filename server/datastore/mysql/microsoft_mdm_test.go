@@ -675,6 +675,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		t.Run("BitLocker profile status with PIN required", func(t *testing.T) {
 			// Turn on Bitlocker requirement
 			ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+			ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 			ac, err = ds.AppConfig(ctx)
 			require.NoError(t, err)
@@ -714,6 +715,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			// Reset "RequireBitLockerPIN" to false
 			ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+			ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
 			require.NoError(t, ds.SaveAppConfig(ctx, ac))
 			ac, err = ds.AppConfig(ctx)
 			require.NoError(t, err)

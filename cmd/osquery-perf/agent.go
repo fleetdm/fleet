@@ -3545,6 +3545,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		// only mdm_config_profiles_darwin_with_user runs. Report no results
 		// and no status, as osquery does for queries whose discovery fails.
 		return true, nil, nil, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_macos_software_update_id":
+		return true, []map[string]string{
+			{
+				"key":   "compatible",
+				"value": "VMA2MACOSAP", // report an osquery-perf host as a VM
+			},
+		}, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user":
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success

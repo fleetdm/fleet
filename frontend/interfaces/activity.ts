@@ -89,10 +89,14 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Note: This activity is generated for all platforms.
+  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
+  // historical activities still render. Was generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: This activity is generated for all platforms.
+  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
+  // historical activities still render. Was generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
+  // Generated once per platform whose disk encryption settings changed.
+  EditedDiskEncryptionSettings = "edited_disk_encryption_settings",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
   ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
@@ -497,6 +501,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
+  edited_disk_encryption_settings: "Edited disk encryption settings",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",

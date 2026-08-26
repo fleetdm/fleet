@@ -249,7 +249,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 	}
 
 	if host.TeamID == nil {
-		if !ac.MDM.EnableDiskEncryption.Value {
+		if !ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
 			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a fleet."}
 		}
 	} else {
@@ -257,7 +257,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 		if err != nil {
 			return err
 		}
-		if !tc.EnableDiskEncryption {
+		if !tc.DiskEncryptionConfig().LinuxEscrowEnabled {
 			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's fleet."}
 		}
 	}
