@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"maps"
 
 	"crypto/md5" //nolint:gosec // matches the software checksum hash, not used for security
 	"strings"
@@ -233,30 +234,18 @@ func TestUp_20260810160000_DoesNotMergeDistinctSoftware(t *testing.T) {
 	// One pair per identity column, each differing only in that column.
 	pairs := make(map[string][2]int64, len(cols))
 	for _, col := range cols {
-		a := map[string]any{}
-		for k, v := range base {
-			a[k] = v
-		}
+		a := maps.Clone(base)
 		a["name"] = "distinct-" + col // keep each pair in its own identity group
-		b := map[string]any{}
-		for k, v := range a {
-			b[k] = v
-		}
+		b := maps.Clone(a)
 		b[col] = a[col].(string) + "-variant"
 		pairs[col] = [2]int64{insert(a, "a-"+col), insert(b, "b-"+col)}
 	}
 
 	// NULL and '' are equivalent for the optional columns, so these two ARE duplicates.
-	nullish := map[string]any{}
-	for k, v := range base {
-		nullish[k] = v
-	}
+	nullish := maps.Clone(base)
 	nullish["name"] = "nullish"
 	nullish["application_id"], nullish["upgrade_code"] = nil, nil
-	emptyish := map[string]any{}
-	for k, v := range nullish {
-		emptyish[k] = v
-	}
+	emptyish := maps.Clone(nullish)
 	emptyish["application_id"], emptyish["upgrade_code"] = "", ""
 	nullID, emptyID := insert(nullish, "nullish"), insert(emptyish, "emptyish")
 
@@ -270,7 +259,7 @@ func TestUp_20260810160000_DoesNotMergeDistinctSoftware(t *testing.T) {
 	var nullishRows int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM software WHERE name = 'nullish'`).Scan(&nullishRows))
 	require.Equal(t, 1, nullishRows, "NULL and '' optional columns are the same identity and must merge")
-	require.True(t, exists(nullID) != exists(emptyID), "exactly one of the pair survives")
+	require.NotEqual(t, exists(nullID), exists(emptyID), "exactly one of the pair survives")
 }
 
 // A fresh install has no software at all. The merge step must be skipped (a zero total)
