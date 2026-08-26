@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260826000000(t *testing.T) {
+func TestUp_20260810160000(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Shrink the batch sizes so this fixture exercises the batching loops (multiple
