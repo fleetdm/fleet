@@ -1,7 +1,5 @@
-# The bootstrap registers several separate Programs and Features entries, so
-# enumerate everything matching the "Citrix Workspace" prefix and publisher
-# and uninstall each one. No space before the wildcard: some entries (e.g.
-# "Citrix Workspace(USB)") have none after "Workspace".
+# The bootstrap registers several Programs and Features entries; uninstall each
+# one. No space before the wildcard: e.g. "Citrix Workspace(USB)".
 
 $softwareNameLike = "Citrix Workspace*"
 
@@ -42,8 +40,7 @@ function Uninstall-CitrixEntry {
     }
 
     if ($uninstallCommand -match '(?i)msiexec') {
-        # Resolve the ProductCode and run our own clean uninstall -- never
-        # reuse the /I (repair) switch already in the registry string.
+        # The registry string uses /I (repair), so build our own /x uninstall.
         $productCode = $Entry.PSChildName
         if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
             if ($uninstallCommand -match '(\{[0-9A-Fa-f-]+\})') {
@@ -69,16 +66,13 @@ function Uninstall-CitrixEntry {
             }
             Write-Host "Uninstall exit code: $exitCode (attempt $attempt of $maxMsiAttempts)"
 
-            # 1618: another component's transaction still holds the Windows
-            # Installer mutex -- retry rather than fail.
+            # 1618: Windows Installer busy with another component.
             if ($exitCode -ne 1618) {
                 break
             }
             Start-Sleep -Seconds $msiRetryDelaySeconds
         }
     } else {
-        # Non-MSI entry: re-run its own uninstaller with Citrix's documented
-        # silent switches.
         $exePath = ""
         if ($uninstallCommand -match '^\s*"([^"]+)"') {
             $exePath = $matches[1]
@@ -100,8 +94,7 @@ function Uninstall-CitrixEntry {
         Write-Host "Uninstall exit code: $exitCode"
     }
 
-    # 3010/1641: success pending reboot. 1605: already removed, e.g. by
-    # another entry's cascade uninstall. All count as success.
+    # 3010/1641: reboot pending. 1605: already removed by a cascade uninstall.
     if ($exitCode -eq 3010 -or $exitCode -eq 1641 -or $exitCode -eq 1605) {
         return 0
     }
