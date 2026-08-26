@@ -15,6 +15,7 @@ import {
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+import permissions from "utilities/permissions";
 
 import diskEncryptionAPI, {
   IUpdateDiskEncryptionFormData,
@@ -87,6 +88,27 @@ const getPlatformTabPath = (
     fleet_id: teamId,
   });
 
+const MDM_REQUIRED_TOOLTIPS: Partial<
+  Record<DiskEncryptionSettingsPlatform, string>
+> = {
+  macos: "To make changes, first turn on Apple MDM.",
+  windows: "To make changes, first turn on Windows MDM.",
+};
+
+const withMdmRequiredTooltip = (children: JSX.Element, tipContent?: string) =>
+  tipContent ? (
+    <TooltipWrapper
+      tipContent={tipContent}
+      position="top"
+      showArrow
+      underline={false}
+    >
+      {children}
+    </TooltipWrapper>
+  ) : (
+    children
+  );
+
 export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
 const DiskEncryption = ({
@@ -126,6 +148,19 @@ const DiskEncryption = ({
   };
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Linux escrow is handled by fleetd, so it doesn't depend on MDM
+  const isPlatformMdmEnabled: Record<
+    DiskEncryptionSettingsPlatform,
+    boolean
+  > = {
+    macos: !!config && permissions.isMacMdmEnabledAndConfigured(config),
+    windows: !!config && permissions.isWindowsMdmEnabledAndConfigured(config),
+    linux: true,
+  };
+
+  const isPlatformFormDisabled = (platform: DiskEncryptionSettingsPlatform) =>
+    gitOpsModeEnabled || isSaving || !isPlatformMdmEnabled[platform];
   const [formSettings, setFormSettings] = useState<IDiskEncryptionSettings>(
     () =>
       currentTeamId === 0
@@ -240,27 +275,34 @@ const DiskEncryption = ({
     }
   };
 
-  const renderSaveButton = (platform: DiskEncryptionSettingsPlatform) => (
+  const renderSaveButton = (
+    platform: DiskEncryptionSettingsPlatform,
+    mdmRequiredTip?: string
+  ) => (
     <GitOpsModeTooltipWrapper
-      renderChildren={(disableChildren) => (
-        <Button
-          disabled={disableChildren || isSaving}
-          isLoading={isSaving}
-          className={`${baseClass}__save-button`}
-          onClick={() => onSaveDiskEncryption(platform)}
-        >
-          Save
-        </Button>
-      )}
+      renderChildren={(disableChildren) =>
+        withMdmRequiredTooltip(
+          <Button
+            disabled={disableChildren || isPlatformFormDisabled(platform)}
+            isLoading={isSaving}
+            className={`${baseClass}__save-button`}
+            onClick={() => onSaveDiskEncryption(platform)}
+          >
+            Save
+          </Button>,
+          mdmRequiredTip
+        )
+      }
     />
   );
 
   const renderEnforceCheckbox = (
+    platform: DiskEncryptionSettingsPlatform,
     key: "macOSEnabled" | "windowsEnabled",
     value: boolean
   ) => (
     <Checkbox
-      disabled={gitOpsModeEnabled || isSaving}
+      disabled={isPlatformFormDisabled(platform)}
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
@@ -280,12 +322,13 @@ const DiskEncryption = ({
   );
 
   const renderEscrowCheckbox = (
+    platform: DiskEncryptionSettingsPlatform,
     key: "macOSEscrowEnabled" | "linuxEscrowEnabled",
     value: boolean,
     learnMoreLink?: string
   ) => (
     <Checkbox
-      disabled={gitOpsModeEnabled || isSaving}
+      disabled={isPlatformFormDisabled(platform)}
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
@@ -310,29 +353,41 @@ const DiskEncryption = ({
     platform: DiskEncryptionSettingsPlatform,
     isEnabled: boolean,
     formFields: JSX.Element
-  ) => (
-    <>
-      {!isTechnician && (
-        <Card
-          className={`${baseClass}__settings-card`}
-          color="white"
-          borderRadiusSize="large"
-        >
-          <div className={`${baseClass}__form-fields`}>{formFields}</div>
-          {renderSaveButton(platform)}
-        </Card>
-      )}
-      {isEnabled ? (
-        <DiskEncryptionTable
-          platform={platform}
-          currentTeamId={currentTeamId}
-          router={router}
-        />
-      ) : (
-        isTechnician && <p>Disk encryption is disabled.</p>
-      )}
-    </>
-  );
+  ) => {
+    // GitOps mode has its own tooltip on Save, so only explain the MDM
+    // requirement when that isn't what's disabling the form
+    const mdmRequiredTip =
+      gitOpsModeEnabled || isPlatformMdmEnabled[platform]
+        ? undefined
+        : MDM_REQUIRED_TOOLTIPS[platform];
+
+    return (
+      <>
+        {!isTechnician && (
+          <Card
+            className={`${baseClass}__settings-card`}
+            color="white"
+            borderRadiusSize="large"
+          >
+            {withMdmRequiredTooltip(
+              <div className={`${baseClass}__form-fields`}>{formFields}</div>,
+              mdmRequiredTip
+            )}
+            {renderSaveButton(platform, mdmRequiredTip)}
+          </Card>
+        )}
+        {isEnabled ? (
+          <DiskEncryptionTable
+            platform={platform}
+            currentTeamId={currentTeamId}
+            router={router}
+          />
+        ) : (
+          isTechnician && <p>Disk encryption is disabled.</p>
+        )}
+      </>
+    );
+  };
 
   const renderContent = () => {
     if (isTeamError) {
@@ -365,10 +420,12 @@ const DiskEncryption = ({
               savedSettings.macOSEnabled || savedSettings.macOSEscrowEnabled,
               <>
                 {renderEnforceCheckbox(
+                  "macos",
                   "macOSEnabled",
                   formSettings.macOSEnabled
                 )}
                 {renderEscrowCheckbox(
+                  "macos",
                   "macOSEscrowEnabled",
                   formSettings.macOSEscrowEnabled
                 )}
@@ -381,13 +438,13 @@ const DiskEncryption = ({
               savedSettings.windowsEnabled,
               <>
                 {renderEnforceCheckbox(
+                  "windows",
                   "windowsEnabled",
                   formSettings.windowsEnabled
                 )}
                 <Checkbox
                   disabled={
-                    gitOpsModeEnabled ||
-                    isSaving ||
+                    isPlatformFormDisabled("windows") ||
                     !formSettings.windowsEnabled
                   }
                   onChange={onToggleSetting("windowsPINRequired")}
@@ -418,6 +475,7 @@ const DiskEncryption = ({
               "linux",
               savedSettings.linuxEscrowEnabled,
               renderEscrowCheckbox(
+                "linux",
                 "linuxEscrowEnabled",
                 formSettings.linuxEscrowEnabled,
                 `${LEARN_MORE_ABOUT_BASE_LINK}/linux-disk-encryption`

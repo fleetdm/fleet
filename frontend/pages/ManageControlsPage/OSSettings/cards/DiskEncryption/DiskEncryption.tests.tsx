@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 
 import PATHS from "router/paths";
+import { IMdmConfig } from "interfaces/config";
 import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
 import { getPathWithQueryParams } from "utilities/url";
 import mockServer from "test/mock-server";
@@ -66,6 +67,7 @@ interface IRenderOptions {
   urlPlatformParam?: string;
   gitOpsModeEnabled?: boolean;
   isPremiumTier?: boolean;
+  mdm?: Partial<IMdmConfig>;
 }
 
 const renderDiskEncryption = (options: IRenderOptions = {}) => {
@@ -73,6 +75,7 @@ const renderDiskEncryption = (options: IRenderOptions = {}) => {
     teamId = 1,
     gitOpsModeEnabled = false,
     isPremiumTier = true,
+    mdm,
   } = options;
   const urlPlatformParam =
     "urlPlatformParam" in options ? options.urlPlatformParam : "macos";
@@ -89,6 +92,7 @@ const renderDiskEncryption = (options: IRenderOptions = {}) => {
             repository_url: "https://example.com/repo",
             exceptions: { labels: false, software: false, secrets: false },
           },
+          mdm: createMockMdmConfig(mdm),
         }),
         setConfig: jest.fn(),
       },
@@ -408,6 +412,69 @@ describe("DiskEncryption", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     }
   );
+
+  it.each([
+    [
+      "macos",
+      { enabled_and_configured: false },
+      "To make changes, first turn on Apple MDM.",
+    ],
+    [
+      "windows",
+      { windows_enabled_and_configured: false },
+      "To make changes, first turn on Windows MDM.",
+    ],
+  ] as const)(
+    "disables the %s tab and explains why when its MDM is turned off",
+    async (platform, mdm, tooltip) => {
+      mockServer.use(createGetTeamHandler());
+      mockServer.use(createGetDiskEncryptionSummaryHandler());
+      const { user } = renderDiskEncryption({
+        urlPlatformParam: platform,
+        mdm,
+      });
+
+      const checkboxes = await screen.findAllByRole("checkbox");
+      checkboxes.forEach((checkbox) => {
+        expect(checkbox).toHaveAttribute("aria-disabled", "true");
+      });
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+      await user.hover(checkboxes[0]);
+      await waitFor(() => {
+        expect(screen.getByText(tooltip)).toBeInTheDocument();
+      });
+    }
+  );
+
+  it("keeps the other tabs enabled when one platform's MDM is turned off", async () => {
+    mockServer.use(createGetTeamHandler());
+    mockServer.use(createGetDiskEncryptionSummaryHandler());
+
+    const windows = renderDiskEncryption({
+      urlPlatformParam: "windows",
+      mdm: { enabled_and_configured: false },
+    });
+    expect(await findEnforceCheckbox()).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    windows.unmount();
+
+    renderDiskEncryption({
+      urlPlatformParam: "linux",
+      mdm: {
+        enabled_and_configured: false,
+        windows_enabled_and_configured: false,
+      },
+    });
+    expect(await findEscrowCheckbox()).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
 
   it("renders the status table only for platforms with a setting enabled", async () => {
     mockServer.use(createGetTeamHandler({ windowsEnabled: true }));
