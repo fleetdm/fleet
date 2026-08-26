@@ -635,7 +635,13 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, hostTeamID *uint, h
 	if hostTeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *hostTeamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load team agent options for host")
+			if !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "load team agent options for host")
+			}
+			// Team no longer exists (e.g. deleted while host still references it);
+			// log a warning and fall back to global options.
+			svc.logger.WarnContext(ctx, "host references nonexistent team, falling back to global agent options",
+				"team_id", *hostTeamID)
 		}
 
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {

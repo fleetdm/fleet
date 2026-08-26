@@ -623,6 +623,9 @@ func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawM
 	stmt := fmt.Sprintf(`SELECT config->'$.agent_options' FROM teams WHERE id = %d`, tid) // safe because uint
 	var agentOptions *json.RawMessage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &agentOptions, stmt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithID(tid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 	return agentOptions, nil
@@ -651,9 +654,12 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 }
 
 func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
-	sql := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
+	sqlStmt := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
 	var raw *json.RawMessage
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &raw, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &raw, sqlStmt, tid); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithID(tid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select team MDM config")
 	}
 	var mdmConfig *fleet.TeamMDM

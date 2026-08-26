@@ -451,12 +451,18 @@ func (svc *Service) loadAgentOptionsForHost(ctx context.Context, host *fleet.Hos
 	if host.TeamID != nil {
 		opts, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return nil, err
+			if !fleet.IsNotFound(err) {
+				return nil, err
+			}
+			// Team no longer exists; fall back to global options below.
+			svc.logger.WarnContext(ctx, "host references nonexistent team, falling back to global agent options",
+				"host_id", host.ID, "team_id", *host.TeamID)
+		} else {
+			if opts == nil {
+				return nil, nil
+			}
+			return *opts, nil
 		}
-		if opts == nil {
-			return nil, nil
-		}
-		return *opts, nil
 	}
 	if appConfig.AgentOptions == nil {
 		return nil, nil
@@ -689,106 +695,113 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return fleet.OrbitConfig{}, err
 		}
 
-		var opts fleet.AgentOptions
-		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
-			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return fleet.OrbitConfig{}, err
+		if fleet.IsNotFound(err) {
+			// Team no longer exists (e.g. deleted while host still references it);
+			// log a warning and fall through to the global options path.
+			svc.logger.WarnContext(ctx, "host references nonexistent team, falling back to global orbit config",
+				"host_id", host.ID, "team_id", *host.TeamID)
+		} else {
+			var opts fleet.AgentOptions
+			if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
+				if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
+					return fleet.OrbitConfig{}, err
+				}
 			}
-		}
 
-		// Fall back to the global app config's script execution timeout when the
-		// team has no explicit override. Other agent-options fields are intentionally
-		// not inherited from the global config.
-		if opts.ScriptExecutionTimeout == 0 && appConfig.AgentOptions != nil {
-			var globalOpts fleet.AgentOptions
-			if err := json.Unmarshal(*appConfig.AgentOptions, &globalOpts); err != nil {
-				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "unmarshal global agent options for script timeout fallback")
+			// Fall back to the global app config's script execution timeout when the
+			// team has no explicit override. Other agent-options fields are intentionally
+			// not inherited from the global config.
+			if opts.ScriptExecutionTimeout == 0 && appConfig.AgentOptions != nil {
+				var globalOpts fleet.AgentOptions
+				if err := json.Unmarshal(*appConfig.AgentOptions, &globalOpts); err != nil {
+					return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "unmarshal global agent options for script timeout fallback")
+				}
+				opts.ScriptExecutionTimeout = globalOpts.ScriptExecutionTimeout
 			}
-			opts.ScriptExecutionTimeout = globalOpts.ScriptExecutionTimeout
-		}
 
-		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
-		if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-
-		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-
-		var nudgeConfig *fleet.NudgeConfig
-		if appConfig.MDM.EnabledAndConfigured &&
-			mdmConfig != nil &&
-			host.IsOsqueryEnrolled() &&
-			isConnectedToFleetMDM &&
-			mdmConfig.MacOSUpdates.Configured() {
-
-			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-			if errors.Is(err, sql.ErrNoRows) {
-				// host os has not been collected yet (no details query)
-				hostOS = &fleet.OperatingSystem{}
-			} else if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-			requiresNudge, err := hostOS.RequiresNudge()
+			extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
 			}
 
-			if requiresNudge {
-				nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+			mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+			if err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+
+			var nudgeConfig *fleet.NudgeConfig
+			if appConfig.MDM.EnabledAndConfigured &&
+				mdmConfig != nil &&
+				host.IsOsqueryEnrolled() &&
+				isConnectedToFleetMDM &&
+				mdmConfig.MacOSUpdates.Configured() {
+
+				hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
+				if errors.Is(err, sql.ErrNoRows) {
+					// host os has not been collected yet (no details query)
+					hostOS = &fleet.OperatingSystem{}
+				} else if err != nil {
+					return fleet.OrbitConfig{}, err
+				}
+				requiresNudge, err := hostOS.RequiresNudge()
 				if err != nil {
 					return fleet.OrbitConfig{}, err
 				}
+
+				if requiresNudge {
+					nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+					if err != nil {
+						return fleet.OrbitConfig{}, err
+					}
+				}
 			}
-		}
 
-		err = svc.setDiskEncryptionNotifications(
-			ctx,
-			&notifs,
-			host,
-			appConfig,
-			mdmConfig.DiskEncryptionConfig(),
-			isConnectedToFleetMDM,
-			mdmInfo,
-		)
-		if err != nil {
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting team disk encryption notifications")
-		}
+			err = svc.setDiskEncryptionNotifications(
+				ctx,
+				&notifs,
+				host,
+				appConfig,
+				mdmConfig.DiskEncryptionConfig(),
+				isConnectedToFleetMDM,
+				mdmInfo,
+			)
+			if err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting team disk encryption notifications")
+			}
 
-		var updateChannels *fleet.OrbitUpdateChannels
-		if len(opts.UpdateChannels) > 0 {
-			var uc fleet.OrbitUpdateChannels
-			if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+			var updateChannels *fleet.OrbitUpdateChannels
+			if len(opts.UpdateChannels) > 0 {
+				var uc fleet.OrbitUpdateChannels
+				if err := json.Unmarshal(opts.UpdateChannels, &uc); err != nil {
+					return fleet.OrbitConfig{}, err
+				}
+				updateChannels = &uc
+			}
+
+			// only unset this flag once we know there were no errors so this notification will be picked up by the agent
+			if notifs.RunDiskEncryptionEscrow {
+				_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
+			}
+
+			mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
+			if err != nil {
 				return fleet.OrbitConfig{}, err
 			}
-			updateChannels = &uc
-		}
 
-		// only unset this flag once we know there were no errors so this notification will be picked up by the agent
-		if notifs.RunDiskEncryptionEscrow {
-			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
+			return fleet.OrbitConfig{
+				ScriptExeTimeout: opts.ScriptExecutionTimeout,
+				Flags:            mergedFlags,
+				Extensions:       extensionsFiltered,
+				Notifications:    notifs,
+				NudgeConfig:      nudgeConfig,
+				UpdateChannels:   updateChannels,
+				DebugLogging:     debugLogging,
+			}, nil
 		}
-
-		mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
-		if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-
-		return fleet.OrbitConfig{
-			ScriptExeTimeout: opts.ScriptExecutionTimeout,
-			Flags:            mergedFlags,
-			Extensions:       extensionsFiltered,
-			Notifications:    notifs,
-			NudgeConfig:      nudgeConfig,
-			UpdateChannels:   updateChannels,
-			DebugLogging:     debugLogging,
-		}, nil
 	}
 
 	// team ID is nil, get global flags and options
