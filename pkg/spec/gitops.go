@@ -2305,7 +2305,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	// inside a multi-package YAML), so it gets a specific, teaching message.
 	// The other combos are unusual and share a generic "pick one" hint.
 	if hasPath && hasHash {
-		return wrapErrs(errors.New("install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split a multi-package YAML into single-package files and use package_path."))
+		return wrapErrs(errors.New("install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split the multi-package YAML into single-package YAML files and use package_path."))
 	}
 	setCount := 0
 	for _, s := range []string{

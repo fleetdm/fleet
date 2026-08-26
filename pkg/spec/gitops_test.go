@@ -5309,7 +5309,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split a multi-package YAML into single-package files and use package_path.")
+		assert.Contains(t, errs[0].Error(), "install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split the multi-package YAML into single-package YAML files and use package_path.")
 	})
 }
 
