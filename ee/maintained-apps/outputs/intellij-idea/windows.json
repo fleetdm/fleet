@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.185') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('idea.exe','idea64.exe'));"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'intellij idea.exe');"
       },
       "installer_url": "https://download.jetbrains.com/idea/idea-2026.2.1.exe",
       "install_script_ref": "a0d4b424",

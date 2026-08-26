@@ -471,6 +471,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
 	ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 	ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+	ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 	ac, err = ds.AppConfig(ctx)
@@ -532,6 +533,7 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	tm.Config.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
 	tm.Config.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 	tm.Config.MDM.RequireBitLockerPIN = true
+	tm.Config.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
 	tm, err = ds.SaveTeam(ctx, tm)
 	require.NoError(t, err)
 	require.NotNil(t, tm)

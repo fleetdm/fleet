@@ -383,5 +383,27 @@ describe("ControlDetailsModal", () => {
       ).toBeInTheDocument();
       expect(screen.getByText(detail)).toBeInTheDocument();
     });
+
+    it("does not mention osquery for ddm verifying controls", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "DeviceLock",
+          platform: "darwin",
+          operation_type: "install",
+          status: "verifying",
+          detail: "Some detail about the verifying status",
+          profile_uuid: `dbogus-uuid`,
+        }),
+      });
+
+      expect(
+        screen.getByText(/acknowledged the MDM command to apply/, {
+          selector: "span",
+        })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/verifying with osquery/)
+      ).not.toBeInTheDocument();
+    });
   });
 });
