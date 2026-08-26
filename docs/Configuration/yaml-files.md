@@ -159,9 +159,9 @@ _Available in Fleet Premium_
 To trigger software install, when policy fails, specify one of:
   - `install_software.package_path` is the path to a single-package YAML. If the file defines multiple packages, use `install_software.hash_sha256` instead, or split the file into single-package YAMLs.
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
-  - `install_software.hash_sha256` is the [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a package already added to the fleet. Use this to pin a specific package under a multi-package title.
+  - `install_software.hash_sha256` is the [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a package on the fleet.
 
-> Adding a second package to a YAML that a policy references via `package_path` makes that policy fail to apply. Switch the policy to `install_software.hash_sha256`, or split the packages into single-package YAML files.
+> If a `package_path` file gains a second package, the policy will fail to apply. Switch to `install_software.hash_sha256` or split the packages into single-package YAMLs.
 
 ##### Run script
 
