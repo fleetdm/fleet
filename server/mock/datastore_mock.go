@@ -904,8 +904,6 @@ type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) err
 
 type SetOrUpdateHostBitLockerProtectionErrorFunc func(ctx context.Context, hostID uint, protectionError string) error
 
-type GetHostBitLockerProtectionStateFunc func(ctx context.Context, hostID uint) (*fleet.HostBitLockerProtectionState, error)
-
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
 type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error
@@ -3682,9 +3680,6 @@ type DataStore struct {
 
 	SetOrUpdateHostBitLockerProtectionErrorFunc        SetOrUpdateHostBitLockerProtectionErrorFunc
 	SetOrUpdateHostBitLockerProtectionErrorFuncInvoked bool
-
-	GetHostBitLockerProtectionStateFunc        GetHostBitLockerProtectionStateFunc
-	GetHostBitLockerProtectionStateFuncInvoked bool
 
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
@@ -8951,13 +8946,6 @@ func (s *DataStore) SetOrUpdateHostBitLockerProtectionError(ctx context.Context,
 	s.SetOrUpdateHostBitLockerProtectionErrorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostBitLockerProtectionErrorFunc(ctx, hostID, protectionError)
-}
-
-func (s *DataStore) GetHostBitLockerProtectionState(ctx context.Context, hostID uint) (*fleet.HostBitLockerProtectionState, error) {
-	s.mu.Lock()
-	s.GetHostBitLockerProtectionStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostBitLockerProtectionStateFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {

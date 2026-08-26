@@ -2987,6 +2987,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.orbit_node_key,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
+      hd.bitlocker_protection_status,
+      COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
       t.name as team_name,
       ` + hostHasIdentityCertSQL + ` as has_host_identity_cert

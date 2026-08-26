@@ -1327,9 +1327,6 @@ type Datastore interface {
 
 	// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection.
 	SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error
-	// GetHostBitLockerProtectionState returns the volume protection state used to decide whether Fleet should ask the
-	// agent to restore BitLocker protection.
-	GetHostBitLockerProtectionState(ctx context.Context, hostID uint) (*HostBitLockerProtectionState, error)
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:

@@ -958,20 +958,16 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 //
 // The condition cannot be expressed with host.DiskEncryptionEnabled alone: that field is derived from the volume's
 // conversion status, so it is true for a suspended host, which is exactly why such hosts are never acted on today.
-// This reads the protection status directly.
+// This reads the protection status, which the orbit host load carries from the same host_disks join.
+//
+// It therefore requires a host loaded by LoadHostByOrbitNodeKey. A host from a loader that does not select those
+// columns reports nil, which this reads as "nothing to act on" rather than as an error.
 func (svc *Service) shouldEnableBitLockerProtection(ctx context.Context, host *fleet.Host) (bool, error) {
-	state, err := svc.ds.GetHostBitLockerProtectionState(ctx, host.ID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// The host has not reported its disks yet, so there is nothing to act on.
-			return false, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "getting host bitlocker protection state")
-	}
-
-	// Only act on a volume that is encrypted and positively reported as unprotected. A nil protection status means the
-	// host has not reported one, or reported "unknown", neither of which is grounds for touching the volume.
-	if !state.Encrypted || state.ProtectionStatus == nil || *state.ProtectionStatus != fleet.BitLockerProtectionStatusOff {
+	// Only act on a volume that is encrypted and positively reported as unprotected. A nil on either field means the
+	// host has not reported its disks yet, or reported "unknown", neither of which is grounds for touching the volume.
+	encrypted := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
+	if !encrypted || host.BitLockerProtectionStatus == nil ||
+		*host.BitLockerProtectionStatus != fleet.BitLockerProtectionStatusOff {
 		return false, nil
 	}
 
@@ -983,7 +979,7 @@ func (svc *Service) shouldEnableBitLockerProtection(ctx context.Context, host *f
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "getting disk encryption config")
 	}
-	if diskEncryption.BitLockerPINRequired && !state.TPMPINSet {
+	if diskEncryption.BitLockerPINRequired && !host.TPMPINSet {
 		return false, nil
 	}
 

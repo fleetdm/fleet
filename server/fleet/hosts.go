@@ -417,6 +417,13 @@ type Host struct {
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
+	// BitLockerProtectionStatus and TPMPINSet come from the same host_disks join as DiskEncryptionEnabled and are only
+	// populated by loaders that perform it.
+	// BitLockerProtectionStatus is 0 off, 1 on, nil for unknown or never reported.
+	BitLockerProtectionStatus *int `json:"-" db:"bitlocker_protection_status" csv:"-"`
+	// TPMPINSet is only maintained on teams with windows_require_bitlocker_pin.
+	TPMPINSet bool `json:"-" db:"tpm_pin_set" csv:"-"`
+
 	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
 	// We need this because the escrow process for macOS is driven by detail queries
 	// (see 'mdm_disk_encryption_key_file_darwin' and 'mdm_disk_encryption_key_file_lines_darwin' queries) and
@@ -742,16 +749,6 @@ const (
 type HostMDMHostNameSetting struct {
 	Status HostNameSettingStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
-}
-
-// HostBitLockerProtectionState is the volume-protection state Fleet needs in order to decide whether to ask the agent
-// to restore protection.
-type HostBitLockerProtectionState struct {
-	Encrypted bool `db:"encrypted"`
-	// ProtectionStatus reports host_disks.bitlocker_protection_status: 0 off, 1 on, nil unknown or never reported.
-	ProtectionStatus *int `db:"bitlocker_protection_status"`
-	// TPMPINSet reports whether a TPM+PIN protector exists. Only maintained on teams with windows_require_bitlocker_pin.
-	TPMPINSet bool `db:"tpm_pin_set"`
 }
 
 type HostMDMDiskEncryption struct {

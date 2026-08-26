@@ -21,59 +21,75 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 
 	for _, tc := range []struct {
 		name         string
-		state        *fleet.HostBitLockerProtectionState
-		stateErr     error
+		encrypted    *bool
+		protection   *int
+		tpmPINSet    bool
 		pinRequired  bool
 		wantNotified bool
 	}{
 		{
 			name:         "encrypted and protection off is the case this exists for",
-			state:        &fleet.HostBitLockerProtectionState{Encrypted: true, ProtectionStatus: &protectionOff},
+			encrypted:    new(true),
+			protection:   &protectionOff,
 			wantNotified: true,
 		},
 		{
-			name:  "protection on needs nothing",
-			state: &fleet.HostBitLockerProtectionState{Encrypted: true, ProtectionStatus: &protectionOn},
+			name:       "protection on needs nothing",
+			encrypted:  new(true),
+			protection: &protectionOn,
 		},
 		{
-			name:  "not encrypted is the encryption flow's job, not this one",
-			state: &fleet.HostBitLockerProtectionState{Encrypted: false, ProtectionStatus: &protectionOff},
+			name:       "not encrypted is the encryption flow's job, not this one",
+			encrypted:  new(false),
+			protection: &protectionOff,
 		},
 		{
 			// An unknown status is not evidence of anything; acting on it is how protectors get destroyed.
-			name:  "unknown protection status is never acted on",
-			state: &fleet.HostBitLockerProtectionState{Encrypted: true, ProtectionStatus: nil},
+			name:       "unknown protection status is never acted on",
+			encrypted:  new(true),
+			protection: nil,
 		},
 		{
 			// Policy forbids a TPM-only protector, and only the end user can enrol a PIN, so Fleet cannot repair this
 			// host. It stays "Action required" rather than the agent failing on every config poll.
 			name:        "PIN required but not set cannot be repaired by Fleet",
-			state:       &fleet.HostBitLockerProtectionState{Encrypted: true, ProtectionStatus: &protectionOff, TPMPINSet: false},
+			encrypted:   new(true),
+			protection:  &protectionOff,
+			tpmPINSet:   false,
 			pinRequired: true,
 		},
 		{
 			name:         "PIN required and set can be repaired",
-			state:        &fleet.HostBitLockerProtectionState{Encrypted: true, ProtectionStatus: &protectionOff, TPMPINSet: true},
+			encrypted:    new(true),
+			protection:   &protectionOff,
+			tpmPINSet:    true,
 			pinRequired:  true,
 			wantNotified: true,
 		},
 		{
-			name:     "host has not reported its disks yet",
-			stateErr: newNotFoundError(),
+			// The LEFT JOIN on host_disks yields NULLs when the host has never reported a disk.
+			name:       "host has not reported its disks yet",
+			encrypted:  nil,
+			protection: nil,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
 			svc := &Service{ds: ds}
 
-			ds.GetHostBitLockerProtectionStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostBitLockerProtectionState, error) {
-				return tc.state, tc.stateErr
-			}
 			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 				return fleet.DiskEncryptionConfig{Enabled: true, BitLockerPINRequired: tc.pinRequired}, nil
 			}
 
-			got, err := svc.shouldEnableBitLockerProtection(t.Context(), &fleet.Host{ID: 1, TeamID: new(uint(1))})
+			host := &fleet.Host{
+				ID:                        1,
+				TeamID:                    new(uint(1)),
+				DiskEncryptionEnabled:     tc.encrypted,
+				BitLockerProtectionStatus: tc.protection,
+				TPMPINSet:                 tc.tpmPINSet,
+			}
+
+			got, err := svc.shouldEnableBitLockerProtection(t.Context(), host)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantNotified, got)
 		})
