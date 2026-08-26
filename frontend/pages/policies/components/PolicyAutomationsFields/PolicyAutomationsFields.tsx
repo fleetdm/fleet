@@ -734,7 +734,16 @@ const PolicyAutomationsFields = forwardRef<
                       ? "Continuous automation can't be disabled when Patch when app is closed is selected."
                       : undefined
                   }
-                  helpText="If the automations do not resolve the policy, Fleet will stop retrying for 24 hours after 10 times."
+                  helpText={
+                    <>
+                      If the install software automation does not resolve the
+                      policy after{" "}
+                      <TooltipWrapper tipContent="Count does not include skipped installs and failed pre-install queries.">
+                        10 attempts
+                      </TooltipWrapper>
+                      , Fleet will wait 24 hours before retrying.
+                    </>
+                  }
                 >
                   <TooltipWrapper
                     tipContent="Automations run on a host's first failure, and when a host's response changes from pass to fail. If enabled, script & software automations will also run on every subsequent failure."
