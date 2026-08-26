@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "25.7.2000.2020",
+      "version": "25.7.3000.3034",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Citrix Workspace %' AND publisher = 'Citrix Systems, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Citrix Workspace %' AND publisher = 'Citrix Systems, Inc.' AND version_compare(version, '25.7.2000.2020') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source LIKE '%\\Ctx-%';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source LIKE '%\\Ctx-%' AND version_compare(version, '25.7.3000.3034') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'citrix workspace ltsr.exe');"
       },
-      "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Win/CitrixWorkspaceApp25.7.2000.2020.exe",
+      "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Win/CitrixWorkspaceApp25.7.3000.3034.exe",
       "install_script_ref": "ed1646b6",
       "uninstall_script_ref": "c05a6493",
-      "sha256": "f9c6401da8d081f0c82c881007f84242540bbec1436cc5396cffb50a39d3a975",
+      "sha256": "8962b85c845a2927a55350abf84b677b341424f55dd862519da7726a30d2df27",
       "default_categories": [
         "Productivity"
       ]

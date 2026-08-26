@@ -4,6 +4,7 @@
   "package_identifier": "Citrix.Workspace.LTSR",
   "unique_identifier": "Citrix Workspace",
   "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Citrix Workspace Inside' AND publisher = 'Citrix Systems, Inc.' AND install_source LIKE '%\\Ctx-%';",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/citrix_workspace_ltsr_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/citrix_workspace_ltsr_uninstall.ps1",
   "installer_arch": "x86",
