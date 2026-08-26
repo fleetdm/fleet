@@ -17,8 +17,8 @@
               Format
             </label>
             <select class="form-control" style="color: #515774;" purpose="profile-type-selector" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
-              <option value="mobileconfig" selected>.mobileconfig (Apple)</option>
-              <option value="ddm">DDM (Apple)</option>
+              <option value="ddm">DDM (macOS)</option>
+              <option value="mobileconfig">.mobileconfig (macOS)</option>
               <option value="csp">CSP (Windows)</option>
             </select>
             <div class="invalid-feedback" v-if="formErrors.profileType" focus-first>Select the type of profile that you want to generate.</div>
