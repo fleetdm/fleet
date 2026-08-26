@@ -2016,7 +2016,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug")
+	assert.ErrorContains(t, err, "install_software.app_store_id cannot be combined with other selectors")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -2171,7 +2171,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "contains multiple packages, so cannot be used as a target for policy automation")
+	assert.ErrorContains(t, err, "contains multiple packages; add install_software.hash_sha256 to select one")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
@@ -5147,7 +5147,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software must have only one of")
+		assert.Contains(t, errs[0].Error(), "install_software.fleet_maintained_app_slug cannot be combined with other selectors")
 	})
 
 	t.Run("fleet_maintained_app_slug on global policy errors", func(t *testing.T) {
@@ -5211,6 +5211,122 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		require.Nil(t, errs)
 		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
 		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
+	})
+
+	// Helpers for the multi-package sub-selector tests.
+	// Hashes intentionally include hex letters — an all-digit value would parse
+	// as a YAML number and never reach the SHA-string field.
+	sha1 := "aaaa111111111111111111111111111111111111111111111111111111111111"
+	sha2 := "bbbb222222222222222222222222222222222222222222222222222222222222"
+	url1 := "https://example.com/pkg-a.pkg"
+	url2 := "https://example.com/pkg-b.pkg"
+	writeMultiPackageFile := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		content := fmt.Sprintf(
+			"- url: %s\n  hash_sha256: %s\n- url: %s\n  hash_sha256: %s\n",
+			url1, sha1, url2, sha2,
+		)
+		path := filepath.Join(dir, "multi.yml")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+		return path
+	}
+	writeSinglePackageFile := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		content := fmt.Sprintf("url: %s\nhash_sha256: %s\n", url1, sha1)
+		path := filepath.Join(dir, "single.yml")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+		return path
+	}
+
+	t.Run("multi-package selected by hash_sha256", func(t *testing.T) {
+		t.Parallel()
+
+		path := writeMultiPackageFile(t)
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			PackagePath: path,
+			HashSHA256:  sha2,
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "multi hash policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		packages := []*fleet.SoftwarePackageSpec{{URL: url2, SHA256: sha2}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
+		require.Nil(t, errs)
+		assert.Equal(t, url2, policy.InstallSoftwareURL)
+		assert.Equal(t, sha2, policy.InstallSoftware.Other.HashSHA256)
+	})
+
+	t.Run("multi-package with no sub-selector errors", func(t *testing.T) {
+		t.Parallel()
+
+		path := writeMultiPackageFile(t)
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "unqualified multi policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "contains multiple packages; add install_software.hash_sha256 to select one")
+	})
+
+	t.Run("multi-package with unmatched hash_sha256 errors", func(t *testing.T) {
+		t.Parallel()
+
+		path := writeMultiPackageFile(t)
+		bogusSHA := "cccc999999999999999999999999999999999999999999999999999999999999"
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			PackagePath: path,
+			HashSHA256:  bogusSHA,
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "stale hash policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %q does not match any package in file", bogusSHA))
+	})
+
+	t.Run("single-package with mismatched hash_sha256 errors", func(t *testing.T) {
+		t.Parallel()
+
+		path := writeSinglePackageFile(t)
+		bogusSHA := "cccc999999999999999999999999999999999999999999999999999999999999"
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			PackagePath: path,
+			HashSHA256:  bogusSHA,
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "single hash mismatch policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %q does not match the package in file", bogusSHA))
 	})
 }
 

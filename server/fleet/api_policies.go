@@ -177,9 +177,12 @@ type TeamPolicyRequest struct {
 	Critical              bool   `json:"critical" premium:"true"`
 	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
 	SoftwareTitleID       *uint  `json:"software_title_id"`
-	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// SoftwarePackageID optionally selects which package of the title to install on failure.
 	// When omitted, the policy defaults to the title's first-added package.
-	SoftwareInstallerID          *uint    `json:"software_installer_id"`
+	SoftwarePackageID *uint `json:"software_package_id"`
+	// LegacySoftwareInstallerID catches callers still on the pre-rename JSON key
+	// so the endpoint can return a clear 400 instead of silently ignoring it.
+	LegacySoftwareInstallerID    *uint    `json:"software_installer_id"`
 	ScriptID                     *uint    `json:"script_id"`
 	ProfileUUID                  *string  `json:"profile_uuid" premium:"true"`
 	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`

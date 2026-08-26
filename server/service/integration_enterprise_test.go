@@ -35537,9 +35537,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesInstallPrec
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostNeither.ID, titleID), nil, http.StatusBadRequest, &resp)
 }
 
-// TestPolicyAutomationSoftwareInstallerSelection verifies a team policy defaults its install-software
-// automation to the title's first-added package and honors an explicitly chosen software_installer_id.
-func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSelection() {
+// TestPolicyAutomationSoftwarePackageSelection verifies a team policy defaults its install-software
+// automation to the title's first-added package and honors an explicitly chosen software_package_id.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSelection() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -35570,12 +35570,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSe
 		require.NoError(t, err)
 		return id
 	}
-	installerA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
-	installerB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
-	require.Less(t, installerA, installerB)
+	packageA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
+	packageB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
+	require.Less(t, packageA, packageB)
 	titleID := getSoftwareTitleID(t, s.ds, "PolicyMultiPkgApp", "deb_packages")
 
-	storedInstallerID := func(policyID uint) uint {
+	// storedPackageID reads the DB column, which is still named software_installer_id.
+	storedPackageID := func(policyID uint) uint {
 		var ids []uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &ids, `SELECT software_installer_id FROM policies WHERE id = ?`, policyID)
@@ -35584,43 +35585,51 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSe
 		return ids[0]
 	}
 
-	// No installer chosen → defaults to first-added.
+	// No package chosen → defaults to first-added.
 	var defResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
 		Name:            "default first-added",
 		Query:           "SELECT 1;",
 		SoftwareTitleID: &titleID,
 	}, http.StatusOK, &defResp)
-	require.Equal(t, installerA, storedInstallerID(defResp.Policy.ID))
+	require.Equal(t, packageA, storedPackageID(defResp.Policy.ID))
 
-	// Explicit installer chosen → honored.
+	// Explicit package chosen → honored.
 	var chosenResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
-		Name:                "explicit choice",
-		Query:               "SELECT 2;",
-		SoftwareTitleID:     &titleID,
-		SoftwareInstallerID: &installerB,
+		Name:              "explicit choice",
+		Query:             "SELECT 2;",
+		SoftwareTitleID:   &titleID,
+		SoftwarePackageID: &packageB,
 	}, http.StatusOK, &chosenResp)
-	require.Equal(t, installerB, storedInstallerID(chosenResp.Policy.ID))
+	require.Equal(t, packageB, storedPackageID(chosenResp.Policy.ID))
 
 	// Modify the first policy to point at the chosen package.
 	var modResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", teamID, defResp.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: installerB},
+			SoftwareTitleID:   optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			SoftwarePackageID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
 		},
 	}, http.StatusOK, &modResp)
-	require.Equal(t, installerB, storedInstallerID(defResp.Policy.ID))
+	require.Equal(t, packageB, storedPackageID(defResp.Policy.ID))
 
-	// An installer_id that doesn't belong to the title is rejected.
+	// A package_id that doesn't belong to the title is rejected.
 	var badResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
-		Name:                "bad installer",
-		Query:               "SELECT 3;",
-		SoftwareTitleID:     &titleID,
-		SoftwareInstallerID: new(installerB + 100000),
+		Name:              "bad package",
+		Query:             "SELECT 3;",
+		SoftwareTitleID:   &titleID,
+		SoftwarePackageID: new(packageB + 100000),
 	}, http.StatusBadRequest, &badResp)
+
+	// The legacy JSON key returns 400 with a rename hint.
+	legacyBody := fmt.Sprintf(`{"name":"legacy caller","query":"SELECT 4;","software_title_id":%d,"software_installer_id":%d}`, titleID, packageB)
+	legacyResp := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), []byte(legacyBody), http.StatusBadRequest)
+	defer legacyResp.Body.Close()
+	legacyBodyBytes, err := io.ReadAll(legacyResp.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(legacyBodyBytes), "software_installer_id has been renamed to software_package_id")
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {

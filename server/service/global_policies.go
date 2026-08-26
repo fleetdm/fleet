@@ -262,6 +262,11 @@ const (
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ModifyGlobalPolicyRequest)
+	if req.LegacySoftwareInstallerID.Set {
+		return fleet.ModifyGlobalPolicyResponse{Err: &fleet.BadRequestError{
+			Message: "software_installer_id has been renamed to software_package_id",
+		}}, nil
+	}
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
 		return fleet.ModifyGlobalPolicyResponse{Err: err}, nil

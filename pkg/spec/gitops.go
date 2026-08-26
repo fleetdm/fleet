@@ -2275,6 +2275,26 @@ func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *stri
 	return nil
 }
 
+// selectMultiPackage picks one package out of a multi-package software YAML
+// based on the hash_sha256 sub-selector on install_software.
+func selectMultiPackage(pkgs []fleet.SoftwarePackageSpec, installSoftwareObj *PolicyInstallSoftware) (fleet.SoftwarePackageSpec, error) {
+	if installSoftwareObj.HashSHA256 == "" {
+		return fleet.SoftwarePackageSpec{}, fmt.Errorf(
+			"file %q contains multiple packages; add install_software.hash_sha256 to select one",
+			installSoftwareObj.PackagePath,
+		)
+	}
+	for _, p := range pkgs {
+		if p.SHA256 == installSoftwareObj.HashSHA256 {
+			return p, nil
+		}
+	}
+	return fleet.SoftwarePackageSpec{}, fmt.Errorf(
+		"install_software.hash_sha256 %q does not match any package in file %q",
+		installSoftwareObj.HashSHA256, installSoftwareObj.PackagePath,
+	)
+}
+
 func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
@@ -2288,20 +2308,24 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	wrapErrs := func(err error) []error {
 		return []error{wrapErr(err)}
 	}
-	if (installSoftwareObj.PackagePath != "" || installSoftwareObj.AppStoreID != "" || installSoftwareObj.HashSHA256 != "" || installSoftwareObj.FleetMaintainedAppSlug != "") && teamName == nil {
+
+	hasPath := installSoftwareObj.PackagePath != ""
+	hasAppStore := installSoftwareObj.AppStoreID != ""
+	hasFMA := installSoftwareObj.FleetMaintainedAppSlug != ""
+	hasHash := installSoftwareObj.HashSHA256 != ""
+
+	if (hasPath || hasAppStore || hasHash || hasFMA) && teamName == nil {
 		return wrapErrs(errors.New("install_software can only be set on team policies"))
 	}
-	if installSoftwareObj.PackagePath == "" && installSoftwareObj.AppStoreID == "" && installSoftwareObj.HashSHA256 == "" && installSoftwareObj.FleetMaintainedAppSlug == "" {
+	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
 	}
-	setCount := 0
-	for _, s := range []string{installSoftwareObj.PackagePath, installSoftwareObj.AppStoreID, installSoftwareObj.HashSHA256, installSoftwareObj.FleetMaintainedAppSlug} {
-		if s != "" {
-			setCount++
-		}
+	// app_store_id and fleet_maintained_app_slug are standalone selectors.
+	if hasAppStore && (hasPath || hasHash || hasFMA) {
+		return wrapErrs(errors.New("install_software.app_store_id cannot be combined with other selectors"))
 	}
-	if setCount > 1 {
-		return wrapErrs(errors.New("install_software must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug"))
+	if hasFMA && (hasPath || hasHash || hasAppStore) {
+		return wrapErrs(errors.New("install_software.fleet_maintained_app_slug cannot be combined with other selectors"))
 	}
 
 	var errs []error
@@ -2317,20 +2341,30 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			// see if the issue is that a package path was passed in that references multiple packages
+			// Fall back to array shape: the file may define multiple packages for one title.
 			var multiplePackages []fleet.SoftwarePackageSpec
 			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
 				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
 			}
 
-			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", installSoftwareObj.PackagePath))
-			}
-
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
-			policyInstallSoftwareSpec = multiplePackages[0]
+
+			if len(multiplePackages) == 1 {
+				policyInstallSoftwareSpec = multiplePackages[0]
+			} else {
+				selected, err := selectMultiPackage(multiplePackages, installSoftwareObj)
+				if err != nil {
+					return wrapErrs(err)
+				}
+				policyInstallSoftwareSpec = selected
+			}
 		} else {
 			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
+			// Single-package file: if the user supplied a hash_sha256 sub-selector, it must match the sole entry.
+			// A mismatch is almost certainly a typo or a stale reference, so fail loud.
+			if installSoftwareObj.HashSHA256 != "" && policyInstallSoftwareSpec.SHA256 != installSoftwareObj.HashSHA256 {
+				return wrapErrs(fmt.Errorf("install_software.hash_sha256 %q does not match the package in file %q", installSoftwareObj.HashSHA256, installSoftwareObj.PackagePath))
+			}
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
