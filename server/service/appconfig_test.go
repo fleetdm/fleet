@@ -1228,6 +1228,7 @@ func TestMDMConfig(t *testing.T) {
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+				RequireBitLockerPIN:         optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3741,6 +3742,119 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			}
 			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsEnrollment.Value.DefaultFleet,
 				"the app config JSON must store the canonical fleet name")
+		})
+	}
+}
+
+func TestDiskEncryptionPrecedence(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	// stored state: windows on, everything else off (the flat toggle reads as
+	// the AND of the four, so it's false)
+	mixedStored := func() fleet.MDM {
+		return fleet.MDM{
+			EnableDiskEncryption: optjson.SetBool(false),
+			MacOSSettings: fleet.MacOSSettings{
+				EnableDiskEncryption:          optjson.SetBool(false),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+			WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
+			LinuxSettings:   fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)},
+		}
+	}
+	allOff := func() fleet.MDM {
+		m := mixedStored()
+		m.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+		return m
+	}
+
+	for _, tc := range []struct {
+		name          string
+		stored        fleet.MDM
+		payload       string
+		expectedError string
+		check         func(t *testing.T, mdm fleet.MDM)
+	}{
+		{
+			name:   "changing flat and per-platform to disagreeing values conflicts",
+			stored: mixedStored(),
+			payload: `{"mdm": {"enable_disk_encryption": true,
+				"windows_settings": {"enable_disk_encryption": false}}}`,
+			expectedError: "conflicts with per-platform disk encryption settings",
+		},
+		{
+			name:   "per-platform change wins over an unchanged flat toggle",
+			stored: allOff(),
+			payload: `{"mdm": {"enable_disk_encryption": false,
+				"windows_settings": {"enable_disk_encryption": true}}}`,
+			check: func(t *testing.T, mdm fleet.MDM) {
+				require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+				require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+				require.False(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+				require.False(t, mdm.EnableDiskEncryption.Value)
+			},
+		},
+		{
+			name:   "changed flat toggle wins over restated per-platform values",
+			stored: mixedStored(),
+			payload: `{"mdm": {"enable_disk_encryption": true,
+				"windows_settings": {"enable_disk_encryption": true}}}`,
+			check: func(t *testing.T, mdm fleet.MDM) {
+				require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+				require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+				require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+				require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+				require.True(t, mdm.EnableDiskEncryption.Value)
+			},
+		},
+		{
+			name:    "flat toggle alone fans out over a mixed stored state",
+			stored:  mixedStored(),
+			payload: `{"mdm": {"enable_disk_encryption": false}}`,
+			check: func(t *testing.T, mdm fleet.MDM) {
+				require.False(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+				require.False(t, mdm.EnableDiskEncryption.Value)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			cfg := config.TestConfig()
+			cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				MDM:            tc.stored,
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				return nil, sql.ErrNoRows
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			tc.check(t, modified.MDM)
+			tc.check(t, dsAppConfig.MDM)
 		})
 	}
 }

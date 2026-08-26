@@ -3481,9 +3481,14 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateDiskEncryptionRequest struct {
-	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
-	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id"`
+	// EnableDiskEncryption is deprecated: when provided it applies to every
+	// per-platform setting. Use the per-platform objects instead.
+	EnableDiskEncryption *bool                                       `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  *bool                                       `json:"windows_require_bitlocker_pin"`
+	MacOSSettings        *fleet.MacOSDiskEncryptionSettingsPayload   `json:"macos_settings"`
+	WindowsSettings      *fleet.WindowsDiskEncryptionSettingsPayload `json:"windows_settings"`
+	LinuxSettings        *fleet.LinuxDiskEncryptionSettingsPayload   `json:"linux_settings"`
 }
 
 type updateMDMDiskEncryptionResponse struct {
@@ -3496,13 +3501,20 @@ func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoCont
 
 func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateDiskEncryptionRequest)
-	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption, &req.RequireBitLockerPIN); err != nil {
+	payload := fleet.MDMDiskEncryptionSettingsPayload{
+		EnableDiskEncryption: req.EnableDiskEncryption,
+		RequireBitLockerPIN:  req.RequireBitLockerPIN,
+		MacOSSettings:        req.MacOSSettings,
+		WindowsSettings:      req.WindowsSettings,
+		LinuxSettings:        req.LinuxSettings,
+	}
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, payload); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
 	return updateMDMDiskEncryptionResponse{}, nil
 }
 
-func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error {
+func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error {
 	// TODO(mna): this should all move to the ee package when we remove the
 	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
 	// leave here so both endpoints can reuse the same logic.
@@ -3520,14 +3532,24 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	changes, err := payload.ResolvePerPlatform()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	requireBitLockerPIN, err := payload.ResolveBitLockerPIN()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
 	if teamID != nil {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
 		if err != nil {
 			return err
 		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption, requireBitLockerPIN)
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, changes, requireBitLockerPIN)
 	}
-	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
+	return svc.updateAppConfigMDMDiskEncryption(ctx, changes, requireBitLockerPIN)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4111,8 +4133,10 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return nil
 	}
 
-	// Enable FileVault escrow if no-team already has a macOS disk encryption
-	// setting on: the FileVault profile covers enforcement and escrow as a pair
+	// Enable FileVault escrow if no-team already has macOS disk encryption
+	// settings on. No activity is recorded: the settings themselves didn't
+	// change, the profile is (re)created as a side effect of turning on Apple
+	// MDM.
 	if appCfg.MDM.MacOSSettings.EnableDiskEncryption.Value || appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
 		// Delete the file vault profile first, to ensure we get updated keys.
 		if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
@@ -4120,9 +4144,6 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		}
 		if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "enable no-team FileVault escrow")
-		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledMacosDiskEncryption{}); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for enabling no-team macOS disk encryption")
 		}
 	}
 	// Enable FileVault escrow for teams that already have disk encryption enforced
@@ -4143,9 +4164,6 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 			}
 			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "enable FileVault escrow for team")
-			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for enabling macOS disk encryption for team")
 			}
 		}
 	}

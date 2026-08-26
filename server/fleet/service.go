@@ -24,7 +24,7 @@ type EnterpriseOverrides struct {
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
 	// a team ID is provided to the UpdateMDMDiskEncryption method.
-	UpdateTeamMDMDiskEncryption   func(ctx context.Context, tm *Team, enable *bool, requireBitLockerPIN *bool) error
+	UpdateTeamMDMDiskEncryption   func(ctx context.Context, tm *Team, changes DiskEncryptionSettingsChanges, requireBitLockerPIN *bool) error
 	UpdateTeamMDMHostNameTemplate func(ctx context.Context, tm *Team, nameTemplate string) error
 
 	// ApplyHostNameTemplateChange reconciles host-name enforcement rows and emits
@@ -1105,9 +1105,9 @@ type Service interface {
 	// profile for the given team.
 	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
 
-	// UpdateMDMDiskEncryption updates the disk encryption setting for a
+	// UpdateMDMDiskEncryption updates the disk encryption settings for a
 	// specified team or for hosts with no team.
-	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
+	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload MDMDiskEncryptionSettingsPayload) error
 
 	// UpdateMDMHostNameTemplate updates the host name template for the specified
 	// fleet. An empty template clears the setting; clearing never renames hosts.

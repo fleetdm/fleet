@@ -910,10 +910,18 @@ func TestUpdateTeamMDMDiskEncryption(t *testing.T) {
 			},
 		}
 
+		// the flat toggle fans out to every per-platform setting, as
+		// ResolvePerPlatform does for the endpoint payload
+		changes := fleet.DiskEncryptionSettingsChanges{
+			MacOSEnable:   tC.diskEncryption,
+			MacOSEscrow:   tC.diskEncryption,
+			WindowsEnable: tC.diskEncryption,
+			LinuxEscrow:   tC.diskEncryption,
+		}
 		err := svc.updateTeamMDMDiskEncryption(
 			ctx,
 			&team,
-			tC.diskEncryption,
+			changes,
 			tC.requireTPMPIN,
 		)
 

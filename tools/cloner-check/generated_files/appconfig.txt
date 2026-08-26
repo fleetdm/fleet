@@ -215,6 +215,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	ManagedLocalAccountSettings	fleet.ManagedLocalAccountSettings
 github.com/fleetdm/fleet/v4/server/fleet/ManagedLocalAccountSettings	Enabled	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	EnableDiskEncryption	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	RequireBitLockerPIN	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	VolumePurchasingProgram	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleVolumePurchasingProgramInfo]	Valid	bool

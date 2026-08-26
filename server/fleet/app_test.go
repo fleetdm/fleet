@@ -1076,3 +1076,137 @@ func TestManagedLocalAccountSettingsMarshalDefaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, map[string]any{"enabled": false}, windowsSettings(v.([]byte)))
 }
+
+func TestBitLockerPINAliasSync(t *testing.T) {
+	t.Run("marshal mirrors the deprecated key and its canonical home", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			mdm  MDM
+			want bool
+		}{
+			{"deprecated only", MDM{RequireBitLockerPIN: optjson.SetBool(true)}, true},
+			{"canonical only", MDM{WindowsSettings: WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)}}, true},
+			{"canonical wins", MDM{
+				RequireBitLockerPIN: optjson.SetBool(false),
+				WindowsSettings:     WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+			}, true},
+			{"neither defaults to false", MDM{}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				b, err := json.Marshal(&AppConfig{MDM: tc.mdm})
+				require.NoError(t, err)
+				var doc map[string]any
+				require.NoError(t, json.Unmarshal(b, &doc))
+				mdm := doc["mdm"].(map[string]any)
+				require.Equal(t, tc.want, mdm["windows_require_bitlocker_pin"])
+				require.Equal(t, tc.want, mdm["windows_settings"].(map[string]any)["require_bitlocker_pin"])
+			})
+		}
+	})
+
+	t.Run("unmarshal fills the canonical home from a legacy document", func(t *testing.T) {
+		var ac AppConfig
+		require.NoError(t, json.Unmarshal([]byte(`{"mdm": {"windows_require_bitlocker_pin": true}}`), &ac))
+		require.True(t, ac.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+		require.True(t, ac.MDM.BitLockerPINRequired())
+
+		// an explicitly present canonical value is never overridden
+		ac = AppConfig{}
+		require.NoError(t, json.Unmarshal([]byte(`{"mdm": {
+			"windows_require_bitlocker_pin": true,
+			"windows_settings": {"require_bitlocker_pin": false}
+		}}`), &ac))
+		require.False(t, ac.MDM.BitLockerPINRequired())
+	})
+}
+
+func TestBitLockerPINRequirementError(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		oldWindowsEnabled bool
+		cfg               DiskEncryptionConfig
+		wantField         string
+		wantMsg           string
+	}{
+		{
+			name: "PIN with encryption on is valid",
+			cfg:  DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: true},
+		},
+		{
+			name: "no PIN with encryption off is valid",
+			cfg:  DiskEncryptionConfig{},
+		},
+		{
+			name:      "enabling the PIN without encryption blames the PIN field",
+			cfg:       DiskEncryptionConfig{BitLockerPINRequired: true},
+			wantField: "mdm.windows_settings.require_bitlocker_pin",
+			wantMsg:   CantEnablePINRequiredIfDiskEncryptionEnabled,
+		},
+		{
+			name:              "disabling encryption while the PIN is required blames the encryption field",
+			oldWindowsEnabled: true,
+			cfg:               DiskEncryptionConfig{BitLockerPINRequired: true},
+			wantField:         "mdm.windows_settings.enable_disk_encryption",
+			wantMsg:           CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			field, msg := BitLockerPINRequirementError(tc.oldWindowsEnabled, tc.cfg)
+			require.Equal(t, tc.wantField, field)
+			require.Equal(t, tc.wantMsg, msg)
+		})
+	}
+}
+
+func TestResolveBitLockerPINAlias(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		deprecated optjson.Bool
+		canonical  optjson.Bool
+		want       optjson.Bool
+		wantErr    bool
+	}{
+		{name: "neither provided leaves the stored value alone"},
+		{
+			name:       "deprecated only",
+			deprecated: optjson.SetBool(true),
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:      "canonical only",
+			canonical: optjson.SetBool(true),
+			want:      optjson.SetBool(true),
+		},
+		{
+			name:       "both agreeing is accepted, as a round-tripped document sends",
+			deprecated: optjson.SetBool(true),
+			canonical:  optjson.SetBool(true),
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:       "explicit null on the canonical key falls back to the deprecated one",
+			deprecated: optjson.SetBool(true),
+			canonical:  optjson.Bool{Set: true},
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:       "disagreeing values are rejected",
+			deprecated: optjson.SetBool(false),
+			canonical:  optjson.SetBool(true),
+			wantErr:    true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolveBitLockerPINAlias(tc.deprecated, tc.canonical)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want.Valid, got.Valid)
+			if tc.want.Valid {
+				require.Equal(t, tc.want.Value, got.Value)
+			}
+		})
+	}
+}

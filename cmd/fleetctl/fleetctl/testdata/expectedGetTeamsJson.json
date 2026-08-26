@@ -79,7 +79,8 @@
           "enable_disk_encryption": false,
           "managed_local_account_settings": {
             "enabled": false
-          }
+          },
+          "require_bitlocker_pin": false
         },
         "windows_updates": {
           "deadline_days": null,
@@ -177,7 +178,8 @@
           "enable_disk_encryption": false,
           "managed_local_account_settings": {
             "enabled": false
-          }
+          },
+          "require_bitlocker_pin": false
         },
         "windows_updates": {
           "deadline_days": null,
@@ -296,7 +298,8 @@
           "enable_disk_encryption": false,
           "managed_local_account_settings": {
             "enabled": false
-          }
+          },
+          "require_bitlocker_pin": false
         },
         "windows_updates": {
           "deadline_days": 7,
@@ -409,7 +412,8 @@
           "enable_disk_encryption": false,
           "managed_local_account_settings": {
             "enabled": false
-          }
+          },
+          "require_bitlocker_pin": false
         },
         "windows_updates": {
           "deadline_days": 7,

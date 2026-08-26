@@ -919,6 +919,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				CustomSettings:              optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 				EnableDiskEncryption:        optjson.SetBool(false),
+				RequireBitLockerPIN:         optjson.SetBool(false),
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
