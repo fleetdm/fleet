@@ -78,6 +78,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
 		{"ApplyPolicySpecFirstAddedInstaller", testApplyPolicySpecFirstAddedInstaller},
+		{"ApplyPolicySpecPinnedInstaller", testApplyPolicySpecPinnedInstaller},
 		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TestPoliciesTeamPoliciesWithResendProfile", testTeamPoliciesWithResendProfile},
@@ -10094,4 +10095,102 @@ func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.NotNil(t, policies[0].SoftwareInstallerID)
 	require.Equal(t, installerA, *policies[0].SoftwareInstallerID, "GitOps must resolve to the first-added package")
+}
+
+// testApplyPolicySpecPinnedInstaller verifies that when a spec sets SoftwarePackageID,
+// the datastore pins the policy to that specific installer instead of falling back
+// to the title's first-added package. This is the fix for Cisneros's case: multiple
+// single-package YAMLs sharing a bundle identifier create one title with several
+// installers, and GitOps needs to preserve which installer the policy YAML referenced.
+func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Spec Pinned", "spec-pinned@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-pinned-team"})
+	require.NoError(t, err)
+
+	var titleID uint
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "SpecPinnedPkg",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.specpinnedpkg",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return id
+	}
+	installerA := newPkg("pinned-a", "pkgA.pkg")
+	installerB := newPkg("pinned-b", "pkgB.pkg")
+	require.Less(t, installerA, installerB)
+
+	t.Run("SoftwarePackageID pins the non-first-added installer", func(t *testing.T) {
+		err := ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+			{
+				Name:              "policy pinned to B",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &installerB,
+			},
+		})
+		require.NoError(t, err)
+
+		policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+		require.NoError(t, err)
+		var pinned *fleet.Policy
+		for _, p := range policies {
+			if p.Name == "policy pinned to B" {
+				pinned = p
+				break
+			}
+		}
+		require.NotNil(t, pinned)
+		require.NotNil(t, pinned.SoftwareInstallerID)
+		require.Equal(t, installerB, *pinned.SoftwareInstallerID, "SoftwarePackageID must pin the specific installer, not the first-added default")
+	})
+
+	t.Run("SoftwarePackageID that doesn't belong to the title is rejected", func(t *testing.T) {
+		// Create a second title with its own installer, then try to pin a policy
+		// on the first title to the second title's installer.
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("other"), t.TempDir)
+		require.NoError(t, err)
+		otherInstaller, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        "pinned-other",
+			Filename:         "other.pkg",
+			Title:            "SpecPinnedOther",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.specpinnedother",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+			{
+				Name:              "policy pinned to wrong title's installer",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &otherInstaller,
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "does not belong to software_title_id")
+	})
 }
