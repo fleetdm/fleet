@@ -56,10 +56,23 @@ parasails.registerPage('configuration-generator', {
   methods: {
     handleSubmittingForm: async function() {
       this.syncing = true;
-      io.socket.get('/api/v1/get-llm-generated-configuration-profile', {
-        profileType: this.formData.profileType,
-        naturalLanguageInstructions: this.formData.naturalLanguageInstructions,
-      }, ()=>{});
+      io.socket.request({
+        method: 'post',
+        url: '/api/v1/get-llm-generated-configuration-profile',
+        data: {
+          profileType: this.formData.profileType,
+          naturalLanguageInstructions: this.formData.naturalLanguageInstructions,
+        },
+        // Socket requests go through the same CSRF check as any other non-GET request, and the
+        // sails.io.js client doesn't attach the token on its own the way the Cloud SDK does.
+        headers: { 'x-csrf-token': window.SAILS_LOCALS._csrf },
+      }, (unusedData, jwr)=>{
+        // The generated profile arrives as a broadcast, not as this response, so the only thing
+        // worth reading here is a failure -- without it, a rejected request spins forever.
+        if(jwr.statusCode >= 300) {
+          this._onProfileGenerationError({error: jwr.statusCode});
+        }
+      });
       // Detach first, so that retrying after an error doesn't leave duplicate listeners attached.
       io.socket.off('profileGenerated', this._onProfileGenerated);
       io.socket.off('error', this._onProfileGenerationError);
@@ -79,6 +92,11 @@ parasails.registerPage('configuration-generator', {
       io.socket.off('profileGenerated', this._onProfileGenerated);
     },
     _onProfileGenerationError: function(response) {
+      if(!this.syncing) {
+        // A failed generation arrives twice: once as a broadcast, and again as the non-2xx
+        // response to the request that started it.  Whichever lands first wins.
+        return;
+      }
       this.cloudError = response.error;
       this.syncing = false;
       io.socket.off('error', this._onProfileGenerationError);
