@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 | Head of GTM Architecture | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Controller | [Ryan Evans](https://www.linkedin.com/in/revans111/) _([@bigaapl](https://github.com/bigaapl))_ 
 
 
 ## Contact us
