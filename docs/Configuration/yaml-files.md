@@ -948,7 +948,7 @@ org_settings:
 The `activity_expiry_settings` section lets you define how to handle activities.
 - `activity_expiry_enabled` when enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days. Activities linked to a host are preserved until the host is deleted.
 - `activity_expiry_window` the number of days to retain activity records, if activity expiry is enabled.
-- `preserve_host_activities_on_reenrollment` When enabled, preserves host activities after a wipe and re-enrollment. Supported for company-owned (AB) Apple hosts and Android hosts. **Delete activities > Max activity age** still applies. (Default: `false` on new Fleet instances. Fleet sets it to `true` when you upgrade an existing instance, so that prior behavior is preserved.)
+- `preserve_host_activities_on_reenrollment` when enabled, preserves host activities after a wipe and re-enrollment. Supported for company-owned (AB) Apple hosts and Android hosts. **Delete activities > Max activity age** still applies. (Default: `false` on new Fleet instances. Fleet sets it to `true` when you upgrade an existing instance, so that prior behavior is preserved.)
 
 #### Example
 
