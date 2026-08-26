@@ -8,6 +8,7 @@ import {
   ProfileOperationType,
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
+import { isDDMProfile } from "services/entities/mdm";
 
 import { IconNames } from "components/icons";
 
@@ -144,9 +145,11 @@ const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
       <>
         <b>{props.hostDisplayName}</b> acknowledged the MDM command to apply{" "}
         <b>{props.settingName}</b>.{" "}
-        {!props.profileUUID.startsWith("d") && ( // do not show osquery for DDM profiles.
-          <>Fleet is verifying with osquery.</>
-        )}
+        {
+          !isDDMProfile({ profile_uuid: props.profileUUID }) && (
+            <>Fleet is verifying with osquery.</>
+          ) // do not show osquery for DDM profiles.
+        }
       </>
     ),
 };
