@@ -488,6 +488,35 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 	return c.fetchEnrollmentProfileFromOTAURL()
 }
 
+// setDevModeOverrideRestoring sets a dev_mode env override and returns a
+// function that restores the previous override value (or clears it if none was
+// set). Unlike a bare SetOverride/ClearOverride pair, this does not clobber an
+// override that an enclosing test set for its whole duration when these helpers
+// are called from within that test.
+func setDevModeOverrideRestoring(name, value string) func() {
+	prev := dev_mode.Env(name)
+	dev_mode.SetOverride(name, value)
+	return func() {
+		if prev != "" {
+			dev_mode.SetOverride(name, prev)
+		} else {
+			dev_mode.ClearOverride(name)
+		}
+	}
+}
+
+// disableMachineInfoVerifyRestoring disables MachineInfo signature verification
+// enforcement and returns a function that restores the previous value. The test
+// clients sign device info with throwaway certificates rather than a genuine
+// Apple device identity, so verification cannot be enforced during enrollment.
+func disableMachineInfoVerifyRestoring() func() {
+	prev := apple_mdm.MachineInfoVerificationEnabled()
+	apple_mdm.SetMachineInfoVerification(false)
+	return func() {
+		apple_mdm.SetMachineInfoVerification(prev)
+	}
+}
+
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial:    c.SerialNumber,
@@ -498,6 +527,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath+"?token="+c.depURLToken+"&deviceinfo="+di, nil,
 	)
@@ -513,6 +545,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.EnrollPath+"?token="+c.depURLToken, buf,
 	)
@@ -533,6 +568,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
 	}
+	// the device info is signed with a throwaway cert, not an Apple device
+	// identity, so signature verification cannot be enforced
+	defer disableMachineInfoVerifyRestoring()()
 	return c.fetchEnrollmentProfile(
 		apple_mdm.AccountDrivenEnrollPath, buf,
 	)
@@ -658,9 +696,11 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	if err != nil {
 		return fmt.Errorf("creating mock certificates: %w", err)
 	}
-	dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	restoreCertVerify := setDevModeOverrideRestoring("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1")
+	restoreMachineInfoVerify := disableMachineInfoVerifyRestoring()
 	body, err = do(mockedCert, mockedKey)
-	dev_mode.ClearOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY")
+	restoreMachineInfoVerify()
+	restoreCertVerify()
 	if err != nil {
 		return fmt.Errorf("first OTA request: %w", err)
 	}

@@ -150,6 +150,7 @@ export interface IDeviceGlobalConfig {
 export interface IFleetDesktopSettings {
   transparency_url: string;
   alternative_browser_host: string;
+  sso_enabled: boolean;
 }
 
 export interface IConfigFeatures {

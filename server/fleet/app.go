@@ -324,6 +324,13 @@ type DiskEncryptionConfig struct {
 	LinuxEscrowEnabled bool
 }
 
+// AllEnabled returns the AND of the four per-platform disk encryption settings
+// — the value the deprecated flat enable_disk_encryption key reports. The
+// BitLocker PIN is a modifier of Windows enforcement, not one of the four.
+func (c DiskEncryptionConfig) AllEnabled() bool {
+	return c.MacOSEnabled && c.MacOSEscrowEnabled && c.WindowsEnabled && c.LinuxEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {
@@ -417,10 +424,7 @@ func (p MDMDiskEncryptionSettingsPayload) ResolvePerPlatform() (DiskEncryptionSe
 // disk encryption settings — the value the deprecated flat
 // mdm.enable_disk_encryption key reports.
 func (m *MDM) DiskEncryptionSettingsAllEnabled() bool {
-	return m.MacOSSettings.EnableDiskEncryption.Value &&
-		m.MacOSSettings.EnableEscrowDiskEncryptionKey.Value &&
-		m.WindowsSettings.EnableDiskEncryption.Value &&
-		m.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	return m.DiskEncryptionConfig().AllEnabled()
 }
 
 // DiskEncryptionConfig returns the global effective per-platform disk
@@ -572,6 +576,23 @@ func (c *AppConfig) MDMUrl() string {
 		return c.ServerSettings.ServerURL
 	}
 	return c.MDM.AppleServerURL
+}
+
+// FleetDesktopBrowserUrl returns the base URL an end user's browser reaches
+// Fleet on, which is the server URL unless fleet_desktop.alternative_browser_host
+// overrides its host.
+func (c *AppConfig) FleetDesktopBrowserUrl() (*url.URL, error) {
+	base, err := url.Parse(c.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
+	if altHost := c.FleetDesktop.AlternativeBrowserHost; altHost != "" {
+		if parsed, err := url.Parse(altHost); err == nil && parsed.Host != "" {
+			altHost = parsed.Host
+		}
+		base.Host = altHost
+	}
+	return base, nil
 }
 
 func (c *AppConfigUrls) MDMUrl() string {
@@ -1994,6 +2015,9 @@ type FleetDesktopSettings struct {
 	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
 	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
 	AlternativeBrowserHost string `json:"alternative_browser_host"`
+	// SSOEnabled requires end users to authenticate with the IdP configured in
+	// mdm.end_user_authentication, which must be set before this can be enabled.
+	SSOEnabled bool `json:"sso_enabled"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.

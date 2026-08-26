@@ -1210,3 +1210,53 @@ func TestResolveBitLockerPINAlias(t *testing.T) {
 		})
 	}
 }
+
+func TestFleetDesktopBrowserUrl(t *testing.T) {
+	cases := []struct {
+		name                   string
+		serverURL              string
+		alternativeBrowserHost string
+		want                   string
+	}{
+		{
+			name:      "no alternative browser host",
+			serverURL: "https://fleet.example.com",
+			want:      "https://fleet.example.com/device/abc123",
+		},
+		{
+			name:                   "alternative browser host replaces only the host",
+			serverURL:              "https://fleet.example.com",
+			alternativeBrowserHost: "proxy.example.com",
+			want:                   "https://proxy.example.com/device/abc123",
+		},
+		{
+			name:                   "alternative browser host keeps its port",
+			serverURL:              "https://fleet.example.com",
+			alternativeBrowserHost: "proxy.example.com:8443",
+			want:                   "https://proxy.example.com:8443/device/abc123",
+		},
+		{
+			name:                   "alternative browser host given with a scheme is tolerated",
+			serverURL:              "https://fleet.example.com",
+			alternativeBrowserHost: "https://proxy.example.com",
+			want:                   "https://proxy.example.com/device/abc123",
+		},
+		{
+			name:      "url_prefix on the server URL is preserved",
+			serverURL: "https://fleet.example.com/prefix",
+			want:      "https://fleet.example.com/prefix/device/abc123",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var appConfig AppConfig
+			appConfig.ServerSettings.ServerURL = c.serverURL
+			appConfig.FleetDesktop.AlternativeBrowserHost = c.alternativeBrowserHost
+
+			base, err := appConfig.FleetDesktopBrowserUrl()
+			require.NoError(t, err)
+			require.Equal(t, c.want, base.JoinPath("/device/abc123").String())
+		})
+	}
+}
