@@ -10854,6 +10854,44 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
+	// The BitLocker protection notification decides from these fields rather than from a dedicated query, so dropping
+	// them from this loader's SELECT would silently stop Fleet from ever restoring protection.
+	t.Run("carries bitlocker protection state", func(t *testing.T) {
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID("protection-state-uuid"),
+			fleet.WithEnrollOsqueryHardwareUUID("protection-state-uuid"),
+			fleet.WithEnrollOsqueryNodeKey("protection-state-node-key"),
+		)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   *h.OsqueryHostID,
+				HardwareSerial: h.HardwareSerial,
+			}),
+			fleet.WithEnrollOrbitNodeKey(orbitKey),
+		)
+		require.NoError(t, err)
+
+		// No host_disks row yet: the LEFT JOIN must yield nils rather than a false that reads as "reported unencrypted".
+		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.Nil(t, returned.DiskEncryptionEnabled)
+		require.Nil(t, returned.BitLockerProtectionStatus)
+		require.False(t, returned.TPMPINSet)
+
+		protectionOff := fleet.BitLockerProtectionStatusOff
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, h.ID, true, &protectionOff))
+
+		returned, err = ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.NotNil(t, returned.DiskEncryptionEnabled)
+		require.True(t, *returned.DiskEncryptionEnabled)
+		require.NotNil(t, returned.BitLockerProtectionStatus)
+		require.Equal(t, protectionOff, *returned.BitLockerProtectionStatus)
+	})
+
 	createOrbitHost := func(tag string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Platform:           tag,
