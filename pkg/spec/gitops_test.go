@@ -2016,7 +2016,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug")
+	require.ErrorContains(t, err, "install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
