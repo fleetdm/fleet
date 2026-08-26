@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -29271,6 +29272,118 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.NotEqual(t, customInstall, gotInstall, "an unedited install script follows the manifest")
 	require.NotEqual(t, customUninstall, gotUninstall, "an unedited uninstall script follows the manifest")
+}
+
+// The backfill migration recognizes a script Fleet published by hashing
+// script_contents in MySQL and looking that hash up in the maps
+// tools/software/fma-script-hashes generates from the manifests. This adds real
+// Fleet-maintained apps from the manifests checked into ee/maintained-apps, using
+// the add endpoint, and checks the scripts that land in the database against
+// those same generated maps. Only the installer bytes are faked.
+func (s *integrationEnterpriseTestSuite) TestFMARealManifestScriptsMatchHashMaps() {
+	t := s.T()
+	ctx := context.Background()
+
+	startRealFMAManifestServers(t, s.ds)
+
+	installHashes := readScriptHashMap(t, "install_script_hash_map.txt")
+	uninstallHashes := readScriptHashMap(t, "uninstall_script_hash_map.txt")
+
+	type maintainedApp struct {
+		ID   uint   `db:"id"`
+		Slug string `db:"slug"`
+	}
+	var apps []maintainedApp
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &apps, `SELECT id, slug FROM fleet_maintained_apps ORDER BY slug`)
+	})
+	require.NotEmpty(t, apps)
+	t.Logf("checking %d Fleet-maintained apps", len(apps))
+
+	var addFailed, installMismatched, uninstallMismatched []string
+	for _, app := range apps {
+		// a plain request, since the suite's helpers assert the status and would stop
+		// at the first app that fails to add rather than reporting all of them
+		req, err := http.NewRequest("POST", s.server.URL+"/api/latest/fleet/software/fleet_maintained_apps",
+			bytes.NewReader(jsonMustMarshal(t, &addFleetMaintainedAppRequest{AppID: app.ID, TeamID: new(uint(0))})))
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+		req.Header.Set("Content-Type", "application/json")
+		res, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		body, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			addFailed = append(addFailed, fmt.Sprintf("%s: HTTP %d %s", app.Slug, res.StatusCode, truncate(string(body), 160)))
+			continue
+		}
+
+		// ask MySQL for the hashes the migration would compute for this installer
+		var row struct {
+			Install   string `db:"install_hash"`
+			Uninstall string `db:"uninstall_hash"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT
+					SHA2(sci.contents, 256) AS install_hash,
+					SHA2(scu.contents, 256) AS uninstall_hash
+				FROM software_installers si
+				JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+				JOIN script_contents sci ON sci.id = si.install_script_content_id
+				JOIN script_contents scu ON scu.id = si.uninstall_script_content_id
+				WHERE fma.slug = ? AND si.is_active = 1`, app.Slug)
+		})
+
+		if _, found := installHashes[row.Install+" "+app.Slug]; !found {
+			installMismatched = append(installMismatched, app.Slug)
+		}
+		if _, found := uninstallHashes[row.Uninstall+" "+app.Slug]; !found {
+			uninstallMismatched = append(uninstallMismatched, app.Slug)
+		}
+	}
+
+	t.Logf("adds that failed: %d", len(addFailed))
+	for _, f := range addFailed {
+		t.Log("  " + f)
+	}
+	t.Logf("install scripts not in the hash map: %d", len(installMismatched))
+	for _, slug := range installMismatched {
+		t.Log("  " + slug)
+	}
+	t.Logf("uninstall scripts not in the hash map: %d", len(uninstallMismatched))
+	for _, slug := range uninstallMismatched {
+		t.Log("  " + slug)
+	}
+
+	require.Empty(t, installMismatched, "install scripts Fleet stored that the generator didn't record")
+	require.Empty(t, uninstallMismatched, "uninstall scripts Fleet stored that the generator didn't record")
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
+
+// readScriptHashMap returns the "<sha256> <slug>" lines of a generated hash map.
+func readScriptHashMap(t *testing.T, name string) map[string]struct{} {
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	b, err := os.ReadFile(filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(thisFile))),
+		"tools", "software", "fma-script-hashes", name))
+	require.NoError(t, err)
+
+	lines := make(map[string]struct{})
+	for line := range strings.SplitSeq(strings.TrimSpace(string(b)), "\n") {
+		// rejoin the fields the way the migration's parser does, so a checkout with
+		// CRLF endings still matches
+		if fields := strings.Fields(line); len(fields) == 2 {
+			lines[fields[0]+" "+fields[1]] = struct{}{}
+		}
+	}
+	return lines
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
