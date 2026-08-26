@@ -1211,8 +1211,10 @@ func orgLogoExtFromContentType(contentType string) (string, error) {
 		return ".jpg", nil
 	case "image/webp":
 		return ".webp", nil
+	case "image/svg+xml":
+		return ".svg", nil
 	}
-	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, or image/webp)", mediaType)
+	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, image/webp, or image/svg+xml)", mediaType)
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {

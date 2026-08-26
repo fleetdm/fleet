@@ -3276,6 +3276,23 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Equal(t, string(pngBody), cmd.FilesToWrite["lib/org_logo/dark.png"])
 	})
 
+	t.Run("SVG logo is exported with an .svg extension", func(t *testing.T) {
+		svgBody := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>`)
+		cmd, _ := newOrgLogoCommand(t,
+			&orgLogoStub{MockClient: &MockClient{}, body: svgBody, contentType: "image/svg+xml"},
+			fleet.OrgInfo{
+				OrgName:            "ACME",
+				OrgLogoURLDarkMode: "https://fleet.example.com/api/latest/fleet/logo?mode=dark",
+			},
+		)
+
+		orgInfo, err := cmd.generateOrgInfo()
+		require.NoError(t, err)
+
+		assert.Equal(t, "./lib/org_logo/dark.svg", orgInfo["org_logo_path_dark_mode"])
+		assert.Equal(t, string(svgBody), cmd.FilesToWrite["lib/org_logo/dark.svg"])
+	})
+
 	t.Run("external URLs are exported unchanged (existing customer configs)", func(t *testing.T) {
 		stub := &orgLogoStub{
 			MockClient: &MockClient{},
@@ -3324,6 +3341,36 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestOrgLogoExtFromContentType(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		contentType string
+		wantExt     string
+		wantErr     bool
+	}{
+		{contentType: "image/png", wantExt: ".png"},
+		{contentType: "image/jpeg", wantExt: ".jpg"},
+		{contentType: "image/webp", wantExt: ".webp"},
+		{contentType: "image/svg+xml", wantExt: ".svg"},
+		// The serving endpoint may append parameters to the header.
+		{contentType: "image/svg+xml; charset=utf-8", wantExt: ".svg"},
+		{contentType: "image/gif", wantErr: true},
+		{contentType: "application/octet-stream", wantErr: true},
+		{contentType: "", wantErr: true},
+	} {
+		t.Run(tc.contentType, func(t *testing.T) {
+			ext, err := orgLogoExtFromContentType(tc.contentType)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantExt, ext)
+		})
+	}
 }
 
 func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {
