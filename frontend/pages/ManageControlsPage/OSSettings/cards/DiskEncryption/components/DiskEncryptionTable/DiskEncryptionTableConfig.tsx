@@ -168,21 +168,41 @@ const STATUS_ORDER = [
   "removing_enforcement",
 ] as const;
 
+/** Enforce-only (macOS enforce on, escrow off) hosts never send Fleet a key,
+ * so these statuses drop the key phrasing. */
+const ENFORCE_ONLY_STATUS_TOOLTIPS: Partial<
+  Record<DiskEncryptionStatus, string>
+> = {
+  verified:
+    "These hosts turned disk encryption on. Fleet verified with osquery.",
+  verifying:
+    "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
+    "osquery. This may take up to one hour.",
+};
+
 export const generateTableData = (
   platform: keyof IDiskEncryptionStatusAggregate,
   data?: IDiskEncryptionSummaryResponse,
-  currentTeamId?: number
+  currentTeamId?: number,
+  isEnforceOnly = false
 ) => {
   if (!data) return [];
 
   const rowFromStatusEntry = (
     status: DiskEncryptionStatus,
     statusAggregate: IDiskEncryptionStatusAggregate
-  ) => ({
-    status: STATUS_CELL_VALUES[status],
-    hosts: statusAggregate[platform],
-    teamId: currentTeamId,
-  });
+  ) => {
+    const enforceOnlyTooltip = isEnforceOnly
+      ? ENFORCE_ONLY_STATUS_TOOLTIPS[status]
+      : undefined;
+    return {
+      status: enforceOnlyTooltip
+        ? { ...STATUS_CELL_VALUES[status], tooltip: enforceOnlyTooltip }
+        : STATUS_CELL_VALUES[status],
+      hosts: statusAggregate[platform],
+      teamId: currentTeamId,
+    };
+  };
 
   return STATUS_ORDER.map((status) => rowFromStatusEntry(status, data[status]));
 };

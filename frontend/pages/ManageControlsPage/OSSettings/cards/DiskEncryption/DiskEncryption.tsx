@@ -5,7 +5,6 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { notify } from "components/ToastNotification";
-import { IMdmConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 import {
   DISK_ENCRYPTION_SETTINGS_PLATFORMS,
@@ -37,46 +36,14 @@ import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
-import { getErrorMessage } from "./helpers";
+import {
+  getDiskEncryptionSettings,
+  getErrorMessage,
+  IDiskEncryptionSettings,
+} from "./helpers";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
-
-interface IDiskEncryptionSettings {
-  macOSEnabled: boolean;
-  macOSEscrowEnabled: boolean;
-  windowsEnabled: boolean;
-  windowsPINRequired: boolean;
-  linuxEscrowEnabled: boolean;
-}
-
-type IMdmDiskEncryptionSource = IMdmConfig | NonNullable<ITeamConfig["mdm"]>;
-
-const getDiskEncryptionSettings = (
-  mdm?: IMdmDiskEncryptionSource
-): IDiskEncryptionSettings => {
-  // fall back to the deprecated top-level keys so configs from servers that
-  // don't return the per-platform fields yet still render their effective
-  // state
-  const legacyEnabled = mdm?.enable_disk_encryption ?? false;
-  const windowsEnabled =
-    mdm?.windows_settings?.enable_disk_encryption ?? legacyEnabled;
-  return {
-    macOSEnabled: mdm?.apple_settings?.enable_disk_encryption ?? legacyEnabled,
-    macOSEscrowEnabled:
-      mdm?.apple_settings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
-    windowsEnabled,
-    // the server rejects a PIN requirement without encryption, so a stale PIN
-    // flag must not make it into the form
-    windowsPINRequired:
-      windowsEnabled &&
-      (mdm?.windows_settings?.require_bitlocker_pin ??
-        mdm?.windows_require_bitlocker_pin ??
-        false),
-    linuxEscrowEnabled:
-      mdm?.linux_settings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
-  };
-};
 
 const PLATFORM_TAB_NAMES: Record<DiskEncryptionSettingsPlatform, string> = {
   macos: "macOS",
@@ -384,6 +351,11 @@ const DiskEncryption = ({
           <DiskEncryptionTable
             platform={platform}
             currentTeamId={currentTeamId}
+            isEnforceOnly={
+              platform === "macos" &&
+              savedSettings.macOSEnabled &&
+              !savedSettings.macOSEscrowEnabled
+            }
             router={router}
           />
         ) : (

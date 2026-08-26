@@ -34,6 +34,9 @@ export interface IControlMessageProps {
   isDiskEncryptionProfile: boolean;
   /** True on the My device page, where the end user reads the message. */
   isDeviceUser: boolean;
+  /** Fleet setting for macOS: disk encryption enforced without key escrow.
+   * Disk encryption messages drop their key phrasing. */
+  isDiskEncryptionEnforceOnly?: boolean;
   /** UUID of the profile associated with the control. Can be used with prefix checks to determine the type of profile. */
   profileUUID: string;
 }
@@ -88,20 +91,26 @@ type OperationTypeOption = Record<ProfileStatus, ProfileDisplayOption>;
 
 type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
 
-const diskEncryptionVerifiedMessage: ControlMessage = ({ hostDisplayName }) => (
+const diskEncryptionVerifiedMessage: ControlMessage = ({
+  hostDisplayName,
+  isDiskEncryptionEnforceOnly,
+}) => (
   <>
-    <b>{hostDisplayName}</b> turned disk encryption on and sent the key to
-    Fleet. Fleet verified.
+    <b>{hostDisplayName}</b> turned disk encryption on
+    {!isDiskEncryptionEnforceOnly && " and sent the key to Fleet"}. Fleet
+    verified.
   </>
 );
 
 const diskEncryptionVerifyingMessage: ControlMessage = ({
   hostDisplayName,
+  isDiskEncryptionEnforceOnly,
 }) => (
   <>
     <b>{hostDisplayName}</b> acknowledged the MDM command to turn on disk
-    encryption. Fleet is verifying with osquery and retrieving the disk
-    encryption key. This may take up to one hour.
+    encryption. Fleet is verifying with osquery
+    {!isDiskEncryptionEnforceOnly && " and retrieving the disk encryption key"}.
+    This may take up to one hour.
   </>
 );
 

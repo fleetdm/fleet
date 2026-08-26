@@ -48,6 +48,44 @@ describe("ControlDetailsModal", () => {
     expect(screen.getByText(/Fleet verified\./)).toBeInTheDocument();
   });
 
+  it("drops the key phrasing for the FileVault profile when the fleet is enforce-only", () => {
+    renderModal({
+      isDiskEncryptionEnforceOnly: true,
+      control: createMockHostMdmProfile({
+        name: "Disk encryption",
+        platform: "darwin",
+        operation_type: "install",
+        status: "verified",
+        detail: "",
+      }),
+    });
+
+    expect(
+      screen.getByText(/turned disk encryption on\. Fleet verified\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/sent the key to Fleet/)).toBeNull();
+  });
+
+  it("drops the key retrieval phrasing while verifying when the fleet is enforce-only", () => {
+    renderModal({
+      isDiskEncryptionEnforceOnly: true,
+      control: createMockHostMdmProfile({
+        name: "Disk encryption",
+        platform: "darwin",
+        operation_type: "install",
+        status: "verifying",
+        detail: "",
+      }),
+    });
+
+    expect(
+      screen.getByText(
+        /Fleet is verifying with osquery\. This may take up to one hour\./
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/retrieving the disk encryption key/)).toBeNull();
+  });
+
   it("uses the disk encryption wording for the FileVault profile", () => {
     renderModal({
       control: createMockHostMdmProfile({

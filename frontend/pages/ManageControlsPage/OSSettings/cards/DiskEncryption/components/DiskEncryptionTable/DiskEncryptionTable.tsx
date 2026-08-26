@@ -28,6 +28,9 @@ const baseClass = "disk-encryption-table";
 interface IDiskEncryptionTableProps {
   platform: keyof IDiskEncryptionStatusAggregate;
   currentTeamId?: number;
+  /** macOS enforce-on/escrow-off: hosts never send Fleet a key, so status
+   * tooltips drop the key phrasing. */
+  isEnforceOnly?: boolean;
   router: InjectedRouter;
 }
 interface IDiskEncryptionRowProps extends Row {
@@ -41,6 +44,7 @@ interface IDiskEncryptionRowProps extends Row {
 const DiskEncryptionTable = ({
   platform,
   currentTeamId,
+  isEnforceOnly = false,
   router,
 }: IDiskEncryptionTableProps) => {
   const {
@@ -74,7 +78,8 @@ const DiskEncryptionTable = ({
   const tableData = generateTableData(
     platform,
     diskEncryptionStatusData,
-    currentTeamId
+    currentTeamId,
+    isEnforceOnly
   );
 
   if (diskEncryptionStatusError) {
