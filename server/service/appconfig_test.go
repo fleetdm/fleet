@@ -926,6 +926,16 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
 			},
 		},
+		{
+			name:             "enabling SSO on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{SSOEnabled: true},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "sso_enabled", "reason": "missing or invalid license"},
+			},
+		},
 	}
 
 	for _, tt := range testCases {
@@ -980,11 +990,13 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			if modified != nil {
 				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
 				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
+				require.Equal(t, tt.expectedSettings.SSOEnabled, modified.FleetDesktop.SSOEnabled)
 
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
 				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
+				require.Equal(t, tt.expectedSettings.SSOEnabled, ac.FleetDesktop.SSOEnabled)
 			}
 
 			expectedURL := fleet.DefaultTransparencyURL
@@ -1007,6 +1019,131 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 			require.Equal(t, expectedSecureframeURL, transparencyURL)
 		})
 	}
+}
+
+func TestModifyAppConfigFleetDesktopSSOActivities(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	configuredIdP := fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+		IDPName:     "Test IdP",
+		EntityID:    "https://idp.example.com/entity",
+		MetadataURL: "https://idp.example.com/metadata",
+	}}
+
+	newSvc := func(t *testing.T, licenseTier string, initialSSOEnabled bool, initialIdP fleet.MDMEndUserAuthentication) (
+		fleet.Service, context.Context, *fleet.AppConfig, *[]string,
+	) {
+		ds := new(mock.Store)
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			FleetDesktop:   fleet.FleetDesktopSettings{SSOEnabled: initialSSOEnabled},
+		}
+		dsAppConfig.MDM.EndUserAuthentication = initialIdP
+
+		// AppConfigFunc must return a fresh copy each call: ModifyAppConfig
+		// mutates the struct it reads in place while validating, even on
+		// requests that ultimately fail, so returning the same pointer would
+		// leak those in-progress mutations into dsAppConfig on error paths.
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig.Copy(), nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) { return nil, nil }
+		// Changing MDM.EndUserAuthentication triggers a DEP profile re-sync job.
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: licenseTier}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		var firedActivities []string
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			firedActivities = append(firedActivities, act.ActivityName())
+			return nil
+		}
+
+		return svc, ctx, dsAppConfig, &firedActivities
+	}
+
+	t.Run("premium enabling SSO and IdP in the same payload succeeds", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, false, fleet.MDMEndUserAuthentication{})
+
+		raw, err := json.Marshal(map[string]any{
+			"fleet_desktop": fleet.FleetDesktopSettings{SSOEnabled: true},
+			"mdm":           map[string]any{"end_user_authentication": configuredIdP},
+		})
+		require.NoError(t, err)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, modified.FleetDesktop.SSOEnabled)
+		require.True(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Equal(t, []string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
+	})
+
+	t.Run("disabling SSO fires the disabled activity", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+
+		raw := []byte(`{"fleet_desktop":{"sso_enabled":false}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Equal(t, []string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
+	})
+
+	t.Run("reasserting the same value fires no activity", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+
+		raw := []byte(`{"fleet_desktop":{"sso_enabled":true}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, modified.FleetDesktop.SSOEnabled)
+		require.True(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Empty(t, *firedActivities)
+	})
+
+	t.Run("free tier downgrade resets the stored value and fires the disabled activity", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierFree, true, configuredIdP)
+
+		raw := []byte(`{"org_info":{"org_name":"Renamed"}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Equal(t, "Renamed", dsAppConfig.OrgInfo.OrgName)
+		require.Equal(t, []string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()}, *firedActivities)
+	})
+
+	t.Run("gitops omitting sso_enabled turns it off", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierPremium, true, configuredIdP)
+		dsAppConfig.FleetDesktop.TransparencyURL = "https://kept.example.com"
+
+		raw := []byte(`{"org_info":{"org_name":"Test"}}`)
+		modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{Overwrite: true})
+		require.NoError(t, err)
+		require.False(t, modified.FleetDesktop.SSOEnabled)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		// Overwrite also replaces Features, which emits its own activities here,
+		// so assert on the SSO ones rather than the whole list.
+		require.Contains(t, *firedActivities, fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName())
+		require.NotContains(t, *firedActivities, fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName())
+		// The reset is scoped to sso_enabled: siblings still preserve on omit.
+		require.Equal(t, "https://kept.example.com", dsAppConfig.FleetDesktop.TransparencyURL)
+	})
+
+	t.Run("free tier reset fires no activity when already disabled", func(t *testing.T) {
+		svc, ctx, dsAppConfig, firedActivities := newSvc(t, fleet.TierFree, false, fleet.MDMEndUserAuthentication{})
+
+		raw := []byte(`{"org_info":{"org_name":"Renamed"}}`)
+		_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.False(t, dsAppConfig.FleetDesktop.SSOEnabled)
+		require.Empty(t, *firedActivities)
+	})
 }
 
 // TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name

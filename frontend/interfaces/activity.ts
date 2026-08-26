@@ -108,6 +108,8 @@ export enum ActivityType {
   DisabledWindowsMdm = "disabled_windows_mdm",
   EnabledGitOpsMode = "enabled_gitops_mode",
   DisabledGitOpsMode = "disabled_gitops_mode",
+  EnabledSSOFleetDesktop = "enabled_sso_fleet_desktop",
+  DisabledSSOFleetDesktop = "disabled_sso_fleet_desktop",
   EnabledGitOpsException = "enabled_gitops_exception",
   DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
@@ -491,6 +493,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
   disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
+  disabled_sso_fleet_desktop: "Disabled single sign-on (SSO) for Fleet Desktop",
   disabled_vpp: "Disabled Volume Purchasing Program (VPP)",
   disabled_windows_mdm: "Turned off Windows MDM",
   disabled_windows_mdm_migration: "Turned off Windows MDM migration",
@@ -527,6 +530,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
   enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
+  enabled_sso_fleet_desktop: "Enabled single sign-on (SSO) for Fleet Desktop",
   enabled_vpp: "Enabled Volume Purchasing Program (VPP)",
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",
