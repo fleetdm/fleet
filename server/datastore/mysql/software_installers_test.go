@@ -3296,20 +3296,13 @@ func testGetHostLastInstallDataAppOpenSkip(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// createPolicy makes a team policy tied to the installer's title, optionally patch-when-closed.
-	// patch_when_closed is set directly since NewTeamPolicy doesn't expose it on this simplified path.
 	createPolicy := func(patchWhenClosed bool) uint {
 		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
-			Name:  "policy-" + uuid.NewString(),
-			Query: "SELECT 1;",
+			Name:            "policy-" + uuid.NewString(),
+			Query:           "SELECT 1;",
+			PatchWhenClosed: patchWhenClosed,
 		})
 		require.NoError(t, err)
-		if patchWhenClosed {
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`, p.ID)
-				return err
-			})
-		}
 		return p.ID
 	}
 
