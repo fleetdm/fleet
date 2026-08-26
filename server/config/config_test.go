@@ -1349,3 +1349,41 @@ func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
 		require.True(t, called)
 	})
 }
+
+func TestValidateWebSocketConfig(t *testing.T) {
+	t.Parallel()
+	valid := WebSocketConfig{
+		TransportEnabled: true,
+		PingInterval:     5 * time.Minute,
+		PongTimeout:      30 * time.Second,
+		CheckInterval:    30 * time.Second,
+		CheckBatchSize:   500,
+	}
+
+	t.Run("valid", func(t *testing.T) {
+		valid.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	t.Run("invalid values ignored when transport disabled", func(t *testing.T) {
+		cfg := WebSocketConfig{TransportEnabled: false}
+		cfg.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	for _, c := range []struct {
+		name   string
+		mutate func(*WebSocketConfig)
+	}{
+		{"zero ping_interval", func(c *WebSocketConfig) { c.PingInterval = 0 }},
+		{"negative pong_timeout", func(c *WebSocketConfig) { c.PongTimeout = -time.Second }},
+		{"zero check_interval", func(c *WebSocketConfig) { c.CheckInterval = 0 }},
+		{"zero check_batch_size", func(c *WebSocketConfig) { c.CheckBatchSize = 0 }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := valid
+			c.mutate(&cfg)
+			called := false
+			cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
+}

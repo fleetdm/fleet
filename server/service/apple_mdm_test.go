@@ -3933,6 +3933,69 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	}
 }
 
+func TestMDMCommandAndReportResultsDeclarativeManagementDetail(t *testing.T) {
+	ctx := t.Context()
+	hostUUID := "DDM-HOST-UUID"
+	commandUUID := "DDM-CMD-UUID"
+
+	cases := []struct {
+		status     string
+		errors     []mdm.ErrorChain
+		wantStatus *fleet.MDMDeliveryStatus
+		wantDetail string
+	}{
+		{
+			status:     fleet.MDMAppleStatusAcknowledged,
+			wantStatus: &fleet.MDMDeliveryVerifying,
+			wantDetail: "",
+		},
+		{
+			status:     fleet.MDMAppleStatusNotNow,
+			wantStatus: &fleet.MDMDeliveryPending,
+			wantDetail: "",
+		},
+		{
+			status: fleet.MDMAppleStatusError,
+			errors: []mdm.ErrorChain{
+				{ErrorCode: 12001, ErrorDomain: "MDMClientError", USEnglishDescription: "declaration error"},
+			},
+			wantStatus: &fleet.MDMDeliveryFailed,
+			wantDetail: "MDMClientError (12001): declaration error\n. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.status, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
+				return "DeclarativeManagement", nil
+			}
+			var gotStatus *fleet.MDMDeliveryStatus
+			var gotDetail string
+			ds.MDMAppleSetPendingDeclarationsAsFunc = func(_ context.Context, _ string, _ fleet.PayloadScope, status *fleet.MDMDeliveryStatus, detail string) error {
+				gotStatus = status
+				gotDetail = detail
+				return nil
+			}
+
+			_, err := svc.CommandAndReportResults(
+				&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: hostUUID}},
+				&mdm.CommandResults{
+					Enrollment:  mdm.Enrollment{UDID: hostUUID},
+					CommandUUID: commandUUID,
+					Status:      c.status,
+					ErrorChain:  c.errors,
+				},
+			)
+			require.NoError(t, err)
+			require.True(t, ds.MDMAppleSetPendingDeclarationsAsFuncInvoked)
+			require.Equal(t, c.wantStatus, gotStatus)
+			assert.Equal(t, c.wantDetail, gotDetail)
+		})
+	}
+}
+
 // TestMaybeQueueCertificateListForACMEProfile verifies the on-demand
 // CertificateList trigger fires only on macOS hosts whose acked profile
 // contains an ACME payload, and that it dedups against pending refetches.
@@ -4445,6 +4508,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 			return false, nil
 		}
+		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
+			return false, nil
+		}
 		var activityCmdResult *mdm.CommandResults
 		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, c *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 			activityCmdResult = c
@@ -4512,6 +4578,73 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		// Verification path NOT entered (status was not promoted).
 		require.False(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
 	})
+}
+
+// TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure covers the
+// iPad terminal-failure emission path in the InstallApplication handler.
+// Before #45011, this branch called GetPastActivityDataForVPPAppInstall and
+// emitted the activity without ever consulting IsAutoUpdateVPPInstall, so a
+// scheduled auto-update that terminally failed was attributed to actor_full_name
+// instead of Fleet. The InstalledApplicationList success handler already did
+// the right thing; this test locks in parity for the failure path.
+func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testing.T) {
+	const (
+		hostUUID    = "HOST-UUID-AUTO"
+		commandUUID = "CMD-UUID-AUTO"
+	)
+	ctx := t.Context()
+
+	ds := new(mock.Store)
+	var emitted *fleet.ActivityInstalledAppStoreApp
+	svc := MDMAppleCheckinAndCommandService{
+		ds:     ds,
+		logger: slog.New(slog.DiscardHandler),
+		newActivityFn: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+			// Capture the emitted VPP-install activity so we can assert on the
+			// FromAutoUpdate flag downstream.
+			if a, ok := act.(*fleet.ActivityInstalledAppStoreApp); ok {
+				emitted = a
+			}
+			return nil
+		},
+	}
+
+	ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, cmd string) (string, error) {
+		require.Equal(t, commandUUID, cmd)
+		return "InstallApplication", nil
+	}
+	// Retry-exhausted install so we fall through to the failure-activity emission.
+	ds.GetHostVPPInstallByCommandUUIDFunc = func(_ context.Context, _ string) (*fleet.HostVPPSoftwareInstallLite, error) {
+		return &fleet.HostVPPSoftwareInstallLite{HostID: 1, RetryCount: fleet.MaxSoftwareInstallAttempts}, nil
+	}
+	ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
+		return false, nil
+	}
+	ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, cmd string) (bool, error) {
+		require.Equal(t, commandUUID, cmd)
+		return true, nil
+	}
+	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{Type: mdm.Device, ID: hostUUID}},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain: []mdm.ErrorChain{
+				{ErrorCode: 9610, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Cannot establish a connection."},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	require.True(t, ds.IsAutoUpdateVPPInstallFuncInvoked)
+	require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
+	require.NotNil(t, emitted)
+	require.True(t, emitted.FromAutoUpdate, "auto-update terminal failures must carry FromAutoUpdate so the activity is attributed to Fleet")
 }
 
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
@@ -5061,7 +5194,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil, nil)
+			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, fleet.MDMDiskEncryptionSettingsPayload{})
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return

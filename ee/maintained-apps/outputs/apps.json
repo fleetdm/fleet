@@ -4027,6 +4027,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "Harmony SASE",
+      "slug": "harmony-sase/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.safervpn.osx.smb",
+      "description": "Harmony SASE is a zero trust network access platform, formerly Perimeter 81."
+    },
+    {
       "name": "Hazel",
       "slug": "hazel/darwin",
       "platform": "darwin",
@@ -4405,32 +4412,18 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.intellij.ce",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/windows",
-      "platform": "windows",
-      "unique_identifier": "IntelliJ IDEA Community Edition",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.intellij",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/windows",
       "platform": "windows",
       "unique_identifier": "IntelliJ IDEA",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
       "name": "Company Portal",

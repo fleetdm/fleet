@@ -78,6 +78,7 @@ const ControlDetailsModal = ({
           settingName: control.name,
           isDiskEncryptionProfile: isDiskEncryptionProfile(control.name),
           isDeviceUser,
+          profileUUID: control.profile_uuid,
         });
   };
 

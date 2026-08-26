@@ -849,6 +849,14 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 
 	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
+	// SSOInitiatorFleetDesktop is only ever legitimately set
+	// server-side by InitiateDeviceSSO, after the device token has been
+	// verified.
+	if initiator == fleet.SSOInitiatorFleetDesktop {
+		err := &fleet.BadRequestError{Message: "invalid initiator"}
+		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+	}
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
@@ -913,6 +921,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
 		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
+		fleet.SSORelayStateNone,
 		sso.SSORequestData{
 			HostUUID:  hostUUID,
 			Initiator: initiator,
@@ -925,7 +934,20 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
+// deviceSSOErrorURL sends the end user back to the device page they came from,
+// flagging why sign-in did not produce a session.
+func deviceSSOErrorURL(originalURL, reason string) string {
+	u, err := url.Parse(originalURL)
+	if err != nil {
+		return apple_mdm.FleetUISSOCallbackError
+	}
+	q := u.Query()
+	q.Set("sso_error", reason)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue, deviceSSOSessionID string, deviceSSOSessionDurationSeconds int) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the MDM SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -936,20 +958,22 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	if err != nil {
 		logging.WithErr(ctx, err)
 		if errors.Is(err, sso.ErrSessionNotFound) {
-			return apple_mdm.FleetUISSOCallbackSessionExpired, ""
+			return apple_mdm.FleetUISSOCallbackSessionExpired, "", "", 0
 		}
-		return apple_mdm.FleetUISSOCallbackError, ""
+		return apple_mdm.FleetUISSOCallbackError, "", "", 0
 	}
 
-	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience {
-		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
+	if !strings.HasPrefix(originalURL, "/enroll?") &&
+		ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience &&
+		ssoRequestData.Initiator != fleet.SSOInitiatorFleetDesktop {
+		// For flows other than the /enroll BYOD, we have to ensure that Apple MDM
 		// is enabled (this was previously done in a middleware on the route, but
 		// we do it here now so the middleware is disabled for the BYOD flow, which
 		// handles the MDM not enabled differently, via a custom error page, as it
 		// supports not just Apple MDM).
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			logging.WithErr(ctx, err)
-			return apple_mdm.FleetUISSOCallbackError, ""
+			return apple_mdm.FleetUISSOCallbackError, "", "", 0
 		}
 	}
 
@@ -974,7 +998,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 			token, err := svc.ds.GetABMTokenByUniqueToken(ctx, uniqueToken)
 			if err != nil {
 				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get ABM token by unique token for account driven enrollment"))
-				return apple_mdm.FleetUISSOCallbackError, ""
+				return apple_mdm.FleetUISSOCallbackError, "", "", 0
 			}
 			abmTokenID = &token.ID
 		}
@@ -982,12 +1006,12 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		challenge, err := svc.ds.InsertADUEEnrollmentChallenge(ctx, abmTokenID, enrollmentRef, fleet.ADUEEnrollmentChallengeExpiration)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "insert ADUE enrollment challenge for account driven enrollment"))
-			return apple_mdm.FleetUISSOCallbackError, ""
+			return apple_mdm.FleetUISSOCallbackError, "", "", 0
 		}
 
 		// For account driven enrollment we have to use this special protocol URL scheme to pass the
 		// access token back to Apple which it will then use to request the enrollment profile.
-		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", challenge), ""
+		return fmt.Sprintf("apple-remotemanagement-user-login://authentication-results?access-token=%s", challenge), "", "", 0
 
 	case strings.HasPrefix(originalURL, "/enroll?"):
 		// redirect to the original URL with a cookie that identifies this device
@@ -996,7 +1020,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		u, err := url.Parse(originalURL)
 		if err != nil {
 			logging.WithErr(ctx, err)
-			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to parse original URL."), ""
+			return "/enroll?error=" + url.QueryEscape("An error occurred. : Failed to parse original URL."), "", "", 0
 		}
 		// port over the query string values, which will copy over the enrollment
 		// secret
@@ -1004,10 +1028,37 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 			q.Add(k, v[0])
 		}
 		u.RawQuery = q.Encode()
-		return u.String(), enrollmentRef
+		return u.String(), enrollmentRef, "", 0
+
+	case ssoRequestData.Initiator == fleet.SSOInitiatorFleetDesktop:
+		// Re-check the feature is still on: an admin may have disabled it between
+		// initiation and this callback, and a session minted now would outlive
+		// that change by its whole TTL.
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get app config for device sso callback"))
+			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		}
+		if !appConfig.FleetDesktop.SSOEnabled {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, errors.New("fleet desktop sso is disabled"), "device sso callback"))
+			return deviceSSOErrorURL(originalURL, "sso_disabled"), "", "", 0
+		}
+
+		host, err := svc.ds.HostByUUID(ctx, ssoRequestData.HostUUID)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get host for device sso callback"))
+			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		}
+
+		deviceSSOSessionID, deviceSSOSessionTTL, err := svc.createDeviceSSOSession(ctx, host, enrollmentRef)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "create device sso session"))
+			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		}
+		return originalURL, "", deviceSSOSessionID, int(deviceSSOSessionTTL.Seconds())
 
 	default:
-		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode()), ""
+		return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode()), "", "", 0
 	}
 }
 
@@ -1415,7 +1466,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 	}
 
 	var linux fleet.MDMLinuxDiskEncryptionSummary
-	if diskEncryptionConfig.Enabled {
+	if diskEncryptionConfig.LinuxEscrowEnabled {
 		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")

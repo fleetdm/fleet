@@ -8,6 +8,7 @@ import {
   ProfileOperationType,
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
+import { isDDMProfile } from "services/entities/mdm";
 
 import { IconNames } from "components/icons";
 
@@ -33,6 +34,8 @@ export interface IControlMessageProps {
   isDiskEncryptionProfile: boolean;
   /** True on the My device page, where the end user reads the message. */
   isDeviceUser: boolean;
+  /** UUID of the profile associated with the control. Can be used with prefix checks to determine the type of profile. */
+  profileUUID: string;
 }
 
 export type ControlMessage =
@@ -141,7 +144,10 @@ const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
     ) : (
       <>
         <b>{props.hostDisplayName}</b> acknowledged the MDM command to apply{" "}
-        <b>{props.settingName}</b>. Fleet is verifying with osquery.
+        <b>{props.settingName}</b>.
+        {!isDDMProfile({ profile_uuid: props.profileUUID }) && (
+          <> Fleet is verifying with osquery.</>
+        )}
       </>
     ),
 };

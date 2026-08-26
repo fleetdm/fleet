@@ -670,6 +670,14 @@ type MDMHostData struct {
 	// svc.getHostDetails is called).
 	EncryptionKeyArchived *bool `json:"encryption_key_archived,omitempty" db:"encryption_key_archived" csv:"-"`
 
+	// BootstrapTokenEscrowed indicates if Fleet has escrowed a bootstrap token for the
+	// macOS host. The bootstrap token is used by macOS to authorize certain MDM
+	// operations, such as remote wipe and OS updates, without requiring a user with a
+	// secure token to be logged in. It is only applicable to macOS hosts, and it is not
+	// filled in by all host-returning methods (currently only populated if
+	// svc.getHostDetails is called).
+	BootstrapTokenEscrowed *bool `json:"bootstrap_token_escrowed,omitempty" db:"-" csv:"-"`
+
 	// this is set to nil if the key exists but decryptable is NULL in the db, 1
 	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
 	// exists for this host. Used internally to determine the disk_encryption
@@ -1514,6 +1522,7 @@ const (
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 	WellKnownMDMFleet     = "Fleet"
 	WellKnownMDMMosyle    = "Mosyle"
+	WellKnownMDMZentral   = "Zentral"
 )
 
 // mdmNameFromServerURLChecks maps URL substrings to well-known MDM solution names.
@@ -1535,6 +1544,7 @@ var mdmNameFromServerURLChecks = []struct {
 	{"simplemdm", WellKnownMDMSimpleMDM},
 	{"fleetdm", WellKnownMDMFleet},
 	{"mosyle", WellKnownMDMMosyle},
+	{"zentral", WellKnownMDMZentral},
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the

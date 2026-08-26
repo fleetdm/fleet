@@ -576,8 +576,6 @@ type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
-type ReconcileSoftwareChecksumsFunc func(ctx context.Context) error
-
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
@@ -672,7 +670,9 @@ type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, script
 
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
-type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int) (int, error)
+type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error)
+
+type ReleaseFleetInitiatedUpcomingActivitiesFunc func(ctx context.Context, maxHosts int) (int, error)
 
 type ReapStuckActivatedMDMInstallsFunc func(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error)
 
@@ -2050,6 +2050,8 @@ type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Ho
 
 type InsertMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
 
+type GetMDMAndroidCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
+
 type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
 
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
@@ -3189,9 +3191,6 @@ type DataStore struct {
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
 
-	ReconcileSoftwareChecksumsFunc        ReconcileSoftwareChecksumsFunc
-	ReconcileSoftwareChecksumsFuncInvoked bool
-
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
 
@@ -3335,6 +3334,9 @@ type DataStore struct {
 
 	UnblockHostsUpcomingActivityQueueFunc        UnblockHostsUpcomingActivityQueueFunc
 	UnblockHostsUpcomingActivityQueueFuncInvoked bool
+
+	ReleaseFleetInitiatedUpcomingActivitiesFunc        ReleaseFleetInitiatedUpcomingActivitiesFunc
+	ReleaseFleetInitiatedUpcomingActivitiesFuncInvoked bool
 
 	ReapStuckActivatedMDMInstallsFunc        ReapStuckActivatedMDMInstallsFunc
 	ReapStuckActivatedMDMInstallsFuncInvoked bool
@@ -5399,6 +5401,9 @@ type DataStore struct {
 
 	InsertMDMAndroidCommandFunc        InsertMDMAndroidCommandFunc
 	InsertMDMAndroidCommandFuncInvoked bool
+
+	GetMDMAndroidCommandResultsFunc        GetMDMAndroidCommandResultsFunc
+	GetMDMAndroidCommandResultsFuncInvoked bool
 
 	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
 	ClearHostMDMActionsFuncInvoked bool
@@ -7800,13 +7805,6 @@ func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.
 	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) ReconcileSoftwareChecksums(ctx context.Context) error {
-	s.mu.Lock()
-	s.ReconcileSoftwareChecksumsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ReconcileSoftwareChecksumsFunc(ctx)
-}
-
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
 	s.HostVulnSummariesBySoftwareIDsFuncInvoked = true
@@ -8136,11 +8134,18 @@ func (s *DataStore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint
 	return s.GetHostUpcomingActivityMetaFunc(ctx, hostID, executionID)
 }
 
-func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	s.mu.Lock()
 	s.UnblockHostsUpcomingActivityQueueFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts)
+	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts, skipFleetInitiated)
+}
+
+func (s *DataStore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	s.mu.Lock()
+	s.ReleaseFleetInitiatedUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReleaseFleetInitiatedUpcomingActivitiesFunc(ctx, maxHosts)
 }
 
 func (s *DataStore) ReapStuckActivatedMDMInstalls(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error) {
@@ -12957,6 +12962,13 @@ func (s *DataStore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MD
 	s.InsertMDMAndroidCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMAndroidCommandFunc(ctx, cmd)
+}
+
+func (s *DataStore) GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
 func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {

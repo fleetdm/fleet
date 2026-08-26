@@ -191,6 +191,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -199,6 +200,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -279,6 +281,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: new("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 		ctx = test.HostContext(ctx, host)
@@ -287,6 +290,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -352,6 +356,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
+			Platform:      "ubuntu",
 			ID:            1,
 		}
 
@@ -359,6 +364,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{
 					EnableDiskEncryption: optjson.SetBool(true),
+					LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
 				},
 			}, nil
 		}
@@ -739,6 +745,67 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, cfg.NudgeConfig)
 		require.True(t, ds.GetHostOperatingSystemFuncInvoked)
+	})
+}
+
+func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
+	setupCtx := func(wsEnabled bool) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.WebSocket.TransportEnabled = wsEnabled
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return new(json.RawMessage(`{}`)), nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, newNotFoundError()
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: new("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(uint(1)),
+		})
+		return svc, ctx
+	}
+
+	t.Run("enabled", func(t *testing.T) {
+		svc, ctx := setupCtx(true)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.True(t, cfg.WebSocketTransport.Enabled)
+	})
+
+	t.Run("disabled omits the directive", func(t *testing.T) {
+		svc, ctx := setupCtx(false)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WebSocketTransport)
 	})
 }
 

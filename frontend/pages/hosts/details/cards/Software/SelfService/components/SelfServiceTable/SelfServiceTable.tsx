@@ -92,9 +92,6 @@ const SelfServiceTable = ({
           initialSortPage === 0
         }
         pageSize={9999}
-        searchQuery={queryParams.query}
-        searchQueryColumn="name"
-        isClientSideFilter
         isClientSidePagination
         disableAutoResetPage
         onClientSidePaginationChange={onClientSidePaginationChange}
