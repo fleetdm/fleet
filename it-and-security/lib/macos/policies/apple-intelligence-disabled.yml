@@ -1,0 +1,17 @@
+- name: Apple Intelligence disabled
+  query: |-
+    SELECT 1 WHERE EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.applicationaccess'
+        AND name = 'allowAppleIntelligence'
+        AND (value = 0 OR value = '0' OR value = 'false')
+      LIMIT 1
+    );
+  critical: false
+  description: |-
+    Verifies Apple Intelligence is disabled via the `allowAppleIntelligence` MDM restriction.
+  resolution: |-
+    Apple Intelligence should be disabled automatically by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin
