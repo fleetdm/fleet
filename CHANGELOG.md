@@ -1,3 +1,9 @@
+## Fleet 4.90.2 (Aug 27, 2026)
+
+### Bug fixes
+
+- Added a release budget for Fleet-initiated activities (policy-automation software installs and scripts, and iOS/iPadOS scheduled app updates): they are now queued immediately but released to hosts at a configurable rate (`FLEET_ACTIVITY_FLEET_INITIATED_RELEASE_PER_MINUTE`, default 1000 hosts/minute, 0 = unlimited), spreading out the install-execution and result-ingestion load when an automation fires for many hosts at once. User-initiated activities (self-service installs, admin-run scripts, lock/unlock/wipe, setup experience) are unaffected and now take precedence over queued Fleet-initiated activities on the same host.
+
 ## Fleet 4.90.1 (Aug 14, 2026)
 
 ### Bug fixes
