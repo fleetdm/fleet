@@ -157,11 +157,13 @@ The Fleet-managed pre-install query is ignored for self-service, host details pa
 _Available in Fleet Premium_
 
 To trigger software install, when policy fails, specify one of:
-  - `install_software.package_path` is the path to a custom package YAML. If the file defines multiple packages, pair with `install_software.hash_sha256` or `install_software.package_url` to pick one. `package_url` covers the case where the URL is intentionally unpinned and no stable hash exists.
+  - `install_software.package_path` is the path to a custom package YAML. If the file defines multiple packages, pair with `install_software.hash_sha256` to pick one.
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
-> Adding a second package to a YAML that policies already reference makes those policies fail to apply until a sub-selector (`hash_sha256` or `package_url`) is added.
+> Multi-package YAMLs assume every package has a stable `hash_sha256`. Packages with intentionally unpinned URLs (where the URL always serves the current build and no stable hash exists) should live in their own single-package YAML file.
+
+> Adding a second package to a YAML that policies already reference makes those policies fail to apply until `hash_sha256` is added.
 
 ##### Run script
 
