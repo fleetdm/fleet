@@ -3259,6 +3259,163 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionEndpointPerPlatform() {
 	assert.Contains(t, errMsg, "conflicts with windows_settings.require_bitlocker_pin")
 }
 
+// TestTeamPatchPerPlatformDiskEncryption covers the per-platform disk encryption
+// keys on PATCH /fleets/{id}. The bodies are raw JSON on purpose: the endpoint
+// silently drops keys its payload struct doesn't carry, which a typed request
+// would hide.
+func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	path := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
+
+	patch := func(body string, wantStatus int) fleet.TeamMDM {
+		var resp teamResponse
+		s.DoJSON("PATCH", path, json.RawMessage(body), wantStatus, &resp)
+		return resp.Team.Config.MDM
+	}
+
+	// the deprecated flat toggle still fans out to all four
+	mdm := patch(`{"mdm":{"enable_disk_encryption":true}}`, http.StatusOK)
+	require.True(t, mdm.EnableDiskEncryption)
+	require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// turning macOS enforcement off while keeping escrow on: the per-platform
+	// keys reach their own settings and leave the other platforms alone
+	mdm = patch(`{"mdm":{
+		"apple_settings":  {"enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true},
+		"windows_settings": {"enable_disk_encryption": true},
+		"linux_settings":  {"enable_escrow_disk_encryption_key": true}
+	}}`, http.StatusOK)
+	require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	// the flat toggle is the AND of the four, so it now reads false
+	require.False(t, mdm.EnableDiskEncryption)
+	// only macOS changed, so only macOS gets an activity
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "macos"}`, tm.ID, tm.Name), 0)
+	// escrow is still on, so the FileVault profile stays in place
+	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// the deprecated macos_settings name works the same as apple_settings
+	mdm = patch(`{"mdm":{"macos_settings":{"enable_escrow_disk_encryption_key": false}}}`, http.StatusOK)
+	require.False(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	// both halves of the macOS pair are now off, so the profile goes away
+	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+
+	// both names in the same request is a conflict
+	res := s.Do("PATCH", path, json.RawMessage(`{"mdm":{
+		"macos_settings": {"enable_disk_encryption": true},
+		"apple_settings": {"enable_disk_encryption": true}
+	}}`), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `Specify only one of "macos_settings" or "apple_settings"`)
+
+	// a per-platform key omitted from the body keeps its stored value, and an
+	// explicit null does too
+	mdm = patch(`{"mdm":{"linux_settings":{"enable_escrow_disk_encryption_key": null}}}`, http.StatusOK)
+	require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+
+	// changing the flat toggle and a per-platform key to disagreeing values is a
+	// conflict. Windows is on here, so setting it off is a real change, as is
+	// the flat toggle going on
+	res = s.Do("PATCH", path, json.RawMessage(`{"mdm":{
+		"enable_disk_encryption": true,
+		"windows_settings": {"enable_disk_encryption": false}
+	}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "conflicts with per-platform disk encryption settings")
+
+	// the GET-modify-PATCH round trip is not a conflict: only the flat toggle
+	// changes, and the per-platform values the request carries match what is
+	// already stored, so the toggle wins and fans out
+	mdm = patch(`{"mdm":{
+		"enable_disk_encryption": true,
+		"apple_settings": {"enable_disk_encryption": false, "enable_escrow_disk_encryption_key": false},
+		"windows_settings": {"enable_disk_encryption": true},
+		"linux_settings": {"enable_escrow_disk_encryption_key": true}
+	}}`, http.StatusOK)
+	require.True(t, mdm.EnableDiskEncryption)
+	require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// precedence the other way round: everything is on, so only the
+	// per-platform key changes and it wins over the carried flat toggle
+	mdm = patch(`{"mdm":{
+		"enable_disk_encryption": true,
+		"apple_settings": {"enable_disk_encryption": false}
+	}}`, http.StatusOK)
+	require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.False(t, mdm.EnableDiskEncryption)
+
+	// with Windows enforcement off, turning the PIN on is rejected
+	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": false}}}`, http.StatusOK)
+	res = s.Do("PATCH", path, json.RawMessage(`{"mdm":{"windows_settings":{"require_bitlocker_pin": true}}}`),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// the PIN alongside Windows enforcement is accepted, and turning enforcement
+	// off afterwards is rejected while the PIN is still required
+	mdm = patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true, "require_bitlocker_pin": true}}}`, http.StatusOK)
+	require.True(t, mdm.WindowsSettings.RequireBitLockerPIN.Value)
+	require.True(t, mdm.RequireBitLockerPIN)
+	res = s.Do("PATCH", path, json.RawMessage(`{"mdm":{"windows_settings":{"enable_disk_encryption": false}}}`),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+
+	// a request that changes nothing emits no activity
+	before := s.lastActivityMatches("", "", 0)
+	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true}}}`, http.StatusOK)
+	require.Equal(t, before, s.lastActivityMatches("", "", 0))
+
+	// the GET response carries every per-platform key, so a GET-modify-PATCH
+	// round trip can see them. The macOS object comes back under its new
+	// apple_settings name only, though requests accept either name.
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	var raw struct {
+		Fleet struct {
+			MDM struct {
+				EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+				AppleSettings        *struct {
+					EnableDiskEncryption          *bool `json:"enable_disk_encryption"`
+					EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+				} `json:"apple_settings"`
+				MacOSSettings *struct {
+					EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+				} `json:"macos_settings"`
+				WindowsSettings *struct {
+					EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+					RequireBitLockerPIN  *bool `json:"require_bitlocker_pin"`
+				} `json:"windows_settings"`
+				LinuxSettings *struct {
+					EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+				} `json:"linux_settings"`
+			} `json:"mdm"`
+		} `json:"fleet"`
+	}
+	require.NoError(t, json.Unmarshal(body, &raw))
+	gotMDM := raw.Fleet.MDM
+	require.NotNil(t, gotMDM.EnableDiskEncryption)
+	require.NotNil(t, gotMDM.AppleSettings)
+	require.NotNil(t, gotMDM.AppleSettings.EnableDiskEncryption)
+	require.NotNil(t, gotMDM.AppleSettings.EnableEscrowDiskEncryptionKey)
+	require.Nil(t, gotMDM.MacOSSettings, "the response uses the apple_settings name only")
+	require.NotNil(t, gotMDM.WindowsSettings)
+	require.NotNil(t, gotMDM.WindowsSettings.EnableDiskEncryption)
+	require.NotNil(t, gotMDM.WindowsSettings.RequireBitLockerPIN)
+	require.NotNil(t, gotMDM.LinuxSettings)
+	require.NotNil(t, gotMDM.LinuxSettings.EnableEscrowDiskEncryptionKey)
+}
+
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	t := s.T()
 
