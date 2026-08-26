@@ -205,9 +205,9 @@ const PolicyAutomationsFields = forwardRef<
     // When the policy payload doesn't carry `software_package_id` (VPP
     // titles never do; single-package titles didn't need it), the
     // auto-select effect below resolves to first-added.
-    const [softwarePackageId, setSoftwarePackageId] = useState<
-      number | null
-    >(policy.install_software?.software_package_id ?? null);
+    const [softwarePackageId, setSoftwarePackageId] = useState<number | null>(
+      policy.install_software?.software_package_id ?? null
+    );
     const patchSoftwareTitleId =
       policy.patch_software?.software_title_id ?? null;
     const effectiveInstallSoftware =
@@ -386,9 +386,7 @@ const PolicyAutomationsFields = forwardRef<
       if (!selectedTitlePackages || selectedTitlePackages.length === 0) return;
       const stillValid =
         softwarePackageId !== null &&
-        selectedTitlePackages.some(
-          (p) => p.installer_id === softwarePackageId
-        );
+        selectedTitlePackages.some((p) => p.installer_id === softwarePackageId);
       if (stillValid) return;
       const first = findFirstAddedPackage(selectedTitlePackages);
       if (first) setSoftwarePackageId(first.installer_id);
