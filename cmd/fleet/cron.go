@@ -2565,10 +2565,10 @@ func newFleetInitiatedActivitiesReleaseSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("release_fleet_initiated_activities", func(ctx context.Context) error {
+			// a partial failure still releases the healthy hosts (per-host
+			// isolation in the datastore), so log progress before returning
+			// any per-host activation errors
 			released, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, hostsPerMinute)
-			if err != nil {
-				return err
-			}
 			if released > 0 {
 				logger.InfoContext(ctx, "released fleet-initiated upcoming activities",
 					"hosts_released", released,
@@ -2577,7 +2577,7 @@ func newFleetInitiatedActivitiesReleaseSchedule(
 					"budget_exhausted", released == hostsPerMinute,
 				)
 			}
-			return nil
+			return err
 		}),
 	)
 	return s, nil

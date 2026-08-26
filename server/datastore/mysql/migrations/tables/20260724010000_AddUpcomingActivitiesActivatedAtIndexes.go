@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260824133952, Down_20260824133952)
+	MigrationClient.AddMigration(Up_20260724010000, Down_20260724010000)
 }
 
-func Up_20260824133952(tx *sql.Tx) error {
+func Up_20260724010000(tx *sql.Tx) error {
 	// Both the fleet-initiated release cron and the unblock job find hosts
 	// whose queue has no activated activity via a self anti-join on
 	// upcoming_activities. Neither side of that join was indexed on
@@ -37,6 +37,6 @@ func Up_20260824133952(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260824133952(tx *sql.Tx) error {
+func Down_20260724010000(tx *sql.Tx) error {
 	return nil
 }

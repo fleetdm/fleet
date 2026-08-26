@@ -890,7 +890,8 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 
 	// we call this outside of the transaction to avoid a
 	// long-running/deadlock-prone transaction, as many hosts could be affected.
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
+	return err
 }
 
 // deletePendingHostScriptExecutionsForPolicy should be called before a policy is deleted to remove any pending script executions
@@ -958,7 +959,8 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		return err
 	}
 
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	_, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	return err
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
@@ -1457,7 +1459,7 @@ ON DUPLICATE KEY UPDATE
 		return nil, err
 	}
 
-	if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts); err != nil {
+	if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity for batch of hosts")
 	}
 

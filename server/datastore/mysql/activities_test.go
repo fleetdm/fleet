@@ -2235,6 +2235,41 @@ func testReleaseFleetInitiatedUpcomingActivities(t *testing.T, ds *Datastore) {
 	installs, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, installHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, []string{installExecID}, installs)
+
+	// a "poison" host whose activation deterministically fails must not wedge
+	// the release pipeline: with oldest-first selection it would otherwise be
+	// re-picked every run and roll back every other host in its chunk
+	poisonHost := test.NewHost(t, ds, "hr5.local", "10.20.10.5", "release-5", "release-5", time.Now())
+	healthyHost := test.NewHost(t, ds, "hr6.local", "10.20.10.6", "release-6", "release-6", time.Now())
+	poisonScript := enqueueGated(poisonHost.ID, "P")
+	healthyScript := enqueueGated(healthyHost.ID, "Q")
+	// pre-seed a host_script_results row with the poison activity's execution
+	// ID so its activation INSERT hits the unique key and fails
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output)
+			SELECT ua.host_id, ua.execution_id, sua.script_content_id, ''
+			FROM upcoming_activities ua
+			JOIN script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
+			WHERE ua.execution_id = ?`, poisonScript.ExecutionID)
+		return err
+	})
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.Error(t, err, "the poison host's activation error must be reported")
+	require.ErrorContains(t, err, fmt.Sprintf("host %d", poisonHost.ID))
+	require.Equal(t, 1, n, "the healthy host must be released despite the poison host")
+	require.Equal(t, []string{healthyScript.ExecutionID}, readyExecIDs(healthyHost.ID))
+
+	// unwedge the poison host and confirm it releases on the next run
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id = ?`, poisonScript.ExecutionID)
+		return err
+	})
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{poisonScript.ExecutionID}, readyExecIDs(poisonHost.ID))
 }
 
 // TestReapableActivatedInstallArgs pins the conversion the reap predicate depends on. A duration

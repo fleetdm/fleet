@@ -972,7 +972,7 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, stmt, maxHosts); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
 	}
-	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
 }
 
 // ReleaseFleetInitiatedUpcomingActivities activates the upcoming activities
@@ -1007,7 +1007,7 @@ func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &gatedHostIDs, findGatedHostsStmt, maxHosts); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "select gated hosts")
 	}
-	return len(gatedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, gatedHostIDs)
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, gatedHostIDs)
 }
 
 // mdmApplePushDeliveryGraceDays is how long an activated command has to reach its device before the
@@ -1266,12 +1266,18 @@ func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, ho
 	return err
 }
 
-func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
+// activateNextUpcomingActivityForBatchOfHosts activates the next upcoming
+// activity of each host, chunked into batch transactions. It returns the
+// number of hosts whose activation committed, along with any per-host
+// activation errors joined together (partial success returns both a non-zero
+// count and a non-nil error).
+func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) (int, error) {
 	const maxHostIDsPerBatch = 500
 
 	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
 	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
+	var activated int
 	var errs []error
 	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1282,11 +1288,35 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 			}
 			return nil
 		})
-		if err != nil {
-			errs = append(errs, err)
+		if err == nil {
+			activated += len(batch)
+			continue
+		}
+
+		// The chunk transaction is all-or-nothing: one host whose activation
+		// deterministically fails (e.g. an FK or duplicate-key violation on its
+		// queued row) would roll back every other host in the chunk, and the
+		// callers that select hosts in a deterministic order (the release and
+		// unblock crons) would re-pick the same hosts on every run, wedging the
+		// queue behind the poison host. Retry each host of the failed chunk in
+		// its own transaction so a bad host only loses its own slot.
+		for _, hostID := range batch {
+			hostErr := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, "")
+				return err
+			})
+			if hostErr != nil {
+				ds.logger.ErrorContext(ctx, "activate next upcoming activity failed for host; skipping it",
+					"host_id", hostID,
+					"err", hostErr,
+				)
+				errs = append(errs, ctxerr.Wrapf(ctx, hostErr, "activate next activity for host %d", hostID))
+				continue
+			}
+			activated++
 		}
 	}
-	return errors.Join(errs...)
+	return activated, errors.Join(errs...)
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
