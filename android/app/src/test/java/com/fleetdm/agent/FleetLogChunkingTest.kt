@@ -68,6 +68,27 @@ class FleetLogChunkingTest {
     }
 
     @Test
+    fun `an empty line at a chunk boundary survives`() {
+        val line = "x".repeat(300)
+        val text = "$line\n\nnext"
+
+        val chunks = chunkForLogcat(text, 300)
+
+        assertTrue(chunks.size > 1)
+        assertEquals(text, chunks.joinToString("\n"))
+    }
+
+    @Test
+    fun `a leading empty line survives`() {
+        val text = "\n" + "a".repeat(90) + "\n" + "b".repeat(90)
+
+        val chunks = chunkForLogcat(text, 100)
+
+        assertTrue(chunks.size > 1)
+        assertEquals(text, chunks.joinToString("\n"))
+    }
+
+    @Test
     fun `mixed line lengths keep every line intact where they fit`() {
         val text = "short\n" + "x".repeat(250) + "\nshort again"
 

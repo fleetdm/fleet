@@ -82,21 +82,26 @@ internal fun chunkForLogcat(text: String, maxBytes: Int): List<String> {
     val chunks = mutableListOf<String>()
     var current = StringBuilder()
     var currentBytes = 0
+    // Tracked separately from the builder's length: an empty line is a piece too, and dropping it
+    // because it added no characters would silently delete blank lines from the text.
+    var started = false
     for (piece in text.lineSequence().flatMap { splitByUtf8Bytes(it, maxBytes) }) {
         val pieceBytes = piece.utf8Size()
-        if (current.isNotEmpty() && currentBytes + 1 + pieceBytes > maxBytes) {
+        if (started && currentBytes + 1 + pieceBytes > maxBytes) {
             chunks.add(current.toString())
             current = StringBuilder()
             currentBytes = 0
+            started = false
         }
-        if (current.isNotEmpty()) {
+        if (started) {
             current.append('\n')
             currentBytes++
         }
         current.append(piece)
         currentBytes += pieceBytes
+        started = true
     }
-    if (current.isNotEmpty()) {
+    if (started) {
         chunks.add(current.toString())
     }
     return chunks
