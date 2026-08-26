@@ -10566,6 +10566,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
+| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, the policy uses the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
@@ -10625,7 +10626,8 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234
+      "software_title_id": 1234,
+      "software_package_id": 5678
     },
     "run_script": {
       "name": "Enable gatekeeper",
@@ -10802,6 +10804,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to fall back to the title's first-added package. |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
@@ -10864,7 +10867,8 @@ Setting `patch_when_closed` or `notify_before_patching` to `false` after it was 
     "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234
+      "software_title_id": 1234,
+      "software_package_id": 5678
     },
     "run_script": {
       "name": "Enable gatekeeper",
