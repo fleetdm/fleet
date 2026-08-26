@@ -4375,6 +4375,11 @@ type MDMAppleCheckinAndCommandService struct {
 	keyValueStore   fleet.AdvancedKeyValueStore
 	newActivityFn   mdmlifecycle.NewActivityFunc
 	isPremium       bool
+	// deferFleetInitiatedActivation mirrors
+	// activity.fleet_initiated_release_per_minute > 0: fleet-initiated
+	// activities (scheduled app updates) are enqueued without inline
+	// activation and released by the fleet-initiated release cron.
+	deferFleetInitiatedActivation bool
 }
 
 func NewMDMAppleCheckinAndCommandService(
@@ -4385,6 +4390,7 @@ func NewMDMAppleCheckinAndCommandService(
 	logger *slog.Logger,
 	keyValueStore fleet.AdvancedKeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
+	deferFleetInitiatedActivation bool,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
 	return &MDMAppleCheckinAndCommandService{
@@ -4397,6 +4403,8 @@ func NewMDMAppleCheckinAndCommandService(
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
 		keyValueStore:   keyValueStore,
 		newActivityFn:   newActivityFn,
+
+		deferFleetInitiatedActivation: deferFleetInitiatedActivation,
 	}
 }
 
@@ -5849,6 +5857,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 
 		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
 			ForScheduledUpdates: true,
+			// scheduled updates fan out to many hosts at once, like policy
+			// automations, so they respect the same release budget
+			DeferActivation: svc.deferFleetInitiatedActivation,
 		})
 		if err != nil {
 			logger.ErrorContext(ctx, "install VPP app post validation",

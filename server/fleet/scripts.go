@@ -183,16 +183,32 @@ type HostScriptRequestPayload struct {
 	// SetupExperienceScriptID is the ID of the setup experience script related to this request
 	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
+	// DeferActivation enqueues the upcoming activity without activating it;
+	// the activity stays invisible to the host until the fleet-initiated
+	// release cron activates it within the configured per-minute budget. Set
+	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
+	DeferActivation bool `json:"-"`
+}
+
+// IsFleetInitiated returns true if the script execution is initiated by Fleet
+// (via a policy automation) rather than by a person.
+func (r HostScriptRequestPayload) IsFleetInitiated() bool {
+	return r.PolicyID != nil
 }
 
 // Priority returns the priority to assign to this activity in the upcoming
-// activities queue. It is the default priority except when the script is part
-// of the setup experience flow.
+// activities queue. Setup experience outranks everything; user-initiated
+// scripts outrank Fleet-initiated ones so they are never queued behind
+// deferred policy-automation activities.
 func (r HostScriptRequestPayload) Priority() int {
-	if r.SetupExperienceScriptID != nil {
-		return 100
+	switch {
+	case r.SetupExperienceScriptID != nil:
+		return SetupExperienceActivityPriority
+	case !r.IsFleetInitiated():
+		return UserInitiatedActivityPriority
+	default:
+		return 0
 	}
-	return 0
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {

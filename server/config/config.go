@@ -412,6 +412,13 @@ type ActivityConfig struct {
 	EnableAuditLog bool `yaml:"enable_audit_log"`
 	// AuditLogPlugin sets the plugin to use to log activities.
 	AuditLogPlugin string `yaml:"audit_log_plugin"`
+	// FleetInitiatedReleasePerMinute caps how many hosts get a Fleet-initiated
+	// upcoming activity (policy-automation installs and scripts) activated per
+	// minute. Fleet-initiated activities are enqueued immediately but held
+	// unactivated until the release cron activates them within this budget,
+	// pacing the downstream execution and result-ingestion load. 0 disables the
+	// gate and activates inline at enqueue time.
+	FleetInitiatedReleasePerMinute int `yaml:"fleet_initiated_release_per_minute"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -1505,6 +1512,8 @@ func (man Manager) addConfigs() {
 		"Enable audit logs")
 	man.addConfigString("activity.audit_log_plugin", "filesystem",
 		"Log plugin to use for audit logs")
+	man.addConfigInt("activity.fleet_initiated_release_per_minute", 1000,
+		"Maximum number of hosts whose Fleet-initiated activities (policy automation installs/scripts) are released for execution per minute (0 = unlimited)")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -1976,8 +1985,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 		},
 		Activity: ActivityConfig{
-			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
-			AuditLogPlugin: man.getConfigString("activity.audit_log_plugin"),
+			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
+			AuditLogPlugin:                 man.getConfigString("activity.audit_log_plugin"),
+			FleetInitiatedReleasePerMinute: man.getConfigNonNegativeInt("activity.fleet_initiated_release_per_minute"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
@@ -2314,6 +2324,17 @@ func (man Manager) getConfigString(key string) string {
 	}
 
 	return stringVal
+}
+
+// getConfigNonNegativeInt is like getConfigInt but panics on negative values,
+// for keys where a negative would silently disable a protection (0 is the
+// documented "disabled" value; below that is an operator error).
+func (man Manager) getConfigNonNegativeInt(key string) int {
+	val := man.getConfigInt(key)
+	if val < 0 {
+		panic(fmt.Sprintf("%s cannot be negative (0 disables it): %d", key, val))
+	}
+	return val
 }
 
 // Custom handling for TLSProfile which can only accept specific values

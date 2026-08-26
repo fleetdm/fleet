@@ -1213,8 +1213,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})

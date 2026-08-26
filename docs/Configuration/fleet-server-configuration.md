@@ -1437,6 +1437,22 @@ Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#k
     audit_log_plugin: firehose
   ```
 
+### activity_fleet_initiated_release_per_minute
+
+Maximum number of hosts whose Fleet-initiated activities (policy automation software installs and script runs, and iOS/iPadOS scheduled app updates) are released for execution per minute. Fleet-initiated activities are queued immediately, but hosts start executing them at this rate, spreading out the software install and script result load when a policy automation fires for many hosts at once (for example, after a policy's query or software is edited). User-initiated activities (self-service installs, admin-run scripts, setup experience) are not affected.
+
+The limit paces how many *idle* hosts start Fleet-initiated work each minute. A host that is already working through its activity queue continues to its next queued activity as each one completes, without waiting for the next release window — including a host a user just acted on (for example, running a script), since a person acting on a host takes precedence over pacing.
+
+Tune this down during recovery or heavy GitOps pushes, or up where rollout speed matters more than load smoothing. Set to `0` to disable the limit and start Fleet-initiated activities immediately.
+
+- Default value: `1000`
+- Environment variable: `FLEET_ACTIVITY_FLEET_INITIATED_RELEASE_PER_MINUTE`
+- Config file format:
+  ```yaml
+  activity:
+    fleet_initiated_release_per_minute: 500
+  ```
+
 ## Logging (Fleet server logging)
 
 ### logging_debug

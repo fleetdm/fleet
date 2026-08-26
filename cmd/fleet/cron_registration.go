@@ -145,8 +145,15 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 	})
 
 	deps.register("failed to register upcoming_activities_maintenance schedule", func() (fleet.CronSchedule, error) {
-		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger,
+			deps.config.Activity.FleetInitiatedReleasePerMinute > 0)
 	})
+
+	if releasePerMinute := deps.config.Activity.FleetInitiatedReleasePerMinute; releasePerMinute > 0 {
+		deps.register("failed to register fleet_initiated_activities_release schedule", func() (fleet.CronSchedule, error) {
+			return newFleetInitiatedActivitiesReleaseSchedule(ctx, deps.instanceID, deps.ds, deps.logger, releasePerMinute)
+		})
+	}
 
 	deps.register("failed to register stats schedule", func() (fleet.CronSchedule, error) {
 		return newUsageStatisticsSchedule(ctx, deps.instanceID, deps.ds, *deps.config, deps.logger)

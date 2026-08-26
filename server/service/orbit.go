@@ -1823,7 +1823,8 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 		"current_attempt", *hsi.AttemptNumber,
 	)
 	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID: hsi.PolicyID,
+		PolicyID:        hsi.PolicyID,
+		DeferActivation: svc.deferFleetInitiatedActivation(),
 	})
 	return err
 }
@@ -1893,10 +1894,11 @@ func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet
 		"current_attempt", *hsr.AttemptNumber,
 	)
 	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         host.ID,
-		ScriptID:       hsr.ScriptID,
-		PolicyID:       hsr.PolicyID,
-		ScriptContents: hsr.ScriptContents,
+		HostID:          host.ID,
+		ScriptID:        hsr.ScriptID,
+		PolicyID:        hsr.PolicyID,
+		ScriptContents:  hsr.ScriptContents,
+		DeferActivation: svc.deferFleetInitiatedActivation(),
 	})
 	return err
 }

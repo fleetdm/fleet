@@ -854,6 +854,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
+			config.Activity.FleetInitiatedReleasePerMinute > 0,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
