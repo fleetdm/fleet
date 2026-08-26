@@ -927,6 +927,39 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	return nil
 }
 
+func (ds *Datastore) UpsertMDMAppleFleetConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) error {
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+	if cp.Scope == "" {
+		cp.Scope = fleet.PayloadScopeSystem
+	}
+
+	// No guard against a same-named Windows/Android profile or declaration:
+	// callers pass a Fleet-reserved profile name, which users cannot take.
+	//
+	// uploaded_at is assigned before checksum so it still compares against the
+	// stored value: re-rendering identical bytes must leave the row untouched,
+	// or the reconciler would treat it as a change.
+	stmt := `
+INSERT INTO mdm_apple_configuration_profiles
+	(profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at)
+VALUES
+	(?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP())
+ON DUPLICATE KEY UPDATE
+	uploaded_at = IF(checksum = UNHEX(MD5(VALUES(mobileconfig))), uploaded_at, CURRENT_TIMESTAMP()),
+	name = VALUES(name),
+	scope = VALUES(scope),
+	mobileconfig = VALUES(mobileconfig),
+	checksum = UNHEX(MD5(VALUES(mobileconfig)))`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		fleet.MDMAppleProfileUUIDPrefix+uuid.New().String(), teamID, cp.Identifier, cp.Name, cp.Scope,
+		cp.Mobileconfig, cp.Mobileconfig)
+	return ctxerr.Wrap(ctx, err, "upsert fleet-controlled apple config profile")
+}
+
 func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT

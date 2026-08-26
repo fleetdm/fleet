@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -350,24 +349,58 @@ func (ds *Datastore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {
+	diskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, newTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get destination fleet disk encryption settings")
+	}
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, newTeamID)
+		return cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, diskEncryption)
 	})
 }
 
-func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, newTeamID *uint) error {
-	// We are using Apple's encryption profile to determine if any hosts, including Windows and Linux, are encrypted.
-	// This is a safe assumption since encryption is enabled for the whole team.
-	_, err := getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx, tx, newTeamID, mobileconfig.FleetFileVaultPayloadIdentifier)
+// cleanupDiskEncryptionKeysOnTeamChangeDB drops the escrowed keys of moved hosts
+// whose platform no longer escrows to Fleet in the destination fleet. Each
+// platform has its own setting, so the Apple FileVault profile is no longer a
+// usable proxy for "this fleet escrows keys" the way it was when one toggle
+// covered every platform.
+func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, diskEncryption fleet.DiskEncryptionConfig) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, platform FROM hosts WHERE id IN (?)`, hostIDs)
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			// the new team does not have a filevault profile so we need to delete the existing ones
-			if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, hostIDs); err != nil {
-				return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change bulk delete host disk encryption keys")
-			}
-		} else {
-			return ctxerr.Wrap(ctx, err, "reconcile filevault profiles on team change get profile")
+		return ctxerr.Wrap(ctx, err, "building host platform query")
+	}
+	var hosts []struct {
+		ID       uint   `db:"id"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting host platforms")
+	}
+
+	toDelete := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		// FleetPlatform() rather than a platform list in SQL, so this agrees with
+		// every other per-platform decision in the codebase
+		host := fleet.Host{Platform: h.Platform}
+		var keep bool
+		switch host.FleetPlatform() {
+		case "darwin":
+			keep = diskEncryption.MacOSEscrowEnabled
+		case "windows":
+			keep = diskEncryption.WindowsEnabled
+		case "linux":
+			keep = diskEncryption.LinuxEscrowEnabled
 		}
+		if !keep {
+			toDelete = append(toDelete, h.ID)
+		}
+	}
+
+	if err := bulkDeleteHostDiskEncryptionKeysDB(ctx, tx, toDelete); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk delete host disk encryption keys on fleet change")
 	}
 	return nil
 }

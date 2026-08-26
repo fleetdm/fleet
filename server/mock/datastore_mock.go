@@ -1030,6 +1030,8 @@ type BulkDeleteMDMAppleHostsConfigProfilesFunc func(ctx context.Context, payload
 
 type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) error
 
+type UpsertMDMAppleFleetConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) error
+
 type GetHostMDMAppleProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
 type CleanupDiskEncryptionKeysOnTeamChangeFunc func(ctx context.Context, hostIDs []uint, newTeamID *uint) error
@@ -3867,6 +3869,9 @@ type DataStore struct {
 
 	DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc        DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc
 	DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
+
+	UpsertMDMAppleFleetConfigProfileFunc        UpsertMDMAppleFleetConfigProfileFunc
+	UpsertMDMAppleFleetConfigProfileFuncInvoked bool
 
 	GetHostMDMAppleProfilesFunc        GetHostMDMAppleProfilesFunc
 	GetHostMDMAppleProfilesFuncInvoked bool
@@ -9382,6 +9387,13 @@ func (s *DataStore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.C
 	s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
+}
+
+func (s *DataStore) UpsertMDMAppleFleetConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+	s.mu.Lock()
+	s.UpsertMDMAppleFleetConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMDMAppleFleetConfigProfileFunc(ctx, p)
 }
 
 func (s *DataStore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
