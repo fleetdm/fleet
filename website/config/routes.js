@@ -1316,7 +1316,7 @@ module.exports.routes = {
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
-  'GET /learn-more-about/android-zero-touch': 'https://enterprise.google.com/android/zero-touch/customers',
+  'GET /learn-more-about/android-zero-touch-portal': 'https://enterprise.google.com/android/zero-touch/customers',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
