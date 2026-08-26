@@ -16435,7 +16435,7 @@ Updates an existing API-only user that does not have access to the UI. The targe
 }
 ```
 
-#### Example (clear API endpoint restrictions)
+#### Example (remove API endpoint restrictions)
 
 `PATCH /api/v1/fleet/users/api_only/5`
 
