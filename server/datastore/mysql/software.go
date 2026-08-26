@@ -2034,8 +2034,10 @@ type softwareCVE struct {
 // canUseOptimizedListQuery determines if we can use the fast path query
 // that starts FROM software_host_counts instead of software.
 func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
-	// Determine the effective order key
-	orderKey := opts.ListOptions.OrderKey
+	// Determine the effective order key. Trim first, so a key that the ordering
+	// helper accepts (it trims too) is routed the same way here rather than
+	// silently falling back to the slower path.
+	orderKey := strings.TrimSpace(opts.ListOptions.OrderKey)
 	if orderKey == "" {
 		orderKey = "hosts_count"
 	}
@@ -2056,13 +2058,13 @@ func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
 	// Asking to sort on hosts_count only makes sense when the counts are part
 	// of the query. Requests that don't name an order key still come here, so
 	// the default ordering is unchanged.
-	if opts.ListOptions.OrderKey != "" && !opts.WithHostCounts {
+	if strings.TrimSpace(opts.ListOptions.OrderKey) != "" && !opts.WithHostCounts {
 		return false
 	}
 
 	return opts.HostID == nil &&
 		orderKey == "hosts_count" &&
-		!isMultiColumnSort(opts.ListOptions.OrderKey)
+		!isMultiColumnSort(orderKey)
 }
 
 // isMultiColumnSort checks if the order key contains multiple columns (comma-separated)
