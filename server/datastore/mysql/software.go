@@ -1630,7 +1630,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						sw := batchSoftware[checksum]
 						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 					}
-					ds.logger.ErrorContext(ctx, "inserting software without title_id",
+					ds.logger.WarnContext(ctx, "inserting software without title_id",
 						"count", len(missingChecksums),
 						"examples", strings.Join(examples, "; "),
 					)
