@@ -59,7 +59,6 @@ describe("getDiskEncryptionSettings", () => {
       getDiskEncryptionSettings({
         ...perPlatform,
         apple_settings: {
-          configuration_profiles: null,
           enable_disk_encryption: true,
           enable_escrow_disk_encryption_key: false,
         },
@@ -80,7 +79,7 @@ describe("getDiskEncryptionSettings", () => {
         enable_disk_encryption: true,
         enable_escrow_disk_encryption_key: false,
       },
-    } as never);
+    });
 
     expect(settings.macOSEnabled).toBe(true);
     expect(settings.macOSEscrowEnabled).toBe(false);
@@ -90,7 +89,7 @@ describe("getDiskEncryptionSettings", () => {
     const settings = getDiskEncryptionSettings({
       enable_disk_encryption: true,
       windows_require_bitlocker_pin: true,
-    } as never);
+    });
 
     expect(settings).toEqual({
       macOSEnabled: true,
@@ -108,7 +107,7 @@ describe("getDiskEncryptionSettings", () => {
         enable_disk_encryption: false,
         require_bitlocker_pin: true,
       },
-    } as never);
+    });
 
     expect(settings.windowsEnabled).toBe(false);
     expect(settings.windowsPINRequired).toBe(false);
