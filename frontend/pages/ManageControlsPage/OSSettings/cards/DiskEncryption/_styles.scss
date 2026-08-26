@@ -27,15 +27,6 @@
 
   &__form-fields {
     @include flex-column-16px-gap;
-
-    .form-field {
-      margin: 0;
-    }
-
-    // indent descriptions to align with the checkbox label
-    .form-field__help-text {
-      margin-left: $pad-large;
-    }
   }
 
   .data-table {
