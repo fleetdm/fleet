@@ -10716,7 +10716,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 - [Delete reports](#delete-reports)
 - [Run live report](#run-live-report)
 - [Run live report (ad hoc)](#run-live-report-ad-hoc)
-- [Run live report by name (ad hoc)](#run-live-report-by-name-ad-hoc)
+- [Run live report by target name (ad hoc)](#run-live-report-by-target-name-ad-hoc)
 - [Retrieve live report results (standard WebSocket API)](#retrieve-live-report-results-standard-websocket-api)
 - [Retrieve live report results (SockJS)](#retrieve-live-report-results-sockjs)
 
