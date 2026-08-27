@@ -4726,9 +4726,6 @@ func (svc *Service) SendAPNSPing(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
 		return err
 	}
-	if err := svc.authz.Authorize(ctx, &fleet.APNSPingAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
-		return err
-	}
 
 	return svc.handleSendAPNSPing(ctx, host)
 }

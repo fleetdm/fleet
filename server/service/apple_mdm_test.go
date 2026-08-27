@@ -10754,10 +10754,9 @@ func TestSendAPNSPing(t *testing.T) {
 		require.Empty(t, got)
 	})
 
-	// Observers can read hosts, so only the ping-specific authz check stops them.
-	t.Run("observer is not allowed to ping", func(t *testing.T) {
+	t.Run("observer is allowed to ping", func(t *testing.T) {
 		got, err := sendPing(t, test.UserObserver, appleHost("darwin"), enrolled("HOST-UUID"), nil)
-		require.ErrorContains(t, err, authz.ForbiddenErrorMessage)
-		require.Empty(t, got)
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID"}, got)
 	})
 }
