@@ -4,7 +4,6 @@ parasails.registerPage('configuration-generator', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     generatedOutput: ``,
-    ace: undefined,
     parsedItemsInProfile: [],
     deliveryNotes: undefined,
     formData: {
@@ -21,7 +20,6 @@ parasails.registerPage('configuration-generator', {
     },
     // Syncing / loading state
     syncing: false,
-    queryResult: '',
     // Server error state
     cloudError: '',
     filenameOfGeneratedProfile: undefined,
