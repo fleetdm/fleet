@@ -9227,7 +9227,7 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 }
 
 func testListHostSoftwareSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "search-team"})
 	require.NoError(t, err)

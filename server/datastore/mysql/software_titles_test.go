@@ -1977,7 +1977,7 @@ func testListSoftwareTitlesSortByDisplayName(t *testing.T, ds *Datastore) {
 }
 
 func testListSoftwareTitlesSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Search Test Team"})
