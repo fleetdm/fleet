@@ -213,6 +213,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"IntelliJ IDEA Ultimate":       "IN ('idea.exe','idea64.exe')",
 	"JetBrains Toolbox":            "IN ('toolbox.exe','jetbrains-toolbox.exe')",
 	"KNIME Analytics Platform":     "= 'knime.exe'",
+	"KeyStore Explorer":            "= 'kse.exe'",
 	"Lenovo Dock Manager":          "= 'dockmgr.exe'",
 	"Microsoft Edge":               "= 'msedge.exe'",
 	"Microsoft Remote Help":        "= 'remotehelp.exe'",
