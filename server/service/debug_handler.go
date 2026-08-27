@@ -135,17 +135,6 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 			payload["next_check_in_ms"] = max(0, time.Until(next).Milliseconds())
 		}
 
-		// Global host counts (every host, WebSocket-connected or not), scoped
-		// to the authenticated admin attached by the debug middleware.
-		if vc, ok := viewer.FromContext(ctx); ok {
-			summary, err := ds.GenerateHostStatusStatistics(ctx, fleet.TeamFilter{User: vc.User}, time.Now(), nil, nil)
-			if err != nil {
-				logger.ErrorContext(ctx, "generate host status statistics for /debug/agentws", "err", err)
-			} else if summary != nil {
-				payload["online_hosts"] = summary.OnlineCount
-				payload["total_hosts"] = summary.TotalsHostsCount
-			}
-		}
 		return payload, nil
 	})).Methods(http.MethodGet)
 

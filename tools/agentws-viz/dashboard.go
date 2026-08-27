@@ -98,7 +98,6 @@ const dashboardHTML = `<!doctype html>
 <div id="tabs"></div>
 
 <div class="stats">
-  <div class="panel stat"><div class="n" id="online">–</div><div class="l">online (all hosts)</div></div>
   <div class="panel stat"><div class="n" id="count">–</div><div class="l">ws connected</div></div>
   <div class="panel stat"><div class="n" id="nextsync">–</div><div class="l">next sync</div></div>
   <div class="panel stat"><div class="n" id="notified">–</div><div class="l">notifications</div></div>
@@ -335,12 +334,6 @@ function readCells(tr, stats) {
 }
 
 function render(conns, readStats, data) {
-  // Online is the global host count (WebSocket or not), from Fleet's host
-  // status statistics; ws connected is what THIS server instance holds.
-  $("online").textContent = data.online_hosts !== undefined ? data.online_hosts : "–";
-  if (data.total_hosts !== undefined) {
-    $("online").title = data.online_hosts + " of " + data.total_hosts + " hosts online";
-  }
   $("count").textContent = conns.length;
 
   let notified = 0, dropped = 0, bytesIn = 0, bytesOut = 0;
