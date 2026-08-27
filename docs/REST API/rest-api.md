@@ -1849,9 +1849,7 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      }
+      "enable_managed_local_account": true
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -2251,9 +2249,7 @@ Modifies the Fleet's configuration with the supplied information.
           "labels_exclude_any": ["Label 1", "Label 2"]
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      }
+      "enable_managed_local_account": true
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2282,7 +2278,7 @@ Modifies the Fleet's configuration with the supplied information.
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
-    "windows_enrollment": {
+    "windows_autopilot": {
       "default_fleet": "Workstations"
     },
     "apple_server_url": "https://instance.fleet.com"
@@ -2865,7 +2861,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_settings         | object  | See [`mdm.apple_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
-| windows_enrollment         | object  | See [`mdm.windows_enrollment`](#mdm-windows-enrollment). |
+| windows_autopilot         | object  | See [`mdm.windows_autopilot`](#mdm-windows-enrollment). |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
@@ -2988,14 +2984,13 @@ _Available in Fleet Premium._
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| managed_local_account_settings         | object  | Settings for the managed local account. |
-| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
 
 <br/>
 
-##### mdm.windows_enrollment
+##### mdm.windows_autopilot
 
-`mdm.windows_enrollment` is an object with the following structure:
+`mdm.windows_autopilot` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -3063,9 +3058,7 @@ _Available in Fleet Premium._
           "labels": ["Label 1", "Label 2"]
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      }
+      "enable_managed_local_account": true
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -3084,7 +3077,7 @@ _Available in Fleet Premium._
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
-    "windows_enrollment": {
+    "windows_autopilot": {
       "default_fleet": "Workstations"
     }
   }
@@ -15163,9 +15156,7 @@ _Available in Fleet Premium_
             "labels": ["Label 3", "Label 4"]
           }
         ],
-        "managed_local_account_settings": {
-          "enabled": true
-        }
+        "enable_managed_local_account": true
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -15612,8 +15603,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| managed_local_account_settings         | object  | Settings for the managed local account. |
-| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
+| enable_managed_local_account           | boolean  | Whether to create the managed local account (default: `false`). |
 
 <br/>
 
@@ -15687,9 +15677,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
           "labels": ["Label 1", "Label 2"]
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      }
+      "enable_managed_local_account": true
     },
     "setup_experience": {
       "enable_end_user_authentication": false
@@ -15875,9 +15863,7 @@ _Available in Fleet Premium_
            "labels": ["Label 3", "Label 4"]
           }
         ],
-        "managed_local_account_settings": {
-          "enabled": true
-        }
+        "enable_managed_local_account": true
       },
       "macos_setup": {
         "bootstrap_package": "",
