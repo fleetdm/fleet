@@ -4742,14 +4742,37 @@ func (svc *Service) handleSendAPNSPing(ctx context.Context, host *fleet.Host) er
 		return &fleet.BadRequestError{Message: "Host is not an Apple device."}
 	}
 
-	if host.MDM.EnrollmentStatus == nil || *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusOff {
-		return &fleet.BadRequestError{Message: "Host does not have an active MDM connection."}
+	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting NanoMDM enrollment")
+	}
+
+	if enrollment == nil || !enrollment.Enabled {
+		return &fleet.BadRequestError{Message: "Host does not have MDM turned on."}
 	}
 
 	if err := svc.mdmAppleCommander.SendNotifications(ctx, []string{host.UUID}); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending APNS ping")
 	}
 	svc.logger.DebugContext(ctx, "successfully sent APNS ping", "host.uuid", host.UUID)
+
+	if fleet.IsMacOSPlatform(host.Platform) {
+		// try for a user channel
+		userEnrollment, err := svc.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting NanoMDM user enrollment")
+		}
+		if userEnrollment == nil || !userEnrollment.Enabled {
+			// nil just means no user channel or enrollment
+			return nil
+		}
+
+		if err := svc.mdmAppleCommander.SendNotifications(ctx, []string{userEnrollment.ID}); err != nil {
+			return ctxerr.Wrap(ctx, err, "sending APNS ping for user enrollment")
+		}
+
+		svc.logger.DebugContext(ctx, "successfully sent APNS ping for user enrollment", "user_enrollment.id", userEnrollment.ID, "host.uuid", host.UUID)
+	}
 
 	return nil
 }
