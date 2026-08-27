@@ -2730,6 +2730,12 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil
 	}
+	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		return nil, nil
+	}
 
 	testing_utils.StartSoftwareInstallerServer(t)
 

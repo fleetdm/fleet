@@ -790,7 +790,8 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 
 	// Activation must run outside the transaction (it reads/writes via the
 	// datastore's own connection), mirroring ProcessInstallerUpdateSideEffects.
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
+	return err
 }
 
 // redirectPendingInstallsToActiveInstaller moves installs queued against a superseded
@@ -1037,7 +1038,7 @@ FROM software_installers WHERE id = ?`,
 	}
 
 	if len(refreshAffectedHostIDs) > 0 {
-		if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, refreshAffectedHostIDs); err != nil {
+		if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, refreshAffectedHostIDs); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "activate next activity for hosts affected by a refreshed version")
 		}
 	}
@@ -1846,7 +1847,8 @@ AND NOT EXISTS (SELECT 1 FROM setup_experience_software_installers WHERE softwar
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 // deletePendingSoftwareInstallsForPolicy should be called before a policy is
@@ -1907,7 +1909,8 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "delete upcoming software installs for policy")
 	}
 
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	return err
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -2010,8 +2013,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert software install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -2032,7 +2039,8 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 func (ds *Datastore) ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error {
@@ -2216,7 +2224,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			0, // Uninstalls are never used in setup experience, so always default priority
+			// uninstalls are always user-initiated (never setup experience, never
+			// policy automations), so they rank with other user-initiated activities
+			fleet.UserInitiatedActivityPriority,
 			userID,
 			false,
 			executionID,
@@ -3946,7 +3956,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {

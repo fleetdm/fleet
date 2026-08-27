@@ -88,7 +88,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/micromdm/micromdm v1.9.0 // indirect
 	github.com/micromdm/nanolib v0.2.0 // indirect
-	github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87 // indirect
+	github.com/micromdm/plist v0.3.0 // indirect
 	github.com/mna/redisc v1.3.2 // indirect
 	github.com/nats-io/nats.go v1.49.0 // indirect
 	github.com/nats-io/nkeys v0.4.15 // indirect

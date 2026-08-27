@@ -8,6 +8,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// Priorities for the upcoming activities queue (higher activates first).
+// User-initiated activities sit above Fleet-initiated ones (default 0) so a
+// person acting on a host is never queued behind deferred policy-automation
+// work, and setup experience outranks both.
+const (
+	UserInitiatedActivityPriority   = 10
+	SetupExperienceActivityPriority = 100
+)
+
 // ActivityWriteService is the subset of the activity bounded context service
 // used by the legacy service layer for write operations.
 type ActivityWriteService interface {
