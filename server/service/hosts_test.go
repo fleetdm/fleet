@@ -4921,6 +4921,23 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			// A Windows host with no MDM row has nothing to enforce against, so neither BitLocker notification fires
+			// even though the volume is unencrypted and would otherwise qualify.
+			name: "windows with no mdm info",
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{},
+			expectedError:         false,
+		},
+		{
 			name: "windows with encryption enabled but key missing",
 			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(true), OsqueryHostID: new("foo")},
 			appConfig: &fleet.AppConfig{

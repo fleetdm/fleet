@@ -964,19 +964,10 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 }
 
 // shouldEnableBitLockerProtection reports whether Fleet should ask the agent to turn BitLocker protection back on.
-//
-// The condition cannot be expressed with host.DiskEncryptionEnabled alone: that field is derived from the volume's
-// conversion status, so it is true for a suspended host, which is exactly why such hosts are never acted on today.
-// This reads the protection status, which the orbit host load carries from the same host_disks join.
-//
-// It therefore requires a host loaded by LoadHostByOrbitNodeKey. A host from a loader that does not select those
+// This method requires a host loaded by LoadHostByOrbitNodeKey. A host from a loader that does not select bitlocker
 // columns reports nil, which this reads as "nothing to act on" rather than as an error.
-//
-// diskEncryption is passed in rather than re-read: the caller already resolved it for the platform gate, and
-// GetConfigEnableDiskEncryption would only recompute it from the same team or app config.
 func shouldEnableBitLockerProtection(host *fleet.Host, diskEncryption fleet.DiskEncryptionConfig) bool {
-	// Only act on a volume that is encrypted and positively reported as unprotected. A nil on either field means the
-	// host has not reported its disks yet, or reported "unknown", neither of which is grounds for touching the volume.
+	// Only act on a volume that is encrypted and positively reported as unprotected.
 	encrypted := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
 	if !encrypted || host.BitLockerProtectionStatus == nil ||
 		*host.BitLockerProtectionStatus != fleet.BitLockerProtectionStatusOff {
@@ -984,9 +975,7 @@ func shouldEnableBitLockerProtection(host *fleet.Host, diskEncryption fleet.Disk
 	}
 
 	// Where a startup PIN is required, policy forbids a TPM-only protector, so a host that has no PIN cannot be
-	// repaired by Fleet at all: only the end user can enrol one. Asking the agent anyway would fail on every config
-	// poll. Such hosts stay "Action required" until someone sets a PIN, which the existing status logic already
-	// reports independently of protection status.
+	// repaired by Fleet at all: only the end user can enroll one.
 	if diskEncryption.BitLockerPINRequired && !host.TPMPINSet {
 		return false
 	}
@@ -1043,15 +1032,18 @@ func (svc *Service) setDiskEncryptionNotifications(
 
 		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
 	case "windows":
-		isServer := mdmInfo != nil && mdmInfo.IsServer
+		// BitLocker is an optional component on Windows Server and is not managed there; BitLocker only supported with MDM.
+		if mdmInfo == nil || mdmInfo.IsServer {
+			return nil
+		}
+
 		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled
 		keyWasDecrypted := encryptionKey != nil && encryptionKey.Decryptable != nil && *encryptionKey.Decryptable
 		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && !keyWasDecrypted
-		notifs.EnforceBitLockerEncryption = !isServer &&
-			mdmInfo != nil &&
-			(needsEncryption || encryptedWithoutKey)
+		notifs.EnforceBitLockerEncryption = needsEncryption || encryptedWithoutKey
 
-		if !isServer && mdmInfo != nil && !notifs.EnforceBitLockerEncryption {
+		// A host already being told to encrypt is not also told to restore protection: the encrypt path owns the volume.
+		if !notifs.EnforceBitLockerEncryption {
 			notifs.EnableBitLockerProtection = shouldEnableBitLockerProtection(host, diskEncryption)
 		}
 	}
@@ -1479,11 +1471,11 @@ func postOrbitDiskEncryptionProtectionEndpoint(ctx context.Context, request any,
 	return fleet.OrbitPostDiskEncryptionProtectionResponse{}, nil
 }
 
-// SetOrUpdateDiskEncryptionProtection records what the agent did about a host whose volume was encrypted but
-// unprotected, so the host's disk encryption detail can state the real reason rather than inferring one.
 // bitLockerProtectionErrorMaxLength matches the width of host_disks.bitlocker_protection_error.
 const bitLockerProtectionErrorMaxLength = 255
 
+// SetOrUpdateDiskEncryptionProtection records what the agent did about a host whose volume was encrypted but
+// unprotected.
 func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -1498,22 +1490,19 @@ func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, out
 		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 	}
 	if !connected {
-		return badRequest("host is not enrolled with fleet")
+		return badRequest("host is not enrolled with fleet MDM")
 	}
 
-	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
+	if outcome != fleet.DiskEncryptionProtectionRestored && strings.TrimSpace(clientError) == "" {
 		return fleet.NewInvalidArgumentError("client_error", fmt.Sprintf("cannot be empty when outcome is %q", outcome))
 	}
-	// clientError is untrusted input from fleetd: truncate by rune (not byte, which could split a multi-byte character)
-	// so it always fits the column and stays valid UTF-8. Keeping the head of an over-long message is better than
-	// failing the write and losing the outcome entirely.
+	// clientError is untrusted input from fleetd: truncate by rune.
 	clientError = str.TruncateRunes(clientError, bitLockerProtectionErrorMaxLength)
 
 	switch outcome {
 	case fleet.DiskEncryptionProtectionRestored:
 		// The agent's report is a claim, not an observation of record: osquery owns bitlocker_protection_status. Clear
-		// the recorded reason and ask the host to refetch, so the status flips on evidence within the next check-in
-		// rather than sitting at "Action required" until the next detail cycle.
+		// the recorded reason and ask the host to refetch, so the status flips on evidence quickly.
 		if err := svc.ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, ""); err != nil {
 			return ctxerr.Wrap(ctx, err, "clearing disk encryption protection error")
 		}
