@@ -1199,6 +1199,18 @@ Generated when a user disables automatic MDM migration for Windows hosts, if Win
 
 This activity does not contain any detail fields.
 
+## enabled_apple_business_only_enrollment
+
+Generated when a user enables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
+## disabled_apple_business_only_enrollment
+
+Generated when a user disables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
 ## ran_script
 
 Generated when a script is sent to be run for a host.
