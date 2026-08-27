@@ -166,6 +166,12 @@ const PolicyNoTeamID = uint(0)
 // Max times a policy automation will be retried on failure.
 const MaxPolicyAutomationRetries = 3
 
+// Max amount of retries allowed in a row via policy automations.
+const MaxPolicyAutomationInstallAttempts = 10
+
+// Time to live of the install attempt counter key when it is not updated again.
+const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
@@ -899,6 +905,7 @@ type PolicyAutomationType string
 
 const (
 	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypePatch             PolicyAutomationType = "patch"
 	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
 	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
 	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"

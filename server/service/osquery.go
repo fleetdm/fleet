@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -62,7 +63,26 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+		// Fall back to the orbit node key: with the WebSocket transport active,
+		// orbit calls the distributed endpoints on behalf of osquery and only
+		// has its own node key. Both keys resolve to the same host row, so
+		// authorization is unchanged. The fallback runs only on an osquery-key
+		// miss and only with the transport enabled, keeping legacy auth
+		// semantics (and the single-query hot path) intact otherwise.
+		if !svc.config.WebSocket.TransportEnabled {
+			return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+		}
+		host, err = svc.ds.LoadHostByOrbitNodeKey(ctx, nodeKey)
+		switch {
+		case err == nil:
+			// OK
+		case fleet.IsNotFound(err):
+			return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+		case errors.Is(err, context.Canceled):
+			return nil, false, err
+		default:
+			return nil, false, newOsqueryError("authentication error: " + err.Error())
+		}
 	case errors.Is(err, context.Canceled):
 		// Most likely client disconnected, so we treat this as a client error.
 		return nil, false, err
@@ -717,6 +737,18 @@ func (svc *Service) buildClientConfig(ctx context.Context, packs []*fleet.Pack, 
 		}
 	}
 
+	// With the WebSocket transport enabled, orbit points osquery at its own
+	// distributed plugin on the command line. Fleet's default agent options
+	// include `distributed_plugin: tls` as a config option, which osquery
+	// applies at runtime and which would silently flip the host back to TLS
+	// polling on its first config refresh — strip it. Agents get their
+	// distributed plugin from the fleetd-managed command line either way.
+	if svc.config.WebSocket.TransportEnabled {
+		if opts, ok := config["options"].(map[string]any); ok {
+			delete(opts, "distributed_plugin")
+		}
+	}
+
 	packConfigJSON, err := svc.getPackConfig(ctx, host, packs, bypassTeamPackCache)
 	if err != nil {
 		return nil, newOsqueryError("internal error: build pack config: " + err.Error())
@@ -1101,6 +1133,24 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
+// recordDistributedReadStats wraps the distributed/read endpoint to count
+// requests per host in the agent WebSocket hub, split by request path:
+// osqueryd's built-in tls plugin polls the /api/v1/... alias, orbit's
+// WebSocket-driven client uses /api/osquery/... — the split makes hosts that
+// are still polling visible on /debug/agentws.
+func recordDistributedReadStats(
+	hub *agentws.Hub,
+	next func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error),
+) func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	return func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+		if host, ok := hostctx.FromContext(ctx); ok {
+			path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
+			hub.RecordDistributedRead(host.ID, strings.HasPrefix(path, "/api/v1/"))
+		}
+		return next(ctx, request, svc)
+	}
+}
+
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
@@ -1236,7 +1286,10 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 	}
 
 	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && (appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured) && host.TeamID != nil {
+	// LUKS key escrow needs no MDM, so Linux hosts need their fleet's config
+	// even when no MDM platform is configured
+	if appConfig != nil && host.TeamID != nil &&
+		(appConfig.MDM.EnabledAndConfigured || appConfig.MDM.WindowsEnabledAndConfigured || host.FleetPlatform() == "linux") {
 		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
@@ -1378,46 +1431,108 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
-func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
-	switch {
-	case host.Platform == string(fleet.MacOSPlatform):
-		inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
-		}
-		return inSetupExperience, nil
-	case fleet.IsLinux(host.Platform) || host.Platform == "windows":
-		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+// dueHostsChunkSize bounds the number of host IDs per ListHostsLiteByIDs
+// query when checking which hosts are due for a distributed read.
+const dueHostsChunkSize = 1000
+
+// ListHostIDsDueForDistributedRead returns the subset of hostIDs whose next
+// distributed/read would include interval work or an unanswered live query
+// campaign, keyed by host ID with the reason it is due. It reuses the read
+// path's staleness gates (shouldUpdate, including the per-host jitter
+// tables), so notification and read decisions agree by construction.
+//
+// The live query check makes the pub/sub wake-up a latency optimization only:
+// a campaign whose one-shot wake-up was lost anywhere along the way is
+// recovered within one interval check tick, and hosts stop being re-notified
+// once they answer (answering clears their targeting in the store).
+//
+// Known limitation: with async task processing enabled, the label/policy
+// reported-at timestamps may be fresher in Redis than the hosts table columns
+// used here. This can only over-notify (one cheap empty read per tick until
+// the async timestamps are flushed), never miss due work.
+func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
+	// skipauth: internal caller (the per-instance interval check job), not a
+	// user-facing endpoint.
+	svc.authz.SkipAuthorization(ctx)
+
+	// With no active campaigns (the common case) the per-host live query check
+	// below is skipped entirely. Errors are non-fatal so interval-work
+	// notification never depends on the live query store being reachable.
+	activeCampaigns, err := svc.liveQueryStore.LoadActiveQueryNames()
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load active query names for distributed read due check", "err", err)
+	}
+
+	due := make(map[uint]string)
+	for start := 0; start < len(hostIDs); start += dueHostsChunkSize {
+		end := min(start+dueHostsChunkSize, len(hostIDs))
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs[start:end])
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+			return nil, ctxerr.Wrap(ctx, err, "list hosts due for distributed read")
 		}
-		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
-		if err != nil && !fleet.IsNotFound(err) {
-			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
+		for _, host := range hosts {
+			if reason := svc.hostDueForDistributedRead(host); reason != "" {
+				due[host.ID] = reason
+				continue
+			}
+			// A host notified for interval work performs a full
+			// distributed/read, which serves any live query targeting it
+			// anyway, so only hosts with no interval work are checked.
+			if len(activeCampaigns) > 0 {
+				if reason := svc.hostDueForLiveQuery(ctx, host.ID); reason != "" {
+					due[host.ID] = reason
+				}
+			}
 		}
-		return inSetupExperience, nil
+	}
+	return due, nil
+}
+
+// hostDueForLiveQuery returns a live-<campaign ID> reason when an active live
+// query campaign targets the host and it has not answered yet, or ""
+// otherwise. Errors are logged and treated as not due: the check re-runs on
+// the next interval check tick. Costs one Redis lookup per host per tick
+// while a campaign is active — the same lookup a polling host's
+// distributed/read performs today, at a lower frequency.
+func (svc *Service) hostDueForLiveQuery(ctx context.Context, hostID uint) string {
+	queries, err := svc.liveQueryStore.QueriesForHost(hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "list live queries for distributed read due check",
+			"host_id", hostID, "err", err)
+		return ""
+	}
+	// The reason is informational only, so when several campaigns target the
+	// host any one of them will do.
+	for name := range queries {
+		return fleet.AgentWSReasonLiveQueryName(name)
+	}
+	return ""
+}
+
+// hostDueForDistributedRead mirrors the gates of detailQueriesForHost,
+// labelQueriesForHost and policyQueriesForHost: any single gate being due
+// means the host's next distributed/read carries work. It returns the first
+// due gate's reason ("" when none); the reason is informational only, so ties
+// are not enumerated.
+func (svc *Service) hostDueForDistributedRead(host *fleet.Host) string {
+	switch {
+	case host.RefetchRequested:
+		return fleet.AgentWSReasonRefetch
+	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
+		return fleet.AgentWSReasonRefetch
+	case svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID):
+		return fleet.AgentWSReasonDetail
+	case svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID):
+		return fleet.AgentWSReasonLabel
+	case svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID):
+		return fleet.AgentWSReasonPolicy
 	default:
-		return false, nil
+		return ""
 	}
 }
 
-func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
-	}
-
-	for _, status := range statuses {
-		if err := status.IsValid(); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "invalid row")
-		}
-
-		switch status.Status {
-		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
-			return true, nil
-		}
-	}
-	return false, nil
+func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	return fleet.HostIsInSetupExperience(ctx, svc.ds, host)
 }
 
 // discardOutOfScopePolicyResults removes, in place, the results for policies that are not in scope for the host.
@@ -2675,6 +2790,14 @@ func (svc *Service) continuousAutomationOnCooldown(lastFiredAt time.Time) bool {
 	return svc.clock.Now().Sub(lastFiredAt) < svc.config.Osquery.PolicyUpdateInterval
 }
 
+// deferFleetInitiatedActivation reports whether fleet-initiated activities
+// (policy-automation installs and scripts) should be enqueued without inline
+// activation, leaving them to the fleet-initiated release cron to activate
+// within the activity.fleet_initiated_release_per_minute budget.
+func (svc *Service) deferFleetInitiatedActivation() bool {
+	return svc.config.Activity.FleetInitiatedReleasePerMinute > 0
+}
+
 func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	ctx context.Context,
 	hostID uint,
@@ -2827,6 +2950,11 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Don't attempt another install for this policy if the retry limit is reached.
+		if svc.installFailureLimitReached(ctx, hostID, installerMetadata.InstallerID, policyID) {
+			continue
+		}
+
 		// On a continuous re-fire (policy still failing), reset prior
 		// attempt_number values for this host/policy to 0 so the new attempt
 		// restarts the retry sequence at 1 instead of inheriting the cap from
@@ -2845,8 +2973,9 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService: false,
-				PolicyID:    &policyID,
+				SelfService:     false,
+				PolicyID:        &policyID,
+				DeferActivation: svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {
@@ -3019,8 +3148,9 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		}
 
 		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
-			SelfService: false,
-			PolicyID:    &policyID,
+			SelfService:     false,
+			PolicyID:        &policyID,
+			DeferActivation: svc.deferFleetInitiatedActivation(),
 		})
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to get install VPP app",
@@ -3272,6 +3402,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			ScriptID:        &scriptMetadata.ID,
 			TeamID:          policyTeamID,
 			PolicyID:        &policyID,
+			DeferActivation: svc.deferFleetInitiatedActivation(),
 			// no user ID as scripts are executed by Fleet
 		}
 

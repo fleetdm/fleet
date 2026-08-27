@@ -26,10 +26,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ExtensionName is the name orbit's extension manager server registers with
+// osquery. It is what osquery's --extensions_require flag takes to wait for
+// this extension before activating plugins.
+const ExtensionName = "com.fleetdm.orbit.osquery_extension.v1"
+
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
 	socket          string
 	tableExtensions []Extension
+	plugins         []osquery.OsqueryPlugin
 	executeDone     chan struct{}
 
 	// mu protects access to srv, ctx and cancel in Execute and Interrupt.
@@ -64,6 +70,14 @@ func WithExtension(t Extension) Opt {
 	}
 }
 
+// WithPlugin registers an arbitrary osquery plugin (e.g. a distributed plugin)
+// on the Runner, alongside the table plugins.
+func WithPlugin(p osquery.OsqueryPlugin) Opt {
+	return func(r *Runner) {
+		r.plugins = append(r.plugins, p)
+	}
+}
+
 // NewRunner creates an extension runner.
 func NewRunner(socket string, opts ...Opt) *Runner {
 	r := &Runner{
@@ -89,7 +103,7 @@ func (r *Runner) Execute() error {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
 		srv, err := osquery.NewExtensionManagerServer(
-			"com.fleetdm.orbit.osquery_extension.v1",
+			ExtensionName,
 			r.socket,
 			// This timeout is only used for registering the extension tables
 			// and for the heartbeat ping requests in r.srv.Run().
@@ -127,6 +141,7 @@ func (r *Runner) Execute() error {
 			t.GenerateFunc,
 		))
 	}
+	plugins = append(plugins, r.plugins...)
 	r.srv.RegisterPlugin(plugins...)
 
 	if err := r.srv.Run(); err != nil {

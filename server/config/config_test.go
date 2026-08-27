@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -326,6 +327,127 @@ osquery:
 				})
 				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
 				require.Equal(t, c.wantLabelCfg, got)
+			}
+		})
+	}
+}
+
+func TestServerConfigEndpointRequestSizeOverrides(t *testing.T) {
+	cases := []struct {
+		desc              string
+		yaml              string
+		env               []string
+		panics            bool
+		expectedOverrides EndpointRequestSizeOverrides
+	}{
+		{
+			desc:              "unset",
+			expectedOverrides: nil,
+		},
+		{
+			desc: "YAML list",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}"
+      max_request_size: "50MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}": 50 * units.MiB,
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Enviroment variable - JSON array",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/log", "max_request_size": "20MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Environment variable replaces YAML list instead of merging with it",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/distributed/write", "max_request_size": "10MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/distributed/write": 10 * units.MiB,
+			},
+		},
+		{
+			desc: "Duplicate endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "10MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			// expectedOverrides: EndpointRequestSizeOverrides{
+			// 	"/api/osquery/log": 20 * units.MiB,
+			// },
+			panics: true,
+		},
+		{
+			desc: "Malformed JSON in environment variable panics",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=not-json`,
+			},
+			panics: true,
+		},
+		{
+			desc: "Malformed size string panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "not-a-size"`,
+			panics: true,
+		},
+		{
+			desc: "Empty endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: ""
+      max_request_size: "20MiB"`,
+			panics: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.env {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			if c.panics {
+				require.Panics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+			} else {
+				require.NotPanics(t, func() {
+					loadedCfg = man.LoadConfig()
+				})
+				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
 			}
 		})
 	}
@@ -1226,4 +1348,42 @@ func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
 		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+}
+
+func TestValidateWebSocketConfig(t *testing.T) {
+	t.Parallel()
+	valid := WebSocketConfig{
+		TransportEnabled: true,
+		PingInterval:     5 * time.Minute,
+		PongTimeout:      30 * time.Second,
+		CheckInterval:    30 * time.Second,
+		CheckBatchSize:   500,
+	}
+
+	t.Run("valid", func(t *testing.T) {
+		valid.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	t.Run("invalid values ignored when transport disabled", func(t *testing.T) {
+		cfg := WebSocketConfig{TransportEnabled: false}
+		cfg.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	for _, c := range []struct {
+		name   string
+		mutate func(*WebSocketConfig)
+	}{
+		{"zero ping_interval", func(c *WebSocketConfig) { c.PingInterval = 0 }},
+		{"negative pong_timeout", func(c *WebSocketConfig) { c.PongTimeout = -time.Second }},
+		{"zero check_interval", func(c *WebSocketConfig) { c.CheckInterval = 0 }},
+		{"zero check_batch_size", func(c *WebSocketConfig) { c.CheckBatchSize = 0 }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := valid
+			c.mutate(&cfg)
+			called := false
+			cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
 }

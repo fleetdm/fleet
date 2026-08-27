@@ -191,25 +191,19 @@ func (svc *Service) verifyMicrosoftGraphCredentials(
 	return nil
 }
 
-// microsoftGraphVerifyMessage turns a Graph failure into something an admin can act on. The three cases have genuinely
-// different remedies, and Graph reports a missing permission under different error codes depending on the endpoint
-// family, so the classification keys on the HTTP status rather than the code string.
+// microsoftGraphVerifyMessage turns a save-time Graph failure into something an admin can act on. A failure that never
+// reached Graph is described here rather than in msgraph, because only the caller knows what it was attempting.
 func microsoftGraphVerifyMessage(err error) string {
-	graphErr, ok := msgraph.AsError(err)
-	if !ok {
-		return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", err)
+	if msg := msgraph.UserFacingMessage(err); msg != "" {
+		// Someone is waiting on this save, so retrying by hand is real advice.
+		if graphErr, ok := msgraph.AsError(err); ok && graphErr.IsTransient() {
+			return msg + " Please try again."
+		}
+		return msg
 	}
-	switch {
-	case graphErr.IsPermissionError():
-		return "Microsoft Graph denied the request. Grant the app registration the DeviceManagementServiceConfig.Read.All " +
-			"application permission and grant admin consent for your tenant."
-	case graphErr.IsAuthError():
-		return "Microsoft Graph rejected the credential. Check the tenant ID, client ID, and client secret."
-	case graphErr.IsTransient():
-		return fmt.Sprintf("Microsoft Graph is temporarily unavailable (%d). Please try again.", graphErr.StatusCode)
-	default:
-		return fmt.Sprintf("Couldn't verify the Microsoft Graph credential: %s", graphErr)
-	}
+	// Unwrapped for the same reason the sync path stores a classified message: the wrap chain is internal plumbing, and
+	// the innermost error is the part an admin can act on (a DNS or TLS failure, say).
+	return fmt.Sprintf("Couldn't connect to Microsoft Graph: %s", ctxerr.Cause(err))
 }
 
 // persistMicrosoftGraphCredentials reconciles stored credentials to match the supplied list, and reports which tenants

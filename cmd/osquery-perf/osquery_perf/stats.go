@@ -76,6 +76,10 @@ type Stats struct {
 	pssoKeyRequests                int
 	pssoKeyExchanges               int
 	pssoErrors                     int
+	websocketConnected             int // gauge: currently connected WebSocket transports
+	websocketConnects              int
+	websocketNotifications         int
+	websocketErrors                int
 
 	// ETag / conditional config stats
 	configFullResponses       int64
@@ -558,6 +562,35 @@ func (s *Stats) ConfigETagDrift() int64 {
 	return s.configETagDrift
 }
 
+// UpdateWebSocketConnected adjusts the gauge of currently connected WebSocket
+// transports by delta (+1 on connect, -1 on disconnect).
+func (s *Stats) UpdateWebSocketConnected(delta int) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketConnected += delta
+	if s.websocketConnected < 0 {
+		s.websocketConnected = 0
+	}
+}
+
+func (s *Stats) IncrementWebSocketConnects() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketConnects++
+}
+
+func (s *Stats) IncrementWebSocketNotifications() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketNotifications++
+}
+
+func (s *Stats) IncrementWebSocketErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.websocketErrors++
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -590,6 +623,8 @@ func (s *Stats) Log() {
 	fmt.Fprintf(&b, "    orbit enrolls:       %d\n", s.orbitEnrollments)
 	fmt.Fprintf(&b, "    distributed:         reads=%d writes=%d (errs: reads=%d writes=%d)\n",
 		s.distributedReads, s.distributedWrites, s.distributedReadErrors, s.distributedWriteErrors)
+	fmt.Fprintf(&b, "    websocket:           connected=%d connects=%d notifications=%d (errs: %d)\n",
+		s.websocketConnected, s.websocketConnects, s.websocketNotifications, s.websocketErrors)
 	fmt.Fprintf(&b, "    config requests:     %d (errs: %d)\n", s.configRequests, s.configErrors)
 	fmt.Fprintf(&b, "    config etags:        full=%d not_modified=%d conditional=%d drift=%d\n",
 		s.configFullResponses, s.configNotModified, s.configConditionalRequests, s.configETagDrift)

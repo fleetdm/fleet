@@ -110,6 +110,7 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  microsoft_graph_credential_invalid: boolean;
   windows_enrollment?: IWindowsEnrollment | null;
   apple_account_provisioning?: IAppleAccountProvisioning;
 }
@@ -139,6 +140,7 @@ export interface IDeviceGlobalConfig {
 export interface IFleetDesktopSettings {
   transparency_url: string;
   alternative_browser_host: string;
+  sso_enabled: boolean;
 }
 
 export interface IConfigFeatures {

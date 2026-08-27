@@ -526,7 +526,7 @@ Reference: https://fleetdm.com/pricing
 
 </table>
 
-### Security & Compliance
+### Supply Chain
 
 **Progress**
 - [ ] Disk encryption (Linux)
@@ -566,10 +566,11 @@ Reference: https://fleetdm.com/pricing
 <td>Verify setup and certificate delivery.</td>
 <td>
 
-1. Configure and verify that certificates deploy to hosts with the following CAs:
+1. Configure and verify that certificates deploy to hosts with the following CAs and that they appear on the Host Details page:
     1. DigiCert
     2. NDES
     3. SmallStep
+    4. Hydrant (ACME)
 
 </td>
 </tr>

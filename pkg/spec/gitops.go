@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -190,6 +191,7 @@ type GitOpsControls struct {
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
 	AndroidSettings                any `json:"android_settings"`
+	LinuxSettings                  any `json:"linux_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
@@ -212,7 +214,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.NameTemplate != nil
+		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
 type Policy struct {
@@ -224,9 +226,10 @@ type GitOpsPolicySpec struct {
 	fleet.PolicySpec
 	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
 	// explicitly vs. omitted, which patch_when_closed validation needs.
-	ContinuousAutomations optjson.Bool                           `json:"continuous_automations_enabled"`
-	RunScript             *PolicyRunScript                       `json:"run_script"`
-	InstallSoftware       optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
+	RunScript                  *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	ResendConfigurationProfile string                                 `json:"resend_configuration_profile"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -1373,20 +1376,9 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var macOSSettings fleet.MacOSSettings
-		data, err := json.Marshal(result.Controls.MacOSSettings)
+		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
-		}
-		data, _, err = rewriteNewToOldKeys(data, &macOSSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite macos_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &macOSSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
+			return multierror.Append(multiError, err)
 		}
 
 		// An activation names exactly one declaration in its
@@ -1434,25 +1426,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			}
 		}
 
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}
 	if result.Controls.WindowsSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var windowsSettings fleet.WindowsSettings
-		data, err := json.Marshal(result.Controls.WindowsSettings)
+		windowsSettings, err := reparseSettings[fleet.WindowsSettings](result.Controls.WindowsSettings, controlsFilePath, "windows_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+			return multierror.Append(multiError, err)
 		}
-		data, _, err = rewriteNewToOldKeys(data, &windowsSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite windows_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &windowsSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_settings"}, err))
-		}
+
 		if windowsSettings.CustomSettings.Valid {
 			var errs []error
 			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
@@ -1469,25 +1450,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				}
 			}
 		}
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
+
 		result.Controls.WindowsSettings = windowsSettings
+	}
+	if result.Controls.LinuxSettings != nil {
+		linuxSettings, err := reparseSettings[fleet.LinuxSettings](result.Controls.LinuxSettings, controlsFilePath, "linux_settings")
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+
+		result.Controls.LinuxSettings = linuxSettings
 	}
 
 	if result.Controls.AndroidSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.AndroidSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var androidSettings fleet.AndroidSettings
-		data, err := json.Marshal(result.Controls.AndroidSettings)
+		androidSettings, err := reparseSettings[fleet.AndroidSettings](result.Controls.AndroidSettings, controlsFilePath, "android_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
-		}
-		data, _, err = rewriteNewToOldKeys(data, &androidSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite android_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &androidSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "android_settings"}, err))
+			return multierror.Append(multiError, err)
 		}
 
 		if androidSettings.CustomSettings.Valid {
@@ -1519,7 +1497,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			}
 		}
 
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.AndroidSettings = androidSettings
 	}
 
@@ -1528,6 +1505,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	}
 
 	return multiError
+}
+
+func reparseSettings[T any](v any, filePath, key string) (T, error) {
+	var settings T
+	data, err := json.Marshal(v)
+	if err != nil {
+		return settings, fmt.Errorf("failed to process controls.%s: %w", key, err)
+	}
+	data, _, err = rewriteNewToOldKeys(data, &settings)
+	if err != nil {
+		return settings, fmt.Errorf("failed to rewrite controls.%s keys: %w", key, err)
+	}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return settings, MaybeParseTypeError(filePath, []string{"controls", key}, err)
+	}
+	return settings, nil
 }
 
 // validateOSUpdatesProfileConflict rejects a config that both configures managed
@@ -1690,6 +1683,28 @@ func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) 
 		return err
 	}
 	return nil
+}
+
+func resolveAndReturnFileBytes(path string) ([]byte, error) {
+	resolved, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve path %s: %v", path, err)
+	}
+	fileBytes, err := os.ReadFile(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %v", resolved, err)
+	}
+
+	return fileBytes, nil
+}
+
+// blankFleetSecrets removes $FLEET_SECRET_* references from contents. Secrets are
+// only expanded server-side, so a placeholder left inside a <data> payload would
+// fail base64 decoding when the profile is parsed for validation.
+func blankFleetSecrets(contents []byte) []byte {
+	return []byte(fleet.MaybeExpand(string(contents), func(name string, _, _ int) (string, bool) {
+		return "", strings.HasPrefix(name, fleet.ServerSecretPrefix)
+	}))
 }
 
 // defaultAllowedExtensions is the default set of file extensions allowed for
@@ -1997,6 +2012,67 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, errs...)
 	}
 
+	// map of profile names that is defined in gitops
+	definedProfileNames := make(map[string]struct{})
+
+	// cast already parsed controls to it's type
+	macOSSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+	if ok {
+		for _, item := range macOSSettings.CustomSettings {
+			// each entry has already been expanded so we can expect a single path
+			if item.Path == "" {
+				multiError = multierror.Append(multiError, errors.New("controls.macos_settings.configuration_profiles[]: path is required for each profile"))
+				continue
+			}
+
+			if !strings.EqualFold(filepath.Ext(item.Path), ".mobileconfig") {
+				// no-op and skip silently
+				continue
+			}
+
+			// next we need to read the file, parse it and
+			fileBytes, err := resolveAndReturnFileBytes(item.Path)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to resolve and read file %s: %v", item.Path, err))
+				continue
+			}
+
+			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
+			mc := mobileconfig.Mobileconfig(blankFleetSecrets(fileBytes))
+			parsed, err := mc.ParseConfigProfile()
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse mobileconfig file %s: %v", item.Path, err))
+				continue
+			}
+			if parsed.PayloadDisplayName == "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("mobileconfig file %s is missing PayloadDisplayName", item.Path))
+				continue
+			}
+
+			definedProfileNames[parsed.PayloadDisplayName] = struct{}{}
+		}
+	}
+
+	windowsSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+	if ok {
+		for _, item := range windowsSettings.CustomSettings.Value {
+			// each entry has already been expanded so we can expect a single path
+			if item.Path == "" {
+				multiError = multierror.Append(multiError, errors.New("controls.windows_settings.configuration_profiles[]: path is required for each profile"))
+				continue
+			}
+
+			if !strings.EqualFold(filepath.Ext(item.Path), ".xml") {
+				// no-op and skip silently
+				continue
+			}
+
+			// windows profile names come from the file name without the extension
+			base := filepath.Base(item.Path)
+			definedProfileNames[strings.TrimSuffix(base, filepath.Ext(base))] = struct{}{}
+		}
+	}
+
 	// Validate unknown keys in policies section.
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
@@ -2007,6 +2083,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if err := parsePolicyRunScript(baseDir, parentFilePath, result.TeamName, &item, result.Controls.Scripts); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", item.Name, err))
+				continue
+			}
+			if err := parsePolicyResendConfigurationProfile(parentFilePath, result.TeamName, &item, definedProfileNames); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", item.Name, err))
 				continue
 			}
 			result.Policies = append(result.Policies, &item.GitOpsPolicySpec)
@@ -2043,6 +2123,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 							}
 							if err := parsePolicyRunScript(filepath.Dir(*item.Path), parentFilePath, result.TeamName, pp, result.Controls.Scripts); err != nil {
 								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy run_script %q: %v", pp.Name, err))
+								continue
+							}
+							if err := parsePolicyResendConfigurationProfile(parentFilePath, result.TeamName, pp, definedProfileNames); err != nil {
+								multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy resend_configuration_profile %q: %v", pp.Name, err))
 								continue
 							}
 							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
@@ -2161,6 +2245,23 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 
 	scriptName := filepath.Base(policy.RunScript.Path)
 	policy.RunScriptName = &scriptName
+
+	return nil
+}
+
+func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
+	if teamName == nil && policy.ResendConfigurationProfile != "" {
+		return errors.New("resend_configuration_profile can only be set on team policies")
+	}
+
+	name := strings.TrimSpace(policy.ResendConfigurationProfile)
+
+	// name == "" is unsetting.
+	if _, ok := definedProfiles[name]; !ok && name != "" {
+		return fmt.Errorf("configuration profile %q was not defined in controls in %s", name, filepath.Base(parentFilePath))
+	}
+
+	policy.ResendConfigurationProfile = name
 
 	return nil
 }

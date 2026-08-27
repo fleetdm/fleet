@@ -2,7 +2,6 @@ import {
   EndUserLocalAccountType,
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
-  IHostMdmProfile,
   IMdmAsset,
   IMdmProfile,
   IMdmSSOResponse,
@@ -76,7 +75,7 @@ export interface IUploadAssetResponse {
   asset_uuid: string;
 }
 
-export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+export const isDDMProfile = (profile: Pick<IMdmProfile, "profile_uuid">) => {
   return profile.profile_uuid.startsWith("d");
 };
 

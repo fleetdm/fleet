@@ -176,6 +176,12 @@ export interface IHostMdmData {
    * populated for list hosts or other hosts endpoints.
    */
   encryption_key_archived?: boolean;
+  /**
+   * bootstrap_token_escrowed indicates whether Fleet has escrowed a bootstrap token for
+   * the macOS host. Only applicable to macOS hosts. It is only populated for
+   * GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints.
+   */
+  bootstrap_token_escrowed?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   dep_profile_error?: boolean;
   name?: string;

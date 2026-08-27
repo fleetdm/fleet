@@ -46,6 +46,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
 		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
+		{"ListSoftwareTitlesSearchByBundleAndDisplayName", testListSoftwareTitlesSearchByBundleAndDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
@@ -1975,6 +1976,77 @@ func testListSoftwareTitlesSortByDisplayName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "zzz-script-only.pkg", sortedDesc[2].Name, "AAA Script (zzz-script-only.pkg) should sort last in DESC")
 }
 
+func testListSoftwareTitlesSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Search Test Team"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "searchhost1", "", "searchhost1key", "searchhost1uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+
+	// display_name and bundle_identifier deliberately share no substring with name.
+	sw := []fleet.Software{
+		{Name: "acme-secure-client", Version: "1.0", Source: "apps", BundleIdentifier: "com.zeta.vpn.service"},
+		{Name: "other-app", Version: "1.0", Source: "apps", BundleIdentifier: "com.other.app"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+
+	var targetID uint
+	for _, tt := range titles {
+		if tt.Name == "acme-secure-client" {
+			targetID = tt.ID
+			break
+		}
+	}
+	require.NotZero(t, targetID)
+
+	// Set a custom team-scoped display name that shares no substring with name or bundle_identifier.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, targetID, "Cisco Secure Client")
+	})
+
+	search := func(q string) []fleet.SoftwareTitleListResult {
+		out, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name", MatchQuery: q},
+			TeamID:      &team.ID,
+		}, adminFilter)
+		require.NoError(t, err)
+		return out
+	}
+
+	// Match by name.
+	got := search("acme")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// Match by bundle_identifier (substring not in name or display_name).
+	got = search("zeta")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// Match by custom display_name (substring not in name or bundle_identifier).
+	got = search("Cisco")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// No false positives.
+	got = search("nomatch-xyz")
+	require.Empty(t, got)
+}
+
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
 	// Uncomment the next line to regenerate the fixture
 	// generateSelectSoftwareTitlesSQLFixture(t)
@@ -2898,7 +2970,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing start time")
+	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
@@ -2909,7 +2981,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing end time")
+	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
 
 	// Attempt to enable auto-update with less than an hour between start and end time.
 	startTime = "12:00"

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.8.1",
+      "version": "3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.AirBuddy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.AirBuddy' AND version_compare(bundle_short_version, '2.8.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.AirBuddy' AND version_compare(bundle_short_version, '3.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'codes.rambo.AirBuddy');"
       },
-      "installer_url": "https://su.airbuddy.app/kCRSAmcjBc/AirBuddy_v2.8.1-660.dmg",
+      "installer_url": "https://su.airbuddy.app/lleMaylxgd/AirBuddy_v3.0.1-1008.dmg",
       "install_script_ref": "d2a86d92",
       "uninstall_script_ref": "a18b7e7a",
-      "sha256": "61e3b5ce63d1345e3a126b91a75e3627d491bd6cc7ada5abd7e56eaad849cec4",
+      "sha256": "0c8e2b7349629f8176d7af8d2460cd06e37d1721edff6a925109914b53992700",
       "default_categories": [
         "Productivity"
       ]

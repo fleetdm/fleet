@@ -493,7 +493,7 @@ const HostSoftwareLibrary = ({
   }, []);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number, isScriptPackage = false) => {
+    async (softwareId: number, isScriptPackage = false): Promise<boolean> => {
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         if (isMountedRef.current) {
@@ -521,15 +521,17 @@ const HostSoftwareLibrary = ({
             {message()} To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
+        return true;
       } catch (e) {
         notify.error(getInstallErrorMessage(e), { response: e });
+        return false;
       }
     },
     [id, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const onClickUninstallAction = useCallback(
-    async (softwareId: number) => {
+    async (softwareId: number): Promise<boolean> => {
       try {
         await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
         if (isMountedRef.current) {
@@ -547,8 +549,10 @@ const HostSoftwareLibrary = ({
             . To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
+        return true;
       } catch (e) {
         notify.error(getUninstallErrorMessage(e), { response: e });
+        return false;
       }
     },
     [id, onInstallOrUninstall, isHostOnline, queryClient]

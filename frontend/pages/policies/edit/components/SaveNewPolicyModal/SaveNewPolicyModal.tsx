@@ -386,6 +386,7 @@ const SaveNewPolicyModal = ({
               automationsConfig={automationsConfig}
               globalConfig={globalConfig}
               fleetName={fleetName}
+              selectedPlatforms={platformSelector.getSelectedPlatforms()}
             />
           </div>
         ) : (

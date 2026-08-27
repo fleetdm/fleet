@@ -6,7 +6,7 @@ import SectionCard from "../../SectionCard";
 interface IWindowsAutomaticEnrollmentCardProps {
   windowsMdmEnabled: boolean;
   tenantAdded: boolean;
-  viewDetails: () => void;
+  onViewDetails: () => void;
 }
 
 const WindowsMdmDisabledCard = (
@@ -54,17 +54,17 @@ const WindowsTenantNotAddedCard = ({
 const WindowsAutomaticEnrollmentCard = ({
   windowsMdmEnabled,
   tenantAdded,
-  viewDetails,
+  onViewDetails,
 }: IWindowsAutomaticEnrollmentCardProps) => {
   if (!windowsMdmEnabled) {
     return WindowsMdmDisabledCard;
   }
 
   if (tenantAdded) {
-    return <WindowsTenantAddedCard editTenants={viewDetails} />;
+    return <WindowsTenantAddedCard editTenants={onViewDetails} />;
   }
 
-  return <WindowsTenantNotAddedCard addTenant={viewDetails} />;
+  return <WindowsTenantNotAddedCard addTenant={onViewDetails} />;
 };
 
 export default WindowsAutomaticEnrollmentCard;

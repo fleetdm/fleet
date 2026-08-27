@@ -2322,7 +2322,7 @@ func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Data
 	// Create two cached FMA versions via successive GitOps runs. v1.0 ends
 	// up inactive, v2.0 active.
 	for _, version := range []string{"1.0", "2.0"} {
-		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 			{
 				FleetMaintainedAppID: &fma.ID,
 				Title:                "pkg_active",

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.22.4",
+      "version": "1.22.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang' AND version_compare(version, '1.22.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang' AND version_compare(version, '1.22.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chatbox.exe');"
       },
-      "installer_url": "https://download.chatboxai.app/releases/Chatbox-1.22.4-Setup.exe",
+      "installer_url": "https://download.chatboxai.app/releases/Chatbox-1.22.6-Setup.exe",
       "install_script_ref": "dd2de847",
       "uninstall_script_ref": "ba694131",
-      "sha256": "04775aa657e8ef9120796a264c477762a8a697baa6e6ac3ee705193e8c0e9493",
+      "sha256": "f80219298a6b5f9d4d71e00dc710483324eaaa8a21c1a3bb521484f4e7776315",
       "default_categories": [
         "Productivity"
       ]

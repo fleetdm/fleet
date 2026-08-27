@@ -170,10 +170,10 @@ type lineReader struct {
 	long []byte
 }
 
-func newLineReader(r io.Reader, max int) *lineReader {
+func newLineReader(r io.Reader, maxSize int) *lineReader {
 	// Sizing the read buffer to the retention limit keeps every line that is
 	// retained in full on the single-read path below.
-	return &lineReader{r: bufio.NewReaderSize(r, max), max: max}
+	return &lineReader{r: bufio.NewReaderSize(r, maxSize), max: maxSize}
 }
 
 // readLine returns the next line with its trailing newline removed. The returned
@@ -209,8 +209,8 @@ func (lr *lineReader) readLine() (line []byte, terminated bool, err error) {
 }
 
 // appendChunk appends chunk to dst, up to a total of max bytes.
-func appendChunk(dst, chunk []byte, max int) []byte {
-	room := max - len(dst)
+func appendChunk(dst, chunk []byte, maxSize int) []byte {
+	room := maxSize - len(dst)
 	if room <= 0 || len(chunk) == 0 {
 		return dst
 	}

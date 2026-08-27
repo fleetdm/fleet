@@ -905,6 +905,15 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			Duration:   longCommandDuration,
 		})
 		if err != nil {
+			// If the device no longer exists in Google, treat as already unenrolled.
+			if androidmgmt.IsNotFoundError(err) {
+				svc.logger.InfoContext(ctx, "android BYO device already deleted, skipping unenroll wipe",
+					"host_id", host.ID, "device_name", deviceName)
+				return nil
+			}
+			if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
+				return fleetErr
+			}
 			return ctxerr.Wrap(ctx, err, "amapi issue byo-unenroll wipe command")
 		}
 
@@ -1008,6 +1017,9 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 		Duration: longCommandDuration,
 	})
 	if err != nil {
+		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
+			return fleetErr
+		}
 		return ctxerr.Wrap(ctx, err, "amapi issue lock command")
 	}
 
@@ -1045,6 +1057,9 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 		Duration:    longCommandDuration,
 	})
 	if err != nil {
+		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
+			return "", fleetErr
+		}
 		return "", ctxerr.Wrap(ctx, err, "amapi issue reset-password command")
 	}
 
@@ -1080,6 +1095,9 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 		Duration:   longCommandDuration,
 	})
 	if err != nil {
+		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
+			return fleetErr
+		}
 		return ctxerr.Wrap(ctx, err, "amapi issue wipe command")
 	}
 
@@ -1124,8 +1142,8 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &amapiCmd)
 	if err != nil {
-		if androidmgmt.IsBadRequestError(err) {
-			return nil, &fleet.BadRequestError{Message: "AMAPI rejected the command: " + err.Error(), InternalErr: err}
+		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
+			return nil, fleetErr
 		}
 		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
 	}

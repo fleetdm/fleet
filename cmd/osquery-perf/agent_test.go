@@ -201,3 +201,28 @@ func TestProcessQueryMDMConfigProfiles(t *testing.T) {
 	}
 	assert.True(t, sawSuccess)
 }
+
+func TestDelayCancelableMDMAck(t *testing.T) {
+	mkCmd := func(requestType string) *mdm.Command {
+		cmd := &mdm.Command{CommandUUID: "test-uuid"}
+		cmd.Command.RequestType = requestType
+		return cmd
+	}
+	elapsed := func(delay time.Duration, cmd *mdm.Command) time.Duration {
+		start := time.Now()
+		delayCancelableMDMAck(delay, "test device", cmd)
+		return time.Since(start)
+	}
+
+	// non-cancelable commands never wait, whatever the delay
+	assert.Less(t, elapsed(time.Hour, mkCmd("InstallProfile")), time.Second)
+	assert.Less(t, elapsed(time.Hour, nil), time.Second)
+
+	// a zero delay never waits, even for cancelable commands
+	for requestType := range fleet.CancelableAppleMDMRequestTypes {
+		assert.Less(t, elapsed(0, mkCmd(requestType)), time.Second)
+	}
+
+	// cancelable commands wait out the delay
+	assert.GreaterOrEqual(t, elapsed(20*time.Millisecond, mkCmd("DeviceLock")), 20*time.Millisecond)
+}

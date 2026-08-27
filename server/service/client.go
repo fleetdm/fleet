@@ -2784,6 +2784,11 @@ func (c *Client) DoGitOps(
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
 			}
 		}
+		if incoming.Controls.LinuxSettings != nil {
+			mdmAppConfig["linux_settings"] = incoming.Controls.LinuxSettings
+		} else {
+			mdmAppConfig["linux_settings"] = fleet.LinuxSettings{}
+		}
 		// Put in default values for android_settings
 		if incoming.Controls.AndroidSettings != nil {
 			mdmAppConfig["android_settings"] = incoming.Controls.AndroidSettings
@@ -2809,26 +2814,52 @@ func (c *Client) DoGitOps(
 			}
 		}
 
-		// Put in default value for enable_disk_encryption
-		enableDiskEncryption := false
-		enableRecoveryLockPassword := false
-		requireBitLockerPIN := false
+		macOSSettings := mdmAppConfig["macos_settings"].(fleet.MacOSSettings)
+		windowsSettings := mdmAppConfig["windows_settings"].(fleet.WindowsSettings)
+		linuxSettings := mdmAppConfig["linux_settings"].(fleet.LinuxSettings)
+
 		if incoming.Controls.EnableDiskEncryption != nil {
-			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+			switch {
+			case macOSSettings.EnableDiskEncryption.Set:
+				return nil, errors.New("controls.apple_settings.enable_disk_encryption and controls.enable_disk_encryption cannot both be set")
+			case macOSSettings.EnableEscrowDiskEncryptionKey.Set:
+				return nil, errors.New("controls.apple_settings.enable_escrow_disk_encryption_key and controls.enable_disk_encryption cannot both be set")
+			case windowsSettings.EnableDiskEncryption.Set:
+				return nil, errors.New("controls.windows_settings.enable_disk_encryption and controls.enable_disk_encryption cannot both be set")
+			case linuxSettings.EnableEscrowDiskEncryptionKey.Set:
+				return nil, errors.New("controls.linux_settings.enable_escrow_disk_encryption_key and controls.enable_disk_encryption cannot both be set")
+			}
+		}
+
+		if windowsSettings.RequireBitLockerPIN.Set && incoming.Controls.RequireBitLockerPIN != nil {
+			return nil, errors.New("controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set")
+		}
+
+		enableRecoveryLockPassword := false
+		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
+		if incoming.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption.(bool)
 		}
 		if incoming.Controls.EnableRecoveryLockPassword != nil {
 			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
 		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
-		}
-		if !enableDiskEncryption && requireBitLockerPIN {
-			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+			mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 		}
 
-		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		// BitLocker PIN needs Windows encryption on; deprecated flat toggle is the fallback when the per-platform key is unset.
+		if requireBitLockerPIN {
+			windowsDiskEncryption := windowsSettings.EnableDiskEncryption.Value
+			if !windowsSettings.EnableDiskEncryption.Set && incoming.Controls.EnableDiskEncryption != nil {
+				windowsDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+			}
+			if !windowsDiskEncryption {
+				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
+			}
+		}
+
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
-		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename
@@ -3600,6 +3631,45 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				continue
 			}
 			config.Policies[i].ScriptID = &scriptID
+		}
+
+		var teamProfiles map[string]string
+		hydrateProfiles := func() error {
+			if teamProfiles != nil {
+				return nil
+			}
+
+			profiles, err := c.ListConfigurationProfiles(teamID)
+			if err != nil {
+				return fmt.Errorf("error listing configuration profiles: %w", err)
+			}
+			teamProfiles = make(map[string]string, len(profiles))
+			for _, profile := range profiles {
+				teamProfiles[profile.Name] = profile.ProfileUUID
+			}
+			return nil
+		}
+		// assign profile UUIDs for policies with resend configuration profiles
+		for i := range config.Policies {
+			// default to empty string to unset, and then override if match is found
+			config.Policies[i].ProfileUUID = new("")
+
+			if config.Policies[i].ResendConfigurationProfile == "" {
+				continue
+			}
+
+			if err := hydrateProfiles(); err != nil {
+				return fmt.Errorf("error hydrating configuration profiles: %w", err)
+			}
+
+			profileUUID, ok := teamProfiles[config.Policies[i].ResendConfigurationProfile]
+			if !ok {
+				if !dryRun { // this shouldn't happen
+					logFn("[!] reference to an unknown configuration profile: %s\n", config.Policies[i].ResendConfigurationProfile)
+				}
+				continue
+			}
+			config.Policies[i].ProfileUUID = &profileUUID
 		}
 
 		// Get patch policy title IDs for the team

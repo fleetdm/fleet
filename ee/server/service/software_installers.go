@@ -899,6 +899,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 			}
 
+			svc.resetInstallAttemptsForInstallers(ctx, []uint{payload.InstallerID})
+
 			if dirty["Labels"] {
 				// Get the hosts that are now IN label scope (after the update)
 				hostsInScope, err := svc.ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, payload.InstallerID)
@@ -2231,6 +2233,8 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
+// UninstallSoftwareTitle queues an uninstall of the title's package on the given
+// host, rejecting the request when the package can't run on the host's platform.
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
@@ -2359,9 +2363,12 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
 
-	if host.FleetPlatform() != requiredPlatform {
+	// Share the install path's gate rather than re-deriving it: a package that
+	// was allowed to install on this host has to be allowed to uninstall, and
+	// keeping two copies of the rule is what let them drift apart.
+	if !installerCompatibleWithHost(installer, host) {
 		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, requiredPlatform),
+			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested uninstall",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
@@ -4009,10 +4016,13 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}
 
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers); err != nil {
+	modifiedInstallers, err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers)
+	if err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
 	}
+	svc.resetInstallAttemptsForInstallers(ctx, modifiedInstallers)
+
 	if err := svc.ds.BatchSetInHouseAppsInstallers(ctx, teamID, inHouseInstallers); err != nil {
 		batchErr = fmt.Errorf("batch set in-house apps installers: %w", err)
 		return
@@ -4841,4 +4851,14 @@ func parsePinnedVersion(ctx context.Context, version string) (trimmedVersion str
 func versionMatchesMajor(version string, majorVersion string) bool {
 	versionMajor, _, _ := strings.Cut(version, ".")
 	return versionMajor == majorVersion
+}
+
+func (svc *Service) resetInstallAttemptsForInstallers(ctx context.Context, installerIDs []uint) {
+	if svc.installAttemptCounter == nil {
+		return
+	}
+
+	if err := svc.installAttemptCounter.ResetInstallerAttempts(ctx, installerIDs); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts for updated installers", "software_installer_ids", installerIDs, "err", err)
+	}
 }

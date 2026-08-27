@@ -85,6 +85,27 @@ func allFields(ifv reflect.Value) []fieldPair {
 	return fields
 }
 
+// requestFieldName returns the name a client uses for a struct field, so that
+// an error about a request refers to something the caller can find in the
+// payload they sent rather than to Fleet's internal Go field name.
+//
+// Falls back to the Go field name when the field carries no usable json tag,
+// which is the best available name in that case.
+func requestFieldName(sf reflect.StructField) string {
+	jsonTag, ok := sf.Tag.Lookup("json")
+	if !ok {
+		return sf.Name
+	}
+
+	// Strip options such as ",omitempty".
+	name, _, _ := strings.Cut(jsonTag, ",")
+	if name == "" || name == "-" {
+		return sf.Name
+	}
+
+	return name
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -303,7 +324,8 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 				// Log deprecation warning - the old name was used.
 				if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
 					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
+					logging.WithExtras(
+						ctx,
 						"deprecated_param", queryTagValue,
 						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, renameTo),
 					)
@@ -724,7 +746,8 @@ func MakeDecoder(
 					}
 				}
 				logging.WithLevel(ctx, slog.LevelWarn)
-				logging.WithExtras(ctx,
+				logging.WithExtras(
+					ctx,
 					"deprecated_fields", fmt.Sprintf("%v", deprecated),
 					"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
 				)
@@ -741,7 +764,7 @@ func MakeDecoder(
 					if val && !fp.V.IsZero() {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							fp.Sf.Name,
+							requestFieldName(fp.Sf),
 						)}
 					}
 					continue
@@ -864,7 +887,8 @@ func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Contex
 		return ctx
 	}
 	logging.WithLevel(ctx, slog.LevelWarn)
-	logging.WithExtras(ctx,
+	logging.WithExtras(
+		ctx,
 		"deprecated_path", info.deprecatedPath,
 		"deprecation_warning", fmt.Sprintf("API `%s` is deprecated, use `%s` instead", info.deprecatedPath, info.primaryPath),
 	)
@@ -963,11 +987,11 @@ func (e *CommonEndpointer[H]) HEAD(path string, f H, v interface{}) {
 }
 
 func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, verb string) {
-	endpoint := e.makeEndpoint(f, v)
+	endpoint := e.makeEndpoint(f, v, path)
 	e.HandleHTTPHandler(path, endpoint, verb)
 }
 
-func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
+func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler {
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
 	}
@@ -994,13 +1018,12 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		endp = mw(endp)
 	}
 
-	// Default to MaxRequestBodySize if no limit is set, this ensures no endpointers are forgot
-	// -1 = no limit, so don't default to anything if that is set, which can only be set with the appropriate SKIP method.
-	if e.requestBodySizeLimit != -1 && (e.requestBodySizeLimit == 0 || e.requestBodySizeLimit < platform_http.MaxRequestBodySize) {
-		// If no value is configured set default, or if the set endpoint value is less than global default use default.
-		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
+	limit := e.requestBodySizeLimit
+	if limit != -1 {
+		// Use the maximum of instance defaults and any override (if configured)
+		limit = max(limit, platform_http.MaxRequestBodySize, platform_http.EndpointRequestSizeOverrides[path])
 	}
-	h := newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	h := newServer(endp, e.MakeDecoderFn(v, limit), e.EncodeFn, e.Opts)
 	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
 	// short-circuit requests before the decode-body step reads any bytes.
 	if e.HTTPPreAuthMiddleware != nil {
@@ -1053,6 +1076,14 @@ func (e *CommonEndpointer[H]) AppendCustomMiddleware(mws ...endpoint.Middleware)
 func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
 	ae.CustomMiddlewareAfterAuth = mws
+	return &ae
+}
+
+// AppendCustomMiddlewareAfterAuth adds to the after-auth middleware already set
+// on the endpointer instead of replacing it.
+func (e *CommonEndpointer[H]) AppendCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddlewareAfterAuth = append(slices.Clone(ae.CustomMiddlewareAfterAuth), mws...)
 	return &ae
 }
 
