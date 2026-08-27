@@ -11643,9 +11643,9 @@ One of `query` and `query_id` must be specified.
 }
 ```
 
-### Run live report by name (ad hoc)
+### Run live report by target name (ad hoc)
 
-Runs the specified saved report as a live report on the specified targets. "By name" refers to the targets, not the report: use host and label names instead of host and label IDs. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name. This starts a new active report, represented in the response as the `campaign` object.
+Runs the specified saved report as a live report on the targets (`selected`) specified by name instead of ID. This starts a new active report, represented in the response as the `campaign` object.
 
 After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
