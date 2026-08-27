@@ -2789,7 +2789,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 
 const maxCachedFMAVersions = 2
 
-func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 	const unsetAllInstallersFromPolicies = `
 UPDATE
   policies
@@ -3240,7 +3240,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		globalOrTeamID = *tmID
 		tm, err := ds.TeamLite(ctx, *tmID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
+			return nil, ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
 		}
 		teamName = tm.Name
 	}
@@ -3255,6 +3255,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 	}
 
 	var activateAffectedHostIDs []uint
+	var modifiedInstallers []uint
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
@@ -3906,6 +3907,10 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+
+				if existing[0].IsMetadataModified || existing[0].IsPackageModified {
+					modifiedInstallers = append(modifiedInstallers, existing[0].InstallerID)
+				}
 			}
 
 			// These installers were replaced by a newer version and had their policies
@@ -3954,10 +3959,12 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
-	return err
+	if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs); err != nil {
+		return nil, err
+	}
+	return modifiedInstallers, nil
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
