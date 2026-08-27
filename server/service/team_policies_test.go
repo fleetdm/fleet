@@ -448,10 +448,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, softwareInstallerTitle, p.InstallSoftware.SoftwareTitleID)
 		assert.Equal(t, installerSoftwareTitle, p.InstallSoftware.Name)
 		assert.Equal(t, installerDisplayName, p.InstallSoftware.DisplayName)
-		// SoftwarePackageID lets the FE pre-fill the "Select package" pin
+		// SoftwareInstallerID lets the FE pre-fill the "Select package" pin
 		// on reload instead of always re-deriving first-added.
-		require.NotNil(t, p.InstallSoftware.SoftwarePackageID, "install_software.software_package_id should be populated")
-		assert.Equal(t, softwareInstallerID, *p.InstallSoftware.SoftwarePackageID)
+		require.NotNil(t, p.InstallSoftware.SoftwareInstallerID, "install_software.software_package_id should be populated")
+		assert.Equal(t, softwareInstallerID, *p.InstallSoftware.SoftwareInstallerID)
 
 		require.NotNil(t, p.RunScript, "run_script should be populated")
 		assert.Equal(t, scriptID, p.RunScript.ID)
@@ -463,7 +463,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, patchSoftwareDisplay, p.PatchSoftware.DisplayName)
 		// Patch policies target FMA titles (single package per title), so
 		// per-package pinning doesn't apply and the field stays nil.
-		assert.Nil(t, p.PatchSoftware.SoftwarePackageID, "patch_software.software_package_id should stay nil")
+		assert.Nil(t, p.PatchSoftware.SoftwareInstallerID, "patch_software.software_package_id should stay nil")
 	}
 
 	// requireSoftwareIconURLs verifies that install_software.icon_url is set to the

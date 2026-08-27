@@ -35597,10 +35597,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSele
 	// Explicit package chosen → honored.
 	var chosenResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
-		Name:              "explicit choice",
-		Query:             "SELECT 2;",
-		SoftwareTitleID:   &titleID,
-		SoftwarePackageID: &packageB,
+		Name:                "explicit choice",
+		Query:               "SELECT 2;",
+		SoftwareTitleID:     &titleID,
+		SoftwareInstallerID: &packageB,
 	}, http.StatusOK, &chosenResp)
 	require.Equal(t, packageB, storedPackageID(chosenResp.Policy.ID))
 
@@ -35608,8 +35608,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSele
 	var modResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", teamID, defResp.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID:   optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			SoftwarePackageID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
+			SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
 		},
 	}, http.StatusOK, &modResp)
 	require.Equal(t, packageB, storedPackageID(defResp.Policy.ID))
@@ -35617,19 +35617,11 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSele
 	// A package_id that doesn't belong to the title is rejected.
 	var badResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
-		Name:              "bad package",
-		Query:             "SELECT 3;",
-		SoftwareTitleID:   &titleID,
-		SoftwarePackageID: new(packageB + 100000),
+		Name:                "bad package",
+		Query:               "SELECT 3;",
+		SoftwareTitleID:     &titleID,
+		SoftwareInstallerID: new(packageB + 100000),
 	}, http.StatusBadRequest, &badResp)
-
-	// The legacy JSON key returns 400 with a rename hint.
-	legacyBody := fmt.Sprintf(`{"name":"legacy caller","query":"SELECT 4;","software_title_id":%d,"software_installer_id":%d}`, titleID, packageB)
-	legacyResp := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), []byte(legacyBody), http.StatusBadRequest)
-	defer legacyResp.Body.Close()
-	legacyBodyBytes, err := io.ReadAll(legacyResp.Body)
-	require.NoError(t, err)
-	require.Contains(t, string(legacyBodyBytes), "software_installer_id has been renamed to software_package_id")
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {

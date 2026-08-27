@@ -262,15 +262,6 @@ const (
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ModifyGlobalPolicyRequest)
-	// Check .Valid instead of .Set: optjson.Any marshals unset fields as null,
-	// so a normal client sending ModifyPolicyPayload without touching this field
-	// still delivers "software_installer_id":null on the wire, which sets .Set=true.
-	// .Valid is only true when the caller actually sent a numeric value.
-	if req.LegacySoftwareInstallerID.Valid {
-		return fleet.ModifyGlobalPolicyResponse{Err: &fleet.BadRequestError{
-			Message: "software_installer_id has been renamed to software_package_id",
-		}}, nil
-	}
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
 		return fleet.ModifyGlobalPolicyResponse{Err: err}, nil

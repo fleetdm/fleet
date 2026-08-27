@@ -360,14 +360,13 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
-	// SoftwarePackageID optionally selects which package of the title to install on failure.
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
 	// When omitted (or 0), the policy defaults to the title's first-added package.
+	// The wire key is `software_package_id`; the endpointer's renameto layer accepts
+	// the legacy `software_installer_id` alias and logs a deprecation warning.
 	//
 	// Only applies to team policies.
-	SoftwarePackageID optjson.Any[uint] `json:"software_package_id" premium:"true"`
-	// LegacySoftwareInstallerID catches callers still on the pre-rename JSON key
-	// so the endpoint can return a clear 400 instead of silently ignoring it.
-	LegacySoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" renameto:"software_package_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
@@ -778,13 +777,14 @@ type PolicySpec struct {
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
-	// SoftwarePackageID is the ID of the specific package the policy pins
+	// SoftwareInstallerID is the ID of the specific package the policy pins
 	// on a multi-package title. Nil for VPP-backed policies (which pin via
 	// vpp_apps_teams_id, not a package). The multi-package policy
 	// automation UI reads this on load to reflect the user's non-default
 	// package choice; when nil, the UI falls back to the title's first-added
-	// package.
-	SoftwarePackageID *uint `json:"software_package_id,omitempty"`
+	// package. Wire key is `software_package_id` (via the endpointer's renameto
+	// layer, which also accepts the legacy `software_installer_id` alias).
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty" renameto:"software_package_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`

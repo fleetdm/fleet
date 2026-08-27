@@ -24,11 +24,6 @@ import (
 
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.TeamPolicyRequest)
-	if req.LegacySoftwareInstallerID != nil {
-		return fleet.TeamPolicyResponse{Err: &fleet.BadRequestError{
-			Message: "software_installer_id has been renamed to software_package_id",
-		}}, nil
-	}
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
 		QueryID:                      req.QueryID,
 		Name:                         req.Name,
@@ -39,7 +34,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Critical:                     req.Critical,
 		CalendarEventsEnabled:        req.CalendarEventsEnabled,
 		SoftwareTitleID:              req.SoftwareTitleID,
-		SoftwareInstallerID:          req.SoftwarePackageID,
+		SoftwareInstallerID:          req.SoftwareInstallerID,
 		ScriptID:                     req.ScriptID,
 		LabelsIncludeAny:             req.LabelsIncludeAny,
 		LabelsIncludeAll:             req.LabelsIncludeAll,
@@ -197,10 +192,10 @@ func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
 		p.InstallSoftware = &fleet.PolicySoftwareTitle{
-			SoftwareTitleID:   *installerMetadata.TitleID,
-			SoftwarePackageID: new(installerMetadata.InstallerID),
-			Name:              installerMetadata.SoftwareTitle,
-			DisplayName:       installerMetadata.DisplayName,
+			SoftwareTitleID:     *installerMetadata.TitleID,
+			SoftwareInstallerID: new(installerMetadata.InstallerID),
+			Name:                installerMetadata.SoftwareTitle,
+			DisplayName:         installerMetadata.DisplayName,
 		}
 		return nil
 	} else if p.VPPAppsTeamsID != nil {
@@ -662,15 +657,6 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 
 func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ModifyTeamPolicyRequest)
-	// Check .Valid instead of .Set: optjson.Any marshals unset fields as null,
-	// so a normal client sending ModifyPolicyPayload without touching this field
-	// still delivers "software_installer_id":null on the wire, which sets .Set=true.
-	// .Valid is only true when the caller actually sent a numeric value.
-	if req.LegacySoftwareInstallerID.Valid {
-		return fleet.ModifyTeamPolicyResponse{Err: &fleet.BadRequestError{
-			Message: "software_installer_id has been renamed to software_package_id",
-		}}, nil
-	}
 	resp, err := svc.ModifyTeamPolicy(ctx, req.TeamID, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
 		return fleet.ModifyTeamPolicyResponse{Err: err}, nil
@@ -801,15 +787,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	// A chosen package without a title has nothing to resolve against (the software block below
 	// only runs when the title is set), so reject it rather than silently ignore the choice.
-	if !p.SoftwareTitleID.Set && p.SoftwarePackageID.Set && p.SoftwarePackageID.Value != 0 {
+	if !p.SoftwareTitleID.Set && p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "software_package_id can only be set together with software_title_id",
 		})
 	}
 	if p.SoftwareTitleID.Set {
 		var chosenInstallerID *uint
-		if p.SoftwarePackageID.Set && p.SoftwarePackageID.Value != 0 {
-			chosenInstallerID = &p.SoftwarePackageID.Value
+		if p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
+			chosenInstallerID = &p.SoftwareInstallerID.Value
 		}
 		softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, teamID, &p.SoftwareTitleID.Value, chosenInstallerID)
 		if err != nil {
