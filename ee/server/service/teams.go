@@ -1160,16 +1160,15 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		return err
 	}
 
-	// Invalidate the Redis host cache for all hosts that were in the deleted
-	// team. DeleteTeam sets hosts.team_id = NULL via FK cascade, but cached
-	// host snapshots still carry the old team_id for up to the cache TTL
-	// (~180s). Without invalidation, config endpoints serve stale team_id
-	// references that trigger "team not found" errors.
-	if err := svc.ds.FlushHostCacheByIDs(ctx, hostIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "flush host cache after team deletion")
-	}
-
 	if len(hostIDs) > 0 {
+		// Invalidate the Redis host cache for all hosts that were in the deleted
+		// team. DeleteTeam sets hosts.team_id = NULL via FK cascade, but cached
+		// host snapshots still carry the old team_id for up to the cache TTL
+		// (~180s). Without invalidation, config endpoints serve stale team_id
+		// references that trigger "team not found" errors.
+		if err := svc.ds.FlushHostCacheByIDs(ctx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "flush host cache after team deletion")
+		}
 		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
