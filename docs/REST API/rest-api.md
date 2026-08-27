@@ -15448,6 +15448,7 @@ None.
       "last_login_at": "2020-12-10T04:15:20Z",
       "last_activity_at": "2020-12-10T04:32:41Z",
       "status": "active",
+      "api_endpoints": [],
       "fleets": [
         {
           "id": 1,
