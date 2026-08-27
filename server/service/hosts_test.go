@@ -4964,8 +4964,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			expectedError:         false,
 		},
 		{
-			// A Windows host with no MDM row has nothing to enforce against, so neither BitLocker notification fires
-			// even though the volume is unencrypted and would otherwise qualify.
+			// A Windows host with no MDM row has nothing to enforce against.
 			name: "windows with no mdm info",
 			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")},
 			appConfig: &fleet.AppConfig{
@@ -5097,8 +5096,6 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			// setDiskEncryptionNotifications owns exactly these three fields, so compare the whole struct: asserting
-			// only RotateDiskEncryptionKey left every BitLocker expectation below unverified.
 			require.Equal(t, tt.expectedNotifications, notifs)
 		})
 	}
