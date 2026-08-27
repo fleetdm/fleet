@@ -934,6 +934,10 @@ func (ds *Datastore) InsertFleetMaintainedAppVersion(ctx context.Context, active
 		// cron's download window isn't cloned from the caller's stale view. FOR
 		// UPDATE serializes against a concurrent promotion. Falls back to the
 		// caller-supplied id only if nothing is active.
+		//
+		// An edited script is carried from this same locked row rather than from the
+		// caller's payload, so a script replaced while the installer uploaded can't
+		// leave the new version flagged as edited while holding the manifest's text.
 		cloneFromID := activeInstallerID
 		var liveActiveID uint
 		switch err := sqlx.GetContext(ctx, tx, &liveActiveID, `
@@ -955,8 +959,8 @@ INSERT INTO software_installers (
 	post_install_script_content_id, install_during_setup,
 	install_script_edited, uninstall_script_edited,
 	storage_id, filename, extension, version,
-	install_script_content_id, uninstall_script_content_id,
-	url, upgrade_code, is_active, patch_query, app_open_query, package_ids
+	url, upgrade_code, is_active, patch_query, app_open_query, package_ids,
+	install_script_content_id, uninstall_script_content_id
 )
 SELECT
 	team_id, global_or_team_id, title_id, pre_install_query, platform,
@@ -964,12 +968,13 @@ SELECT
 	post_install_script_content_id, install_during_setup,
 	install_script_edited, uninstall_script_edited,
 	?, ?, ?, ?,
-	?, ?,
-	?, ?, 0, ?, ?, ?
+	?, ?, 0, ?, ?, ?,
+	IF(install_script_edited, install_script_content_id, ?),
+	IF(uninstall_script_edited, uninstall_script_content_id, ?)
 FROM software_installers WHERE id = ?`,
 			payload.StorageID, payload.Filename, payload.Extension, payload.Version,
-			installScriptID, uninstallScriptID,
 			payload.URL, payload.UpgradeCode, payload.PatchQuery, payload.AppOpenQuery, strings.Join(payload.PackageIDs, ","),
+			installScriptID, uninstallScriptID,
 			cloneFromID,
 		)
 		if err != nil {
