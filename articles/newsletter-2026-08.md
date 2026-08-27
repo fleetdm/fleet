@@ -20,7 +20,7 @@ Two releases are scheduled for August: 4.90.0 and 4.91.0. These are planned, not
 
 - **Custom host vitals.** Define your own host fields, add, edit, and delete them, and use them in host name templates.
 - **Full Apple DDM support:** Complete coverage for all Apple declaration profiles, assets, and custom activations.
-- **macOS local accounts from any IdP.** Create the initial local account and sync its password from any identity provider that supports OAuth ROPG, moving out of experimental.
+-  **macOS local accounts via IdP**: Now officially out of experimental. Create local accounts and sync passwords using **any** identity provider that supports OAuth ROPG.
 
 _Also on deck: Certificate visibility, Android vulnerabilities, Python script-only packages, and Microsoft Entra conditional access._
 
