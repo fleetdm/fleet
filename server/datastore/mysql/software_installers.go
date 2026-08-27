@@ -998,17 +998,18 @@ FROM software_installers WHERE id = ?`,
 					return nil
 				}
 
+				// The flags aren't rewritten, so a script the row already had edited stays
+				// put and its flag keeps describing it.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE software_installers SET
 						storage_id = ?, filename = ?, extension = ?, url = ?, upgrade_code = ?,
-						install_script_content_id = ?, uninstall_script_content_id = ?,
-						patch_query = ?, app_open_query = ?, package_ids = ?, uploaded_at = NOW(6),
-						install_script_edited = ?, uninstall_script_edited = ?
+						install_script_content_id = IF(install_script_edited, install_script_content_id, ?),
+						uninstall_script_content_id = IF(uninstall_script_edited, uninstall_script_content_id, ?),
+						patch_query = ?, app_open_query = ?, package_ids = ?, uploaded_at = NOW(6)
 					WHERE id = ?`,
 					payload.StorageID, payload.Filename, payload.Extension, payload.URL, payload.UpgradeCode,
 					installScriptID, uninstallScriptID,
 					payload.PatchQuery, payload.AppOpenQuery, strings.Join(payload.PackageIDs, ","),
-					payload.InstallScriptEdited, payload.UninstallScriptEdited,
 					installerID,
 				); err != nil {
 					return ctxerr.Wrap(ctx, err, "refresh cached fleet-maintained app version")
