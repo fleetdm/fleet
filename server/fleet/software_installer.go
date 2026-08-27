@@ -1454,3 +1454,19 @@ func BatchSoftwareInstallerRetryInterval() time.Duration {
 
 	return defaultInterval
 }
+
+// SoftwareInstallAttemptCounter counts failed software install attempts per host and
+// installer.
+type SoftwareInstallAttemptCounter interface {
+	// RecordAttempt counts one failed attempt and returns the running count. It sets
+	// the key to expire after expireIn, so the count clears when the key expires.
+	RecordAttempt(ctx context.Context, hostID uint, softwareInstallerID uint, expireIn time.Duration) (int, error)
+	// CountAttempts returns the current count without recording anything, and 0 when
+	// the key does not exist.
+	CountAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error)
+	// ResetAttempts deletes the key for this host and installer.
+	ResetAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error
+	// ResetInstallerAttempts deletes the keys for these installers on every host, so an
+	// edited installer counts from zero instead of waiting for the keys to expire.
+	ResetInstallerAttempts(ctx context.Context, softwareInstallerIDs []uint) error
+}

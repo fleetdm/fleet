@@ -52,11 +52,15 @@ export interface IAppleDeviceUpdates {
 export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
+  /** @deprecated Virtual key: true only when all per-platform disk
+  encryption settings (`apple_settings`, `windows_settings`, `linux_settings`)
+  are enabled. Read the per-platform fields instead. */
   enable_disk_encryption: boolean;
   /** Host name template applied to "No team" Apple hosts. Mirrors
   `enable_disk_encryption` as a global-scope Controls > OS setting. */
   name_template?: string;
   enable_recovery_lock_password: boolean;
+  /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
@@ -82,6 +86,7 @@ export interface IMdmConfig {
   apple_settings: {
     configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;
+    enable_escrow_disk_encryption_key?: boolean;
   };
   setup_experience: {
     macos_bootstrap_package: string | null;
@@ -99,9 +104,14 @@ export interface IMdmConfig {
     enable_managed_local_account?: boolean;
   };
   windows_settings?: {
+    enable_disk_encryption?: boolean;
+    require_bitlocker_pin?: boolean;
     managed_local_account_settings?: {
       enabled?: boolean;
     };
+  };
+  linux_settings?: {
+    enable_escrow_disk_encryption_key?: boolean;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
