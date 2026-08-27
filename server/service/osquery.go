@@ -1050,6 +1050,15 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list hosts due for distributed read")
 		}
+		found := make(map[uint]struct{}, len(hosts))
+		for _, host := range hosts {
+			found[host.ID] = struct{}{}
+		}
+		for _, id := range hostIDs[start:end] {
+			if _, ok := found[id]; !ok {
+				due[id] = fleet.AgentWSReasonHostNotFound
+			}
+		}
 		for _, host := range hosts {
 			if reason := svc.hostDueForDistributedRead(host); reason != "" {
 				due[host.ID] = reason

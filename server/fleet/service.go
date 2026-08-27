@@ -86,6 +86,7 @@ type OsqueryService interface {
 	// constant or a live-<campaign ID> reason; the first due gate wins). Used
 	// by the WebSocket transport's interval check job; applies the same
 	// staleness gates (including per-host jitter) as GetDistributedQueries.
+	// IDs with no hosts row are returned with AgentWSReasonHostNotFound.
 	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 }
 
