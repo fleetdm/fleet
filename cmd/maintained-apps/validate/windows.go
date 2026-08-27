@@ -135,6 +135,16 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
+			// Spotify's only download URL is a non-versioned "latest" pointer
+			// (download.scdn.co/SpotifyFullSetupX64.exe), so it serves whatever
+			// build is current rather than the one winget's manifest names. The
+			// two agree only in the window between a Spotify release and the
+			// winget bump, so fall back to an existence-only check. The publisher
+			// guard mirrors the manifest's exists query.
+			if appName == "Spotify" && result.Publisher == "Spotify AB" {
+				logger.InfoContext(ctx, "Spotify detected - version mismatch but app is installed, skipping version check because its installer URL always serves the latest build")
+				return true, nil
+			}
 			// Microsoft Office is a Click-to-Run product: the bootstrap setup.exe
 			// always pulls the latest channel build from Microsoft's CDN, so the
 			// installed version will typically be newer than the manifest version.
