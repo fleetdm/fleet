@@ -213,7 +213,7 @@ Every department organizes their work into [team-based kanban boards](https://gi
 
 ## Why route taskings through the team's manager?
 
-At Fleet, taskings for a team (an event, a piece of content, anything) go to that team's e-group manager first, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
+At Fleet, when you ask a team member for something (attendance at an event, a piece of content, anything) you loop in that team's e-group manager at the time you make the request. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
 
 
 ## Why agile?
