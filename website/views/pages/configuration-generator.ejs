@@ -34,17 +34,18 @@
       </div>
       <div v-show="hasGeneratedProfile">
         <div purpose="mobile-generate-button" class="d-flex d-md-none" @click=""><img alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">Generate OS settings</div>
-        <div class="d-flex flex-lg-row flex-column mb-4">
+        <div class="d-flex flex-column-reverse mb-4">
           <div purpose="profile-editor">
             <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
+            <div purpose="generate-button" @click="clickEditGeneratedOutput()" v-if="!hideEditButton"><i class="p-3 fa fa-pencil"></i></div>
+
           </div>
-          <div purpose="enforced-settings">
+          <div purpose="enforced-settings" class="mb-3">
             <p><strong>Settings enforced:</strong></p>
             <div v-for="item in parsedItemsInProfile">
               <p>{{item.name}}: {{item.value}}</p>
             </div>
             <p v-if="deliveryNotes"><strong>Deployment note:</strong> {{deliveryNotes}}</p>
-            <div purpose="generate-button" @click="clickEditGeneratedOutput()"><i class="p-3 fa fa-pencil"></i></div>
           </div>
         </div>
         <p><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>

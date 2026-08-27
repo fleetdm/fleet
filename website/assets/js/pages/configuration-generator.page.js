@@ -9,9 +9,8 @@ parasails.registerPage('configuration-generator', {
     deliveryNotes: undefined,
     formData: {
       profileType: 'ddm'
-
     },
-
+    hideEditButton: false,
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
@@ -40,10 +39,8 @@ parasails.registerPage('configuration-generator', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
 
-  watch: {
-    //…
-  },
   beforeMount: function() {
+    //…
   },
   mounted: async function() {
     this._setUpAceEditor();
@@ -122,6 +119,7 @@ parasails.registerPage('configuration-generator', {
     },
     clickEditGeneratedOutput: function() {
       var editor = ace.edit('editor');
+      this.hideEditButton = true;
       editor.setReadOnly(false);
     },
     _setUpAceEditor: function() {
