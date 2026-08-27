@@ -9,7 +9,12 @@ try {
 
 # Start silent install without -Wait; the Firefox ESR installer launches the
 # browser after installing and blocks until it is closed.
-Start-Process -FilePath "$exeFilePath" -ArgumentList "/S"
+# /RegisterDefaultAgent=false skips registering Mozilla's Default Browser Agent
+# scheduled task, which can't be registered from the SYSTEM context this script
+# runs in: the attempt fails with 0x80070534 ("No mapping between account names
+# and security IDs") in the Application event log and can surface a firefox.exe
+# error dialog on the user's first launch.
+Start-Process -FilePath "$exeFilePath" -ArgumentList "/S /RegisterDefaultAgent=false"
 
 # Poll for installation to complete
 $elapsed = 0
