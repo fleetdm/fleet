@@ -2844,11 +2844,11 @@ Counts the number of online and offline hosts included in a given set of selecte
 
 ### Run live report
 
-Runs the specified report as a live report on the specified hosts or group of hosts and returns a new live report campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
+Runs the specified report as a live report on the specified hosts or group of hosts. This starts a new active report, represented in the response as the `campaign` object. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
 
 After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
-> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new campaign on every request. Fleet doesn't automatically close campaigns, so frequent or automated calls that don't consume results can leave many open campaigns and queries behind. For scripts, integrations, or other automated callers, use `query_id` with an existing saved report and rate-limit your requests.
+> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new active report on every request. If your client doesn't finish streaming results and close the connection, Fleet doesn't clean up the active report right away: it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet expires it automatically. Each open active report holds a Redis-backed results channel, so creating many of them without closing them adds load that can slow down or interrupt live queries for everyone. Use `query_id` with an existing saved report and rate-limit your requests.
 
 `POST /api/v1/fleet/queries/run`
 
@@ -2942,11 +2942,11 @@ One of `query` and `query_id` must be specified.
 
 ### Run live report by name
 
-Runs the specified saved report as a live report on the specified targets. Returns a new live report campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
+Runs the specified saved report as a live report on the specified targets. "By name" refers to the targets, not the report: use host and label names instead of host and label IDs. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name. This starts a new active report, represented in the response as the `campaign` object.
 
 After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
-> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new campaign on every request. Fleet doesn't automatically close campaigns, so frequent or automated calls that don't consume results can leave many open campaigns and queries behind. For scripts, integrations, or other automated callers, use `query_id` with an existing saved report and rate-limit your requests.
+> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new active report on every request. If your client doesn't finish streaming results and close the connection, Fleet doesn't clean up the active report right away: it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet expires it automatically. Each open active report holds a Redis-backed results channel, so creating many of them without closing them adds load that can slow down or interrupt live queries for everyone. Use `query_id` with an existing saved report and rate-limit your requests.
 
 `POST /api/v1/fleet/queries/run_by_identifiers`
 
@@ -3075,9 +3075,9 @@ One of `query` and `query_id` must be specified.
 
 You can retrieve the results of a live report using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
 
-Before you retrieve the live report results, you must create a live report campaign by running the live report. Use the [Run live report](#run-live-report) or [Run live report by name](#run-live-report-by-name) endpoints to create a live report campaign.
+Before you retrieve the live report results, you must start an active report by running the live report. Use the [Run live report](#run-live-report) or [Run live report by name](#run-live-report-by-name) endpoints to start one.
 
-Note that live reports are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the report.
+Note that the active report is automatically cancelled if this method isn't called to start retrieving results within 60 seconds of starting the report.
 
 `/api/v1/fleet/results/websocket`
 
@@ -3086,7 +3086,7 @@ Note that live reports are automatically cancelled if this method is not called 
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
+| campaignID | integer |     | **Required.** The ID of the active report (the `campaign.id` field returned when you started the report). |
 
 ### Example
 
@@ -3226,7 +3226,7 @@ Note that SockJS has been found to be substantially less reliable than the [stan
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
+| campaignID | integer |     | **Required.** The ID of the active report (the `campaign.id` field returned when you started the report). |
 
 ### Example
 
