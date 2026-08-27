@@ -886,8 +886,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
-			// Once an admin has replaced a script, the Fleet-maintained app cron keeps
-			// carrying it forward until the script matches the manifest again.
+			// Once a script is manually edited it can't be undone by the update endpoint.
 			payload.InstallScriptEdited = existingInstaller.InstallScriptEdited || dirty["InstallScript"]
 			payload.UninstallScriptEdited = existingInstaller.UninstallScriptEdited || dirty["UninstallScript"]
 

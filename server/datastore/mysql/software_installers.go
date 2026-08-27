@@ -997,11 +997,13 @@ FROM software_installers WHERE id = ?`,
 					UPDATE software_installers SET
 						storage_id = ?, filename = ?, extension = ?, url = ?, upgrade_code = ?,
 						install_script_content_id = ?, uninstall_script_content_id = ?,
-						patch_query = ?, app_open_query = ?, package_ids = ?, uploaded_at = NOW(6)
+						patch_query = ?, app_open_query = ?, package_ids = ?, uploaded_at = NOW(6),
+						install_script_edited = ?, uninstall_script_edited = ?
 					WHERE id = ?`,
 					payload.StorageID, payload.Filename, payload.Extension, payload.URL, payload.UpgradeCode,
 					installScriptID, uninstallScriptID,
 					payload.PatchQuery, payload.AppOpenQuery, strings.Join(payload.PackageIDs, ","),
+					payload.InstallScriptEdited, payload.UninstallScriptEdited,
 					installerID,
 				); err != nil {
 					return ctxerr.Wrap(ctx, err, "refresh cached fleet-maintained app version")

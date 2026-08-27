@@ -22,6 +22,10 @@ const (
 	installScriptHashMapFile   = "install_script_hash_map.txt"
 	uninstallScriptHashMapFile = "uninstall_script_hash_map.txt"
 	fmaScriptHashMapTimeout    = 30 * time.Second
+	// Some uninstall scripts get substituted with installer metadata, so we can't know
+	// whether they were changed. tools/software/fma-script-hashes writes this where the
+	// hash would go for those apps, and we mark them as unedited.
+	substitutedScriptMarker = "substituted"
 )
 
 func init() {
@@ -118,7 +122,11 @@ func backfillScriptEditedFlags(tx *sql.Tx, increment incrementCountFn) error {
 			if _, published := install[row.InstallHash+" "+row.Slug]; !published {
 				installerIDsWithEditedInstallScript = append(installerIDsWithEditedInstallScript, row.ID)
 			}
-			if _, published := uninstall[row.UninstallHash+" "+row.Slug]; !published {
+
+			// a substituted uninstall script can't be told apart from an edited one
+			_, uninstallSubstituted := uninstall[substitutedScriptMarker+" "+row.Slug]
+			_, uninstallPublished := uninstall[row.UninstallHash+" "+row.Slug]
+			if !uninstallSubstituted && !uninstallPublished {
 				installerIDsWithEditedUninstallScript = append(installerIDsWithEditedUninstallScript, row.ID)
 			}
 		}
