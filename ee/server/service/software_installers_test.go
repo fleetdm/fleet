@@ -3340,9 +3340,6 @@ func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
 	})
 }
 
-// The auto-update cron carries a Fleet-maintained app's scripts forward only when
-// these flags say an admin replaced them, so editing one script must not mark the
-// other, and an edit must stick across later updates that leave the scripts alone.
 func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
 	const (
 		titleID         = uint(42)

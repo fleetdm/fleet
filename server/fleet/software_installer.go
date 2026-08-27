@@ -103,11 +103,6 @@ type SoftwareInstaller struct {
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// UninstallScript is the script to run to uninstall the software package.
 	UninstallScript string `json:"uninstall_script" db:"uninstall_script"`
-	// InstallScriptEdited records that an admin replaced the install script, so the
-	// Fleet-maintained app auto-update cron carries it forward instead of taking the
-	// manifest's. UninstallScriptEdited is the same signal for the uninstall script.
-	InstallScriptEdited   bool `json:"-" db:"install_script_edited"`
-	UninstallScriptEdited bool `json:"-" db:"uninstall_script_edited"`
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
@@ -155,6 +150,12 @@ type SoftwareInstaller struct {
 
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
 	AppOpenQuery string `json:"-" db:"app_open_query"`
+
+	// InstallScriptEdited records that an admin replaced the install script, so the
+	// Fleet-maintained app auto-update cron carries it forward.
+	InstallScriptEdited bool `json:"-" db:"install_script_edited"`
+	// UninstallScriptEdited is the same for the uninstall script.
+	UninstallScriptEdited bool `json:"-" db:"uninstall_script_edited"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -623,15 +624,11 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID  *uint
-	TitleID *uint
-	// InstallScriptEdited and UninstallScriptEdited mark scripts an admin supplied
-	// instead of taking the Fleet-maintained app manifest's.
-	InstallScript         string
-	InstallScriptEdited   bool
-	UninstallScriptEdited bool
-	PreInstallQuery       string
-	PostInstallScript     string
+	TeamID               *uint
+	TitleID              *uint
+	InstallScript        string
+	PreInstallQuery      string
+	PostInstallScript    string
 	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
 	StorageID            string
 	Filename             string
@@ -685,6 +682,10 @@ type UploadSoftwareInstallerPayload struct {
 	Configuration []byte
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
 	AppOpenQuery string
+	// InstallScriptEdited and UninstallScriptEdited mark scripts an admin supplied
+	// instead of the Fleet-maintained app manifest's.
+	InstallScriptEdited   bool
+	UninstallScriptEdited bool
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -760,10 +761,6 @@ type UpdateSoftwareInstallerPayload struct {
 	PostInstallScript *string
 	SelfService       *bool
 	UninstallScript   *string
-	// InstallScriptEdited and UninstallScriptEdited are the values to persist, computed
-	// from whether this update changes the script and what the installer already had.
-	InstallScriptEdited   bool
-	UninstallScriptEdited bool
 	StorageID         string
 	Filename          string
 	Version           string
@@ -787,6 +784,10 @@ type UpdateSoftwareInstallerPayload struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. FMA-only.
 	PatchWhenClosed *bool
+	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
+	// request of whether to change them.
+	InstallScriptEdited   bool
+	UninstallScriptEdited bool
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {

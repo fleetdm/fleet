@@ -3145,9 +3145,8 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
-	// A script spelled out in the yaml is an admin customization; falling back to the
-	// manifest is not. GitOps is declarative, so dropping the script from the yaml
-	// clears the flag again.
+	// A script spelled out in the request is an admin customization; falling back to
+	// the manifest is not.
 	payload.InstallScriptEdited = payload.InstallScript != ""
 	payload.UninstallScriptEdited = payload.UninstallScript != ""
 	if payload.InstallScript == "" {

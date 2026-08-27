@@ -427,8 +427,7 @@ type FMAAutoUpdateCandidate struct {
 	// Slug is the Fleet-maintained app slug (for logging).
 	Slug string `db:"slug"`
 	// InstallScriptEdited and UninstallScriptEdited say whether an admin replaced the
-	// active installer's scripts. When set, the cron carries the active script forward
-	// to the new version instead of taking the manifest's.
+	// active installer's scripts.
 	InstallScriptEdited   bool `db:"install_script_edited"`
 	UninstallScriptEdited bool `db:"uninstall_script_edited"`
 }

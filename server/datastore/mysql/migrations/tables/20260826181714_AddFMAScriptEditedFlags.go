@@ -115,10 +115,10 @@ func backfillScriptEditedFlags(tx *sql.Tx, increment incrementCountFn) error {
 			if row.ChangedAfterHashMap {
 				continue
 			}
-			if !install.has(row.InstallHash, row.Slug) {
+			if _, published := install[row.InstallHash+" "+row.Slug]; !published {
 				installerIDsWithEditedInstallScript = append(installerIDsWithEditedInstallScript, row.ID)
 			}
-			if !uninstall.has(row.UninstallHash, row.Slug) {
+			if _, published := uninstall[row.UninstallHash+" "+row.Slug]; !published {
 				installerIDsWithEditedUninstallScript = append(installerIDsWithEditedUninstallScript, row.ID)
 			}
 		}
@@ -167,16 +167,13 @@ func fetchScriptHashMap(name string) (scriptHashMap, time.Time, error) {
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode != http.StatusOK {
+		return nil, time.Time{}, fmt.Errorf("fetching %s: HTTP status %d", url, res.StatusCode)
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("read http response body: %w", err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, time.Time{}, fmt.Errorf("fetching %s: HTTP status %d: %s", url, res.StatusCode, string(body))
 	}
 
 	hashes, hashMapCutoff, err := parseScriptHashMap(string(body))
@@ -190,11 +187,6 @@ func fetchScriptHashMap(name string) (scriptHashMap, time.Time, error) {
 // the same script is published for several apps, so a hash on its own doesn't
 // identify one.
 type scriptHashMap map[string]struct{}
-
-func (s scriptHashMap) has(hash string, slug string) bool {
-	_, ok := s[hash+" "+slug]
-	return ok
-}
 
 // a "do not edit" note, then the commit it was cut at with that commit's date
 const scriptHashMapHeaderLines = 2

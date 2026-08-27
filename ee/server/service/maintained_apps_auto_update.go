@@ -307,10 +307,8 @@ func downloadNewVersionIfEligible(
 		InstallerFile:   tfr,
 	}
 
-	// Carry an admin's scripts across the version bump. Only the stored flags say a
-	// script was replaced; comparing text against the manifest can't tell an edit
-	// from Fleet publishing a new script. The active installer is still on the
-	// previous version here, since promotion happens later.
+	// Carry an admin's scripts across the version bump. The active installer is still
+	// on the previous version here, since promotion happens later.
 	payload.InstallScriptEdited = c.InstallScriptEdited
 	payload.UninstallScriptEdited = c.UninstallScriptEdited
 	if c.InstallScriptEdited || c.UninstallScriptEdited {

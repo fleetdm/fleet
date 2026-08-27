@@ -433,9 +433,6 @@ func TestAutoUpdateUnsubstitutedUninstallSkipsInsert(t *testing.T) {
 	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
 }
 
-// A flag on the active installer, not a text comparison, is what says an admin
-// replaced a script. When it is set the cron carries that script forward to the
-// newly downloaded version instead of taking the manifest's.
 func TestAutoUpdatePreservesEditedScripts(t *testing.T) {
 	newFakeManifestServer(t)
 	ds := baseDownloadStoreWithEditedScripts(t, "149.0.0", 9, true, true)
@@ -460,9 +457,6 @@ func TestAutoUpdatePreservesEditedScripts(t *testing.T) {
 	require.True(t, gotPayload.UninstallScriptEdited)
 }
 
-// Without the flag the manifest wins, even when the scripts differ. Fleet
-// republishing a script is not an admin edit, which is what the text comparison
-// this replaced used to get wrong.
 func TestAutoUpdateAdoptsManifestScriptsWhenNotEdited(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := baseDownloadStore(t, "149.0.0", 9)
@@ -482,6 +476,3 @@ func TestAutoUpdateAdoptsManifestScriptsWhenNotEdited(t *testing.T) {
 	require.False(t, gotPayload.InstallScriptEdited)
 	require.False(t, gotPayload.UninstallScriptEdited)
 }
-
-
-

@@ -1177,16 +1177,16 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			version = ?,
 			package_ids = ?,
 			install_script_content_id = ?,
-			install_script_edited = ?,
 			pre_install_query = ?,
 			post_install_script_content_id = ?,
 			uninstall_script_content_id = ?,
-			uninstall_script_edited = ?,
 			self_service = ?,
 			upgrade_code = ?,
 			user_id = ?,
 			user_name = (SELECT name FROM users WHERE id = ?),
-			user_email = (SELECT email FROM users WHERE id = ?)%s
+			user_email = (SELECT email FROM users WHERE id = ?),
+			install_script_edited = ?,
+			uninstall_script_edited = ?%s
 			WHERE id = ?`, touchUploaded)
 
 		args := []interface{}{
@@ -1195,16 +1195,16 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			payload.Version,
 			strings.Join(payload.PackageIDs, ","),
 			installScriptID,
-			payload.InstallScriptEdited,
 			*payload.PreInstallQuery,
 			postInstallScriptID,
 			uninstallScriptID,
-			payload.UninstallScriptEdited,
 			*payload.SelfService,
 			payload.UpgradeCode,
 			payload.UserID,
 			payload.UserID,
 			payload.UserID,
+			payload.InstallScriptEdited,
+			payload.UninstallScriptEdited,
 			payload.InstallerID,
 		}
 
