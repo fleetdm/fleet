@@ -3,6 +3,7 @@ package evidence
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
@@ -20,11 +21,11 @@ var toolHomeLabels = map[string]string{
 // scanWorkspaces finds agent-shaped user homes and bounded project roots.
 func scanWorkspaces(h homes.Home) []Workspace {
 	var out []Workspace
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 
 	emit := func(root string, extra []string) {
 		root = filepath.Clean(root)
-		if root == "" || seen[root] {
+		if _, dup := seen[root]; root == "" || dup {
 			return
 		}
 		markers := detectMarkers(root)
@@ -33,7 +34,7 @@ func scanWorkspaces(h homes.Home) []Workspace {
 		if len(markers) == 0 {
 			return
 		}
-		seen[root] = true
+		seen[root] = struct{}{}
 		strong := isStrong(markers)
 		cat := "agent-runtime"
 		if hasAny(markers, "skills") || hasAny(markers, "loop_config") || countShape(markers) >= 3 {
@@ -197,22 +198,17 @@ func countShape(markers []string) int {
 }
 
 func hasAny(ss []string, v string) bool {
-	for _, s := range ss {
-		if s == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, v)
 }
 
 func unique(in []string) []string {
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 	var out []string
 	for _, s := range in {
-		if s == "" || seen[s] {
+		if _, dup := seen[s]; s == "" || dup {
 			continue
 		}
-		seen[s] = true
+		seen[s] = struct{}{}
 		out = append(out, s)
 	}
 	return out

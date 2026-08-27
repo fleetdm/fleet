@@ -3,7 +3,7 @@ package evidence
 import "testing"
 
 func TestScoreCatalog(t *testing.T) {
-	s := Signals{"catalog": true, "binary": true}
+	s := Signals{"catalog": {}, "binary": {}}
 	if Score(s) != 100 {
 		t.Fatalf("catalog score=%d want 100", Score(s))
 	}
@@ -13,7 +13,7 @@ func TestScoreCatalog(t *testing.T) {
 }
 
 func TestNameAloneNeverEmits(t *testing.T) {
-	s := Signals{"name_match": true}
+	s := Signals{"name_match": {}}
 	if ShouldEmit(s) {
 		t.Fatal("name_match alone must not emit")
 	}
@@ -23,7 +23,7 @@ func TestNameAloneNeverEmits(t *testing.T) {
 }
 
 func TestStrongShapeEmitsOffline(t *testing.T) {
-	s := Signals{"workspace_shape": true, "mcp_config": true, "instructions": true}
+	s := Signals{"workspace_shape": {}, "mcp_config": {}, "instructions": {}}
 	if !ShouldEmit(s) {
 		t.Fatal("strong shape must emit")
 	}
@@ -33,14 +33,14 @@ func TestStrongShapeEmitsOffline(t *testing.T) {
 }
 
 func TestWeakInstructionsAloneNoEmit(t *testing.T) {
-	s := Signals{"instructions": true}
+	s := Signals{"instructions": {}}
 	if ShouldEmit(s) {
 		t.Fatal("instructions alone must not emit agents candidate")
 	}
 }
 
 func TestFrameworkAloneEmits(t *testing.T) {
-	s := Signals{"framework:crewai": true}
+	s := Signals{"framework:crewai": {}}
 	if !ShouldEmit(s) {
 		t.Fatal("framework must emit")
 	}
@@ -50,7 +50,7 @@ func TestFrameworkAloneEmits(t *testing.T) {
 }
 
 func TestGrokLikeSignals(t *testing.T) {
-	s := Signals{"tool_home": true, "binary": true, "running": true}
+	s := Signals{"tool_home": {}, "binary": {}, "running": {}}
 	if !ShouldEmit(s) {
 		t.Fatal("tool_home+binary+running should emit")
 	}
@@ -61,14 +61,14 @@ func TestGrokLikeSignals(t *testing.T) {
 }
 
 func TestEgressAloneNoEmit(t *testing.T) {
-	s := Signals{"ai_egress": true}
+	s := Signals{"ai_egress": {}}
 	if ShouldEmit(s) {
 		t.Fatal("egress alone must not emit")
 	}
 }
 
 func TestEvidenceCSVStable(t *testing.T) {
-	s := Signals{"running": true, "binary": true, "tool_home": true}
+	s := Signals{"running": {}, "binary": {}, "tool_home": {}}
 	if s.CSV() != "binary,running,tool_home" {
 		t.Fatalf("csv=%q", s.CSV())
 	}

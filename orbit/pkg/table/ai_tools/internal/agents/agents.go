@@ -85,7 +85,7 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 		filepath.Join(h.Dir, ".openclaw", "bin"),
 	)
 	nmDirs := nodeModulesDirs(h.Dir, r)
-	var out []Agent
+	out := make([]Agent, 0, len(knownAgents()))
 	seen := map[string]int{} // name -> index in out
 
 	for _, k := range knownAgents() {
@@ -106,7 +106,7 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 			a.Evidence = "catalog,running"
 		}
 		if a.BinaryPath != "" {
-			a.Evidence = a.Evidence + ",binary"
+			a.Evidence += ",binary"
 		}
 		a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
 		enrichPosture(&a, k, h, cmdline)
@@ -165,20 +165,12 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 }
 
 func mergeEvidence(a, b string) string {
-	set := map[string]bool{}
-	for _, p := range strings.Split(a, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			set[p] = true
+	s := evidence.Signals{}
+	for _, csv := range []string{a, b} {
+		for tok := range strings.SplitSeq(csv, ",") {
+			s.Add(strings.TrimSpace(tok))
 		}
 	}
-	for _, p := range strings.Split(b, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			set[p] = true
-		}
-	}
-	s := evidence.Signals(set)
 	return s.CSV()
 }
 
@@ -193,7 +185,7 @@ func mergesInto(a Agent, c evidence.AgentCandidate) bool {
 		filepath.Clean(c.BinaryPath) == filepath.Clean(a.BinaryPath) {
 		return true
 	}
-	return c.Signals["tool_home"]
+	return c.Signals.Has("tool_home")
 }
 
 func pathSeen(out []Agent, path string) bool {

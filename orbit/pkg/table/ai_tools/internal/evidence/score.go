@@ -30,7 +30,7 @@ const (
 )
 
 // Signals is a set of evidence tokens (e.g. "tool_home", "framework:crewai").
-type Signals map[string]bool
+type Signals map[string]struct{}
 
 // Add records a token.
 func (s Signals) Add(tok string) {
@@ -40,7 +40,13 @@ func (s Signals) Add(tok string) {
 	if s == nil {
 		return
 	}
-	s[tok] = true
+	s[tok] = struct{}{}
+}
+
+// Has reports whether the token is present.
+func (s Signals) Has(tok string) bool {
+	_, ok := s[tok]
+	return ok
 }
 
 // List returns sorted tokens for stable evidence CSV.
@@ -63,10 +69,10 @@ func (s Signals) CSV() string {
 
 // Score computes 0–100 confidence from signal tokens.
 func Score(s Signals) int {
-	if s == nil || len(s) == 0 {
+	if len(s) == 0 {
 		return 0
 	}
-	if s["catalog"] {
+	if s.Has("catalog") {
 		return 100
 	}
 	total := 0
@@ -74,41 +80,41 @@ func Score(s Signals) int {
 	if hasPrefix(s, "framework:") {
 		total += WeightFramework
 	}
-	if s["workspace_shape"] {
+	if s.Has("workspace_shape") {
 		// Strong shape is tagged workspace_shape; weak uses workspace_shape_weak.
 		total += WeightShapeStrong
-	} else if s["workspace_shape_weak"] {
+	} else if s.Has("workspace_shape_weak") {
 		total += WeightShapeWeak
 	}
-	if s["tool_home"] {
+	if s.Has("tool_home") {
 		total += WeightToolHome
 	}
-	if s["binary"] {
+	if s.Has("binary") {
 		total += WeightBinary
 	}
-	if s["pkg"] {
+	if s.Has("pkg") {
 		total += WeightPkg
 	}
-	if s["running"] {
+	if s.Has("running") {
 		total += WeightRunning
 	}
-	if s["ai_egress"] || s["mcp_egress"] {
+	if s.Has("ai_egress") || s.Has("mcp_egress") {
 		total += WeightEgress
 	}
-	if s["launchd"] || s["systemd"] || s["registry"] {
+	if s.Has("launchd") || s.Has("systemd") || s.Has("registry") {
 		total += WeightOSUnit
 	}
 	// mcp_config / instructions only add when not already counted via strong shape
 	// (they still contribute if shape is weak or absent).
-	if !s["workspace_shape"] {
-		if s["mcp_config"] {
+	if !s.Has("workspace_shape") {
+		if s.Has("mcp_config") {
 			total += WeightMCPConfig
 		}
-		if s["instructions"] {
+		if s.Has("instructions") {
 			total += WeightInstructions
 		}
 	}
-	if s["name_match"] {
+	if s.Has("name_match") {
 		total += WeightNameMatch
 	}
 	if total > 100 {
@@ -120,10 +126,10 @@ func Score(s Signals) int {
 // ShouldEmit implements two-tier Tier B rules (design §3).
 // Catalog is always emit (handled by callers forcing catalog).
 func ShouldEmit(s Signals) bool {
-	if s == nil || len(s) == 0 {
+	if len(s) == 0 {
 		return false
 	}
-	if s["catalog"] {
+	if s.Has("catalog") {
 		return true
 	}
 	// Name alone never emits.
@@ -133,7 +139,7 @@ func ShouldEmit(s Signals) bool {
 	if hasPrefix(s, "framework:") {
 		return true
 	}
-	if s["workspace_shape"] { // strong shape — aggressive offline emit
+	if s.Has("workspace_shape") { // strong shape — aggressive offline emit
 		return true
 	}
 	sc := Score(s)
@@ -152,7 +158,7 @@ func onlyName(s Signals) bool {
 			return false
 		}
 	}
-	return s["name_match"]
+	return s.Has("name_match")
 }
 
 func hasPrefix(s Signals, prefix string) bool {
@@ -170,31 +176,31 @@ func families(s Signals) int {
 	if hasPrefix(s, "framework:") {
 		n++
 	}
-	if s["workspace_shape"] || s["workspace_shape_weak"] {
+	if s.Has("workspace_shape") || s.Has("workspace_shape_weak") {
 		n++
 	}
-	if s["tool_home"] {
+	if s.Has("tool_home") {
 		n++
 	}
-	if s["binary"] {
+	if s.Has("binary") {
 		n++
 	}
-	if s["pkg"] {
+	if s.Has("pkg") {
 		n++
 	}
-	if s["running"] {
+	if s.Has("running") {
 		n++
 	}
-	if s["ai_egress"] || s["mcp_egress"] {
+	if s.Has("ai_egress") || s.Has("mcp_egress") {
 		n++
 	}
-	if s["launchd"] || s["systemd"] || s["registry"] {
+	if s.Has("launchd") || s.Has("systemd") || s.Has("registry") {
 		n++
 	}
-	if s["mcp_config"] {
+	if s.Has("mcp_config") {
 		n++
 	}
-	if s["instructions"] {
+	if s.Has("instructions") {
 		n++
 	}
 	return n

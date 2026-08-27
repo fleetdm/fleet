@@ -44,7 +44,7 @@ func TestGrokToolHomeCandidate(t *testing.T) {
 	if found.Running != 1 {
 		t.Errorf("running not set: %+v", found)
 	}
-	if !found.Signals["tool_home"] || !found.Signals["binary"] {
+	if !found.Signals.Has("tool_home") || !found.Signals.Has("binary") {
 		t.Errorf("signals=%v", found.Signals.List())
 	}
 }
@@ -73,7 +73,7 @@ func TestJarvisStrongShapeOffline(t *testing.T) {
 		// dump workspaces for debug
 		t.Fatalf("jarvis workspace candidate missing; workspaces=%+v cands=%+v", b.Workspaces, cands)
 	}
-	if !found.Signals["workspace_shape"] {
+	if !found.Signals.Has("workspace_shape") {
 		t.Errorf("expected strong workspace_shape, got %v", found.Signals.List())
 	}
 	if found.Confidence < 40 {
@@ -222,7 +222,7 @@ func writeExec(t *testing.T, path string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -243,13 +243,13 @@ func TestUnderHomeRejectsSymlinkEscape(t *testing.T) {
 		t.Errorf("underHome(%q, %q) = true, want false: the link resolves to %q, outside the home", link, home, outside)
 	}
 
-	// A real directory inside the home is still accepted.
-	real := filepath.Join(home, ".grok")
-	if err := os.MkdirAll(real, 0o755); err != nil {
+	// A genuine directory inside the home is still accepted.
+	realDir := filepath.Join(home, ".grok")
+	if err := os.MkdirAll(realDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if !underHome(real, home) {
-		t.Errorf("underHome(%q, %q) = false, want true", real, home)
+	if !underHome(realDir, home) {
+		t.Errorf("underHome(%q, %q) = false, want true", realDir, home)
 	}
 }
 

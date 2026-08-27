@@ -11,10 +11,10 @@ import (
 )
 
 // harnessFrameworks are libraries/products that imply agent-harness category.
-var harnessFrameworks = map[string]bool{
-	"crewai": true, "langgraph": true, "autogen": true, "hermes": true,
-	"openclaw": true, "openai-agents": true, "semantic-kernel": true,
-	"@langchain/langgraph": true, "langchain": true,
+var harnessFrameworks = map[string]struct{}{
+	"crewai": {}, "langgraph": {}, "autogen": {}, "hermes": {},
+	"openclaw": {}, "openai-agents": {}, "semantic-kernel": {},
+	"@langchain/langgraph": {}, "langchain": {},
 }
 
 // allFrameworkMarkers maps package name → short label.
@@ -38,23 +38,29 @@ var allFrameworkMarkers = map[string]string{
 	"opencode-ai":               "opencode",
 }
 
+// inSet reports whether a key is present in a string set.
+func inSet(s map[string]struct{}, k string) bool {
+	_, ok := s[k]
+	return ok
+}
+
 func scanFrameworks(h homes.Home) []Framework {
 	var out []Framework
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 
 	add := func(name, path, source string) {
 		key := name + "|" + path
-		if seen[key] {
+		if _, dup := seen[key]; dup {
 			return
 		}
-		seen[key] = true
+		seen[key] = struct{}{}
 		out = append(out, Framework{
 			UID:      h.UID,
 			Username: h.Username,
 			Name:     name,
 			Path:     path,
 			Source:   source,
-			Harness:  harnessFrameworks[name],
+			Harness:  inSet(harnessFrameworks, name),
 		})
 	}
 
@@ -157,10 +163,10 @@ func parsePackageJSONDeps(path string) []string {
 		return nil
 	}
 	var labels []string
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 	consider := func(pkg string) {
-		if label, ok := allFrameworkMarkers[pkg]; ok && !seen[label] {
-			seen[label] = true
+		if label, ok := allFrameworkMarkers[pkg]; ok && !inSet(seen, label) {
+			seen[label] = struct{}{}
 			labels = append(labels, label)
 		}
 	}
@@ -170,7 +176,7 @@ func parsePackageJSONDeps(path string) []string {
 	for pkg := range m.DevDeps {
 		consider(pkg)
 	}
-	if label, ok := allFrameworkMarkers[m.Name]; ok && !seen[label] {
+	if label, ok := allFrameworkMarkers[m.Name]; ok && !inSet(seen, label) {
 		labels = append(labels, label)
 	}
 	return labels
@@ -186,7 +192,7 @@ func parsePyprojectNames(path string) []string {
 	}
 	s := strings.ToLower(string(b))
 	var labels []string
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 	for pkg, label := range allFrameworkMarkers {
 		if strings.Contains(pkg, "/") {
 			continue // npm scoped
@@ -194,8 +200,8 @@ func parsePyprojectNames(path string) []string {
 		// rough: dependency name appears in file
 		if strings.Contains(s, `"`+pkg+`"`) || strings.Contains(s, `'`+pkg+`'`) ||
 			strings.Contains(s, pkg+" ") || strings.Contains(s, pkg+"\n") {
-			if !seen[label] {
-				seen[label] = true
+			if _, dup := seen[label]; !dup {
+				seen[label] = struct{}{}
 				labels = append(labels, label)
 			}
 		}
