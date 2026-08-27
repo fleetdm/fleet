@@ -24,6 +24,7 @@
             <div class="invalid-feedback" v-if="formErrors.profileType" focus-first>Select the type of profile that you want to generate.</div>
           </div>
           <div class="form-group">
+            <label for="profile">Instructions</label>
             <textarea class="form-control" type="textarea" id="profile" placeholder="Make sure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
             <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
           </div>
@@ -33,7 +34,6 @@
       </div>
       </div>
       <div v-show="hasGeneratedProfile">
-        <div purpose="mobile-generate-button" class="d-flex d-md-none" @click=""><img alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">Generate OS settings</div>
         <div class="d-flex flex-column-reverse mb-4">
           <div purpose="profile-editor">
             <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
