@@ -493,8 +493,7 @@ func encryptVolumeOnCOMThread(targetVolume string) (string, error) {
 	//
 	// Callers must only reach this with a volume positively known to be fully decrypted, where there is nothing
 	// valuable to delete. A failure here is fatal rather than ignored: DeleteKeyProtectors is not atomic, so a partial
-	// failure leaves the volume with some protectors removed, and continuing on to PrepareVolume and Encrypt would
-	// paper over that. On a fully decrypted volume there is normally nothing to delete and this is a no-op.
+	// failure leaves the volume with some protectors removed.
 	if err := vol.deleteKeyProtectors(); err != nil {
 		return "", fmt.Errorf("deleting existing key protectors: %w", err)
 	}
@@ -588,8 +587,7 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 }
 
 // hasTPMFamilyProtectorOnCOMThread reports whether the volume has a protector that can unseal the key at boot without
-// a recovery password being typed in. Any TPM-family protector qualifies; the PIN variants still prompt, but for a PIN
-// rather than for the 48-digit recovery key.
+// a recovery password being typed in. Any TPM-family protector qualifies.
 func hasTPMFamilyProtectorOnCOMThread(targetVolume string) (bool, error) {
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -610,8 +608,7 @@ func hasTPMFamilyProtectorOnCOMThread(targetVolume string) (bool, error) {
 }
 
 // addTPMProtectorOnCOMThread adds a TPM-only protector. ErrorCodeProtectorExists means the desired state is already
-// satisfied and is reported as success: the enumeration above and this call are not atomic, and orbit's own key
-// rotation also adds TPM protectors, so it can land in between.
+// satisfied and is reported as success.
 func addTPMProtectorOnCOMThread(targetVolume string) error {
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -620,8 +617,7 @@ func addTPMProtectorOnCOMThread(targetVolume string) error {
 	defer vol.bitlockerClose()
 
 	if err := vol.protectWithTPM(nil); err != nil {
-		var encErr *EncryptionError
-		if errors.As(err, &encErr) && encErr.Code() == ErrorCodeProtectorExists {
+		if encErr, ok := errors.AsType[*EncryptionError](err); ok && encErr.Code() == ErrorCodeProtectorExists {
 			return nil
 		}
 		return err
@@ -630,10 +626,7 @@ func addTPMProtectorOnCOMThread(targetVolume string) error {
 }
 
 // enableProtectionOnCOMThread turns protection back on for a volume that is encrypted but unprotected.
-//
-// It deliberately does NOT decide whether doing so is safe. The caller owns that: a volume with no protector able to
-// unseal at boot must get one first, or enabling protection converts a suspended-but-bootable host into one that
-// demands the 48-digit recovery key at its next restart.
+// The caller decides whether doing so is safe.
 func enableProtectionOnCOMThread(targetVolume string) error {
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {

@@ -1949,9 +1949,6 @@ WHERE
 		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
 
 		switch {
-		// Prefer what the agent actually reported over anything inferred from status. Fleet used to guess here, which
-		// is why the message hedged; the agent knows whether policy refused a TPM-only protector, whether the TPM is
-		// not ready, or whether it is simply waiting on a restart.
 		case protectionOff && dest.ProtectionError != "":
 			dest.Detail = fmt.Sprintf("BitLocker protection is off. Fleet could not turn it back on: %s", dest.ProtectionError)
 		case protectionOff && pinMissing:
