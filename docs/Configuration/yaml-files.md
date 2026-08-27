@@ -453,17 +453,14 @@ controls:
           - Engineering
         activation: ../lib/macos/activations/activation.json
     assets:
-      - path: ../lib/macos/assets/my-asset.json
-    managed_local_account_settings:
-      - enabled: true   
+      - path: ../lib/macos/assets/my-asset.json  
     end_user_local_account_type: "admin"
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
-    managed_local_account_settings:
-      - enabled: true   
+    managed_local_account_enabled: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -478,6 +475,7 @@ controls:
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
+    enable_managed_local_account: true
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -514,15 +512,9 @@ controls:
 
 ### apple_settings and windows_settings
 
-Both `apple_settings` and `windows_settings` support the following:
-
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `setup_experience.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
+- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`). Currently Windows only. macOS is [coming soon](https://github.com/fleetdm/fleet/issues/50084).
 - `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
-- `managed_local_account_settings` are settings for the managed local account.
-  - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
-
-Only `apple_settings` supports the following:
-
-- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
 
 Each entry can use either `path:` or `paths:`:
 
