@@ -59,6 +59,51 @@ func TestMarkRunning(t *testing.T) {
 	t.Fatal("aider not detected")
 }
 
+func TestShortBinaryNoFalseRunning(t *testing.T) {
+	// Catalog agent amazon-q uses binary "q". A process named "icq" must not
+	// mark amazon-q as running.
+	home := t.TempDir()
+	writeExec(t, filepath.Join(home, ".local", "bin", "q"))
+
+	snap := &proc.Snapshot{Procs: map[int]proc.Process{
+		7: {PID: 7, Name: "icq", Exe: "/usr/bin/icq", Cmdline: "/usr/bin/icq"},
+	}}
+	got := Scan(homes.Home{Dir: home, Username: "tester"}, snap, nil)
+	for _, a := range got {
+		if a.Name == "amazon-q" && a.Running == 1 {
+			t.Fatalf("amazon-q falsely marked running from process %q pid=%d", "icq", a.PID)
+		}
+	}
+}
+
+func TestShortBinaryExactRunning(t *testing.T) {
+	home := t.TempDir()
+	writeExec(t, filepath.Join(home, ".local", "bin", "q"))
+
+	snap := &proc.Snapshot{Procs: map[int]proc.Process{
+		9: {PID: 9, Name: "q", Exe: filepath.Join(home, ".local", "bin", "q"), Cmdline: filepath.Join(home, ".local", "bin", "q") + " chat"},
+	}}
+	got := Scan(homes.Home{Dir: home, Username: "tester"}, snap, nil)
+	for _, a := range got {
+		if a.Name == "amazon-q" {
+			if a.Running != 1 || a.PID != 9 {
+				t.Fatalf("amazon-q should be running: %+v", a)
+			}
+			return
+		}
+	}
+	t.Fatal("amazon-q not detected")
+}
+
+func TestProcMatchesBinRejectsSuffix(t *testing.T) {
+	if procMatchesBin("myclaude", "/usr/bin/myclaude", "myclaude", "claude") {
+		t.Fatal("name suffix must not match")
+	}
+	if !procMatchesBin("claude", "/usr/local/bin/claude", "/usr/local/bin/claude --help", "claude") {
+		t.Fatal("exact match should work")
+	}
+}
+
 func write(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

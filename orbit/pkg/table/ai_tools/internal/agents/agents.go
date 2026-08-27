@@ -372,26 +372,58 @@ func methodFromPath(path string) string {
 
 // markRunning sets Running/PID when a process matches the agent and returns the
 // matched process command line (or "") so the caller can inspect runtime flags.
+// Matching is exact name / exe basename / path-token only — never process-name
+// suffix (catalog binary "q" must not match processes like "icq").
 func markRunning(a *Agent, k known, snap *proc.Snapshot) string {
 	if snap == nil {
 		return ""
 	}
 	for pid, p := range snap.Procs {
-		name := strings.ToLower(p.Name)
-		cmd := strings.ToLower(p.Cmdline)
 		for _, bin := range k.binaries {
-			b := strings.ToLower(bin)
-			if name == b || name == b+".exe" || strings.Contains(cmd, "/"+b+" ") || strings.HasSuffix(name, b) {
+			if procMatchesBin(p.Name, p.Exe, p.Cmdline, bin) {
 				a.Running, a.PID = 1, pid
 				return p.Cmdline
 			}
 		}
-		if k.npmPkg != "" && strings.Contains(cmd, strings.ToLower(k.npmPkg)) {
-			a.Running, a.PID = 1, pid
-			return p.Cmdline
+		if k.npmPkg != "" {
+			pkg := strings.ToLower(k.npmPkg)
+			cmd := strings.ToLower(p.Cmdline)
+			// Package path token (scoped npm pkgs), not bare substring of short names.
+			if strings.Contains(cmd, "/"+pkg) || strings.Contains(cmd, "\\"+pkg) ||
+				strings.Contains(cmd, pkg+"/") || strings.Contains(cmd, pkg+"@") {
+				a.Running, a.PID = 1, pid
+				return p.Cmdline
+			}
 		}
 	}
 	return ""
+}
+
+// procMatchesBin reports whether a live process is the given binary.
+// Matches exact process name, exe basename, or a path-token in the command
+// line — never name suffix (short bins like "q" would false-positive).
+func procMatchesBin(name, exe, cmdline, bin string) bool {
+	bin = strings.ToLower(bin)
+	if bin == "" {
+		return false
+	}
+	name = strings.ToLower(name)
+	if name == bin || name == bin+".exe" {
+		return true
+	}
+	base := strings.ToLower(filepath.Base(exe))
+	if base == bin || base == bin+".exe" {
+		return true
+	}
+	cmd := strings.ToLower(cmdline)
+	for _, sep := range []string{"/", "\\"} {
+		tok := sep + bin
+		if strings.HasSuffix(cmd, tok) || strings.Contains(cmd, tok+" ") ||
+			strings.HasSuffix(cmd, tok+".exe") || strings.Contains(cmd, tok+".exe ") {
+			return true
+		}
+	}
+	return false
 }
 
 func isDir(p string) bool {

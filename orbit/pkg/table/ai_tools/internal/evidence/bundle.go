@@ -127,11 +127,8 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 	}
 
 	for _, th := range b.ToolHomes {
-		if h.Dir != "" && !strings.HasPrefix(th.Path, h.Dir+string(filepath.Separator)) && th.Path != h.Dir {
-			// Allow prefix match with separator to avoid /Users/bob matching /Users/bobby.
-			if !strings.HasPrefix(th.Path, h.Dir) {
-				continue
-			}
+		if !underHome(th.Path, h.Dir) {
+			continue
 		}
 		key := "home:" + th.Path
 		a := ensure(key, th.Name, th.Path)
@@ -153,7 +150,7 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 	}
 
 	for _, ws := range b.Workspaces {
-		if h.Dir != "" && !strings.HasPrefix(ws.Root, h.Dir) {
+		if !underHome(ws.Root, h.Dir) {
 			continue
 		}
 		key := "ws:" + ws.Root
@@ -179,7 +176,7 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 	}
 
 	for _, fw := range b.Frameworks {
-		if h.Dir != "" && fw.Path != "" && !strings.HasPrefix(fw.Path, h.Dir) {
+		if fw.Path != "" && !underHome(fw.Path, h.Dir) {
 			continue
 		}
 		// Attach framework to nearest workspace root or use package path.
@@ -199,37 +196,35 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 		}
 	}
 
-	// Running processes: match binary name / exe only (not workspace path
-	// substrings — those false-positive on builds, IDEs, and osquery itself).
+	// Running processes: exact name / exe base / path-token only (never
+	// suffix-match process names — "q" must not match "icq").
 	if snap != nil {
 		for pid, p := range snap.Procs {
-			lowName := strings.ToLower(p.Name)
-			lowCmd := strings.ToLower(p.Cmdline)
-			lowExe := strings.ToLower(p.Exe)
 			for _, a := range byKey {
 				bin := strings.ToLower(a.c.Binary)
 				if bin == "" {
 					bin = strings.ToLower(a.c.Name)
 				}
 				// Skip path-like or dotdir "names" (e.g. ".claude", "agentic-detector").
-				if bin == "" || strings.Contains(bin, "/") || strings.HasPrefix(bin, ".") {
+				if bin == "" || strings.Contains(bin, "/") || strings.Contains(bin, "\\") || strings.HasPrefix(bin, ".") {
 					continue
 				}
-				if lowName == bin || lowName == bin+".exe" ||
-					strings.HasSuffix(lowExe, "/"+bin) ||
-					strings.Contains(lowCmd, "/"+bin+" ") ||
-					strings.HasSuffix(lowCmd, "/"+bin) {
-					// Prefer binary path alignment when we have one.
-					if a.c.BinaryPath != "" {
-						if !strings.Contains(lowExe, strings.ToLower(filepath.Base(a.c.BinaryPath))) &&
-							lowName != bin && lowName != bin+".exe" {
-							continue
-						}
-					}
-					a.c.Signals.Add("running")
-					a.c.Running = 1
-					a.c.PID = pid
+				if !procMatchesBin(p.Name, p.Exe, p.Cmdline, bin) {
+					continue
 				}
+				// Prefer binary path alignment when we have one.
+				if a.c.BinaryPath != "" {
+					baseWant := strings.ToLower(filepath.Base(a.c.BinaryPath))
+					lowName := strings.ToLower(p.Name)
+					lowExeBase := strings.ToLower(filepath.Base(p.Exe))
+					if lowExeBase != baseWant && lowExeBase != baseWant+".exe" &&
+						lowName != bin && lowName != bin+".exe" {
+						continue
+					}
+				}
+				a.c.Signals.Add("running")
+				a.c.Running = 1
+				a.c.PID = pid
 			}
 		}
 	}
@@ -247,4 +242,50 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 		out = append(out, a.c)
 	}
 	return out
+}
+
+// underHome reports whether path is home itself or a descendant of home.
+// Bare strings.HasPrefix is wrong: /Users/bob is a prefix of /Users/bobby.
+func underHome(path, home string) bool {
+	if home == "" {
+		return true
+	}
+	if path == "" {
+		return false
+	}
+	path = filepath.Clean(path)
+	home = filepath.Clean(home)
+	if path == home {
+		return true
+	}
+	sep := string(filepath.Separator)
+	return strings.HasPrefix(path, home+sep)
+}
+
+// procMatchesBin reports whether a live process is the given binary.
+// Matches exact process name, exe basename, or a path-token in the command
+// line — never name suffix (short bins like "q" would false-positive).
+func procMatchesBin(name, exe, cmdline, bin string) bool {
+	bin = strings.ToLower(bin)
+	if bin == "" {
+		return false
+	}
+	name = strings.ToLower(name)
+	if name == bin || name == bin+".exe" {
+		return true
+	}
+	base := strings.ToLower(filepath.Base(exe))
+	if base == bin || base == bin+".exe" {
+		return true
+	}
+	cmd := strings.ToLower(cmdline)
+	// Path token: .../bin or .../bin <args> (also Windows backslash).
+	for _, sep := range []string{"/", "\\"} {
+		tok := sep + bin
+		if strings.HasSuffix(cmd, tok) || strings.Contains(cmd, tok+" ") ||
+			strings.HasSuffix(cmd, tok+".exe") || strings.Contains(cmd, tok+".exe ") {
+			return true
+		}
+	}
+	return false
 }

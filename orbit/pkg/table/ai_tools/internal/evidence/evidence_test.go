@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
@@ -122,6 +123,87 @@ func TestFrameworkCrewAI(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("framework:crewai not found; frameworks=%+v cands=%+v", b.Frameworks, cands)
+	}
+}
+
+func TestUnderHomeBobBobby(t *testing.T) {
+	// /Users/bob must not claim /Users/bobby artifacts.
+	if underHome("/Users/bobby/.grok", "/Users/bob") {
+		t.Fatal("bobby path must not be under bob home")
+	}
+	if underHome("/Users/bobby", "/Users/bob") {
+		t.Fatal("bobby home must not be under bob home")
+	}
+	if !underHome("/Users/bob/.grok", "/Users/bob") {
+		t.Fatal("bob/.grok should be under bob")
+	}
+	if !underHome("/Users/bob", "/Users/bob") {
+		t.Fatal("home itself should match")
+	}
+}
+
+func TestHomeIsolationBobBobbyCandidates(t *testing.T) {
+	root := t.TempDir()
+	bob := filepath.Join(root, "bob")
+	bobby := filepath.Join(root, "bobby")
+	for _, h := range []string{bob, bobby} {
+		if err := os.MkdirAll(filepath.Join(h, ".grok", "bin"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(h, ".grok", "config.json"), `{"model":"grok"}`)
+		writeExec(t, filepath.Join(h, ".grok", "bin", "grok"))
+	}
+
+	// Bundle gathered across both homes (as tables.generate does).
+	homesList := []homes.Home{
+		{Dir: bob, Username: "bob", UID: "501"},
+		{Dir: bobby, Username: "bobby", UID: "502"},
+	}
+	b := Gather(context.Background(), homesList, nil, map[string]struct{}{"agents": {}})
+
+	bobCands := AgentCandidates(homes.Home{Dir: bob, Username: "bob", UID: "501"}, nil, b)
+	for _, c := range bobCands {
+		if strings.Contains(c.Path, "bobby") || c.Username == "bobby" {
+			t.Fatalf("bob candidates leaked bobby artifact: %+v", c)
+		}
+		if c.Name == "grok" && !strings.HasPrefix(c.Path, bob) {
+			t.Fatalf("bob grok path outside bob home: %s", c.Path)
+		}
+	}
+	// bob should still see his own grok
+	found := false
+	for _, c := range bobCands {
+		if c.Name == "grok" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("bob should detect own grok; cands=%+v homes=%+v", bobCands, b.ToolHomes)
+	}
+
+	bobbyCands := AgentCandidates(homes.Home{Dir: bobby, Username: "bobby", UID: "502"}, nil, b)
+	for _, c := range bobbyCands {
+		if strings.Contains(c.Path, string(filepath.Separator)+"bob"+string(filepath.Separator)) ||
+			(c.Username == "bob" && c.UID == "501") {
+			t.Fatalf("bobby candidates leaked bob artifact: %+v", c)
+		}
+	}
+}
+
+func TestProcMatchesBinShortName(t *testing.T) {
+	// amazon-q binary "q" must not match processes whose name merely ends in q.
+	if procMatchesBin("icq", "/usr/bin/icq", "/usr/bin/icq", "q") {
+		t.Fatal("suffix process name must not match short bin q")
+	}
+	if procMatchesBin("sq", "/bin/sq", "sq", "q") {
+		t.Fatal("sq must not match q")
+	}
+	if !procMatchesBin("q", "/usr/local/bin/q", "/usr/local/bin/q chat", "q") {
+		t.Fatal("exact q process should match")
+	}
+	if !procMatchesBin("Amazon Q", "/opt/homebrew/bin/q", "/opt/homebrew/bin/q", "q") {
+		// name is not exact, but exe base is q
+		t.Fatal("exe base q should match")
 	}
 }
 
