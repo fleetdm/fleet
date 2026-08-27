@@ -1299,9 +1299,8 @@ type Service interface {
 	// Android profiles.
 	//
 	// profileName is the uploaded file's name without its extension, empty when
-	// the request carried no file. Only profile types whose name comes from the
-	// file name use it; an Apple .mobileconfig takes its name from the content's
-	// PayloadDisplayName instead.
+	// the request carried no file. Unused by Apple .mobileconfig, which is named
+	// by the PayloadDisplayName in its content.
 	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte]) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.

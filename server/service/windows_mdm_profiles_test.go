@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -791,6 +792,24 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mdm.FleetWindowsOSUpdatesProfileName, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not allowed")
+		require.False(t, ds.UpdateMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("a file name longer than the name column is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, strings.Repeat("a", fleet.MaxProfileNameLength+1), syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.MaxProfileNameLengthErrMsg)
 		require.False(t, ds.UpdateMDMWindowsConfigProfileFuncInvoked)
 	})
 

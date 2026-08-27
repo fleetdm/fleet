@@ -3126,31 +3126,6 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
 			nameChanged := existing.Name != cp.Name
 
-			// A name is unique per team across ALL profile platforms, and the
-			// UPDATE below can only rely on this table's own unique index, so the
-			// other three tables have to be checked explicitly (same set the
-			// insert paths guard with NOT EXISTS).
-			if nameChanged {
-				var collides bool
-				err := sqlx.GetContext(ctx, tx, &collides, `SELECT EXISTS (
-	SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
-) OR EXISTS (
-	SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
-) OR EXISTS (
-	SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?
-)`, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "checking cross-platform profile name collision")
-				}
-				if collides {
-					return ctxerr.Wrap(ctx, &existsError{
-						ResourceType: "MDMWindowsConfigProfile.Name",
-						Identifier:   cp.Name,
-						TeamID:       cp.TeamID,
-					})
-				}
-			}
-
 			// Retain the outgoing version before overwriting it so the
 			// profile-manager cron can build <Delete> commands for LocURIs the
 			// new content drops (same guarantee as the upsert and batch edit
@@ -3161,13 +3136,31 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				}
 			}
 
-			// uploaded_at is preserved only when nothing the admin uploaded
-			// changed, matching the batch path's
-			// IF(syncml = VALUES(syncml) AND name = VALUES(name), ...) -- a rename
-			// is a new upload even when the bytes are identical, and a no-op edit
-			// must not read as a fresh one.
-			stmt := `UPDATE mdm_windows_configuration_profiles SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at) WHERE profile_uuid = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID)
+			// A rename is a fresh upload even when the bytes are identical, so
+			// uploaded_at survives only a true no-op, matching the batch path's
+			// IF(syncml = VALUES(syncml) AND name = VALUES(name), ...).
+			const setClause = `UPDATE mdm_windows_configuration_profiles
+SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
+WHERE profile_uuid = ?`
+
+			// A name is unique per team across all four profile tables, but the
+			// UPDATE can only rely on this table's own index. Guarding with
+			// NOT EXISTS in the statement itself, rather than a preceding SELECT,
+			// keeps the check and the write atomic -- the same shape
+			// NewMDMWindowsConfigProfile uses on insert. Applied only on a rename
+			// so a content-only edit can't start failing on a pre-existing
+			// cross-table duplicate.
+			stmt := setClause
+			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
+			if nameChanged {
+				stmt += `
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
+				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+			}
+
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				switch {
 				case IsDuplicate(err):
@@ -3181,14 +3174,23 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 					return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
 				}
 			}
+			// The row was read at the top of this transaction, so on a rename the
+			// only thing that can match nothing is the NOT EXISTS guard.
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 
-			// host_mdm_windows_profiles denormalizes the name. A content change
-			// refreshes it via the reinstall upsert, but a rename on identical
-			// content enqueues nothing, so the per-host rows would keep the old
-			// name forever. Same fix the GitOps declaration path applies.
+			// The per-host rows denormalize the name. A content change refreshes
+			// them through the reinstall upsert, but a rename on identical content
+			// enqueues nothing, so update them here (as the GitOps declaration
+			// path does).
 			if nameChanged {
 				if _, err := tx.ExecContext(ctx,
 					`UPDATE host_mdm_windows_profiles SET profile_name = ? WHERE profile_uuid = ?`,

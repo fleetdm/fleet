@@ -2083,9 +2083,8 @@ func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.
 		activation.Set = true
 	}
 
-	// Mirrors the create endpoint: the name of a profile type that has no
-	// identifier inside its content comes from the uploaded file's name. Empty
-	// when the request is labels-only, which leaves the stored name alone.
+	// Named after the uploaded file, like the create endpoint. Empty on a
+	// labels-only edit, which keeps the stored name.
 	var profileName string
 	if req.Profile != nil {
 		profileName = strings.TrimSuffix(filepath.Base(req.Profile.Filename), filepath.Ext(req.Profile.Filename))
