@@ -86,6 +86,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -521,6 +522,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
+		redis_install_attempts.New(redisPool),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -626,6 +628,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareTitleIconStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
+			redis_install_attempts.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
 			androidSvc,
@@ -907,6 +910,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
+			config.Activity.FleetInitiatedReleasePerMinute > 0,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))

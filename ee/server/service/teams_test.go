@@ -812,10 +812,15 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 						fleet.MDMAssetCACert: {Value: []byte(testCert)},
 					}, nil
 				}
-				ds.NewMDMAppleConfigProfileFunc = func(_ context.Context, p fleet.MDMAppleConfigProfile,
-					_ []fleet.FleetVarName,
-				) (*fleet.MDMAppleConfigProfile, error) {
-					return &p, nil
+				// the reconciler reads the stored settings back, so serve what
+				// SaveTeam just captured
+				ds.TeamMDMConfigFunc = func(_ context.Context, _ uint) (*fleet.TeamMDM, error) {
+					require.NotNil(t, savedTeam, "reconcile ran before the team was saved")
+					mdm := savedTeam.Config.MDM
+					return &mdm, nil
+				}
+				ds.UpsertMDMAppleFleetConfigProfileFunc = func(_ context.Context, _ fleet.MDMAppleConfigProfile) error {
+					return nil
 				}
 			}
 
@@ -843,8 +848,8 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 			require.True(t, team.Config.MDM.EnableDiskEncryption)
 			require.NotNil(t, savedTeam)
 			require.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
-			require.Equal(t, tc.appleEnabled, ds.NewMDMAppleConfigProfileFuncInvoked,
-				"FileVault profile creation must match Apple MDM configuration")
+			require.Equal(t, tc.appleEnabled, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked,
+				"FileVault profile write must match Apple MDM configuration")
 		})
 	}
 }

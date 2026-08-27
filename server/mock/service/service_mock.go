@@ -677,9 +677,7 @@ type MDMAppleEraseDeviceFunc func(ctx context.Context, hostID uint) error
 
 type MDMListHostConfigurationProfilesFunc func(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error)
 
-type MDMAppleEnableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint) error
-
-type MDMAppleDisableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint) error
+type MDMAppleReconcileFileVaultProfileFunc func(ctx context.Context, teamID *uint) error
 
 type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error
 
@@ -1994,11 +1992,8 @@ type Service struct {
 	MDMListHostConfigurationProfilesFunc        MDMListHostConfigurationProfilesFunc
 	MDMListHostConfigurationProfilesFuncInvoked bool
 
-	MDMAppleEnableFileVaultAndEscrowFunc        MDMAppleEnableFileVaultAndEscrowFunc
-	MDMAppleEnableFileVaultAndEscrowFuncInvoked bool
-
-	MDMAppleDisableFileVaultAndEscrowFunc        MDMAppleDisableFileVaultAndEscrowFunc
-	MDMAppleDisableFileVaultAndEscrowFuncInvoked bool
+	MDMAppleReconcileFileVaultProfileFunc        MDMAppleReconcileFileVaultProfileFunc
+	MDMAppleReconcileFileVaultProfileFuncInvoked bool
 
 	UpdateMDMDiskEncryptionFunc        UpdateMDMDiskEncryptionFunc
 	UpdateMDMDiskEncryptionFuncInvoked bool
@@ -4791,18 +4786,11 @@ func (s *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID u
 	return s.MDMListHostConfigurationProfilesFunc(ctx, hostID)
 }
 
-func (s *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
+func (s *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
 	s.mu.Lock()
-	s.MDMAppleEnableFileVaultAndEscrowFuncInvoked = true
+	s.MDMAppleReconcileFileVaultProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleEnableFileVaultAndEscrowFunc(ctx, teamID)
-}
-
-func (s *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	s.mu.Lock()
-	s.MDMAppleDisableFileVaultAndEscrowFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleDisableFileVaultAndEscrowFunc(ctx, teamID)
+	return s.MDMAppleReconcileFileVaultProfileFunc(ctx, teamID)
 }
 
 func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error {

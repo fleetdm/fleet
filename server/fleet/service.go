@@ -37,8 +37,7 @@ type EnterpriseOverrides struct {
 	// they also need to be called from the standard server/service method (e.g.
 	// Modify AppConfig), so in this case we need to use the enterprise
 	// overrides.
-	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
-	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
+	MDMAppleReconcileFileVaultProfile func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint, dryRun bool) error
@@ -1124,14 +1123,11 @@ type Service interface {
 	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
 	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
 
-	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
-	// given team that enables FileVault with a config that allows Fleet to
-	// escrow the recovery key.
-	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
-
-	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
-	// profile for the given team.
-	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
+	// MDMAppleReconcileFileVaultProfile brings the FileVault configuration
+	// profile for the given team in line with its two macOS disk encryption
+	// settings: removed when both are off, and otherwise carrying only the
+	// enforcement and/or escrow payloads the settings call for.
+	MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error
 
 	// UpdateMDMDiskEncryption updates the disk encryption settings for a
 	// specified team or for hosts with no team.

@@ -2778,7 +2778,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 
 	deviceInfo := fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{}
 
-	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &deviceInfo)
+	err = plist.Unmarshal(p7.Content, &deviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",
@@ -3748,7 +3748,6 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 	}
 
 	oldWindowsDiskEncryption := ac.MDM.WindowsSettings.EnableDiskEncryption.Value
-	macOSDiskEncryptionWasOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value || ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
 
 	enabling := false
 	apply := func(dst *optjson.Bool, v *bool) bool {
@@ -3795,20 +3794,11 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 		return err
 	}
 
-	if macOSChanged && ac.MDM.EnabledAndConfigured { // if macOS MDM is configured, set up FileVault escrow
-		// the FileVault profile can cover both enforcement and key escrow,
-		// so only the off<->on transition of the macOS pair creates or
-		// deletes it
-		macOSDiskEncryptionOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value || ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
-			}
+	if macOSChanged && ac.MDM.EnabledAndConfigured {
+		// the profile's payloads follow both macOS settings, so a change to
+		// either one is reconciled
+		if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team filevault profile")
 		}
 	}
 
@@ -4438,11 +4428,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	return fleet.ErrMissingLicense
-}
-
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
+func (svc *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
 	return fleet.ErrMissingLicense
 }
 
@@ -4720,6 +4706,11 @@ type MDMAppleCheckinAndCommandService struct {
 	keyValueStore   fleet.AdvancedKeyValueStore
 	newActivityFn   mdmlifecycle.NewActivityFunc
 	isPremium       bool
+	// deferFleetInitiatedActivation mirrors
+	// activity.fleet_initiated_release_per_minute > 0: fleet-initiated
+	// activities (scheduled app updates) are enqueued without inline
+	// activation and released by the fleet-initiated release cron.
+	deferFleetInitiatedActivation bool
 }
 
 func NewMDMAppleCheckinAndCommandService(
@@ -4730,6 +4721,7 @@ func NewMDMAppleCheckinAndCommandService(
 	logger *slog.Logger,
 	keyValueStore fleet.AdvancedKeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
+	deferFleetInitiatedActivation bool,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
 	return &MDMAppleCheckinAndCommandService{
@@ -4742,6 +4734,8 @@ func NewMDMAppleCheckinAndCommandService(
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
 		keyValueStore:   keyValueStore,
 		newActivityFn:   newActivityFn,
+
+		deferFleetInitiatedActivation: deferFleetInitiatedActivation,
 	}
 }
 
@@ -5382,7 +5376,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// to that channel — cmdResult.Identifier() is the device UDID on both
 		// channels, while r.EnrollID distinguishes them.
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
-		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		var detail string
+		if status != nil && *status == fleet.MDMDeliveryFailed {
+			detail = fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		}
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), ddmScopeForRequest(r), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
@@ -6223,6 +6220,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 
 		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
 			ForScheduledUpdates: true,
+			// scheduled updates fan out to many hosts at once, like policy
+			// automations, so they respect the same release budget
+			DeferActivation: svc.deferFleetInitiatedActivation,
 		})
 		if err != nil {
 			logger.ErrorContext(ctx, "install VPP app post validation",
@@ -8497,7 +8497,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	var request mdmAppleOTARequest
-	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &request.DeviceInfo)
+	err = plist.Unmarshal(p7.Content, &request.DeviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",

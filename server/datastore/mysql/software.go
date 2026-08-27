@@ -72,43 +72,12 @@ var cleanupBatchSize = 1000
 // Any remaining orphans will be processed on the next hourly cron cycle.
 var cleanupMaxIterations = 100
 
-// softwareTitleCacheKey builds a string key for the in-process cache of known software titles.
-// It mirrors the titleKey struct used inside preInsertSoftwareInventory.
-func softwareTitleCacheKey(name, source, extensionFor, bundleID string, isKernel bool) string {
-	return strings.Join([]string{
-		strings.ToLower(normalizeForCollation(name)),
-		source,
-		extensionFor,
-		strings.ToLower(bundleID),
-		strconv.FormatBool(isKernel),
-	}, fleet.SoftwareFieldSeparator)
-}
-
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
 		result[s.ToUniqueStr()] = s
 	}
 	return result
-}
-
-func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
-	ds.knownSoftwareTitleKeysMu.Lock()
-	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	if _, loaded := ds.knownSoftwareTitleKeys[key]; loaded {
-		return
-	}
-	if len(ds.knownSoftwareTitleKeys) >= maxKnownSoftwareTitleKeys {
-		ds.evictKnownSoftwareTitleKeysLocked()
-	}
-	// Store after potential eviction so the caller's key survives.
-	ds.knownSoftwareTitleKeys[key] = struct{}{}
-}
-
-func (ds *Datastore) clearKnownSoftwareTitleKeys() {
-	ds.knownSoftwareTitleKeysMu.Lock()
-	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
 // windowsFMAMatchesCacheTTL bounds how long ingestion may keep matching against a stale
@@ -162,33 +131,6 @@ func (ds *Datastore) expireWindowsFMAMatchesCache() {
 	ds.windowsFMAMatchesMu.Lock()
 	defer ds.windowsFMAMatchesMu.Unlock()
 	ds.windowsFMAMatchesExpiry = time.Now().Add(-time.Second)
-}
-
-func (ds *Datastore) deleteKnownSoftwareTitleKey(key string) {
-	ds.knownSoftwareTitleKeysMu.Lock()
-	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	delete(ds.knownSoftwareTitleKeys, key)
-}
-
-func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
-	ds.knownSoftwareTitleKeysMu.RLock()
-	defer ds.knownSoftwareTitleKeysMu.RUnlock()
-	_, ok := ds.knownSoftwareTitleKeys[key]
-	return ok
-}
-
-func (ds *Datastore) evictKnownSoftwareTitleKeysLocked() {
-	evicted := 0
-	// Go map iteration order is randomized, so this evicts an arbitrary half of the cache.
-	// That is sufficient here because any retained title key still avoids an INSERT IGNORE, and
-	// arbitrary bulk eviction is much cheaper than maintaining a strict LRU in this hot path.
-	for key := range ds.knownSoftwareTitleKeys {
-		delete(ds.knownSoftwareTitleKeys, key)
-		evicted++
-		if evicted >= evictKnownSoftwareTitleKeys {
-			return
-		}
-	}
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
@@ -1287,66 +1229,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 		}
 
-		// INSERT IGNORE new software titles OUTSIDE the main transaction (#48719).
-		// Each INSERT IGNORE is auto-committed independently, so it holds row/gap locks
-		// for only microseconds instead of the entire transaction duration. This eliminates
-		// lock convoys when many hosts concurrently report the same software catalog.
-		if len(newTitlesNeeded) > 0 {
-			// Build the full set of unique titles (for ID resolution later).
-			uniqueTitles := make(map[titleKey]fleet.SoftwareTitle)
-			for _, title := range newTitlesNeeded {
-				bundleID := ""
-				if title.BundleIdentifier != nil {
-					bundleID = *title.BundleIdentifier
-				}
-				key := titleKey{
-					name:         strings.ToLower(normalizeForCollation(title.Name)),
-					source:       title.Source,
-					extensionFor: title.ExtensionFor,
-					bundleID:     bundleID,
-					isKernel:     title.IsKernel,
-				}
-				if _, exists := uniqueTitles[key]; !exists {
-					uniqueTitles[key] = title
-				}
-			}
-
-			// INSERT IGNORE each title individually using auto-commit (outside any transaction).
-			// singleflight ensures that for each title key, only one goroutine actually
-			// executes the INSERT; concurrent goroutines wait and share the result.
-			// The in-process cache prevents future DB hits entirely.
-			const insertTitleStmt = `INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES (?,?,?,?,?,?,?)`
-			for key, title := range uniqueTitles {
-				cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, key.bundleID, title.IsKernel)
-				if ds.hasKnownSoftwareTitleKey(cacheKey) {
-					continue
-				}
-				// Capture loop variables for the closure.
-				titleCopy := title
-				_, sfErr, _ := ds.titleInsertSF.Do(cacheKey, func() (any, error) {
-					// Double-check cache after winning the singleflight race.
-					if ds.hasKnownSoftwareTitleKey(cacheKey) {
-						return nil, nil
-					}
-					// Use context.WithoutCancel so the INSERT completes even if the
-					// leader goroutine's request is canceled mid-flight (#48719).
-					insertCtx := context.WithoutCancel(ctx)
-					if _, err := ds.writer(insertCtx).ExecContext(insertCtx, insertTitleStmt,
-						titleCopy.Name, titleCopy.Source, titleCopy.ExtensionFor, titleCopy.BundleIdentifier,
-						titleCopy.IsKernel, titleCopy.ApplicationID, titleCopy.UpgradeCode,
-					); err != nil {
-						return nil, ctxerr.Wrap(ctx, err, "pre-insert software_titles")
-					}
-					ds.cacheKnownSoftwareTitleKey(cacheKey)
-					return nil, nil
-				})
-				if sfErr != nil {
-					return sfErr
-				}
-			}
-		}
-
-		// Each batch in its own transaction (for SELECT title IDs + INSERT software).
+		// Each batch in its own transaction
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Map to store title IDs for all titles (both existing and new)
 			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitleSummaries))
@@ -1356,7 +1239,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				titleIDsByChecksum[checksum] = titleSummary.ID
 			}
 			if len(newTitlesNeeded) > 0 {
-				// Build the set of unique titles for the SELECT query.
 				uniqueTitles := make(map[titleKey]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
@@ -1364,6 +1246,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
+						// adjust for matching MySQL collation
 						name:         strings.ToLower(normalizeForCollation(title.Name)),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
@@ -1375,8 +1258,20 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					}
 				}
 
+				// Insert software titles
+				const numberOfArgsPerSoftwareTitles = 7
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?),", len(uniqueTitles)), ",")
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES %s", titlesValues)
+				titlesArgs := make([]any, 0, len(uniqueTitles)*numberOfArgsPerSoftwareTitles)
+				for _, title := range uniqueTitles {
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel, title.ApplicationID, title.UpgradeCode)
+				}
+
+				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
+				}
+
 				// Retrieve the IDs for the titles we just inserted (or that already existed).
-				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
 				// The branches are UNIONed, not ORed: a single OR across these columns causes a regression to a full table scan.
 				var (
 					bundleArgs  []any // (bundle_identifier, source, extension_for)
@@ -1552,7 +1447,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			)
 
 			args := make([]any, 0, len(batchKeys)*numberOfArgsPerSoftware)
-			var missingChecksums []string
+			var missingSoftwareTitles []string
 			for _, checksum := range batchKeys {
 				sw := batchSoftware[checksum]
 				var titleID *uint
@@ -1560,9 +1455,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if id, ok := titleIDsByChecksum[checksum]; ok {
 					titleID = &id
 				} else {
-					// Track software missing title IDs; titles inserted outside the
-					// transaction may have been deleted by a concurrent CleanupSoftwareTitles.
-					missingChecksums = append(missingChecksums, checksum)
+					// Track software missing title IDs for debugging
+					missingSoftwareTitles = append(missingSoftwareTitles,
+						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 				}
 
 				// Use FMA canonical name if available, otherwise use osquery-reported name.
@@ -1596,38 +1491,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				)
 			}
 
-			// When title IDs are missing, a concurrent CleanupSoftwareTitles likely
-			// deleted the titles we just inserted (they were orphaned briefly outside the
-			// transaction). Clear those cache entries so they are re-inserted on the next
-			// agent check-in. The software row proceeds with NULL title_id; the next
-			// ingestion cycle will re-create the title and link it.
-			if len(missingChecksums) > 0 {
-				var examples []string
-				for _, checksum := range missingChecksums {
-					sw := batchSoftware[checksum]
-					if len(examples) < 3 {
-						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
-					}
-					// Evict from the in-process cache so the next ingestion cycle re-inserts the title.
-					if title, ok := newTitlesNeeded[checksum]; ok {
-						bundleID := ""
-						if title.BundleIdentifier != nil {
-							bundleID = *title.BundleIdentifier
-						}
-						cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, bundleID, title.IsKernel)
-						ds.deleteKnownSoftwareTitleKey(cacheKey)
-					}
-				}
-				// Log rather than return a hard error: the title INSERT is outside the
-				// transaction, so withRetryTxx cannot re-insert the title on retry.
-				// The software row proceeds with NULL title_id and the evicted cache
-				// entry ensures the title is re-created on the next ingestion cycle.
-				if ds.logger != nil {
-					ds.logger.ErrorContext(ctx, "inserting software without title_id",
-						"count", len(missingChecksums),
-						"examples", strings.Join(examples, "; "),
-					)
-				}
+			// Log an error if we have software without title IDs
+			// This shouldn't happen in normal operation. And this code is here to catch bugs.
+			if len(missingSoftwareTitles) > 0 && ds.logger != nil {
+				exampleCount := min(len(missingSoftwareTitles), 3)
+				ds.logger.ErrorContext(ctx, "inserting software without title_id",
+					"count", len(missingSoftwareTitles),
+					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
+				)
 			}
 
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -3347,7 +3218,7 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "find orphaned software titles for cleanup")
 		}
 		if len(ids) == 0 {
-			break
+			return nil
 		}
 		lastID = ids[len(ids)-1]
 
@@ -3362,13 +3233,6 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 		ra, _ := res.RowsAffected()
 		n += ra
 	}
-
-	// If any titles were deleted, clear the in-process title cache so that future
-	// software ingestions re-insert titles instead of skipping them.
-	if n > 0 {
-		ds.clearKnownSoftwareTitleKeys()
-	}
-
 	return nil
 }
 
@@ -6775,7 +6639,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		matchClause := ""
 		matchArgs := []interface{}{}
 		if opts.ListOptions.MatchQuery != "" {
-			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name")
+			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery,
+				"software_titles.name",
+				"software_titles.bundle_identifier",
+				"stdn.display_name",
+			)
 		}
 
 		var (
@@ -6870,6 +6738,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			FROM
 				software_titles
 			LEFT JOIN
+				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
+			LEFT JOIN
 				-- Pin to the resolved first-added in-scope package per title so a multi-package title
 				-- yields one deterministic row (no duplicate titles, no arbitrary sibling).
 				software_installers ON software_titles.id = software_installers.title_id
@@ -6930,6 +6800,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vpp_apps ON software_titles.id = vpp_apps.title_id AND vpp_apps.platform = :host_platform
 			INNER JOIN
 				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+			LEFT JOIN
+				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
 			WHERE
 				vpp_apps.adam_id IN (?)
 				AND true
@@ -6968,6 +6840,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles
 			INNER JOIN in_house_apps ON
 				software_titles.id = in_house_apps.title_id AND in_house_apps.platform = :host_platform AND in_house_apps.global_or_team_id = :global_or_team_id
+			LEFT JOIN
+				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
 			WHERE
 				in_house_apps.id IN (?)
 				AND true

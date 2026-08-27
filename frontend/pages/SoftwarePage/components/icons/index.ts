@@ -549,6 +549,7 @@ import JumpDesktop from "./png/JumpDesktop.png";
 import Kaleidoscope from "./png/Kaleidoscope.png";
 import Kap from "./png/Kap.png";
 import Kdenlive from "./png/Kdenlive.png";
+import Keepass from "./png/Keepass.png";
 import KeePassXc from "./png/KeePassXc.png";
 import KeeperPasswordManager from "./png/KeeperPasswordManager.png";
 import Keepingyouawake from "./png/Keepingyouawake.png";
@@ -679,6 +680,7 @@ import Mos from "./png/Mos.png";
 import MountainDuck from "./png/MountainDuck.png";
 import MozillaVpn from "./png/MozillaVpn.png";
 import Mqttx from "./png/Mqttx.png";
+import Mremoteng from "./png/Mremoteng.png";
 import MullvadBrowser from "./png/MullvadBrowser.png";
 import MullvadVpn from "./png/MullvadVpn.png";
 import Multitouch from "./png/Multitouch.png";
@@ -867,6 +869,7 @@ import Retrobatch from "./png/Retrobatch.png";
 import Rewritebar from "./png/Rewritebar.png";
 import Rider from "./png/Rider.png";
 import Rightfont from "./png/Rightfont.png";
+import Ringcentral from "./png/Ringcentral.png";
 import Rive from "./png/Rive.png";
 import Rize from "./png/Rize.png";
 import Robofont from "./png/Robofont.png";
@@ -1711,6 +1714,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
+  keepass: Keepass,
   keepassxc: KeePassXc,
   "keeper password manager": KeeperPasswordManager,
   keepingyouawake: Keepingyouawake,
@@ -1849,6 +1853,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mozilla firefox nightly": FirefoxNightly,
   "mozilla vpn": MozillaVpn,
   mqttx: Mqttx,
+  mremoteng: Mremoteng,
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
   multitouch: Multitouch,
@@ -2040,6 +2045,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rewritebar: Rewritebar,
   rider: Rider,
   rightfont: Rightfont,
+  ringcentral: Ringcentral,
   rive: Rive,
   rize: Rize,
   robofont: Robofont,

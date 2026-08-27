@@ -790,7 +790,8 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 
 	// Activation must run outside the transaction (it reads/writes via the
 	// datastore's own connection), mirroring ProcessInstallerUpdateSideEffects.
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
+	return err
 }
 
 // redirectPendingInstallsToActiveInstaller moves installs queued against a superseded
@@ -1037,7 +1038,7 @@ FROM software_installers WHERE id = ?`,
 	}
 
 	if len(refreshAffectedHostIDs) > 0 {
-		if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, refreshAffectedHostIDs); err != nil {
+		if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, refreshAffectedHostIDs); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "activate next activity for hosts affected by a refreshed version")
 		}
 	}
@@ -1846,7 +1847,8 @@ AND NOT EXISTS (SELECT 1 FROM setup_experience_software_installers WHERE softwar
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 // deletePendingSoftwareInstallsForPolicy should be called before a policy is
@@ -1907,7 +1909,8 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "delete upcoming software installs for policy")
 	}
 
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	return err
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -2010,8 +2013,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert software install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -2032,7 +2039,8 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 func (ds *Datastore) ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error {
@@ -2216,7 +2224,9 @@ VALUES
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
-			0, // Uninstalls are never used in setup experience, so always default priority
+			// uninstalls are always user-initiated (never setup experience, never
+			// policy automations), so they rank with other user-initiated activities
+			fleet.UserInitiatedActivityPriority,
 			userID,
 			false,
 			executionID,
@@ -2779,7 +2789,7 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 
 const maxCachedFMAVersions = 2
 
-func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 	const unsetAllInstallersFromPolicies = `
 UPDATE
   policies
@@ -3230,7 +3240,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		globalOrTeamID = *tmID
 		tm, err := ds.TeamLite(ctx, *tmID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
+			return nil, ctxerr.Wrap(ctx, err, "fetch team for batch set software installers")
 		}
 		teamName = tm.Name
 	}
@@ -3245,6 +3255,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 	}
 
 	var activateAffectedHostIDs []uint
+	var modifiedInstallers []uint
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
@@ -3896,6 +3907,10 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+
+				if existing[0].IsMetadataModified || existing[0].IsPackageModified {
+					modifiedInstallers = append(modifiedInstallers, existing[0].InstallerID)
+				}
 			}
 
 			// These installers were replaced by a newer version and had their policies
@@ -3944,9 +3959,12 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs); err != nil {
+		return nil, err
+	}
+	return modifiedInstallers, nil
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
@@ -4293,7 +4311,7 @@ FROM (
 			0 AS count_installer_labels,
 			0 AS count_host_labels,
 			0 AS count_host_updated_after_labels
-		WHERE NOT EXISTS ( SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = ?)
+		WHERE NOT EXISTS ( SELECT 1 FROM %[1]s_labels sil WHERE sil.%[1]s_id = %[2]s)
 
 		UNION
 
@@ -4307,7 +4325,7 @@ FROM (
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
 		AND lm.host_id = h.id
 		WHERE
-			sil.%[1]s_id = ?
+			sil.%[1]s_id = %[2]s
 			AND sil.exclude = 0
 		HAVING
 			count_installer_labels > 0
@@ -4331,7 +4349,7 @@ FROM (
 		LEFT OUTER JOIN labels lbl ON lbl.id = sil.label_id
 		LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id AND lm.host_id = h.id
 WHERE
-	sil.%[1]s_id = ?
+	sil.%[1]s_id = %[2]s
 	AND sil.exclude = 1
 HAVING
 	count_installer_labels > 0
@@ -4343,7 +4361,7 @@ func (ds *Datastore) GetIncludedHostIDMapForSoftwareInstaller(ctx context.Contex
 }
 
 func (ds *Datastore) getIncludedHostIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
-	filter := fmt.Sprintf(labelScopedFilter, swType)
+	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM
@@ -4370,7 +4388,7 @@ func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, v
 }
 
 func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]string, error) {
-	filter := fmt.Sprintf(labelScopedFilter, swType)
+	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
 	stmt := fmt.Sprintf(`SELECT
 		h.uuid AS uuid,
 		ad.applied_policy_id AS applied_policy_id
@@ -4405,7 +4423,7 @@ func (ds *Datastore) GetExcludedHostIDMapForSoftwareInstaller(ctx context.Contex
 }
 
 func (ds *Datastore) getExcludedHostIDMapForSoftware(ctx context.Context, softwareID uint, swType softwareType) (map[uint]struct{}, error) {
-	filter := fmt.Sprintf(labelScopedFilter, swType)
+	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
 	stmt := fmt.Sprintf(`SELECT
 	h.id
 FROM

@@ -70,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -124,6 +125,7 @@ type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
 	redisPool              fleet.RedisPool
+	attemptCounter         fleet.SoftwareInstallAttemptCounter
 	calendarSchedule       *schedule.Schedule
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -134,7 +136,8 @@ type integrationEnterpriseTestSuite struct {
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	s.redisPool = redistest.SetupRedis(s.T(), s.T().Name(), false, false, false)
+	s.attemptCounter = redis_install_attempts.NewTest(s.T(), s.redisPool)
 	s.lq = live_query_mock.New(s.T())
 	var calendarSchedule *schedule.Schedule
 
@@ -161,11 +164,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Pool:           s.redisPool,
-		Rs:             pubsub.NewInmemQueryResults(),
-		Lq:             s.lq,
-		Logger:         slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		EnableCachedDS: true,
+		Pool:                  s.redisPool,
+		InstallAttemptCounter: s.attemptCounter,
+		Rs:                    pubsub.NewInmemQueryResults(),
+		Lq:                    s.lq,
+		Logger:                slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		EnableCachedDS:        true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
@@ -15426,6 +15430,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		next:        http.DefaultTransport,
 	}
 	http.DefaultTransport = mockTransport
+
 	// https://downloads.1password.com/mac/1Password-8.10.82-aarch64.zip
 	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "1Password",
@@ -34156,6 +34161,342 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		}
 		assert.Nil(t, rows[fleet.MaxPolicyAutomationRetries+1].AttemptNumber, "retry should be queued (NULL) after fresh sequence")
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreLimited() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// An installer that can never succeed, standing in for the per-user installer on a host with no logged-in user from the report.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+
+	policyIDs := make([]uint, 0, 2)
+	for _, name := range []string{"continuous-a", "continuous-b"} {
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+			Name:                         name,
+			Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+			Platform:                     "darwin",
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+
+		var resp fleet.ModifyTeamPolicyResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			},
+		}, http.StatusOK, &resp)
+		policyIDs = append(policyIDs, policy.ID)
+	}
+
+	// Distributed writes carry a result for every policy in scope for the host, the way osquery reports them together from one distributed read.
+	submitPolicyResults := func(passes bool) {
+		results := make(map[uint]*bool, len(policyIDs))
+		for _, policyID := range policyIDs {
+			results[policyID] = new(passes)
+		}
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, results), http.StatusOK, &distributedResp)
+	}
+
+	// Empty when nothing was queued, which ends the drain loop below.
+	pendingInstallUUID := func() string {
+		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+		require.NoError(t, err)
+		if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+			return ""
+		}
+		return last.ExecutionID
+	}
+
+	// The install script always fails, so the exit code reported here is what decides the outcome.
+	reportInstallResult := func(installUUID string, exitCode int) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID:                host.ID,
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: new(exitCode),
+				InstallScriptOutput:   new("done"),
+			},
+		}, http.StatusNoContent)
+	}
+
+	countInstalls := func() int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
+		})
+		return count
+	}
+
+	// A failure counts.
+	submitPolicyResults(false)
+	installUUID := pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 1)
+
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+
+	// A later success clears it, so a host that installs and regresses later starts over rather than staying at its old total.
+	submitPolicyResults(false)
+	installUUID = pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 0)
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	// The success above puts continuous automations on cooldown for a policy update interval, which would
+	// stop the run below from queueing anything. Dropping the rows lifts it and starts the count at zero.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
+		return err
+	})
+	installs := countInstalls()
+	require.Zero(t, installs)
+
+	// One report is one osquery check-in reporting both policies as failing. Report
+	// once more than the limit allows, so the last report has to be turned away.
+	for range fleet.MaxPolicyAutomationInstallAttempts + 1 {
+		submitPolicyResults(false)
+
+		// A report queues one install and each failure queues the next retry, so the
+		// sequence is at most MaxPolicyAutomationRetries deep. Bounded so a sequence
+		// that never ends fails the test instead of hanging it.
+		drained := 0
+		for range fleet.MaxPolicyAutomationRetries + 1 {
+			retryUUID := pendingInstallUUID()
+			if retryUUID == "" {
+				break
+			}
+			reportInstallResult(retryUUID, 1)
+			drained++
+		}
+		require.LessOrEqual(t, drained, fleet.MaxPolicyAutomationRetries)
+	}
+
+	installs = countInstalls()
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, installs)
+
+	// The count is keyed on the host and installer, so both policies share it.
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, attempts)
+
+	// The distributed write queues the install before it returns, so a further failing
+	// report either adds one immediately or not at all.
+	submitPolicyResults(false)
+	installs = countInstalls()
+	require.Equal(t, fleet.MaxPolicyAutomationInstallAttempts, installs)
+
+	// Editing the installer clears the count instead of waiting for it to expire.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript: new("exit 0"),
+		Filename:      "dummy_installer.pkg",
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	// The count is back to zero, so a failing report queues an install again.
+	installsBeforeReset := countInstalls()
+	submitPolicyResults(false)
+	installs = countInstalls()
+	require.Greater(t, installs, installsBeforeReset)
+
+	installUUID = pendingInstallUUID()
+	require.NotEmpty(t, installUUID)
+	reportInstallResult(installUUID, 1)
+
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersClearsFailedInstallCount() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	var installer struct {
+		ID        uint   `db:"id"`
+		StorageID string `db:"storage_id"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installer, `SELECT id, storage_id FROM software_installers WHERE global_or_team_id = ?`, team.ID)
+	})
+	require.NotZero(t, installer.ID)
+
+	const hostID = 4242
+	_, err = s.attemptCounter.RecordAttempt(ctx, hostID, installer.ID, fleet.PolicyAutomationInstallAttemptExpiry)
+	require.NoError(t, err)
+
+	// The batch matches the already uploaded package by hash, so the installer keeps its
+	// ID and the count recorded against it is cleared instead of waiting for it to expire.
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+		{SHA256: installer.StorageID, InstallScript: "echo edited by batch"},
+	}}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+
+	attempts, err := s.attemptCounter.CountAttempts(ctx, hostID, installer.ID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailuresDoNotCount() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// The install script would succeed, so a failure can only come from the pre-install query.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo ok",
+		PreInstallQuery: "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Filename:        "dummy_installer.pkg",
+		TeamID:          &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "pre-install",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	var resp fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titlesResp.SoftwareTitles[0].ID},
+		},
+	}, http.StatusOK, &resp)
+
+	// Report more times than the limit allows, so a counted failure would have stopped the installs.
+	for range fleet.MaxPolicyAutomationInstallAttempts + 2 {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(false)}), http.StatusOK, &distributedResp)
+
+		// Report what fleetd reports when the pre-install query returns no rows: the
+		// condition output only, with no install script exit code.
+		// Bounded for the same reason as the limit test: the retry sequence is at most
+		// MaxPolicyAutomationRetries deep, so a sequence that never ends fails here.
+		drained := 0
+		for range fleet.MaxPolicyAutomationRetries + 1 {
+			last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+			require.NoError(t, err)
+			if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+				break
+			}
+			s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+				OrbitNodeKey: *host.OrbitNodeKey,
+				HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+					HostID:                    host.ID,
+					InstallUUID:               last.ExecutionID,
+					PreInstallConditionOutput: new(""),
+				},
+			}, http.StatusNoContent)
+			drained++
+		}
+		require.LessOrEqual(t, drained, fleet.MaxPolicyAutomationRetries)
+	}
+
+	// A failure before the package is fetched must not count against the limit.
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Zero(t, attempts)
+
+	var installs, ranInstallScript int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &installs, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &ranInstallScript, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND software_installer_id = ? AND install_script_exit_code IS NOT NULL`, host.ID, installerID)
+	})
+	// The install script never runs, and installs keep being queued past the limit.
+	require.Zero(t, ranInstallScript)
+	require.Greater(t, installs, fleet.MaxPolicyAutomationInstallAttempts)
 }
 
 // TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit
