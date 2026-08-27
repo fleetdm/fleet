@@ -1,0 +1,9 @@
+- name: Apple Intelligence enabled
+  query: SELECT 1 FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist' AND value = 1;
+  critical: false
+  description: |-
+    Detects whether Apple Intelligence has been enabled on the host (value = 1 is on).
+  resolution: |-
+    Apple Intelligence isn't enforced by MDM on this team. To enable it, open System Settings > Apple Intelligence & Siri and turn Apple Intelligence on, then refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin
