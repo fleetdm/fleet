@@ -360,9 +360,7 @@ func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, 
 
 // cleanupDiskEncryptionKeysOnTeamChangeDB drops the escrowed keys of moved hosts
 // whose platform no longer escrows to Fleet in the destination fleet. Each
-// platform has its own setting, so the Apple FileVault profile is no longer a
-// usable proxy for "this fleet escrows keys" the way it was when one toggle
-// covered every platform.
+// platform has its own setting.
 func cleanupDiskEncryptionKeysOnTeamChangeDB(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, diskEncryption fleet.DiskEncryptionConfig) error {
 	if len(hostIDs) == 0 {
 		return nil

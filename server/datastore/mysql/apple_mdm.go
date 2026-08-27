@@ -936,8 +936,14 @@ func (ds *Datastore) UpsertMDMAppleFleetConfigProfile(ctx context.Context, cp fl
 		cp.Scope = fleet.PayloadScopeSystem
 	}
 
-	// No guard against a same-named Windows/Android profile or declaration:
-	// callers pass a Fleet-reserved profile name, which users cannot take.
+	// This method skips the name-collision checks NewMDMAppleConfigProfile makes
+	// against Windows/Android profiles and declarations, on the grounds that
+	// users cannot take a Fleet-reserved name. Enforce that premise so a future
+	// caller cannot use this path to bypass those checks for a user profile.
+	if _, ok := fleetmdm.FleetReservedProfileNames()[cp.Name]; !ok {
+		return ctxerr.Errorf(ctx, "profile %q is not fleet-controlled", cp.Name)
+	}
+
 	//
 	// uploaded_at is assigned before checksum so it still compares against the
 	// stored value: re-rendering identical bytes must leave the row untouched,
