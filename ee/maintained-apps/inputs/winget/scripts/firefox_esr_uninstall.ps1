@@ -58,25 +58,10 @@ foreach ($key in $uninstallKeys) {
         Write-Host "Uninstall command: $uninstallCommand"
         Write-Host "Uninstall args: $uninstallArgs"
 
-        # TEMP DIAGNOSTICS (do not merge): find what hangs in CI. Dumps Mozilla
-        # scheduled-task and process state around the uninstall, and bounds the
-        # wait at 300s instead of relying on the validator's 10-minute kill.
-        Write-Host "DIAG: user=$(whoami)"
-        $sched = New-Object -ComObject Schedule.Service
-        $sched.Connect()
-        try {
-            $mozFolder = $sched.GetFolder("\Mozilla")
-            Write-Host "DIAG: \Mozilla task folder EXISTS; tasks:"
-            @($mozFolder.GetTasks(1)) | ForEach-Object {
-                Write-Host "DIAG:   task '$($_.Name)' enabled=$($_.Enabled)"
-            }
-        } catch {
-            Write-Host "DIAG: no \Mozilla task folder"
-        }
-
         $processOptions = @{
             FilePath = $uninstallCommand
             PassThru = $true
+            Wait = $true
         }
 
         if ($uninstallArgs -ne '') {
@@ -84,32 +69,8 @@ foreach ($key in $uninstallKeys) {
         }
 
         $process = Start-Process @processOptions
-        $t0 = Get-Date
-        $treeDone = $false
-        while (((Get-Date) - $t0).TotalSeconds -lt 300) {
-            Start-Sleep -Seconds 15
-            $moz = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match "^(helper|Un_A|firefox|default-browser-agent|private_browsing|pingsender)\.exe$" }
-            if (-not $moz) {
-                $treeDone = $true
-                break
-            }
-            Write-Host ("DIAG: t+" + [int]((Get-Date) - $t0).TotalSeconds + "s still running:")
-            $moz | ForEach-Object {
-                Write-Host ("DIAG:   pid=" + $_.ProcessId + " ppid=" + $_.ParentProcessId + " " + $_.Name + " :: " + $_.CommandLine)
-            }
-        }
-
-        if ($treeDone) {
-            $exitCode = if ($process.HasExited) { $process.ExitCode } else { 0 }
-            Write-Host "Uninstall exit code: $exitCode"
-        } else {
-            Write-Host "DIAG: uninstall still running after 300s, giving up"
-            Get-WinEvent -FilterHashtable @{LogName="Application"; StartTime=$t0} -ErrorAction SilentlyContinue |
-                Where-Object { $_.ProviderName -like "*Firefox*" -or $_.ProviderName -like "*Mozilla*" -or $_.ProviderName -like "*Default Browser Agent*" } |
-                ForEach-Object { Write-Host ("DIAG: event [" + $_.ProviderName + "] id=" + $_.Id + " :: " + (($_.Message -split "\r?\n")[0])) }
-            $exitCode = 99
-        }
+        $exitCode = $process.ExitCode
+        Write-Host "Uninstall exit code: $exitCode"
         break
     }
 }

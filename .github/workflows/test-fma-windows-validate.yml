@@ -248,21 +248,40 @@ jobs:
             Write-Host "Firefox not found in registry"
           }
 
+          # helper.exe relaunches itself as Un_A.exe and returns immediately, so
+          # Start-Process -Wait above does not cover the real uninstall. Wait for
+          # the uninstaller and its children to finish before cleaning up, or the
+          # kills/deletes below interrupt it and leave state (keyed to the
+          # C:\Program Files\Mozilla Firefox install hash) that wedges the Firefox
+          # ESR uninstall later in the run.
+          Write-Host "Waiting for the Firefox uninstaller to finish..."
+          $deadline = (Get-Date).AddSeconds(120)
+          while ((Get-Date) -lt $deadline) {
+            $running = Get-Process -Name "Un_A","helper","firefox","default-browser-agent" -ErrorAction SilentlyContinue
+            if (-not $running) { break }
+            Start-Sleep -Seconds 5
+          }
+
           # Kill any lingering Firefox/Mozilla processes
           Write-Host "Stopping any lingering Firefox processes..."
-          Get-Process -Name "firefox","plugin-container","updater","maintenanceservice*","helper" -ErrorAction SilentlyContinue | ForEach-Object {
+          Get-Process -Name "firefox","plugin-container","updater","maintenanceservice*","helper","Un_A","default-browser-agent" -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "  Killing process: $($_.Name) (PID: $($_.Id))"
             Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
           }
 
           Start-Sleep -Seconds 10
 
-          # Force-remove leftover Firefox directories from Program Files
+          # Force-remove leftover Firefox directories, per-user/per-machine state,
+          # registry keys, and scheduled tasks so the Firefox flavors validated
+          # later start from a clean machine.
           $firefoxDirs = @(
             "C:\Program Files\Mozilla Firefox",
             "C:\Program Files (x86)\Mozilla Firefox",
-            "C:\Program Files\Mozilla Maintenance Service"
+            "C:\Program Files\Mozilla Maintenance Service",
+            "$env:LOCALAPPDATA\Mozilla",
+            "$env:APPDATA\Mozilla"
           )
+          $firefoxDirs += Get-ChildItem "C:\ProgramData" -Directory -Filter "Mozilla*" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
           foreach ($dir in $firefoxDirs) {
             if (Test-Path $dir) {
               Write-Host "Removing leftover directory: $dir"
@@ -274,6 +293,13 @@ jobs:
               }
             }
           }
+
+          Remove-Item "HKLM:\SOFTWARE\Mozilla","HKLM:\SOFTWARE\WOW6432Node\Mozilla","HKCU:\SOFTWARE\Mozilla" -Recurse -Force -ErrorAction SilentlyContinue
+
+          Get-ScheduledTask -TaskPath "\Mozilla\" -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false -ErrorAction SilentlyContinue
+          $sched = New-Object -ComObject Schedule.Service
+          $sched.Connect()
+          try { $sched.GetFolder("\").DeleteFolder("Mozilla", 0); Write-Host "Removed Mozilla scheduled task folder" } catch {}
         shell: pwsh
 
       - name: Remove pre-installed Node.js
