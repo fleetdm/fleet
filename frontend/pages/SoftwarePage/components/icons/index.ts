@@ -699,6 +699,7 @@ import Netron from "./Netron";
 import Netspot from "./Netspot";
 import Nextcloud from "./Nextcloud";
 import NextcloudTalk from "./NextcloudTalk";
+import NexusShell from "./NexusShell";
 import Nightfall from "./Nightfall";
 import NitroPdfPro from "./NitroPdfPro";
 import Nodejs from "./Nodejs";
@@ -1872,6 +1873,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   netspot: Netspot,
   nextcloud: Nextcloud,
   "nextcloud talk desktop": NextcloudTalk,
+  "nexus shell": NexusShell,
   nightfall: Nightfall,
   "nitro pdf pro": NitroPdfPro,
   "node.js": Nodejs,
