@@ -1180,7 +1180,7 @@ func (r *deviceSendAPNSPingRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func deviceSendAPNSPing(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deviceSendAPNSPing(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
