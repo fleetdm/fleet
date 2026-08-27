@@ -25,7 +25,7 @@ interface IControlsProps {
   /** My device: second person, and no Controls page to link to. */
   isDeviceUser?: boolean;
   /** Fleet setting for macOS: disk encryption enforced without key escrow. */
-  isDiskEncryptionEnforceOnly?: boolean;
+  isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
@@ -50,7 +50,7 @@ const Controls = ({
   controls,
   hostDisplayName,
   isDeviceUser = false,
-  isDiskEncryptionEnforceOnly = false,
+  isMacOSDiskEncryptionEnforceOnly = false,
   canResendProfiles,
   canRotateRecoveryLockPassword = false,
   canResendHostNameTemplate = false,
@@ -159,7 +159,7 @@ const Controls = ({
           control={selectedControl}
           hostDisplayName={hostDisplayName}
           isDeviceUser={isDeviceUser}
-          isDiskEncryptionEnforceOnly={isDiskEncryptionEnforceOnly}
+          isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly}
           canResendProfiles={canResendProfiles}
           canRotateRecoveryLockPassword={canRotateRecoveryLockPassword}
           canResendHostNameTemplate={canResendHostNameTemplate}

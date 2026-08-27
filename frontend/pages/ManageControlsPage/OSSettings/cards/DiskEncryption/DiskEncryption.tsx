@@ -351,7 +351,7 @@ const DiskEncryption = ({
           <DiskEncryptionTable
             platform={platform}
             currentTeamId={currentTeamId}
-            isEnforceOnly={
+            isMacOSEnforceOnly={
               platform === "macos" &&
               savedSettings.macOSEnabled &&
               !savedSettings.macOSEscrowEnabled

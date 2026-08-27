@@ -1035,11 +1035,11 @@ const HostDetailsPage = ({
     ? teams?.find((team) => team.id === host.team_id)?.mdm
     : config?.mdm;
   const {
-    macOSEnabled: fleetDiskEncryptionEnabled,
-    macOSEscrowEnabled: fleetEscrowEnabled,
+    macOSEnabled: fleetMacOSDiskEncryptionEnabled,
+    macOSEscrowEnabled: fleetMacOSEscrowEnabled,
   } = getDiskEncryptionSettings(hostFleetMdm);
-  const isDiskEncryptionEnforceOnly =
-    fleetDiskEncryptionEnabled && !fleetEscrowEnabled;
+  const isMacOSDiskEncryptionEnforceOnly =
+    fleetMacOSDiskEncryptionEnabled && !fleetMacOSEscrowEnabled;
 
   const onSelectHostAction = (action: string) => {
     switch (action) {
@@ -1773,7 +1773,9 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
-                    isDiskEncryptionEnforceOnly={isDiskEncryptionEnforceOnly}
+                    isMacOSDiskEncryptionEnforceOnly={
+                      isMacOSDiskEncryptionEnforceOnly
+                    }
                     router={router}
                   />
                 </TabPanel>

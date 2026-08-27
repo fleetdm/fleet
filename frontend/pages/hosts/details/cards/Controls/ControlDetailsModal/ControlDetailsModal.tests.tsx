@@ -50,7 +50,7 @@ describe("ControlDetailsModal", () => {
 
   it("drops the key phrasing for the FileVault profile when the fleet is enforce-only", () => {
     renderModal({
-      isDiskEncryptionEnforceOnly: true,
+      isMacOSDiskEncryptionEnforceOnly: true,
       control: createMockHostMdmProfile({
         name: "Disk encryption",
         platform: "darwin",
@@ -68,7 +68,7 @@ describe("ControlDetailsModal", () => {
 
   it("drops the key retrieval phrasing while verifying when the fleet is enforce-only", () => {
     renderModal({
-      isDiskEncryptionEnforceOnly: true,
+      isMacOSDiskEncryptionEnforceOnly: true,
       control: createMockHostMdmProfile({
         name: "Disk encryption",
         platform: "darwin",

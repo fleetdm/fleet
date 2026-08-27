@@ -123,8 +123,7 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
     statusName: "successPartial",
     value: "verifying",
     tooltip:
-      "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
-      "osquery and retrieving the disk encryption key. This may take up to one hour.",
+      "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   action_required: {
     displayName: "Action required",
@@ -176,15 +175,14 @@ const ENFORCE_ONLY_STATUS_TOOLTIPS: Partial<
   verified:
     "These hosts turned disk encryption on. Fleet verified with osquery.",
   verifying:
-    "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with " +
-    "osquery. This may take up to one hour.",
+    "These hosts acknowledged the MDM command to turn on disk encryption. Fleet is verifying with osquery. This may take up to one hour.",
 };
 
 export const generateTableData = (
   platform: keyof IDiskEncryptionStatusAggregate,
   data?: IDiskEncryptionSummaryResponse,
   currentTeamId?: number,
-  isEnforceOnly = false
+  isMacOSEnforceOnly = false
 ) => {
   if (!data) return [];
 
@@ -192,7 +190,7 @@ export const generateTableData = (
     status: DiskEncryptionStatus,
     statusAggregate: IDiskEncryptionStatusAggregate
   ) => {
-    const enforceOnlyTooltip = isEnforceOnly
+    const enforceOnlyTooltip = isMacOSEnforceOnly
       ? ENFORCE_ONLY_STATUS_TOOLTIPS[status]
       : undefined;
     return {
