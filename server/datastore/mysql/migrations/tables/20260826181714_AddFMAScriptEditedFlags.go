@@ -16,8 +16,7 @@ import (
 )
 
 // a var so tests can point it at a local server
-var fmaScriptHashMapBaseURL = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/" +
-	"tools/software/fma-script-hashes/"
+var fmaScriptHashMapBaseURL = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/tools/software/fma-script-hashes/"
 
 const (
 	installScriptHashMapFile   = "install_script_hash_map.txt"
@@ -30,7 +29,7 @@ func init() {
 }
 
 func Up_20260826181714(tx *sql.Tx) error {
-	if !columnExists(tx, "software_installers", "install_script_edited") {
+	if !columnsExists(tx, "software_installers", "install_script_edited", "uninstall_script_edited") {
 		if _, err := tx.Exec(`
 			ALTER TABLE software_installers
 			ADD COLUMN install_script_edited TINYINT(1) NOT NULL DEFAULT 0,
@@ -106,7 +105,8 @@ func backfillScriptEditedFlags(tx *sql.Tx, increment incrementCountFn) error {
 
 		// a script Fleet never published was written by an admin, so the cron has to
 		// keep carrying it forward
-		var editedInstall, editedUninstall []uint
+		var installerIDsWithEditedInstallScript []uint
+		var installerIDsWithEditedUninstallScript []uint
 		for _, row := range rows {
 			increment()
 			// a row changed after the hash map was generated may be carrying a script
@@ -116,31 +116,32 @@ func backfillScriptEditedFlags(tx *sql.Tx, increment incrementCountFn) error {
 				continue
 			}
 			if !install.has(row.InstallHash, row.Slug) {
-				editedInstall = append(editedInstall, row.ID)
+				installerIDsWithEditedInstallScript = append(installerIDsWithEditedInstallScript, row.ID)
 			}
 			if !uninstall.has(row.UninstallHash, row.Slug) {
-				editedUninstall = append(editedUninstall, row.ID)
+				installerIDsWithEditedUninstallScript = append(installerIDsWithEditedUninstallScript, row.ID)
 			}
 		}
 
 		// only the edited ones are written; the column already defaults to 0
-		for _, edited := range []struct {
-			column string
-			ids    []uint
-		}{
-			{"install_script_edited", editedInstall},
-			{"uninstall_script_edited", editedUninstall},
-		} {
-			if len(edited.ids) == 0 {
-				continue
-			}
-			query, args, err := sqlx.In(
-				fmt.Sprintf(`UPDATE software_installers SET %s = 1 WHERE id IN (?)`, edited.column), edited.ids)
+		if len(installerIDsWithEditedInstallScript) > 0 {
+			query, args, err := sqlx.In(`UPDATE software_installers SET install_script_edited = 1 WHERE id IN (?)`, installerIDsWithEditedInstallScript)
 			if err != nil {
-				return fmt.Errorf("building %s update: %w", edited.column, err)
+				return fmt.Errorf("building install_script_edited update: %w", err)
 			}
-			if _, err := txx.Exec(query, args...); err != nil {
-				return fmt.Errorf("marking %s on %d installers: %w", edited.column, len(edited.ids), err)
+			_, err = txx.Exec(query, args...)
+			if err != nil {
+				return fmt.Errorf("marking install_script_edited on %d installers: %w", len(installerIDsWithEditedInstallScript), err)
+			}
+		}
+		if len(installerIDsWithEditedUninstallScript) > 0 {
+			query, args, err := sqlx.In(`UPDATE software_installers SET uninstall_script_edited = 1 WHERE id IN (?)`, installerIDsWithEditedUninstallScript)
+			if err != nil {
+				return fmt.Errorf("building uninstall_script_edited update: %w", err)
+			}
+			_, err = txx.Exec(query, args...)
+			if err != nil {
+				return fmt.Errorf("marking uninstall_script_edited on %d installers: %w", len(installerIDsWithEditedUninstallScript), err)
 			}
 		}
 
@@ -195,9 +196,8 @@ func (s scriptHashMap) has(hash string, slug string) bool {
 	return ok
 }
 
-// a "do not edit" note, the commit the history starts at, then the commit it was
-// cut at with that commit's date
-const scriptHashMapHeaderLines = 3
+// a "do not edit" note, then the commit it was cut at with that commit's date
+const scriptHashMapHeaderLines = 2
 
 func parseScriptHashMap(contents string) (scriptHashMap, time.Time, error) {
 	lines := strings.Split(strings.TrimSpace(contents), "\n")
@@ -207,9 +207,9 @@ func parseScriptHashMap(contents string) (scriptHashMap, time.Time, error) {
 
 	// the cutoff bounds which installers these hashes can speak to. Parsed here
 	// rather than in MySQL, which can't compare RFC 3339 against a TIMESTAMP.
-	header := strings.Fields(lines[2])
+	header := strings.Fields(lines[1])
 	if len(header) != 4 || header[0] != "#" || header[1] != "to" {
-		return nil, time.Time{}, fmt.Errorf(`expected a "# to <commit> <date>" header, got %q`, lines[2])
+		return nil, time.Time{}, fmt.Errorf(`expected a "# to <commit> <date>" header, got %q`, lines[1])
 	}
 	hashMapCutoff, err := time.Parse(time.RFC3339, header[3])
 	if err != nil {
