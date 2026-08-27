@@ -1898,22 +1898,31 @@ func TestGenerateControls(t *testing.T) {
 	require.True(t, ok, "expected a windows_settings section")
 	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
 
+	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
+	require.NoError(t, err)
+	var teamConfig fleet.TeamConfig
+	require.NoError(t, json.Unmarshal(b, &teamConfig))
+	mdmConfig = teamConfig.MDM
+
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	// Note that this team has setup experience software, so we expect a macos_setup section.
-	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
+	controlsRaw, err = cmd.generateControls(new(uint(1)), "some_team", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)
 	require.NoError(t, err)
 	fmt.Println("Controls raw:\n", string(b)) // Debugging line
+	// Decode into fresh maps: unmarshaling into the maps used for the global
+	// comparison above would merge the two results instead of replacing.
+	controls = nil
 	err = yaml.Unmarshal(b, &controls)
 	require.NoError(t, err)
 
 	// Get the expected controls YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
 	require.NoError(t, err)
+	expectedControls = nil
 	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
@@ -2899,6 +2908,114 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 		require.Contains(t, mdmRaw, key)
 		require.Empty(t, mdmRaw[key])
 	}
+}
+
+// Disk encryption and key escrow moved from the flat controls.enable_disk_encryption
+// and controls.windows_require_bitlocker_pin keys to per-platform ones. DoGitOps
+// rejects a file that carries a flat key and its per-platform equivalent, so the
+// generator must emit only the per-platform keys — and must read them from the
+// right source, which differs between a real fleet and "no team".
+func TestGenerateControlsDiskEncryption(t *testing.T) {
+	newCmd := func(t *testing.T, client *MockClient) *GenerateGitopsCommand {
+		t.Helper()
+		appConfig, err := client.GetAppConfig()
+		require.NoError(t, err)
+		return &GenerateGitopsCommand{
+			Client:       client,
+			CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+			Messages:     Messages{},
+			FilesToWrite: make(map[string]any),
+			AppConfig:    appConfig,
+			ScriptList:   make(map[uint]string),
+		}
+	}
+
+	// Deliberately the inverse of appConfig.json's global values, so that which
+	// source won is visible in the assertion.
+	fleetMDM := func() *fleet.TeamMDM {
+		return &fleet.TeamMDM{
+			MacOSSettings: fleet.MacOSSettings{
+				EnableDiskEncryption:          optjson.SetBool(true),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+			WindowsSettings: fleet.WindowsSettings{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(false),
+			},
+			LinuxSettings: fleet.LinuxSettings{
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+		}
+	}
+
+	type diskEncryption struct {
+		macOS, macOSEscrow, windows, bitLockerPIN, linuxEscrow bool
+	}
+
+	assertDiskEncryption := func(t *testing.T, controls map[string]any, want diskEncryption) {
+		t.Helper()
+
+		apple, ok := controls["apple_settings"].(map[string]any)
+		require.True(t, ok, "expected an apple_settings section")
+		require.Equal(t, want.macOS, apple["enable_disk_encryption"])
+		require.Equal(t, want.macOSEscrow, apple["enable_escrow_disk_encryption_key"])
+
+		windows, ok := controls["windows_settings"].(map[string]any)
+		require.True(t, ok, "expected a windows_settings section")
+		require.Equal(t, want.windows, windows["enable_disk_encryption"])
+		require.Equal(t, want.bitLockerPIN, windows["require_bitlocker_pin"])
+
+		linux, ok := controls["linux_settings"].(map[string]any)
+		require.True(t, ok, "expected a linux_settings section")
+		require.Equal(t, want.linuxEscrow, linux["enable_escrow_disk_encryption_key"])
+
+		// Emitting either deprecated flat key next to the per-platform ones
+		// would make every generated file fail on apply.
+		require.NotContains(t, controls, "enable_disk_encryption")
+		require.NotContains(t, controls, "windows_require_bitlocker_pin")
+	}
+
+	// appConfig.json's global values.
+	globalWant := diskEncryption{macOSEscrow: true, windows: true, linuxEscrow: true}
+
+	t.Run("a fleet uses its own settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(new(uint(1)), "some_team", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, diskEncryption{macOS: true})
+	})
+
+	// "No team" is stored on the global config, so the global values must win
+	// over whatever fleet config is passed in.
+	t.Run("no team uses the global settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(new(uint(0)), "no_team", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, globalWant)
+	})
+
+	t.Run("global uses the global settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(nil, "", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, globalWant)
+	})
+
+	// Disk encryption is a Premium feature: emitting the keys on Free would
+	// generate a file the server rejects.
+	t.Run("free tier omits every key", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{IsFree: true}).generateControls(new(uint(1)), "some_team", fleetMDM())
+		require.NoError(t, err)
+
+		if apple, ok := controls["apple_settings"].(map[string]any); ok {
+			require.NotContains(t, apple, "enable_disk_encryption")
+			require.NotContains(t, apple, "enable_escrow_disk_encryption_key")
+		}
+		if windows, ok := controls["windows_settings"].(map[string]any); ok {
+			require.NotContains(t, windows, "enable_disk_encryption")
+			require.NotContains(t, windows, "require_bitlocker_pin")
+		}
+		require.NotContains(t, controls, "linux_settings")
+		require.NotContains(t, controls, "enable_disk_encryption")
+		require.NotContains(t, controls, "windows_require_bitlocker_pin")
+	})
 }
 
 func TestGenerateMDMVPPTokens(t *testing.T) {
