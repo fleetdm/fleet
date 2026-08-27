@@ -5843,16 +5843,20 @@ func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
+	cached, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
 	require.NoError(t, err)
-	require.Equal(t, []string{"PROD-CODE"}, pids, "recovers package IDs from an inactive row")
-	require.Equal(t, "UP-CODE", ucode)
+	require.Equal(t, []string{"PROD-CODE"}, cached.PackageIDs, "recovers package IDs from an inactive row")
+	require.Equal(t, "UP-CODE", cached.UpgradeCode)
+	require.Equal(t, "foo.msi", cached.Filename)
+	require.Equal(t, "msi", cached.Extension)
 
 	// Unknown hash → empty, no error.
-	pids, ucode, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
+	cached, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
 	require.NoError(t, err)
-	require.Empty(t, pids)
-	require.Empty(t, ucode)
+	require.Empty(t, cached.PackageIDs)
+	require.Empty(t, cached.UpgradeCode)
+	require.Empty(t, cached.Filename)
+	require.Empty(t, cached.Extension)
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {

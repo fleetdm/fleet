@@ -628,6 +628,16 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 	return "host_software_installer_result"
 }
 
+// CachedInstallerMetadata describes installer bytes already in the store, for a
+// version being cached without downloading the file again. Filename and Extension
+// come off the stored row because an installer URL often ends in neither.
+type CachedInstallerMetadata struct {
+	PackageIDs  []string
+	UpgradeCode string
+	Filename    string
+	Extension   string
+}
+
 type UploadSoftwareInstallerPayload struct {
 	TeamID               *uint
 	TitleID              *uint
