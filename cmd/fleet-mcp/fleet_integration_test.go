@@ -1103,3 +1103,31 @@ func TestGetPolicies_IncludesQueryField(t *testing.T) {
 		t.Errorf("policy 2 Query = %q, want empty string", policies[1].Query)
 	}
 }
+
+func TestLinuxPlatformNormalization(t *testing.T) {
+	for _, p := range []string{"flatcar", "coreos", "nixos", "arch", "opensuse-leap", "Fedora", "amzn"} {
+		if got := normalizePlatform(p); got != "linux" {
+			t.Errorf("normalizePlatform(%q) = %q, want linux", p, got)
+		}
+		if !matchesPlatform(p, "linux") {
+			t.Errorf("matchesPlatform(%q, linux) = false, want true", p)
+		}
+	}
+	for _, p := range []string{"windwos", "darwin", "chrome", ""} {
+		if got := normalizePlatform(p); got == "linux" {
+			t.Errorf("normalizePlatform(%q) = linux, want unchanged", p)
+		}
+		if matchesPlatform(p, "linux") {
+			t.Errorf("matchesPlatform(%q, linux) = true, want false", p)
+		}
+	}
+	if err := ValidateSQLForPlatforms("SELECT * FROM docker_containers", []string{"flatcar"}); err != nil {
+		t.Errorf("ValidateSQLForPlatforms(flatcar) = %v, want nil", err)
+	}
+	if err := ValidateSQLForPlatforms("SELECT * FROM docker_containers", []string{"windwos"}); err == nil {
+		t.Error("ValidateSQLForPlatforms(windwos) = nil, want error")
+	}
+	if got := inferPlatformFromTargets([]Endpoint{{Platform: "flatcar"}, {Platform: "nixos"}}); got != "linux" {
+		t.Errorf("inferPlatformFromTargets = %q, want linux", got)
+	}
+}

@@ -298,6 +298,22 @@ type CreateQueryRequest struct {
 	TeamID      *uint  `json:"team_id,omitempty"`
 }
 
+// linuxPlatforms mirrors fleet.HostLinuxOSs in server/fleet/hosts.go (plus
+// "fedora") and must be kept in sync; fleet-mcp cannot import the server module.
+var linuxPlatforms = map[string]struct{}{
+	"linux": {}, "ubuntu": {}, "zorin": {}, "debian": {}, "rhel": {}, "centos": {},
+	"sles": {}, "kali": {}, "gentoo": {}, "amzn": {}, "pop": {}, "arch": {},
+	"linuxmint": {}, "void": {}, "nixos": {}, "endeavouros": {}, "manjaro": {},
+	"manjaro-arm": {}, "opensuse-leap": {}, "opensuse-tumbleweed": {}, "tuxedo": {},
+	"neon": {}, "archarm": {}, "flatcar": {}, "coreos": {}, "cachyos": {}, "omarchy": {},
+	"fedora": {},
+}
+
+func isLinuxPlatform(p string) bool {
+	_, ok := linuxPlatforms[strings.ToLower(strings.TrimSpace(p))]
+	return ok
+}
+
 // normalizePlatform normalizes platform input to Fleet's canonical platform string.
 func normalizePlatform(p string) string {
 	switch strings.ToLower(strings.TrimSpace(p)) {
@@ -305,22 +321,21 @@ func normalizePlatform(p string) string {
 		return "darwin"
 	case "windows":
 		return "windows"
-	case "linux", "ubuntu", "centos", "rhel", "debian", "fedora", "amzn":
-		return "linux"
 	case "chromeos", "chrome":
 		return "chrome"
-	default:
-		return strings.ToLower(p)
 	}
+	if isLinuxPlatform(p) {
+		return "linux"
+	}
+	return strings.ToLower(p)
 }
 
 // matchesPlatform checks if a host's platform matches the target platform.
 func matchesPlatform(hostPlatform, targetPlatform string) bool {
-	hp := strings.ToLower(hostPlatform)
 	if targetPlatform == "linux" {
-		return hp == "linux" || hp == "ubuntu" || hp == "centos" || hp == "rhel" || hp == "debian" || hp == "fedora" || hp == "amzn"
+		return isLinuxPlatform(hostPlatform)
 	}
-	return hp == targetPlatform
+	return strings.ToLower(hostPlatform) == targetPlatform
 }
 
 // platformToBuiltinLabel maps user-facing platform names to Fleet's built-in label names.
@@ -907,8 +922,6 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 			platformBreakdown.MacOS += p.HostsCount
 		case "windows":
 			platformBreakdown.Windows += p.HostsCount
-		case "linux", "ubuntu", "centos", "rhel", "debian", "fedora", "amzn":
-			platformBreakdown.Linux += p.HostsCount
 		case "chrome":
 			platformBreakdown.ChromeOS += p.HostsCount
 		case "ios":
@@ -918,7 +931,11 @@ func (fc *FleetClient) GetEndpointsWithAggregations(ctx context.Context) (*Aggre
 		case "android":
 			platformBreakdown.Android += p.HostsCount
 		default:
-			platformBreakdown.Other += p.HostsCount
+			if isLinuxPlatform(p.Platform) {
+				platformBreakdown.Linux += p.HostsCount
+			} else {
+				platformBreakdown.Other += p.HostsCount
+			}
 		}
 	}
 	platformBreakdown.Total = summary.TotalsHostsCount

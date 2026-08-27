@@ -1,0 +1,1 @@
+- Fixed fleet-mcp rejecting Linux-only osquery tables for hosts on Linux distributions it did not recognize (Flatcar, CoreOS, NixOS, Arch, openSUSE, and others).
