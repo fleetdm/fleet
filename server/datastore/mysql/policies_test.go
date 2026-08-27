@@ -10099,8 +10099,8 @@ func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
 
 // testApplyPolicySpecPinnedInstaller verifies that when a spec sets SoftwarePackageID,
 // the datastore pins the policy to that specific installer instead of falling back
-// to the title's first-added package. This is the fix for Cisneros's case: multiple
-// single-package YAMLs sharing a bundle identifier create one title with several
+// to the title's first-added package. Covers the case where multiple single-package
+// YAMLs share a bundle identifier and collapse into one title with several
 // installers, and GitOps needs to preserve which installer the policy YAML referenced.
 func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
@@ -10161,11 +10161,11 @@ func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("two policies on the same title with different pins land on different installers", func(t *testing.T) {
-		// Regression guard for the collision that hit Andy's flow: when two
-		// policies share (team, title) but pin different installers, the
-		// applier can't stash the per-policy id in a team+title-keyed map —
-		// the second pin overwrites the first and both rows end up on the
-		// last one. Validate + use inline instead.
+		// Regression guard for the collision path: when two policies share
+		// (team, title) but pin different installers, the applier can't stash
+		// the per-policy id in a team+title-keyed map — the second pin would
+		// overwrite the first and both rows would end up on the last one.
+		// Validate + use inline instead.
 		err := ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
 			{
 				Name:              "collision A pins first installer",

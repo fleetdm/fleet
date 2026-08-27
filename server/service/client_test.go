@@ -1192,6 +1192,13 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 	bySlug := map[string]uint{
 		"some-fma-slug": 300,
 	}
+	installerIDsByURL := map[string]uint{
+		"https://example.com/pkg.pkg": 500,
+	}
+	installerIDsByHash := map[string]uint{
+		"abc123hash":     500,
+		"different-hash": 501,
+	}
 
 	tests := []struct {
 		name         string
@@ -1298,7 +1305,7 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			titleID, resolved := resolvePolicySoftwareTitleID(tt.policy, byURL, byAppStoreID, byHash, bySlug)
+			titleID, _, resolved := resolvePolicySoftwareTitleID(tt.policy, byURL, byAppStoreID, byHash, bySlug, installerIDsByURL, installerIDsByHash)
 			require.Equal(t, tt.wantResolved, resolved)
 			require.Equal(t, tt.wantTitleID, titleID)
 		})
