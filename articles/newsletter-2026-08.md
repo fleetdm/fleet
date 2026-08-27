@@ -8,7 +8,7 @@ You aren't used to seeing a newsletter from us, and honestly, we aren't fans of 
 
 ## 🚀 What shipped last month
 
-- **Auto-update, pin, and roll back Fleet-maintained apps.** Pin an app to a specific version to stop it from auto-updating, or roll back to the previous version if a new release breaks something. Fleet checks for new versions hourly, so hosts you leave on auto-update stay current without you re-adding the app. Available in Fleet Premium.
+- **Introducing - App Rollbacks**: Pin or revert Fleet-maintained apps to bypass broken updates and maintain fleet stability. _Available in Fleet Premium._
 - **Windows setup experience: continue past a failed install.** When required setup software fails during Windows automatic enrollment, end users see exactly which app failed. If you haven't checked **Cancel setup if software fails**, they can continue and install it later from self-service. Either way they get a next step instead of a stuck screen. Available in Fleet Premium.
 - **IdP host vitals from Google Workspace.** Populate group, department, username, email, and full name straight from Google Workspace. Google Workspace doesn't support SCIM, so Fleet pulls directory data from Google's API on a schedule. Scope profiles, software, and policies with IdP labels the same way you would with Okta or Entra. Available in Fleet Premium.
 
