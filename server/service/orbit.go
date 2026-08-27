@@ -676,6 +676,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		host.DiskEncryptionEnabled != nil &&
 		*host.DiskEncryptionEnabled &&
 		svc.ds.IsHostPendingEscrow(ctx, host.ID)
+	if notifs.RunDiskEncryptionEscrow {
+		// Escrow can be turned off after a host is already pending; without this
+		// the user is asked for their passphrase and EscrowLUKSData then discards
+		// it. Read only once the host is otherwise eligible, which is rare.
+		//
+		// Not folded into setDiskEncryptionNotifications: that function requires
+		// MDM to be configured and the host connected to it, neither of which
+		// applies to Linux escrow.
+		diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "getting disk encryption settings for linux escrow")
+		}
+		notifs.RunDiskEncryptionEscrow = diskEncryption.LinuxEscrowEnabled
+	}
 
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
@@ -972,13 +986,15 @@ func (svc *Service) setDiskEncryptionNotifications(
 	isConnectedToFleetMDM bool,
 	mdmInfo *fleet.HostMDM,
 ) error {
-	// each platform's notifications are gated on that platform's own settings;
-	// the FileVault/Escrow Buddy flow treats the macOS pair as one unit until
-	// the per-payload split ships
+	// each platform's notifications are gated on that platform's own settings.
+	// On macOS the only notification here drives Escrow Buddy, which exists to
+	// produce a recovery key Fleet can escrow, so enforcement alone must not
+	// trigger it: the profile carries no escrow payload in that case and the
+	// key would have nowhere to go.
 	var platformConfigured bool
 	switch host.FleetPlatform() {
 	case "darwin":
-		platformConfigured = diskEncryption.MacOSEnabled || diskEncryption.MacOSEscrowEnabled
+		platformConfigured = diskEncryption.MacOSEscrowEnabled
 	case "windows":
 		platformConfigured = diskEncryption.WindowsEnabled
 	}
@@ -1455,7 +1471,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
 		svc.logger.DebugContext(ctx,
 			"skipping key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
@@ -1538,7 +1554,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
 		svc.logger.DebugContext(ctx,
 			"skipping LUKS key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,

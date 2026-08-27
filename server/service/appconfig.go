@@ -1658,19 +1658,10 @@ func (svc *Service) processSavedAppConfigChanges(
 	linuxDiskEncryptionChanged := oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 
 	if macOSDiskEncryptionChanged && oldAppConfig.MDM.EnabledAndConfigured {
-		// The FileVault profile can cover both enforcement and key escrow, so
-		// only the off<->on transition of the pair creates or deletes it.
-		macOSDiskEncryptionOn := appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value || appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		macOSDiskEncryptionWasOn := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value || oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
-			}
+		// The profile's payloads follow both macOS settings, so a change to either
+		// one is reconciled — not just the off<->on transition of the pair.
+		if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team filevault profile")
 		}
 	}
 

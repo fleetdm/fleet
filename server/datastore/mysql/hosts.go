@@ -3640,6 +3640,13 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 		return nil
 	}
 
+	// read once for every batch: it decides, per platform, whether a moved host
+	// keeps its escrowed disk encryption key
+	destDiskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "AddHostsToTeam get destination fleet disk encryption settings")
+	}
+
 	for i := 0; i < len(hostIDs); i += batchSize {
 		start := i
 		end := i + batchSize
@@ -3671,7 +3678,7 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 					return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
 				}
 
-				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, teamID); err != nil {
+				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, destDiskEncryption); err != nil {
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
 				}
 

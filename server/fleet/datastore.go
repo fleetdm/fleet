@@ -1551,6 +1551,13 @@ type Datastore interface {
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
 
+	// UpsertMDMAppleFleetConfigProfile inserts or updates a Fleet-controlled
+	// configuration profile by its `team_id` and `identifier`, keeping the
+	// existing `profile_uuid` so hosts see a changed payload rather than a
+	// different profile. Re-writing identical bytes leaves the row untouched, so
+	// profile reconciliation stays a no-op.
+	UpsertMDMAppleFleetConfigProfile(ctx context.Context, p MDMAppleConfigProfile) error
+
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 

@@ -3748,7 +3748,6 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 	}
 
 	oldWindowsDiskEncryption := ac.MDM.WindowsSettings.EnableDiskEncryption.Value
-	macOSDiskEncryptionWasOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value || ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
 
 	enabling := false
 	apply := func(dst *optjson.Bool, v *bool) bool {
@@ -3795,20 +3794,11 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, change
 		return err
 	}
 
-	if macOSChanged && ac.MDM.EnabledAndConfigured { // if macOS MDM is configured, set up FileVault escrow
-		// the FileVault profile can cover both enforcement and key escrow,
-		// so only the off<->on transition of the macOS pair creates or
-		// deletes it
-		macOSDiskEncryptionOn := ac.MDM.MacOSSettings.EnableDiskEncryption.Value || ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
-			}
+	if macOSChanged && ac.MDM.EnabledAndConfigured {
+		// the profile's payloads follow both macOS settings, so a change to
+		// either one is reconciled
+		if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team filevault profile")
 		}
 	}
 
@@ -4438,11 +4428,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	return fleet.ErrMissingLicense
-}
-
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
+func (svc *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
 	return fleet.ErrMissingLicense
 }
 
