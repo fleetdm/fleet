@@ -560,10 +560,9 @@ func TestRunScripts(t *testing.T) {
 type mockDiskEncryptionKeySetter struct {
 	SetOrUpdateDiskEncryptionKeyImpl    func(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
 	SetOrUpdateDiskEncryptionKeyInvoked bool
-
-	ProtectionOutcome       fleet.DiskEncryptionProtectionOutcome
-	ProtectionClientError   string
-	ProtectionReportInvoked bool
+	ProtectionOutcome                   fleet.DiskEncryptionProtectionOutcome
+	ProtectionClientError               string
+	ProtectionReportInvoked             bool
 }
 
 func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
@@ -610,9 +609,7 @@ func TestBitlockerOperations(t *testing.T) {
 			lastRun:          time.Now().Add(-2 * time.Hour),
 			EncryptionResult: clientMock,
 			execGetEncryptionStatusFn: func() ([]bitlocker.VolumeStatus, error) {
-				// Default: an ordinary unencrypted host. This has to state C: is fully decrypted rather than return an
-				// empty list: a volume missing from the enumeration means "status unreadable", which is deliberately
-				// NOT a licence to encrypt.
+				// Default: an ordinary unencrypted host. This has to state C: is fully decrypted.
 				return []bitlocker.VolumeStatus{
 					{DriveVolume: "C:", Status: &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}},
 				}, nil
@@ -750,16 +747,13 @@ func TestBitlockerOperations(t *testing.T) {
 		require.False(t, encryptFnCalled, "encryption function should not be called")
 	})
 
-	// Regression for #51098: an unreadable status must never be read as "not encrypted". Before the fix both of these
-	// fell through to the encrypt path, whose first act is deleting every key protector on the volume.
+	// Regression for #51098: an unreadable status must never be read as "not encrypted".
 	t.Run("never encrypts when the status for C: is unreadable", func(t *testing.T) {
 		for _, tc := range []struct {
 			name   string
 			status func() ([]bitlocker.VolumeStatus, error)
 		}{
 			{
-				// getEncryptionStatusOnCOMThread used to drop volumes whose read errored, so C: was simply absent
-				// and no error surfaced at all.
 				name: "C: missing from the enumeration",
 				status: func() ([]bitlocker.VolumeStatus, error) {
 					return []bitlocker.VolumeStatus{
@@ -796,7 +790,7 @@ func TestBitlockerOperations(t *testing.T) {
 		}
 	})
 
-	// Phase 1: restoring protection on a volume that is encrypted but unprotected.
+	// Restoring protection on a volume that is encrypted but unprotected.
 	t.Run("restore bitlocker protection", func(t *testing.T) {
 		statusFor := func(conversion, protection int32) func() ([]bitlocker.VolumeStatus, error) {
 			return func() ([]bitlocker.VolumeStatus, error) {
@@ -947,7 +941,6 @@ func TestBitlockerOperations(t *testing.T) {
 			enrollReceiver.execEnableProtectionFn = func(string) error { order = append(order, "enable"); return nil }
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
-			// Ordering is the whole safety property: enabling first would leave the host unable to unseal at boot.
 			require.Equal(t, []string{"add", "enable"}, order)
 		})
 
@@ -961,8 +954,6 @@ func TestBitlockerOperations(t *testing.T) {
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.Equal(t, 1, enableCalls)
 
-			// Stamping lastProtectionRun has to actually suppress the next attempt, otherwise a host that cannot be
-			// repaired re-runs the whole WMI sequence on every config poll.
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.Equal(t, 1, enableCalls, "a second attempt inside the throttle window must be skipped")
 			require.Contains(t, logBuf.String(), "last run was too recent")

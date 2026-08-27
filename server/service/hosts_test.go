@@ -4921,6 +4921,49 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			// The wiring this feature exists for: encrypted, protection off, key escrowed and decryptable, so the
+			// encrypt path stands down and the restore path is asked to act instead.
+			name: "windows encrypted but unprotected is asked to restore protection",
+			host: &fleet.Host{
+				ID: 1, Platform: "windows", OsqueryHostID: new("foo"),
+				DiskEncryptionEnabled:     new(true),
+				BitLockerProtectionStatus: new(fleet.BitLockerProtectionStatusOff),
+			},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: new(true)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnableBitLockerProtection: true,
+			},
+			expectedError: false,
+		},
+		{
+			// Same qualifying state, but BitLocker is not managed on Windows Server, so the guard stops before the gate.
+			name: "windows server encrypted but unprotected is left alone",
+			host: &fleet.Host{
+				ID: 1, Platform: "windows", OsqueryHostID: new("foo"),
+				DiskEncryptionEnabled:     new(true),
+				BitLockerProtectionStatus: new(fleet.BitLockerProtectionStatusOff),
+			},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: true},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: new(true)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{},
+			expectedError:         false,
+		},
+		{
 			// A Windows host with no MDM row has nothing to enforce against, so neither BitLocker notification fires
 			// even though the volume is unencrypted and would otherwise qualify.
 			name: "windows with no mdm info",
@@ -5054,7 +5097,9 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
+			// setDiskEncryptionNotifications owns exactly these three fields, so compare the whole struct: asserting
+			// only RotateDiskEncryptionKey left every BitLocker expectation below unverified.
+			require.Equal(t, tt.expectedNotifications, notifs)
 		})
 	}
 

@@ -75,13 +75,12 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{
-				ID:                        1,
-				TeamID:                    new(uint(1)),
 				DiskEncryptionEnabled:     tc.encrypted,
 				BitLockerProtectionStatus: tc.protection,
 				TPMPINSet:                 tc.tpmPINSet,
 			}
-			diskEncryption := fleet.DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: tc.pinRequired}
+			// Only BitLockerPINRequired is read here; the platform gate lives in the caller.
+			diskEncryption := fleet.DiskEncryptionConfig{BitLockerPINRequired: tc.pinRequired}
 
 			require.Equal(t, tc.wantNotified, shouldEnableBitLockerProtection(host, diskEncryption))
 		})
@@ -91,99 +90,115 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 // Reporting an outcome must never touch host_disk_encryption_keys: that write path also owns base64_encrypted and
 // would blank the escrowed recovery key of the hosts that still need it.
 func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
-	setup := func() (*Service, *mock.Store) {
+	// recorder captures what reached the datastore, so each case asserts on values rather than only on invocation.
+	type recorder struct {
+		storedError  string
+		errorSet     bool
+		refetchValue *bool
+	}
+	setup := func() (*Service, *mock.Store, *recorder) {
 		ds := new(mock.Store)
 		svcAuthz, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		svc := &Service{ds: ds, authz: svcAuthz}
+		rec := &recorder{}
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) { return true, nil }
-		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(ctx context.Context, hostID uint, e string) error { return nil }
-		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, value bool) error { return nil }
-		return svc, ds
+		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
+			rec.errorSet, rec.storedError = true, e
+			return nil
+		}
+		ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, value bool) error {
+			rec.refetchValue = &value
+			return nil
+		}
+		return svc, ds, rec
 	}
 	ctx := func() context.Context {
 		return host.NewContext(t.Context(), &fleet.Host{ID: 1})
 	}
 
 	t.Run("restored clears the reason and asks for a refetch", func(t *testing.T) {
-		svc, ds := setup()
-		var cleared string
-		var clearCalled bool
-		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
-			clearCalled, cleared = true, e
-			return nil
-		}
+		svc, _, rec := setup()
 
 		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionRestored, ""))
-		require.True(t, clearCalled)
-		require.Empty(t, cleared)
+		require.True(t, rec.errorSet)
+		require.Empty(t, rec.storedError)
 		// osquery owns the protection status, so the status flips on evidence rather than on the agent's assertion.
-		require.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+		// Requesting the refetch with false would leave the host stuck at "Action required" until the next detail cycle.
+		require.NotNil(t, rec.refetchValue, "must request a refetch")
+		require.True(t, *rec.refetchValue)
 	})
 
 	t.Run("failure records the reason for the admin", func(t *testing.T) {
-		svc, ds := setup()
-		var stored string
-		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
-			stored = e
-			return nil
-		}
+		svc, _, rec := setup()
 
 		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
-		require.Equal(t, "the TPM is not ready", stored)
-		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+		require.Equal(t, "the TPM is not ready", rec.storedError)
+		require.Nil(t, rec.refetchValue, "a host that was not repaired has nothing new to observe")
 	})
 
 	t.Run("never writes the disk encryption key", func(t *testing.T) {
-		svc, ds := setup()
-		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed, "boom"))
-		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked, "must not touch the escrowed recovery key")
+		for _, outcome := range []fleet.DiskEncryptionProtectionOutcome{
+			fleet.DiskEncryptionProtectionRestored,
+			fleet.DiskEncryptionProtectionDeferred,
+			fleet.DiskEncryptionProtectionFailed,
+		} {
+			t.Run(string(outcome), func(t *testing.T) {
+				svc, ds, _ := setup()
+				reason := ""
+				if outcome != fleet.DiskEncryptionProtectionRestored {
+					reason = "a reason"
+				}
+
+				require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), outcome, reason))
+				require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked, "must not touch the escrowed recovery key")
+			})
+		}
 	})
 
 	t.Run("rejects an unknown outcome", func(t *testing.T) {
-		svc, _ := setup()
+		svc, ds, rec := setup()
+
 		err := svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionOutcome("nonsense"), "a reason")
 		require.Error(t, err)
+		require.False(t, rec.errorSet, "a rejected outcome must not reach the datastore")
+		require.Nil(t, rec.refetchValue)
+		require.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 	})
 
 	t.Run("rejects a failure with no reason", func(t *testing.T) {
-		svc, ds := setup()
 		for _, outcome := range []fleet.DiskEncryptionProtectionOutcome{
 			fleet.DiskEncryptionProtectionFailed,
 			fleet.DiskEncryptionProtectionDeferred,
 		} {
-			err := svc.SetOrUpdateDiskEncryptionProtection(ctx(), outcome, "")
-			require.Error(t, err, outcome)
-			// A blank reason would leave the admin with an "Action required" and nothing to act on.
-			require.False(t, ds.SetOrUpdateHostBitLockerProtectionErrorFuncInvoked, outcome)
+			t.Run(string(outcome), func(t *testing.T) {
+				svc, _, rec := setup()
+
+				require.Error(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), outcome, ""))
+				// A blank reason would leave the admin with an "Action required" and nothing to act on.
+				require.False(t, rec.errorSet)
+			})
 		}
 	})
 
-	t.Run("truncates a reason too long for the column", func(t *testing.T) {
-		svc, ds := setup()
-		var stored string
-		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
-			stored = e
-			return nil
+	t.Run("truncates an over-long reason to a whole number of runes", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			char string
+		}{
+			{name: "ascii", char: "x"},
+			// A rune straddling the cut would be split by a byte-wise slice, and the utf8mb4 write would then fail.
+			{name: "multibyte", char: "é"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				svc, _, rec := setup()
+
+				require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed,
+					strings.Repeat(tc.char, bitLockerProtectionErrorMaxLength+50)))
+				require.True(t, utf8.ValidString(rec.storedError))
+				// The column is bounded in characters, not bytes.
+				require.Equal(t, bitLockerProtectionErrorMaxLength, utf8.RuneCountInString(rec.storedError))
+			})
 		}
-
-		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed,
-			strings.Repeat("x", bitLockerProtectionErrorMaxLength+50)))
-		require.Len(t, stored, bitLockerProtectionErrorMaxLength)
-	})
-
-	t.Run("truncates a multibyte reason without corrupting it", func(t *testing.T) {
-		svc, ds := setup()
-		var stored string
-		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
-			stored = e
-			return nil
-		}
-
-		// A rune that straddles the cut would be split by a byte-wise slice, and the utf8mb4 write would then fail.
-		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed,
-			strings.Repeat("é", bitLockerProtectionErrorMaxLength+50)))
-		require.True(t, utf8.ValidString(stored))
-		require.Equal(t, bitLockerProtectionErrorMaxLength, utf8.RuneCountInString(stored))
 	})
 }

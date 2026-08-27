@@ -10950,15 +10950,14 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.Nil(t, returned.BitLockerProtectionStatus)
 		require.False(t, returned.TPMPINSet)
 
-		protectionOff := fleet.BitLockerProtectionStatusOff
-		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, h.ID, true, &protectionOff))
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, h.ID, true, new(fleet.BitLockerProtectionStatusOff)))
 
 		returned, err = ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
 		require.NotNil(t, returned.DiskEncryptionEnabled)
 		require.True(t, *returned.DiskEncryptionEnabled)
 		require.NotNil(t, returned.BitLockerProtectionStatus)
-		require.Equal(t, protectionOff, *returned.BitLockerProtectionStatus)
+		require.Equal(t, fleet.BitLockerProtectionStatusOff, *returned.BitLockerProtectionStatus)
 	})
 
 	createOrbitHost := func(tag string) *fleet.Host {
