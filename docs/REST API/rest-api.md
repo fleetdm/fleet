@@ -7210,6 +7210,13 @@ You can upload a new profile file to replace the contents of the existing profil
 
 If the new profile does not match the required identifiers, the request will be rejected.
 
+The profile's name is updated to match the new file:
+
+- **Windows profiles** (`.xml`): The profile is renamed to the uploaded file's name, without its extension. The profile keeps its `profile_uuid`, its targets, and its status on each host. If another configuration profile on the same fleet already uses that name, the request is rejected with a `409` status.
+- **.mobileconfig profiles**: The profile is renamed to the new file's **PayloadDisplayName**.
+
+Requests that only update labels don't include a file, so the profile's name is left unchanged.
+
 #### Example
 
 Update a configuration profile to target hosts with specific labels.
