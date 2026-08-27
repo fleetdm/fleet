@@ -1105,7 +1105,7 @@ func TestGetPolicies_IncludesQueryField(t *testing.T) {
 }
 
 func TestLinuxPlatformNormalization(t *testing.T) {
-	for _, p := range []string{"flatcar", "coreos", "nixos", "arch", "opensuse-leap", "Fedora", "amzn"} {
+	for _, p := range []string{"flatcar", "coreos", "nixos", "arch", "opensuse-leap", "alpine", "Fedora", "amzn"} {
 		if got := normalizePlatform(p); got != "linux" {
 			t.Errorf("normalizePlatform(%q) = %q, want linux", p, got)
 		}

@@ -299,14 +299,15 @@ type CreateQueryRequest struct {
 }
 
 // linuxPlatforms mirrors fleet.HostLinuxOSs in server/fleet/hosts.go (plus
-// "fedora") and must be kept in sync; fleet-mcp cannot import the server module.
+// "fedora" and "alpine") and must be kept in sync; fleet-mcp cannot import the
+// server module.
 var linuxPlatforms = map[string]struct{}{
 	"linux": {}, "ubuntu": {}, "zorin": {}, "debian": {}, "rhel": {}, "centos": {},
 	"sles": {}, "kali": {}, "gentoo": {}, "amzn": {}, "pop": {}, "arch": {},
 	"linuxmint": {}, "void": {}, "nixos": {}, "endeavouros": {}, "manjaro": {},
 	"manjaro-arm": {}, "opensuse-leap": {}, "opensuse-tumbleweed": {}, "tuxedo": {},
 	"neon": {}, "archarm": {}, "flatcar": {}, "coreos": {}, "cachyos": {}, "omarchy": {},
-	"fedora": {},
+	"fedora": {}, "alpine": {},
 }
 
 func isLinuxPlatform(p string) bool {
