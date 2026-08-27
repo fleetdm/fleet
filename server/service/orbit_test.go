@@ -72,6 +72,10 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return true
 		}
+		// the notification is gated on the host fleet's Linux escrow setting
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: true}, nil
+		}
 		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
 			return nil
 		}
@@ -180,6 +184,20 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
 		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+	})
+
+	t.Run("escrow turned off after the host went pending", func(t *testing.T) {
+		ds, svc, ctx, _, _ := setupEscrowContext()
+		// escrow can be disabled while a host is already pending; without this
+		// gate the user is prompted for a passphrase that EscrowLUKSData would
+		// then discard
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+			return fleet.DiskEncryptionConfig{LinuxEscrowEnabled: false}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
 	})
 }
 
