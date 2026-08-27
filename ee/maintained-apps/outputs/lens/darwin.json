@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.8.190756-latest",
+      "version": "2026.8.270956-latest",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens' AND version_compare(bundle_short_version, '2026.8.190756-latest') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.kontena-lens' AND version_compare(bundle_short_version, '2026.8.270956-latest') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.electron.kontena-lens');"
       },
-      "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.8.190756-latest-arm64.dmg",
+      "installer_url": "https://api.k8slens.dev/binaries/Lens-2026.8.270956-latest-arm64.dmg",
       "install_script_ref": "347d280a",
       "uninstall_script_ref": "ea665c04",
-      "sha256": "240620ec09b010a87d3c08974d46adcfdd03fa59b9f005c491220886843a4803",
+      "sha256": "54df5d44ac3e709808c90a9a89e7c64c52a0b005a5d767710fbc26770cc0ddf5",
       "default_categories": [
         "Developer tools"
       ]
