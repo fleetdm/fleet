@@ -4133,38 +4133,6 @@ func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStor
 	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
 }
 
-func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
-	if teamID == nil {
-		teamID = ptr.Uint(0)
-	}
-
-	stmt := `
-SELECT
-	profile_uuid,
-	profile_id,
-	team_id,
-	name,
-	scope,
-	identifier,
-	mobileconfig,
-	created_at,
-	uploaded_at
-FROM
-	mdm_apple_configuration_profiles
-WHERE
-	team_id=? AND identifier=?`
-
-	var profile fleet.MDMAppleConfigProfile
-	err := sqlx.GetContext(ctx, tx, &profile, stmt, teamID, profileIdentifier)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(profileIdentifier))
-		}
-		return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
-	}
-	return &profile, nil
-}
-
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	const stmt = `
 		INSERT INTO
