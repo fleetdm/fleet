@@ -3974,41 +3974,44 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
 
-	deleteCalls := uint(0)
-	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
-		if deleteCalls == 0 {
-			// No Team
-			require.Nil(t, teamID)
-		} else {
-			require.NotNil(t, teamID)
-			require.Equal(t, deleteCalls, *teamID)
+	// the reconciler reads each fleet's macOS settings back before writing
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		tm := &fleet.TeamMDM{}
+		if teamID == 1 {
+			tm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+			tm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 		}
+		return tm, nil
+	}
 
+	// the profile is upserted rather than deleted and re-inserted, so the
+	// profile_uuid survives and hosts are only pushed to when the bytes differ
+	deleteCalls := 0
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
 		deleteCalls++
 		return nil
 	}
 
-	newProfileCalls := uint(0)
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-		require.Nil(t, usesFleetVars) // Filevault does not use fleet vars
+	upsertCalls := uint(0)
+	ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
 		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, p.Identifier)
-		if newProfileCalls == 0 {
+		if upsertCalls == 0 {
 			// No Team
 			require.Nil(t, p.TeamID)
 		} else {
 			require.NotNil(t, p.TeamID)
-			require.Equal(t, newProfileCalls, *p.TeamID)
+			require.Equal(t, upsertCalls, *p.TeamID)
 		}
-		newProfileCalls++
-		return nil, nil
+		upsertCalls++
+		return nil
 	}
 
 	err = svc.UploadMDMAppleAPNSCert(ctx, bytes.NewReader(apnsCert))
 	require.NoError(t, err)
 
-	require.EqualValues(t, 2, newProfileCalls)
-	require.EqualValues(t, 2, deleteCalls)
+	// no-team and team 1 have macOS disk encryption on; team 2 does not
+	require.EqualValues(t, 2, upsertCalls)
+	require.Equal(t, 0, deleteCalls, "the profile is replaced in place, never deleted first")
 	// no activities: the settings didn't change, the FileVault profile is
 	// (re)created as a side effect of turning on Apple MDM
 	require.Equal(t, 0, newActivityCalls)

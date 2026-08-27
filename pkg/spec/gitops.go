@@ -191,6 +191,7 @@ type GitOpsControls struct {
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
 	AndroidEnabledAndConfigured    any `json:"android_enabled_and_configured"`
 	AndroidSettings                any `json:"android_settings"`
+	LinuxSettings                  any `json:"linux_settings"`
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
@@ -213,7 +214,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.NameTemplate != nil
+		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
 type Policy struct {
@@ -1375,20 +1376,9 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var macOSSettings fleet.MacOSSettings
-		data, err := json.Marshal(result.Controls.MacOSSettings)
+		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.macos_settings: %v", err))
-		}
-		data, _, err = rewriteNewToOldKeys(data, &macOSSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite macos_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &macOSSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "macos_settings"}, err))
+			return multierror.Append(multiError, err)
 		}
 
 		// An activation names exactly one declaration in its
@@ -1436,25 +1426,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			}
 		}
 
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}
 	if result.Controls.WindowsSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.WindowsSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var windowsSettings fleet.WindowsSettings
-		data, err := json.Marshal(result.Controls.WindowsSettings)
+		windowsSettings, err := reparseSettings[fleet.WindowsSettings](result.Controls.WindowsSettings, controlsFilePath, "windows_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.windows_settings: %v", err))
+			return multierror.Append(multiError, err)
 		}
-		data, _, err = rewriteNewToOldKeys(data, &windowsSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite windows_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &windowsSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "windows_settings"}, err))
-		}
+
 		if windowsSettings.CustomSettings.Valid {
 			var errs []error
 			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
@@ -1471,25 +1450,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				}
 			}
 		}
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
+
 		result.Controls.WindowsSettings = windowsSettings
+	}
+	if result.Controls.LinuxSettings != nil {
+		linuxSettings, err := reparseSettings[fleet.LinuxSettings](result.Controls.LinuxSettings, controlsFilePath, "linux_settings")
+		if err != nil {
+			return multierror.Append(multiError, err)
+		}
+
+		result.Controls.LinuxSettings = linuxSettings
 	}
 
 	if result.Controls.AndroidSettings != nil {
-		// We are marshalling/unmarshalling to get the data into the fleet.AndroidSettings struct.
-		// This is inefficient, but it is more robust and less error-prone.
-		var androidSettings fleet.AndroidSettings
-		data, err := json.Marshal(result.Controls.AndroidSettings)
+		androidSettings, err := reparseSettings[fleet.AndroidSettings](result.Controls.AndroidSettings, controlsFilePath, "android_settings")
 		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
-		}
-		data, _, err = rewriteNewToOldKeys(data, &androidSettings)
-		if err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to rewrite android_settings keys: %v", err))
-		}
-		err = json.Unmarshal(data, &androidSettings)
-		if err != nil {
-			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "android_settings"}, err))
+			return multierror.Append(multiError, err)
 		}
 
 		if androidSettings.CustomSettings.Valid {
@@ -1521,7 +1497,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			}
 		}
 
-		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.AndroidSettings = androidSettings
 	}
 
@@ -1530,6 +1505,22 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	}
 
 	return multiError
+}
+
+func reparseSettings[T any](v any, filePath, key string) (T, error) {
+	var settings T
+	data, err := json.Marshal(v)
+	if err != nil {
+		return settings, fmt.Errorf("failed to process controls.%s: %w", key, err)
+	}
+	data, _, err = rewriteNewToOldKeys(data, &settings)
+	if err != nil {
+		return settings, fmt.Errorf("failed to rewrite controls.%s keys: %w", key, err)
+	}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return settings, MaybeParseTypeError(filePath, []string{"controls", key}, err)
+	}
+	return settings, nil
 }
 
 // validateOSUpdatesProfileConflict rejects a config that both configures managed
