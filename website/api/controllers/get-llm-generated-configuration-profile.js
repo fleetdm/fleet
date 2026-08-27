@@ -222,7 +222,7 @@ If a configuration profile cannot be generated from the provided instructions, r
       sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
-        sails.sockets.broadcast(roomId, 'error', {error: err});
+        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
         sails.sockets.leave(this.req, roomId);
       }
       return 'couldNotGenerateProfile';
