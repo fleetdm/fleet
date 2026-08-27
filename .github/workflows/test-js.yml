@@ -121,3 +121,10 @@ jobs:
       - name: Run prettier formatting check
         run: |
           yarn prettier:check
+
+      # `make lint-js` above already runs this, but eslint's problem matcher
+      # uses up the 10-annotation-per-step budget, which drops the icon check's
+      # annotations. Running it in its own step gets them onto the PR diff.
+      - name: Check Fleet-maintained app icons
+        run: |
+          yarn lint:icons
