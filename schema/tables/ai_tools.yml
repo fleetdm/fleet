@@ -99,7 +99,7 @@ columns:
     type: integer
     required: false
   - name: risk_flags
-    description: "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`, `authorization`."
+    description: "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`."
     type: text
     required: false
   - name: sha256
