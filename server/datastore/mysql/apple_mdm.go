@@ -6980,37 +6980,42 @@ WHERE
 }
 
 func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	if len(commands) == 0 {
+		return nil
+	}
+
 	const baseStmt = `
 		INSERT INTO host_mdm_commands (host_id, command_type)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		command_type = VALUES(command_type)`
 
-	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
-		start := i
-		end := i + addHostMDMCommandsBatchSize
-		if end > len(commands) {
-			end = len(commands)
-		}
-		totalToProcess := end - start
-		const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?),", totalToProcess), ",",
-		)
-		stmt := fmt.Sprintf(baseStmt, values)
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerInsert)
-		for j := start; j < end; j++ {
-			item := commands[j]
-			args = append(
-				args, item.HostID, item.CommandType,
+	// All batches commit together: callers track commands before enqueueing
+	// them, so a partially applied insert would leave rows for commands that
+	// were never sent.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
+			start := i
+			end := min(i+addHostMDMCommandsBatchSize, len(commands))
+			totalToProcess := end - start
+			const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
+			values := strings.TrimSuffix(
+				strings.Repeat("(?,?),", totalToProcess), ",",
 			)
+			stmt := fmt.Sprintf(baseStmt, values)
+			args := make([]any, 0, totalToProcess*numberOfArgsPerInsert)
+			for j := start; j < end; j++ {
+				item := commands[j]
+				args = append(
+					args, item.HostID, item.CommandType,
+				)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
+			}
 		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
-		}
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
