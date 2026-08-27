@@ -42,8 +42,8 @@ const ANNOTATE = Boolean(process.env.GITHUB_ACTIONS);
 
 const findings = [];
 const rel = (abs) => path.relative(REPO_ROOT, abs).split(path.sep).join("/");
-const report = (where, message, blocking = false) =>
-  findings.push({ where, message, blocking });
+const report = (where, message, blocking = false, line = null) =>
+  findings.push({ where, message, blocking, line });
 const pngPath = (file) => rel(path.join(PNG_DIR, file));
 const barrelPath = rel(BARREL);
 
@@ -142,13 +142,18 @@ for (const file of onDisk) {
 // --- no going back to base64 -----------------------------------------------
 for (const file of fs.readdirSync(ICONS).filter((f) => f.endsWith(".tsx"))) {
   const body = fs.readFileSync(path.join(ICONS, file), "utf8");
-  if (/data:image\/[a-z+]+;base64,/.test(body)) {
+  const hit = /data:image\/[a-z+]+;base64,/.exec(body);
+  if (hit) {
+    // A .tsx has real lines, so point at the offending one — that lets the
+    // annotation render inline on the diff rather than only in the run summary.
+    const line = body.slice(0, hit.index).split("\n").length;
     report(
       rel(path.join(ICONS, file)),
       `${file}: embeds a base64 image. App icons belong in png/ as static ` +
         `files — inlining one puts it back into the entry bundle for every ` +
         `page load, which is the thing moving them out of JS fixed.`,
-      true
+      true,
+      line
     );
   }
 }
@@ -164,15 +169,16 @@ if (!findings.length) {
 const blocking = findings.filter((f) => f.blocking);
 
 if (ANNOTATE) {
-  for (const { where, message, blocking: b } of findings) {
-    console.log(`::${b ? "error" : "warning"} file=${where}::${message}`);
+  for (const { where, message, blocking: b, line } of findings) {
+    const at = line ? `file=${where},line=${line}` : `file=${where}`;
+    console.log(`::${b ? "error" : "warning"} ${at}::${message}`);
   }
 }
 
 console.log(`\nicon check: ${findings.length} finding(s) across ${summary}\n`);
-for (const { where, message, blocking: b } of findings) {
+for (const { where, message, blocking: b, line } of findings) {
   console.log(`  ${b ? "x" : "!"} ${message}`);
-  console.log(`    ${where}`);
+  console.log(`    ${where}${line ? `:${line}` : ""}`);
 }
 
 const failing = blocking.length > 0 || STRICT;

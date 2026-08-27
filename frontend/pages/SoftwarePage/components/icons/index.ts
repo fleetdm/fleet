@@ -1144,6 +1144,7 @@ import Zoom from "./Zoom";
 import ZoomOutlookPlugin from "./png/ZoomOutlookPlugin.png";
 import ZoomRooms from "./png/ZoomRooms.png";
 import Zotero from "./png/Zotero.png";
+import Demolinetest from "./Demolinetest";
 import Zulip from "./png/Zulip.png";
 import Zwift from "./png/Zwift.png";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -2317,6 +2318,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
+  demolinetest: Demolinetest,
   zulip: Zulip,
   zwift: Zwift,
 } as const;
