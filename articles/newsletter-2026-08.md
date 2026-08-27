@@ -10,7 +10,7 @@ You aren't used to seeing a newsletter from us, and honestly, we aren't fans of 
 
 - **Introducing - App Rollbacks**: Pin or revert Fleet-maintained apps to bypass broken updates and maintain fleet stability. _Available in Fleet Premium._
 - **Windows setup experience: continue past a failed install.** When required setup software fails during Windows automatic enrollment, end users see exactly which app failed. If you haven't checked **Cancel setup if software fails**, they can continue and install it later from self-service. Either way they get a next step instead of a stuck screen. Available in Fleet Premium.
-- **IdP host vitals from Google Workspace.** Populate group, department, username, email, and full name straight from Google Workspace. Google Workspace doesn't support SCIM, so Fleet pulls directory data from Google's API on a schedule. Scope profiles, software, and policies with IdP labels the same way you would with Okta or Entra. Available in Fleet Premium.
+- **New native IdP support - Google Workspace:** Google Workspace joins the list of supported IdPs with a new native integration to connect with Fleet in order to populate users, groups and more to devices. _Available in Fleet Premium._
 
 Also shipped in July: host vital variables everywhere on Android, a policy status page that shows every automation run, vulnerability exposure chart filters you can save through GitOps, and BYOD enrollment permissions for Apple. [See every release](https://fleetdm.com/releases).
 
