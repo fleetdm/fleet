@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
@@ -27,9 +28,14 @@ type Agent struct {
 	BinaryPath    string // resolved path of the executable file (hashed)
 	Version       string
 	Runtime       string // node | bun | python | rust | go | native
-	InstallMethod string // npm-global | pipx | homebrew | cargo | native
+	InstallMethod string // npm-global | pipx | homebrew | cargo | native | evidence
 	Running       int
 	PID           int
+
+	// Classification / multi-signal detection.
+	Category   string // agent-runtime | agent-harness | empty (legacy catalog)
+	Confidence int    // 0–100; catalog = 100
+	Evidence   string // CSV of signal tokens
 
 	// Security posture (computed during Scan).
 	SHA256         string // hash of the agent binary (diffable identity / threat-intel match)
@@ -61,15 +67,27 @@ func knownAgents() []known {
 		{"continue-cli", []string{"cn"}, "@continuedev/cli", "", "node", nil},
 		{"cursor-agent", []string{"cursor-agent"}, "", "", "native", nil},
 		{"amazon-q", []string{"q", "kiro"}, "", "", "native", nil},
+		// Catalog sugar for common CLIs; multi-signal evidence still covers unknowns.
+		{"grok", []string{"grok"}, "", "", "native", nil},
 	}
 }
 
 // Scan detects agent CLIs reachable from a home directory (and system dirs).
-func Scan(h homes.Home, snap *proc.Snapshot) []Agent {
+// When b is non-nil, Tier-B multi-signal candidates (tool homes, workspace
+// shapes, frameworks) are merged with catalog hits.
+func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 	r := paths.For(h.Dir)
 	binDirs := agentBinDirs(h.Dir, r)
+	// Include tool-private bin dirs (e.g. ~/.grok/bin) used by modern CLIs.
+	binDirs = append(binDirs,
+		filepath.Join(h.Dir, ".grok", "bin"),
+		filepath.Join(h.Dir, ".hermes", "bin"),
+		filepath.Join(h.Dir, ".openclaw", "bin"),
+	)
 	nmDirs := nodeModulesDirs(h.Dir, r)
 	var out []Agent
+	seen := map[string]int{} // name -> index in out
+
 	for _, k := range knownAgents() {
 		a, ok := detect(k, h.Dir, binDirs, nmDirs)
 		if !ok {
@@ -80,22 +98,121 @@ func Scan(h homes.Home, snap *proc.Snapshot) []Agent {
 		if a.Runtime == "" {
 			a.Runtime = k.runtime
 		}
+		a.Category = "agent-runtime"
+		a.Confidence = 100
+		a.Evidence = "catalog"
 		cmdline := markRunning(&a, k, snap)
+		if a.Running == 1 {
+			a.Evidence = "catalog,running"
+		}
+		if a.BinaryPath != "" {
+			a.Evidence = a.Evidence + ",binary"
+		}
 		a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
 		enrichPosture(&a, k, h, cmdline)
+		seen[a.Name] = len(out)
 		out = append(out, a)
 	}
+
+	// Tier B: multi-signal candidates from the shared evidence bundle.
+	if b != nil {
+		for _, c := range evidence.AgentCandidates(h, snap, b) {
+			if idx, ok := seen[c.Name]; ok {
+				// Merge into catalog row: keep conf 100, union evidence.
+				out[idx].Evidence = mergeEvidence(out[idx].Evidence, c.Signals.CSV())
+				if c.Running == 1 && out[idx].Running == 0 {
+					out[idx].Running, out[idx].PID = c.Running, c.PID
+				}
+				if out[idx].BinaryPath == "" && c.BinaryPath != "" {
+					out[idx].BinaryPath = c.BinaryPath
+					out[idx].SHA256 = fsutil.SHA256(resolveSystemBinary(c.BinaryPath))
+				}
+				if c.Category == "agent-harness" {
+					out[idx].Category = "agent-harness"
+				}
+				continue
+			}
+			// Also skip if path already covered under another name.
+			if pathSeen(out, c.Path) {
+				continue
+			}
+			a := Agent{
+				UID:           h.UID,
+				Username:      h.Username,
+				Name:          c.Name,
+				Binary:        c.Binary,
+				Path:          c.Path,
+				BinaryPath:    c.BinaryPath,
+				InstallMethod: "evidence",
+				Runtime:       "native",
+				Running:       c.Running,
+				PID:           c.PID,
+				Category:      c.Category,
+				Confidence:    c.Confidence,
+				Evidence:      c.Signals.CSV(),
+			}
+			if a.Category == "" {
+				a.Category = "agent-runtime"
+			}
+			if a.BinaryPath != "" {
+				a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
+			}
+			seen[a.Name] = len(out)
+			out = append(out, a)
+		}
+	}
 	return out
+}
+
+func mergeEvidence(a, b string) string {
+	set := map[string]bool{}
+	for _, p := range strings.Split(a, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			set[p] = true
+		}
+	}
+	for _, p := range strings.Split(b, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			set[p] = true
+		}
+	}
+	s := evidence.Signals(set)
+	return s.CSV()
+}
+
+func pathSeen(out []Agent, path string) bool {
+	if path == "" {
+		return false
+	}
+	for _, a := range out {
+		if a.Path == path || a.BinaryPath == path {
+			return true
+		}
+	}
+	return false
 }
 
 func detect(k known, home string, binDirs, nmDirs []string) (Agent, bool) {
 	a := Agent{}
 
-	// 1. npm global package (best version signal).
+	// 1. npm global package (best version signal). Prefer installs under the
+	// user's home over system-wide node_modules so multi-user hosts don't
+	// attribute root's package version to every account.
 	if k.npmPkg != "" {
+		homeFound := false
 		for _, nm := range nmDirs {
 			pkgDir := filepath.Join(nm, filepath.FromSlash(k.npmPkg))
-			if ver, ok := npmVersion(filepath.Join(pkgDir, "package.json")); ok {
+			ver, ok := npmVersion(filepath.Join(pkgDir, "package.json"))
+			if !ok {
+				continue
+			}
+			underHome := home != "" && strings.HasPrefix(pkgDir, home)
+			if underHome {
+				a.Path, a.Version, a.InstallMethod, a.Runtime = pkgDir, ver, "npm-global", "node"
+				homeFound = true
+			} else if !homeFound && a.Path == "" {
 				a.Path, a.Version, a.InstallMethod, a.Runtime = pkgDir, ver, "npm-global", "node"
 			}
 		}

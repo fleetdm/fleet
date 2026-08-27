@@ -17,7 +17,7 @@ func TestDetectClaudeCode(t *testing.T) {
 		`{"name":"@anthropic-ai/claude-code","version":"1.2.3"}`)
 	writeExec(t, filepath.Join(home, ".local", "bin", "claude"))
 
-	got := Scan(homes.Home{Dir: home, Username: "tester"}, &proc.Snapshot{Procs: map[int]proc.Process{}})
+	got := Scan(homes.Home{Dir: home, Username: "tester"}, &proc.Snapshot{Procs: map[int]proc.Process{}}, nil)
 
 	var cc *Agent
 	for i := range got {
@@ -47,7 +47,7 @@ func TestMarkRunning(t *testing.T) {
 	snap := &proc.Snapshot{Procs: map[int]proc.Process{
 		55: {PID: 55, Name: "aider", Cmdline: "/home/u/.local/bin/aider --model gpt-4"},
 	}}
-	got := Scan(homes.Home{Dir: home, Username: "tester"}, snap)
+	got := Scan(homes.Home{Dir: home, Username: "tester"}, snap, nil)
 	for _, a := range got {
 		if a.Name == "aider" {
 			if a.Running != 1 || a.PID != 55 {
