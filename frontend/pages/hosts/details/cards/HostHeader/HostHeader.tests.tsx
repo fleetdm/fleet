@@ -273,7 +273,9 @@ describe("HostHeader", () => {
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          internationalTimeFormat(new Date(defaultSummaryData.detail_updated_at))
+          internationalTimeFormat(
+            new Date(defaultSummaryData.detail_updated_at)
+          )
         )
       ).toBeInTheDocument();
     });
