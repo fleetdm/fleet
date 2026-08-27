@@ -191,9 +191,7 @@ func fetchScriptHashMap(name string) (scriptHashMap, time.Time, error) {
 	return hashes, hashMapCutoff, nil
 }
 
-// keyed by the generated line, "<sha256> <slug>". The slug is in the key because
-// the same script is published for several apps, so a hash on its own doesn't
-// identify one.
+// keyed by the generated line, "<sha256> <slug>".
 type scriptHashMap map[string]struct{}
 
 // a "do not edit" note, then the commit it was cut at with that commit's date

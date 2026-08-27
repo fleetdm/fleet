@@ -1,1 +1,1 @@
-- Fixed the Fleet-maintained app auto-update cron not updating install and uninstall scripts. It now tracks whether an admin replaced a script instead of comparing the script against the manifest, which mistook a script Fleet republished for an admin's edit and left the installer on its old script.
+- Fixed the Fleet-maintained app auto-update cron not updating install and uninstall scripts when it advances an app to a new version.

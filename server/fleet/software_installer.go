@@ -151,8 +151,8 @@ type SoftwareInstaller struct {
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
 	AppOpenQuery string `json:"-" db:"app_open_query"`
 
-	// InstallScriptEdited records that an admin replaced the install script, so the
-	// Fleet-maintained app auto-update cron carries it forward.
+	// InstallScriptEdited records that an admin replaced the install script, which
+	// makes the Fleet-maintained app auto-update cron carry it forward.
 	InstallScriptEdited bool `json:"-" db:"install_script_edited"`
 	// UninstallScriptEdited is the same for the uninstall script.
 	UninstallScriptEdited bool `json:"-" db:"uninstall_script_edited"`
@@ -681,9 +681,7 @@ type UploadSoftwareInstallerPayload struct {
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
-	AppOpenQuery string
-	// InstallScriptEdited and UninstallScriptEdited mark scripts an admin supplied
-	// instead of the Fleet-maintained app manifest's.
+	AppOpenQuery          string
 	InstallScriptEdited   bool
 	UninstallScriptEdited bool
 }

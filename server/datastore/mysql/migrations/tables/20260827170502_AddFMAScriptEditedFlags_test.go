@@ -150,8 +150,6 @@ func TestUp_20260827170502(t *testing.T) {
 	require.False(t, uninstall)
 }
 
-// serveScriptHashMaps points the migration's downloads at a local server, so a
-// test never reaches the real ones.
 func serveScriptHashMaps(t *testing.T, install string, uninstall string) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch path.Base(r.URL.Path) {

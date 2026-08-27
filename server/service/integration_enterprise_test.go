@@ -29033,10 +29033,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	// Non-ASCII on purpose. The backfill migration matches a stored script by
-	// hashing script_contents in MySQL against hashes the generator took over the
-	// manifest text, so the two only agree if Fleet stores the manifest bytes
-	// unchanged, and a charset problem would only show up on multi-byte characters.
+	// Non-ASCII on purpose: the migration hashes script_contents in MySQL against
+	// hashes taken over the manifest text, which only agree if the bytes survive.
 	const manifestScript = "#!/bin/sh\n# café — naïve ✓ 你好\ninstaller -pkg \"$TMPDIR/cloudflare-warp.msi\" -target /\n"
 	warp := &fmaTestState{
 		version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi",
@@ -29086,9 +29084,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		})
 		return row.Install, row.Uninstall
 	}
-	// LENGTH is the stored byte count, CHAR_LENGTH the character count. Comparing
-	// bytes against Go's view of the same string catches a transcode on the way in,
-	// which reading the text back through the same connection would hide.
+	// LENGTH is bytes, CHAR_LENGTH is characters. Comparing bytes against Go catches
+	// a transcode that reading the text back through the same connection would hide.
 	activeScriptBytes := func(teamID, titleID uint) (bytes int, chars int) {
 		var row struct {
 			Bytes int `db:"stored_bytes"`

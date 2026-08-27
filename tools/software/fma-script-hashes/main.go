@@ -1,12 +1,10 @@
 // Command fma-script-hashes records the sha256 of every install and uninstall
-// script Fleet has published for a Fleet-maintained app, by walking the manifest
-// history in git.
+// script Fleet has published for a Fleet-maintained app, by walking all of the
+// manifest history in git up to the given commit.
 //
-// The output feeds the migration that backfills software_installers.
-// install_script_edited / uninstall_script_edited: a script whose hash appears
-// here was published by Fleet, and anything else was put there by an admin.
-//
-// All of history up to the given commit is read.
+// It feeds the migration that backfills software_installers.install_script_edited
+// and uninstall_script_edited: a hash that appears here was published by Fleet,
+// anything else was written by an admin.
 //
 //	go run ./tools/software/fma-script-hashes -to <commit>
 package main
@@ -31,9 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 )
 
-// The two output files are written relative to the repository root, so the tool
-// can be run from anywhere in the working tree. The migration downloads these
-// same paths from the repository rather than embedding them.
+// written relative to the repository root, so the tool runs from anywhere
 const (
 	outputDir                = "tools/software/fma-script-hashes"
 	installHashMapFile       = "install_script_hash_map.txt"
@@ -43,15 +39,7 @@ const (
 	substitutedScriptMarker = "substituted"
 )
 
-// manifestRevision identifies one saved copy of one app's manifest file, as it
-// stood at some commit. An app has as many revisions as the number of times its
-// manifest was committed.
-//
-// contentSHA is git's id for the file's contents, not for any commit. Two
-// manifests that hold the same bytes have the same contentSHA, so a manifest
-// that went untouched across a hundred commits is one revision here rather than
-// a hundred. path rides along because the app's slug comes from where the file
-// sits in the tree and is nowhere in the contents.
+// contentSHA is git's id for the file's contents, not for any commit.
 type manifestRevision struct {
 	contentSHA string
 	path       string
@@ -86,10 +74,8 @@ func generateHashMaps(endingCommit string) error {
 	if err != nil {
 		return err
 	}
-	// the ending commit's date becomes the cutoff, which the migration compares
-	// against software_installers.updated_at to decide which installers these hashes
-	// can classify. It is written in UTC so the file doesn't change with the timezone
-	// it was generated in.
+	// the ending commit's date becomes the cutoff the migration compares against
+	// software_installers.updated_at. UTC so the file doesn't vary by timezone.
 	committed, err := git("log", "-1", "--format=%cI", endingCommitSHA)
 	if err != nil {
 		return err
@@ -139,17 +125,11 @@ func writeHashMap(repoRoot string, name string, endingCommitSHA string, cutoffDa
 	return nil
 }
 
-// findManifestRevisions collects every manifest revision that has ever been
-// committed, up to the ending commit. Reading all of history rather than a recent
-// slice of it is what lets the migration recognize a script an admin installed
-// years ago as one Fleet published.
 func findManifestRevisions(endingCommit string) (map[manifestRevision]struct{}, error) {
 	revisions := map[manifestRevision]struct{}{}
 
-	// walk every commit that touched a manifest and report what each file became.
-	// --format= drops the commit lines, leaving one line per changed file. Merge
-	// commits produce no lines, which loses nothing because the commits they merge
-	// are walked on their own.
+	// one line per changed file, with --format= dropping the commit lines. Merge
+	// commits emit nothing, and the commits they merge are walked anyway.
 	changed, err := git("log", "--raw", "--no-renames", "--no-abbrev", "--format=", endingCommit, "--", maintained_apps.OutputPath)
 	if err != nil {
 		return nil, err
@@ -162,8 +142,7 @@ func findManifestRevisions(endingCommit string) (map[manifestRevision]struct{}, 
 		if !found {
 			continue
 		}
-		// the fourth field is what the file became in that commit, which is the
-		// revision worth keeping. The third is what it was, already seen earlier
+		// the fourth field is what the file became; the third is what it was
 		if fields := strings.Fields(modesAndSHAs); len(fields) >= 4 {
 			addManifestRevision(revisions, fields[3], filePath)
 		}
@@ -173,9 +152,7 @@ func findManifestRevisions(endingCommit string) (map[manifestRevision]struct{}, 
 }
 
 func addManifestRevision(revisions map[manifestRevision]struct{}, contentSHA string, filePath string) {
-	// an all-zero content sha means the commit deleted the file, so there is no
-	// revision to record. apps.json is the list of apps rather than a manifest, so
-	// it holds no scripts
+	// an all-zero sha is a delete, and apps.json is the app list, not a manifest
 	deleted := strings.Trim(contentSHA, "0") == ""
 	if deleted || path.Base(filePath) == "apps.json" || !strings.HasSuffix(filePath, ".json") {
 		return
@@ -183,22 +160,13 @@ func addManifestRevision(revisions map[manifestRevision]struct{}, contentSHA str
 	revisions[manifestRevision{contentSHA: contentSHA, path: filePath}] = struct{}{}
 }
 
-// scriptHash is one published script: which app published it, and the hash the
-// migration matches against. The slug is part of it because the same script body
-// is published for several apps, so a hash on its own doesn't identify one.
 type scriptHash struct {
 	slug string
 	hash string
 }
 
-// hashScripts reads every manifest revision and returns the install and uninstall
-// lines, deduplicated and grouped by app. A line is
-//
-//	<sha256 of the script> <slug>
-//
-// Scripts are hashed exactly as published, with no normalization. An install
-// script that names the installer file changes on every release, and every
-// release is in here, so each one matches on its own entry.
+// Returns "<sha256> <slug>" lines. Scripts are hashed exactly as published: every
+// release is in here, so a script naming the installer file matches on its own.
 func hashScripts(revisions map[manifestRevision]struct{}) (install []string, uninstall []string, err error) {
 	reader, err := startCatFile()
 	if err != nil {
@@ -241,8 +209,7 @@ func hashScripts(revisions map[manifestRevision]struct{}) (install []string, uni
 	return hashMapLines(installHashes), hashMapLines(uninstallHashes), nil
 }
 
-// hashMapLines formats and sorts the entries by app rather than by the line's own
-// text, so an app's entries stay together even though the hash is printed first.
+// sorted by app rather than by the line, which starts with the hash.
 func hashMapLines(hashes map[scriptHash]struct{}) []string {
 	sorted := make([]scriptHash, 0, len(hashes))
 	for hash := range hashes {
@@ -262,9 +229,7 @@ func hashMapLines(hashes map[scriptHash]struct{}) []string {
 	return lines
 }
 
-// catFile keeps one "git cat-file --batch" process running and talks to it over
-// its pipes, one request and response per file. That is far faster than starting
-// a git process per file, and there are tens of thousands of files to read.
+// one long-lived process, since there are tens of thousands of files to read.
 type catFile struct {
 	cmd   *exec.Cmd
 	stdin io.WriteCloser
@@ -289,9 +254,7 @@ func startCatFile() (*catFile, error) {
 	return &catFile{cmd: cmd, stdin: stdin, out: bufio.NewReader(stdout)}, nil
 }
 
-// readFile asks git for the contents of one file by sending its content sha down
-// the pipe. git answers with a "<sha> <type> <size>" line, then that many bytes
-// of file contents, then a newline.
+// git answers with a "<sha> <type> <size>" line, then that many bytes, then a newline.
 func (c *catFile) readFile(contentSHA string) ([]byte, error) {
 	_, err := io.WriteString(c.stdin, contentSHA+"\n")
 	if err != nil {
@@ -356,10 +319,9 @@ func hashScript(script string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// uninstallScriptHash marks apps whose uninstall script gets substituted with the
-// installer's own metadata, since we can't know whether those were changed. The
-// substituted value comes from the bytes a deployment downloaded, so it can't be
-// derived here, and the migration marks these apps as unedited.
+// uninstallScriptHash marks apps whose uninstall script gets substituted with
+// installer metadata, since the value can't be derived from the manifest and we
+// can't know whether those were changed. The migration marks them as unedited.
 func uninstallScriptHash(script string) string {
 	if file.PackageIDRegex.MatchString(script) || file.UpgradeCodeRegex.MatchString(script) {
 		return substitutedScriptMarker
