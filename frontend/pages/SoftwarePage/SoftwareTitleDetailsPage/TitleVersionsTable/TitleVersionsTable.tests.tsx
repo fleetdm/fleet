@@ -7,12 +7,13 @@ import TitleVersionsTable from "./TitleVersionsTable";
 const mockRouter = createMockRouter();
 
 describe("TitleVersionsTable", () => {
-  // Deliberately ordered so that host count, lexical, and numeric version
-  // orderings are all different, and 1.2.10 vs 1.2.9 catches a lexical sort.
+  // Deliberately ordered so that the input order, host count order, and
+  // lexical and numeric version orderings are all different, and
+  // 1.2.10 vs 1.2.9 catches a lexical sort.
   const unsortedVersions = [
-    { id: 1, version: "1.2.9", vulnerabilities: [], hosts_count: 3 },
-    { id: 2, version: "1.2.2", vulnerabilities: [], hosts_count: 2 },
-    { id: 3, version: "1.2.10", vulnerabilities: [], hosts_count: 1 },
+    { id: 1, version: "1.2.9", vulnerabilities: [], hosts_count: 1 },
+    { id: 2, version: "1.2.2", vulnerabilities: [], hosts_count: 3 },
+    { id: 3, version: "1.2.10", vulnerabilities: [], hosts_count: 2 },
   ];
 
   const renderTable = (data = unsortedVersions) =>
@@ -36,7 +37,7 @@ describe("TitleVersionsTable", () => {
   it("sorts by host count by default", () => {
     renderTable();
 
-    expect(renderedVersions()).toEqual(["1.2.9", "1.2.2", "1.2.10"]);
+    expect(renderedVersions()).toEqual(["1.2.2", "1.2.10", "1.2.9"]);
   });
 
   it("sorts by version number when the Version header is clicked", async () => {
