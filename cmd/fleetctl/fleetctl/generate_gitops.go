@@ -495,9 +495,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// Set mdm to the global config by default.
 		// We'll override this for teams other than no-team.
 		mdmConfig := fleet.TeamMDM{
-			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
-			RequireBitLockerPIN:        cmd.AppConfig.MDM.BitLockerPINRequired(),
 			HostNameTemplate:           cmd.AppConfig.MDM.HostNameTemplate.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,
@@ -1211,8 +1209,10 @@ func orgLogoExtFromContentType(contentType string) (string, error) {
 		return ".jpg", nil
 	case "image/webp":
 		return ".webp", nil
+	case "image/svg+xml":
+		return ".svg", nil
 	}
-	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, or image/webp)", mediaType)
+	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, image/webp, or image/svg+xml)", mediaType)
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
@@ -1361,9 +1361,9 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	return teamSettings, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {
-	t := reflect.TypeOf(spec.GitOpsControls{})
-	result := map[string]interface{}{}
+func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]any, error) {
+	t := reflect.TypeFor[spec.GitOpsControls]()
+	result := map[string]any{}
 
 	if teamId != nil {
 		scripts, err := cmd.generateScripts(teamId, teamName)
@@ -1373,6 +1373,13 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
+
+	macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
+	macosSettings := map[string]any{}
+	windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
+	windowsSettings := map[string]any{}
+	linuxSettingsT := reflect.TypeFor[fleet.LinuxSettings]()
+	linuxSettings := map[string]any{}
 
 	if cmd.AppConfig.MDM.EnabledAndConfigured ||
 		cmd.AppConfig.MDM.WindowsEnabledAndConfigured ||
@@ -1384,12 +1391,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 
-		macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
-		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
 		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
 
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
-			macosSettings := map[string]any{}
 			if profiles != nil {
 				if appleProfiles, _ := profiles["apple_profiles"].([]map[string]any); len(appleProfiles) > 0 {
 					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
@@ -1403,12 +1407,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if len(assets) > 0 {
 				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
 			}
-			if len(macosSettings) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
-			}
+
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
-			windowsSettings := map[string]any{}
 			if profiles != nil {
 				if windowsProfiles, _ := profiles["windows_profiles"].([]map[string]any); len(windowsProfiles) > 0 {
 					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
@@ -1423,13 +1424,11 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,
 				}
 			}
-			if len(windowsSettings) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
-			}
+
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
-			if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
+			if len(profiles["android_profiles"].([]map[string]any)) > 0 {
+				result[jsonFieldName(t, "AndroidSettings")] = map[string]any{
 					jsonFieldName(androidSettingsT, "CustomSettings"): profiles["android_profiles"],
 				}
 			}
@@ -1449,7 +1448,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		return nil, err
 	}
 
-	mdmT := reflect.TypeOf(fleet.TeamMDM{})
+	mdmT := reflect.TypeFor[fleet.TeamMDM]()
 
 	if len(certSummaries) > 0 {
 		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
@@ -1468,9 +1467,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			fullCerts = append(fullCerts, cert)
 		}
-		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
+		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]any)
 		if !ok {
-			androidSettings = map[string]interface{}{}
+			androidSettings = map[string]any{}
 		}
 		androidSettings[jsonFieldName(androidSettingsType, "Certificates")] = fullCerts
 		result[jsonFieldName(mdmT, "AndroidSettings")] = androidSettings
@@ -1478,18 +1477,22 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 
 	if cmd.AppConfig.License.IsPremium() {
 		if teamMdm != nil {
-			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "EnableRecoveryLockPassword")] = teamMdm.EnableRecoveryLockPassword
-			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
 			result[jsonFieldName(mdmT, "HostNameTemplate")] = teamMdm.HostNameTemplate
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
 			result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
+
+			macosSettings[jsonFieldName(macosSettingsT, "EnableDiskEncryption")] = teamMdm.MacOSSettings.EnableDiskEncryption.Value
+			macosSettings[jsonFieldName(macosSettingsT, "EnableEscrowDiskEncryptionKey")] = teamMdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "EnableDiskEncryption")] = teamMdm.WindowsSettings.EnableDiskEncryption.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = teamMdm.WindowsSettings.RequireBitLockerPIN.Value
+			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = teamMdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
 
 		if teamId == nil || *teamId == 0 {
-			mdmT := reflect.TypeOf(fleet.MDM{})
+			mdmT := reflect.TypeFor[fleet.MDM]()
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
 			result[jsonFieldName(mdmT, "EnableTurnOnWindowsMDMManually")] = cmd.AppConfig.MDM.EnableTurnOnWindowsMDMManually
@@ -1522,6 +1525,12 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					Key:      "apple_account_provisioning.oauth_idp_client_secret",
 				})
 			}
+
+			macosSettings[jsonFieldName(macosSettingsT, "EnableDiskEncryption")] = cmd.AppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value
+			macosSettings[jsonFieldName(macosSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "EnableDiskEncryption")] = cmd.AppConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
+			windowsSettings[jsonFieldName(windowsSettingsT, "RequireBitLockerPIN")] = cmd.AppConfig.MDM.WindowsSettings.RequireBitLockerPIN.Value
+			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
@@ -1568,6 +1577,17 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				})
 			}
 		}
+
+		if len(linuxSettings) > 0 {
+			result[jsonFieldName(t, "LinuxSettings")] = linuxSettings
+		}
+	}
+
+	if len(macosSettings) > 0 {
+		result[jsonFieldName(t, "MacOSSettings")] = macosSettings
+	}
+	if len(windowsSettings) > 0 {
+		result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
 	}
 
 	return result, nil

@@ -592,7 +592,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
@@ -677,7 +678,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger, false))
 

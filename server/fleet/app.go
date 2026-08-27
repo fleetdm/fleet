@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -163,7 +164,7 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
-// MDMAppleABMAssignmentInfo represents an user definition of the association
+// MDMAppleABMAssignmentInfo represents a user definition of the association
 // between an ABM token (via organization name) and the teams used to associate
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
@@ -174,19 +175,25 @@ type MDMAppleABMAssignmentInfo struct {
 	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
-func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
-	if m.MacOSTeam == removedTeamName {
-		m.MacOSTeam = ""
+// CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
+// rename to "" ("no fleet").
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) bool {
+	return m.RenameTeam(removedTeamName, "")
+}
+
+func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
+	// "" spells "no fleet" here (see UpdateABMTokenTeams), so renaming from it
+	// would claim every unassigned platform.
+	if oldName == "" {
+		return false
 	}
-	if m.IOSTeam == removedTeamName {
-		m.IOSTeam = ""
+	var renamed bool
+	for _, f := range []*string{&m.MacOSTeam, &m.IOSTeam, &m.IpadOSTeam, &m.BYODTeam} {
+		if *f == oldName {
+			*f, renamed = newName, true
+		}
 	}
-	if m.IpadOSTeam == removedTeamName {
-		m.IpadOSTeam = ""
-	}
-	if m.BYODTeam == removedTeamName {
-		m.BYODTeam = ""
-	}
+	return renamed
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
@@ -194,6 +201,28 @@ func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
+}
+
+func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
+	// "" spells "no fleet" here (see UpdateVPPTokenTeams), so renaming from it
+	// would claim every unassigned platform.
+	if oldName == "" {
+		return false
+	}
+
+	var renamed bool
+	for i, t := range m.Teams {
+		if t == oldName {
+			m.Teams[i], renamed = newName, true
+		}
+	}
+	return renamed
+}
+
+func (m *MDMAppleVolumePurchasingProgramInfo) CleanRemovedTeam(removedTeamName string) bool {
+	before := len(m.Teams)
+	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool { return t == removedTeamName })
+	return len(m.Teams) != before
 }
 
 // MDM is part of AppConfig and defines the mdm settings.

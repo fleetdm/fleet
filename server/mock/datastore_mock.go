@@ -670,7 +670,9 @@ type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, script
 
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
-type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int) (int, error)
+type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error)
+
+type ReleaseFleetInitiatedUpcomingActivitiesFunc func(ctx context.Context, maxHosts int) (int, error)
 
 type ReapStuckActivatedMDMInstallsFunc func(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error)
 
@@ -1029,6 +1031,8 @@ type DeleteMDMAppleDeclarationByNameFunc func(ctx context.Context, teamID *uint,
 type BulkDeleteMDMAppleHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error
 
 type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) error
+
+type UpsertMDMAppleFleetConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) error
 
 type GetHostMDMAppleProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
@@ -3331,6 +3335,9 @@ type DataStore struct {
 	UnblockHostsUpcomingActivityQueueFunc        UnblockHostsUpcomingActivityQueueFunc
 	UnblockHostsUpcomingActivityQueueFuncInvoked bool
 
+	ReleaseFleetInitiatedUpcomingActivitiesFunc        ReleaseFleetInitiatedUpcomingActivitiesFunc
+	ReleaseFleetInitiatedUpcomingActivitiesFuncInvoked bool
+
 	ReapStuckActivatedMDMInstallsFunc        ReapStuckActivatedMDMInstallsFunc
 	ReapStuckActivatedMDMInstallsFuncInvoked bool
 
@@ -3867,6 +3874,9 @@ type DataStore struct {
 
 	DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc        DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc
 	DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
+
+	UpsertMDMAppleFleetConfigProfileFunc        UpsertMDMAppleFleetConfigProfileFunc
+	UpsertMDMAppleFleetConfigProfileFuncInvoked bool
 
 	GetHostMDMAppleProfilesFunc        GetHostMDMAppleProfilesFunc
 	GetHostMDMAppleProfilesFuncInvoked bool
@@ -8124,11 +8134,18 @@ func (s *DataStore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint
 	return s.GetHostUpcomingActivityMetaFunc(ctx, hostID, executionID)
 }
 
-func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	s.mu.Lock()
 	s.UnblockHostsUpcomingActivityQueueFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts)
+	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts, skipFleetInitiated)
+}
+
+func (s *DataStore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	s.mu.Lock()
+	s.ReleaseFleetInitiatedUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReleaseFleetInitiatedUpcomingActivitiesFunc(ctx, maxHosts)
 }
 
 func (s *DataStore) ReapStuckActivatedMDMInstalls(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error) {
@@ -9382,6 +9399,13 @@ func (s *DataStore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.C
 	s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
+}
+
+func (s *DataStore) UpsertMDMAppleFleetConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+	s.mu.Lock()
+	s.UpsertMDMAppleFleetConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMDMAppleFleetConfigProfileFunc(ctx, p)
 }
 
 func (s *DataStore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {

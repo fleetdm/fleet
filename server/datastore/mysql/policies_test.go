@@ -5378,7 +5378,7 @@ func testPoliciesResendProfileRejectsFleetManaged(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Fleet's own profiles are ordinary rows in the profile tables — created by
-	// MDMAppleEnableFileVaultAndEscrow, mdmWindowsEnableOSUpdates and friends — so nothing stops a
+	// MDMAppleReconcileFileVaultProfile, mdmWindowsEnableOSUpdates and friends — so nothing stops a
 	// caller from passing their UUIDs.
 	appleManaged, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
 		Name:         fleetmdm.FleetFileVaultProfileName,

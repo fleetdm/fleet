@@ -927,6 +927,45 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	return nil
 }
 
+func (ds *Datastore) UpsertMDMAppleFleetConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) error {
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+	if cp.Scope == "" {
+		cp.Scope = fleet.PayloadScopeSystem
+	}
+
+	// This method skips the name-collision checks NewMDMAppleConfigProfile makes
+	// against Windows/Android profiles and declarations, on the grounds that
+	// users cannot take a Fleet-reserved name. Enforce that premise so a future
+	// caller cannot use this path to bypass those checks for a user profile.
+	if _, ok := fleetmdm.FleetReservedProfileNames()[cp.Name]; !ok {
+		return ctxerr.Errorf(ctx, "profile %q is not fleet-controlled", cp.Name)
+	}
+
+	//
+	// uploaded_at is assigned before checksum so it still compares against the
+	// stored value: re-rendering identical bytes must leave the row untouched,
+	// or the reconciler would treat it as a change.
+	stmt := `
+INSERT INTO mdm_apple_configuration_profiles
+	(profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at)
+VALUES
+	(?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP())
+ON DUPLICATE KEY UPDATE
+	uploaded_at = IF(checksum = UNHEX(MD5(VALUES(mobileconfig))), uploaded_at, CURRENT_TIMESTAMP()),
+	name = VALUES(name),
+	scope = VALUES(scope),
+	mobileconfig = VALUES(mobileconfig),
+	checksum = UNHEX(MD5(VALUES(mobileconfig)))`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		fleet.MDMAppleProfileUUIDPrefix+uuid.New().String(), teamID, cp.Identifier, cp.Name, cp.Scope,
+		cp.Mobileconfig, cp.Mobileconfig)
+	return ctxerr.Wrap(ctx, err, "upsert fleet-controlled apple config profile")
+}
+
 func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
@@ -4098,38 +4137,6 @@ func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStor
 
 	_, err := pkgStore.Cleanup(ctx, pkgIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
-}
-
-func getMDMAppleConfigProfileByTeamAndIdentifierDB(ctx context.Context, tx sqlx.QueryerContext, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error) {
-	if teamID == nil {
-		teamID = ptr.Uint(0)
-	}
-
-	stmt := `
-SELECT
-	profile_uuid,
-	profile_id,
-	team_id,
-	name,
-	scope,
-	identifier,
-	mobileconfig,
-	created_at,
-	uploaded_at
-FROM
-	mdm_apple_configuration_profiles
-WHERE
-	team_id=? AND identifier=?`
-
-	var profile fleet.MDMAppleConfigProfile
-	err := sqlx.GetContext(ctx, tx, &profile, stmt, teamID, profileIdentifier)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(profileIdentifier))
-		}
-		return &fleet.MDMAppleConfigProfile{}, ctxerr.Wrap(ctx, err, "get mdm apple config profile by team and identifier")
-	}
-	return &profile, nil
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
