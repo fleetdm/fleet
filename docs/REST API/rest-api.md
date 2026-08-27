@@ -11551,7 +11551,9 @@ Runs the specified report as a live report on the specified hosts or group of ho
 
 After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
-> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new active report on every request. If your client doesn't finish streaming results and close the connection, Fleet doesn't clean up the active report right away: it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet expires it automatically. Each open active report holds a Redis-backed results channel, so creating many of them without closing them adds load that can slow down or interrupt live queries for everyone. Use `query_id` with an existing saved report and rate-limit your requests.
+> **Warning:** If you're building an automation that runs many live reports, use `query_id` to target an existing saved report, or, if you're using `query`, don't send requests faster than your automation can process results. Passing `query` instead of `query_id` starts a brand new active report on every request. If your client doesn't finish reading results and close the connection, Fleet won't clean up that active report right away — it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet automatically expires it. Each open active report ties up a shared resource, so leaving many of them open can slow down or interrupt live queries for everyone.
+>
+> **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
 `POST /api/v1/fleet/queries/run`
 
@@ -11649,7 +11651,9 @@ Runs the specified saved report as a live report on the specified targets. "By n
 
 After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
-> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new active report on every request. If your client doesn't finish streaming results and close the connection, Fleet doesn't clean up the active report right away: it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet expires it automatically. Each open active report holds a Redis-backed results channel, so creating many of them without closing them adds load that can slow down or interrupt live queries for everyone. Use `query_id` with an existing saved report and rate-limit your requests.
+> **Warning:** If you're building an automation that runs many live reports, use `query_id` to target an existing saved report, or, if you're using `query`, don't send requests faster than your automation can process results. Passing `query` instead of `query_id` starts a brand new active report on every request. If your client doesn't finish reading results and close the connection, Fleet won't clean up that active report right away — it can stay open for up to 24 hours (or up to a minute if you never connect to retrieve results at all) before Fleet automatically expires it. Each open active report ties up a shared resource, so leaving many of them open can slow down or interrupt live queries for everyone.
+>
+> **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
 `POST /api/v1/fleet/queries/run_by_identifiers`
 
