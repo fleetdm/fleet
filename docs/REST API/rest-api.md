@@ -7203,17 +7203,16 @@ Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` 
 
 ##### Uploading a new profile file
 
-You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
+You can upload a new profile file to replace the contents of the existing profile. What the new file must match, and how the profile is named afterwards, depends on the profile type:
 
-- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** as the existing profile.
-- **.mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** as the existing profile.
+- **.mobileconfig profiles**: The new file must have the same **PayloadIdentifier** as the existing profile. The profile is renamed to the new file's **PayloadDisplayName**.
+- **DDM (declarative management) profiles** (`.json`): The new file must have the same **Identifier** as the existing profile. The profile keeps its current name.
+- **Windows profiles** (`.xml`): There's no identifier to match, so any valid Windows profile is accepted. The profile is renamed to the uploaded file's name, without its extension.
+- **Android profiles** (`.json`): There's no identifier to match, so any valid Android profile is accepted. The profile keeps its current name.
 
-If the new profile does not match the required identifiers, the request will be rejected.
+If a `.mobileconfig` or DDM profile doesn't have the required identifier, the request is rejected.
 
-The profile's name is updated to match the new file:
-
-- **Windows profiles** (`.xml`): The profile is renamed to the uploaded file's name, without its extension. The profile keeps its `profile_uuid`, its targets, and its status on each host. If another configuration profile on the same fleet already uses that name, the request is rejected with a `409` status.
-- **.mobileconfig profiles**: The profile is renamed to the new file's **PayloadDisplayName**.
+Renaming a profile doesn't change its `profile_uuid` or which hosts it targets, and doesn't reinstall it on hosts unless the contents changed too. If another configuration profile on the same fleet already uses the new name, the request is rejected with a `409` status.
 
 Requests that only update labels don't include a file, so the profile's name is left unchanged.
 
