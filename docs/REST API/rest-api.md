@@ -8992,7 +8992,7 @@ _Available in Fleet Premium_
 
 Get Fleet's Android zero-touch DCP extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled.
 
-`GET /api/v1/fleet/android_enterprise/zero_touch/configuration`
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
 
 #### Parameters
 
