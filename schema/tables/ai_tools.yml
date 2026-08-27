@@ -42,6 +42,12 @@ examples: |-
   ```
   SELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';
   ```
+
+  Find AI agents that aren't recognized tools, and see what they were detected by.
+
+  ```
+  SELECT name, path, confidence, evidence FROM ai_tools WHERE type = 'agents' AND confidence < 100 ORDER BY confidence DESC;
+  ```
 notes: The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
 columns:
   - name: type
@@ -93,11 +99,19 @@ columns:
     type: integer
     required: false
   - name: risk_flags
-    description: "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`."
+    description: "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`, `authorization`."
     type: text
     required: false
   - name: sha256
     description: SHA-256 content hash of the primary artifact (config file, binary, or instruction file) for change detection and threat-intel matching.
+    type: text
+    required: false
+  - name: confidence
+    description: "Detection confidence from 0 to 100. Tools matched against the built-in catalog are always 100. Lower values come from multi-signal detection, which correlates independent signals (tool home directories, workspace shape, framework dependencies, running processes, MCP configs, instruction files) and emits a row once the combined evidence clears a threshold."
+    type: integer
+    required: false
+  - name: evidence
+    description: "Comma-separated tokens naming the signals behind the detection, so a confidence score can be judged rather than taken on trust. Possible values: `catalog`, `running`, `binary`, `tool_home`, `workspace_shape`, `workspace_shape_weak`, `mcp_config`, `instructions`, and `framework:<name>` (for example `framework:crewai`)."
     type: text
     required: false
   - name: uid
