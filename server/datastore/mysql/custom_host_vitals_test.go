@@ -739,6 +739,19 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	token := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vitalID)
 	otherToken := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, otherVitalID)
 
+	// A different vital whose ID happens to start with vitalID's digits (1 vs 10).
+	// INSTR can't tell $FLEET_HOST_VITAL_1 from $FLEET_HOST_VITAL_10, so an app
+	// referencing only this one is a false-positive candidate in SQL that the Go
+	// ContainsVar pass has to reject. It must resend for its own vital, never for
+	// vitalID.
+	lookalikeVitalID := vitalID * 10
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO custom_host_vitals (id, name) VALUES (?, 'LOOKALIKE')`, lookalikeVitalID)
+		return err
+	})
+	lookalikeToken := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, lookalikeVitalID)
+
 	// vitalApp's config references the vital; otherApp's references a different
 	// vital; otherTeamApp's references the same vital but in another fleet.
 	const (
@@ -746,6 +759,8 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 		secondVitalAppID = "com.example.secondvitalapp"
 		otherAppID       = "com.example.otherapp"
 		otherTeamAppID   = "com.example.otherteamapp"
+		lookalikeAppID   = "com.example.lookalikeapp"
+		noSigilAppID     = "com.example.nosigilapp"
 	)
 	appTeamIDs := map[string]uint{}
 	addApp := func(appID string, teamID uint) {
@@ -772,6 +787,8 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	addApp(vitalAppID, 0)
 	addApp(otherAppID, 0)
 	addApp(otherTeamAppID, otherTeam.ID)
+	addApp(lookalikeAppID, 0)
+	addApp(noSigilAppID, 0)
 
 	configWith := func(tok string) []byte {
 		return []byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, tok))
@@ -779,6 +796,10 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, vitalAppID, configWith(token)))
 	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, otherAppID, configWith(otherToken)))
 	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), otherTeam.ID, otherTeamAppID, configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, lookalikeAppID, configWith(lookalikeToken)))
+	// A bare mention with no '$' isn't a variable reference, but INSTR matches it.
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, noSigilAppID,
+		[]byte(fmt.Sprintf(`{"managedConfiguration":{"note":"see %s%d in the runbook"}}`, fleet.CustomHostVitalPrefix, vitalID))))
 
 	type appConfigResendJob struct {
 		Task             string            `json:"task"`
@@ -822,6 +843,19 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	// whose config references it, in the host's fleet only.
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Engineering"))
 	jobs := drainJobs()
+
+	// Both of these match the SQL INSTR filter for vitalID and are ruled out only
+	// by the Go ContainsVar pass. Asserted before the exact count so a regression
+	// names the guard that broke instead of just reporting a bad job count.
+	resentApps := make([]string, 0, len(jobs))
+	for _, j := range jobs {
+		resentApps = append(resentApps, j.ApplicationID)
+	}
+	require.NotContains(t, resentApps, lookalikeAppID,
+		"an app referencing only the lookalike vital ($FLEET_HOST_VITAL_<vitalID*10>) must not resend on vitalID's change")
+	require.NotContains(t, resentApps, noSigilAppID,
+		"a bare mention with no '$' isn't a variable reference and must not resend")
+
 	require.Len(t, jobs, 1)
 	require.Equal(t, "make_android_app_available_batch", jobs[0].Task)
 	require.Equal(t, vitalAppID, jobs[0].ApplicationID)
@@ -830,6 +864,13 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	require.True(t, jobs[0].AppConfigChanged)
 	require.Equal(t, map[string]string{androidHost.Host.UUID: "1"}, jobs[0].HostUUIDToPolicy,
 		"resend must target only the host whose value changed, at its applied policy")
+
+	// The lookalike app resends for its own vital, so its absence above is the id
+	// boundary working rather than a misconfigured fixture.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, lookalikeVitalID, "LOOKALIKE-VALUE"))
+	jobs = drainJobs()
+	require.Len(t, jobs, 1)
+	require.Equal(t, lookalikeAppID, jobs[0].ApplicationID)
 
 	// Re-setting the same vital queues again: the value changed, so the device
 	// needs the new one even though nothing else moved.

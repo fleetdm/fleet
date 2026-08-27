@@ -487,13 +487,21 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 // It queues the host-scoped batch task, not the team-wide make_android_app_available, since a vital is set per host,
 // so a team-wide re-push would hit every host in the fleet on every value change.
 func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
+	var enterpriseID string
+	if err := sqlx.GetContext(ctx, tx, &enterpriseID,
+		`SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get android enterprise id for app config resend")
+	}
+
 	var host struct {
 		UUID           string `db:"uuid"`
 		GlobalOrTeamID uint   `db:"global_or_team_id"`
 	}
-	err := sqlx.GetContext(ctx, tx, &host,
-		`SELECT uuid, COALESCE(team_id, 0) AS global_or_team_id FROM hosts WHERE id = ? AND platform = 'android'`, hostID)
-	if err != nil {
+	if err := sqlx.GetContext(ctx, tx, &host,
+		`SELECT uuid, COALESCE(team_id, 0) AS global_or_team_id FROM hosts WHERE id = ? AND platform = 'android'`, hostID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Not an Android host, so it has no managed app config.
 			return nil
@@ -517,7 +525,7 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 		AppTeamID     uint   `db:"app_team_id"`
 	}
 	if err := sqlx.SelectContext(ctx, tx, &candidates, selectStmt,
-		host.GlobalOrTeamID, fleet.CustomHostVitalPrefix); err != nil {
+		host.GlobalOrTeamID, varName); err != nil {
 		return ctxerr.Wrap(ctx, err, "select android app configs referencing custom host vital")
 	}
 
@@ -541,22 +549,12 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 	// An app scoped away from this host by labels isn't available on it, so it
 	// must not be pushed. The worker's batch task takes the hosts it is given
 	// without re-checking scope, hence the check here.
-	policyIDByAppTeam, err := androidHostPolicyIDsForApps(ctx, tx, hostID, appTeamIDs)
+	policyIDByAppTeam, err := androidHostPolicyIDsForApps(ctx, tx, hostID, host.GlobalOrTeamID, appTeamIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android policy ids for app config resend")
 	}
 	if len(policyIDByAppTeam) == 0 {
 		return nil
-	}
-
-	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID,
-		`SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// No enterprise configured — nothing can be delivered.
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android enterprise id for app config resend")
 	}
 
 	const insertJob = `INSERT INTO jobs (name, args, state, error) VALUES (?, ?, 'queued', '')`
@@ -590,7 +588,7 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 // getIncludedHostUUIDMapForSoftware, which answers the same question for every
 // host in one app's fleet; here the scope filter correlates to the outer
 // vat.id so every app resolves in one query rather than one query each.
-func androidHostPolicyIDsForApps(ctx context.Context, tx sqlx.ExtContext, hostID uint, appTeamIDs []uint) (map[uint]string, error) {
+func androidHostPolicyIDsForApps(ctx context.Context, tx sqlx.ExtContext, hostID, globalOrTeamID uint, appTeamIDs []uint) (map[uint]string, error) {
 	if len(appTeamIDs) == 0 {
 		return nil, nil
 	}
@@ -598,11 +596,11 @@ func androidHostPolicyIDsForApps(ctx context.Context, tx sqlx.ExtContext, hostID
 	stmt := fmt.Sprintf(`SELECT vat.id AS app_team_id, COALESCE(ad.applied_policy_id, '') AS policy_id
 		FROM hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
-		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id IN (?)
+		JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.id IN (?)
 		WHERE h.id = ? AND h.platform = 'android' AND EXISTS (%s)`,
 		fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "vat.id"))
 
-	stmt, args, err := sqlx.In(stmt, appTeamIDs, hostID)
+	stmt, args, err := sqlx.In(stmt, globalOrTeamID, appTeamIDs, hostID)
 	if err != nil {
 		return nil, err
 	}
