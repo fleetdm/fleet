@@ -19,7 +19,7 @@ Also shipped in July: host vital variables everywhere on Android, a policy statu
 Two releases are scheduled for August: 4.90.0 and 4.91.0. These are planned, not promised, and scope changes as the releases come together.
 
 - **Custom host vitals.** Define your own host fields, add, edit, and delete them, and use them in host name templates.
-- **Full Apple declarative (DDM) profile support.** Support for all Apple declaration profiles and assets, plus custom activations.
+- **Full Apple DDM support:** Complete coverage for all Apple declaration profiles, assets, and custom activations.
 - **macOS local accounts from any IdP.** Create the initial local account and sync its password from any identity provider that supports OAuth ROPG, moving out of experimental.
 
 Also on deck: certificate visibility in **Controls > OS settings** and on Windows host details, Android OS versions and vulnerabilities in software inventory, Python script-only packages, and Entra conditional access for self-hosted deployments.
