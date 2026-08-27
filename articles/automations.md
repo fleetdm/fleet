@@ -38,6 +38,8 @@ To install software and script automations on every subsequent failing result, i
 
 Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) are attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
 
+Across policy runs, if the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying on that host. This limit doesn't apply to VPP apps.
+
 ### Webhooks and tickets
 
 For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
