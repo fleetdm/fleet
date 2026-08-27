@@ -42,10 +42,13 @@ This will generate two files:
 
 ## Icon requirements
 
-`yarn lint:icons` checks these. It runs in CI as part of `make lint-js` and reports findings as
-annotations on the offending file. Findings are **warnings and do not fail the build** — an
+`yarn lint:icons` checks these. Locally it runs as part of `make lint-js`; in CI it is its own
+`lint-icons` job, and reports findings as annotations. Findings are **warnings and do not fail the build** — an
 unoptimized icon is worth flagging, not worth blocking a PR over. Pass `--strict` to fail on any
 finding locally.
+
+It is deliberately not part of the CI `lint-js` job as well — running it in both places annotates
+every finding twice and fails two jobs for one problem.
 
 The single exception is the last row below: a base64 image inlined into a `.tsx` **does** fail CI.
 Everything else costs some extra bytes on the pages that show that icon; an inlined icon costs

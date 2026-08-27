@@ -114,9 +114,12 @@ jobs:
         if: steps.js-cache.outputs.cache-hit != 'true'
         run: make deps-js
 
+      # yarn lint rather than make lint-js: make lint-js also runs the icon
+      # check, which has its own job below. Running it in both places annotates
+      # every finding twice and fails two jobs for one problem.
       - name: Run JS Linting
         run: |
-          make lint-js
+          yarn lint
 
       - name: Run prettier formatting check
         run: |
