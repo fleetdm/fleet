@@ -1798,6 +1798,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 	}
 
+	if fleet.IsAndroidPlatform(host.FleetPlatform()) {
+		if err := svc.ds.LoadHostMDMAndroidDeviceVitals(ctx, host); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load host mdm android device vitals")
+		}
+	}
+
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")

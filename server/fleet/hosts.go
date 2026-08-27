@@ -486,6 +486,17 @@ type Host struct {
 	// null) for every other platform, or when a given field wasn't returned
 	// by a particular enrollment.
 	HostMDMAppleDeviceVitals
+
+	// HostMDMAndroidDeviceVitals holds additional Android vitals collected
+	// from AMAPI status reports and persisted to
+	// host_mdm_android_device_vitals (see HostMDMAndroidDeviceVitals and
+	// MDMAndroidDeviceVitals, same package). Embedded anonymously so its
+	// fields flatten into the top-level host JSON response. Only populated
+	// for Android hosts, via a separate query
+	// (LoadHostMDMAndroidDeviceVitals) — every field is omitted (not null)
+	// for every other platform, or when a given field wasn't reported by a
+	// particular status report.
+	HostMDMAndroidDeviceVitals
 }
 
 type HostForeignVitalGroup struct {

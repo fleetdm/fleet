@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -1009,6 +1010,10 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
+	if err := svc.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.Host.UUID, androidDeviceVitals(device, companyOwned)); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host vitals")
+	}
+
 	if fromEnroll {
 		if err := svc.fleetDS.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(host.TeamID, []uint{host.Host.ID})); err != nil {
 			return ctxerr.Wrap(ctx, err, "setting team for re-enrolled Android host")
@@ -1065,6 +1070,123 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
+}
+
+// androidDeviceVitals extracts the host vitals that live in
+// host_mdm_android_device_vitals from an AMAPI device.
+//
+// Every section of the device is optional: AMAPI omits deviceSettings and
+// securityPosture unless the applied policy enables the matching status
+// reporting setting, omits networkInfo.telephonyInfos for anything but a
+// fully managed device, and omits softwareInfo fields the device's Android
+// version doesn't report. A section that's absent yields nil columns rather
+// than zero values, so "not reported" stays distinguishable from "reported as
+// false/empty".
+func androidDeviceVitals(device *androidmanagement.Device, companyOwned bool) fleet.MDMAndroidDeviceVitals {
+	var vitals fleet.MDMAndroidDeviceVitals
+
+	// The column is a signed int; anything outside that range is garbage from a
+	// device we shouldn't fail the whole status report over.
+	if device.ApiLevel > 0 && device.ApiLevel <= math.MaxInt32 {
+		vitals.APILevel = new(device.ApiLevel)
+	}
+
+	if ds := device.DeviceSettings; ds != nil {
+		vitals.AdbEnabled = new(ds.AdbEnabled)
+		vitals.PasscodeProtected = new(ds.IsDeviceSecure)
+		vitals.PlayProtectEnabled = new(ds.VerifyAppsEnabled)
+		vitals.EncryptionType = optionalVital(reportedEnum(ds.EncryptionStatus))
+	}
+
+	if hw := device.HardwareInfo; hw != nil {
+		vitals.Manufacturer = optionalVital(hw.Manufacturer)
+	}
+
+	if sw := device.SoftwareInfo; sw != nil {
+		vitals.SecurityUpdateVersion = optionalVital(sw.SecurityPatchLevel)
+		vitals.DeviceKernelVersion = optionalVital(sw.DeviceKernelVersion)
+		vitals.BootloaderVersion = optionalVital(sw.BootloaderVersion)
+		if sw.SystemUpdateInfo != nil {
+			vitals.SystemUpdateStatus = optionalVital(reportedEnum(sw.SystemUpdateInfo.UpdateStatus))
+		}
+	}
+
+	if sp := device.SecurityPosture; sp != nil {
+		vitals.SecurityPosture = optionalVital(reportedEnum(sp.DevicePosture))
+		for _, detail := range sp.PostureDetails {
+			if detail == nil {
+				continue
+			}
+			// Only the default message of each piece of advice is kept: Fleet
+			// has no device locale to pick a localized variant with.
+			var advice []string
+			for _, msg := range detail.Advice {
+				if msg != nil && msg.DefaultMessage != "" {
+					advice = append(advice, msg.DefaultMessage)
+				}
+			}
+			risk := reportedEnum(detail.SecurityRisk)
+			if risk == "" && len(advice) == 0 {
+				continue
+			}
+			vitals.SecurityPostureDetails = append(vitals.SecurityPostureDetails, fleet.MDMAndroidPostureDetail{
+				SecurityRisk: risk,
+				Advice:       advice,
+			})
+		}
+	}
+
+	// AMAPI only reports telephonyInfos for fully managed devices, but Fleet
+	// gates on ownership itself rather than relying on that: a phone number is
+	// not something a personally-owned device should ever surface, and this
+	// also clears numbers left over from a company-owned enrollment if the
+	// device comes back as personally owned.
+	if ni := device.NetworkInfo; ni != nil && companyOwned {
+		for _, info := range ni.TelephonyInfos {
+			if info == nil {
+				continue
+			}
+			vitals.TelephonyInfos = append(vitals.TelephonyInfos, fleet.MDMAndroidTelephonyInfo{
+				PhoneNumber:     truncateVital(info.PhoneNumber),
+				CarrierName:     truncateVital(info.CarrierName),
+				ICCID:           truncateVital(info.IccId),
+				ActivationState: reportedEnum(info.ActivationState),
+				ConfigMode:      reportedEnum(info.ConfigMode),
+			})
+		}
+	}
+
+	return vitals
+}
+
+// optionalVital returns nil for the empty string, so that a value AMAPI didn't
+// report is stored as NULL rather than "", and truncates anything longer than
+// the column. The values come from the device, so an oversized one would
+// otherwise fail the whole status report under MySQL strict mode and leave the
+// host stuck retrying.
+func optionalVital(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return new(truncateVital(s))
+}
+
+func truncateVital(s string) string {
+	if len(s) > fleet.MDMAndroidDeviceVitalMaxLength {
+		return s[:fleet.MDMAndroidDeviceVitalMaxLength]
+	}
+	return s
+}
+
+// reportedEnum blanks out AMAPI's *_UNSPECIFIED sentinels, which mean "no data
+// for this field" rather than naming a state. They're common — every physical
+// SIM reports ACTIVATION_STATE_UNSPECIFIED, for instance — so storing them
+// would ship placeholder values the API consumer has to know to ignore.
+func reportedEnum(s string) string {
+	if strings.HasSuffix(s, "_UNSPECIFIED") {
+		return ""
+	}
+	return s
 }
 
 // androidOSVersion folds the Android version with the security patch level when
@@ -1221,6 +1343,11 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	fleetHost, err := svc.ds.NewAndroidHost(ctx, host, companyOwned)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+
+	vitals := androidDeviceVitals(device, companyOwned)
+	if err := svc.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, fleetHost.Host.UUID, vitals); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "setting Android host vitals")
 	}
 
 	// Populate the operating_systems table so the host can be filtered via

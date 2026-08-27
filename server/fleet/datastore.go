@@ -1312,6 +1312,15 @@ type Datastore interface {
 	// calling this for iOS/iPadOS hosts.
 	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
 
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
+	// LoadHostMDMAndroidDeviceVitals populates host's
+	// HostMDMAndroidDeviceVitals fields from host_mdm_android_device_vitals.
+	// Callers are responsible for only calling this for Android hosts.
+	LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *Host) error
+
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
@@ -4051,6 +4060,10 @@ type AndroidDatastore interface {
 	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
 	// AndroidResetOnReenrollment clears the stale state of a re-enrolling Android host:
 	// dynamic label membership, pending MDM commands and pending software installs.
 	// Manual, host-vitals and builtin label membership is preserved, as are the host's
