@@ -2848,7 +2848,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
-| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -2864,7 +2864,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
-> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, macOS Apple Silicon hosts will not be able to enroll.
+> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
 
 <br/>
 
