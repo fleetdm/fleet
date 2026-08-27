@@ -25,6 +25,7 @@ const ICONS = path.join(
   "frontend/pages/SoftwarePage/components/icons"
 );
 const PNG_DIR = path.join(ICONS, "png");
+const FRONTEND = path.join(REPO_ROOT, "frontend");
 const BARREL = path.join(ICONS, "index.ts");
 
 const EXPECTED = { width: 128, height: 128 };
@@ -140,19 +141,36 @@ for (const file of onDisk) {
 }
 
 // --- no going back to base64 -----------------------------------------------
-for (const file of fs.readdirSync(ICONS).filter((f) => f.endsWith(".tsx"))) {
-  const body = fs.readFileSync(path.join(ICONS, file), "utf8");
+// Scanned recursively, and across the whole frontend rather than just the icon
+// directory: an inlined image is bundle weight wherever it lives. Only the icon
+// directory blocks, because that is unambiguously an FMA icon regression —
+// elsewhere an inlined image may be deliberate, so it warns instead.
+const SOURCE_EXT = /\.(tsx|ts|jsx|js)$/;
+const sourceFiles = fs
+  .readdirSync(FRONTEND, { recursive: true })
+  .map((f) => path.join(FRONTEND, String(f)))
+  .filter((f) => SOURCE_EXT.test(f));
+
+for (const abs of sourceFiles) {
+  const body = fs.readFileSync(abs, "utf8");
   const hit = /data:image\/[a-z+]+;base64,/.exec(body);
   if (hit) {
-    // A .tsx has real lines, so point at the offending one — that lets the
-    // annotation render inline on the diff rather than only in the run summary.
+    const file = path.basename(abs);
+    const inIconDir = abs.startsWith(ICONS + path.sep);
+    // Source files have real lines, so point at the offending one — that lets
+    // the annotation render inline on the diff, not just in the run summary.
     const line = body.slice(0, hit.index).split("\n").length;
     report(
-      rel(path.join(ICONS, file)),
-      `${file}: embeds a base64 image. App icons belong in png/ as static ` +
-        `files — inlining one puts it back into the entry bundle for every ` +
-        `page load, which is the thing moving them out of JS fixed.`,
-      true,
+      rel(abs),
+      inIconDir
+        ? `${file}: embeds a base64 image. App icons belong in ` +
+            `${rel(PNG_DIR)} as static files — inlining one puts it back ` +
+            `into the entry bundle for every page load, which is the thing ` +
+            `moving them out of JS fixed.`
+        : `${file}: embeds a base64 image, so it ships in the entry bundle ` +
+            `on every page load. Import the file instead and let webpack ` +
+            `emit it, so only pages that render it pay for it.`,
+      inIconDir,
       line
     );
   }

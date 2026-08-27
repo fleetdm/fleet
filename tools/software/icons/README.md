@@ -60,7 +60,7 @@ every page load, and nothing else in the build would catch it.
 | **Palette PNG** (color type 3) | This is what `pngquant` produces, so it is the signal that quantization ran. An unquantized 128×128 RGBA icon is ~12 KB instead of ~3 KB. |
 | **Under 16 KB** | Every icon is a separate request. The current set averages 3.3 KB and peaks at 10.3 KB. |
 | **Imported by `index.ts`** | An icon on disk that nothing imports is never emitted — it is dead weight in git. |
-| **No base64 in any `.tsx`** — *fails CI* | Guards the whole arrangement: one inlined icon is one icon in every page load. |
+| **No base64-inlined images** — *fails CI inside the icon directory* | Guards the whole arrangement: one inlined icon is one icon in every page load. Scanned recursively across `frontend/`; a hit outside the icon directory warns rather than fails, since it may be deliberate there. |
 
 Two of these also fail the build on their own regardless of this check: an import with no matching
 file, and a map value that is not imported. Those break webpack and `tsc`.
