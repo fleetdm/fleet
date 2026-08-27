@@ -16,6 +16,7 @@ using_localhost() {
     fi
 }
 
+USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=
 if using_localhost "$FLEET_URL"; then
     USE_LOCALHOST_FLEET_SERVER_CERTIFICATE=1
 fi
