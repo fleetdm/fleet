@@ -493,7 +493,7 @@ func TestHostDetailsMDMAppleDiskEncryptionPerPlatformSettings(t *testing.T) {
 				return []fleet.HostMDMAppleProfile{*c.fvProf}, nil
 			}
 
-			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, fleet.HostDetailOptions{})
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, fleet.HostDetailOptions{})
 			require.NoError(t, err)
 			require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
 			ds.GetConfigEnableDiskEncryptionFuncInvoked = false
