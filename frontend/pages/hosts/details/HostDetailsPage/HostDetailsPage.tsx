@@ -112,6 +112,10 @@ import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
 
+import {
+  getDiskEncryptionSettings,
+  isMacOSDiskEncryptionEnforceOnly,
+} from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
@@ -1028,6 +1032,13 @@ const HostDetailsPage = ({
     [host]
   );
 
+  // enforce-only (macOS disk encryption on, escrow off) fleets never receive
+  // keys, so the disk encryption control drops its key phrasing
+  const hostFleetMdm = host?.team_id
+    ? teams?.find((team) => team.id === host.team_id)?.mdm
+    : config?.mdm;
+  const fleetDiskEncryptionSettings = getDiskEncryptionSettings(hostFleetMdm);
+
   const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
@@ -1760,6 +1771,9 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
+                      fleetDiskEncryptionSettings
+                    )}
                     router={router}
                   />
                 </TabPanel>

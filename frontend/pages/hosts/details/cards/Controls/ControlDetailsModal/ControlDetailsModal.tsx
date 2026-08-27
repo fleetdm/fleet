@@ -24,6 +24,8 @@ interface IControlDetailsModalProps {
   hostDisplayName: string;
   /** True on the My device page, which addresses the end user directly. */
   isDeviceUser?: boolean;
+  /** Fleet setting for macOS: disk encryption enforced without key escrow. */
+  isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
@@ -40,6 +42,7 @@ const ControlDetailsModal = ({
   control,
   hostDisplayName,
   isDeviceUser = false,
+  isMacOSDiskEncryptionEnforceOnly = false,
   canResendProfiles,
   canRotateRecoveryLockPassword,
   canResendHostNameTemplate,
@@ -78,6 +81,7 @@ const ControlDetailsModal = ({
           settingName: control.name,
           isDiskEncryptionProfile: isDiskEncryptionProfile(control.name),
           isDeviceUser,
+          isMacOSDiskEncryptionEnforceOnly,
           profileUUID: control.profile_uuid,
         });
   };
