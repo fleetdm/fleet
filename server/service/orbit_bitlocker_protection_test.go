@@ -13,8 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Fleet used to detect that a host was encrypted but unprotected, display it, and never act. These cover the gate that
-// decides whether the agent is asked to restore protection.
+// These tests cover the gate that decides whether the agent is asked to restore protection.
 func TestShouldEnableBitLockerProtection(t *testing.T) {
 	protectionOff := fleet.BitLockerProtectionStatusOff
 	protectionOn := fleet.BitLockerProtectionStatusOn
@@ -67,7 +66,6 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			wantNotified: true,
 		},
 		{
-			// The LEFT JOIN on host_disks yields NULLs when the host has never reported a disk.
 			name:       "host has not reported its disks yet",
 			encrypted:  nil,
 			protection: nil,
@@ -87,8 +85,6 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 	}
 }
 
-// Reporting an outcome must never touch host_disk_encryption_keys: that write path also owns base64_encrypted and
-// would blank the escrowed recovery key of the hosts that still need it.
 func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 	// recorder captures what reached the datastore, so each case asserts on values rather than only on invocation.
 	type recorder struct {
@@ -124,7 +120,6 @@ func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 		require.True(t, rec.errorSet)
 		require.Empty(t, rec.storedError)
 		// osquery owns the protection status, so the status flips on evidence rather than on the agent's assertion.
-		// Requesting the refetch with false would leave the host stuck at "Action required" until the next detail cycle.
 		require.NotNil(t, rec.refetchValue, "must request a refetch")
 		require.True(t, *rec.refetchValue)
 	})

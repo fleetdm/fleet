@@ -10745,7 +10745,7 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 
 	// The recorded protection reason is cleared by the same upsert that reports the status, so these cases pin which
 	// reported statuses clear it and which leave it alone.
-	ctx := context.Background()
+	ctx := t.Context()
 	readRow := func(hostID uint) (protectionError *string, updatedAt time.Time) {
 		var row struct {
 			BitLockerProtectionError *string   `db:"bitlocker_protection_error"`
@@ -10765,8 +10765,6 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 
 		stored, after := readRow(host.ID)
 		require.Nil(t, stored, "a host reporting protection on has nothing left to explain")
-		// The disk encryption status logic reads this timestamp, and the column's ON UPDATE clause does not fire when
-		// no value changes, so the statement must always write it.
 		require.True(t, after.After(before), "updated_at must advance on every report")
 	})
 
@@ -10792,17 +10790,7 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("insert path works for a host with no disks row", func(t *testing.T) {
-		fresh, err := ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         new("no-disks-row"),
-			UUID:            "no-disks-row",
-			OsqueryHostID:   new("no-disks-row"),
-			Hostname:        "no-disks-row.local",
-		})
-		require.NoError(t, err)
+		fresh := test.NewHost(t, ds, "no-disks-row.local", "1.1.1.1", "no-disks-row", "no-disks-row", time.Now())
 
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, fresh.ID, true, new(fleet.BitLockerProtectionStatusOn)))
 
