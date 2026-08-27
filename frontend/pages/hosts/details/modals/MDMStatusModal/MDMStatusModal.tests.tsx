@@ -79,6 +79,7 @@ describe("MDMStatusModal - component", () => {
         hostId={3}
         enrollmentStatus="On (manual)"
         router={mockRouter}
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -101,6 +102,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier={false}
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -116,6 +118,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice={false}
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -136,6 +139,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -164,6 +168,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -199,6 +204,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -231,6 +237,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -253,6 +260,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -281,6 +289,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -308,6 +317,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -338,6 +348,7 @@ describe("MDMStatusModal - component", () => {
         isPremiumTier
         isAppleDevice
         depProfileError
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -371,6 +382,7 @@ describe("MDMStatusModal - component", () => {
         isPremiumTier
         isAppleDevice
         depProfileError
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -403,6 +415,7 @@ describe("MDMStatusModal - component", () => {
         hostId={3}
         enrollmentStatus="On (manual)"
         router={router}
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -437,6 +450,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -463,6 +477,7 @@ describe("MDMStatusModal - component", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
         onExit={onExit}
@@ -477,9 +492,18 @@ describe("MDMStatusModal - component", () => {
 describe("MDMStatusModal - MDM check-in", () => {
   const LAST_CHECK_IN = "2026-02-10T18:30:00Z";
 
-  // Both roles are exercised because the check-in action is expected to become
-  // permission-gated at maintainer-or-higher; observers are deliberately not
-  // covered here, since their behavior isn't decided yet.
+  // The check-in action is gated at maintainer-or-higher, and the modal reads
+  // the role off its `user` prop rather than app context -- so cases that
+  // exercise the gate have to set both.
+  const MAINTAINER = createMockUser({
+    role: "maintainer",
+    global_role: "maintainer",
+  });
+  const OBSERVER = createMockUser({
+    role: "observer",
+    global_role: "observer",
+  });
+
   const renderAsAdmin = createCustomRenderer({
     withBackendMock: true,
     context: {
@@ -495,10 +519,7 @@ describe("MDMStatusModal - MDM check-in", () => {
     context: {
       app: {
         isGlobalMaintainer: true,
-        currentUser: createMockUser({
-          role: "maintainer",
-          global_role: "maintainer",
-        }),
+        currentUser: MAINTAINER,
       },
     },
   });
@@ -514,6 +535,7 @@ describe("MDMStatusModal - MDM check-in", () => {
         router={mockRouter}
         isPremiumTier
         isAppleDevice
+        user={createMockUser()}
         lastMDMCheckIn={LAST_CHECK_IN}
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
@@ -581,7 +603,10 @@ describe("MDMStatusModal - MDM check-in", () => {
     (hostAPI.apnsPing as jest.Mock).mockResolvedValue({});
     const onSuccessfulCheckIn = jest.fn();
 
-    const { user } = renderModal(renderAsMaintainer, { onSuccessfulCheckIn });
+    const { user } = renderModal(renderAsMaintainer, {
+      user: MAINTAINER,
+      onSuccessfulCheckIn,
+    });
 
     await user.click(
       await screen.findByRole("button", { name: /check in now/i })
@@ -650,6 +675,32 @@ describe("MDMStatusModal - MDM check-in", () => {
       expect(hostAPI.apnsPing).toHaveBeenCalled();
     });
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("only offers 'Check in now' to a maintainer or higher", async () => {
+    const CHECK_IN_BUTTON = { name: /check in now/i };
+
+    // Global admin and global maintainer can ping; a global observer sees the
+    // check-in time but gets no button.
+    const { unmount } = renderModal(renderAsAdmin);
+    expect(
+      await screen.findByRole("button", CHECK_IN_BUTTON)
+    ).toBeInTheDocument();
+    unmount();
+
+    const { unmount: unmountMaintainer } = renderModal(renderAsMaintainer, {
+      user: MAINTAINER,
+    });
+    expect(
+      await screen.findByRole("button", CHECK_IN_BUTTON)
+    ).toBeInTheDocument();
+    unmountMaintainer();
+
+    renderModal(renderAsAdmin, { user: OBSERVER });
+    expect(await screen.findByText("Last MDM check-in")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", CHECK_IN_BUTTON)
+    ).not.toBeInTheDocument();
   });
 
   it("still navigates to filtered hosts when the MDM status row is clicked", async () => {

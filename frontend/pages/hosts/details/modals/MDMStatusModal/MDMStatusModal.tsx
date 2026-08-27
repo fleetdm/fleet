@@ -35,6 +35,8 @@ import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IconNames } from "components/icons";
 import { notify } from "components/ToastNotification";
+import { IUser } from "interfaces/user";
+import permissions from "utilities/permissions";
 
 const baseClass = "mdm-status-modal";
 
@@ -48,6 +50,7 @@ interface IMDMStatusModal {
   isAppleDevice?: boolean;
   lastMDMCheckIn: string;
   onSuccessfulCheckIn: () => void;
+  user: IUser | null;
   onExit: () => void;
 }
 
@@ -154,6 +157,7 @@ interface IProfileRowItem {
 const MDMStatusModal = ({
   fleetId,
   hostId,
+  user,
   enrollmentStatus,
   depProfileError = false,
   isPremiumTier = false,
@@ -280,7 +284,9 @@ const MDMStatusModal = ({
         {isAppleDevice &&
           !(["Off", "Pending"] as MdmEnrollmentStatus[]).includes(
             enrollmentStatus
-          ) && (
+          ) &&
+          (permissions.isTeamMaintainerOrTeamAdmin(user, fleetId ?? null) ||
+            permissions.isGlobalMaintainerOrGlobalAdmin(user)) && (
             <Button
               onClick={handleClickCheckInNow}
               icon="refresh"

@@ -32,12 +32,12 @@ export const isEndUserIdPConfigured = (config: IConfig): boolean => {
   );
 };
 
-export const isGlobalAdmin = (user: IUser): boolean => {
-  return user.global_role === "admin";
+export const isGlobalAdmin = (user: IUser | null): boolean => {
+  return user?.global_role === "admin";
 };
 
-export const isGlobalMaintainer = (user: IUser): boolean => {
-  return user.global_role === "maintainer";
+export const isGlobalMaintainer = (user: IUser | null): boolean => {
+  return user?.global_role === "maintainer";
 };
 
 export const isGlobalObserver = (user: IUser): boolean => {
@@ -107,6 +107,10 @@ const isTeamMaintainerOrTeamAdmin = (
 ): boolean => {
   const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "admin" || userTeamRole === "maintainer";
+};
+
+const isGlobalMaintainerOrGlobalAdmin = (user: IUser | null): boolean => {
+  return isGlobalMaintainer(user) || isGlobalAdmin(user);
 };
 
 // This checks against all teams
@@ -250,6 +254,7 @@ export default {
   isTeamObserverPlus,
   isTeamMaintainer,
   isTeamMaintainerOrTeamAdmin,
+  isGlobalMaintainerOrGlobalAdmin,
   isAnyTeamObserverPlus,
   isAnyTeamMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,

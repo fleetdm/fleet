@@ -777,11 +777,12 @@ const HostDetailsPage = ({
       setShowRefetchSpinner(true);
 
       // Trigger APNS ping independently
-      // TODO: Should be gated by maintainer or higher?
       if (
         isAppleDevice(host.platform) &&
         host.mdm.enrollment_status !== "Off" &&
-        host.mdm.enrollment_status !== "Pending"
+        host.mdm.enrollment_status !== "Pending" &&
+        (permissions.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id) ||
+          permissions.isGlobalMaintainerOrGlobalAdmin(currentUser))
       ) {
         hostAPI.apnsPing(host.id).catch((error) => {
           notify.error("Failed to send APNS ping", { response: error });
@@ -2230,6 +2231,7 @@ const HostDetailsPage = ({
             isAppleDevice={isAppleDeviceHost}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             onSuccessfulCheckIn={refetchHostDetails}
+            user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}
           />
