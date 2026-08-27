@@ -1102,7 +1102,6 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./png/Windsurf.png";
-import WineStable from "./png/WineStable.png";
 import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
@@ -1145,9 +1144,6 @@ import Zoom from "./Zoom";
 import ZoomOutlookPlugin from "./png/ZoomOutlookPlugin.png";
 import ZoomRooms from "./png/ZoomRooms.png";
 import Zotero from "./png/Zotero.png";
-import Demolegacyicon from "./Demolegacyicon";
-import Demounquantized from "./png/Demounquantized.png";
-import Demowrongsize from "./png/Demowrongsize.png";
 import Zulip from "./png/Zulip.png";
 import Zwift from "./png/Zwift.png";
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -2282,7 +2278,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
-  "wine stable": WineStable,
   winlogbeat: Winlogbeat,
   winrar: Winrar,
   wins: Wins,
@@ -2322,9 +2317,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
-  demolegacyicon: Demolegacyicon,
-  demounquantized: Demounquantized,
-  demowrongsize: Demowrongsize,
   zulip: Zulip,
   zwift: Zwift,
 } as const;
