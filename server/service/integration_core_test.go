@@ -1215,7 +1215,7 @@ func (s *integrationTestSuite) TestTranslator() {
 
 func (s *integrationTestSuite) TestSoftwareChecksumReconciliation() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	newHost := func(suffix string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
