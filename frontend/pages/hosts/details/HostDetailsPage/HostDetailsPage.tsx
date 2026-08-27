@@ -775,6 +775,19 @@ const HostDetailsPage = ({
       // unless there is an error. The spinner state is also controlled in the fullyReloadHost
       // method.
       setShowRefetchSpinner(true);
+
+      // Trigger APNS ping independently
+      // TODO: Should be gated by maintainer or higher?
+      if (
+        isAppleDevice(host.platform) &&
+        host.mdm.enrollment_status !== "Off" &&
+        host.mdm.enrollment_status !== "Pending"
+      ) {
+        hostAPI.apnsPing(host.id).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
+
       try {
         await hostAPI.refetch(host).then(() => {
           setRefetchStartTime(Date.now());
@@ -2215,6 +2228,8 @@ const HostDetailsPage = ({
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
             isAppleDevice={isAppleDeviceHost}
+            lastMDMCheckIn={host.last_mdm_checked_in_at}
+            onSuccessfulCheckIn={refetchHostDetails}
             router={router}
             onExit={toggleMDMStatusModal}
           />

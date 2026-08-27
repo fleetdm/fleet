@@ -537,6 +537,18 @@ const DeviceUserPage = ({
   const onRefetchHost = useCallback(async () => {
     if (!host) return;
     setShowRefetchSpinner(true);
+
+    // Trigger APNS ping independently of the main refetch
+    if (
+      isAppleDevice(host.platform) &&
+      host.mdm.enrollment_status !== "Off" &&
+      host.mdm.enrollment_status !== "Pending"
+    ) {
+      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+        notify.error("Failed to send APNS ping", { response: error });
+      });
+    }
+
     try {
       await deviceUserAPI.refetch(deviceAuthToken);
       setRefetchStartTime(Date.now());
