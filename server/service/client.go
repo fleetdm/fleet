@@ -2207,6 +2207,14 @@ func allGoogleWorkspaceEntriesEmpty(entries []any) bool {
 	return true
 }
 
+func defaultUnsetToFalse(settings ...*optjson.Bool) {
+	for _, s := range settings {
+		if !s.Valid {
+			*s = optjson.SetBool(false)
+		}
+	}
+}
+
 // DoGitOps applies the GitOps config to Fleet.
 func (c *Client) DoGitOps(
 	ctx context.Context,
@@ -2858,6 +2866,25 @@ func (c *Client) DoGitOps(
 				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
 			}
 		}
+
+		// A disk encryption setting the file omits is off. The
+		// deprecated flat key fans out to the per-platform settings
+		// server-side, so those are left absent when it is present but
+		// defaulted off when it is not.
+		if incoming.Controls.EnableDiskEncryption == nil {
+			defaultUnsetToFalse(
+				&macOSSettings.EnableDiskEncryption,
+				&macOSSettings.EnableEscrowDiskEncryptionKey,
+				&windowsSettings.EnableDiskEncryption,
+				&linuxSettings.EnableEscrowDiskEncryptionKey,
+			)
+		}
+		if incoming.Controls.RequireBitLockerPIN == nil {
+			defaultUnsetToFalse(&windowsSettings.RequireBitLockerPIN)
+		}
+		mdmAppConfig["macos_settings"] = macOSSettings
+		mdmAppConfig["windows_settings"] = windowsSettings
+		mdmAppConfig["linux_settings"] = linuxSettings
 
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
 
