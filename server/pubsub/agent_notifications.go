@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -121,16 +122,25 @@ func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(Age
 	if err := psc.Subscribe(agentNotificationsChannel); err != nil {
 		return ctxerr.Wrap(ctx, err, "subscribe to agent notifications channel")
 	}
-	defer psc.Unsubscribe(agentNotificationsChannel) //nolint:errcheck
 	onSubscribed()
 
-	// Close the connection when ctx is done to unblock ReceiveWithTimeout.
 	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// the conn must not be closed (deferred above) while the unsubscribe may still be writing
+	defer wg.Wait()
 	defer close(done)
 	go func() {
+		defer wg.Done()
 		select {
 		case <-ctx.Done():
-			_ = conn.Close()
+			// Unsubscribe when ctx is done to unblock ReceiveWithTimeout: redigo allows one
+			// concurrent sender and one receiver on a conn, but closing a pooled conn while
+			// another goroutine receives on it races. Closing is the fallback if the
+			// unsubscribe itself cannot be sent, as the conn is already broken then.
+			if err := psc.Unsubscribe(agentNotificationsChannel); err != nil {
+				_ = conn.Close()
+			}
 		case <-done:
 		}
 	}()
@@ -147,7 +157,10 @@ func (n *RedisAgentNotifier) subscribeOnce(ctx context.Context, deliver func(Age
 		case error:
 			return ctxerr.Wrap(ctx, msg, "receive agent notification")
 		case redigo.Subscription:
-			// Subscribe/unsubscribe confirmations; nothing to do.
+			// Count reaches 0 once the ctx-done unsubscribe is confirmed.
+			if msg.Count == 0 {
+				return nil
+			}
 		}
 	}
 }
