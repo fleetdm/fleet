@@ -211,6 +211,23 @@ func TestWritePathInvalidation(t *testing.T) {
 			}
 		})
 
+		t.Run("FlushHostCacheByIDs invalidates every host in the batch", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-flush-a", "nk-flush-b", "nk-flush-c"}
+			ids := []uint{20, 21, 22}
+			for i, nk := range nks {
+				primeCachedHost(t, d, ids[i], nk)
+			}
+
+			require.NoError(t, d.FlushHostCacheByIDs(ctx, ids))
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
 		t.Run("NewHost clears stale negative cache for new node_key", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			nk := "nk-new-with-neg"
