@@ -248,12 +248,8 @@ jobs:
             Write-Host "Firefox not found in registry"
           }
 
-          # helper.exe relaunches itself as Un_A.exe and returns immediately, so
-          # Start-Process -Wait above does not cover the real uninstall. Wait for
-          # the uninstaller and its children to finish before cleaning up, or the
-          # kills/deletes below interrupt it and leave state (keyed to the
-          # C:\Program Files\Mozilla Firefox install hash) that wedges the Firefox
-          # ESR uninstall later in the run.
+          # helper.exe respawns as Un_A.exe and returns immediately; wait for the
+          # real uninstall to finish or the cleanup below interrupts it mid-run.
           Write-Host "Waiting for the Firefox uninstaller to finish..."
           $deadline = (Get-Date).AddSeconds(120)
           while ((Get-Date) -lt $deadline) {
@@ -271,9 +267,7 @@ jobs:
 
           Start-Sleep -Seconds 10
 
-          # Force-remove leftover Firefox directories, per-user/per-machine state,
-          # registry keys, and scheduled tasks so the Firefox flavors validated
-          # later start from a clean machine.
+          # Remove leftover Firefox state so later-validated flavors start clean
           $firefoxDirs = @(
             "C:\Program Files\Mozilla Firefox",
             "C:\Program Files (x86)\Mozilla Firefox",
