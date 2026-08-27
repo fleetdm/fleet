@@ -360,6 +360,12 @@ func (c DiskEncryptionConfig) AllEnabled() bool {
 	return c.MacOSEnabled && c.MacOSEscrowEnabled && c.WindowsEnabled && c.LinuxEscrowEnabled
 }
 
+// MacOSEnforceOnly reports whether FileVault is enforced without key escrow;
+// disk encryption status then follows the reported disk state, not the key.
+func (c DiskEncryptionConfig) MacOSEnforceOnly() bool {
+	return c.MacOSEnabled && !c.MacOSEscrowEnabled
+}
+
 // MacOSDiskEncryptionSettingsPayload is the macos_settings object accepted by
 // POST /disk_encryption. Nil fields mean "don't change".
 type MacOSDiskEncryptionSettingsPayload struct {

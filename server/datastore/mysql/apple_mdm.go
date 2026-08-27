@@ -3314,13 +3314,28 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	return err
 }
 
+// fileVaultVerificationPredicates returns the SQL for whether encryption is
+// confirmed once the FileVault profile is delivered: from the escrowed key
+// (hdek) or, when enforcing without escrow, from the reported disk state (hd).
+// Mirrors MDMHostData.keyVerification / diskVerification.
+func fileVaultVerificationPredicates(enforceOnly bool) (confirmed, notConfirmed, unknown string) {
+	if enforceOnly {
+		return `hd.encrypted = 1`, `hd.encrypted = 0`, `hd.encrypted IS NULL`
+	}
+	return `hdek.decryptable = 1`,
+		`(hdek.host_id IS NULL OR hdek.decryptable = 0)`,
+		// key present, not yet checked by the cron
+		`(hdek.host_id IS NOT NULL AND hdek.decryptable IS NULL)`
+}
+
 // sqlCaseMDMAppleStatus returns a SQL snippet that can be used to determine the status of a host
 // based on the status of its profiles, declarations, filevault status, recovery lock status, and host-name
 // template status. It should be used in conjunction with sqlJoinMDMAppleProfilesStatus,
 // sqlJoinMDMAppleDeclarationsStatus, sqlJoinRecoveryLockStatus, and sqlJoinDeviceNameStatus (all four joins are
 // required — omitting any one leaves a referenced column, e.g. dn_failed, undefined). It assumes the
-// hosts table to be aliased as 'h' and the host_disk_encryption_keys table to be aliased as 'hdek'.
-func sqlCaseMDMAppleStatus() string {
+// hosts, host_disk_encryption_keys and host_disks tables to be aliased as 'h', 'hdek' and 'hd'.
+// enforceOnly selects the fileVaultVerificationPredicates.
+func sqlCaseMDMAppleStatus(enforceOnly bool) string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
 	var (
@@ -3329,6 +3344,7 @@ func sqlCaseMDMAppleStatus() string {
 		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
 		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 	)
+	fvConfirmed, fvNotConfirmed, fvUnknown := fileVaultVerificationPredicates(enforceOnly)
 	return `
 	CASE WHEN (prof_failed
 		OR decl_failed
@@ -3341,30 +3357,29 @@ func sqlCaseMDMAppleStatus() string {
 		OR rl_pending
 		OR dn_pending
 		-- special case for filevault, it's pending if the profile is
-		-- pending OR the profile is verified or verifying but we still
-		-- don't have an encryption key.
+		-- pending OR the profile is delivered but encryption is not confirmed
 		OR(fv_pending
 			OR((fv_verifying
 				OR fv_verified)
-			AND (hdek.base64_encrypted IS NULL OR (hdek.decryptable IS NOT NULL AND hdek.decryptable != 1))))) THEN
+			AND ` + fvNotConfirmed + `))) THEN
 		` + pending + `
 	WHEN (prof_verifying
 		OR decl_verifying
 		OR rl_verifying
 		OR dn_verifying
-		-- special case when fv profile is verifying, and we already have an encryption key, in any state, we treat as verifying
+		-- fv profile verifying and encryption confirmed or unknown
 		OR(fv_verifying
-			AND hdek.base64_encrypted IS NOT NULL AND (hdek.decryptable IS NULL OR hdek.decryptable = 1))
-		-- special case when fv profile is verified, but we didn't verify the encryption key, we treat as verifying
+			AND (` + fvUnknown + ` OR ` + fvConfirmed + `))
+		-- fv profile verified but encryption unknown
 		OR(fv_verified
-			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable IS NULL)) THEN
+			AND ` + fvUnknown + `)) THEN
 		` + verifying + `
 	WHEN (prof_verified
 		OR decl_verified
 		OR rl_verified
 		OR dn_verified
 		OR(fv_verified
-			AND hdek.base64_encrypted IS NOT NULL AND hdek.decryptable = 1)) THEN
+			AND ` + fvConfirmed + `)) THEN
 		` + verified + `
 	END
 `
@@ -3500,6 +3515,11 @@ func sqlJoinMDMAppleDeclarationsStatus() string {
 }
 
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get disk encryption settings for profiles summary")
+	}
+
 	stmt := `
 SELECT
 	COUNT(id) AS count,
@@ -3511,6 +3531,7 @@ FROM
 	%s
 	%s
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+	LEFT JOIN host_disks hd ON h.id = hd.host_id
 WHERE
 	platform IN('darwin', 'ios', 'ipados') AND %s
 GROUP BY
@@ -3521,7 +3542,7 @@ GROUP BY
 		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
 	}
 
-	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), sqlJoinDeviceNameStatus(), teamFilter)
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()), sqlJoinMDMAppleProfilesStatus(), sqlJoinMDMAppleDeclarationsStatus(), sqlJoinRecoveryLockStatus(), sqlJoinDeviceNameStatus(), teamFilter)
 
 	var dest []struct {
 		Count  uint   `db:"count"`
@@ -3599,18 +3620,11 @@ func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*
 	return &acct, nil
 }
 
-func subqueryFileVaultVerifying() (string, []interface{}) {
-	// A host is "verifying" when the FileVault profile is verifying or verified and
-	// a key row exists with decryptability not yet confirmed (decryptable IS NULL),
-	// or when the profile is verifying and the key is decryptable. The previous
-	// version only matched the verified-status branch, missing the equivalent
-	// verifying-status case that PopulateOSSettingsAndMacOSSettings (server/fleet/
-	// hosts.go) reports as Verifying. See https://github.com/fleetdm/fleet/issues/45369.
-	//
-	// Note: hdek.host_id IS NOT NULL distinguishes "row exists with NULL decryptable"
-	// from "no key row at all" — the latter is intentionally not matched here because
-	// raw_decryptable is mapped to -1 for missing rows (see server/datastore/mysql/
-	// hosts.go), and the Go logic classifies that as Action Required.
+func subqueryFileVaultVerifying(enforceOnly bool) (string, []any) {
+	// profile delivered and encryption unknown, or profile verifying and
+	// encryption confirmed — mirrors PopulateOSSettingsAndMacOSSettings, see
+	// https://github.com/fleetdm/fleet/issues/45369
+	confirmed, _, unknown := fileVaultVerificationPredicates(enforceOnly)
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3619,9 +3633,9 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND hmap.operation_type = ?
                 AND (
-		  (hmap.status IN (?, ?) AND hdek.decryptable IS NULL AND hdek.host_id IS NOT NULL)
+		  (hmap.status IN (?, ?) AND ` + unknown + `)
 		  OR
-		  (hmap.status = ? AND hdek.decryptable = 1)
+		  (hmap.status = ? AND ` + confirmed + `)
 		)`
 	args := []interface{}{
 		mobileconfig.FleetFileVaultPayloadIdentifier, // profile_identifier
@@ -3633,13 +3647,14 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryFileVaultVerified() (string, []interface{}) {
+func subqueryFileVaultVerified(enforceOnly bool) (string, []any) {
+	confirmed, _, _ := fileVaultVerificationPredicates(enforceOnly)
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
-                AND hdek.decryptable = 1
+                AND ` + confirmed + `
                 AND hmap.profile_identifier = ?
                 AND hmap.status = ?
                 AND hmap.operation_type = ?`
@@ -3651,14 +3666,14 @@ func subqueryFileVaultVerified() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryFileVaultActionRequired() (string, []interface{}) {
+func subqueryFileVaultActionRequired(enforceOnly bool) (string, []any) {
+	_, notConfirmed, _ := fileVaultVerificationPredicates(enforceOnly)
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
             WHERE
                 h.uuid = hmap.host_uuid
-                AND(hdek.decryptable = 0
-                    OR (hdek.host_id IS NULL AND hdek.decryptable IS NULL))
+                AND ` + notConfirmed + `
                 AND hmap.profile_identifier = ?
                 AND (hmap.status = ? OR hmap.status = ?)
                 AND hmap.operation_type = ?`
@@ -3715,6 +3730,12 @@ func subqueryFileVaultRemovingEnforcement() (string, []interface{}) {
 }
 
 func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get disk encryption settings for filevault summary")
+	}
+	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
+
 	sqlFmt := `
 SELECT
     COUNT(
@@ -3744,17 +3765,18 @@ SELECT
 FROM
     hosts h
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+    LEFT JOIN host_disks hd ON h.id = hd.host_id
 	LEFT JOIN host_mdm hm ON h.id = hm.host_id
 	LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
 WHERE
     h.platform = 'darwin' AND ne.id IS NOT NULL AND hm.enrolled = 1 AND %s`
 
 	var args []interface{}
-	subqueryVerified, subqueryVerifiedArgs := subqueryFileVaultVerified()
+	subqueryVerified, subqueryVerifiedArgs := subqueryFileVaultVerified(enforceOnly)
 	args = append(args, subqueryVerifiedArgs...)
-	subqueryVerifying, subqueryVerifyingArgs := subqueryFileVaultVerifying()
+	subqueryVerifying, subqueryVerifyingArgs := subqueryFileVaultVerifying(enforceOnly)
 	args = append(args, subqueryVerifyingArgs...)
-	subqueryActionRequired, subqueryActionRequiredArgs := subqueryFileVaultActionRequired()
+	subqueryActionRequired, subqueryActionRequiredArgs := subqueryFileVaultActionRequired(enforceOnly)
 	args = append(args, subqueryActionRequiredArgs...)
 	subqueryEnforcing, subqueryEnforcingArgs := subqueryFileVaultEnforcing()
 	args = append(args, subqueryEnforcingArgs...)
@@ -3772,8 +3794,7 @@ WHERE
 	stmt := fmt.Sprintf(sqlFmt, subqueryVerified, subqueryVerifying, subqueryActionRequired, subqueryEnforcing, subqueryFailed, subqueryRemovingEnforcement, teamFilter)
 
 	var res fleet.MDMAppleFileVaultSummary
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...)
-	if err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
 		return nil, err
 	}
 

@@ -1035,6 +1035,33 @@ software:
 
 	// A controls block carrying none of these keys used to panic on the
 	// apple_settings type assertion.
+	// GitOps is declarative: settings the file omits are turned off rather than
+	// left at their stored values.
+	t.Run("clears the settings the file omits", func(t *testing.T) {
+		_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+		mdm := &(*savedAppConfigPtr).MDM
+		mdm.EnableDiskEncryption = optjson.SetBool(true)
+		mdm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+		mdm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+		mdm.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
+		mdm.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
+		mdm.RequireBitLockerPIN = optjson.SetBool(true)
+		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+
+		mdm = &(*savedAppConfigPtr).MDM
+		require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+		require.False(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.False(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+		require.False(t, mdm.WindowsSettings.RequireBitLockerPIN.Value)
+		require.False(t, mdm.RequireBitLockerPIN.Value)
+		require.False(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+		require.False(t, mdm.EnableDiskEncryption.Value)
+	})
+
 	t.Run("accepts a controls block with no disk encryption keys", func(t *testing.T) {
 		testing_utils.SetupFullGitOpsPremiumServer(t)
 		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
