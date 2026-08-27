@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,5 +106,39 @@ func TestCorrelate(t *testing.T) {
 	}
 	if !gotProcess {
 		t.Error("undeclared running MCP server (mcp-server-weather) not discovered")
+	}
+}
+
+// TestCorrelateInlineEvalLauncher guards against the claude-mem bug: a
+// launcher invoked as `node -e "<script>"` has its script body joined into
+// Cmdline as if it were several separate arguments, so naively re-splitting
+// Cmdline on whitespace shreds the script into arbitrary JS fragments. With
+// CmdlineSlice preserving the true argv boundaries, the -e script is one
+// element and the launcher filename can still be recovered from it.
+func TestCorrelateInlineEvalLauncher(t *testing.T) {
+	script := `(function(){const p=require('path');const s=p.join(__dirname,'.claude-mem','mcp-server.cjs');require(s).start();})()`
+	argv := []string{"node", "-e", script}
+	snap := &proc.Snapshot{Procs: map[int]proc.Process{
+		99: {PID: 99, Name: "node", Cmdline: strings.Join(argv, " "), CmdlineSlice: argv},
+	}}
+
+	out := Correlate(nil, snap)
+	if len(out) != 1 {
+		t.Fatalf("expected 1 heuristic server row, got %d: %+v", len(out), out)
+	}
+	got := out[0].ServerName
+	if got != "mcp-server.cjs" {
+		t.Errorf("ServerName = %q, want %q (must not be a raw JS code fragment)", got, "mcp-server.cjs")
+	}
+	if strings.ContainsAny(got, "(){};=") {
+		t.Errorf("ServerName %q looks like a code fragment, not a clean name", got)
+	}
+
+	var args []string
+	if err := json.Unmarshal([]byte(out[0].Args), &args); err != nil {
+		t.Fatalf("Args is not valid JSON: %v (%q)", err, out[0].Args)
+	}
+	if len(args) != 2 || args[0] != "-e" || args[1] != script {
+		t.Errorf("Args = %v, want [\"-e\", %q] as two elements, not shredded on whitespace", args, script)
 	}
 }
