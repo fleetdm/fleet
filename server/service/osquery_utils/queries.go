@@ -3018,7 +3018,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
@@ -3103,7 +3103,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
