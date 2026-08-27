@@ -652,6 +652,10 @@ module.exports.routes = {
     }
   },
 
+  'GET /configuration-generator': {
+    action: 'view-configuration-generator'
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -931,6 +935,7 @@ module.exports.routes = {
   'GET /guides/sysadmin-diaries-lost-device': (req, res) => { return res.redirect(301, '/guides/lock-wipe-hosts'); },
   'GET /guides/teams': (req, res) => { return res.redirect(301, '/guides/fleets'); },
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
+  'GET /guides/configuration-profiles': '/guides/custom-os-settings',
   'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /guides/install-fleet-maintained-apps-on-macos-hosts': '/guides/fleet-maintained-apps',
   'GET /guides/queries': '/guides/reports',
@@ -1078,7 +1083,7 @@ module.exports.routes = {
   'GET /software-catalog/imazing': '/software-catalog/imazing-darwin',
   'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-darwin',
   'GET /software-catalog/insomnia': '/software-catalog/insomnia-darwin',
-  'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-ce-darwin',
+  'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/intellij-idea': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/little-snitch': '/software-catalog/little-snitch-darwin',
   'GET /software-catalog/intune-company-portal': '/software-catalog/intune-company-portal-darwin',

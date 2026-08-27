@@ -578,8 +578,6 @@ type CleanupSoftwareTitlesFunc func(ctx context.Context) error
 
 type SyncHostsSoftwareTitlesFunc func(ctx context.Context, updatedAt time.Time) error
 
-type ReconcileSoftwareChecksumsFunc func(ctx context.Context) error
-
 type HostVulnSummariesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error)
@@ -674,7 +672,9 @@ type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, script
 
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
-type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int) (int, error)
+type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error)
+
+type ReleaseFleetInitiatedUpcomingActivitiesFunc func(ctx context.Context, maxHosts int) (int, error)
 
 type ReapStuckActivatedMDMInstallsFunc func(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error)
 
@@ -1033,6 +1033,8 @@ type DeleteMDMAppleDeclarationByNameFunc func(ctx context.Context, teamID *uint,
 type BulkDeleteMDMAppleHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error
 
 type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) error
+
+type UpsertMDMAppleFleetConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) error
 
 type GetHostMDMAppleProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
@@ -1422,6 +1424,10 @@ type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDe
 
 type MDMWindowsEnqueuePollScheduleCommandFunc func(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool) error
 
+type SetMDMWindowsEnrollmentLoginStatusFunc func(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error
+
+type GetMDMWindowsUserContextByHostUUIDFunc func(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error)
+
 type SetMDMWindowsEnrollmentFleetdSyncCapableFunc func(ctx context.Context, hostUUID string, capable bool) error
 
 type SetMDMWindowsManagedLocalAccountEscrowedFunc func(ctx context.Context, hostUUID string, escrowed bool) (changed bool, err error)
@@ -1484,7 +1490,7 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
-type SetMDMWindowsHostProfileFailedFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+type SetMDMWindowsHostProfileFailedOrRetryFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error)
 
@@ -1792,7 +1798,7 @@ type DeleteExpiredInHouseAppInstallTokensFunc func(ctx context.Context) (int64, 
 
 type CleanupUnusedSoftwareTitleIconsFunc func(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
-type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
+type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error)
 
 type BatchSetInHouseAppsInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
@@ -1936,6 +1942,8 @@ type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID strin
 
 type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
+type ResendWindowsHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
+
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error)
 
 type CreateSecretVariableFunc func(ctx context.Context, name string, value string) (id uint, err error)
@@ -2045,6 +2053,8 @@ type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
 type InsertMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+type GetMDMAndroidCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
 
@@ -3188,9 +3198,6 @@ type DataStore struct {
 	SyncHostsSoftwareTitlesFunc        SyncHostsSoftwareTitlesFunc
 	SyncHostsSoftwareTitlesFuncInvoked bool
 
-	ReconcileSoftwareChecksumsFunc        ReconcileSoftwareChecksumsFunc
-	ReconcileSoftwareChecksumsFuncInvoked bool
-
 	HostVulnSummariesBySoftwareIDsFunc        HostVulnSummariesBySoftwareIDsFunc
 	HostVulnSummariesBySoftwareIDsFuncInvoked bool
 
@@ -3334,6 +3341,9 @@ type DataStore struct {
 
 	UnblockHostsUpcomingActivityQueueFunc        UnblockHostsUpcomingActivityQueueFunc
 	UnblockHostsUpcomingActivityQueueFuncInvoked bool
+
+	ReleaseFleetInitiatedUpcomingActivitiesFunc        ReleaseFleetInitiatedUpcomingActivitiesFunc
+	ReleaseFleetInitiatedUpcomingActivitiesFuncInvoked bool
 
 	ReapStuckActivatedMDMInstallsFunc        ReapStuckActivatedMDMInstallsFunc
 	ReapStuckActivatedMDMInstallsFuncInvoked bool
@@ -3871,6 +3881,9 @@ type DataStore struct {
 
 	DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc        DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc
 	DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
+
+	UpsertMDMAppleFleetConfigProfileFunc        UpsertMDMAppleFleetConfigProfileFunc
+	UpsertMDMAppleFleetConfigProfileFuncInvoked bool
 
 	GetHostMDMAppleProfilesFunc        GetHostMDMAppleProfilesFunc
 	GetHostMDMAppleProfilesFuncInvoked bool
@@ -4454,6 +4467,12 @@ type DataStore struct {
 	MDMWindowsEnqueuePollScheduleCommandFunc        MDMWindowsEnqueuePollScheduleCommandFunc
 	MDMWindowsEnqueuePollScheduleCommandFuncInvoked bool
 
+	SetMDMWindowsEnrollmentLoginStatusFunc        SetMDMWindowsEnrollmentLoginStatusFunc
+	SetMDMWindowsEnrollmentLoginStatusFuncInvoked bool
+
+	GetMDMWindowsUserContextByHostUUIDFunc        GetMDMWindowsUserContextByHostUUIDFunc
+	GetMDMWindowsUserContextByHostUUIDFuncInvoked bool
+
 	SetMDMWindowsEnrollmentFleetdSyncCapableFunc        SetMDMWindowsEnrollmentFleetdSyncCapableFunc
 	SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked bool
 
@@ -4547,8 +4566,8 @@ type DataStore struct {
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
 
-	SetMDMWindowsHostProfileFailedFunc        SetMDMWindowsHostProfileFailedFunc
-	SetMDMWindowsHostProfileFailedFuncInvoked bool
+	SetMDMWindowsHostProfileFailedOrRetryFunc        SetMDMWindowsHostProfileFailedOrRetryFunc
+	SetMDMWindowsHostProfileFailedOrRetryFuncInvoked bool
 
 	BatchResendMDMProfileToHostsFunc        BatchResendMDMProfileToHostsFunc
 	BatchResendMDMProfileToHostsFuncInvoked bool
@@ -5225,6 +5244,9 @@ type DataStore struct {
 	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
 	ResendHostCertificateProfileFuncInvoked bool
 
+	ResendWindowsHostCertificateProfileFunc        ResendWindowsHostCertificateProfileFunc
+	ResendWindowsHostCertificateProfileFuncInvoked bool
+
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
 
@@ -5389,6 +5411,9 @@ type DataStore struct {
 
 	InsertMDMAndroidCommandFunc        InsertMDMAndroidCommandFunc
 	InsertMDMAndroidCommandFuncInvoked bool
+
+	GetMDMAndroidCommandResultsFunc        GetMDMAndroidCommandResultsFunc
+	GetMDMAndroidCommandResultsFuncInvoked bool
 
 	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
 	ClearHostMDMActionsFuncInvoked bool
@@ -7797,13 +7822,6 @@ func (s *DataStore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.
 	return s.SyncHostsSoftwareTitlesFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) ReconcileSoftwareChecksums(ctx context.Context) error {
-	s.mu.Lock()
-	s.ReconcileSoftwareChecksumsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ReconcileSoftwareChecksumsFunc(ctx)
-}
-
 func (s *DataStore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
 	s.mu.Lock()
 	s.HostVulnSummariesBySoftwareIDsFuncInvoked = true
@@ -8133,11 +8151,18 @@ func (s *DataStore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint
 	return s.GetHostUpcomingActivityMetaFunc(ctx, hostID, executionID)
 }
 
-func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error) {
 	s.mu.Lock()
 	s.UnblockHostsUpcomingActivityQueueFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts)
+	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts, skipFleetInitiated)
+}
+
+func (s *DataStore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error) {
+	s.mu.Lock()
+	s.ReleaseFleetInitiatedUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReleaseFleetInitiatedUpcomingActivitiesFunc(ctx, maxHosts)
 }
 
 func (s *DataStore) ReapStuckActivatedMDMInstalls(ctx context.Context, olderThan time.Duration, maxHosts int) ([]fleet.ReapedMDMInstall, error) {
@@ -9391,6 +9416,13 @@ func (s *DataStore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.C
 	s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
+}
+
+func (s *DataStore) UpsertMDMAppleFleetConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+	s.mu.Lock()
+	s.UpsertMDMAppleFleetConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMDMAppleFleetConfigProfileFunc(ctx, p)
 }
 
 func (s *DataStore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
@@ -10751,6 +10783,20 @@ func (s *DataStore) MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, md
 	return s.MDMWindowsEnqueuePollScheduleCommandFunc(ctx, mdmDeviceID, enrollmentID, cmd, relaxed)
 }
 
+func (s *DataStore) SetMDMWindowsEnrollmentLoginStatus(ctx context.Context, enrollmentID uint, status *fleet.WindowsMDMLoginStatus) error {
+	s.mu.Lock()
+	s.SetMDMWindowsEnrollmentLoginStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsEnrollmentLoginStatusFunc(ctx, enrollmentID, status)
+}
+
+func (s *DataStore) GetMDMWindowsUserContextByHostUUID(ctx context.Context, hostUUIDs []string) (map[string]fleet.WindowsEnrollmentUserContext, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsUserContextByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsUserContextByHostUUIDFunc(ctx, hostUUIDs)
+}
+
 func (s *DataStore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error {
 	s.mu.Lock()
 	s.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked = true
@@ -10968,11 +11014,11 @@ func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, p
 	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
 }
 
-func (s *DataStore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+func (s *DataStore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error) {
 	s.mu.Lock()
-	s.SetMDMWindowsHostProfileFailedFuncInvoked = true
+	s.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetMDMWindowsHostProfileFailedFunc(ctx, hostUUID, profileUUID, detail)
+	return s.SetMDMWindowsHostProfileFailedOrRetryFunc(ctx, hostUUID, profileUUID, detail)
 }
 
 func (s *DataStore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
@@ -12046,7 +12092,7 @@ func (s *DataStore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwar
 	return s.CleanupUnusedSoftwareTitleIconsFunc(ctx, softwareTitleIconStore, removeCreatedBefore)
 }
 
-func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 	s.mu.Lock()
 	s.BatchSetSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
@@ -12550,6 +12596,13 @@ func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID s
 	return s.ResendHostCertificateProfileFunc(ctx, hostUUID, profUUID)
 }
 
+func (s *DataStore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	s.mu.Lock()
+	s.ResendWindowsHostCertificateProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendWindowsHostCertificateProfileFunc(ctx, hostUUID, profUUID)
+}
+
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
 	s.mu.Lock()
 	s.UpsertSecretVariablesFuncInvoked = true
@@ -12933,6 +12986,13 @@ func (s *DataStore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.MD
 	s.InsertMDMAndroidCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertMDMAndroidCommandFunc(ctx, cmd)
+}
+
+func (s *DataStore) GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
 func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {

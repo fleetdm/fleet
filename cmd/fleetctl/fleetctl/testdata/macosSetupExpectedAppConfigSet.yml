@@ -11,6 +11,7 @@ spec:
   fleet_desktop:
     transparency_url: https://fleetdm.com/transparency
     alternative_browser_host: ""
+    sso_enabled: false
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -48,7 +49,7 @@ spec:
     enable_disk_encryption: false
     name_template: null
     enable_recovery_lock_password: false
-    windows_require_bitlocker_pin: null
+    windows_require_bitlocker_pin: false
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
@@ -61,14 +62,22 @@ spec:
       webhook_url: ""
     macos_settings:
       custom_settings: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     apple_settings:
       configuration_profiles: null
+      enable_disk_encryption: false
+      enable_escrow_disk_encryption_key: false
     windows_enrollment: null
     windows_settings:
+      require_bitlocker_pin: false
       custom_settings: null
+      enable_disk_encryption: false
       configuration_profiles: null
       managed_local_account_settings:
         enabled: false
+    linux_settings:
+      enable_escrow_disk_encryption_key: false
     android_settings:
       custom_settings: null
       configuration_profiles: null

@@ -34,6 +34,14 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_settings: {
     configuration_profiles: null,
     enable_disk_encryption: false,
+    enable_escrow_disk_encryption_key: false,
+  },
+  windows_settings: {
+    enable_disk_encryption: false,
+    require_bitlocker_pin: false,
+  },
+  linux_settings: {
+    enable_escrow_disk_encryption_key: false,
   },
   setup_experience: {
     macos_bootstrap_package: "",
@@ -227,6 +235,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",
     alternative_browser_host: "",
+    sso_enabled: false,
   },
   mdm: createMockMdmConfig(),
   gitops: {

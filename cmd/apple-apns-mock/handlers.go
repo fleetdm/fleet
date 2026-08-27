@@ -19,60 +19,55 @@ import (
 	"github.com/google/uuid"
 )
 
-// eventsSSEHandler serves GET /events?token=<hex> — the simulated device's
-// stand-in for a real device's persistent APNS courier connection. Simulated
-// clients (osquery-perf/mdmtest, which derive their tokens as
-// hex("token"+serial), see pkg/mdm/mdmtest/apple.go TokenUpdate) hold this
-// SSE stream open and treat each event as an MDM wake-up.
-//
-// Contract: pushes arrive as `event: ping` with the data line carrying the
-// exact payload Fleet posted; a pending stored ping is delivered immediately
-// on connect; `: keepalive` comment lines (ignored by SSE clients) flow on a
-// configurable interval so LBs/proxies don't reap idle streams. A newer
-// connection for the same token replaces this one (newest wins, matching a
-// real device reconnecting) and the replaced stream ends. Token validation
-// must happen before anything is written — the first write commits a 200,
-// making a later error status a no-op.
-//
-// This handler holds nothing but a raw socket per stream: it hijacks the
-// connection, writes the response head itself, hands the socket to one
-// goroutine, and RETURNS. Returning is the point — it lets net/http unwind
-// conn.serve and drop that connection's 4KB read buffer, 4KB write buffer,
-// 2KB chunked-encoding buffer, request/header/response structs, and the
-// second goroutine net/http starts to watch for client disconnects. Those
-// are ~14 of the ~18KB a stream costs when the handler blocks instead, and
-// none of them are configurable through http.Server. See streamEvents for
-// what the surviving goroutine does and what hijacking gives up.
-func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
-	token := r.URL.Query().Get("token")
-	if token == "" {
-		apnsPushError(w, nil, MissingDeviceTokenError())
-		return
-	}
+// maxPayloadBytes is the APNs payload limit.
+const maxPayloadBytes = 4096
 
+// validateToken is looser than real APNs on purpose: any even-length hex is
+// accepted, because Apple also enforces a 32-byte length and mdmtest tokens
+// are variable-length.
+func validateToken(token string) *apnsError {
+	if token == "" {
+		return errMissingDeviceToken
+	}
 	if _, err := hex.DecodeString(token); err != nil {
-		apnsPushError(w, nil, BadDeviceTokenError())
+		return errBadDeviceToken
+	}
+	return nil
+}
+
+// eventsSSEHandler serves GET /events?token=<hex>, the simulated device's
+// stand-in for a real device's APNs courier connection. Pushes arrive as
+// `event: ping`, anything stored while the device was away is written on
+// connect, and a newer connection for the same token replaces this one.
+// Token validation must precede any write — the first write commits a 200.
+//
+// It hijacks the connection, writes the response head itself, hands the socket
+// to one goroutine and returns. Returning lets net/http drop this connection's
+// buffers and its disconnect-watching goroutine, ~14 of the ~18KB a blocked
+// handler costs.
+func eventsSSEHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
+	token := r.URL.Query().Get("token")
+	if err := validateToken(token); err != nil {
+		apnsPushError(w, nil, err)
 		return
 	}
 
 	logger.DebugContext(r.Context(), "starting SSE stream", "token", token)
 
+	// Not hijackable: HTTP/2, httptest recorders, or any middleware that wraps
+	// the ResponseWriter without forwarding Hijack.
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		// HTTP/2, httptest recorders, or any middleware that wraps the
-		// ResponseWriter without forwarding Hijack.
-		streamEventsBuffered(w, r, token, st, logger, keepAlive, writeTimeout)
+		streamEventsBuffered(w, r, token, c, logger, keepAlive, writeTimeout)
 		return
 	}
-	// The returned *bufio.ReadWriter is deliberately discarded: keeping it
-	// would pin the very buffers hijacking exists to release, and nothing is
-	// buffered in either direction at this point — the handler has written
-	// nothing, and an SSE client sends only the request line and headers,
-	// which net/http has already consumed.
+	// The *bufio.ReadWriter is discarded on purpose: keeping it would pin the
+	// buffers hijacking exists to release, and nothing is buffered either way
+	// at this point.
 	conn, _, err := hijacker.Hijack()
 	if err != nil {
 		logger.DebugContext(r.Context(), "hijack failed, falling back to buffered stream", "token", token, "error", err)
-		streamEventsBuffered(w, r, token, st, logger, keepAlive, writeTimeout)
+		streamEventsBuffered(w, r, token, c, logger, keepAlive, writeTimeout)
 		return
 	}
 
@@ -83,44 +78,31 @@ func eventsSSEHandler(w http.ResponseWriter, r *http.Request, st *store, logger 
 	}
 
 	// strings.Clone cuts the token loose from the request's URL string, which
-	// would otherwise keep it (and the buffer it was parsed from) alive for
-	// the life of the stream.
+	// would otherwise stay alive for the life of the stream.
 	//nolint:gosec // G118: the request context is canceled the moment this handler returns, and returning is exactly what frees the per-connection buffers. The stream has to outlive it.
-	go streamEvents(conn, strings.Clone(token), st, logger, keepAlive, writeTimeout)
+	go streamEvents(conn, strings.Clone(token), c, logger, keepAlive, writeTimeout)
 }
 
-// sseResponseHead is the 200 that eventsSSEHandler writes by hand after
-// hijacking. Length-delimited framing is impossible for a stream that never
-// ends, so the body runs to connection close: no Content-Length and no
-// Transfer-Encoding, which HTTP/1.1 defines as read-until-close and
-// "Connection: close" states outright. Both clients (net/http's transport in
-// pkg/mdm/apnsmock, and http.ReadResponse in tools/apns-loadgen) read it that
-// way. Chunked framing would be the alternative and costs a size line per
-// frame plus a buffer to build it in.
+// sseResponseHead is the 200 eventsSSEHandler writes by hand after hijacking.
+// A stream that never ends cannot be length-delimited, so it omits
+// Content-Length and Transfer-Encoding: HTTP/1.1 reads that as
+// read-until-close. Chunked framing would cost a size line and a buffer per
+// frame.
 const sseResponseHead = "HTTP/1.1 200 OK\r\n" +
 	"Content-Type: text/event-stream\r\n" +
 	"Cache-Control: no-cache\r\n" +
 	"Connection: close\r\n" +
 	"\r\n"
 
-// streamEvents owns one hijacked connection for its whole life. It is the
-// only thing that survives per stream, so it holds only what it needs: the
-// socket, the token, and the subscriber.
+// streamEvents owns one hijacked connection for its whole life.
 //
-// It gives up the one thing net/http's second goroutine bought — immediate
-// notice that the client went away. A peer that sends FIN is noticed on the
-// next write (a write to a half-closed socket succeeds once, then draws
-// RST), so keepalive frames double as liveness probes and a dead stream is
-// reaped within roughly one keepAlive interval. With --keep-alive 0 nothing
-// probes, and a vanished client's stream lingers until the next push to that
-// token; main warns when that is set.
-//
-// Every write carries a writeTimeout deadline. The server sets no
-// WriteTimeout (SSE streams must not be reaped), so without a per-write
-// deadline a device that stops reading would block this goroutine forever:
-// unsubscribe would never run, and store.push would keep coalescing wake-ups
-// into a connection that can never deliver them instead of storing them.
-func streamEvents(conn net.Conn, token string, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
+// Hijacking gives up immediate notice that the client went away, so keepalive
+// writes double as liveness probes: a peer that sent FIN draws RST on the next
+// write. With --keep-alive 0 nothing probes and the stream lingers until the
+// next push. Each write carries a writeTimeout deadline; the server sets no
+// WriteTimeout (SSE must not be reaped), so without one a device that stops
+// reading would block this goroutine forever.
+func streamEvents(conn net.Conn, token string, c *coordinator, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
 	defer conn.Close()
 
 	write := func(frame string) error {
@@ -132,14 +114,13 @@ func streamEvents(conn net.Conn, token string, st *store, logger *slog.Logger, k
 		_, err := io.WriteString(conn, frame)
 		return err
 	}
-	runStream(context.Background(), write, nil, token, st, logger, keepAlive)
+	runStream(context.Background(), write, nil, token, c, logger, keepAlive)
 }
 
-// streamEventsBuffered is the pre-hijack path, kept for ResponseWriters that
-// cannot be hijacked. It blocks in the handler, so this connection keeps its
-// full net/http footprint; in exchange it gets request-context cancellation
-// and notices a departing client immediately.
-func streamEventsBuffered(w http.ResponseWriter, r *http.Request, token string, st *store, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
+// streamEventsBuffered is the fallback for ResponseWriters that cannot be
+// hijacked. It blocks in the handler, keeping the full net/http footprint, and
+// in exchange notices a departing client immediately.
+func streamEventsBuffered(w http.ResponseWriter, r *http.Request, token string, c *coordinator, logger *slog.Logger, keepAlive, writeTimeout time.Duration) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -165,25 +146,23 @@ func streamEventsBuffered(w http.ResponseWriter, r *http.Request, token string, 
 		flusher.Flush()
 		return nil
 	}
-	runStream(r.Context(), write, r.Context().Done(), token, st, logger, keepAlive)
+	runStream(r.Context(), write, r.Context().Done(), token, c, logger, keepAlive)
 }
 
-// runStream is the SSE loop both paths share: subscribe, flush any ping the
-// device missed while it was away, then forward pushes and keepalives until
-// the stream ends. done is the client-went-away signal and is nil on the
-// hijacked path, where a nil channel simply never fires (see streamEvents).
+// runStream is the SSE loop both paths share: subscribe, flush anything the
+// device missed, then forward pushes and keepalives until the stream ends.
+// done is nil on the hijacked path, where a nil channel never fires.
 //
-// A ping this loop drained but failed to write is handed back to the store
-// (restore), so a broken connection loses no wake-up and no counter drifts.
-func runStream(ctx context.Context, write func(string) error, done <-chan struct{}, token string, st *store, logger *slog.Logger, keepAlive time.Duration) {
-	sub, pending := st.subscribe(token)
-	defer st.unsubscribe(token, sub)
+// A ping drained but not written goes back to Redis via Restore, so a broken
+// connection loses no wake-up and no counter drifts.
+func runStream(ctx context.Context, write func(string) error, done <-chan struct{}, token string, c *coordinator, logger *slog.Logger, keepAlive time.Duration) {
+	sub, pending := c.Subscribe(ctx, token)
+	defer c.Unsubscribe(ctx, token, sub)
 
 	if pending != nil {
-		// stored ping delivered immediately on connect
 		if err := write(pingEvent(pending.payload)); err != nil {
 			logger.DebugContext(ctx, "failed to write pending ping", "token", token, "error", err)
-			st.restore(token, sub, pending, true)
+			c.Restore(ctx, token, sub, pending, true)
 			return
 		}
 	}
@@ -200,14 +179,14 @@ func runStream(ctx context.Context, write func(string) error, done <-chan struct
 		case p := <-sub.ch: // push arrived while we're live
 			if err := write(pingEvent(p.payload)); err != nil {
 				logger.DebugContext(ctx, "failed to write ping", "token", token, "error", err)
-				st.restore(token, sub, p, false)
+				c.Restore(ctx, token, sub, p, false)
 				return
 			}
 		case <-sub.replaced: // a newer connection took our token — stand down
 			return
 		case <-done: // client went away (buffered path only; nil channel never fires)
 			return
-		case <-keepAliveC: // keepalive
+		case <-keepAliveC:
 			if err := write(": keepalive\n\n"); err != nil {
 				logger.DebugContext(ctx, "failed to write keepalive", "token", token, "error", err)
 				return
@@ -216,12 +195,10 @@ func runStream(ctx context.Context, write func(string) error, done <-chan struct
 	}
 }
 
-// pingEvent frames one push payload as an SSE event. SSE is newline
-// delimited, so a payload containing a newline is split across several data:
-// lines (clients rejoin them with "\n"); emitting it raw would end the event
-// early and corrupt every frame after it. The mock forwards payload bytes
-// verbatim, and PushMagic reaches it from the device's TokenUpdate, so the
-// payload cannot be assumed newline-free.
+// pingEvent frames one payload as an SSE event. SSE is newline delimited, so
+// a payload containing a newline is split across several data: lines (clients
+// rejoin them with "\n"); emitting it raw would corrupt every frame after it.
+// PushMagic comes from the device's TokenUpdate, so newlines are possible.
 func pingEvent(payload []byte) string {
 	var b strings.Builder
 	b.WriteString("event: ping\n")
@@ -234,20 +211,12 @@ func pingEvent(payload []byte) string {
 	return b.String()
 }
 
-// pushHandler serves POST /3/device/{token} — the same endpoint shape as
-// api.push.apple.com. It accepts exactly what Fleet's buford client sends
-// today (server/mdm/nanomdm/push/buford): a raw JSON body {"mdm":"<magic>"}
-// and NO apns-* headers, responding 200 with an apns-id header and empty
-// body. Spec headers are honored when present (see parsePushHeaders), and
-// APNS payload limits apply: empty → 400 PayloadEmpty, >4096 bytes → 413
-// PayloadTooLarge.
-//
-// The payload is stored verbatim, not parsed — the mock forwards bytes.
-// Token validation is deliberately looser than real APNS: any even-length
-// hex is accepted (Apple also enforces the 32-byte token length — a 14-byte
-// hex token draws 400 BadDeviceToken from api.push.apple.com — but
-// mdmtest/osquery-perf tokens are variable-length hex("token"+serial)).
-func pushHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog.Logger) {
+// pushHandler serves POST /3/device/{token}, the same shape as
+// api.push.apple.com. It accepts what Fleet's buford client sends — a raw JSON
+// body and no apns-* headers — plus the spec headers parsePushHeaders models,
+// and applies APNs payload limits. The payload is forwarded verbatim, not
+// parsed.
+func pushHandler(w http.ResponseWriter, r *http.Request, c *coordinator, logger *slog.Logger) {
 	// parsePushHeaders returns its headers even on failure so the error
 	// response echoes the client's apns-id, like real APNS does.
 	headers, err := parsePushHeaders(r)
@@ -257,37 +226,35 @@ func pushHandler(w http.ResponseWriter, r *http.Request, st *store, logger *slog
 	}
 
 	token := r.PathValue("token")
-	if token == "" {
-		apnsPushError(w, headers, MissingDeviceTokenError())
+	if err := validateToken(token); err != nil {
+		apnsPushError(w, headers, err)
 		return
 	}
 
-	if _, err := hex.DecodeString(token); err != nil {
-		apnsPushError(w, headers, BadDeviceTokenError())
+	payload, readErr := io.ReadAll(io.LimitReader(r.Body, maxPayloadBytes+1))
+	switch {
+	case readErr != nil:
+		logger.ErrorContext(r.Context(), "failed to read request body", "error", readErr)
+		apnsPushError(w, headers, errInternalServer)
+		return
+	case len(payload) == 0:
+		apnsPushError(w, headers, errPayloadEmpty)
+		return
+	case len(payload) > maxPayloadBytes:
+		apnsPushError(w, headers, errPayloadTooLarge)
 		return
 	}
 
-	limitedReader := io.LimitReader(r.Body, 4097)
-	payload, err := io.ReadAll(limitedReader)
-	if err != nil {
-		logger.ErrorContext(r.Context(), "failed to read request body", "error", err)
-		apnsPushError(w, headers, InternalServerError())
-		return
-	}
-	if len(payload) == 0 {
-		apnsPushError(w, headers, PayloadEmptyError())
-		return
-	}
-	if len(payload) > 4096 {
-		apnsPushError(w, headers, PayloadTooLargeError())
-		return
-	}
-
-	expiration := time.Now().Add(st.defaultTTL)
+	expiration := time.Now().Add(c.cfg.DefaultTTL)
 	if headers.Expiration != nil {
 		expiration = *headers.Expiration
 	}
-	st.push(token, payload, expiration)
+	// A push that cannot be stored or announced was not accepted; saying so
+	// lets Fleet's pending-hosts cron retry it.
+	if err := c.Push(r.Context(), token, payload, expiration); err != nil {
+		apnsPushError(w, headers, errServiceUnavailable)
+		return
+	}
 
 	w.Header().Set("apns-id", headers.PushID)
 	w.WriteHeader(http.StatusOK)
@@ -304,40 +271,52 @@ type pushHeaders struct {
 	Expiration *time.Time // apns-expiration: unix seconds; 0/past = deliver-now-or-discard, nil = server default TTL
 }
 
-// parsePushHeaders validates the modeled apns-* headers, mirroring real APNS
-// behavior for each (see pushHeaders field comments for per-header
-// semantics). The returned headers are always non-nil, including on error, so
-// the caller can echo the client's apns-id on the error response — real APNS
-// sets apns-id on errors too, and it is how a request is correlated with its
-// response. A malformed apns-id is the one exception: it cannot be echoed, so
-// the generated one stands.
-func parsePushHeaders(r *http.Request) (*pushHeaders, error) {
-	pushHeaders := &pushHeaders{
-		PushID: uuid.NewString(), // default to random UUID, if provided it will be overwritten.
-	}
+// parsePushHeaders validates the modeled apns-* headers. The returned headers
+// are non-nil even on error, so the caller can echo the client's apns-id the
+// way real APNs does. A malformed apns-id is the exception: the generated one
+// stands.
+func parsePushHeaders(r *http.Request) (*pushHeaders, *apnsError) {
+	h := &pushHeaders{PushID: uuid.NewString()}
 
 	if pushID := r.Header.Get("apns-id"); pushID != "" {
 		if _, err := uuid.Parse(pushID); err != nil {
-			return pushHeaders, BadMessageIdError()
+			return h, errBadMessageID
 		}
-		pushHeaders.PushID = pushID
+		h.PushID = pushID
 	}
 
-	pushHeaders.PushType = r.Header.Get("apns-push-type")
-	if pushHeaders.PushType != "" && pushHeaders.PushType != "mdm" {
-		return pushHeaders, InvalidPushTypeError()
+	h.PushType = r.Header.Get("apns-push-type")
+	if h.PushType != "" && h.PushType != "mdm" {
+		return h, errInvalidPushType
 	}
 
 	if expiration := r.Header.Get("apns-expiration"); expiration != "" {
-		if ts, err := strconv.ParseInt(expiration, 10, 64); err == nil {
-			t := time.Unix(ts, 0)
-			pushHeaders.Expiration = &t
-		} else {
-			return pushHeaders, BadExpirationDateError()
+		ts, err := strconv.ParseInt(expiration, 10, 64)
+		if err != nil {
+			return h, errBadExpirationDate
 		}
+		// Not new(time.Unix(...)): staticcheck reads the value as unused.
+		t := time.Unix(ts, 0)
+		h.Expiration = &t
 	}
 
-	return pushHeaders, nil
+	return h, nil
+}
+
+// apnsPushError writes the error shape real APNs returns: an apns-id header
+// and a {"reason":...} JSON body. The body is load-bearing — buford's
+// parseErrorResponse surfaces a JSON-decode error instead of the reason on
+// anything else. A 410 Unregistered, if ever modeled, must add a "timestamp"
+// field; Apple omits it on every other error.
+func apnsPushError(w http.ResponseWriter, headers *pushHeaders, err *apnsError) {
+	w.Header().Set("Content-Type", "application/json")
+	if headers != nil {
+		w.Header().Set("apns-id", headers.PushID)
+	}
+	w.WriteHeader(err.status)
+	_ = json.NewEncoder(w).Encode(struct {
+		Reason string `json:"reason"`
+	}{Reason: err.reason})
 }
 
 // healthzHandler serves GET /healthz for infra liveness checks.
@@ -346,52 +325,59 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok\n"))
 }
 
+// nodeStats are one instance's counters. Stored counts pending keys written,
+// and every push writes one, so it tracks pushes rather than offline devices.
+// Nothing counts expiry: a ping ages out of Redis on a TTL nobody observes.
+type nodeStats struct {
+	ActiveConnections  int64 `json:"active_connections"`
+	TotalPushes        int64 `json:"total_pushes"`
+	DeliveredLive      int64 `json:"delivered_live"`
+	DeliveredOnConnect int64 `json:"delivered_on_connect"`
+	Stored             int64 `json:"stored"`
+	Coalesced          int64 `json:"coalesced"`
+	Discarded          int64 `json:"discarded"`
+	ClaimMisses        int64 `json:"claim_misses"`
+	RedisErrors        int64 `json:"redis_errors"`
+}
+
+func (s *nodeStats) add(o nodeStats) {
+	s.ActiveConnections += o.ActiveConnections
+	s.TotalPushes += o.TotalPushes
+	s.DeliveredLive += o.DeliveredLive
+	s.DeliveredOnConnect += o.DeliveredOnConnect
+	s.Stored += o.Stored
+	s.Coalesced += o.Coalesced
+	s.Discarded += o.Discarded
+	s.ClaimMisses += o.ClaimMisses
+	s.RedisErrors += o.RedisErrors
+}
+
+// statsResponse reports this instance's counters and the totals across every
+// instance that has flushed recently.
 type statsResponse struct {
-	ActiveConnections  int `json:"active_connections"`
-	TotalPushes        int `json:"total_pushes"`
-	DeliveredLive      int `json:"delivered_live"`
-	DeliveredOnConnect int `json:"delivered_on_connect"`
-	Stored             int `json:"stored"`
-	Coalesced          int `json:"coalesced"`
-	Expired            int `json:"expired"`
+	NodeID  string    `json:"node_id"`
+	Nodes   int       `json:"nodes"`
+	Node    nodeStats `json:"node"`
+	Cluster nodeStats `json:"cluster"`
 }
 
-// statsHandler serves GET /stats — the store's counters as JSON, for
-// watching a load test (connected clients, delivered vs stored vs coalesced
-// vs expired pushes).
-func statsHandler(w http.ResponseWriter, _ *http.Request, st *store) {
-	w.Header().Set("Content-Type", "application/json")
-	stats := statsResponse{
-		ActiveConnections:  int(st.connected.Load()),
-		TotalPushes:        int(st.pushesReceived.Load()),
-		DeliveredLive:      int(st.deliveredLive.Load()),
-		DeliveredOnConnect: int(st.deliveredOnConnect.Load()),
-		Stored:             int(st.stored.Load()),
-		Coalesced:          int(st.coalesced.Load()),
-		Expired:            int(st.expired.Load()),
-	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	err := enc.Encode(stats)
-	if err != nil {
-		http.Error(w, "Failed to encode stats", http.StatusInternalServerError)
-		return
-	}
+// statsHandler serves GET /stats for watching a load test.
+func statsHandler(w http.ResponseWriter, r *http.Request, c *coordinator) {
+	writeJSON(w, c.Stats(r.Context()))
 }
 
-// memStatsResponse reports what the Go runtime knows it is using, which is
-// the only trustworthy input to "what does a connection cost". RSS is not:
-// on macOS, pages the runtime has already handed back stay counted against
-// the process until something else needs them, which overstated a
-// 40k-connection run by 3x. Divide these by /stats active_connections for a
-// per-connection number that means something.
+// memStatsResponse reports what the Go runtime knows it is using, the only
+// trustworthy input to "what does a connection cost". RSS is not: on macOS,
+// pages already handed back stay counted until something else needs them,
+// which overstated a 40k-connection run by 3x. Divide by active_connections.
 type memStatsResponse struct {
 	Goroutines int    `json:"goroutines"`   // ~1 per live SSE stream, plus a handful of runtime and accept goroutines
-	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage unless ?gc=1
+	HeapBytes  uint64 `json:"heap_bytes"`   // heap objects; includes uncollected garbage
 	StackBytes uint64 `json:"stack_bytes"`  // goroutine stacks
 	InUseBytes uint64 `json:"in_use_bytes"` // everything the runtime holds minus what it has released to the OS
 }
 
+// memStatsHandler serves GET /memstats
 func memStatsHandler(w http.ResponseWriter, r *http.Request) {
 	samples := []metrics.Sample{
 		{Name: "/memory/classes/heap/objects:bytes"},
@@ -401,43 +387,19 @@ func memStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	metrics.Read(samples)
 
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(memStatsResponse{
+	writeJSON(w, memStatsResponse{
 		Goroutines: runtime.NumGoroutine(),
 		HeapBytes:  samples[0].Value.Uint64(),
 		StackBytes: samples[1].Value.Uint64(),
 		InUseBytes: samples[2].Value.Uint64() - samples[3].Value.Uint64(),
-	}); err != nil {
-		http.Error(w, "Failed to encode memstats", http.StatusInternalServerError)
-		return
-	}
+	})
 }
 
-// apnsPushError writes an error response in the exact shape real APNS
-// returns (captured via tools/mdm/apple/apnspush -direct):
-//
-//	HTTP/2.0 400 Bad Request
-//	Apns-Id: 4FCEA7C9-78CC-0A03-2902-3473E54F9ED4
-//	{"reason":"BadDeviceToken"}
-//
-// The JSON body is load-bearing: buford's parseErrorResponse (the client
-// `fleet serve` uses) surfaces a JSON-decode error instead of the reason on
-// anything else. apns-id is set on errors too, matching Apple. If the mock
-// ever models 410 Unregistered, that response must add a "timestamp" field
-// (unix millis when the token died) — Apple omits it on all other errors.
-func apnsPushError(w http.ResponseWriter, headers *pushHeaders, err error) {
+func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	if headers != nil {
-		w.Header().Set("apns-id", headers.PushID)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
-	statusCode := http.StatusBadRequest
-	if statuser, ok := err.(Statuser); ok {
-		statusCode = statuser.Status()
-	}
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(struct {
-		Reason string `json:"reason"`
-	}{Reason: err.Error()})
 }
