@@ -1,4 +1,5 @@
-import React, { FC } from "react";
+import React, { FC, Suspense } from "react";
+import { noop } from "lodash";
 import {
   QueryClient,
   QueryClientProvider,
@@ -15,44 +16,19 @@ import {
   Redirect,
 } from "react-router";
 
-import OrgSettingsPage from "pages/admin/OrgSettingsPage";
-import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
-import AdminManageUsersPage from "pages/admin/ManageUsersPage";
-import CreateUserPage from "pages/admin/ManageUsersPage/CreateUserPage";
-import CreateApiUserPage from "pages/admin/ManageUsersPage/CreateApiUserPage";
-import EditUserPage from "pages/admin/ManageUsersPage/EditUserPage";
-import AdminManageFleetsPage from "pages/admin/ManageFleetsPage";
-import TeamDetailsWrapper from "pages/admin/ManageFleetsPage/TeamDetailsWrapper";
 import App from "components/App";
+import Spinner from "components/Spinner";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import MfaPage from "pages/MfaPage";
 import CoreLayout from "layouts/CoreLayout";
-import DashboardPage from "pages/DashboardPage";
-import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
 import DeviceUserSSOErrorPage from "pages/DeviceUserSSOErrorPage";
-import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
-import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
-import ManageLabelsPage from "pages/labels/ManageLabelsPage";
-import NewLabelPage from "pages/labels/NewLabelPage";
-import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
-import ManageHostsPage from "pages/hosts/ManageHostsPage";
-import ManageQueriesPage from "pages/queries/ManageQueriesPage";
-import ManagePacksPage from "pages/packs/ManagePacksPage";
-import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
-import PackComposerPage from "pages/packs/PackComposerPage";
-import PolicyDetailsPage from "pages/policies/details/PolicyDetailsPage";
-import EditPolicyPage from "pages/policies/edit";
-import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
-import LiveQueryPage from "pages/queries/live/LiveQueryPage";
-import LivePolicyPage from "pages/policies/live/LivePolicyPage";
-import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
@@ -62,40 +38,6 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import ErrorPageLayout from "layouts/ErrorPageLayout";
 import AccountPage from "pages/AccountPage";
-import SettingsWrapper from "pages/admin/AdminWrapper";
-import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
-import UsersPage from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/UsersPage/UsersPage";
-import AgentOptionsPage from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/AgentOptionsPage";
-import OSUpdates from "pages/ManageControlsPage/OSUpdates";
-import OSSettings from "pages/ManageControlsPage/OSSettings";
-import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
-import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
-import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
-import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
-import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import Variables from "pages/ManageControlsPage/Variables/Variables";
-import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
-import MicrosoftGraphPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MicrosoftGraphPage";
-import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
-import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
-import HostQueryReport from "pages/hosts/details/HostQueryReport";
-import SoftwarePage from "pages/SoftwarePage";
-import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
-import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
-import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
-import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
-import SelfServiceCategoriesPage from "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage";
-import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
-import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
-import TeamSettings from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/TeamSettings";
-import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
-import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
-import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
-import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
-import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
-import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
-import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
-import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -112,6 +54,356 @@ import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMainta
 import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
+
+const CHUNK_RELOAD_KEY = "fleet:chunk-reload";
+
+// Cleared on a successful load so a later failure can reload again.
+if (typeof window !== "undefined") {
+  window.addEventListener("load", () => {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+  });
+}
+
+/**
+ * A page whose code is fetched when the route is first entered, so it stays out
+ * of the entry chunk.
+ *
+ * Suspense covers the download. Spinner has its own 250ms delay, so a chunk
+ * that arrives quickly shows nothing at all and only a genuinely slow load
+ * produces a spinner.
+ *
+ * A failed download is retried once by reloading, which is the remedy when a
+ * deploy has replaced the chunk while this tab was open. A second failure
+ * propagates to the error boundary in App.
+ */
+const lazyPage = (load: () => Promise<{ default: RouteComponent }>) => {
+  const Lazy = React.lazy(() =>
+    load().catch((err) => {
+      if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+        window.location.reload();
+        // Nothing should render while the reload is in flight.
+        return new Promise<{ default: RouteComponent }>(noop);
+      }
+      throw err;
+    })
+  );
+
+  const LazyPage = (props: Record<string, unknown>) => (
+    <Suspense fallback={<Spinner />}>
+      <Lazy {...props} />
+    </Suspense>
+  );
+  return LazyPage as RouteComponent;
+};
+
+const LazyEditQueryPage = lazyPage(
+  () =>
+    import(/* webpackChunkName: "queries" */ "pages/queries/edit/EditQueryPage")
+);
+const LazyLiveQueryPage = lazyPage(
+  () =>
+    import(/* webpackChunkName: "queries" */ "pages/queries/live/LiveQueryPage")
+);
+const LazyQueryDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "queries" */ "pages/queries/details/QueryDetailsPage"
+    )
+);
+const LazyEditPolicyPage = lazyPage(
+  () => import(/* webpackChunkName: "policies" */ "pages/policies/edit")
+);
+const LazyLivePolicyPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "policies" */ "pages/policies/live/LivePolicyPage"
+    )
+);
+const LazyPolicyDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "policies" */ "pages/policies/details/PolicyDetailsPage"
+    )
+);
+const LazyDashboardPage = lazyPage(
+  () => import(/* webpackChunkName: "dashboard" */ "pages/DashboardPage")
+);
+const LazyOrgSettingsPage = lazyPage(
+  () => import(/* webpackChunkName: "admin" */ "pages/admin/OrgSettingsPage")
+);
+const LazyAdminIntegrationsPage = lazyPage(
+  () => import(/* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage")
+);
+const LazyManageHostsPage = lazyPage(
+  () => import(/* webpackChunkName: "hosts" */ "pages/hosts/ManageHostsPage")
+);
+const LazyHostDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "hosts" */ "pages/hosts/details/HostDetailsPage"
+    )
+);
+const LazyHostQueryReport = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "hosts" */ "pages/hosts/details/HostQueryReport"
+    )
+);
+const LazyManageControlsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/ManageControlsPage"
+    )
+);
+const LazyOSUpdates = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/OSUpdates"
+    )
+);
+const LazyOSSettings = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/OSSettings"
+    )
+);
+const LazySetupExperience = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/SetupExperience/SetupExperience"
+    )
+);
+const LazyScripts = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Scripts/Scripts"
+    )
+);
+const LazyVariables = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Variables/Variables"
+    )
+);
+const LazyScriptBatchDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage"
+    )
+);
+const LazySoftwarePage = lazyPage(
+  () => import(/* webpackChunkName: "software" */ "pages/SoftwarePage")
+);
+const LazySoftwareInventory = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareInventory"
+    )
+);
+const LazySoftwareOS = lazyPage(
+  () =>
+    import(/* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareOS")
+);
+const LazySoftwareVulnerabilities = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareVulnerabilities"
+    )
+);
+const LazySoftwareLibrary = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary"
+    )
+);
+const LazySelfServiceCategoriesPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage"
+    )
+);
+const LazySoftwareTitleDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareTitleDetailsPage"
+    )
+);
+const LazySoftwareVersionDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareVersionDetailsPage"
+    )
+);
+const LazySoftwareOSDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareOSDetailsPage"
+    )
+);
+const LazySoftwareVulnerabilityDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage"
+    )
+);
+const LazySoftwareAddPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareAddPage"
+    )
+);
+const LazySoftwareFleetMaintained = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained"
+    )
+);
+const LazySoftwareCustomPackage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage"
+    )
+);
+const LazySoftwareAppStore = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore"
+    )
+);
+const LazyFleetMaintainedAppDetailsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage"
+    )
+);
+const LazyManageQueriesPage = lazyPage(
+  () =>
+    import(/* webpackChunkName: "queries" */ "pages/queries/ManageQueriesPage")
+);
+const LazyManagePoliciesPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "policies" */ "pages/policies/ManagePoliciesPage"
+    )
+);
+const LazyManageLabelsPage = lazyPage(
+  () => import(/* webpackChunkName: "labels" */ "pages/labels/ManageLabelsPage")
+);
+const LazyNewLabelPage = lazyPage(
+  () => import(/* webpackChunkName: "labels" */ "pages/labels/NewLabelPage")
+);
+const LazyEditLabelPage = lazyPage(
+  () => import(/* webpackChunkName: "labels" */ "pages/labels/EditLabelPage")
+);
+const LazySettingsWrapper = lazyPage(
+  () => import(/* webpackChunkName: "admin" */ "pages/admin/AdminWrapper")
+);
+const LazyAdminManageUsersPage = lazyPage(
+  () => import(/* webpackChunkName: "admin" */ "pages/admin/ManageUsersPage")
+);
+const LazyCreateUserPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageUsersPage/CreateUserPage"
+    )
+);
+const LazyCreateApiUserPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageUsersPage/CreateApiUserPage"
+    )
+);
+const LazyEditUserPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageUsersPage/EditUserPage"
+    )
+);
+const LazyAdminManageFleetsPage = lazyPage(
+  () => import(/* webpackChunkName: "admin" */ "pages/admin/ManageFleetsPage")
+);
+const LazyTeamDetailsWrapper = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageFleetsPage/TeamDetailsWrapper"
+    )
+);
+const LazyTeamSettings = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageFleetsPage/TeamDetailsWrapper/TeamSettings"
+    )
+);
+const LazyUsersPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageFleetsPage/TeamDetailsWrapper/UsersPage/UsersPage"
+    )
+);
+const LazyAgentOptionsPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/ManageFleetsPage/TeamDetailsWrapper/AgentOptionsPage"
+    )
+);
+const LazyWindowsMdmPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage"
+    )
+);
+const LazyAppleMdmPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage"
+    )
+);
+const LazyAndroidMdmPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage"
+    )
+);
+const LazyWindowsEnrollmentPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage"
+    )
+);
+const LazyMicrosoftGraphPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/MicrosoftGraphPage"
+    )
+);
+const LazyAppleBusinessManagerPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage"
+    )
+);
+const LazyVppPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage"
+    )
+);
+const LazyManagePacksPage = lazyPage(
+  () => import(/* webpackChunkName: "packs" */ "pages/packs/ManagePacksPage")
+);
+const LazyPackComposerPage = lazyPage(
+  () => import(/* webpackChunkName: "packs" */ "pages/packs/PackComposerPage")
+);
+const LazyEditPackPage = lazyPage(
+  () => import(/* webpackChunkName: "packs" */ "pages/packs/EditPackPage")
+);
+const LazyDeviceUserPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "device-user" */ "pages/hosts/details/DeviceUserPage"
+    )
+);
 
 // We create a CustomQueryClientProvider that takes the same props as the original
 // QueryClientProvider but adds the children prop as a ReactNode. This children
@@ -186,20 +478,20 @@ const routes = (
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
           <IndexRedirect to="dashboard" />
-          <Route path="dashboard" component={DashboardPage}>
-            <Route path="linux" component={DashboardPage} />
-            <Route path="mac" component={DashboardPage} />
-            <Route path="windows" component={DashboardPage} />
-            <Route path="chrome" component={DashboardPage} />
-            <Route path="ios" component={DashboardPage} />
-            <Route path="ipados" component={DashboardPage} />
-            <Route path="android" component={DashboardPage} />
+          <Route path="dashboard" component={LazyDashboardPage}>
+            <Route path="linux" component={LazyDashboardPage} />
+            <Route path="mac" component={LazyDashboardPage} />
+            <Route path="windows" component={LazyDashboardPage} />
+            <Route path="chrome" component={LazyDashboardPage} />
+            <Route path="ios" component={LazyDashboardPage} />
+            <Route path="ipados" component={LazyDashboardPage} />
+            <Route path="android" component={LazyDashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
-            <Route component={SettingsWrapper}>
+            <Route component={LazySettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route path="organization" component={OrgSettingsPage} />
+                <Route path="organization" component={LazyOrgSettingsPage} />
                 {/* Forward old routes to new */}
                 <Redirect from="organization/sso" to="integrations/sso" />
                 <Redirect
@@ -208,9 +500,12 @@ const routes = (
                 />
                 <Route
                   path="organization/:section"
-                  component={OrgSettingsPage}
+                  component={LazyOrgSettingsPage}
                 />
-                <Route path="integrations" component={AdminIntegrationsPage} />
+                <Route
+                  path="integrations"
+                  component={LazyAdminIntegrationsPage}
+                />
                 {/* Forward old routes to new */}
                 <Redirect
                   from="integrations/automatic-enrollment"
@@ -223,24 +518,30 @@ const routes = (
                 />
                 <Route
                   path="integrations/:section"
-                  component={AdminIntegrationsPage}
+                  component={LazyAdminIntegrationsPage}
                 />
                 <Route
                   path="integrations/sso/:subsection"
-                  component={AdminIntegrationsPage}
+                  component={LazyAdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>
-                  <Route path="users" component={AdminManageUsersPage} />
+                  <Route path="users" component={LazyAdminManageUsersPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
                   <Redirect from="teams" to="fleets" />
-                  <Route path="fleets" component={AdminManageFleetsPage} />
+                  <Route path="fleets" component={LazyAdminManageFleetsPage} />
                 </Route>
               </Route>
             </Route>
-            <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
-            <Route path="integrations/mdm/apple" component={AppleMdmPage} />
-            <Route path="integrations/mdm/android" component={AndroidMdmPage} />
+            <Route
+              path="integrations/mdm/windows"
+              component={LazyWindowsMdmPage}
+            />
+            <Route path="integrations/mdm/apple" component={LazyAppleMdmPage} />
+            <Route
+              path="integrations/mdm/android"
+              component={LazyAndroidMdmPage}
+            />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
@@ -250,24 +551,27 @@ const routes = (
             <Redirect from="integrations/mdm/abm" to="integrations/mdm/ab" />
             <Route
               path="integrations/mdm/ab"
-              component={AppleBusinessManagerPage}
+              component={LazyAppleBusinessManagerPage}
             />
             <Route
               path="integrations/automatic-enrollment/windows"
-              component={WindowsEnrollmentPage}
+              component={LazyWindowsEnrollmentPage}
             />
             <Route
               path="integrations/mdm/microsoft-graph"
-              component={MicrosoftGraphPage}
+              component={LazyMicrosoftGraphPage}
             />
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
-            <Route path="integrations/mdm/vpp" component={VppPage} />
+            <Route path="integrations/mdm/vpp" component={LazyVppPage} />
             <Route component={ExcludeInSandboxRoutes}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route path="users/new/human" component={CreateUserPage} />
-                <Route path="users/new/api" component={CreateApiUserPage} />
-                <Route path="users/:user_id/edit" component={EditUserPage} />
+                <Route path="users/new/human" component={LazyCreateUserPage} />
+                <Route path="users/new/api" component={LazyCreateApiUserPage} />
+                <Route
+                  path="users/:user_id/edit"
+                  component={LazyEditUserPage}
+                />
               </Route>
             </Route>
 
@@ -275,11 +579,11 @@ const routes = (
             <Redirect from="teams/users" to="fleets/users" />
             <Redirect from="teams/options" to="fleets/options" />
             <Redirect from="teams/settings" to="fleets/settings" />
-            <Route path="fleets" component={TeamDetailsWrapper}>
+            <Route path="fleets" component={LazyTeamDetailsWrapper}>
               <Redirect from="members" to="users" />
-              <Route path="users" component={UsersPage} />
-              <Route path="options" component={AgentOptionsPage} />
-              <Route path="settings" component={TeamSettings} />
+              <Route path="users" component={LazyUsersPage} />
+              <Route path="options" component={LazyAgentOptionsPage} />
+              <Route path="settings" component={LazyTeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="fleets" />
             <Redirect from="teams/:team_id/users" to="fleets" />
@@ -287,30 +591,33 @@ const routes = (
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />
-            <Route path="manage" component={ManageLabelsPage} />
-            <Route path="new" component={NewLabelPage}>
+            <Route path="manage" component={LazyManageLabelsPage} />
+            <Route path="new" component={LazyNewLabelPage}>
               {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
-              <Route path="dynamic" component={NewLabelPage} />
-              <Route path="manual" component={NewLabelPage} />
+              <Route path="dynamic" component={LazyNewLabelPage} />
+              <Route path="manual" component={LazyNewLabelPage} />
             </Route>
-            <Route path=":label_id" component={EditLabelPage} />
+            <Route path=":label_id" component={LazyEditLabelPage} />
           </Route>
           <Route path="hosts">
             <IndexRedirect to="manage" />
-            <Route path="manage" component={ManageHostsPage} />
-            <Route path="manage/labels/:label_id" component={ManageHostsPage} />
-            <Route path=":host_id" component={HostDetailsPage}>
+            <Route path="manage" component={LazyManageHostsPage} />
+            <Route
+              path="manage/labels/:label_id"
+              component={LazyManageHostsPage}
+            />
+            <Route path=":host_id" component={LazyHostDetailsPage}>
               <IndexRedirect to="details" />
-              <Route path="details" component={HostDetailsPage} />
-              <Route path="scripts" component={HostDetailsPage} />
-              <Route path="controls" component={HostDetailsPage} />
-              <Route path="software" component={HostDetailsPage}>
+              <Route path="details" component={LazyHostDetailsPage} />
+              <Route path="scripts" component={LazyHostDetailsPage} />
+              <Route path="controls" component={LazyHostDetailsPage} />
+              <Route path="software" component={LazyHostDetailsPage}>
                 <IndexRedirect to="inventory" />
-                <Route path="inventory" component={HostDetailsPage} />
-                <Route path="library" component={HostDetailsPage} />
+                <Route path="inventory" component={LazyHostDetailsPage} />
+                <Route path="library" component={LazyHostDetailsPage} />
               </Route>
-              <Route path="reports" component={HostDetailsPage} />
-              <Route path="policies" component={HostDetailsPage} />
+              <Route path="reports" component={LazyHostDetailsPage} />
+              <Route path="policies" component={LazyHostDetailsPage} />
             </Route>
 
             <Redirect
@@ -320,7 +627,7 @@ const routes = (
             <Route
               // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
               path=":host_id/reports/:query_id"
-              component={HostQueryReport}
+              component={LazyHostQueryReport}
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
@@ -329,44 +636,47 @@ const routes = (
               component={AuthAnyMaintainerAdminTechnicianRoutes}
             >
               <IndexRedirect to="os-updates" />
-              <Route component={ManageControlsPage}>
-                <Route path="os-updates" component={OSUpdates} />
-                <Route path="os-settings" component={OSSettings} />
+              <Route component={LazyManageControlsPage}>
+                <Route path="os-updates" component={LazyOSUpdates} />
+                <Route path="os-settings" component={LazyOSSettings} />
                 <Redirect
                   from="os-settings/custom-settings"
                   to="os-settings/configuration-profiles"
                 />
-                <Route path="os-settings/:section" component={OSSettings} />
+                <Route path="os-settings/:section" component={LazyOSSettings} />
                 <Route
                   path="os-settings/:section/:platform"
-                  component={OSSettings}
+                  component={LazyOSSettings}
                 />
 
-                <Route path="setup-experience" component={SetupExperience} />
+                <Route
+                  path="setup-experience"
+                  component={LazySetupExperience}
+                />
                 <Redirect
                   from="setup-experience/end-user-auth"
                   to="setup-experience/users"
                 />
                 <Route
                   path="setup-experience/:section"
-                  component={SetupExperience}
+                  component={LazySetupExperience}
                 />
                 <Route
                   path="setup-experience/:section/:platform"
-                  component={SetupExperience}
+                  component={LazySetupExperience}
                 />
 
                 <Route path="scripts">
                   <IndexRedirect to="library" />
-                  <Route path=":section" component={Scripts} />
+                  <Route path=":section" component={LazyScripts} />
                 </Route>
-                <Route path="variables" component={Variables} />
-                <Route path="variables/:section" component={Variables} />
+                <Route path="variables" component={LazyVariables} />
+                <Route path="variables/:section" component={LazyVariables} />
               </Route>
             </Route>
             <Route
               path="controls/scripts/progress/:batch_execution_id"
-              component={ScriptBatchDetailsPage}
+              component={LazyScriptBatchDetailsPage}
             />
           </Route>
           <Route path="software">
@@ -375,52 +685,55 @@ const routes = (
             <Redirect from="titles" to="inventory" />
             {/* Check the add route first so 'software/add' isn't caught by title/version detail routes */}
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="add" component={SoftwareAddPage}>
+              <Route path="add" component={LazySoftwareAddPage}>
                 <IndexRedirect to="fleet-maintained" />
                 <Route
                   path="fleet-maintained"
-                  component={SoftwareFleetMaintained}
+                  component={LazySoftwareFleetMaintained}
                 />
-                <Route path="app-store" component={SoftwareAppStore} />
-                <Route path="package" component={SoftwareCustomPackage} />
+                <Route path="app-store" component={LazySoftwareAppStore} />
+                <Route path="package" component={LazySoftwareCustomPackage} />
               </Route>
               <Route
                 path="add/fleet-maintained/:id"
-                component={FleetMaintainedAppDetailsPage}
+                component={LazyFleetMaintainedAppDetailsPage}
               />
             </Route>
-            <Route component={SoftwarePage}>
-              <Route path="inventory" component={SoftwareInventory} />
-              <Route path="versions" component={SoftwareInventory} />
-              <Route path="os" component={SoftwareOS} />
+            <Route component={LazySoftwarePage}>
+              <Route path="inventory" component={LazySoftwareInventory} />
+              <Route path="versions" component={LazySoftwareInventory} />
+              <Route path="os" component={LazySoftwareOS} />
               <Route
                 path="vulnerabilities"
-                component={SoftwareVulnerabilities}
+                component={LazySoftwareVulnerabilities}
               />
-              <Route path="library" component={SoftwareLibrary} />
+              <Route path="library" component={LazySoftwareLibrary} />
               {/* Legacy redirect: keeps old /software/:id URLs working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route
               path="library/categories"
-              component={SelfServiceCategoriesPage}
+              component={LazySelfServiceCategoriesPage}
             />
-            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
-            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/:id" component={SoftwareOSDetailsPage} />
+            <Route path="titles/:id" component={LazySoftwareTitleDetailsPage} />
+            <Route
+              path="versions/:id"
+              component={LazySoftwareVersionDetailsPage}
+            />
+            <Route path="os/:id" component={LazySoftwareOSDetailsPage} />
             <Route
               path="vulnerabilities/:cve"
-              component={SoftwareVulnerabilityDetailsPage}
+              component={LazySoftwareVulnerabilityDetailsPage}
             />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
               <IndexRedirect to="manage" />
-              <Route path="manage" component={ManagePacksPage} />
-              <Route path="new" component={PackComposerPage} />
+              <Route path="manage" component={LazyManagePacksPage} />
+              <Route path="new" component={LazyPackComposerPage} />
               <Route path=":id">
-                <IndexRoute component={EditPackPage} />
-                <Route path="edit" component={EditPackPage} />
+                <IndexRoute component={LazyEditPackPage} />
+                <Route path="edit" component={LazyEditPackPage} />
               </Route>
             </Route>
           </Route>
@@ -433,32 +746,32 @@ const routes = (
           <Redirect from="queries/:id/live" to="reports/:id/live" />
           <Route path="reports">
             <IndexRedirect to="manage" />
-            <Route path="manage" component={ManageQueriesPage} />
+            <Route path="manage" component={LazyManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
               <Route path="new">
-                <IndexRoute component={EditQueryPage} />
-                <Route path="live" component={LiveQueryPage} />
+                <IndexRoute component={LazyEditQueryPage} />
+                <Route path="live" component={LazyLiveQueryPage} />
               </Route>
             </Route>
             <Route path=":id">
-              <IndexRoute component={QueryDetailsPage} />
-              <Route path="edit" component={EditQueryPage} />
-              <Route path="live" component={LiveQueryPage} />
+              <IndexRoute component={LazyQueryDetailsPage} />
+              <Route path="edit" component={LazyEditQueryPage} />
+              <Route path="live" component={LazyLiveQueryPage} />
             </Route>
           </Route>
           <Route path="policies">
             <IndexRedirect to="manage" />
-            <Route path="manage" component={ManagePoliciesPage} />
+            <Route path="manage" component={LazyManagePoliciesPage} />
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
               <Route path="new">
-                <IndexRoute component={EditPolicyPage} />
-                <Route path="live" component={LivePolicyPage} />
+                <IndexRoute component={LazyEditPolicyPage} />
+                <Route path="live" component={LazyLivePolicyPage} />
               </Route>
             </Route>
             <Route path=":id">
-              <IndexRoute component={PolicyDetailsPage} />
-              <Route path="edit" component={EditPolicyPage} />
-              <Route path="live" component={LivePolicyPage} />
+              <IndexRoute component={LazyPolicyDetailsPage} />
+              <Route path="edit" component={LazyEditPolicyPage} />
+              <Route path="live" component={LazyLivePolicyPage} />
             </Route>
           </Route>
           <Redirect from="profile" to="account" /> {/* deprecated URL */}
@@ -468,12 +781,12 @@ const routes = (
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
         <Route path="sso-error" component={DeviceUserSSOErrorPage} />
-        <Route component={DeviceUserPage}>
-          <Route path=":device_auth_token" component={DeviceUserPage}>
-            <Route path="self-service" component={DeviceUserPage} />
-            <Route path="controls" component={DeviceUserPage} />
-            <Route path="software" component={DeviceUserPage} />
-            <Route path="policies" component={DeviceUserPage} />
+        <Route component={LazyDeviceUserPage}>
+          <Route path=":device_auth_token" component={LazyDeviceUserPage}>
+            <Route path="self-service" component={LazyDeviceUserPage} />
+            <Route path="controls" component={LazyDeviceUserPage} />
+            <Route path="software" component={LazyDeviceUserPage} />
+            <Route path="policies" component={LazyDeviceUserPage} />
           </Route>
         </Route>
       </Route>

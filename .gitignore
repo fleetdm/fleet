@@ -9,6 +9,8 @@ dist
 
 # generated artifacts
 assets/bundle*.*
+assets/*.js
+assets/*.js.LICENSE.txt
 assets/*@*.svg
 assets/*@*.png
 assets/*@*.gif
