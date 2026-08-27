@@ -1022,6 +1022,22 @@ allow {
   action == write
 }
 
+# Global admin and maintainers can send APNs ping
+allow {
+  object.type == "mdm_apns_ping"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins and maintainers can send APNs pings to devices on their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apns_ping"
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
 # Global admins can read and write Apple MDM enrollments.
 allow {
   object.type == "mdm_apple_enrollment_profile"

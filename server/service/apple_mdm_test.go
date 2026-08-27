@@ -10614,3 +10614,107 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 		require.Equal(t, []string{adamID}, installer.installs)
 	})
 }
+
+func TestSendAPNSPing(t *testing.T) {
+	ds := new(mock.Store)
+
+	cfg := config.TestConfig()
+	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
+
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	depStorage := &nanodep_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
+	)
+
+	opts := &TestServerOpts{
+		FleetConfig:    &cfg,
+		MDMStorage:     mdmStorage,
+		DEPStorage:     depStorage,
+		MDMPusher:      pusher,
+		License:        &fleet.LicenseInfo{Tier: fleet.TierFree},
+		ProfileMatcher: nopProfileMatcher{},
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+
+	var pushed []string
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, uuids []string) (map[string]*mdm.Push, error) {
+		pushed = append(pushed, uuids...)
+		res := make(map[string]*mdm.Push, len(uuids))
+		for _, u := range uuids {
+			res[u] = &mdm.Push{PushMagic: "magic", Token: []byte(u), Topic: "topic"}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	appleHost := func(platform string, enrollmentStatus *string) *fleet.Host {
+		return &fleet.Host{
+			ID:       1,
+			UUID:     "HOST-UUID",
+			Platform: platform,
+			TeamID:   new(uint(1)),
+			MDM:      fleet.MDMHostData{EnrollmentStatus: enrollmentStatus},
+		}
+	}
+
+	sendPing := func(t *testing.T, user *fleet.User, host *fleet.Host) ([]string, error) {
+		t.Helper()
+		pushed = nil
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			require.Equal(t, host.ID, id)
+			return host, nil
+		}
+		err := svc.SendAPNSPing(test.UserContext(ctx, user), host.ID)
+		return pushed, err
+	}
+
+	t.Run("enrolled Apple host is pushed to", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("darwin", new(fleet.MDMEnrollmentStatusManual)))
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID"}, got)
+	})
+
+	// The device endpoint authenticates by device token, so it takes the host
+	// directly and runs no authorization check.
+	t.Run("device pings its own host", func(t *testing.T) {
+		pushed = nil
+		require.NoError(t, svc.DeviceSendAPNSPing(ctx, appleHost("darwin", new(fleet.MDMEnrollmentStatusManual))))
+		require.Equal(t, []string{"HOST-UUID"}, pushed)
+	})
+
+	t.Run("non-Apple host", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("windows", new(fleet.MDMEnrollmentStatusManual)))
+		require.ErrorContains(t, err, "not an Apple device")
+		require.Empty(t, got)
+	})
+
+	t.Run("host without an MDM connection", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("darwin", new(fleet.MDMEnrollmentStatusOff)))
+		require.ErrorContains(t, err, "active MDM connection")
+		require.Empty(t, got)
+
+		got, err = sendPing(t, test.UserAdmin, appleHost("darwin", nil))
+		require.ErrorContains(t, err, "active MDM connection")
+		require.Empty(t, got)
+	})
+
+	// Observers can read hosts, so only the ping-specific authz check stops them.
+	t.Run("observer is not allowed to ping", func(t *testing.T) {
+		got, err := sendPing(t, test.UserObserver, appleHost("darwin", new(fleet.MDMEnrollmentStatusManual)))
+		require.ErrorContains(t, err, authz.ForbiddenErrorMessage)
+		require.Empty(t, got)
+	})
+}

@@ -1952,3 +1952,12 @@ type ComputedAppleSoftwareUpdateHost struct {
 	AppleSoftwareUpdateHost
 	Resend bool
 }
+
+// APNSPingAuthz is used to check user authorization to send an APNS ping to a device.
+type APNSPingAuthz struct {
+	TeamID *uint `json:"team_id,omitempty,omitzero"` // nolint:apiparamcheck // used for rego policy, and we only support team_id there.
+}
+
+func (a APNSPingAuthz) AuthzType() string {
+	return "mdm_apns_ping"
+}

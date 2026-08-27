@@ -1677,6 +1677,10 @@ type Service interface {
 	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
 	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is deleted.
 	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error
+
+	// SendAPNSPing sends a ping to the specified host via APNS. Only valid for Apple hosts.
+	SendAPNSPing(ctx context.Context, hostID uint) error
+	DeviceSendAPNSPing(ctx context.Context, host *Host) error
 }
 
 type KeyValueStore interface {
