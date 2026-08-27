@@ -17,7 +17,8 @@ import (
 
 func TestAndroidDeviceVitals(t *testing.T) {
 	fullyReportingDevice := &androidmanagement.Device{
-		ApiLevel: 36,
+		ApiLevel:  36,
+		Ownership: DeviceOwnershipCompanyOwned,
 		DeviceSettings: &androidmanagement.DeviceSettings{
 			AdbEnabled:        true,
 			IsDeviceSecure:    true,
@@ -55,15 +56,13 @@ func TestAndroidDeviceVitals(t *testing.T) {
 	}
 
 	cases := []struct {
-		name         string
-		device       *androidmanagement.Device
-		companyOwned bool
-		want         fleet.MDMAndroidDeviceVitals
+		name   string
+		device *androidmanagement.Device
+		want   fleet.MDMAndroidDeviceVitals
 	}{
 		{
-			name:         "fully reporting device",
-			device:       fullyReportingDevice,
-			companyOwned: true,
+			name:   "fully reporting device",
+			device: fullyReportingDevice,
 			want: fleet.MDMAndroidDeviceVitals{
 				APILevel:              new(int64(36)),
 				AdbEnabled:            new(true),
@@ -114,12 +113,50 @@ func TestAndroidDeviceVitals(t *testing.T) {
 			// personally-owned device, the phone number must not be stored.
 			name: "personally owned device with telephony info drops it",
 			device: &androidmanagement.Device{
+				Ownership: DeviceOwnershipPersonallyOwned,
 				NetworkInfo: &androidmanagement.NetworkInfo{
 					TelephonyInfos: []*androidmanagement.TelephonyInfo{{PhoneNumber: "+15555550100"}},
 				},
 			},
-			companyOwned: false,
-			want:         fleet.MDMAndroidDeviceVitals{},
+			want: fleet.MDMAndroidDeviceVitals{},
+		},
+		{
+			// AMAPI omits ownership on some status reports. Treating that as
+			// personally owned would erase, on the next report, the numbers
+			// captured at enrollment -- so unspecified defers to what AMAPI
+			// itself chose to send.
+			name: "unspecified ownership keeps the telephony AMAPI sent",
+			device: &androidmanagement.Device{
+				NetworkInfo: &androidmanagement.NetworkInfo{
+					TelephonyInfos: []*androidmanagement.TelephonyInfo{{PhoneNumber: "+15555550100"}},
+				},
+			},
+			want: fleet.MDMAndroidDeviceVitals{
+				TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
+			},
+		},
+		{
+			name: "explicitly unspecified ownership keeps the telephony AMAPI sent",
+			device: &androidmanagement.Device{
+				Ownership: "OWNERSHIP_UNSPECIFIED",
+				NetworkInfo: &androidmanagement.NetworkInfo{
+					TelephonyInfos: []*androidmanagement.TelephonyInfo{{PhoneNumber: "+15555550100"}},
+				},
+			},
+			want: fleet.MDMAndroidDeviceVitals{
+				TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
+			},
+		},
+		{
+			// UPDATE_STATUS_UNKNOWN is the system-update enum's "no data"
+			// member; it carries no _UNSPECIFIED suffix.
+			name: "unknown system update status is dropped",
+			device: &androidmanagement.Device{
+				SoftwareInfo: &androidmanagement.SoftwareInfo{
+					SystemUpdateInfo: &androidmanagement.SystemUpdateInfo{UpdateStatus: "UPDATE_STATUS_UNKNOWN"},
+				},
+			},
+			want: fleet.MDMAndroidDeviceVitals{},
 		},
 		{
 			// AMAPI's *_UNSPECIFIED sentinels mean "no data", not a state, and
@@ -136,7 +173,6 @@ func TestAndroidDeviceVitals(t *testing.T) {
 					}},
 				},
 			},
-			companyOwned: true,
 			want: fleet.MDMAndroidDeviceVitals{
 				AdbEnabled:         new(false),
 				PasscodeProtected:  new(false),
@@ -237,7 +273,7 @@ func TestAndroidDeviceVitals(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			require.Equal(t, c.want, androidDeviceVitals(c.device, c.companyOwned))
+			require.Equal(t, c.want, androidDeviceVitals(c.device))
 		})
 	}
 }
@@ -281,6 +317,12 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 			IsDeviceSecure:   true,
 			EncryptionStatus: "ACTIVE",
 		},
+		Ownership: DeviceOwnershipCompanyOwned,
+		NetworkInfo: &androidmanagement.NetworkInfo{
+			TelephonyInfos: []*androidmanagement.TelephonyInfo{
+				{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"},
+			},
+		},
 		MemoryInfo: &androidmanagement.MemoryInfo{
 			TotalRam:             int64(8 * 1024 * 1024 * 1024),
 			TotalInternalStorage: int64(128 * 1024 * 1024 * 1024),
@@ -302,6 +344,11 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 	require.Equal(t, new("ACTIVE"), gotVitals.EncryptionType)
 	require.Equal(t, new("Google"), gotVitals.Manufacturer)
 	require.Equal(t, new("2026-05-01"), gotVitals.SecurityUpdateVersion)
+	// A company-owned device's telephony info must survive the status-report
+	// path, not just enrollment.
+	require.Equal(t,
+		[]fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"}},
+		gotVitals.TelephonyInfos)
 }
 
 // TestEnrollmentPersistsVitals covers the enrollment wiring: the ENROLLMENT

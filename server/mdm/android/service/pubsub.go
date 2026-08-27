@@ -1010,7 +1010,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
-	if err := svc.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.Host.UUID, androidDeviceVitals(device, companyOwned)); err != nil {
+	if err := svc.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.Host.UUID, androidDeviceVitals(device)); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating Android host vitals")
 	}
 
@@ -1082,7 +1082,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 // version doesn't report. A section that's absent yields nil columns rather
 // than zero values, so "not reported" stays distinguishable from "reported as
 // false/empty".
-func androidDeviceVitals(device *androidmanagement.Device, companyOwned bool) fleet.MDMAndroidDeviceVitals {
+func androidDeviceVitals(device *androidmanagement.Device) fleet.MDMAndroidDeviceVitals {
 	var vitals fleet.MDMAndroidDeviceVitals
 
 	// The column is a signed int; anything outside that range is garbage from a
@@ -1136,12 +1136,18 @@ func androidDeviceVitals(device *androidmanagement.Device, companyOwned bool) fl
 		}
 	}
 
-	// AMAPI only reports telephonyInfos for fully managed devices, but Fleet
-	// gates on ownership itself rather than relying on that: a phone number is
-	// not something a personally-owned device should ever surface, and this
-	// also clears numbers left over from a company-owned enrollment if the
-	// device comes back as personally owned.
-	if ni := device.NetworkInfo; ni != nil && companyOwned {
+	// AMAPI only reports telephonyInfos for fully managed devices. Fleet drops
+	// it as well on an explicitly personally-owned device, which also clears
+	// numbers left over from a company-owned enrollment if the device comes
+	// back as personally owned.
+	//
+	// Ownership that is absent or OWNERSHIP_UNSPECIFIED is deliberately NOT
+	// treated as personally owned: AMAPI omits the field on some status
+	// reports, and since this write is a full overwrite, doing so would erase
+	// the numbers captured at enrollment on the next report. What the API
+	// returns is gated on Fleet's own enrollment record instead, in
+	// getHostDetails.
+	if ni := device.NetworkInfo; ni != nil && device.Ownership != DeviceOwnershipPersonallyOwned {
 		for _, info := range ni.TelephonyInfos {
 			if info == nil {
 				continue
@@ -1188,7 +1194,11 @@ func truncateVital(s string) string {
 // SIM reports ACTIVATION_STATE_UNSPECIFIED, for instance — so storing them
 // would ship placeholder values the API consumer has to know to ignore.
 func reportedEnum(s string) string {
-	if strings.HasSuffix(s, "_UNSPECIFIED") {
+	// UPDATE_STATUS_UNKNOWN is the system-update enum's "no data" member
+	// (reported when the device's API level is below 26, or Android Device
+	// Policy is outdated); it carries no _UNSPECIFIED suffix but means the
+	// same thing.
+	if s == "UPDATE_STATUS_UNKNOWN" || strings.HasSuffix(s, "_UNSPECIFIED") {
 		return ""
 	}
 	return s
@@ -1350,7 +1360,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return 0, ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
-	vitals := androidDeviceVitals(device, companyOwned)
+	vitals := androidDeviceVitals(device)
 	if err := svc.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, fleetHost.Host.UUID, vitals); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "setting Android host vitals")
 	}
