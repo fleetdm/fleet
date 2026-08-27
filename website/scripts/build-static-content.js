@@ -14,7 +14,6 @@ module.exports = {
 
 
   fn: async function ({ dry, githubAccessToken }) {
-    console.time('build-static-content');
     let path = require('path');
     let YAML = require('yaml');
     let util = require('util');
@@ -1696,7 +1695,6 @@ module.exports = {
           builtStaticContent: builtStaticContent,
         }
       });
-      console.timeEnd('build-static-content');
     }
   }
 
