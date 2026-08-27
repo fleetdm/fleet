@@ -16,8 +16,9 @@ const (
 	// enforces (the extra 0.5 MiB is base64 headroom, not usable content).
 	MaxProfileSizeErrMsg = "maximum configuration profile file size is 1 MB"
 	// MaxProfileNameLength matches the `name` column on the profile tables, which
-	// is varchar(255) and so counts characters, not bytes. Validated up front
-	// because MySQL would otherwise reject the write as a 500.
+	// is varchar(255) and so counts characters, not bytes. Validated up front so
+	// the caller gets this message instead of MySQL's raw "Data too long for
+	// column 'name'".
 	MaxProfileNameLength             = 255
 	MaxProfileNameLengthErrMsg       = "maximum configuration profile name length is 255 characters"
 	MaxMDMAssetSize            int64 = 1.5 * units.MiB // 1.5 to allow for roughly 1MB content, and B64 encoding

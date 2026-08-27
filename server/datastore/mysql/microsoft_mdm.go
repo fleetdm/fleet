@@ -3137,19 +3137,16 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			}
 
 			// A rename is a fresh upload even when the bytes are identical, so
-			// uploaded_at survives only a true no-op, matching the batch path's
-			// IF(syncml = VALUES(syncml) AND name = VALUES(name), ...).
+			// uploaded_at survives only a true no-op (as in the batch path).
 			const setClause = `UPDATE mdm_windows_configuration_profiles
 SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
 
-			// A name is unique per team across all four profile tables, but the
-			// UPDATE can only rely on this table's own index. Guarding with
-			// NOT EXISTS in the statement itself, rather than a preceding SELECT,
-			// keeps the check and the write atomic -- the same shape
-			// NewMDMWindowsConfigProfile uses on insert. Applied only on a rename
-			// so a content-only edit can't start failing on a pre-existing
-			// cross-table duplicate.
+			// A name is unique per team across all four profile tables, but only
+			// this table has an index for it. Guarding in the statement rather
+			// than a preceding SELECT keeps check and write atomic, as
+			// NewMDMWindowsConfigProfile does on insert. Rename-only, so a
+			// content edit can't fail on a pre-existing cross-table duplicate.
 			stmt := setClause
 			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
 			if nameChanged {
@@ -3187,10 +3184,9 @@ WHERE profile_uuid = ?`
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 
-			// The per-host rows denormalize the name. A content change refreshes
-			// them through the reinstall upsert, but a rename on identical content
-			// enqueues nothing, so update them here (as the GitOps declaration
-			// path does).
+			// The per-host rows denormalize the name, and a rename on identical
+			// content enqueues no reinstall to refresh them (as in the GitOps
+			// declaration path).
 			if nameChanged {
 				if _, err := tx.ExecContext(ctx,
 					`UPDATE host_mdm_windows_profiles SET profile_name = ? WHERE profile_uuid = ?`,
