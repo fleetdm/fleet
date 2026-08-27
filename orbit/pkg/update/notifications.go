@@ -744,8 +744,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	// decrypting and re-encrypting. This adds a new Fleet-managed recovery key
 	// protector, removes old ones, and escrows the new key. This matches how other MDMs
 	// handle pre-encrypted disks.
-	if encryptionStatus != nil &&
-		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
+	if encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
 		log.Debug().Msg("disk is already encrypted, rotating recovery key")
 
 		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
