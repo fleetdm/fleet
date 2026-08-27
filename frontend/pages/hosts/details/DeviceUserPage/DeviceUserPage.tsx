@@ -541,6 +541,7 @@ const DeviceUserPage = ({
     // Trigger APNS ping independently of the main refetch
     if (
       isAppleDevice(host.platform) &&
+      host.mdm.connected_to_fleet &&
       host.mdm.enrollment_status !== "Off" &&
       host.mdm.enrollment_status !== "Pending"
     ) {

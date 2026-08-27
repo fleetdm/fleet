@@ -42,6 +42,7 @@ const OBSERVER = createMockUser({ role: "observer", global_role: "observer" });
 const mockAppleHost = (): IHost => {
   const host = createMockHost({ platform: "darwin", status: "online" });
   host.mdm.enrollment_status = "On (manual)";
+  host.mdm.connected_to_fleet = true;
   return host;
 };
 

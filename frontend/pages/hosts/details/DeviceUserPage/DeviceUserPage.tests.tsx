@@ -846,6 +846,7 @@ describe("Device User Page - MDM check-in ping", () => {
       status: "online",
     }) as IHostDevice;
     host.mdm.enrollment_status = enrollmentStatus;
+    host.mdm.connected_to_fleet = true;
 
     mockServer.use(customDeviceHandler({ host }));
 

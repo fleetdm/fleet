@@ -779,6 +779,7 @@ const HostDetailsPage = ({
       // Trigger APNS ping independently
       if (
         isAppleDevice(host.platform) &&
+        host.mdm.connected_to_fleet &&
         host.mdm.enrollment_status !== "Off" &&
         host.mdm.enrollment_status !== "Pending" &&
         (permissions.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id) ||

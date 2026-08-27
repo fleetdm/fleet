@@ -48,7 +48,7 @@ interface IMDMStatusModal {
   router: InjectedRouter;
   isPremiumTier?: boolean;
   isAppleDevice?: boolean;
-  lastMDMCheckIn: string;
+  lastMDMCheckIn: string | null;
   onSuccessfulCheckIn: () => void;
   user: IUser | null;
   onExit: () => void;
@@ -271,6 +271,14 @@ const MDMStatusModal = ({
   const renderMDMCheckinRow = (item: IStatusRowItem) => {
     const { value: lastCheckIn } = item;
 
+    const canSeeButton =
+      isAppleDevice &&
+      !(["Off", "Pending"] as MdmEnrollmentStatus[]).includes(
+        enrollmentStatus
+      ) &&
+      (permissions.isTeamMaintainerOrTeamAdmin(user, fleetId ?? null) ||
+        permissions.isGlobalMaintainerOrGlobalAdmin(user));
+
     return (
       <>
         <div className={`${baseClass}__status`}>
@@ -281,22 +289,17 @@ const MDMStatusModal = ({
               : "Never"}
           </div>
         </div>
-        {isAppleDevice &&
-          !(["Off", "Pending"] as MdmEnrollmentStatus[]).includes(
-            enrollmentStatus
-          ) &&
-          (permissions.isTeamMaintainerOrTeamAdmin(user, fleetId ?? null) ||
-            permissions.isGlobalMaintainerOrGlobalAdmin(user)) && (
-            <Button
-              onClick={handleClickCheckInNow}
-              icon="refresh"
-              variant="subdued"
-              disabled={isCheckingIn}
-              isLoading={isCheckingIn}
-            >
-              Check in now
-            </Button>
-          )}
+        {canSeeButton && (
+          <Button
+            onClick={handleClickCheckInNow}
+            icon="refresh"
+            variant="subdued"
+            disabled={isCheckingIn}
+            isLoading={isCheckingIn}
+          >
+            Check in now
+          </Button>
+        )}
       </>
     );
   };
@@ -352,11 +355,13 @@ const MDMStatusModal = ({
       },
     ];
 
-    data.push({
-      id: "mdm-checkin",
-      value: lastMDMCheckIn,
-      render: renderMDMCheckinRow,
-    });
+    if (lastMDMCheckIn !== null) {
+      data.push({
+        id: "mdm-checkin",
+        value: lastMDMCheckIn,
+        render: renderMDMCheckinRow,
+      });
+    }
 
     return (
       <List<IStatusRowItem>
