@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -40,9 +41,54 @@ func TestScanConfigs(t *testing.T) {
 	write(t, filepath.Join(home, ".continue", "config.yaml"),
 		"mcpServers:\n  - name: cyaml\n    command: python\n    args: ['-m','mcp_server_x']\n")
 
+	write(t, filepath.Join(home, ".hermes", "config.yaml"), `
+mcp_servers:
+  fleet:
+    url: "http://localhost:8081/sse"
+    transport: sse
+    headers:
+      Authorization: "Bearer SECRET_SHOULD_NOT_LEAK"
+  opendesign:
+    command: "npx"
+    args: ["-y", "open-design-mcp"]
+`)
+	write(t, filepath.Join(home, ".grok", "config.toml"), `
+[mcp_servers.repowise]
+command = "repowise"
+args = ["mcp", "/tmp/proj", "--transport", "stdio"]
+enabled = true
+`)
+	write(t, filepath.Join(home, ".codex", "config.toml"), `
+[mcp_servers.gitnexus]
+command = "/opt/homebrew/bin/gitnexus"
+args = ["mcp"]
+`)
+	// Jan paths differ by OS; seed all catalog locations so the test is portable.
+	janJSON := `{"mcpServers":{"exa":{"type":"http","url":"https://mcp.exa.ai/mcp","command":""}}}`
+	for _, p := range []string{
+		filepath.Join(home, "Library", "Application Support", "Jan", "data", "mcp_config.json"),
+		filepath.Join(home, "AppData", "Roaming", "Jan", "data", "mcp_config.json"),
+		filepath.Join(home, ".config", "Jan", "data", "mcp_config.json"),
+		filepath.Join(home, ".local", "share", "Jan", "data", "mcp_config.json"),
+	} {
+		write(t, p, janJSON)
+	}
+	write(t, filepath.Join(home, ".openclaw", "openclaw.json"), `{
+	  "mcp": {
+	    "servers": {
+	      "context7": {"command":"npx","args":["-y","@upstash/context7-mcp"]},
+	      "remote-http": {"type":"http","url":"https://mcp.openclaw.example/mcp"}
+	    }
+	  }
+	}`)
+	write(t, filepath.Join(home, ".gemini", "config", "mcp_config.json"),
+		`{"mcpServers":{"gem":{"command":"uvx","args":["mcp-server-time"]}}}`)
+
 	by := map[string]Server{}
+	byClient := map[string][]Server{}
 	for _, s := range ScanConfigs(homes.Home{Dir: home, Username: "tester"}) {
 		by[s.ServerName] = s
+		byClient[s.Client] = append(byClient[s.Client], s)
 	}
 
 	cases := []struct{ name, loc, transport string }{
@@ -53,11 +99,19 @@ func TestScanConfigs(t *testing.T) {
 		{"zedsrv", "local", "stdio"},
 		{"vs", "remote", "sse"},
 		{"cyaml", "local", "stdio"},
+		{"fleet", "remote", "sse"},
+		{"opendesign", "local", "stdio"},
+		{"repowise", "local", "stdio"},
+		{"gitnexus", "local", "stdio"},
+		{"exa", "remote", "http"},
+		{"context7", "local", "stdio"},
+		{"remote-http", "remote", "http"},
+		{"gem", "local", "stdio"},
 	}
 	for _, c := range cases {
 		s, ok := by[c.name]
 		if !ok {
-			t.Errorf("server %q not found (found %d total)", c.name, len(by))
+			t.Errorf("server %q not found (found %d total: %v)", c.name, len(by), keysOf(by))
 			continue
 		}
 		if s.Location != c.loc {
@@ -70,12 +124,56 @@ func TestScanConfigs(t *testing.T) {
 	if by["remote-api"].URL == "" {
 		t.Error("remote-api: expected non-empty URL")
 	}
+	if by["fleet"].URL != "http://localhost:8081/sse" {
+		t.Errorf("fleet URL=%q", by["fleet"].URL)
+	}
+	if by["fleet"].Client != "hermes" {
+		t.Errorf("fleet client=%q want hermes", by["fleet"].Client)
+	}
+	if !strings.Contains(by["fleet"].RiskFlags, "cleartext_endpoint") {
+		t.Errorf("fleet risk_flags=%q missing cleartext_endpoint", by["fleet"].RiskFlags)
+	}
+	if !strings.Contains(by["fleet"].RiskFlags, "plaintext_secret") {
+		t.Errorf("fleet risk_flags=%q missing plaintext_secret (Authorization header name)", by["fleet"].RiskFlags)
+	}
+	if strings.Contains(by["fleet"].EnvKeys, "SECRET") || strings.Contains(by["fleet"].EnvKeys, "Bearer") {
+		t.Errorf("fleet env_keys leaked a header value: %q", by["fleet"].EnvKeys)
+	}
+	if by["exa"].URL != "https://mcp.exa.ai/mcp" {
+		t.Errorf("exa URL=%q", by["exa"].URL)
+	}
+	if by["exa"].Client != "jan" {
+		t.Errorf("exa client=%q want jan", by["exa"].Client)
+	}
+	if by["repowise"].Client != "grok" {
+		t.Errorf("repowise client=%q want grok", by["repowise"].Client)
+	}
+	if by["gitnexus"].Client != "codex" {
+		t.Errorf("gitnexus client=%q want codex", by["gitnexus"].Client)
+	}
+	if by["remote-http"].Client != "openclaw" {
+		t.Errorf("remote-http client=%q want openclaw", by["remote-http"].Client)
+	}
 	if by["fs"].EnvKeys != `["TOKEN"]` {
 		t.Errorf("fs: env_keys=%q want [\"TOKEN\"] (names only, no values)", by["fs"].EnvKeys)
 	}
 	if strings.Contains(by["fs"].EnvKeys, "x") {
 		t.Error("fs: env_keys leaked a value")
 	}
+	for _, wantClient := range []string{"hermes", "grok", "codex", "jan", "openclaw", "gemini"} {
+		if len(byClient[wantClient]) == 0 {
+			t.Errorf("expected at least one server from client %q", wantClient)
+		}
+	}
+}
+
+func keysOf(m map[string]Server) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func TestCorrelate(t *testing.T) {
