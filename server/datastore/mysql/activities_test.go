@@ -2705,12 +2705,18 @@ func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 		"an install younger than a sub-second timeout must survive it")
 	require.Nil(t, vppVerifyState(subSecondExec).VerificationFailedAt)
 
-	// the same timeout does reap it once it is genuinely older
+	// the same timeout does reap it once it is genuinely older. Only this install is checked: the
+	// hosts answered "just now" above are by now also older than a sub-second timeout, and none of
+	// them is used again.
 	setActivatedAgo(subSecondExec, 5_000_000)
 	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, subSecondTimeout, 10)
 	require.NoError(t, err)
-	require.Len(t, reaped, 1)
-	require.Equal(t, subSecondExec, reaped[0].CommandUUID)
+	reapedUUIDs = reapedUUIDs[:0]
+	for _, r := range reaped {
+		reapedUUIDs = append(reapedUUIDs, r.CommandUUID)
+	}
+	require.Contains(t, reapedUUIDs, subSecondExec)
+	require.NotNil(t, vppVerifyState(subSecondExec).VerificationFailedAt)
 
 	// maxHosts bounds hosts, not rows: two stuck hosts, one run each
 	hLimitA, hLimitB := newMDMHost(), newMDMHost()
