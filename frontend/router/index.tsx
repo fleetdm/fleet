@@ -57,12 +57,28 @@ import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
 const CHUNK_RELOAD_KEY = "fleet:chunk-reload";
 
-// Cleared on a successful load so a later failure can reload again.
-if (typeof window !== "undefined") {
-  window.addEventListener("load", () => {
-    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
-  });
-}
+// sessionStorage throws in some locked-down contexts. A chunk failing to load
+// should not be replaced by a storage error, so treat it as unavailable and
+// simply do not retry.
+const chunkReloadTried = () => {
+  try {
+    return Boolean(sessionStorage.getItem(CHUNK_RELOAD_KEY));
+  } catch {
+    return true;
+  }
+};
+
+const setChunkReloadTried = (tried: boolean) => {
+  try {
+    if (tried) {
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+    } else {
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+    }
+  } catch {
+    // Nothing to do — see above.
+  }
+};
 
 /**
  * A page whose code is fetched when the route is first entered, so it stays out
@@ -73,20 +89,30 @@ if (typeof window !== "undefined") {
  * produces a spinner.
  *
  * A failed download is retried once by reloading, which is the remedy when a
- * deploy has replaced the chunk while this tab was open. A second failure
- * propagates to the error boundary in App.
+ * deploy has replaced the chunk while this tab was open. The retry marker
+ * survives that reload and is cleared only once some chunk loads successfully,
+ * so a chunk that is genuinely gone fails a second time and propagates to the
+ * error boundary in App rather than reloading again.
  */
 const lazyPage = (load: () => Promise<{ default: RouteComponent }>) => {
   const Lazy = React.lazy(() =>
-    load().catch((err) => {
-      if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
-        sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+    load()
+      .then((m) => {
+        // Only a chunk that actually loaded clears the marker. Clearing it on
+        // window load instead would reset the guard on the very reload it
+        // triggered, turning a permanently missing chunk into a reload loop.
+        setChunkReloadTried(false);
+        return m;
+      })
+      .catch((err) => {
+        if (chunkReloadTried()) {
+          throw err;
+        }
+        setChunkReloadTried(true);
         window.location.reload();
         // Nothing should render while the reload is in flight.
         return new Promise<{ default: RouteComponent }>(noop);
-      }
-      throw err;
-    })
+      })
   );
 
   const LazyPage = (props: Record<string, unknown>) => (
