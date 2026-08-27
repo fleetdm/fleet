@@ -3,25 +3,26 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $installDir = "C:\Program Files\Mozilla Firefox"
-$maxWaitSeconds = 120
 
 try {
 
-# Start silent install without -Wait; the Firefox ESR installer launches the
-# browser after installing and blocks until it is closed.
+# Firefox's full installer is NSIS-based; /S installs silently and machine-wide.
 # /RegisterDefaultAgent=false: the Default Browser Agent task can't be registered
 # from SYSTEM context (0x80070534 error + firefox.exe dialog on first launch).
-Start-Process -FilePath "$exeFilePath" -ArgumentList "/S /RegisterDefaultAgent=false"
+$process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/S /RegisterDefaultAgent=false" -PassThru
 
-# Poll for installation to complete
-$elapsed = 0
-while ($elapsed -lt $maxWaitSeconds) {
-    Start-Sleep -Seconds 5
-    $elapsed += 5
-    if (Test-Path "$installDir\firefox.exe") {
-        Write-Host "Firefox ESR installed successfully after $elapsed seconds"
-        Exit 0
-    }
+# Wait for the installer to exit so operations that run right after (uninstall,
+# upgrade) don't race it. Its post-install background tasks can keep it alive,
+# so cap the wait and accept a landed firefox.exe as success.
+if ($process.WaitForExit(300000)) {
+  $exitCode = $process.ExitCode
+  Write-Host "Install exit code: $exitCode"
+  Exit $exitCode
+}
+
+if (Test-Path "$installDir\firefox.exe") {
+  Write-Host "Installer still running after 300s; Firefox ESR is installed"
+  Exit 0
 }
 
 Write-Host "Timed out waiting for Firefox ESR to install"
