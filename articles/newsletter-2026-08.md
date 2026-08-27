@@ -1,6 +1,10 @@
 # Fleet newsletter, August 2026
 
-Pin a Fleet-maintained app to the version you trust, or roll one back whenever you need to. Fleet 4.89.0 also adds Google Workspace as a source of IdP host vitals, and gives end users a clear path through Windows enrollment. Two more releases land this month.
+
+Hello from Fleet! 
+
+You aren't used to seeing a newsletter from us, and honestly, we aren't fans of average marketing emails either. Your inbox is loud enough. So, let's make a deal: we'll skip the fluff, and instead deliver a monthly brief covering all things Fleet, alongside the device management and endpoint security news that every IT admin, security pro, and tech leader needs on their radar.
+
 
 ## 🚀 What shipped last month
 
