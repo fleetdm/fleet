@@ -2848,6 +2848,8 @@ Runs the specified report as a live report on the specified hosts or group of ho
 
 After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
+> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new campaign on every request. Fleet doesn't automatically close campaigns, so frequent or automated calls that don't consume results can leave many open campaigns and queries behind. For scripts, integrations, or other automated callers, use `query_id` with an existing saved report and rate-limit your requests.
+
 `POST /api/v1/fleet/queries/run`
 
 #### Parameters
@@ -2943,6 +2945,8 @@ One of `query` and `query_id` must be specified.
 Runs the specified saved report as a live report on the specified targets. Returns a new live report campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
 
 After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
+
+> **Warning:** Passing `query` instead of `query_id` creates a new saved query and a new campaign on every request. Fleet doesn't automatically close campaigns, so frequent or automated calls that don't consume results can leave many open campaigns and queries behind. For scripts, integrations, or other automated callers, use `query_id` with an existing saved report and rate-limit your requests.
 
 `POST /api/v1/fleet/queries/run_by_identifiers`
 
