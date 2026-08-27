@@ -3233,7 +3233,7 @@ This activity contains the following fields:
 - "host_uuid": UUID of the host.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "request_type": the type of custom MDM command.
-- "platform": the platform of the host ("darwin" or "windows").
+- "platform": the platform of the host ("darwin", "windows", or "android").
 
 #### Example
 
@@ -3245,6 +3245,19 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "request_type": "EraseDevice",
   "platform": "darwin"
+}
+```
+
+Android example:
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Samsung SM-A176U1",
+  "host_uuid": "0a22e1b2-51b7-fe74-41b9-381f5a785317",
+  "command_uuid": "fe64941b-f7b8-4275-be57-5eb3535e87da",
+  "request_type": "REBOOT",
+  "platform": "android"
 }
 ```
 
