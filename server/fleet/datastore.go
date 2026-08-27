@@ -951,7 +951,17 @@ type Datastore interface {
 	BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
-	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
+	// UnblockHostsUpcomingActivityQueue activates the queue of up to maxHosts
+	// hosts that have pending activities but none activated. When
+	// skipFleetInitiated is true, hosts waiting solely on deferred
+	// fleet-initiated activities are left for ReleaseFleetInitiatedUpcomingActivities
+	// so its per-minute budget isn't bypassed.
+	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error)
+	// ReleaseFleetInitiatedUpcomingActivities activates the queue of up to
+	// maxHosts hosts whose pending fleet-initiated activities were enqueued
+	// with deferred activation (policy automations), oldest first. It is the
+	// release valve for the activity.fleet_initiated_release_per_minute budget.
+	ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error)
 	// ReapStuckActivatedMDMInstalls fails App Store and in-house app installs that have been
 	// activated longer than olderThan and can no longer make progress, releasing the activity
 	// queue each one is holding. See ReapStuckMDMInstalls for why such an install blocks a queue
@@ -1540,6 +1550,13 @@ type Datastore interface {
 	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
+
+	// UpsertMDMAppleFleetConfigProfile inserts or updates a Fleet-controlled
+	// configuration profile by its `team_id` and `identifier`, keeping the
+	// existing `profile_uuid` so hosts see a changed payload rather than a
+	// different profile. Re-writing identical bytes leaves the row untouched, so
+	// profile reconciliation stays a no-op.
+	UpsertMDMAppleFleetConfigProfile(ctx context.Context, p MDMAppleConfigProfile) error
 
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)

@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -183,6 +184,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
+	var oldName string
 	if payload.Name != nil {
 		*payload.Name = strings.TrimSpace(*payload.Name)
 		if *payload.Name == "" {
@@ -204,7 +206,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 			})
 		}
-
+		oldName = team.Name
 		team.Name = *payload.Name
 	}
 	if payload.Description != nil {
@@ -237,8 +239,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		iOSMinVersionUpdated            bool
 		iPadOSMinVersionUpdated         bool
 		windowsUpdatesUpdated           bool
-		macOSDiskEncryptionUpdated      bool
-		macOSFileVaultWasOn             bool
 		macOSSettingsChanged            bool
 		windowsSettingsChanged          bool
 		linuxSettingsChanged            bool
@@ -409,14 +409,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		newDiskEncryption := team.Config.MDM.DiskEncryptionConfig()
-		// The Apple FileVault profile only applies when Apple MDM is configured.
-		// On Windows-only deployments the settings still control BitLocker
-		// enforcement via the Windows MDM path. The FileVault profile covers
-		// enforcement and escrow as a whole, so only the off<->on transition of
-		// the pair creates or deletes it.
-		macOSFileVaultWasOn = oldDiskEncryption.MacOSEnabled || oldDiskEncryption.MacOSEscrowEnabled
-		macOSFileVaultIsOn := newDiskEncryption.MacOSEnabled || newDiskEncryption.MacOSEscrowEnabled
-		macOSDiskEncryptionUpdated = macOSFileVaultWasOn != macOSFileVaultIsOn && appCfg.MDM.EnabledAndConfigured
 		macOSSettingsChanged = newDiskEncryption.MacOSEnabled != oldDiskEncryption.MacOSEnabled ||
 			newDiskEncryption.MacOSEscrowEnabled != oldDiskEncryption.MacOSEscrowEnabled
 		windowsSettingsChanged = newDiskEncryption.WindowsEnabled != oldDiskEncryption.WindowsEnabled
@@ -622,6 +614,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
+	// oldName is only set when the payload carried a name.
+	if oldName != "" {
+		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, teamID, oldName, team.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "rename team in app config")
+		}
+	}
+
 	// Emit activities and enqueue scrub jobs for any historical_data sub-key
 	// whose value flipped on this team. SaveTeam (above) has already
 	// committed; the worker will see the new config when it picks up the
@@ -751,15 +750,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
 		}
 	}
-	if macOSDiskEncryptionUpdated {
-		if !macOSFileVaultWasOn {
-			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-			}
-		} else {
-			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-			}
+	// the profile only applies when Apple MDM is configured; on Windows-only
+	// deployments the settings still drive BitLocker via the Windows MDM path
+	if macOSSettingsChanged && appCfg.MDM.EnabledAndConfigured {
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
 	}
 	for _, pc := range []struct {
@@ -847,6 +842,59 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	return team, err
+}
+
+func (svc *Service) handleTeamRenameInAppConfig(ctx context.Context, appCfg *fleet.AppConfig, teamID uint, oldName, newName string) error {
+	if oldName == newName {
+		return nil
+	}
+	return svc.rewriteAppConfigTeamNames(ctx, appCfg, teamID,
+		func(t *fleet.MDMAppleABMAssignmentInfo) bool { return t.RenameTeam(oldName, newName) },
+		func(p *fleet.MDMAppleVolumePurchasingProgramInfo) bool { return p.RenameTeam(oldName, newName) },
+	)
+}
+
+// rewriteAppConfigTeamNames applies abm and vpp to the app config entries owned
+// by the tokens this fleet is assigned to, and persists the result only if
+// something actually changed. The fleet names in mdm.apple_business and
+// mdm.volume_purchasing_program are copies; the abm_tokens and vpp_token_teams
+// rows are the source of truth, so they select which entries may be touched.
+func (svc *Service) rewriteAppConfigTeamNames(
+	ctx context.Context,
+	appCfg *fleet.AppConfig,
+	teamID uint,
+	abm func(*fleet.MDMAppleABMAssignmentInfo) bool,
+	vpp func(*fleet.MDMAppleVolumePurchasingProgramInfo) bool,
+) error {
+	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
+	}
+	var updated bool
+	for i := range appCfg.MDM.AppleBusinessManager.Value {
+		token := &appCfg.MDM.AppleBusinessManager.Value[i]
+		if slices.Contains(orgNames, token.OrganizationName) && abm(token) {
+			updated = true
+		}
+	}
+
+	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get VPP token by team ID")
+	}
+	if vppToken != nil {
+		for i := range appCfg.MDM.VolumePurchasingProgram.Value {
+			programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
+			if programInfo.Location == vppToken.Location && vpp(programInfo) {
+				updated = true
+			}
+		}
+	}
+
+	if !updated {
+		return nil
+	}
+	return ctxerr.Wrap(ctx, svc.ds.SaveAppConfig(ctx, appCfg), "save app config")
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
@@ -1092,35 +1140,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
-	orgNames, err := svc.ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, &teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get ABM token org names associated by default teams")
-	}
-
-	// cleanup app config references for the team being deleted
-	if len(orgNames) > 0 {
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get app config")
-		}
-		updated := false
-		for _, orgName := range orgNames {
-			for i, token := range appCfg.MDM.AppleBusinessManager.Value {
-				if token.OrganizationName != orgName {
-					// no-op for this org name/token combo
-					continue
-				}
-
-				token.CleanRemovedTeam(name)
-				appCfg.MDM.AppleBusinessManager.Value[i] = token
-				updated = true
-			}
-		}
-		if updated {
-			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-				return ctxerr.Wrap(ctx, err, "save app config")
-			}
-		}
+	if err := svc.cleanupStaleAppConfigTeamNames(ctx, teamID, name); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup stale app config team names")
 	}
 
 	// If this fleet is the Windows enrollment default, clear it explicitly to revoke the cache.
@@ -1185,6 +1206,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 	return nil
+}
+
+func (svc *Service) cleanupStaleAppConfigTeamNames(ctx context.Context, teamID uint, name string) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	return svc.rewriteAppConfigTeamNames(ctx, appCfg, teamID,
+		func(t *fleet.MDMAppleABMAssignmentInfo) bool { return t.CleanRemovedTeam(name) },
+		func(p *fleet.MDMAppleVolumePurchasingProgramInfo) bool { return p.CleanRemovedTeam(name) },
+	)
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
@@ -1938,10 +1970,9 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	// The FileVault profile can cover both enforcement and key escrow.
 	if macOSDiskEncryptionOn && appCfg.MDM.EnabledAndConfigured {
-		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &tm.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
 	}
 	// a new team starts with everything off, so any enabled platform is a change
@@ -1991,7 +2022,13 @@ func (svc *Service) editTeamFromSpec(
 	secrets []*fleet.EnrollSecret,
 	opts fleet.ApplyTeamSpecOptions,
 ) error {
+	if team == nil {
+		return ctxerr.New(ctx, "editing team from spec: team is nil")
+	}
+
+	var oldName string
 	if !opts.DryRun {
+		oldName = team.Name
 		// We keep the original name for dry run because subsequent dry run calls may need the original name to fetch the team
 		team.Name = spec.Name
 	}
@@ -2412,6 +2449,17 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 
+	if !opts.DryRun {
+		// Fetch fresh appConfig to avoid masked secrets
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		if err := svc.handleTeamRenameInAppConfig(ctx, appCfg, team.ID, oldName, team.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "rename team in app config")
+		}
+	}
+
 	// If no secrets are provided and user did not explicitly specify an empty list, do not replace secrets. (#6774)
 	if secrets != nil {
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
@@ -2441,19 +2489,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
-		// The FileVault profile can cover both enforcement and key escrow, so
-		// only the off<->on transition of the pair creates or deletes it.
-		macOSDiskEncryptionOn := newDiskEncryption.MacOSEnabled || newDiskEncryption.MacOSEscrowEnabled
-		macOSDiskEncryptionWasOn := oldDiskEncryption.MacOSEnabled || oldDiskEncryption.MacOSEscrowEnabled
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-			}
+		if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 		}
 	}
 	for _, pc := range []struct {
@@ -2742,20 +2779,9 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 		if err != nil {
 			return err
 		}
-		// the FileVault profile can cover both enforcement and key escrow,
-		// so only the off<->on transition of the macOS pair creates or
-		// deletes it
-		macOSDiskEncryptionOn := newDiskEncryption.MacOSEnabled || newDiskEncryption.MacOSEscrowEnabled
-		macOSDiskEncryptionWasOn := oldDiskEncryption.MacOSEnabled || oldDiskEncryption.MacOSEscrowEnabled
-		if appCfg.MDM.EnabledAndConfigured && macOSDiskEncryptionOn != macOSDiskEncryptionWasOn {
-			if macOSDiskEncryptionOn {
-				if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
-				}
-			} else {
-				if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &tm.ID); err != nil && !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
-				}
+		if appCfg.MDM.EnabledAndConfigured {
+			if err := svc.MDMAppleReconcileFileVaultProfile(ctx, &tm.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile team filevault profile")
 			}
 		}
 	}

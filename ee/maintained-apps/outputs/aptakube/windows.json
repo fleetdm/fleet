@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.19.2",
+      "version": "1.19.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL' AND version_compare(version, '1.19.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aptakube' AND publisher = 'Zandar Labs SL' AND version_compare(version, '1.19.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aptakube.exe');"
       },
-      "installer_url": "https://releases.aptakube.com/Aptakube_1.19.2_x64_en-US.msi",
+      "installer_url": "https://releases.aptakube.com/Aptakube_1.19.3_x64_en-US.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "d2281ec5",
-      "sha256": "8bcd042f2579b8ab6822233f3ddd6ee7a1502d9f2ef4e2532948850754eefac8",
+      "sha256": "d51bd33bcf1df0df6da2343a3a469495137b6856ccbbccea2254d9bc99fc25ce",
       "default_categories": [
         "Developer tools"
       ],

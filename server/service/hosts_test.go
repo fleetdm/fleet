@@ -5081,6 +5081,38 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, notifs.RotateDiskEncryptionKey)
 	})
+
+	t.Run("macOS rotation follows escrow, not enforcement", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		// a key that Fleet cannot decrypt is what makes rotation wanted
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{Decryptable: new(false)}, nil
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// escrow on: Escrow Buddy is asked to produce a key Fleet can store
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.RotateDiskEncryptionKey)
+
+		// enforcement alone: the profile carries no escrow payload, so rotating
+		// would produce a key with nowhere to go
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
 }
 
 func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {

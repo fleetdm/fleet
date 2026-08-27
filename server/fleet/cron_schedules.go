@@ -44,12 +44,16 @@ const (
 	CronMaintainedAppsAutoUpdate CronScheduleName = "maintained_apps_auto_update"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
-	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
-	CronAppleMDMIPhoneIPadReviver      CronScheduleName = "apple_mdm_iphone_ipad_reviver"
-	CronUpcomingActivitiesMaintenance  CronScheduleName = "upcoming_activities_maintenance"
-	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
-	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
-	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	CronRefreshVPPAppVersions         CronScheduleName = "refresh_vpp_app_versions"
+	CronAppleMDMIPhoneIPadReviver     CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronUpcomingActivitiesMaintenance CronScheduleName = "upcoming_activities_maintenance"
+	// CronFleetInitiatedActivitiesRelease activates deferred fleet-initiated
+	// upcoming activities (policy-automation installs/scripts) within the
+	// activity.fleet_initiated_release_per_minute budget. Runs every 1 minute.
+	CronFleetInitiatedActivitiesRelease CronScheduleName = "fleet_initiated_activities_release"
+	CronHostVitalsLabelMembership       CronScheduleName = "host_vitals_label_membership"
+	CronBatchActivityCompletionChecker  CronScheduleName = "batch_activity_completion_checker"
+	CronScheduledBatchActivities        CronScheduleName = "scheduled_batch_activities"
 	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
 	// This job only runs once after upgrading to v4.76.0.
 	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"

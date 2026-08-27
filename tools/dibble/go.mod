@@ -69,7 +69,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
-	github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87 // indirect
+	github.com/micromdm/plist v0.3.0 // indirect
 	github.com/nukosuke/go-zendesk v0.13.1 // indirect
 	github.com/oschwald/geoip2-golang v1.8.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect

@@ -301,8 +301,8 @@ github.com/micromdm/micromdm v1.9.0 h1:FAsIKOpnGcq21UQCrHCUxZwSW4NwBLGOoUtzbURxd
 github.com/micromdm/micromdm v1.9.0/go.mod h1:YsAtsEvfEIwpjYTUPpWkJXSfH0hhp9mMHW1BgIZgRt8=
 github.com/micromdm/nanolib v0.2.0 h1:g5GHQuUpS82WIAB15LyenjF/0/WSUNJMe5XZfCJSXq4=
 github.com/micromdm/nanolib v0.2.0/go.mod h1:FwBKCvvphgYvbdUZ+qw5kay7NHJcg6zPi8W7kXNajmE=
-github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87 h1:U9A+0ZED3cPxb5ufiTzyn2kyo6UFoR5bMggCR0Q/DOg=
-github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87/go.mod h1:flkfm0od6GzyXBqI28h5sgEyi3iPO28W2t1Zm9LpwWs=
+github.com/micromdm/plist v0.3.0 h1:a7G9K92jBnY4k202TqlTropTXrYTLJEGV9Ks5AN0LpU=
+github.com/micromdm/plist v0.3.0/go.mod h1:flkfm0od6GzyXBqI28h5sgEyi3iPO28W2t1Zm9LpwWs=
 github.com/minio/highwayhash v1.0.4-0.20251030100505-070ab1a87a76 h1:KGuD/pM2JpL9FAYvBrnBBeENKZNh6eNtjqytV6TYjnk=
 github.com/minio/highwayhash v1.0.4-0.20251030100505-070ab1a87a76/go.mod h1:GGYsuwP/fPD6Y9hMiXuapVvlIUEhFhMTh0rxU3ik1LQ=
 github.com/mna/redisc v1.3.2 h1:sc9C+nj6qmrTFnsXb70xkjAHpXKtjjBuE6v2UcQV0ZE=

@@ -88,6 +88,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
+		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
@@ -15355,4 +15356,75 @@ func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datas
 	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil))
 	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testUpsertMDMAppleFleetConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profileFor := func(payload string) fleet.MDMAppleConfigProfile {
+		return fleet.MDMAppleConfigProfile{
+			Name:         fleetmdm.FleetFileVaultProfileName,
+			Identifier:   mobileconfig.FleetFileVaultPayloadIdentifier,
+			Mobileconfig: mobileconfig.Mobileconfig(payload),
+			TeamID:       nil,
+		}
+	}
+
+	type row struct {
+		UUID       string    `db:"profile_uuid"`
+		Checksum   []byte    `db:"checksum"`
+		UploadedAt time.Time `db:"uploaded_at"`
+		Mobileconf []byte    `db:"mobileconfig"`
+	}
+	read := func() row {
+		var r row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &r, `
+SELECT profile_uuid, checksum, uploaded_at, mobileconfig
+FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
+				mobileconfig.FleetFileVaultPayloadIdentifier)
+		})
+		return r
+	}
+
+	// first write inserts
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, profileFor("<plist>one</plist>")))
+	first := read()
+	require.NotEmpty(t, first.UUID)
+	require.Equal(t, "<plist>one</plist>", string(first.Mobileconf))
+
+	// re-writing identical bytes must not touch the row: the reconciler keys on
+	// the checksum, so a bump here would re-push the profile to every host
+	time.Sleep(time.Second) // uploaded_at has second granularity
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, profileFor("<plist>one</plist>")))
+	same := read()
+	require.Equal(t, first.UUID, same.UUID)
+	require.Equal(t, first.Checksum, same.Checksum)
+	require.True(t, first.UploadedAt.Equal(same.UploadedAt),
+		"uploaded_at advanced despite identical bytes: %s -> %s", first.UploadedAt, same.UploadedAt)
+
+	// changed bytes update in place, keeping the profile_uuid so hosts see a
+	// payload change rather than a different profile
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, profileFor("<plist>two</plist>")))
+	changed := read()
+	require.Equal(t, first.UUID, changed.UUID)
+	require.NotEqual(t, first.Checksum, changed.Checksum)
+	require.Equal(t, "<plist>two</plist>", string(changed.Mobileconf))
+	require.True(t, changed.UploadedAt.After(first.UploadedAt))
+
+	// a fleet-scoped profile is a separate row from no-team's
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "upsert-fleet"})
+	require.NoError(t, err)
+	teamProfile := profileFor("<plist>fleet</plist>")
+	teamProfile.TeamID = &tm.ID
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, teamProfile))
+	require.Equal(t, "<plist>two</plist>", string(read().Mobileconf))
+
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE identifier = ?`,
+			mobileconfig.FleetFileVaultPayloadIdentifier)
+	})
+	require.Equal(t, 2, count)
 }

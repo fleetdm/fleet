@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/chart"
@@ -227,6 +228,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	config.Osquery.Validate(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
+
+	config.WebSocket.Validate(initFatal)
 
 	config.Server.NormalizeURLPrefix()
 	config.Server.ValidateURLPrefix(initFatal)
@@ -655,6 +658,41 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
+	// Bootstrap the agent WebSocket notification transport (ADR-0011): the
+	// per-instance hub of agent connections, the Redis pub/sub subscription
+	// that fans live query wake-ups out to all instances, and the per-instance
+	// interval check job.
+	var agentWSHub *agentws.Hub
+	if config.WebSocket.TransportEnabled {
+		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
+			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
+		agentWSHub.InstanceID = instanceID
+		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// Delay live query wake-ups by the live query store's in-memory cache
+		// TTL so a notified read can't be served from a cache snapshot
+		// predating the campaign (see pubsub.DelayedAgentNotifier).
+		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
+			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
+			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+		})
+		// Each instance checks only the connections it holds, so this is a
+		// plain per-instance goroutine, not a locked cron job.
+		go (&agentws.IntervalChecker{
+			Hub:       agentWSHub,
+			Svc:       svc,
+			Interval:  config.WebSocket.CheckInterval,
+			BatchSize: config.WebSocket.CheckBatchSize,
+			Logger:    logger.With("component", "agentws-interval-checker"),
+		}).Run(ctx)
+		// Keep WebSocket-connected hosts "online": the transport removes the
+		// 10s distributed/read poll that used to keep seen_time fresh. 30s
+		// stays inside the smallest online window Fleet computes (min interval
+		// + 60s buffer); uses the same batched last-seen path as polling auth.
+		go agentws.RecordSeenLoop(ctx, agentWSHub, task, 30*time.Second,
+			logger.With("component", "agentws-seen"))
+	}
+
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
 	// replicas. No-op when OTEL is disabled.
@@ -756,6 +794,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
 		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
+		if agentWSHub != nil {
+			extra = append(extra, service.WithAgentWSHub(agentWSHub))
+		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
@@ -866,6 +907,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
+			config.Activity.FleetInitiatedReleasePerMinute > 0,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
@@ -987,7 +1029,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
-		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds, agentWSHub),
 	}
 	rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1090,6 +1132,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				if err := loggerProvider.Shutdown(ctx); err != nil {
 					logger.ErrorContext(ctx, "failed to shutdown OTEL logger provider", "err", err)
 				}
+			}
+			// srv.Shutdown ignores hijacked connections; close the agent
+			// WebSockets so agents start reconnecting right away.
+			if agentWSHub != nil {
+				agentWSHub.Shutdown()
 			}
 			return srv.Shutdown(ctx)
 		}()
