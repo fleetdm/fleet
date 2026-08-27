@@ -782,8 +782,7 @@ const HostDetailsPage = ({
         host.mdm.connected_to_fleet &&
         host.mdm.enrollment_status !== "Off" &&
         host.mdm.enrollment_status !== "Pending" &&
-        (permissions.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id) ||
-          permissions.isGlobalMaintainerOrGlobalAdmin(currentUser))
+        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.team_id)
       ) {
         hostAPI.apnsPing(host.id).catch((error) => {
           notify.error("Failed to send APNS ping", { response: error });

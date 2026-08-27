@@ -677,11 +677,10 @@ describe("MDMStatusModal - MDM check-in", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("only offers 'Check in now' to a maintainer or higher", async () => {
+  it("offers 'Check in now' to observers and above", async () => {
     const CHECK_IN_BUTTON = { name: /check in now/i };
 
-    // Global admin and global maintainer can ping; a global observer sees the
-    // check-in time but gets no button.
+    // observers and above can all ping
     const { unmount } = renderModal(renderAsAdmin);
     expect(
       await screen.findByRole("button", CHECK_IN_BUTTON)
@@ -699,8 +698,8 @@ describe("MDMStatusModal - MDM check-in", () => {
     renderModal(renderAsAdmin, { user: OBSERVER });
     expect(await screen.findByText("Last MDM check-in")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", CHECK_IN_BUTTON)
-    ).not.toBeInTheDocument();
+      await screen.findByRole("button", CHECK_IN_BUTTON)
+    ).toBeInTheDocument();
   });
 
   it("still navigates to filtered hosts when the MDM status row is clicked", async () => {

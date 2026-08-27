@@ -101,7 +101,7 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     jest.resetAllMocks();
   });
 
-  it("only pings APNS alongside the refetch for a maintainer or higher", async () => {
+  it("pings APNS alongside the refetch for observer and above", async () => {
     stubQueries(mockAppleHost());
 
     // Global admin: refetch fires the ping too.
@@ -116,7 +116,7 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     (hostAPI.refetch as jest.Mock).mockClear();
     (hostAPI.apnsPing as jest.Mock).mockClear();
 
-    // Global observer: the refetch still goes out, the ping does not.
+    // Global observer: fires the ping as well.
     const { user: observer } = renderPageAs(OBSERVER, false);
     await observer.click(
       await screen.findByRole("button", { name: /refetch/i })
@@ -124,6 +124,6 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
     });
-    expect(hostAPI.apnsPing).not.toHaveBeenCalled();
+    expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
   });
 });

@@ -276,8 +276,7 @@ const MDMStatusModal = ({
       !(["Off", "Pending"] as MdmEnrollmentStatus[]).includes(
         enrollmentStatus
       ) &&
-      (permissions.isTeamMaintainerOrTeamAdmin(user, fleetId ?? null) ||
-        permissions.isGlobalMaintainerOrGlobalAdmin(user));
+      permissions.isGlobalOrTeamObserverOrAbove(user, fleetId ?? null);
 
     return (
       <>
