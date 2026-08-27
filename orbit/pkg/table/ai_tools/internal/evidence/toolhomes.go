@@ -3,7 +3,6 @@ package evidence
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 )
@@ -66,14 +65,8 @@ func dirHasContent(dir string) bool {
 	if err != nil {
 		return false
 	}
-	for _, e := range ents {
-		name := e.Name()
-		if strings.HasPrefix(name, ".") && name != ".env" {
-			// still counts as content
-		}
-		return true
-	}
-	return false
+	// Hidden entries count as content, so any entry at all is enough.
+	return len(ents) > 0
 }
 
 func findBinNear(home, toolHome, name string) string {

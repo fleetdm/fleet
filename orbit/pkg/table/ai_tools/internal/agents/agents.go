@@ -117,7 +117,7 @@ func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 	// Tier B: multi-signal candidates from the shared evidence bundle.
 	if b != nil {
 		for _, c := range evidence.AgentCandidates(h, snap, b) {
-			if idx, ok := seen[c.Name]; ok {
+			if idx, ok := seen[c.Name]; ok && mergesInto(out[idx], c) {
 				// Merge into catalog row: keep conf 100, union evidence.
 				out[idx].Evidence = mergeEvidence(out[idx].Evidence, c.Signals.CSV())
 				if c.Running == 1 && out[idx].Running == 0 {
@@ -180,6 +180,20 @@ func mergeEvidence(a, b string) string {
 	}
 	s := evidence.Signals(set)
 	return s.CSV()
+}
+
+// mergesInto reports whether an evidence candidate describes the same install
+// as an existing row rather than merely sharing its name. Tool-home candidates
+// are named after a known tool, so a name match really is the same tool.
+// Workspace and framework candidates are named after a directory, so a project
+// directory that happens to be called "grok" or "codex" must not fold into that
+// tool's row, contribute unrelated evidence, and relabel its category.
+func mergesInto(a Agent, c evidence.AgentCandidate) bool {
+	if c.BinaryPath != "" && a.BinaryPath != "" &&
+		filepath.Clean(c.BinaryPath) == filepath.Clean(a.BinaryPath) {
+		return true
+	}
+	return c.Signals["tool_home"]
 }
 
 func pathSeen(out []Agent, path string) bool {

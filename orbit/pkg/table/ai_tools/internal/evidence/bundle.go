@@ -66,23 +66,19 @@ func Gather(ctx context.Context, hs []homes.Home, snap *proc.Snapshot, types map
 		b.Workspaces = append(b.Workspaces, scanWorkspaces(h)...)
 		b.Frameworks = append(b.Frameworks, scanFrameworks(h)...)
 	}
-	// Annotate tool homes / workspaces with running processes when snap present.
-	if snap != nil {
-		annotateRunning(b, snap)
-	}
+	// Running state is applied later, where agents fuse these candidates
+	// against the process snapshot; here the paths are only normalized.
+	normalizeBinaryPaths(b)
 	return b
 }
 
 // annotateRunning sets binary running hints by matching process names/paths.
-func annotateRunning(b *Bundle, snap *proc.Snapshot) {
-	// Running is applied when agents fuse candidates; here we only ensure
-	// binary paths from tool homes are absolute and cleaned.
+func normalizeBinaryPaths(b *Bundle) {
 	for i := range b.ToolHomes {
 		if b.ToolHomes[i].BinaryPath != "" {
 			b.ToolHomes[i].BinaryPath = filepath.Clean(b.ToolHomes[i].BinaryPath)
 		}
 	}
-	_ = snap
 }
 
 // AgentCandidate is a fused Tier-B agent suggestion for one home.
@@ -252,6 +248,17 @@ func underHome(path, home string) bool {
 	}
 	if path == "" {
 		return false
+	}
+	// Compare resolved paths when both resolve. A symlink such as
+	// $HOME/.claude -> /etc satisfies a purely lexical prefix check while its
+	// target sits outside the home, and the callers reach this guard through
+	// os.Stat, which follows symlinks. Paths that cannot be resolved (a broken
+	// link, or one that no longer exists) fall back to the lexical comparison;
+	// nothing readable lies behind them either way.
+	if rp, err := filepath.EvalSymlinks(path); err == nil {
+		if rh, err := filepath.EvalSymlinks(home); err == nil {
+			path, home = rp, rh
+		}
 	}
 	path = filepath.Clean(path)
 	home = filepath.Clean(home)

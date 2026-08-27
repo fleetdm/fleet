@@ -226,3 +226,57 @@ func writeExec(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+// A symlinked tool home whose target sits outside the home directory must not
+// pass the boundary check: the producers reach underHome through os.Stat, which
+// follows symlinks, so a purely lexical prefix test would accept it.
+func TestUnderHomeRejectsSymlinkEscape(t *testing.T) {
+	home := t.TempDir()
+	outside := t.TempDir()
+
+	link := filepath.Join(home, ".claude")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if underHome(link, home) {
+		t.Errorf("underHome(%q, %q) = true, want false: the link resolves to %q, outside the home", link, home, outside)
+	}
+
+	// A real directory inside the home is still accepted.
+	real := filepath.Join(home, ".grok")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !underHome(real, home) {
+		t.Errorf("underHome(%q, %q) = false, want true", real, home)
+	}
+}
+
+// A .claude.json that carries no MCP configuration must not contribute the
+// mcp_config marker, which would otherwise lend an ordinary project enough
+// workspace shape to emit an agent row on its own.
+func TestClaudeJSONWithoutMCPIsNotAnMCPConfig(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".claude.json"), []byte(`{"theme":"dark"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range detectMarkers(root) {
+		if m == "mcp_config" {
+			t.Fatal("unrelated .claude.json produced an mcp_config marker")
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(root, ".claude.json"), []byte(`{"mcpServers":{"fs":{}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, m := range detectMarkers(root) {
+		if m == "mcp_config" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("a .claude.json declaring mcpServers should produce an mcp_config marker")
+	}
+}

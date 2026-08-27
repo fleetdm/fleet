@@ -139,8 +139,10 @@ func detectMarkers(root string) []string {
 			break
 		}
 	}
-	// Also bare mcpServers in claude json at root
-	if fsutil.Exists(filepath.Join(root, ".claude.json")) {
+	// Also bare mcpServers in claude json at root. Presence alone is not the
+	// signal: an unrelated .claude.json would otherwise lend a project enough
+	// workspace shape to emit an agent row on its own.
+	if p := filepath.Join(root, ".claude.json"); fsutil.Exists(p) && fileMentionsMCP(p) {
 		m = append(m, "mcp_config")
 	}
 	// Loop / harness config
