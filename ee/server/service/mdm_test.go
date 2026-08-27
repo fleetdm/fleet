@@ -163,6 +163,26 @@ func TestMDMAppleReconcileFileVaultProfile(t *testing.T) {
 		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 	})
 
+	t.Run("enforcement only does not need the CA certificate", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := &Service{ds: ds}
+		withMacOSSettings(ds, true, false)
+		// the escrow payload is what carries the certificate, so an unreadable
+		// CA asset must not stop an enforcement-only profile from rendering
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return nil, errors.New("CA asset unavailable")
+		}
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+			require.NotContains(t, string(p.Mobileconfig), "com.apple.security.pkcs1")
+			return nil
+		}
+		require.NoError(t, svc.MDMAppleReconcileFileVaultProfile(ctx, nil))
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
+		require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked, "the CA asset should not be read at all")
+	})
+
 	t.Run("both settings off removes the profile", func(t *testing.T) {
 		var wantTeamID uint = 4
 		ds, svc := setup(t)

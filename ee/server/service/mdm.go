@@ -165,19 +165,25 @@ func (svc *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamI
 		return nil
 	}
 
-	// read fresh every time: turning Apple MDM off and on again mints a new CA,
-	// and a key escrowed against the old one can no longer be decrypted, so the
-	// profile has to carry the current certificate
-	cert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving CA cert")
+	// Only the escrow payload carries the certificate, so enforcement-only
+	// profiles neither need it nor should fail when it cannot be read. Read it
+	// fresh otherwise: turning Apple MDM off and on again mints a new CA, and a
+	// key escrowed against the old one can no longer be decrypted, so the
+	// profile has to carry the current certificate.
+	var certB64 string
+	if diskEncryption.MacOSEscrowEnabled {
+		cert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving CA cert")
+		}
+		certB64 = base64.StdEncoding.EncodeToString(cert.Raw)
 	}
 
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 		PayloadName:          mdm.FleetFileVaultProfileName,
-		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Raw),
+		Base64DerCertificate: certB64,
 		EnableEnforcement:    diskEncryption.MacOSEnabled,
 		EnableEscrow:         diskEncryption.MacOSEscrowEnabled,
 	}
@@ -198,7 +204,12 @@ func (svc *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamI
 
 // macOSDiskEncryptionSettings returns the effective disk encryption settings for
 // a fleet, or no-team's when teamID is nil or 0.
+//
+// Every caller reconciles immediately after saving these settings, so the read
+// is forced to the primary: a replica serving the previous values would render
+// the profile from them and push it to every Mac in the fleet.
 func (svc *Service) macOSDiskEncryptionSettings(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	if teamID == nil || *teamID == 0 {
 		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {

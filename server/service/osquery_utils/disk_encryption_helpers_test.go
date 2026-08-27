@@ -12,7 +12,7 @@ import (
 )
 
 func TestIsDiskEncryptionEscrowEnabledForHost(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 
 	// a mixed state: macOS and Windows on, Linux off
