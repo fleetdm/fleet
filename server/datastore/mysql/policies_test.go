@@ -10160,6 +10160,46 @@ func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
 		require.Equal(t, installerB, *pinned.SoftwareInstallerID, "SoftwarePackageID must pin the specific installer, not the first-added default")
 	})
 
+	t.Run("two policies on the same title with different pins land on different installers", func(t *testing.T) {
+		// Regression guard for the collision that hit Andy's flow: when two
+		// policies share (team, title) but pin different installers, the
+		// applier can't stash the per-policy id in a team+title-keyed map —
+		// the second pin overwrites the first and both rows end up on the
+		// last one. Validate + use inline instead.
+		err := ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+			{
+				Name:              "collision A pins first installer",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &installerA,
+			},
+			{
+				Name:              "collision B pins second installer",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &installerB,
+			},
+		})
+		require.NoError(t, err)
+
+		policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+		require.NoError(t, err)
+		byName := map[string]*fleet.Policy{}
+		for _, p := range policies {
+			byName[p.Name] = p
+		}
+		polA := byName["collision A pins first installer"]
+		polB := byName["collision B pins second installer"]
+		require.NotNil(t, polA)
+		require.NotNil(t, polB)
+		require.NotNil(t, polA.SoftwareInstallerID)
+		require.NotNil(t, polB.SoftwareInstallerID)
+		require.Equal(t, installerA, *polA.SoftwareInstallerID, "first policy must keep its own pin")
+		require.Equal(t, installerB, *polB.SoftwareInstallerID, "second policy must keep its own pin, not overwrite the first")
+	})
+
 	t.Run("SoftwarePackageID that doesn't belong to the title is rejected", func(t *testing.T) {
 		// Create a second title with its own installer, then try to pin a policy
 		// on the first title to the second title's installer.
