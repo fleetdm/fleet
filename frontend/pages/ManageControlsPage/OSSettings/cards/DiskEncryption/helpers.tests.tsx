@@ -3,7 +3,11 @@ import { screen } from "@testing-library/react";
 
 import { renderWithSetup } from "test/test-utils";
 
-import { getDiskEncryptionSettings, getErrorMessage } from "./helpers";
+import {
+  getDiskEncryptionSettings,
+  getErrorMessage,
+  isMacOSDiskEncryptionEnforceOnly,
+} from "./helpers";
 
 const createApiError = (reason: string) => ({
   response: { data: { errors: [{ name: "base", reason }] } },
@@ -112,4 +116,30 @@ describe("getDiskEncryptionSettings", () => {
     expect(settings.windowsEnabled).toBe(false);
     expect(settings.windowsPINRequired).toBe(false);
   });
+});
+
+describe("isMacOSDiskEncryptionEnforceOnly", () => {
+  const settings = {
+    windowsEnabled: false,
+    windowsPINRequired: false,
+    linuxEscrowEnabled: false,
+  };
+
+  it.each([
+    [true, false, true],
+    [true, true, false],
+    [false, true, false],
+    [false, false, false],
+  ])(
+    "enforce %s / escrow %s -> %s",
+    (macOSEnabled, macOSEscrowEnabled, expected) => {
+      expect(
+        isMacOSDiskEncryptionEnforceOnly({
+          ...settings,
+          macOSEnabled,
+          macOSEscrowEnabled,
+        })
+      ).toBe(expected);
+    }
+  );
 });

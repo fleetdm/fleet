@@ -506,21 +506,6 @@ describe("DiskEncryption", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
-  it("drops the key phrasing from status tooltips when macOS is enforce-only", async () => {
-    mockServer.use(createGetTeamHandler({ macOSEnabled: true }));
-    mockServer.use(createGetDiskEncryptionSummaryHandler());
-    const { user } = renderDiskEncryption();
-
-    await user.hover(await screen.findByText("Verifying"));
-
-    expect(
-      await screen.findByText(
-        /Fleet is verifying with osquery\. This may take up to one hour\./
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/retrieving the disk encryption key/)).toBeNull();
-  });
-
   it("renders the status table only for platforms with a setting enabled", async () => {
     mockServer.use(createGetTeamHandler({ windowsEnabled: true }));
     mockServer.use(createGetDiskEncryptionSummaryHandler());

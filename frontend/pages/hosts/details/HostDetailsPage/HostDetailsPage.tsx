@@ -112,7 +112,10 @@ import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
 
-import { getDiskEncryptionSettings } from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
+import {
+  getDiskEncryptionSettings,
+  isMacOSDiskEncryptionEnforceOnly,
+} from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
@@ -1034,12 +1037,7 @@ const HostDetailsPage = ({
   const hostFleetMdm = host?.team_id
     ? teams?.find((team) => team.id === host.team_id)?.mdm
     : config?.mdm;
-  const {
-    macOSEnabled: fleetMacOSDiskEncryptionEnabled,
-    macOSEscrowEnabled: fleetMacOSEscrowEnabled,
-  } = getDiskEncryptionSettings(hostFleetMdm);
-  const isMacOSDiskEncryptionEnforceOnly =
-    fleetMacOSDiskEncryptionEnabled && !fleetMacOSEscrowEnabled;
+  const fleetDiskEncryptionSettings = getDiskEncryptionSettings(hostFleetMdm);
 
   const onSelectHostAction = (action: string) => {
     switch (action) {
@@ -1773,9 +1771,9 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
-                    isMacOSDiskEncryptionEnforceOnly={
-                      isMacOSDiskEncryptionEnforceOnly
-                    }
+                    isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
+                      fleetDiskEncryptionSettings
+                    )}
                     router={router}
                   />
                 </TabPanel>

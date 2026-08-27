@@ -86,3 +86,9 @@ export const getDiskEncryptionSettings = (
       mdm?.linux_settings?.enable_escrow_disk_encryption_key ?? legacyEnabled,
   };
 };
+
+/** macOS enforce on, escrow off — hosts never send Fleet a key. */
+export const isMacOSDiskEncryptionEnforceOnly = ({
+  macOSEnabled,
+  macOSEscrowEnabled,
+}: IDiskEncryptionSettings) => macOSEnabled && !macOSEscrowEnabled;

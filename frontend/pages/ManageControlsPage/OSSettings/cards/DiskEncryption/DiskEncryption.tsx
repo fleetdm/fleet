@@ -40,6 +40,7 @@ import {
   getDiskEncryptionSettings,
   getErrorMessage,
   IDiskEncryptionSettings,
+  isMacOSDiskEncryptionEnforceOnly,
 } from "./helpers";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
@@ -353,8 +354,7 @@ const DiskEncryption = ({
             currentTeamId={currentTeamId}
             isMacOSEnforceOnly={
               platform === "macos" &&
-              savedSettings.macOSEnabled &&
-              !savedSettings.macOSEscrowEnabled
+              isMacOSDiskEncryptionEnforceOnly(savedSettings)
             }
             router={router}
           />
