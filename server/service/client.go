@@ -3584,16 +3584,34 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				logFn("[!] software installer without url: fleet_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue
 			}
-			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
-			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
-			// In-house apps return InstallerID == 0 and shouldn't be pinned this
-			// way; they'd fail the datastore's software_installers-table validation.
+			// Normal software installers unconditionally claim their URL/hash for
+			// both the title and installer maps. In-house apps (InstallerID==0,
+			// distinct table) can share a URL or hash with a normal installer; if
+			// they do, we must not let their title id displace the normal
+			// installer's — the applier would then send a pinned installer_id
+			// that doesn't belong to the resolved title and the datastore would
+			// 400. So in-house entries only populate the title map when a normal
+			// installer hasn't already claimed the key (order-agnostic: if the
+			// normal installer iterates later, it unconditionally overwrites).
 			if softwareInstaller.InstallerID != 0 {
+				softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
+				softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
 				if softwareInstaller.URL != "" {
 					installerIDsByURL[softwareInstaller.URL] = softwareInstaller.InstallerID
 				}
 				if softwareInstaller.HashSHA256 != "" {
 					installerIDsByHash[softwareInstaller.HashSHA256] = softwareInstaller.InstallerID
+				}
+			} else {
+				if softwareInstaller.URL != "" {
+					if _, taken := installerIDsByURL[softwareInstaller.URL]; !taken {
+						softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
+					}
+				}
+				if softwareInstaller.HashSHA256 != "" {
+					if _, taken := installerIDsByHash[softwareInstaller.HashSHA256]; !taken {
+						softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
+					}
 				}
 			}
 
@@ -3620,6 +3638,13 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 		for i := range config.Policies {
 			config.Policies[i].SoftwareTitleID = ptr.Uint(0) // 0 unsets the installer
+			// GitOpsPolicySpec embeds PolicySpec, whose SoftwarePackageID field
+			// is JSON-tagged and therefore reachable from user YAML. Any value
+			// left over from the incoming spec would leak through the branches
+			// that don't produce an installerID (AppStoreID, slug, in-house URL
+			// match, unresolved) and either fail the datastore's title/installer
+			// validation or silently pin the wrong package. Reset before resolve.
+			config.Policies[i].SoftwarePackageID = nil
 
 			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
@@ -3652,12 +3677,14 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			)
 			if resolved {
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
-				// Pin the resolved installer so the datastore doesn't fall back to
-				// the title's first-added package. Only set for URL/hash matches
-				// (AppStoreID and slug don't map to a specific installer row).
-				if installerID != nil {
-					config.Policies[i].SoftwarePackageID = installerID
-				}
+				// installerID is nil for AppStoreID matches (VPP), slug matches
+				// (FMA), and any URL/hash match that didn't land on a
+				// software_installers row (e.g., in-house apps, which come from a
+				// different table and get InstallerID==0 upstream). Assigning nil
+				// skips the pin and lets the datastore use the title's default
+				// resolution. Unconditional to overwrite the loop-top reset only
+				// when we have a concrete installer to pin against.
+				config.Policies[i].SoftwarePackageID = installerID
 				// Log a warning if URL was set but didn't match (resolved via fallback).
 				if !dryRun && config.Policies[i].InstallSoftwareURL != "" {
 					if _, urlOK := softwareTitleIDsByInstallerURL[config.Policies[i].InstallSoftwareURL]; !urlOK {

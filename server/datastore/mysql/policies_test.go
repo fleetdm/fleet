@@ -10103,7 +10103,7 @@ func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
 // YAMLs share a bundle identifier and collapse into one title with several
 // installers, and GitOps needs to preserve which installer the policy YAML referenced.
 func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	user := test.NewUser(t, ds, "Spec Pinned", "spec-pinned@example.com", true)
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-pinned-team"})
 	require.NoError(t, err)
