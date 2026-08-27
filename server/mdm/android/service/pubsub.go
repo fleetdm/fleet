@@ -1171,9 +1171,14 @@ func optionalVital(s string) *string {
 	return new(truncateVital(s))
 }
 
+// truncateVital truncates by runes, not bytes: the columns are
+// varchar(MDMAndroidDeviceVitalMaxLength), which MySQL counts in characters,
+// and slicing a multi-byte string by bytes can cut mid-rune and produce
+// invalid UTF-8 that a utf8mb4 column rejects.
 func truncateVital(s string) string {
-	if len(s) > fleet.MDMAndroidDeviceVitalMaxLength {
-		return s[:fleet.MDMAndroidDeviceVitalMaxLength]
+	runes := []rune(s)
+	if len(runes) > fleet.MDMAndroidDeviceVitalMaxLength {
+		return string(runes[:fleet.MDMAndroidDeviceVitalMaxLength])
 	}
 	return s
 }

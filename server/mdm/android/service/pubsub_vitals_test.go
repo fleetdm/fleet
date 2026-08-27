@@ -170,6 +170,18 @@ func TestAndroidDeviceVitals(t *testing.T) {
 			},
 		},
 		{
+			// Truncation must be by rune: slicing a multi-byte string by bytes
+			// can cut mid-rune and produce invalid UTF-8 that the utf8mb4
+			// column rejects.
+			name: "oversized multi-byte values are truncated on a rune boundary",
+			device: &androidmanagement.Device{
+				HardwareInfo: &androidmanagement.HardwareInfo{Manufacturer: strings.Repeat("\u00e9", 300)},
+			},
+			want: fleet.MDMAndroidDeviceVitals{
+				Manufacturer: new(strings.Repeat("\u00e9", fleet.MDMAndroidDeviceVitalMaxLength)),
+			},
+		},
+		{
 			// An api_level outside the signed int column's range is garbage;
 			// dropping it beats failing the report.
 			name:   "out of range api level is dropped",
@@ -278,7 +290,7 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 
 	deviceBytes, err := json.Marshal(device)
 	require.NoError(t, err)
-	require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &android.PubSubMessage{
+	require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &android.PubSubMessage{
 		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
 		Data:       base64.StdEncoding.EncodeToString(deviceBytes),
 	}))
@@ -366,7 +378,7 @@ func TestEnrollmentPersistsVitals(t *testing.T) {
 					},
 				},
 			})
-			require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", message))
+			require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", message))
 
 			require.True(t, mockDS.SetOrUpdateHostMDMAndroidDeviceVitalsFuncInvoked)
 			require.NotEmpty(t, gotHostUUID)

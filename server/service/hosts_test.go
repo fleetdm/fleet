@@ -707,7 +707,7 @@ func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
 				UUID:     "android-vitals-uuid",
 			}
 			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
-			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantVitalsLoaded, ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked)
 			if tc.wantVitalsLoaded {
