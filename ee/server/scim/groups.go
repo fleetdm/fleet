@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -365,7 +366,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 						return scim.Resource{}, err
 					}
 				case membersAttr:
-					replaceAll = replaceAll || op.Op != scim.PatchOperationAdd
+					replaceAll = replaceAll || declaresFullMembership(op.Op, v)
 					if err = g.patchMembers(ctx, op.Op, v, group, deltas); err != nil {
 						return scim.Resource{}, err
 					}
@@ -385,7 +386,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == membersAttr:
-			replaceAll = replaceAll || op.Op != scim.PatchOperationAdd
+			replaceAll = replaceAll || declaresFullMembership(op.Op, op.Value)
 			if err = g.patchMembers(ctx, op.Op, op.Value, group, deltas); err != nil {
 				return scim.Resource{}, err
 			}
@@ -497,7 +498,7 @@ func (g *GroupHandler) patchDisplayName(ctx context.Context, op string, v any, g
 func (g *GroupHandler) patchMembers(
 	ctx context.Context, op string, v any, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
 ) error {
-	if op == scim.PatchOperationRemove {
+	if op == scim.PatchOperationRemove && v == nil {
 		// Remove all members (both users and nested child groups)
 		group.ScimUsers = []uint{}
 		group.ChildGroups = []uint{}
@@ -562,8 +563,8 @@ func (g *GroupHandler) patchMembers(
 		}
 	}
 
-	// For add operation, append to existing members
-	if op == scim.PatchOperationAdd {
+	switch op {
+	case scim.PatchOperationAdd:
 		group.ScimUsers = appendMissingUint(group.ScimUsers, userIDs)
 		group.ChildGroups = appendMissingUint(group.ChildGroups, childGroupIDs)
 		for _, userID := range userIDs {
@@ -572,13 +573,33 @@ func (g *GroupHandler) patchMembers(
 		for _, childGroupID := range childGroupIDs {
 			deltas.AddChildGroup(childGroupID)
 		}
-	} else {
-		// For replace operation, replace all members
+	case scim.PatchOperationRemove:
+		group.ScimUsers = removeUints(group.ScimUsers, userIDs)
+		group.ChildGroups = removeUints(group.ChildGroups, childGroupIDs)
+		for _, userID := range userIDs {
+			deltas.RemoveUser(userID)
+		}
+		for _, childGroupID := range childGroupIDs {
+			deltas.RemoveChildGroup(childGroupID)
+		}
+	default: // replace
 		group.ScimUsers = userIDs // FIXME: List should be deduplicated by us? See https://github.com/fleetdm/fleet/issues/30086
 		group.ChildGroups = childGroupIDs
 	}
 
 	return nil
+}
+
+// declaresFullMembership reports whether an unfiltered members operation declares
+// the group's final membership rather than a delta: a replace, or a remove with no
+// value. A remove naming members (Entra ID's single-member removal form) is a delta.
+func declaresFullMembership(op string, v any) bool {
+	return op == scim.PatchOperationReplace || (op == scim.PatchOperationRemove && v == nil)
+}
+
+// removeUints returns base without the elements of toRemove, preserving order.
+func removeUints(base, toRemove []uint) []uint {
+	return slices.DeleteFunc(base, func(id uint) bool { return slices.Contains(toRemove, id) })
 }
 
 // appendMissingUint appends to base the elements of extra that are not already

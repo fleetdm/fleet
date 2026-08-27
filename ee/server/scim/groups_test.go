@@ -179,6 +179,22 @@ func TestGroupPatchMemberDeltas(t *testing.T) {
 		require.Empty(t, mocks.replaced.ChildGroups)
 	})
 
+	t.Run("unfiltered remove with a value removes only the named members", func(t *testing.T) {
+		// The form Entra ID sends to remove a single member.
+		mocks := newGroupTestMocks([]uint{1, 4}, []uint{7, 8})
+		patch(t, mocks, patchOp(t, scim.PatchOperationRemove, membersAttr, memberValues("4", "group-7")))
+
+		requireDeltas(t, mocks, fleet.ScimGroupMemberDeltas{RemoveUsers: []uint{4}, RemoveChildGroups: []uint{7}})
+	})
+
+	t.Run("unfiltered remove with an empty value is a no-op, not a remove-all", func(t *testing.T) {
+		// An empty list names nobody; only a remove with no value clears the group.
+		mocks := newGroupTestMocks([]uint{1, 2}, []uint{7})
+		patch(t, mocks, patchOp(t, scim.PatchOperationRemove, membersAttr, []any{}))
+
+		requireDeltas(t, mocks, fleet.ScimGroupMemberDeltas{})
+	})
+
 	t.Run("an add after a replace still writes the full membership state", func(t *testing.T) {
 		// The replace is what decides the write, so a later add must not downgrade it
 		// back to a delta write, which would leave members 1 and 2 in place.

@@ -4764,6 +4764,22 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
 			"a displayName-only patch must not touch membership")
 	})
+
+	t.Run("Unfiltered remove with a value removes only the named member", func(t *testing.T) {
+		member := func(id string) map[string]any { return map[string]any{"value": id} }
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "members",
+			"value": []map[string]any{member(userIDs[0]), member(userIDs[1]), member(userIDs[2])},
+		})
+
+		// The form Entra ID sends to remove a single member.
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "remove", "path": "members",
+			"value": []map[string]any{member(userIDs[0])},
+		})
+		require.ElementsMatch(t, []string{userIDs[1], userIDs[2]}, groupMemberValues(t, s, groupID),
+			"removing one member must not remove the others")
+	})
 }
 
 func patchGroup(t *testing.T, s *Suite, groupID string, expectedStatus int, ops ...map[string]any) map[string]any {

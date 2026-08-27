@@ -1048,6 +1048,21 @@ func (ds *Datastore) ApplyScimGroupPatch(ctx context.Context, group *fleet.ScimG
 func applyScimGroupMemberDeltas(
 	ctx context.Context, tx sqlx.ExtContext, groupID uint, deltas fleet.ScimGroupMemberDeltas, groupNameChanged bool,
 ) error {
+	// Read which named members and child edges exist before the writes: the resend
+	// below then covers only members whose membership actually changes, so a no-op
+	// delta (an IdP retrying an add, removing a non-member) resends nothing. The
+	// read feeds only the resend set; the writes stay driven by the full deltas.
+	existingUsers, err := selectExistingScimGroupMembers(ctx, tx, "scim_user_group", "group_id", "scim_user_id",
+		groupID, append(slices.Clone(deltas.AddUsers), deltas.RemoveUsers...))
+	if err != nil {
+		return err
+	}
+	existingChildren, err := selectExistingScimGroupMembers(ctx, tx, "scim_group_group", "parent_group_id", "child_group_id",
+		groupID, append(slices.Clone(deltas.AddChildGroups), deltas.RemoveChildGroups...))
+	if err != nil {
+		return err
+	}
+
 	if err := insertScimGroupUsers(ctx, tx, groupID, deltas.AddUsers); err != nil {
 		return err
 	}
@@ -1061,15 +1076,14 @@ func applyScimGroupMemberDeltas(
 		return err
 	}
 
-	// The users the deltas affected need their dependent profiles resent. The
-	// transitive lookups below run after the deletes, so removed users and
+	// The transitive lookups below run after the deletes, so removed users and
 	// removed-child subtrees are no longer reachable from the group and are
 	// collected explicitly.
-	affectedUsers := append(slices.Clone(deltas.AddUsers), deltas.RemoveUsers...)
+	affectedUsers := membershipChanges(deltas.AddUsers, deltas.RemoveUsers, existingUsers)
 	// A child group edge change affects every user in that child's subtree,
 	// since their effective membership in this group (and its ancestors)
 	// changed.
-	subtreeRoots := append(slices.Clone(deltas.AddChildGroups), deltas.RemoveChildGroups...)
+	subtreeRoots := membershipChanges(deltas.AddChildGroups, deltas.RemoveChildGroups, existingChildren)
 	if groupNameChanged {
 		// A rename also affects every user still in the group, directly or
 		// through nested child groups.
@@ -1117,6 +1131,48 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 		deltas.AddChildGroups, deltas.RemoveChildGroups = diffUintSlices(existingChildren, group.ChildGroups)
 		return applyScimGroupMemberDeltas(ctx, tx, group.ID, deltas, groupNameChanged)
 	})
+}
+
+// selectExistingScimGroupMembers returns which of memberIDs are currently linked
+// to the group in table.
+func selectExistingScimGroupMembers(
+	ctx context.Context, tx sqlx.ExtContext, table, groupCol, memberCol string, groupID uint, memberIDs []uint,
+) (map[uint]struct{}, error) {
+	if len(memberIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(
+		fmt.Sprintf("SELECT %s FROM %s WHERE %s = ? AND %s IN (?)", memberCol, table, groupCol, memberCol),
+		groupID, memberIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select existing scim group members")
+	}
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, tx, &ids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select existing scim group members from "+table)
+	}
+	existing := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		existing[id] = struct{}{}
+	}
+	return existing, nil
+}
+
+// membershipChanges returns the members whose membership the deltas actually
+// change: adds not already present and removes that are present.
+func membershipChanges(adds, removes []uint, existing map[uint]struct{}) []uint {
+	changed := make([]uint, 0, len(adds)+len(removes))
+	for _, id := range adds {
+		if _, ok := existing[id]; !ok {
+			changed = append(changed, id)
+		}
+	}
+	for _, id := range removes {
+		if _, ok := existing[id]; ok {
+			changed = append(changed, id)
+		}
+	}
+	return changed
 }
 
 // deleteScimGroupMembers removes rows linking a SCIM group to the given member
