@@ -1103,3 +1103,41 @@ func TestGetPolicies_IncludesQueryField(t *testing.T) {
 		t.Errorf("policy 2 Query = %q, want empty string", policies[1].Query)
 	}
 }
+
+func TestNewFleetClientLiveQueryTimeout(t *testing.T) {
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "45s")
+	fc := NewFleetClient("https://fleet.example.com", "key", false, "")
+
+	if got := fc.httpClient.Timeout; got != 30*time.Second {
+		t.Fatalf("default client timeout = %v, want 30s", got)
+	}
+	if got, want := fc.liveQueryClient.Timeout, 45*time.Second+liveQueryTimeoutMargin; got != want {
+		t.Fatalf("live query client timeout = %v, want %v", got, want)
+	}
+	if fc.liveQueryClient.Transport != fc.httpClient.Transport {
+		t.Fatal("live query client must share the default client's Transport (TLS config, connection pool)")
+	}
+}
+
+func TestRunAdHocSingleHostFallsBackToDefaultClient(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/fleet/hosts/7/query" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(AdHocQueryResponse{
+			HostID: 7, Status: "online", Rows: []map[string]interface{}{{"a": "1"}},
+		})
+	}))
+	defer srv.Close()
+
+	// newTestClient leaves liveQueryClient nil; the single-host path must
+	// still work rather than panic on a nil client.
+	fc := newTestClient(srv.URL)
+	res, err := fc.runAdHocSingleHost(t.Context(), 7, "SELECT 1", nil)
+	if err != nil {
+		t.Fatalf("runAdHocSingleHost: %v", err)
+	}
+	if res.RespondedHostCount != 1 || len(res.Results) != 1 {
+		t.Fatalf("unexpected result %+v", res)
+	}
+}
