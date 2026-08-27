@@ -1117,6 +1117,13 @@ func TestNewFleetClientLiveQueryTimeout(t *testing.T) {
 	if fc.liveQueryClient.Transport != fc.httpClient.Transport {
 		t.Fatal("live query client must share the default client's Transport (TLS config, connection pool)")
 	}
+
+	// A non-positive period would make Timeout <= 0, which net/http treats as no timeout.
+	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "-45s")
+	fc = NewFleetClient("https://fleet.example.com", "key", false, "")
+	if got, want := fc.liveQueryClient.Timeout, 25*time.Second+liveQueryTimeoutMargin; got != want {
+		t.Fatalf("live query client timeout with negative period = %v, want %v", got, want)
+	}
 }
 
 func TestRunAdHocSingleHostFallsBackToDefaultClient(t *testing.T) {
