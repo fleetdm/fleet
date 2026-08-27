@@ -3,6 +3,7 @@
   "slug": "todoist-app/windows",
   "package_identifier": "Doist.Todoist",
   "unique_identifier": "Todoist",
+  "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/todoist_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/todoist_uninstall.ps1",
   "installer_arch": "x64",

@@ -1,68 +1,73 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
+#
+# Telegram installs per user and has no machine-wide mode, so installing it from this
+# script's SYSTEM context would put it in SYSTEM's profile where nobody can launch
+# it. Run the installer as the signed-in user instead.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$taskName = "fleet-install-telegram"
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$exitCode = 0
+$stagedInstaller = $null
 
 try {
-    # Verify installer file exists
-    if (-not (Test-Path $exeFilePath)) {
-        Write-Host "Error: Installer file not found at: $exeFilePath"
-        Exit 1
+    $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
+        Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue |
+        Where-Object { $_.User } |
+        Select-Object -First 1
+    if (-not $owner) {
+        Throw "Telegram installs per user and no user is signed in to this host. Sign in and try again."
     }
+    $userAccount = "$($owner.Domain)\$($owner.User)"
+    Write-Host "Installing Telegram for $userAccount."
 
-    Write-Host "Installing Telegram Desktop from: $exeFilePath"
-    
-    # Add arguments to install silently
-    # Telegram uses an Inno Setup-based installer
-    # Try /VERYSILENT first (more reliable for Inno Setup), fall back to /S if needed
-    $processOptions = @{
-        FilePath = "$exeFilePath"
-        ArgumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
-        PassThru = $true
-        Wait = $true
-        NoNewWindow = $true
+    # Fleet's installer directory is not readable by that user.
+    $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
+    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
+
+    $installArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
+    if ($installArgs) {
+        $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument $installArgs
+    } else {
+        $action = New-ScheduledTaskAction -Execute $stagedInstaller
     }
-    
-    # Start process and track exit code
-    Write-Host "Starting installation with arguments: $($processOptions.ArgumentList)"
-    $process = Start-Process @processOptions
-    
-    if ($null -eq $process) {
-        Write-Host "Error: Failed to start installer process"
-        Exit 1
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $principal = New-ScheduledTaskPrincipal -UserId $userAccount
+    $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
+
+    $startDate = Get-Date
+    Start-ScheduledTask -TaskName $taskName
+
+    # Wait for a result rather than for the "Running" state, which a fast task can
+    # enter and leave between polls.
+    Start-Sleep -Seconds 2
+    while ($true) {
+        $info = Get-ScheduledTaskInfo -TaskName $taskName
+        $state = (Get-ScheduledTask -TaskName $taskName).State
+        if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+            $exitCode = $info.LastTaskResult
+            break
+        }
+        if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
+            Throw "Timed out waiting for the install task to finish."
+        }
+        Start-Sleep -Seconds 5
     }
-    
-    $exitCode = $process.ExitCode
-    
-    # Prints the exit code
     Write-Host "Install exit code: $exitCode"
-    
-    if ($exitCode -ne 0) {
-        Write-Host "Warning: Installer exited with non-zero code: $exitCode"
-        # Try with /S as fallback for user-scope installs
-        Write-Host "Attempting fallback with /S switch..."
-        $fallbackOptions = @{
-            FilePath = "$exeFilePath"
-            ArgumentList = "/S"
-            PassThru = $true
-            Wait = $true
-            NoNewWindow = $true
-        }
-        $fallbackProcess = Start-Process @fallbackOptions
-        if ($null -ne $fallbackProcess) {
-            $fallbackExitCode = $fallbackProcess.ExitCode
-            Write-Host "Fallback install exit code: $fallbackExitCode"
-            Exit $fallbackExitCode
-        }
-    }
-    
-    Exit $exitCode
 
 } catch {
     Write-Host "Error: $_"
-    Write-Host "Error details: $($_.Exception.Message)"
-    if ($_.Exception.InnerException) {
-        Write-Host "Inner exception: $($_.Exception.InnerException.Message)"
+    $exitCode = 1
+} finally {
+    if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     }
-    Exit 1
+    if ($stagedInstaller -and (Test-Path -LiteralPath $stagedInstaller)) {
+        Remove-Item -LiteralPath $stagedInstaller -Force -ErrorAction SilentlyContinue
+    }
 }
+
+Exit $exitCode
