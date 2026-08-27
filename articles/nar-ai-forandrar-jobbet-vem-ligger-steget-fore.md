@@ -103,5 +103,5 @@ Frågan är om du är med och skriver den.
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="publishedOn" value="2026-08-27">
-<meta name="description" value="AI raderar inte IT-jobben så mycket som den ritar om vem som är bäst positionerade för att utföra dem. Skiljelinjen går rakt genom IT-teamen, och datan visar tydligt var den går.">
+<meta name="description" value="AI raderar inte IT-jobben så mycket som den ritar om vem som är bäst positionerade för att utföra dem.">
 <meta name="category" value="articles">
