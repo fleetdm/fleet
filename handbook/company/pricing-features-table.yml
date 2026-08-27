@@ -272,8 +272,8 @@
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
     - description: Configuration profiles are delivered to Apple hosts almost immediately after DEP enrollment instead of waiting for the next reconciler cycle (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/34433
-    - description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices (4.84.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611
+    - description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs (4.84.0) and iPhones and iPads with an A11 Bionic or later chip (4.93.0) enrolling via DEP, ensuring only to company-owned hardware can enroll.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/51528
     - description: Create a local break-glass admin account during macOS DEP setup so IT teams have a fallback account for troubleshooting (4.85.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/37141
     - description: End users are prompted to authenticate only once during Windows enrollment when "End user authentication" is enabled, simplifying the setup experience (4.85.0).
