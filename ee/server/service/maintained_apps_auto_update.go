@@ -307,22 +307,23 @@ func downloadNewVersionIfEligible(
 		InstallerFile:   tfr,
 	}
 
-	// Carry an admin's scripts across the version bump. The active installer is still
-	// on the previous version here, since promotion happens later.
+	// Carry an admin's scripts across the version bump. Read the active installer
+	// rather than trust the candidate, which was listed before the download and can
+	// be stale. The insert copies the flags off that same row.
 	payload.InstallScriptEdited = c.InstallScriptEdited
 	payload.UninstallScriptEdited = c.UninstallScriptEdited
-	if c.InstallScriptEdited || c.UninstallScriptEdited {
-		active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
-		if err != nil && !fleet.IsNotFound(err) {
-			return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
+	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
+	}
+	if active != nil {
+		payload.InstallScriptEdited = active.InstallScriptEdited
+		payload.UninstallScriptEdited = active.UninstallScriptEdited
+		if active.InstallScriptEdited {
+			payload.InstallScript = active.InstallScript
 		}
-		if active != nil {
-			if c.InstallScriptEdited {
-				payload.InstallScript = active.InstallScript
-			}
-			if c.UninstallScriptEdited {
-				payload.UninstallScript = active.UninstallScript
-			}
+		if active.UninstallScriptEdited {
+			payload.UninstallScript = active.UninstallScript
 		}
 	}
 

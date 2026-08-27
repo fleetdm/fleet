@@ -438,9 +438,11 @@ func TestAutoUpdatePreservesEditedScripts(t *testing.T) {
 	ds := baseDownloadStoreWithEditedScripts(t, "149.0.0", 9, true, true)
 	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
-			InstallScript:   "echo CUSTOM install",
-			UninstallScript: "echo CUSTOM uninstall",
-			Extension:       "pkg",
+			InstallScript:         "echo CUSTOM install",
+			UninstallScript:       "echo CUSTOM uninstall",
+			Extension:             "pkg",
+			InstallScriptEdited:   true,
+			UninstallScriptEdited: true,
 		}, nil
 	}
 	var gotPayload *fleet.UploadSoftwareInstallerPayload
@@ -460,9 +462,14 @@ func TestAutoUpdatePreservesEditedScripts(t *testing.T) {
 func TestAutoUpdateAdoptsManifestScriptsWhenNotEdited(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := baseDownloadStore(t, "149.0.0", 9)
+	// The active installer is always read, but neither flag is set on it, so its
+	// scripts lose to the manifest.
 	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
-		t.Fatal("must not read the active installer when neither script is flagged as edited")
-		return nil, nil
+		return &fleet.SoftwareInstaller{
+			InstallScript:   "echo STALE install",
+			UninstallScript: "echo STALE uninstall",
+			Extension:       "pkg",
+		}, nil
 	}
 	var gotPayload *fleet.UploadSoftwareInstallerPayload
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
@@ -474,5 +481,31 @@ func TestAutoUpdateAdoptsManifestScriptsWhenNotEdited(t *testing.T) {
 	require.NotNil(t, gotPayload)
 	require.Equal(t, srv.install, gotPayload.InstallScript)
 	require.False(t, gotPayload.InstallScriptEdited)
+	require.False(t, gotPayload.UninstallScriptEdited)
+}
+
+func TestAutoUpdatePicksUpEditsMadeDuringDownload(t *testing.T) {
+	newFakeManifestServer(t)
+	// The candidate says unedited and the active installer says otherwise, which is an
+	// admin editing the script while the installer downloaded.
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallScript:       "echo JUST EDITED",
+			UninstallScript:     "echo uninstall",
+			Extension:           "pkg",
+			InstallScriptEdited: true,
+		}, nil
+	}
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.NotNil(t, gotPayload)
+	require.Equal(t, "echo JUST EDITED", gotPayload.InstallScript, "an edit made during the download is carried forward")
+	require.True(t, gotPayload.InstallScriptEdited)
 	require.False(t, gotPayload.UninstallScriptEdited)
 }
