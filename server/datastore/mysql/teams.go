@@ -315,12 +315,6 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
-// FlushHostCacheByIDs is a no-op for the MySQL datastore; host caching is
-// handled by the mysqlredis layer.
-func (ds *Datastore) FlushHostCacheByIDs(_ context.Context, _ []uint) error {
-	return nil
-}
-
 // prepareWindowsProfilesForTeamDeletion retains the content of the team's Windows config profiles (so the profile-manager cron can
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
