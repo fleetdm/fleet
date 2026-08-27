@@ -477,8 +477,7 @@ func (h *runScriptsConfigReceiver) scriptsEnabled() bool {
 
 type DiskEncryptionKeySetter interface {
 	SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
-	// SetOrUpdateDiskEncryptionProtection reports the outcome of an attempt to restore protection. It must not be
-	// routed through SetOrUpdateDiskEncryptionKey, which would blank the host's escrowed recovery key.
+	// SetOrUpdateDiskEncryptionProtection reports the outcome of an attempt to restore protection.
 	SetOrUpdateDiskEncryptionProtection(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
 }
 
@@ -544,8 +543,8 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
 
-	// lastProtectionRun throttles the restore path independently of lastRun. A host that cannot be repaired, because
-	// policy forbids a TPM-only protector or the TPM is not ready, would otherwise retry on every config poll forever.
+	// lastProtectionRun throttles the protection restore path. A host that cannot be repaired, because policy forbids a TPM-only
+	// protector or the TPM is not ready, would otherwise retry on every config poll forever.
 	lastProtectionRun time.Time
 }
 
@@ -582,7 +581,6 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	if cfg.Notifications.EnableBitLockerProtection {
 		if w.mu.TryLock() {
 			defer w.mu.Unlock()
-
 			w.attemptEnableBitlockerProtection()
 		}
 	}
@@ -591,19 +589,9 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 }
 
 // attemptEnableBitlockerProtection turns protection back on for a volume that is encrypted but unprotected.
-//
-// Step order is load-bearing and must not be rearranged:
-//
-//  1. Refuse to act on a volume whose status cannot be read.
-//  2. Require the volume to be fully encrypted with protection off.
-//  3. Ensure a protector exists that can unseal at boot, adding a TPM one if absent. Enabling protection without one
-//     reports success while leaving the host unable to boot unattended: the next restart lands in the recovery prompt.
-//  4. Defer while a restart is staged, because enabling re-seals to the current boot measurements and a pending update
-//     would then change them.
-//  5. Only then enable.
 func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	if time.Since(w.lastProtectionRun) <= w.Frequency {
-		log.Debug().Msg("skipped bitlocker protection restore, last run was too recent")
+		log.Debug().Msg("skipped BitLocker protection restore, last run was too recent")
 		return
 	}
 
@@ -619,12 +607,12 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	status, err := w.getEncryptionStatusForVolume(targetVolume)
 	if err != nil || status == nil {
 		log.Error().Err(err).Msgf("cannot read encryption status for %s, not restoring protection", targetVolume)
-		// Deliberately no outcome report: an unreadable status is not evidence of anything (#51098). Still back off, so a
-		// host with a persistently broken WMI does not re-query on every config poll.
+		// Deliberately no outcome report: an unreadable status is not evidence of anything.
 		w.lastProtectionRun = time.Now()
 		return
 	}
 
+	//  Require the volume to be fully encrypted with protection off.
 	if status.ConversionStatus != bitlocker.ConversionStatusFullyEncrypted {
 		log.Info().Msgf("not restoring protection, volume %s is not fully encrypted (conversion status: %d)",
 			targetVolume, status.ConversionStatus)
@@ -632,12 +620,12 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	}
 
 	if status.ProtectionStatus != bitlocker.ProtectionStatusOff {
-		log.Debug().Msg("bitlocker protection is already on, nothing to restore")
+		log.Debug().Msg("BitLocker protection is already on, nothing to restore")
 		w.lastProtectionRun = time.Now()
 		return
 	}
 
-	// Step 3. Never enable protection on a volume that cannot unseal at boot.
+	// Never enable protection on a volume that cannot unseal at boot, adding a TPM if absent.
 	hasProtector, err := w.execHasTPMProtectorFn(targetVolume)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot determine whether a TPM protector is present, not restoring protection")
@@ -650,7 +638,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		log.Info().Msg("no TPM-family protector present, adding one before restoring protection")
 		if err := w.execAddTPMProtectorFn(targetVolume); err != nil {
 			// Policy can forbid a TPM-only protector, in which case a startup PIN has to be enrolled by the end user
-			// and Fleet cannot repair this host. Back off so this does not retry on every config poll.
+			// and Fleet cannot repair this host.
 			log.Error().Err(err).Msg("could not add a TPM protector, not restoring protection")
 			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
 				fmt.Sprintf("could not add a TPM protector, so protection was not re-enabled: %v", err))
@@ -659,7 +647,8 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		}
 	}
 
-	// Step 4.
+	// Defer while a restart is staged, because enabling protection re-seals to the current boot measurements and a pending update
+	// would then change them.
 	restartPending := w.restartPendingFn
 	if restartPending == nil {
 		restartPending = isRestartPending
@@ -671,36 +660,34 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		w.lastProtectionRun = time.Now()
 		return
 	} else if pending {
-		log.Info().Msg("a restart is pending, deferring bitlocker protection restore until after it")
+		log.Info().Msg("a restart is pending, deferring BitLocker protection restore until after it")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionDeferred,
 			"a restart is pending on this host; protection will be restored after it completes")
 		w.lastProtectionRun = time.Now()
 		return
 	}
 
-	// Step 5.
+	// Finally, enable protection.
 	if err := w.execEnableProtectionFn(targetVolume); err != nil {
-		log.Error().Err(err).Msg("failed to restore bitlocker protection")
+		log.Error().Err(err).Msg("failed to restore BitLocker protection")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed, err.Error())
 		w.lastProtectionRun = time.Now()
 		return
 	}
 
-	log.Info().Msgf("restored bitlocker protection on %s", targetVolume)
+	log.Info().Msgf("restored BitLocker protection on %s", targetVolume)
 	w.reportProtectionOutcome(fleet.DiskEncryptionProtectionRestored, "")
 	w.lastProtectionRun = time.Now()
 }
 
-// reportProtectionOutcome tells the server what happened so the host's disk encryption detail can say why, rather than
-// the admin being left with an inferred guess. A reporting failure is logged and swallowed: the disk-side work has
-// already happened and the next osquery report carries the authoritative state anyway.
+// reportProtectionOutcome tells the server what happened
 func (w *windowsMDMBitlockerConfigReceiver) reportProtectionOutcome(outcome fleet.DiskEncryptionProtectionOutcome, clientError string) {
 	if w.EncryptionResult == nil {
 		return
 	}
 	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
 		// The server rejects a blank reason, which would drop the outcome entirely. An unhelpful reason still beats none.
-		clientError = fmt.Sprintf("bitlocker protection was not re-enabled (%s), but the agent reported no reason", outcome)
+		clientError = fmt.Sprintf("BitLocker protection was not re-enabled (%s), but the agent reported no reason", outcome)
 	}
 	if err := w.EncryptionResult.SetOrUpdateDiskEncryptionProtection(outcome, clientError); err != nil {
 		log.Error().Err(err).Msgf("failed to report disk encryption protection outcome %q to Fleet", outcome)
@@ -742,8 +729,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	const targetVolume = "C:"
 	encryptionStatus, err := w.getEncryptionStatusForVolume(targetVolume)
 	if err != nil || encryptionStatus == nil {
-		// An unreadable status is not evidence that the volume is unencrypted. Continuing here would run the encrypt
-		// path against a possibly-encrypted disk, whose first act is to delete every key protector. Stop instead.
+		// An unreadable status is not evidence that the volume is unencrypted.
 		log.Error().Err(err).Msgf("cannot read encryption status for %s, taking no action on the volume", targetVolume)
 		return
 	}
@@ -781,7 +767,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	}
 
 	// Only encrypt a volume positively known to be fully decrypted. Anything else (unknown, paused, or a status we do
-	// not recognise) is left alone: the encrypt path is destructive and must never run on a guess.
+	// not recognize) is left alone.
 	if encryptionStatus.ConversionStatus != bitlocker.ConversionStatusFullyDecrypted {
 		log.Info().Msgf("skipping encryption, volume %s is not fully decrypted (conversion status: %d)",
 			targetVolume, encryptionStatus.ConversionStatus)

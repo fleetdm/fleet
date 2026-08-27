@@ -5070,39 +5070,32 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 	)
 }
 
-// SetOrUpdateHostDisksEncryption sets the host's flag indicating if the disk
-// encryption is enabled. For Windows hosts, bitlockerProtectionStatus tracks
-// whether BitLocker protection is active (0=off, 1=on) separately from
-// whether the disk data is encrypted. Pass nil for non-Windows hosts (stored as NULL).
+// SetOrUpdateHostDisksEncryption sets the host's flag indicating if the disk encryption is enabled. For Windows hosts,
+// bitlockerProtectionStatus tracks whether BitLocker protection is active (0=off, 1=on) separately from whether the disk data is
+// encrypted. Pass nil for non-Windows hosts (stored as NULL).
 func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error {
-	if err := ds.updateOrInsert(
-		ctx,
-		`UPDATE host_disks SET encrypted = ?, bitlocker_protection_status = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
-		`INSERT INTO host_disks (encrypted, bitlocker_protection_status, host_id) VALUES (?, ?, ?)`,
-		encrypted, bitlockerProtectionStatus, hostID,
-	); err != nil {
-		return err
-	}
-
-	// Clear any recorded reason once the host reports protection back on. This has to happen here, on the source of
-	// truth, rather than only when the agent says it succeeded: once a host is repaired the server stops asking it to
-	// act, so the agent never reports again and a stale reason would otherwise sit in the row forever.
-	if bitlockerProtectionStatus != nil && *bitlockerProtectionStatus == fleet.BitLockerProtectionStatusOn {
-		if _, err := ds.writer(ctx).ExecContext(ctx,
-			`UPDATE host_disks SET bitlocker_protection_error = NULL
-			 WHERE host_id = ? AND bitlocker_protection_error IS NOT NULL`, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "clearing bitlocker protection error")
-		}
-	}
-	return nil
+	// updated_at is assigned explicitly because the column's ON UPDATE clause only fires when some value actually
+	// changes, and the disk encryption status logic reads this timestamp to decide whether the host has reported since
+	// the key was set.
+	//
+	// The recorded protection error is cleared in the same statement once the host reports protection back on.
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_disks (host_id, encrypted, bitlocker_protection_status)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			encrypted = VALUES(encrypted),
+			bitlocker_protection_status = VALUES(bitlocker_protection_status),
+			bitlocker_protection_error = IF(VALUES(bitlocker_protection_status) = ?, NULL, bitlocker_protection_error),
+			updated_at = CURRENT_TIMESTAMP(6)`,
+		hostID, encrypted, bitlockerProtectionStatus, fleet.BitLockerProtectionStatusOn,
+	)
+	return ctxerr.Wrap(ctx, err, "set or update host disks encryption")
 }
 
-// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection, so the host's
-// disk encryption detail can state the real reason. Deliberately writes only host_disks: the disk encryption key table
-// owns base64_encrypted, and reporting an error through that path would blank the escrowed recovery key.
+// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection.
 func (ds *Datastore) SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error {
 	var value *string
-	if protectionError != "" {
+	if strings.TrimSpace(protectionError) != "" {
 		value = &protectionError
 	}
 	return ds.updateOrInsert(
