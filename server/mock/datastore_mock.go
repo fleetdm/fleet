@@ -502,6 +502,8 @@ type TeamLitesByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.TeamLite
 
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
+type FlushHostCacheByIDsFunc func(ctx context.Context, hostIDs []uint) error
+
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
 type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team, error)
@@ -3081,6 +3083,9 @@ type DataStore struct {
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
+
+	FlushHostCacheByIDsFunc        FlushHostCacheByIDsFunc
+	FlushHostCacheByIDsFuncInvoked bool
 
 	TeamByNameFunc        TeamByNameFunc
 	TeamByNameFuncInvoked bool
@@ -7549,6 +7554,13 @@ func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.DeleteTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteTeamFunc(ctx, tid)
+}
+
+func (s *DataStore) FlushHostCacheByIDs(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.FlushHostCacheByIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.FlushHostCacheByIDsFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {

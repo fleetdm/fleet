@@ -118,6 +118,14 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsTo
 	return nil
 }
 
+// FlushHostCacheByIDs invalidates cached host entries for the given IDs. This
+// is used when an operation (such as team deletion) changes host state via FK
+// cascade rather than through a method that has its own mysqlredis override.
+func (d *Datastore) FlushHostCacheByIDs(ctx context.Context, hostIDs []uint) error {
+	d.invalidateHostIDs(ctx, hostIDs, "team")
+	return nil
+}
+
 // UpdateHostIdentityCertHostIDBySerial invalidates for the host whose
 // has_host_identity_cert just flipped. This is the security-critical path: a
 // stale `false` would cause AuthenticateHost to skip the httpsig verification

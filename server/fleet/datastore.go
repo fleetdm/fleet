@@ -709,6 +709,9 @@ type Datastore interface {
 	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
+	// FlushHostCacheByIDs invalidates any cached host entries for the given
+	// host IDs. This is a no-op when no host cache is in use.
+	FlushHostCacheByIDs(ctx context.Context, hostIDs []uint) error
 	// TeamByName retrieves the Team by Name (including extras).
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
