@@ -22,7 +22,7 @@ Two releases are scheduled for August: 4.90.0 and 4.91.0. These are planned, not
 - **Full Apple DDM support:** Complete coverage for all Apple declaration profiles, assets, and custom activations.
 - **macOS local accounts from any IdP.** Create the initial local account and sync its password from any identity provider that supports OAuth ROPG, moving out of experimental.
 
-Also on deck: certificate visibility in **Controls > OS settings** and on Windows host details, Android OS versions and vulnerabilities in software inventory, Python script-only packages, and Entra conditional access for self-hosted deployments.
+_Also on deck: Certificate visibility, Android vulnerabilities, Python script-only packages, and Microsoft Entra conditional access._
 
 Fleet plans releases in the open. The [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) shows what's queued for the releases after this one.
 
