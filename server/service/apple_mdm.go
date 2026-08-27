@@ -2778,7 +2778,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 
 	deviceInfo := fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{}
 
-	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &deviceInfo)
+	err = plist.Unmarshal(p7.Content, &deviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",
@@ -8511,7 +8511,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	var request mdmAppleOTARequest
-	err = apple_mdm.BoundedPlistUnmarshal(p7.Content, &request.DeviceInfo)
+	err = plist.Unmarshal(p7.Content, &request.DeviceInfo)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "invalid request body",
