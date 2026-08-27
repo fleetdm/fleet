@@ -135,31 +135,6 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 			payload["next_check_in_ms"] = max(0, time.Until(next).Milliseconds())
 		}
 
-		// Resolve hostnames for read-stats hosts with no connection (their
-		// snapshot carries no host info). Stale enrollments whose host was
-		// deleted simply don't resolve.
-		connected := make(map[uint]struct{}, len(connections))
-		for _, c := range connections {
-			connected[c.HostID] = struct{}{}
-		}
-		var unresolved []uint
-		for _, s := range readStats {
-			if _, ok := connected[s.HostID]; !ok {
-				unresolved = append(unresolved, s.HostID)
-			}
-		}
-		if len(unresolved) > 0 {
-			hostnames := make(map[uint]string, len(unresolved))
-			hosts, err := ds.ListHostsLiteByIDs(ctx, unresolved)
-			if err != nil {
-				logger.ErrorContext(ctx, "resolve hostnames for /debug/agentws", "err", err)
-			} else {
-				for _, h := range hosts {
-					hostnames[h.ID] = h.Hostname
-				}
-			}
-			payload["hostnames"] = hostnames
-		}
 		// Global host counts (every host, WebSocket-connected or not), scoped
 		// to the authenticated admin attached by the debug middleware.
 		if vc, ok := viewer.FromContext(ctx); ok {
