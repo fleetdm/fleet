@@ -76,7 +76,6 @@ const dashboardHTML = `<!doctype html>
   td.os svg { width: 15px; height: 15px; vertical-align: -2px; fill: var(--text-secondary); }
   td.os { width: 24px; }
   td.mono { font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-  tr.offline td { color: var(--dim); font-style: italic; }
   #tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
   #tabs button {
     background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
@@ -99,7 +98,6 @@ const dashboardHTML = `<!doctype html>
 <div id="tabs"></div>
 
 <div class="stats">
-  <div class="panel stat"><div class="n" id="online">–</div><div class="l">online (all hosts)</div></div>
   <div class="panel stat"><div class="n" id="count">–</div><div class="l">ws connected</div></div>
   <div class="panel stat"><div class="n" id="nextsync">–</div><div class="l">next sync</div></div>
   <div class="panel stat"><div class="n" id="notified">–</div><div class="l">notifications</div></div>
@@ -336,13 +334,6 @@ function readCells(tr, stats) {
 }
 
 function render(conns, readStats, data) {
-  const hostnames = data.hostnames || {};
-  // Online is the global host count (WebSocket or not), from Fleet's host
-  // status statistics; ws connected is what THIS server instance holds.
-  $("online").textContent = data.online_hosts !== undefined ? data.online_hosts : "–";
-  if (data.total_hosts !== undefined) {
-    $("online").title = data.online_hosts + " of " + data.total_hosts + " hosts online";
-  }
   $("count").textContent = conns.length;
 
   let notified = 0, dropped = 0, bytesIn = 0, bytesOut = 0;
@@ -432,52 +423,11 @@ function render(conns, readStats, data) {
     tbody.appendChild(tr);
   }
 
-  // Hosts that issued distributed reads but hold no WebSocket connection:
-  // legacy agents still polling (often stale enrollments whose host ID no
-  // longer maps to a host in Fleet, so the raw ID is not meaningful — it is
-  // kept in the tooltip for debugging).
-  const connected = new Set(conns.map(c => c.host_id));
-  for (const s of readStats) {
-    if (connected.has(s.host_id)) continue;
-    const tr = document.createElement("tr");
-    tr.className = "offline";
-    tr.title = "no WebSocket connection; raw host ID " + s.host_id;
-
-    const tdOS = document.createElement("td");
-    tdOS.className = "os";
-    tdOS.textContent = "–";
-    tr.appendChild(tdOS);
-
-    const tdHost = document.createElement("td");
-    tdHost.textContent = "–";
-    tr.appendChild(tdHost);
-
-    // Hostname resolves when the host still exists in Fleet (it just isn't
-    // WebSocket-connected); stale/deleted enrollments show a dash.
-    const tdName = document.createElement("td");
-    tdName.textContent = hostnames[s.host_id] || "–";
-    tr.appendChild(tdName);
-
-    const tdRemote = document.createElement("td");
-    tdRemote.textContent = "offline";
-    tr.appendChild(tdRemote);
-
-    for (let i = 0; i < 2; i++) {
-      const td = document.createElement("td");
-      td.textContent = "–";
-      tr.appendChild(td);
-    }
-    for (let i = 0; i < 4; i++) {
-      const td = document.createElement("td");
-      td.className = "num";
-      td.textContent = "–";
-      tr.appendChild(td);
-    }
-    readCells(tr, s);
-    tbody.appendChild(tr);
-  }
-
-  $("empty").hidden = conns.length > 0 || readStats.length > 0;
+  // Read stats for hosts with no WebSocket connection on this instance are
+  // not listed: those hosts are either connected to another instance (the
+  // load balancer routes their reads anywhere) or legacy pollers, which only
+  // show up in the aggregate read counters above.
+  $("empty").hidden = conns.length > 0;
   flashHosts = new Set();
 }
 
