@@ -1,0 +1,1 @@
+* Fixed editing a Windows configuration profile so that uploading a replacement file with a different name updates the profile's name. Previously the contents were replaced but the profile kept its original name, so the configuration profiles list, the downloaded file and the activity feed all still showed the old one.
