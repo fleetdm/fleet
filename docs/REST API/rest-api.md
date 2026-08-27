@@ -11547,7 +11547,7 @@ The live report will stop if the request times out. Timeouts happen if targeted 
 
 ### Run live report (ad hoc)
 
-Runs the specified report as a live report on the specified hosts or group of hosts. This starts a new active report, represented in the response as the `campaign` object. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
+Runs the specified report as a live report on the specified hosts or group of hosts. This starts a new active report, represented in the response as the `campaign` object.
 
 After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
