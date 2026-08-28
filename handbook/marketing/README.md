@@ -177,6 +177,8 @@ The CMO is the DRI for deploying Fleet's outward-facing content. The content sch
   - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Content Specialist  to review and settle the proposed content.
 
+To add a GitHub issue to the Content planning project board, add the `content-planning` label to the issue.
+
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
