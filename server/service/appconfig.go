@@ -967,15 +967,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
-	// windows_settings.managed_local_account_settings.enabled: like EnableDiskEncryption above, an explicit JSON null
+	// windows_settings.enable_managed_local_account: like EnableDiskEncryption above, an explicit JSON null
 	// means "not provided": keep the old value rather than persisting an invalid optjson state.
-	if !oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	if !oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
 	}
-	if newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+	if newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	} else {
-		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -1736,9 +1736,9 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+	if oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value != appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
 		var act fleet.ActivityDetails
-		if appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+		if appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
 			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
 		} else {
 			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
@@ -2160,9 +2160,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
-	if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
-		mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !lic.IsPremium() {
-		invalid.Append("windows_settings.managed_local_account_settings.enabled", ErrMissingLicense.Error())
+	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
+		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
+		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
@@ -2235,10 +2235,10 @@ func (svc *Service) validateMDM(
 				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 
-		if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
-			!oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
-			invalid.Append("windows_settings.managed_local_account_settings.enabled",
-				"Couldn’t enable windows_settings.managed_local_account_settings. "+fleet.WindowsMDMNotTurnedOnMessage)
+		if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
+			!oldMdm.WindowsSettings.EnableManagedLocalAccount.Value {
+			invalid.Append("windows_settings.enable_managed_local_account",
+				"Couldn’t enable windows_settings.enable_managed_local_account. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)

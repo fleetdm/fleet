@@ -1948,7 +1948,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 		host := &fleet.Host{ID: 1, OsqueryHostID: new("test"), UUID: "host-uuid-1", Platform: "windows"}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
@@ -2037,7 +2037,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hostUUID}, nil
 		}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }

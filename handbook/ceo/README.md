@@ -127,7 +127,7 @@ The CEO's calendar should reflect the following schedule for travel:
   - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
 - Time block to get water and boarding,
   - 30 minutes for domestic flights
-  - 90 minutes for international flights where the first leg crosses international borders (this is because they blockade international gates and make you wait in line and the boarding time in longer)
+  - 90 minutes for international flights where the first leg crosses international borders (this is because they blockade international gates and make you wait in line and the boarding time is longer)
   - Calendar event name: Get water and boarding
 - Airline flight calendar event
   - The airline website will either offer to download the flight or have it emailed. After you download the flights from the airline website, import it to the CEO's calendar (this is in the calendar settings) or send it to the CEO's email. (For either option, there is either a calendar icon to click or a button that says "add to calendar".)
