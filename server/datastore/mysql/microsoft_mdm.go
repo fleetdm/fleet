@@ -3142,11 +3142,12 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
 
-			// A name is unique per team across all four profile tables, but only
-			// this table has an index for it. Guarding in the statement rather
-			// than a preceding SELECT keeps check and write atomic, as
-			// NewMDMWindowsConfigProfile does on insert. Rename-only, so a
-			// content edit can't fail on a pre-existing cross-table duplicate.
+			// A name is unique per team across all four profile tables. Each has
+			// its own unique index, but none of them span tables, so a rename
+			// into another platform's name has to be checked here. Guarding in
+			// the statement rather than a preceding SELECT keeps check and write
+			// atomic, as NewMDMWindowsConfigProfile does on insert. Rename-only,
+			// so a content edit can't fail on a pre-existing cross-table duplicate.
 			stmt := setClause
 			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
 			if nameChanged {
@@ -3171,15 +3172,24 @@ WHERE profile_uuid = ?`
 					return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
 				}
 			}
-			// The row was read at the top of this transaction, so on a rename the
-			// only thing that can match nothing is the NOT EXISTS guard.
 			if aff, _ := res.RowsAffected(); aff == 0 {
 				if nameChanged {
-					return ctxerr.Wrap(ctx, &existsError{
-						ResourceType: "MDMWindowsConfigProfile.Name",
-						Identifier:   cp.Name,
-						TeamID:       cp.TeamID,
-					})
+					// Nothing matched: either the NOT EXISTS guard blocked the
+					// rename, or the row was deleted after the read above. The
+					// read is non-locking, so both are possible.
+					var stillExists bool
+					if err := sqlx.GetContext(ctx, tx, &stillExists,
+						`SELECT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?)`,
+						cp.ProfileUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "checking windows config profile after blocked update")
+					}
+					if stillExists {
+						return ctxerr.Wrap(ctx, &existsError{
+							ResourceType: "MDMWindowsConfigProfile.Name",
+							Identifier:   cp.Name,
+							TeamID:       cp.TeamID,
+						})
+					}
 				}
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
