@@ -44,8 +44,9 @@ To manage categories for a fleet:
 
 1. Select the fleet from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
-3. Select the self-service categories icon in the upper right corner of the page.
-4. Select **Add category** to create a new category, or use the pencil and trash icons in a row to rename or delete a category.
+3. Select **Library** underneath the fleet picker.
+4. Select **Categories**.
+5. Select **Add category** to create a new category, or use the pencil and trash icons in a row to rename or delete a category.
 
 To assign a software title to one or more categories, edit the software in **Software > Library**, enable **Self-service** in the **Options** section, and check the categories you want to assign.
 
