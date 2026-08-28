@@ -2034,10 +2034,10 @@ type softwareCVE struct {
 // canUseOptimizedListQuery determines if we can use the fast path query
 // that starts FROM software_host_counts instead of software.
 func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
-	// Determine the effective order key. Trim first, so a key that the ordering
-	// helper accepts (it trims too) is routed the same way here rather than
-	// silently falling back to the slower path.
-	orderKey := strings.TrimSpace(opts.ListOptions.OrderKey)
+	// Trim to match the ordering helper, so a key it accepts isn't routed to the
+	// slower path over spacing alone.
+	requested := strings.TrimSpace(opts.ListOptions.OrderKey)
+	orderKey := requested
 	if orderKey == "" {
 		orderKey = "hosts_count"
 	}
@@ -2055,10 +2055,9 @@ func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
 	// Filters (VulnerableOnly / KnownExploit / MinimumCVSS / MaximumCVSS /
 	// MatchQuery) are now supported in the inner query via EXISTS pushdown —
 	// see buildOptimizedListSoftwareSQL.
-	// Asking to sort on hosts_count only makes sense when the counts are part
-	// of the query. Requests that don't name an order key still come here, so
-	// the default ordering is unchanged.
-	if strings.TrimSpace(opts.ListOptions.OrderKey) != "" && !opts.WithHostCounts {
+	// The optimized path orders by hosts_count, so it can only serve a request
+	// that also returns the column. An absent key keeps the default ordering.
+	if requested != "" && !opts.WithHostCounts {
 		return false
 	}
 
@@ -5456,17 +5455,11 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 	}
 }
 
-// softwareAllowedOrderKeys are the keys the software list may be sorted by. They
-// are columns the list returns, so ordering on one can't reveal anything the
-// response doesn't already carry; the columns it omits are deliberately absent., mapped to the column each one orders on. Ordering is
-// validated against this list so that a caller can't sort by a column the
-// response doesn't return and read its values back through the ordering.
-// The keys match the documented sort fields, plus id and version which are
-// used for stable ordering.
-// The columns are unqualified because the ordering is applied at two levels of
-// the query, which reach the same output column through different aliases; the
-// output name resolves at both. They must also stay bare column names, since
-// this path quotes them as identifiers and would mangle a SQL expression.
+// softwareAllowedOrderKeys are the columns the software list may be sorted by:
+// the ones it returns, so ordering can't surface a value the response omits.
+// Columns are unqualified because the ordering is applied at two levels of the
+// query that reach them through different aliases, and must stay bare column
+// names because this path quotes them as identifiers.
 var softwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":                "id",
 	"name":              "name",
@@ -5483,14 +5476,12 @@ var softwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"generated_cpe":     "generated_cpe",
 }
 
-// softwareHostCountAllowedOrderKeys may only be sorted on when host counts are
-// requested, since that is when the query selects the column.
+// Sortable only when host counts are requested; that is when the query selects it.
 var softwareHostCountAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"hosts_count": "hosts_count",
 }
 
-// softwareCVEAllowedOrderKeys may only be sorted on when vulnerability details
-// are included, since that is when the query selects those columns.
+// Sortable only when vulnerability details are included, for the same reason.
 var softwareCVEAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"cve_published":      "cve_published",
 	"cvss_score":         "cvss_score",
@@ -5498,10 +5489,8 @@ var softwareCVEAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"cisa_known_exploit": "cisa_known_exploit",
 }
 
-// softwareOrderKeys returns the keys the software list may be sorted by for the
-// given options, which decide whether the columns behind some of them are part
-// of the query. The result is only read, and may be the package-level list
-// itself, so callers must not modify it.
+// softwareOrderKeys may return one of the package-level maps above, so the
+// result must not be modified.
 func softwareOrderKeys(opts fleet.SoftwareListOptions) common_mysql.OrderKeyAllowlist {
 	if !opts.IncludeCVEScores && !opts.WithHostCounts {
 		return softwareAllowedOrderKeys

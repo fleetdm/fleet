@@ -563,10 +563,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 }
 
 // TestCanUseOptimizedListQueryOrderKeys pins which requests take the covering-index
-// path. The ordering helper trims the key before validating it, so this has to trim
-// too: otherwise a key it accepts is routed to the slower path on whitespace alone.
-// hosts_count without WithHostCounts must stay off the optimized path, since that
-// path orders by a column the response does not return.
+// path, including the spacing the ordering helper tolerates.
 func TestCanUseOptimizedListQueryOrderKeys(t *testing.T) {
 	t.Parallel()
 
@@ -598,19 +595,15 @@ func TestCanUseOptimizedListQueryOrderKeys(t *testing.T) {
 }
 
 func TestAppendOrderByToSelectRequiresAllowlist(t *testing.T) {
-	// A missing allowlist is a wiring mistake, not a request that should be
-	// refused, so it fails loudly rather than rejecting every order key.
-	require.Panics(t, func() {
-		//nolint:errcheck // panics before returning
-		appendOrderByToSelect(dialect.From("software"), fleet.ListOptions{OrderKey: "name"}, nil)
-	})
+	t.Parallel()
+
+	_, err := appendOrderByToSelect(dialect.From("software"), fleet.ListOptions{OrderKey: "name"}, nil)
+	require.Error(t, err, "a missing allowlist must reject every order key")
 }
 
 // TestSoftwareOrderKeysCoverListedColumns fails when a column is added to the
-// software list without deciding whether it can be sorted on, so the decision
-// is made deliberately rather than by omission. A column that the list returns
-// is safe to sort on; one it doesn't return would leak its values through the
-// order, and one the query doesn't select can't be ordered on at all.
+// software list without deciding whether it is sortable, so the decision is
+// made deliberately rather than by omission.
 func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 	// Returned by the list, but not selected by its query, so not sortable.
 	notSelected := map[string]struct{}{

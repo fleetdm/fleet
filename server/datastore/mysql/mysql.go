@@ -836,7 +836,7 @@ func (ds *Datastore) Close() error {
 }
 
 // appendListOptionsToSelect will apply the given list options to ds and
-// return the new select dataset. Order keys are validated against allowlist.
+// return the new select dataset.
 func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
 	ds, err := appendOrderByToSelect(ds, opts, allowlist)
 	if err != nil {
@@ -846,18 +846,12 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, a
 	return ds, nil
 }
 
-// appendOrderByToSelect appends the requested ordering to ds. The order key is
-// validated against allowlist, which maps the keys a caller may sort by to the
-// column each one orders on, so that a caller can't sort by an arbitrary column
-// and read it back through the resulting order.
-//
-// The mapped columns are quoted as identifiers, so an allowlist used here must
-// map to bare column names rather than to a SQL expression.
+// appendOrderByToSelect appends the requested ordering to ds. Each query passes
+// its own allowlist, since the sortable columns differ per query; a key outside
+// it is rejected rather than reaching the ORDER BY. A nil allowlist rejects
+// every key. Mapped columns are quoted as identifiers, so they must be bare
+// column names rather than SQL expressions.
 func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (*goqu.SelectDataset, error) {
-	if allowlist == nil {
-		panic("appendOrderByToSelect: allowlist cannot be nil; use an empty map to disallow all sorting")
-	}
-
 	if opts.OrderKey == "" {
 		return ds, nil
 	}
