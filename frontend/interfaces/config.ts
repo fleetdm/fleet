@@ -99,9 +99,7 @@ export interface IMdmConfig {
     enable_managed_local_account?: boolean;
   };
   windows_settings?: {
-    managed_local_account_settings?: {
-      enabled?: boolean;
-    };
+    enable_managed_local_account?: boolean;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {

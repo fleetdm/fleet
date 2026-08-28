@@ -1093,8 +1093,7 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.managed_local_account_settings
-                ?.enabled ?? false
+            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
             : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={

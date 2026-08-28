@@ -24,8 +24,7 @@ spec:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -89,8 +88,7 @@ spec:
         custom_settings: null
       windows_settings:
         custom_settings: null
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
       android_settings:
         custom_settings: null
         certificates: null
@@ -158,8 +156,7 @@ spec:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -215,8 +212,7 @@ spec:
         custom_settings: null
       windows_settings:
         custom_settings: null
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
       android_settings:
         custom_settings: null
         certificates: null

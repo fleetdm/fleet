@@ -846,8 +846,7 @@ software:
 
 	// include the Windows managed local account toggle in the applied controls
 	globalFile := writeGlobalFile(`  windows_settings:
-    managed_local_account_settings:
-      enabled: true`)
+    enable_managed_local_account: true`)
 
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
 
@@ -857,11 +856,11 @@ software:
 	require.Equal(t,
 		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
-	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 
 	// gitops is declarative for the managed local account toggle: re-applying without the key disables it
 	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
-	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 }
 
 func TestGitOpsExceptionEnforcement(t *testing.T) {

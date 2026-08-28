@@ -74,9 +74,7 @@ export interface ITeam extends ITeamSummary {
       enable_managed_local_account?: boolean;
     };
     windows_settings?: {
-      managed_local_account_settings?: {
-        enabled?: boolean;
-      };
+      enable_managed_local_account?: boolean;
     };
     windows_updates: {
       deadline_days: number | null;

@@ -119,7 +119,7 @@ type TeamPayloadMDM struct {
 
 // TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
 type TeamPayloadWindowsSettings struct {
-	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -467,6 +467,18 @@ type TeamMDM struct {
 // Clone implements cloner for TeamMDM.
 func (t *TeamMDM) Clone() (Cloner, error) {
 	return t.Copy(), nil
+}
+
+// MarshalJSON defaults the Windows managed local account toggle to an explicit
+// false when it was never set, so no serialization path (API responses,
+// teams.config storage) emits null for it.
+func (t TeamMDM) MarshalJSON() ([]byte, error) {
+	if !t.WindowsSettings.EnableManagedLocalAccount.Valid {
+		t.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	// the alias type has no methods, so marshaling it avoids infinite recursion
+	type alias TeamMDM
+	return json.Marshal(alias(t))
 }
 
 // Copy returns a deep copy of the TeamMDM.
