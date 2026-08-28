@@ -4681,9 +4681,21 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "errorMessage": "A fleet_maintained_apps entry must set slug.",
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
           "required": [
             "slug"
+          ]
+        },
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A fleet_maintained_apps entry must set slug (or reference a file with path/paths).",
+          "required": [
+            "paths"
           ]
         }
       ],
@@ -4752,6 +4764,18 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -5728,9 +5752,21 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "errorMessage": "An app_store_apps entry must set app_store_id.",
+          "errorMessage": "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
           "required": [
             "app_store_id"
+          ]
+        },
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "An app_store_apps entry must set app_store_id (or reference a file with path/paths).",
+          "required": [
+            "paths"
           ]
         }
       ],
@@ -5824,6 +5860,18 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": [
+            "string",
             "null"
           ]
         },

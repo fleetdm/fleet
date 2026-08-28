@@ -1,4 +1,0 @@
-# app_store_apps items don't accept a top-level path: and require app_store_id.
-software:
-  app_store_apps:
-    - path: ../lib/software/apps.yml
