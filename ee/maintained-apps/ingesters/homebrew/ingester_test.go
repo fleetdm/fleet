@@ -225,14 +225,12 @@ func TestIngestValidations(t *testing.T) {
 				)
 			}
 
-			// The managed "is app open" query matches a running process inside the app bundle.
-			wantOpen := fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');", out.UniqueIdentifier)
-			if c.inputApp.Token == "1password" {
-				// 1Password's login-item helpers run inside the bundle with the app closed,
-				// so only the app's own executable counts as open.
-				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path LIKE '%/1Password.app/Contents/MacOS/1Password');"
-			}
-			require.Equal(t, wantOpen, out.Queries.Open)
+			// The managed "is app open" query matches only the app's own executable, so
+			// in-bundle login items and helpers that outlive the app don't count as open.
+			require.Equal(t,
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
+				out.Queries.Open,
+			)
 		})
 	}
 }
