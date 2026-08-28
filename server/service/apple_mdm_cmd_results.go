@@ -276,8 +276,7 @@ func NewInstalledApplicationListResultsHandler(
 
 				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
 				if err != nil {
-					var notifErr *apple_mdm.NotificationFailedError
-					if !errors.As(err, &notifErr) {
+					if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 						if rmErr := ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
 							logger.ErrorContext(ctx, "untrack refetch apps command after enqueue failure",
 								"err", rmErr, "host_id", hostID)

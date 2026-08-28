@@ -6467,8 +6467,7 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 
 	cmdUUID := uuid.NewString()
 	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
-		var notifErr *apple_mdm.NotificationFailedError
-		if !errors.As(err, &notifErr) {
+		if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 			if rmErr := svc.ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
 				svc.logger.ErrorContext(ctx, "untrack refetch certs command after enqueue failure",
 					"err", rmErr, "host_uuid", hostUUID, "enrollment_id", enrollmentID)

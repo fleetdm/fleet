@@ -1711,8 +1711,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 				return ctxerr.Wrap(ctx, err, "add host mdm command")
 			}
 			if err := enqueue(); err != nil {
-				var notifErr *apple_mdm.NotificationFailedError
-				if !errors.As(err, &notifErr) {
+				if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 					if rmErr := svc.ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
 						svc.logger.ErrorContext(ctx, "untrack host mdm command after enqueue failure",
 							"err", rmErr, "host_id", host.ID, "command_type", commandType)
