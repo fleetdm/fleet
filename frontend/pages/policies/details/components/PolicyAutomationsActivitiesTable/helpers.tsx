@@ -73,14 +73,20 @@ export const getAutomationStatusIcon = (
     : { name: "success-outline" };
 };
 
+export const SKIPPED_INSTALL_DETAILS =
+  "The app was open. It will update once the user closes it and policy runs again, or update via self service.";
+
 /**
- * Text shown in the "Details" column (and the modal's primary block): the
- * remote error response for failures, or the script/install output for the
- * task activities. Empty when neither applies.
+ * Text shown in the "Details" column: the explanation for a deferred patch, the
+ * remote error response for failures, or the script/install output for the task
+ * activities. Empty when none apply.
  */
 export const getDetailOutputText = (
   activity: IPolicyAutomationActivity
 ): string => {
+  if (activity.details?.skipped_install) {
+    return SKIPPED_INSTALL_DETAILS;
+  }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;
   }

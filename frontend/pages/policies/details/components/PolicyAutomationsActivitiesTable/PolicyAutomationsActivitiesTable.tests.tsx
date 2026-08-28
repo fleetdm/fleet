@@ -11,6 +11,8 @@ import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable
 import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
+  getDetailOutputText,
+  SKIPPED_INSTALL_DETAILS,
 } from "./helpers";
 
 jest.mock("services/entities/policies");
@@ -167,6 +169,23 @@ describe("getAutomationStatusIcon", () => {
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
     ).toEqual({ name: "success-outline" });
+  });
+});
+
+describe("getDetailOutputText", () => {
+  it("explains a patch-when-closed skip rather than returning empty text", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DETAILS);
   });
 });
 

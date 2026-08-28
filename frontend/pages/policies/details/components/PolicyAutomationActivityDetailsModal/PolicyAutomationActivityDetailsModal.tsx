@@ -21,6 +21,9 @@ import {
 
 const baseClass = "policy-automation-activity-details-modal";
 
+const SKIPPED_PRE_INSTALL_OUTPUT =
+  "Query didn't return result or failed\nThe app was open";
+
 interface IPolicyAutomationActivityDetailsModalProps {
   activity: IPolicyAutomationActivity;
   onCancel: () => void;
@@ -96,7 +99,9 @@ const PolicyAutomationActivityDetailsModal = ({
           <>
             {renderOutputSection(
               "Pre-install query output",
-              activity.pre_install_output
+              activity.details?.skipped_install
+                ? SKIPPED_PRE_INSTALL_OUTPUT
+                : activity.pre_install_output
             )}
             {renderOutputSection("Details", activity.output)}
             {renderOutputSection(
