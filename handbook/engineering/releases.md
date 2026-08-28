@@ -231,7 +231,7 @@ When a feature requires changes to both the server and the agent, a version mism
 
 ### Test compatibility with the previous release
 
-We test and QA compatibility within one version of the counterpart. When a server release S includes a feature that depends on agent version A, we verify that server S does not break agents on version A-1. When an agent release A includes a feature that depends on server version S, we verify that agent A does not break when connected to server S-1.
+We test and QA each release against the previous version of its counterpart. When a new server version depends on a new agent feature, we verify that agents one version behind keep working. When a new agent version depends on a new server feature, we verify that the agent keeps working against a server one version behind.
 
 For long-term compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy). Server release notes must call out when a feature requires a minimum agent version.
 
