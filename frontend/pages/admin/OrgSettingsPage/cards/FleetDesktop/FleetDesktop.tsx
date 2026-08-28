@@ -23,6 +23,9 @@ const END_USER_AUTH_LABEL_ID = "end-user-authentication-label";
 const SSO_REQUIRES_IDP_TOOLTIP =
   "This setting requires an IdP configured in Settings > Integrations > Authentication (SSO) > End users.";
 
+const SSO_TOKEN_ROTATION_TOOLTIP =
+  "Fleet still rotates the hourly token when SSO is selected. SSO adds an extra layer of protection for the My device page.";
+
 enum EndUserAuthType {
   TOKEN_ROTATION = "token_rotation",
   SSO = "sso",
@@ -191,19 +194,19 @@ const FleetDesktop = ({
           />
           <Radio
             label={
-              isIdPConfigured ? (
-                "Single sign-on (SSO)"
-              ) : (
-                <TooltipWrapper
-                  showArrow
-                  underline={false}
-                  position="right"
-                  tipOffset={12}
-                  tipContent={SSO_REQUIRES_IDP_TOOLTIP}
-                >
-                  Single sign-on (SSO)
-                </TooltipWrapper>
-              )
+              <TooltipWrapper
+                showArrow
+                underline={false}
+                position="right"
+                tipOffset={12}
+                tipContent={
+                  isIdPConfigured
+                    ? SSO_TOKEN_ROTATION_TOOLTIP
+                    : SSO_REQUIRES_IDP_TOOLTIP
+                }
+              >
+                Single sign-on (SSO)
+              </TooltipWrapper>
             }
             id="end-user-auth-sso"
             name="end-user-authentication"
