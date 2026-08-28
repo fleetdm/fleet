@@ -2223,13 +2223,14 @@ const HostDetailsPage = ({
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (
           <MDMStatusModal
-            fleetId={currentTeam?.id}
+            fleetId={host.team_id}
             hostId={host.id}
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
             isAppleDevice={isAppleDeviceHost}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
+            connectedToFleet={host.mdm.connected_to_fleet}
             onSuccessfulCheckIn={refetchHostDetails}
             user={currentUser}
             router={router}

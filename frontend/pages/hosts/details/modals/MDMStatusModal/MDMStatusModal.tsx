@@ -41,7 +41,7 @@ import permissions from "utilities/permissions";
 const baseClass = "mdm-status-modal";
 
 interface IMDMStatusModal {
-  fleetId?: number;
+  fleetId: number | null;
   hostId: number;
   enrollmentStatus: MdmEnrollmentStatus;
   depProfileError?: boolean;
@@ -49,6 +49,7 @@ interface IMDMStatusModal {
   isPremiumTier?: boolean;
   isAppleDevice?: boolean;
   lastMDMCheckIn: string | null;
+  connectedToFleet?: boolean;
   onSuccessfulCheckIn: () => void;
   user: IUser | null;
   onExit: () => void;
@@ -163,6 +164,7 @@ const MDMStatusModal = ({
   isPremiumTier = false,
   isAppleDevice = false,
   lastMDMCheckIn,
+  connectedToFleet = false,
   onSuccessfulCheckIn,
   router,
   onExit,
@@ -276,6 +278,7 @@ const MDMStatusModal = ({
       !(["Off", "Pending"] as MdmEnrollmentStatus[]).includes(
         enrollmentStatus
       ) &&
+      connectedToFleet &&
       permissions.isGlobalOrTeamObserverOrAbove(user, fleetId ?? null);
 
     return (
@@ -354,10 +357,10 @@ const MDMStatusModal = ({
       },
     ];
 
-    if (lastMDMCheckIn !== null) {
+    if (lastMDMCheckIn !== null || connectedToFleet) {
       data.push({
         id: "mdm-checkin",
-        value: lastMDMCheckIn,
+        value: lastMDMCheckIn ?? "",
         render: renderMDMCheckinRow,
       });
     }
