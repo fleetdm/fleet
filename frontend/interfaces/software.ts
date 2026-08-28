@@ -69,6 +69,8 @@ export interface ISoftwareTitleVersion {
 export interface ISoftwarePatchPolicy {
   id: number;
   name: string;
+  patch_when_closed: boolean;
+  continuous_automations_enabled: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -316,6 +318,7 @@ export const SOURCE_TYPE_CONVERSION = {
   py_packages: "Script-only package (macOS & Linux)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   go_binaries: "Binary (Go)",
+  adobe_plugins: "Plugin (Adobe)", // the type label is flat: Fleet doesn't store a host Adobe application for adobe_plugins, so `extension_for` is always empty for this source (see softwareAdobePlugins in server/service/osquery_utils/queries.go).
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -350,6 +353,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   py_packages: "linux", // stored as linux; also runs on macOS via the unix-like install exception
   jetbrains_plugins: null,
   go_binaries: null,
+  adobe_plugins: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = [
@@ -471,6 +475,12 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  * SoftwareInstallUninstallStatus represents the possible states of software install operations.
  */
 export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
+
+/** Activity-backed install details can display a skipped state while the
+ * persisted install result remains failed_install. */
+export type SoftwareInstallDetailsStatus =
+  | SoftwareInstallUninstallStatus
+  | "skipped_install";
 
 /** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
@@ -615,6 +625,12 @@ export interface IHostSoftwarePackage {
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
+  /** True when the installer has a non-empty uninstall script. Absent (not
+   * `false`) for VPP and in-house apps, and absent on /software/titles
+   * responses; only host software responses set it. Used to gate the
+   * Uninstall action for script-only (.ps1/.sh/.py) and .tgz packages,
+   * where the uninstall script is optional. */
+  has_uninstall_script?: boolean;
 }
 
 export interface IHostAppStoreApp {
@@ -945,6 +961,7 @@ export interface IFleetMaintainedAppDetails {
   install_script: string;
   post_install_script: string;
   uninstall_script: string;
+  automatic_install_query: string;
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)

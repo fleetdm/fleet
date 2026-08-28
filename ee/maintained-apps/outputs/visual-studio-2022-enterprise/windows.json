@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "17.14.39",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE (name = 'Visual Studio Enterprise 2022' OR name LIKE 'Visual Studio Enterprise 2022 (%') AND publisher = 'Microsoft Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Enterprise 2022' OR name LIKE 'Visual Studio Enterprise 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.39') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'visual studio enterprise 2022.exe');"
+      },
+      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/fa619120-9c0e-47e6-bfe0-3ee96fb671b2/63756cd71ae67cfbc371ca0798931d41ea30ccc5065be1b3b0bc84b43cd3b50e/vs_Enterprise.exe",
+      "install_script_ref": "1662986f",
+      "uninstall_script_ref": "4e3130f5",
+      "sha256": "63756cd71ae67cfbc371ca0798931d41ea30ccc5065be1b3b0bc84b43cd3b50e",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "1662986f": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# The downloaded file is a bootstrapper that pulls the multi-GB payload during\n# this step. --wait is required: without it the bootstrapper forks the real\n# install to a background process and returns before it finishes.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\nif (-not (Test-Path $exeFilePath)) {\n  Write-Host \"Error: Installer file not found at: $exeFilePath\"\n  Exit 1\n}\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--quiet --wait --norestart\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n  Write-Host \"Install exit code: $exitCode (succeeded, reboot required to finish)\"\n  Exit 0\n}\n\nif ($exitCode -eq 1001 -or $exitCode -eq 1618) {\n  Write-Host \"Install failed: another Visual Studio Installer operation is already in progress (exit code $exitCode)\"\n  Exit 1\n}\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "4e3130f5": "# Visual Studio has no UninstallString; it's removed through the shared Visual\n# Studio Installer, which needs the specific instance's install path. -version\n# is required as well as -products, since product IDs are not version specific\n# and an unscoped query also matches a side-by-side Visual Studio 2026.\n\n$vswhere = \"${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe\"\n$vsInstaller = \"${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\setup.exe\"\n\ntry {\n\nif (-not (Test-Path $vswhere) -or -not (Test-Path $vsInstaller)) {\n  Write-Host \"Visual Studio Installer not present, nothing to uninstall\"\n  Exit 0\n}\n\n$installPath = & $vswhere -products Microsoft.VisualStudio.Product.Enterprise -version \"[17.0,18.0)\" -property installationPath\n\n# vswhere reports failure through the exit code rather than by throwing, so\n# without this check a failed query looks like \"no instance installed\".\nif ($LASTEXITCODE -ne 0) {\n  Write-Host \"vswhere.exe failed with exit code $LASTEXITCODE\"\n  Exit 1\n}\n\n$installPath = ($installPath | Select-Object -First 1)\n\nif (-not $installPath) {\n  Write-Host \"No Visual Studio Enterprise 2022 instance found, nothing to uninstall\"\n  Exit 0\n}\n\nWrite-Host \"Found Visual Studio Enterprise 2022 at: $installPath\"\n\n# The install path always contains spaces, so it has to be quoted here. No\n# --wait: it's bootstrapper-only, and Start-Process -Wait already blocks.\n$processOptions = @{\n  FilePath = $vsInstaller\n  ArgumentList = \"uninstall --installPath `\"$installPath`\" --quiet --norestart\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n  Write-Host \"Uninstall exit code: $exitCode (succeeded, reboot required to finish)\"\n  Exit 0\n}\n\nif ($exitCode -eq 1001 -or $exitCode -eq 1618) {\n  Write-Host \"Uninstall failed: another Visual Studio Installer operation is already in progress (exit code $exitCode)\"\n  Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.04.20",
+      "version": "26.08.06",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrixfiles.ens.service';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrixfiles.ens.service' AND version_compare(bundle_short_version, '26.04.20') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrixfiles.ens.service' AND version_compare(bundle_short_version, '26.08.06') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.citrixfiles.ens.service');"
       },
-      "installer_url": "https://dl.sharefile.com/sfmac/ShareFile%20v26.04.20%20(20p795).dmg",
+      "installer_url": "https://dl.sharefile.com/sfmac/ShareFile%20v26.08.06%20(06p1008).dmg",
       "install_script_ref": "8d1fd500",
       "uninstall_script_ref": "6491cbe3",
-      "sha256": "079ab663c401f30e7a77fe243c320424c805acad642ccfc9325934866ac2f2f3",
+      "sha256": "15239d2dfd790f312aceeaa4aee9e03831e78bd852c96409683b942f3d7f64a0",
       "default_categories": [
         "Productivity"
       ]

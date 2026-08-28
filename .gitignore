@@ -10,13 +10,14 @@ dist
 # generated artifacts
 assets/bundle*.*
 assets/*@*.svg
-assets/*@*.png
+assets/**/*@*.png
 assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
 assets/*@*.ttf
 assets/*@*.mp4
+assets/icons/
 frontend/templates/react.tmpl
 bindata.go
 server/bindata/generated.go
@@ -36,6 +37,10 @@ debug.test*
 # operating system artifacts
 .DS_Store
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # test mysql server data
 mysqldata/
 
@@ -54,6 +59,7 @@ backup.sql.gz
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
 !website/package-lock.json
+!ee/fleet-agent-downloader/package-lock.json
 
 # infra
 .terraform

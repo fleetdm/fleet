@@ -191,12 +191,7 @@ const GlobalHostStatusWebhook = ({
                   parseTarget
                   onBlur={validateForm}
                   error={formErrors.destination_url}
-                  tooltip={
-                    <>
-                      Provide a URL to deliver <br />
-                      the webhook request to.
-                    </>
-                  }
+                  tooltip="Provide a URL to deliver the webhook request to."
                 />
                 <Dropdown
                   label="Percentage of hosts"
@@ -209,11 +204,8 @@ const GlobalHostStatusWebhook = ({
                   onBlur={validateForm}
                   tooltip={
                     <>
-                      Select the minimum percentage of hosts that
-                      <br />
-                      must fail to check into Fleet in order to trigger
-                      <br />
-                      the webhook request.
+                      Select the minimum percentage of hosts that must fail to
+                      check into Fleet in order to trigger the webhook request.
                     </>
                   }
                 />
@@ -228,13 +220,9 @@ const GlobalHostStatusWebhook = ({
                   onBlur={validateForm}
                   tooltip={
                     <>
-                      Select the minimum number of days that the
-                      <br />
-                      configured <b>Percentage of hosts</b> must fail to
-                      <br />
-                      check into Fleet in order to trigger the
-                      <br />
-                      webhook request.
+                      Select the minimum number of days that the configured{" "}
+                      <strong>Percentage of hosts</strong> must fail to check
+                      into Fleet in order to trigger the webhook request.
                     </>
                   }
                 />

@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.0.3",
+      "version": "9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick' AND version_compare(bundle_short_version, '8.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.tunnelblick.tunnelblick' AND version_compare(bundle_short_version, '9.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'net.tunnelblick.tunnelblick');"
       },
-      "installer_url": "https://tunnelblick.net/iprelease/Tunnelblick_8.0.3_build_6303.dmg",
+      "installer_url": "https://tunnelblick.net/iprelease/Tunnelblick_9.0_build_6490.dmg",
       "install_script_ref": "5e3b9b1c",
       "uninstall_script_ref": "ddae342f",
-      "sha256": "20c73f78697e4f4baf1c443dff7c494bd9746c9def92b0d5fdb0c1d689d241d7",
+      "sha256": "60fbbe707d384226a64cdfa94493345fc063756991c4e6697fd90be26457f9d5",
       "default_categories": [
         "Productivity"
       ]

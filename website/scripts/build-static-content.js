@@ -558,9 +558,19 @@ module.exports = {
               // > This works because HTML in Markdown files is added as-is, while any <meta> tags in codeblocks would have their brackets replaced with HTML entities when they are converted to HTML.
               let embeddedMetadata = {};
               try {
-                for (let tag of (htmlString.match(/<meta[^>]*>/igm)||[])) {
-                  let name = tag.match(/name="([^">]+)"/i)[1];
-                  let value = tag.match(/value="([^">]+)"/i)[1];
+                for (let tag of (htmlString.match(/<meta[^>]*>/igm))||[]) {
+                  let name = tag.match(/name="([^">]+)"/i);
+                  if(!name || !name[1]){
+                    throw new Error(`A <meta> tag is misssing a name attribute. To resolve, Make sure all <meta> tags have a name attribute and try running this script again`);
+                  } else {
+                    name = name[1];
+                  }
+                  let value = tag.match(/value="([^">]+)"/i);
+                  if(!value || !value[1]) {
+                    throw new Error(`A <meta> tag (<meta name="${name}">) is misssing a value attribute. To resolve, add a value attribute to this <meta> tag and try running this script again`);
+                  } else {
+                    value = value[1];
+                  }
                   embeddedMetadata[name] = value;
                 }//∞
               } catch (err) {

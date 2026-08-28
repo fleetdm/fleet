@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "77.8.0",
+      "version": "78.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.webcatalog.jordan';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.webcatalog.jordan' AND version_compare(bundle_short_version, '77.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.webcatalog.jordan' AND version_compare(bundle_short_version, '78.0.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.webcatalog.jordan');"
       },
-      "installer_url": "https://cdn-2.webcatalog.io/webcatalog/WebCatalog-77.8.0-universal.dmg",
+      "installer_url": "https://cdn-2.webcatalog.io/webcatalog/WebCatalog-78.0.0-universal.dmg",
       "install_script_ref": "23e707d7",
       "uninstall_script_ref": "6ca374e8",
-      "sha256": "8851efab3e945df4f3a5a39b254987cb9217390753f27e2eaaf65c7dacc82d23",
+      "sha256": "823a0546ff697df59056ff4cd2be5a209b5e0de8407d318798e35b58567f59ac",
       "default_categories": [
         "Productivity"
       ]

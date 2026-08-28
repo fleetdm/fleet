@@ -4,12 +4,12 @@ import classnames from "classnames";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 import {
@@ -59,8 +59,8 @@ const RefetchButton = ({
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
             variant="secondary"
+            icon="refresh"
           >
-            <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}
           </Button>
         </div>
@@ -101,7 +101,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";
@@ -153,10 +160,56 @@ const HostHeader = ({
     );
   };
 
+  // `summaryData` is run through `normalizeEmptyValues`, so a host that has
+  // never checked in reports "---", while platforms whose API response omits
+  // the field altogether leave it undefined.
+  const lastMdmCheckIn = summaryData.last_mdm_checked_in_at;
+  const hasMdmCheckIn =
+    !!lastMdmCheckIn && lastMdmCheckIn !== DEFAULT_EMPTY_CELL_VALUE;
+
+  const withTooltip = (content: React.ReactNode) => {
+    if (!hasMdmCheckIn) {
+      return content;
+    }
+
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            <span>
+              Last fetched:
+              <b>
+                {" "}
+                {internationalTimeFormat(
+                  new Date(summaryData.detail_updated_at)
+                )}
+              </b>
+            </span>
+            <br />
+            <span>
+              Last MDM check-in:
+              <b> {internationalTimeFormat(new Date(lastMdmCheckIn))}</b>
+            </span>
+          </>
+        }
+        position="top"
+        underline={false}
+        showArrow
+      >
+        {content}
+      </TooltipWrapper>
+    );
+  };
+
+  // eslint-disable-next-line no-nested-ternary
   const lastFetched = summaryData.detail_updated_at ? (
-    <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={summaryData.detail_updated_at}
-    />
+    hasMdmCheckIn ? (
+      humanLastSeen(summaryData.detail_updated_at)
+    ) : (
+      <HumanTimeDiffWithFleetLaunchCutoff
+        timeString={summaryData.detail_updated_at}
+      />
+    )
   ) : (
     ": unavailable"
   );
@@ -213,16 +266,11 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            <TooltipWrapper
-              disableTooltip={!isAndroid(platform)}
-              tipContent={ANDROID_NO_REFETCH_TOOLTIP_MESSAGE}
-              underline={isAndroid(platform)}
-              position="bottom"
-              showArrow
-            >
-              {"Last fetched"} {lastFetched}
-              &nbsp;
-            </TooltipWrapper>
+            {withTooltip(
+              <>
+                {"Last fetched"} {lastFetched}
+              </>
+            )}
           </div>
         </div>
       </div>

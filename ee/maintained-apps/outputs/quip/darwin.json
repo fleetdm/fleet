@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.54.0",
+      "version": "9.59.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.quip.Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.quip.Desktop' AND version_compare(bundle_short_version, '9.54.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.quip.Desktop' AND version_compare(bundle_short_version, '9.59.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.quip.Desktop');"
       },
-      "installer_url": "https://quip-clients.com/macosx_9.54.0.dmg",
+      "installer_url": "https://quip-clients.com/macosx_9.59.0.dmg",
       "install_script_ref": "6f965660",
       "uninstall_script_ref": "fe098197",
-      "sha256": "b36753df589115466268738dfbcb7da4cd98a591fc7f67a212700ecdb0004bdb",
+      "sha256": "1091d886dae9bcf7cd7c93e68fc4824d03e46f68da01c6620d79d51cda0ce6ae",
       "default_categories": [
         "Productivity"
       ]

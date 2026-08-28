@@ -6,6 +6,7 @@ import {
   isIncompleteQuoteQuery,
   hyphenateString,
   matchLoosePrefixToKey,
+  equalsIgnoreCase,
 } from "./stringUtils";
 
 describe("string utilities", () => {
@@ -202,6 +203,30 @@ describe("string utilities", () => {
       expect(
         matchLoosePrefixToKey(MAP, "  Visual Studio Code  - Insiders  ")
       ).toBe("visual studio code");
+    });
+  });
+
+  describe("equalsIgnoreCase", () => {
+    it("matches regardless of case", () => {
+      expect(
+        equalsIgnoreCase(
+          "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          "5B1FC5B6-9502-4CF9-90CF-D0B656EAF7A4"
+        )
+      ).toBe(true);
+    });
+
+    it("does not match different values", () => {
+      expect(equalsIgnoreCase("abc", "abd")).toBe(false);
+    });
+
+    it("does not trim", () => {
+      expect(equalsIgnoreCase("abc", " abc")).toBe(false);
+    });
+
+    it("uses locale-independent casing", () => {
+      // toLocaleLowerCase would map "I" to a dotless "i" under a Turkish locale and break the match.
+      expect(equalsIgnoreCase("ID-1", "id-1")).toBe(true);
     });
   });
 });

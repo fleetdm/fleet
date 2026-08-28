@@ -26,10 +26,12 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -80,6 +82,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
+		installAttemptCounter  fleet.SoftwareInstallAttemptCounter = service.NewMemSoftwareInstallAttemptCounter()
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -112,6 +115,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -193,6 +197,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
 
+	// Test servers get a no-op factory unless a test injects its own. Without this any test applying a credential would hit the real network.
+	msGraphClientFactory := msgraph.ClientFactory(noopMicrosoftGraphClientFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
+
 	svc, err := service.NewService(
 		ctx,
 		ds,
@@ -218,6 +228,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
+		installAttemptCounter,
 		androidService,
 		orgLogoStore,
 	)
@@ -256,11 +267,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareTitleIconStore,
 			distributedLock,
 			keyValueStore,
+			installAttemptCounter,
 			scepConfigService,
 			digiCertService,
 			androidModule,
 			estCAService,
 			nil, // PSSO nonce store; integration tests don't exercise PSSO
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
@@ -284,4 +297,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
 
 	return svc, ctx
+}
+
+// noopMicrosoftGraphClient accepts any credential without touching the network. Verification runs on every write that
+// carries a new or changed credential, so a test server built without an injected factory would reach the real
+// login.microsoftonline.com and graph.microsoft.com.
+type noopMicrosoftGraphClient struct{}
+
+func (noopMicrosoftGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopMicrosoftGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopMicrosoftGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopMicrosoftGraphClient{}, nil
 }

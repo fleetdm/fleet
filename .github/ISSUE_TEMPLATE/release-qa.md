@@ -301,12 +301,12 @@ Reference: https://fleetdm.com/pricing
 ### Power to PC
 
 **Progress**
-- [ ] MDM enrollment flow
+- [ ] Manual enrollment
+- [ ] Autopilot enrollment
 - [ ] MDM migration flow
 - [ ] OS settings
 - [ ] Disk encryption
 - [ ] OS updates
-- [ ] Setup Experience
 - [ ] Android
 - [ ] Fleet Free
 
@@ -314,13 +314,29 @@ Reference: https://fleetdm.com/pricing
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
-<td>MDM enrollment flow</td>
-<td>Verify MDM enrollments, run MDM commands.</td>
+<td>Manual enrollment</td>
+<td>Verify MDM enrollment, run MDM commands.</td>
 <td>
 
-1. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-2. Erase an Auto-Pilot enabled Windows host and complete automated enrollment flow.
-3. Verify able to run MDM commands on Windows hosts from the CLI.
+1. With Windows MDM turned on and the Setup experience configured (end user authentication and software installs), enroll a Windows host and verify MDM is turned on and the configured software installs.
+2. Verify able to run MDM commands on Windows hosts from the CLI.
+
+</td>
+</tr>
+
+<tr>
+<td>Autopilot enrollment</td>
+<td>Verify Windows Autopilot/Entra OOBE enrollment, both fully configured and with nothing configured.</td>
+<td>
+
+**Full configuration**
+
+1. Configure a fleet with setup experience items (enable EUA, add FMA & Custom package software), add a configuration profile, enable OS updates, and disk encryption (BitLocker).
+2. Enroll an Auto-Pilot host via OOBE and verify the ESP completes and all configured items apply.
+
+**Blank enrollment**
+
+3. Enroll an Auto-Pilot host into the "Unassigned" fleet with nothing configured and verify the ESP completes.
 
 </td>
 </tr>
@@ -363,17 +379,6 @@ Reference: https://fleetdm.com/pricing
 <td>
 
 1. Configure OS updates (Windows).
-
-</td>
-</tr>
-
-<tr>
-<td>Setup Experience</td>
-<td>Verify Windows Setup experience.</td>
-<td>
-
-1. Configure End user authentication.
-2. Add software (FMA, Custom pkg).
 
 </td>
 </tr>
@@ -521,7 +526,7 @@ Reference: https://fleetdm.com/pricing
 
 </table>
 
-### Security & Compliance
+### Supply Chain
 
 **Progress**
 - [ ] Disk encryption (Linux)
@@ -561,10 +566,11 @@ Reference: https://fleetdm.com/pricing
 <td>Verify setup and certificate delivery.</td>
 <td>
 
-1. Configure and verify that certificates deploy to hosts with the following CAs:
+1. Configure and verify that certificates deploy to hosts with the following CAs and that they appear on the Host Details page:
     1. DigiCert
     2. NDES
     3. SmallStep
+    4. Hydrant (ACME)
 
 </td>
 </tr>

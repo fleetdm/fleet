@@ -4,7 +4,8 @@
       "version": "0.64.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmuxterm.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmuxterm.app' AND version_compare(bundle_short_version, '0.64.22') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmuxterm.app' AND version_compare(bundle_short_version, '0.64.22') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.cmuxterm.app');"
       },
       "installer_url": "https://github.com/manaflow-ai/cmux/releases/download/v0.64.22/cmux-macos.dmg",
       "install_script_ref": "622f9d4c",

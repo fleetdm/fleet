@@ -392,9 +392,8 @@ export const MDM_STATUS_TOOLTIP: Record<
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business (AB).
-      <br /> These will automatically enroll to Fleet <br /> and turn on MDM
-      when they&apos;re unboxed.
+      Hosts ordered via Apple Business (AB). These will automatically enroll to
+      Fleet and turn on MDM when they&apos;re unboxed.
     </span>
   ),
 };
@@ -442,6 +441,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "maintenance_window", // Not rendered on my device page
   "os_version",
   "mdm",
+  "last_mdm_checked_in_at",
 ];
 
 export const HOST_VITALS_DATA = [

@@ -1087,6 +1087,51 @@ func TestGetProfilesContents(t *testing.T) {
 	}
 }
 
+func TestGetProfilesContentsActivation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	activation := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.example.act","Payload":{"StandardConfigurations":["com.example.decl"]}}`)
+	activationPath := filepath.Join(tempDir, "activation.json")
+	require.NoError(t, os.WriteFile(activationPath, activation, 0o644))
+
+	declPath := filepath.Join(tempDir, "decl.json")
+	require.NoError(t, os.WriteFile(declPath,
+		[]byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.example.decl","Payload":{}}`), 0o644))
+
+	mobileconfigPath := filepath.Join(tempDir, "profile.mobileconfig")
+	require.NoError(t, os.WriteFile(mobileconfigPath, mobileconfigForTest("bar", "I"), 0o644))
+
+	t.Run("declaration carries the activation contents", func(t *testing.T) {
+		got, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath, Activation: activationPath}}, nil, nil, false)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, activation, got[0].Activation)
+	})
+
+	t.Run("no activation leaves the payload field empty", func(t *testing.T) {
+		got, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath}}, nil, nil, false)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Empty(t, got[0].Activation)
+	})
+
+	t.Run("mobileconfig with an activation is rejected", func(t *testing.T) {
+		_, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: mobileconfigPath, Activation: activationPath}}, nil, nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "activation is only supported for declaration (DDM) profiles")
+	})
+
+	t.Run("unreadable activation file reports the path", func(t *testing.T) {
+		_, err := getProfilesContents(tempDir,
+			[]fleet.MDMProfileSpec{{Path: declPath, Activation: filepath.Join(tempDir, "missing.json")}}, nil, nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "reading activation")
+	})
+}
+
 func TestGitOpsErrors(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -1134,8 +1179,12 @@ func TestGitOpsErrors(t *testing.T) {
 }
 
 func TestResolvePolicySoftwareTitleID(t *testing.T) {
+	// uintPtr keeps the test cases readable — no ptr package import needed here.
+	uintPtr := func(v uint) *uint { return &v }
+
 	byURL := map[string]uint{
-		"https://example.com/pkg.pkg": 100,
+		"https://example.com/pkg.pkg":      100,
+		"https://example.com/in-house.pkg": 400, // in-house scenario: title map has it, installer map doesn't
 	}
 	byAppStoreID := map[string]uint{
 		"com.example.app": 200,
@@ -1143,16 +1192,25 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 	byHash := map[string]uint{
 		"abc123hash":     100, // same title as the URL entry
 		"different-hash": 999, // different title — used to test URL-over-hash precedence
+		"in-house-hash":  401, // in-house scenario: title map has it, installer map doesn't
 	}
 	bySlug := map[string]uint{
 		"some-fma-slug": 300,
 	}
+	installerIDsByURL := map[string]uint{
+		"https://example.com/pkg.pkg": 500,
+	}
+	installerIDsByHash := map[string]uint{
+		"abc123hash":     500,
+		"different-hash": 501,
+	}
 
 	tests := []struct {
-		name         string
-		policy       *spec.GitOpsPolicySpec
-		wantTitleID  uint
-		wantResolved bool
+		name            string
+		policy          *spec.GitOpsPolicySpec
+		wantTitleID     uint
+		wantInstallerID *uint
+		wantResolved    bool
 	}{
 		{
 			name: "URL lookup succeeds",
@@ -1165,8 +1223,9 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  100,
-			wantResolved: true,
+			wantTitleID:     100,
+			wantInstallerID: uintPtr(500),
+			wantResolved:    true,
 		},
 		{
 			name: "URL takes precedence over hash when both match different titles",
@@ -1179,8 +1238,9 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  100, // URL's title (100), not hash's title (999)
-			wantResolved: true,
+			wantTitleID:     100, // URL's title (100), not hash's title (999)
+			wantInstallerID: uintPtr(500),
+			wantResolved:    true,
 		},
 		{
 			name: "URL lookup fails, hash fallback succeeds",
@@ -1193,8 +1253,36 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  100,
-			wantResolved: true,
+			wantTitleID:     100,
+			wantInstallerID: uintPtr(500),
+			wantResolved:    true,
+		},
+		{
+			name: "URL matches title map but not installer map (in-house app path)",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/in-house.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other:   &spec.PolicyInstallSoftware{},
+				},
+			},
+			wantTitleID:     400,
+			wantInstallerID: nil,
+			wantResolved:    true,
+		},
+		{
+			name: "hash matches title map but not installer map (in-house app path)",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "in-house-hash",
+					},
+				},
+			},
+			wantTitleID:     401,
+			wantInstallerID: nil,
+			wantResolved:    true,
 		},
 		{
 			name: "App Store ID lookup succeeds",
@@ -1206,8 +1294,9 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  200,
-			wantResolved: true,
+			wantTitleID:     200,
+			wantInstallerID: nil,
+			wantResolved:    true,
 		},
 		{
 			name: "FMA slug lookup succeeds",
@@ -1219,8 +1308,9 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  300,
-			wantResolved: true,
+			wantTitleID:     300,
+			wantInstallerID: nil,
+			wantResolved:    true,
 		},
 		{
 			name: "all lookups fail",
@@ -1233,8 +1323,9 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  0,
-			wantResolved: false,
+			wantTitleID:     0,
+			wantInstallerID: nil,
+			wantResolved:    false,
 		},
 		{
 			name: "hash-only policy (no URL)",
@@ -1246,16 +1337,23 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 					},
 				},
 			},
-			wantTitleID:  100,
-			wantResolved: true,
+			wantTitleID:     100,
+			wantInstallerID: uintPtr(500),
+			wantResolved:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			titleID, resolved := resolvePolicySoftwareTitleID(tt.policy, byURL, byAppStoreID, byHash, bySlug)
+			titleID, installerID, resolved := resolvePolicySoftwareTitleID(tt.policy, byURL, byAppStoreID, byHash, bySlug, installerIDsByURL, installerIDsByHash)
 			require.Equal(t, tt.wantResolved, resolved)
 			require.Equal(t, tt.wantTitleID, titleID)
+			if tt.wantInstallerID == nil {
+				require.Nil(t, installerID)
+			} else {
+				require.NotNil(t, installerID)
+				require.Equal(t, *tt.wantInstallerID, *installerID)
+			}
 		})
 	}
 }

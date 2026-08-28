@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/chart"
@@ -72,6 +73,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -84,6 +86,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -219,13 +222,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		platform_logging.DisableTopic(topic)
 	}
 
-	if dev_mode.IsEnabled {
+	if dev_mode.IsEnabled && useS3DevConfig() {
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
 	config.Osquery.Validate(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
+
+	config.WebSocket.Validate(initFatal)
 
 	config.Server.NormalizeURLPrefix()
 	config.Server.ValidateURLPrefix(initFatal)
@@ -261,6 +266,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
 	if mds == nil {
@@ -295,7 +301,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return
 	}
 
-	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+	resultStore := pubsub.NewRedisQueryResults(
+		redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
 	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
@@ -342,6 +349,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
 		config.MDM.EnableCustomDiskEncryption = false
 		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
+	}
+
+	apple_mdm.SetMachineInfoVerification(config.MDM.AppleMachineInfoVerify)
+	if !apple_mdm.MachineInfoVerificationEnabled() {
+		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+
+			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
@@ -462,6 +475,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -508,6 +522,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
+		redis_install_attempts.New(redisPool),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -529,6 +544,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			}
 			// Extract the CloudFront URL signer before creating the S3 stores.
 			config.S3.ValidateCloudFrontURL(initFatal)
+			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
 			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
 				// Strip newlines from private key
 				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
@@ -575,7 +591,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			} else {
 				softwareInstallStore = store
 				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for production use", "directory",
+					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
 					installerDir)
 			}
 
@@ -612,11 +628,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareTitleIconStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
+			redis_install_attempts.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
 			androidSvc,
 			hydrantService,
 			psso.NewRedisNonceStore(redisPool),
+			msgraph.NewClient,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -642,6 +660,41 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
+
+	// Bootstrap the agent WebSocket notification transport (ADR-0011): the
+	// per-instance hub of agent connections, the Redis pub/sub subscription
+	// that fans live query wake-ups out to all instances, and the per-instance
+	// interval check job.
+	var agentWSHub *agentws.Hub
+	if config.WebSocket.TransportEnabled {
+		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
+			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
+		agentWSHub.InstanceID = instanceID
+		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// Delay live query wake-ups by the live query store's in-memory cache
+		// TTL so a notified read can't be served from a cache snapshot
+		// predating the campaign (see pubsub.DelayedAgentNotifier).
+		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
+			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
+			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+		})
+		// Each instance checks only the connections it holds, so this is a
+		// plain per-instance goroutine, not a locked cron job.
+		go (&agentws.IntervalChecker{
+			Hub:       agentWSHub,
+			Svc:       svc,
+			Interval:  config.WebSocket.CheckInterval,
+			BatchSize: config.WebSocket.CheckBatchSize,
+			Logger:    logger.With("component", "agentws-interval-checker"),
+		}).Run(ctx)
+		// Keep WebSocket-connected hosts "online": the transport removes the
+		// 10s distributed/read poll that used to keep seen_time fresh. 30s
+		// stays inside the smallest online window Fleet computes (min interval
+		// + 60s buffer); uses the same batched last-seen path as polling auth.
+		go agentws.RecordSeenLoop(ctx, agentWSHub, task, 30*time.Second,
+			logger.With("component", "agentws-seen"))
+	}
 
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
@@ -744,6 +797,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
 		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
+		if agentWSHub != nil {
+			extra = append(extra, service.WithAgentWSHub(agentWSHub))
+		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
@@ -854,6 +910,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
+			config.Activity.FleetInitiatedReleasePerMinute > 0,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
@@ -975,7 +1032,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
-		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds, agentWSHub),
 	}
 	rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1078,6 +1135,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				if err := loggerProvider.Shutdown(ctx); err != nil {
 					logger.ErrorContext(ctx, "failed to shutdown OTEL logger provider", "err", err)
 				}
+			}
+			// srv.Shutdown ignores hijacked connections; close the agent
+			// WebSockets so agents start reconnecting right away.
+			if agentWSHub != nil {
+				agentWSHub.Shutdown()
 			}
 			return srv.Shutdown(ctx)
 		}()
@@ -1256,12 +1318,14 @@ func getTLSConfig(profile string) *tls.Config {
 	switch profile {
 	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1273,12 +1337,14 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1383,6 +1449,12 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
+// useS3DevConfig determines usage of local S3 test buckets for software and carve storage.
+// By default, they are allowed unless explicitly disabled by setting FLEET_DEV_SKIP_S3_CONFIG to "1".
+func useS3DevConfig() bool {
+	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") != "1"
+}
+
 func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
@@ -1390,7 +1462,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := softwareInstallerStore.CreateTestBucket(ctx, config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test software installer bucket",
+		logger.InfoContext(
+			ctx, "failed to create test software installer bucket",
 			"err", err,
 			"name", config.S3.SoftwareInstallersBucket,
 		)
@@ -1401,7 +1474,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := carveStore.CreateTestBucket(ctx, config.S3.CarvesBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test carve bucket",
+		logger.InfoContext(
+			ctx, "failed to create test carve bucket",
 			"err", err,
 			"name", config.S3.CarvesBucket,
 		)

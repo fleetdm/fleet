@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	gocache "github.com/patrickmn/go-cache"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -25,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	gocache "github.com/patrickmn/go-cache"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -71,9 +72,8 @@ type Service struct {
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
-	keyValueStore fleet.KeyValueStore
-
-	packConfigCache *gocache.Cache
+	keyValueStore         fleet.KeyValueStore
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter
 
 	androidSvc android.Service
 
@@ -85,6 +85,14 @@ type Service struct {
 
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
+
+	// agentNotifier publishes check-in wake-ups for agents connected over the
+	// WebSocket transport; nil when the transport is disabled.
+	agentNotifier fleet.AgentCheckInNotifier
+
+	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
+	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	packConfigCache *gocache.Cache
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -158,6 +166,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	androidSvc android.Service,
 	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
@@ -198,9 +207,10 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
-		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
+		installAttemptCounter:           installAttemptCounter,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
+		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -219,6 +229,12 @@ func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 // This should be called after NewService to inject the ACME service dependency.
 func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	svc.acmeSvc = acmeSvc
+}
+
+// SetAgentCheckInNotifier sets the notifier used to wake up agents connected
+// over the WebSocket transport; when unset, no notifications are published.
+func (svc *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
+	svc.agentNotifier = notifier
 }
 
 type validationMiddleware struct {

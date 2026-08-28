@@ -674,6 +674,13 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
+      "name": "AnyDesk",
+      "slug": "anydesk/windows",
+      "platform": "windows",
+      "unique_identifier": "AnyDesk",
+      "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
       "name": "Any.do",
       "slug": "anydo/darwin",
       "platform": "darwin",
@@ -924,6 +931,13 @@
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Microsoft Azure CLI",
+      "slug": "azure-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Azure CLI (64-bit)",
+      "description": "Microsoft Azure CLI is a command-line tool for managing Azure resources."
     },
     {
       "name": "Azure Data Studio",
@@ -2424,6 +2438,13 @@
       "description": "Dell Command Update is a standalone application that delivers BIOS, firmware, driver, and application updates for Dell client hardware."
     },
     {
+      "name": "Dell Display and Peripheral Manager",
+      "slug": "dell-display-and-peripheral-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Dell Display and Peripheral Manager",
+      "description": "Dell Display and Peripheral Manager sets up and configures Dell monitors and peripherals such as keyboards, mice, webcams, audio devices, and active pens."
+    },
+    {
       "name": "Descript",
       "slug": "descript/darwin",
       "platform": "darwin",
@@ -2606,6 +2627,13 @@
       "description": "Drivers for DisplayLink docks, adapters and monitors."
     },
     {
+      "name": "DisplayLink USB Graphics Software",
+      "slug": "displaylink/windows",
+      "platform": "windows",
+      "unique_identifier": "DisplayLink Graphics",
+      "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
       "name": "dnGrep",
       "slug": "dngrep/windows",
       "platform": "windows",
@@ -2623,7 +2651,7 @@
       "name": "Docker Desktop",
       "slug": "docker-desktop/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.electron.dockerdesktop",
+      "unique_identifier": "com.docker.docker",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -3222,13 +3250,6 @@
       "description": "Fetch is a file transfer client."
     },
     {
-      "name": "fig",
-      "slug": "fig/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.mschrage.fig",
-      "description": "fig is a terminal app."
-    },
-    {
       "name": "Figma",
       "slug": "figma/darwin",
       "platform": "darwin",
@@ -3535,27 +3556,6 @@
       "platform": "darwin",
       "unique_identifier": "com.nektony.Funter-SIII",
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
-    },
-    {
-      "name": "Gadwin PrintScreen Pro",
-      "slug": "gadwin-printscreen-pro/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
-      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
-    },
-    {
-      "name": "Gadwin PrintScreen",
-      "slug": "gadwin-printscreen/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
-      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
-    },
-    {
-      "name": "Gadwin ScreenRecorder",
-      "slug": "gadwin-screenrecorder/windows",
-      "platform": "windows",
-      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
-      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
     },
     {
       "name": "Galaxy Modeler",
@@ -3964,6 +3964,13 @@
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
+      "name": "Grammarly Desktop",
+      "slug": "grammarly-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Grammarly for Windows",
+      "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
       "name": "GrandPerspective",
       "slug": "grandperspective/darwin",
       "platform": "darwin",
@@ -4046,6 +4053,13 @@
       "platform": "windows",
       "unique_identifier": "HandBrake",
       "description": "HandBrake is an open-source video transcoder."
+    },
+    {
+      "name": "Harmony SASE",
+      "slug": "harmony-sase/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.safervpn.osx.smb",
+      "description": "Harmony SASE is a zero trust network access platform, formerly Perimeter 81."
     },
     {
       "name": "Hazel",
@@ -4426,32 +4440,18 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.jetbrains.intellij.ce",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA CE",
-      "slug": "intellij-idea-ce/windows",
-      "platform": "windows",
-      "unique_identifier": "IntelliJ IDEA Community Edition",
-      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
-    },
-    {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.intellij",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
-      "name": "IntelliJ IDEA Ultimate",
+      "name": "IntelliJ IDEA",
       "slug": "intellij-idea/windows",
       "platform": "windows",
       "unique_identifier": "IntelliJ IDEA",
-      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+      "description": "IntelliJ IDEA is a Java IDE by JetBrains."
     },
     {
       "name": "Company Portal",
@@ -4657,6 +4657,13 @@
       "description": "Kdenlive is a free and Open Source Video Editor."
     },
     {
+      "name": "KeePass",
+      "slug": "keepass/windows",
+      "platform": "windows",
+      "unique_identifier": "KeePass Password Safe",
+      "description": "KeePass is a free and open source password manager."
+    },
+    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",
@@ -4738,6 +4745,13 @@
       "slug": "keystore-explorer/darwin",
       "platform": "darwin",
       "unique_identifier": "org.kse.keystore-explorer",
+      "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
+    },
+    {
+      "name": "KeyStore Explorer",
+      "slug": "keystore-explorer/windows",
+      "platform": "windows",
+      "unique_identifier": "KeyStore Explorer",
       "description": "KeyStore Explorer is a GUI replacement for the Java command-line utilities keytool and jarsigner."
     },
     {
@@ -5747,6 +5761,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.mqttx",
       "description": "MQTTX is a cross-platform MQTT 5.0 Desktop Client."
+    },
+    {
+      "name": "mRemoteNG",
+      "slug": "mremoteng/windows",
+      "platform": "windows",
+      "unique_identifier": "mRemoteNG",
+      "description": "mRemoteNG is an open source, multi-protocol, tabbed remote connections manager."
     },
     {
       "name": "Mullvad Browser",
@@ -7079,6 +7100,13 @@
       "description": "Python 3.14 is a high-level, general-purpose programming language used for web development, data analysis, automation, scripting, and scientific computing."
     },
     {
+      "name": "QEMU",
+      "slug": "qemu/windows",
+      "platform": "windows",
+      "unique_identifier": "QEMU",
+      "description": "QEMU is an open-source machine emulator and virtualizer."
+    },
+    {
       "name": "QLab",
       "slug": "qlab/darwin",
       "platform": "darwin",
@@ -7310,6 +7338,13 @@
       "description": "Requestly is an app for intercepting and modifying HTTP requests."
     },
     {
+      "name": "ReSharper",
+      "slug": "resharper/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains ReSharper",
+      "description": "ReSharper is a Visual Studio extension for .NET developers."
+    },
+    {
       "name": "Retcon",
       "slug": "retcon/darwin",
       "platform": "darwin",
@@ -7364,6 +7399,13 @@
       "platform": "darwin",
       "unique_identifier": "com.rightfontapp.RightFont5",
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
+    },
+    {
+      "name": "RingCentral",
+      "slug": "ringcentral/windows",
+      "platform": "windows",
+      "unique_identifier": "RingCentral",
+      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
     },
     {
       "name": "Rive",
@@ -8451,6 +8493,13 @@
       "description": "TeaCode is a text expanding app for developers."
     },
     {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer Host",
+      "description": "TeamViewer Host is a remote access agent for unattended 24/7 access to a device, for uses such as remote device monitoring and server maintenance."
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -8951,7 +9000,7 @@
       "name": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
       "slug": "vc-redist-x64/windows",
       "platform": "windows",
-      "unique_identifier": "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+      "unique_identifier": "Microsoft Visual C++ v14 Redistributable (x64)",
       "description": "Microsoft Visual C++ 2015-2022 Redistributable (x64) installs the runtime components of the Visual C++ libraries required to run 64-bit applications built with Visual C++ 2015, 2017, 2019, and 2022."
     },
     {
@@ -9037,6 +9086,27 @@
       "platform": "darwin",
       "unique_identifier": "com.install4j.1106-5897-7327-6550.5",
       "description": "Visual Paradigm is an UML, SysML, BPMN modelling platform."
+    },
+    {
+      "name": "Visual Studio Community 2022",
+      "slug": "visual-studio-2022-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Community 2022",
+      "description": "Visual Studio Community 2022 is a free, full-featured IDE from Microsoft for building apps across desktop, web, mobile, and cloud."
+    },
+    {
+      "name": "Visual Studio Enterprise 2022",
+      "slug": "visual-studio-2022-enterprise/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Enterprise 2022",
+      "description": "Visual Studio Enterprise 2022 is Microsoft's IDE for enterprise development teams, built for scale, security, and complex, high-impact projects."
+    },
+    {
+      "name": "Visual Studio Professional 2022",
+      "slug": "visual-studio-2022-professional/windows",
+      "platform": "windows",
+      "unique_identifier": "Visual Studio Professional 2022",
+      "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
       "name": "Microsoft Visual Studio Code",

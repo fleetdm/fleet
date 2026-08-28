@@ -1,1 +1,0 @@
-- Improved software ingestion performance by removing a full table scan of `software_titles` table.

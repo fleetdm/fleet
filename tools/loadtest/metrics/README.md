@@ -42,6 +42,9 @@ against each other to catch regressions release-over-release.
 
 # Or pin the end to an exact UTC timestamp
 ./collect-metrics.sh --workspace 486loadtest --interval 15m --end 2026-08-28T02:28:58Z
+# annotate what the run was exercising
+./collect-metrics.sh --workspace 483applemdm --category mdm \
+  --note "300k hosts, APNs push storm at t+40m"
 ```
 
 Key flags (`--help` for the full list):
@@ -52,6 +55,7 @@ Key flags (`--help` for the full list):
 | `-i, --interval`  | Window length: `<N>h`, `<N>m`, or a bare integer (hours). Default `3h`. |
 | `-e, --end`       | End of the window: an absolute UTC timestamp (`2026-08-28T02:28:58Z`) or a relative age (`2h`, `90m`). Default: now. Combine with `--interval` to collect any past range. |
 | `-c, --category`  | File the run under a category: `baseline` \| `migration` \| `mdm`. |
+| `-n, --note`      | Free-form note about the run, embedded as `metadata.note`. Shown in the synopsis and dashboard; never compared. |
 | `-o, --output`    | Override the output file path. |
 | `-r, --region`    | AWS region. Default `us-east-2`. |
 
@@ -61,8 +65,41 @@ moment the script ran, so historical collections are self-describing and sort in
 order; the wall-clock run time is recorded separately as `metadata.collected_at`.
 
 > The `--workspace` value is not free-form — `collect-metrics.sh` derives AWS resource
-> names from it (`fleet-<ws>-backend`, `fleetdm-<ws>-mysql`, `fleet-<ws>-redis`, …), so it
-> must match the actual Terraform workspace.
+> names from it (`fleet-<ws>-backend`, `fleetdm-<ws>-mysql`, `fleet-<ws>-redis`,
+> `fleet-<ws>-apns-mock`, …), so it must match the actual Terraform workspace.
+
+### MDM runs
+
+Two extra sections appear when the deployment enabled Apple MDM
+(`var.enable_apple_mdm`); both are absent otherwise, and `compare-metrics.sh` drops
+sections with no data.
+
+`apns_mock` covers the [mock APNs server](../../../cmd/apple-apns-mock), which scales
+horizontally (`var.apple_apns_mock_instance_count`):
+
+- `cpu_utilization` / `memory_utilization` — Sum(Utilized)/Sum(Reserved) across every
+  running task, i.e. the service-wide average.
+- `per_task` — the mean and hottest single container. Worth watching alongside the
+  average: one saturated task drops every SSE stream it holds while the service-wide
+  figure still looks healthy. A large `spread_pct` means the ALB is not distributing
+  connections evenly.
+- `network` — RX/TX bytes. Held SSE streams make traffic volume a better throughput
+  proxy here than the ALB's request count.
+- `container_health` — abnormal stops and start spread, scoped to this service. An
+  OOM-killed task disconnects its devices, which then reconnect elsewhere.
+
+`apns_mock_redis` covers the mock's dedicated ElastiCache. Load tracks the push rate and
+instance count rather than the connection count — each task holds one subscribe
+connection plus a small command pool:
+
+- `cpu_utilization` — `EngineCPUUtilization`. Redis runs commands on one thread, so this
+  saturates well before host CPU does.
+- `curr_items` — pending pushes awaiting claim, plus one stats key per instance. A rising
+  floor means devices are not connecting to collect them.
+- `evictions` — must stay at zero. An eviction is a pending push dropped before its
+  device reconnected.
+- `string_based_cmds` / `pubsub_based_cmds` — SET/GETDEL/INCR and PUBLISH/SUBSCRIBE
+  volume, the push throughput as Redis saw it.
 
 ## Comparing runs
 
@@ -81,6 +118,26 @@ order; the wall-clock run time is recorded separately as `metadata.collected_at`
 automatically. The `--filter` flag matches on the workspace name, which — thanks to the
 naming conventions below — doubles as a category selector (`--filter loadtest`, `--filter mig`).
 
+## Visualizing runs
+
+Open [`dashboard.html`](dashboard.html) in a browser and drop the `runs/` folder onto the
+page (or use the folder picker). Everything is parsed and rendered locally — no server, no
+network, nothing leaves the browser.
+
+- **Overview** — one sparkline card per metric across the selected runs, colored by the
+  latest release-over-release movement (green/amber/red, using the same thresholds,
+  per-hour normalization, and noise floors as `compare-metrics.sh`), worst first.
+- **Detail** — click any card (or pick from the metric dropdown) for a full line chart
+  with the absolute threshold drawn in. Any numeric path in the JSON can also be charted
+  via the raw-path input.
+- Runs are selectable individually, grouped by category; baselines are selected by
+  default since migration/MDM runs exercise different workloads.
+- A run collected with `--note` shows that note under its entry in the run list and in
+  the detail-chart tooltip. Notes are display-only — never charted or diffed.
+
+The dashboard's metric registry mirrors the definitions in `compare-metrics.sh` — keep
+them in sync when adding metrics.
+
 ## Run organization
 
 Historical runs live under `runs/`, grouped by what the load test exercised:
@@ -90,6 +147,7 @@ Historical runs live under `runs/`, grouped by what the load test exercised:
 | **Baseline** — per-release branch load test | `runs/baseline/`  | `<version>loadtest`            | `486loadtest` |
 | **Migration** — n-1 → n schema migration    | `runs/migration/` | `<n-1>to<n>mig`                | `485to486mig` |
 | **MDM** — platform-specific MDM load test   | `runs/mdm/`       | `<version><platform>` / `<platform>-release` | `483applemdm`, `486-windows` |
+| **Historical** — backfilled from the manual results spreadsheet (4.63–4.85) | `runs/historical/` | as recorded in the sheet | `4630loadtestbl` — see [runs/historical/README.md](runs/historical/README.md) |
 
 The category subfolder is purely for human organization; the scripts don't depend on it.
 Keeping workspace names to these conventions is what makes `--filter` a reliable category
