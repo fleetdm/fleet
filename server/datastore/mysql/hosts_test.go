@@ -10789,6 +10789,15 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 		require.Equal(t, "the TPM is not ready", *stored)
 	})
 
+	t.Run("reporting the volume unencrypted clears the recorded reason", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, "the TPM is not ready"))
+		stored, _ := readRow(host.ID)
+		require.NotNil(t, stored)
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, false, nil))
+		stored, _ = readRow(host.ID)
+		require.Nil(t, stored)
+	})
+
 	t.Run("insert path works for a host with no disks row", func(t *testing.T) {
 		fresh := test.NewHost(t, ds, "no-disks-row.local", "1.1.1.1", "no-disks-row", "no-disks-row", time.Now())
 

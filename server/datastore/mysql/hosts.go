@@ -5078,14 +5078,16 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	// changes, and the disk encryption status logic reads this timestamp to decide whether the host has reported since
 	// the key was set.
 	//
-	// The recorded protection error is cleared in the same statement once the host reports protection back on.
+	// The recorded protection error is cleared in the same statement once it stops being true: either the host reports
+	// protection back on, or it reports the volume is no longer encrypted, which makes "could not restore protection"
+	// meaningless.
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO host_disks (host_id, encrypted, bitlocker_protection_status)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			encrypted = VALUES(encrypted),
 			bitlocker_protection_status = VALUES(bitlocker_protection_status),
-			bitlocker_protection_error = IF(VALUES(bitlocker_protection_status) = ?, NULL, bitlocker_protection_error),
+			bitlocker_protection_error = IF(VALUES(bitlocker_protection_status) = ? OR NOT VALUES(encrypted), NULL, bitlocker_protection_error),
 			updated_at = CURRENT_TIMESTAMP(6)`,
 		hostID, encrypted, bitlockerProtectionStatus, fleet.BitLockerProtectionStatusOn,
 	)

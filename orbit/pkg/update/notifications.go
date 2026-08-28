@@ -543,9 +543,9 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
 	restartPendingFn func() (bool, error)
 
-	// lastProtectionRun throttles the protection restore path. A host that cannot be repaired, because policy forbids a TPM-only
-	// protector or the TPM is not ready, would otherwise retry on every config poll forever.
-	lastProtectionRun time.Time
+	// protectionRetryAfter throttles the protection restore path. A host that cannot be repaired, because policy forbids a
+	// TPM-only protector or the TPM is not ready, would otherwise retry on every config poll forever.
+	protectionRetryAfter time.Time
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
@@ -588,10 +588,16 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	return nil
 }
 
+// protectionSuccessBackoff is how long the agent waits after successfully restoring protection. It only has to outlast
+// the server asking again from a stale host_disks read, which the refetch requested by a restored report collapses to
+// seconds, so it is deliberately far shorter than the failure backoff.
+const protectionSuccessBackoff = 5 * time.Minute
+
 // attemptEnableBitlockerProtection turns protection back on for a volume that is encrypted but unprotected.
 func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
-	if time.Since(w.lastProtectionRun) <= w.Frequency {
-		log.Debug().Msg("skipped BitLocker protection restore, last run was too recent")
+	if now := time.Now(); now.Before(w.protectionRetryAfter) {
+		log.Info().Msgf("skipped BitLocker protection restore, next attempt after %s",
+			w.protectionRetryAfter.Format(time.RFC3339))
 		return
 	}
 
@@ -608,7 +614,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	if err != nil || status == nil {
 		log.Error().Err(err).Msgf("cannot read encryption status for %s, not restoring protection", targetVolume)
 		// Deliberately no outcome report: an unreadable status is not evidence of anything.
-		w.lastProtectionRun = time.Now()
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 
@@ -621,7 +627,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 
 	if status.ProtectionStatus != bitlocker.ProtectionStatusOff {
 		log.Debug().Msg("BitLocker protection is already on, nothing to restore")
-		w.lastProtectionRun = time.Now()
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 
@@ -631,7 +637,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		log.Error().Err(err).Msg("cannot determine whether a TPM protector is present, not restoring protection")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
 			fmt.Sprintf("could not determine whether a TPM protector is present: %v", err))
-		w.lastProtectionRun = time.Now()
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 	if !hasProtector {
@@ -642,7 +648,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			log.Error().Err(err).Msg("could not add a TPM protector, not restoring protection")
 			w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
 				fmt.Sprintf("could not add a TPM protector, so protection was not re-enabled: %v", err))
-			w.lastProtectionRun = time.Now()
+			w.protectionRetryAfter = time.Now().Add(w.Frequency)
 			return
 		}
 	}
@@ -657,13 +663,13 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		log.Error().Err(err).Msg("cannot determine whether a restart is pending, not restoring protection")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
 			fmt.Sprintf("could not determine whether a restart is pending: %v", err))
-		w.lastProtectionRun = time.Now()
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	} else if pending {
 		log.Info().Msg("a restart is pending, deferring BitLocker protection restore until after it")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionDeferred,
 			"a restart is pending on this host; protection will be restored after it completes")
-		w.lastProtectionRun = time.Now()
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 
@@ -671,13 +677,13 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 	if err := w.execEnableProtectionFn(targetVolume); err != nil {
 		log.Error().Err(err).Msg("failed to restore BitLocker protection")
 		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed, err.Error())
-		w.lastProtectionRun = time.Now()
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
 
 	log.Info().Msgf("restored BitLocker protection on %s", targetVolume)
 	w.reportProtectionOutcome(fleet.DiskEncryptionProtectionRestored, "")
-	w.lastProtectionRun = time.Now()
+	w.protectionRetryAfter = time.Now().Add(protectionSuccessBackoff)
 }
 
 // reportProtectionOutcome tells the server what happened

@@ -808,7 +808,7 @@ func TestBitlockerOperations(t *testing.T) {
 			Notifications: fleet.OrbitConfigNotifications{EnableBitLockerProtection: true},
 		}
 
-		// wantOutcome empty means the agent must report nothing at all. wantBackoff pins whether lastProtectionRun is
+		// wantOutcome empty means the agent must report nothing at all. wantBackoff pins whether protectionRetryAfter is
 		// stamped, which is what stops a host that cannot be repaired from retrying on every config poll.
 		for _, tc := range []struct {
 			name            string
@@ -824,7 +824,9 @@ func TestBitlockerOperations(t *testing.T) {
 			wantOutcome     fleet.DiskEncryptionProtectionOutcome
 			wantErrContains string
 			wantBackoff     bool
-			reason          string
+			// shortBackoff means the retry window must be the success backoff, not the full failure Frequency.
+			shortBackoff bool
+			reason       string
 		}{
 			{
 				name:         "enables protection when a TPM protector already exists",
@@ -833,6 +835,7 @@ func TestBitlockerOperations(t *testing.T) {
 				wantEnable:   true,
 				wantOutcome:  fleet.DiskEncryptionProtectionRestored,
 				wantBackoff:  true,
+				shortBackoff: true,
 			},
 			{
 				name:            "reports failure when enabling fails",
@@ -924,7 +927,15 @@ func TestBitlockerOperations(t *testing.T) {
 				if tc.wantErrContains != "" {
 					require.Contains(t, clientMock.ProtectionClientError, tc.wantErrContains)
 				}
-				require.Equal(t, tc.wantBackoff, !enrollReceiver.lastProtectionRun.IsZero(), "throttling the restore path")
+				require.Equal(t, tc.wantBackoff, !enrollReceiver.protectionRetryAfter.IsZero(), "throttling the restore path")
+				if tc.wantBackoff {
+					wait := time.Until(enrollReceiver.protectionRetryAfter)
+					if tc.shortBackoff {
+						require.LessOrEqual(t, wait, protectionSuccessBackoff, "success should back off briefly")
+					} else {
+						require.Greater(t, wait, protectionSuccessBackoff, "a failure should back off for the full frequency")
+					}
+				}
 				// The restore path must never reach the encrypt path, whose first act is deleting every key protector.
 				require.False(t, encryptFnCalled, "restoring protection must never delete key protectors")
 				require.False(t, rotateKeyFnCalled)
@@ -956,7 +967,7 @@ func TestBitlockerOperations(t *testing.T) {
 
 			require.NoError(t, enrollReceiver.Run(protectionCfg))
 			require.Equal(t, 1, enableCalls, "a second attempt inside the throttle window must be skipped")
-			require.Contains(t, logBuf.String(), "last run was too recent")
+			require.Contains(t, logBuf.String(), "skipped BitLocker protection restore, next attempt after")
 		})
 	})
 
