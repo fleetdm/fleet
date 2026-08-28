@@ -1898,9 +1898,7 @@ func TestGenerateControls(t *testing.T) {
 	require.True(t, ok, "expected a windows_settings section")
 	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
 
-	// It survives the alias pass that writes the file. The same key name is the
-	// deprecated spelling of the Apple toggle, so an unscoped rename would turn
-	// this into enable_create_local_admin_account on the way out.
+	// The same key name is the deprecated spelling of the Apple toggle, so make sure it is correct.
 	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
 	require.NoError(t, err)
 	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
@@ -3337,9 +3335,8 @@ func TestReplaceAliasKeys(t *testing.T) {
 		replaceAliasKeys(m, rules, true)
 	})
 
-	// A scoped rule only renames inside the objects it belongs to, which is what
-	// keeps windows_settings.enable_managed_local_account (canonical) from being
-	// rewritten by the setup_experience rename that shares its name.
+	// A scoped rule only renames inside the objects it belongs to, which is what keeps windows_settings.enable_managed_local_account (canonical)
+	// from being rewritten by the setup_experience rename that shares its name.
 	t.Run("scoped rule only applies inside its own object", func(t *testing.T) {
 		scopedRules := map[string]aliasRule{
 			"macos_setup": {newKey: "setup_experience"},

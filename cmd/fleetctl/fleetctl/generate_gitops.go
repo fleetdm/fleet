@@ -128,15 +128,14 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
-// aliasRule is a deprecated JSON key name's replacement, plus the object keys the
-// rename is confined to. An empty scope applies the rename at any depth.
+// aliasRule is a deprecated JSON key name's replacement, plus the object keys the rename is confined to. An empty scope
+// applies the rename at any depth (which is legacy behavior).
 type aliasRule struct {
 	newKey string
 	scope  []string
 }
 
-// appliesIn reports whether the rule may rename a key sitting directly inside an
-// object reached through enclosingKey.
+// appliesIn reports whether the rule may rename a key sitting directly inside an object reached through enclosingKey.
 func (r aliasRule) appliesIn(enclosingKey string) bool {
 	return len(r.scope) == 0 || slices.Contains(r.scope, enclosingKey)
 }
@@ -181,9 +180,8 @@ func replaceAliasKeys(v any, rules map[string]aliasRule, deleteOld bool) {
 	replaceAliasKeysIn(v, rules, deleteOld, "")
 }
 
-// replaceAliasKeysIn is replaceAliasKeys with the key of the object enclosing v,
-// which scoped rules are resolved against. Values inside an array are reached
-// through the array's own key.
+// replaceAliasKeysIn is replaceAliasKeys with the key of the object enclosing v, which scoped rules are resolved
+// against. Values inside an array are reached through the array's own key.
 func replaceAliasKeysIn(v any, rules map[string]aliasRule, deleteOld bool, enclosingKey string) {
 	switch val := v.(type) {
 	case map[string]any:
