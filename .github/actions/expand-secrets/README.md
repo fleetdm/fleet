@@ -10,7 +10,7 @@ related secrets into one repository secret and stay under GitHub's
 
 ```yaml
 - name: Checkout
-  uses: actions/checkout@v7 # required before using a local action
+  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # required before using a local action
 
 - name: Expand secrets
   uses: ./.github/actions/expand-secrets
