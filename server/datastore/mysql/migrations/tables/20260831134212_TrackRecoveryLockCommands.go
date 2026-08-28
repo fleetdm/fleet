@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260828102706, Down_20260828102706)
+	MigrationClient.AddMigration(Up_20260831134212, Down_20260831134212)
 }
 
-func Up_20260828102706(tx *sql.Tx) error {
+func Up_20260831134212(tx *sql.Tx) error {
 	/**
 	- pending_set_command_uuid covers the pending set operation for the recovery lock, both for clearing and setting a new password
 	- pending_verify_command_uuid covers the pending verify operation for the recovery lock
@@ -21,11 +21,12 @@ func Up_20260828102706(tx *sql.Tx) error {
 		ADD COLUMN set_command_uuid VARCHAR(127) NULL,
 		ADD COLUMN verify_command_uuid VARCHAR(127) NULL,
 		ADD COLUMN retry INT NOT NULL DEFAULT 0,
-		DROP COLUMN pending_error_message;
+		DROP COLUMN pending_error_message,
+		MODIFY COLUMN encrypted_password BLOB NULL;
 		`)
 	return err
 }
 
-func Down_20260828102706(tx *sql.Tx) error {
+func Down_20260831134212(tx *sql.Tx) error {
 	return nil
 }
