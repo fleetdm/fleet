@@ -266,9 +266,9 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
-	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
-	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
-	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
+	// WindowsAutomaticEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is
+	// the source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
+	WindowsAutomaticEnrollment optjson.Any[WindowsAutomaticEnrollment] `json:"windows_automatic_enrollment"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -2175,8 +2175,8 @@ type WindowsSettings struct {
 	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
 }
 
-// WindowsEnrollment are settings for new user-driven Windows MDM enrollments.
-type WindowsEnrollment struct {
+// WindowsAutomaticEnrollment are settings for new user-driven Windows MDM enrollments.
+type WindowsAutomaticEnrollment struct {
 	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
 	// Empty means no default: new hosts stay Unassigned.
 	//

@@ -3530,7 +3530,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:             "set to existing fleet",
 			licenseTier:      fleet.TierPremium,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			expectSet:        true,
 			expectSetTo:      &teamID,
 			expectActivity:   true,
@@ -3539,7 +3539,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:             "unchanged value writes nothing",
 			licenseTier:      fleet.TierPremium,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			currentTeamID:    &teamID,
 			expectSet:        false,
 			expectActivity:   false,
@@ -3548,7 +3548,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with empty string",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":""}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3557,7 +3557,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3566,7 +3566,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned in a different case",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3575,14 +3575,14 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with Unassigned when already cleared writes nothing",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			expectSet:      false,
 			expectActivity: false,
 		},
 		{
 			name:           "clear with Unassigned allowed without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Unassigned"}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Unassigned"}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3591,19 +3591,19 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:        "unknown fleet name is invalid",
 			licenseTier: fleet.TierPremium,
-			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Nope"}}}`,
+			payload:     `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Nope"}}}`,
 			expectErr:   `fleet "Nope" doesn't exist`,
 		},
 		{
 			name:        "premium required to set",
 			licenseTier: fleet.TierFree,
-			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:     `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			expectErr:   "missing or invalid license",
 		},
 		{
 			name:             "unchanged value tolerated without premium",
 			licenseTier:      fleet.TierFree,
-			payload:          `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			payload:          `{"mdm":{"windows_automatic_enrollment":{"default_fleet":"Workstations"}}}`,
 			currentTeamID:    &teamID,
 			expectSet:        false,
 			expectActivity:   false,
@@ -3620,7 +3620,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "null keeps the persisted setting",
 			licenseTier:    fleet.TierPremium,
-			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,
@@ -3628,7 +3628,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "null tolerated without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,
@@ -3636,7 +3636,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 		{
 			name:           "clear with empty string allowed without premium",
 			licenseTier:    fleet.TierFree,
-			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			payload:        `{"mdm":{"windows_automatic_enrollment":{"default_fleet":""}}}`,
 			currentTeamID:  &teamID,
 			expectSet:      true,
 			expectSetTo:    nil,
@@ -3701,7 +3701,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			} else {
 				require.NotContains(t, activities, "edited_windows_enrollment_default_fleet")
 			}
-			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsEnrollment.Value.DefaultFleet,
+			require.Equal(t, tc.expectStoredName, dsAppConfig.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet,
 				"the app config JSON must store the canonical fleet name")
 		})
 	}

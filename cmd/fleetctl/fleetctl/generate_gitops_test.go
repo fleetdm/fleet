@@ -1318,9 +1318,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
 
-	// An unset mdm.windows_enrollment must serialize as null rather than an object with an empty default_fleet.
+	// An unset mdm.windows_automatic_enrollment must serialize as null rather than an object with an empty default_fleet.
 	// Applying null is a no-op; an empty default_fleet would clear whatever default the target server has set.
-	appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{}
+	appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{}
 	orgSettingsRaw, err = cmd.generateOrgSettings()
 	require.NoError(t, err)
 	b, err = yamlMarshalRenamed(orgSettingsRaw)
@@ -1328,9 +1328,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
 	mdmSettings, ok := orgSettings["mdm"].(map[string]any)
 	require.True(t, ok)
-	we, present := mdmSettings["windows_enrollment"]
-	require.True(t, present, "windows_enrollment key should still be emitted")
-	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
+	we, present := mdmSettings["windows_automatic_enrollment"]
+	require.True(t, present, "windows_automatic_enrollment key should still be emitted")
+	require.Nil(t, we, "unset windows_automatic_enrollment must serialize as null so applying it is a no-op")
 }
 
 func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {

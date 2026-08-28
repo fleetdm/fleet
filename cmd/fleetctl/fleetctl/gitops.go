@@ -572,7 +572,7 @@ func gitopsCommand() *cli.Command {
 							if mdmMap, ok := mdm.(map[string]any); ok {
 								// The referenced fleet may be created later in this run. Deleting the key makes the first apply a no-op for this
 								// setting (an omitted key keeps the stored value); it is applied separately after teams are processed.
-								delete(mdmMap, "windows_enrollment")
+								delete(mdmMap, "windows_automatic_enrollment")
 							}
 						}
 					}
@@ -713,7 +713,7 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
 						}
 						if windowsEnrollmentDefaultFleet != "" && norm.NFC.String(team.Name) == windowsEnrollmentDefaultFleet {
-							return fmt.Errorf("windows_enrollment default_fleet %s cannot be deleted", team.Name)
+							return fmt.Errorf("windows_automatic_enrollment default_fleet %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
@@ -1305,9 +1305,9 @@ func applyABMTokenAssignmentIfNeeded(
 	return nil
 }
 
-// checkWindowsEnrollmentAssignment reads org_settings.mdm.windows_enrollment.default_fleet and reports whether the referenced
-// fleet doesn't exist in Fleet yet (it may be created later in the same gitops run). Returns an empty name when the section or
-// the value is absent.
+// checkWindowsEnrollmentAssignment reads org_settings.mdm.windows_automatic_enrollment.default_fleet and reports whether the
+// referenced fleet doesn't exist in Fleet yet (it may be created later in the same gitops run). Returns an empty name when the
+// section or the value is absent.
 func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.Client) (defaultFleet string, missingTeam bool, err error) {
 	mdm, ok := config.OrgSettings["mdm"]
 	if !ok {
@@ -1317,7 +1317,7 @@ func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.
 	if !ok {
 		return "", false, nil
 	}
-	we, ok := mdmMap["windows_enrollment"]
+	we, ok := mdmMap["windows_automatic_enrollment"]
 	if !ok {
 		return "", false, nil
 	}
@@ -1344,8 +1344,8 @@ func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.
 	return name, true, nil
 }
 
-// applyWindowsEnrollmentAssignmentIfNeeded applies the deferred org_settings.mdm.windows_enrollment.default_fleet once teams have
-// been processed, failing if the referenced fleet still doesn't exist.
+// applyWindowsEnrollmentAssignmentIfNeeded applies the deferred org_settings.mdm.windows_automatic_enrollment.default_fleet once
+// teams have been processed, failing if the referenced fleet still doesn't exist.
 func applyWindowsEnrollmentAssignmentIfNeeded(
 	ctx *cli.Context,
 	teamNames []string,
@@ -1358,7 +1358,7 @@ func applyWindowsEnrollmentAssignmentIfNeeded(
 		return err
 	}
 	if _, ok := knownTeams[norm.NFC.String(defaultFleet)]; !ok {
-		return fmt.Errorf("windows_enrollment default_fleet %q not found in team configs", defaultFleet)
+		return fmt.Errorf("windows_automatic_enrollment default_fleet %q not found in team configs", defaultFleet)
 	}
 	if flDryRun {
 		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply Windows enrollment default fleet\n")
@@ -1367,7 +1367,7 @@ func applyWindowsEnrollmentAssignmentIfNeeded(
 	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying Windows enrollment default fleet\n")
 	appConfigUpdate := map[string]map[string]any{
 		"mdm": {
-			"windows_enrollment": map[string]any{"default_fleet": defaultFleet},
+			"windows_automatic_enrollment": map[string]any{"default_fleet": defaultFleet},
 		},
 	}
 	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
