@@ -136,6 +136,10 @@ type Datastore interface {
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
+	// QueriesByName resolves multiple (team, name) pairs in a single lookup. The
+	// returned map is keyed by TeamScopedQueryName.Key() and contains only the
+	// pairs that exist; absent pairs are simply not in the map.
+	QueriesByName(ctx context.Context, names []TeamScopedQueryName) (map[string]*Query, error)
 	// QueriesPerHost returns the IDs of the saved queries that are scheduled for the given host,
 	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
 	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
