@@ -50,7 +50,6 @@ const emptyGlobalConfig: IConfig = createMockConfig({
       host_percentage: 0,
       days_count: 0,
     },
-    interval: "0s",
     vulnerabilities_webhook: {
       enable_vulnerabilities_webhook: false,
       destination_url: "",

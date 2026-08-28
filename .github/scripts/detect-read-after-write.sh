@@ -33,6 +33,10 @@ ALLOWLIST=(
   "frontend/pages/ManageControlsPage/SetupExperience/cards/BootstrapPackage/BootstrapPackage.tsx"
   "frontend/pages/ManageControlsPage/SetupExperience/cards/Users/components/UsersForm/UsersForm.tsx"
   "frontend/pages/ManageControlsPage/OSSettings/cards/HostNameTemplate/HostNameTemplate.tsx"
+  # Landed on main after this branch was cut. The multi-platform save
+  # writes to /mdm/disk_encryption which doesn't return the full config,
+  # so priming AppContext still requires a follow-up read today.
+  "frontend/pages/ManageControlsPage/OSSettings/cards/DiskEncryption/DiskEncryption.tsx"
 
   # Design follow-up: the refetch here is load-bearing UX (form reset via
   # remount), not just cache sync. Untangle before flipping the pattern.
