@@ -460,7 +460,7 @@ controls:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
-    managed_local_account_enabled: true   
+    enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -576,7 +576,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 `enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
-Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.managed_local_account_settings` instead.
+Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
 
 #### Example
 
@@ -1389,9 +1389,9 @@ org_settings:
       byod_fleet: 📱 BYOD iPhones
 ```
 
-#### windows_enrollment
+#### windows_automatic_enrollment
 
-The `windows_enrollment` section lets you control the default fleet that new MDM enrolled Windows hosts get placed in.
+The `windows_automatic_enrollment` section lets you control the default fleet that new MDM enrolled Windows hosts get placed in.
 
 - `default_fleet` specifies the name of the fleet that new MDM enrolled Windows hosts will automatically be added to (default: `""`).
 
@@ -1400,7 +1400,7 @@ The `windows_enrollment` section lets you control the default fleet that new MDM
 ```yaml
 org_settings:
   mdm:
-    windows_enrollment: # Available in Fleet Premium
+    windows_automatic_enrollment: # Available in Fleet Premium
       default_fleet: Windows Workstations
 ```
 
