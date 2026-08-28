@@ -78,6 +78,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
 		{"ApplyPolicySpecFirstAddedInstaller", testApplyPolicySpecFirstAddedInstaller},
+		{"ApplyPolicySpecPinnedInstaller", testApplyPolicySpecPinnedInstaller},
 		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TestPoliciesTeamPoliciesWithResendProfile", testTeamPoliciesWithResendProfile},
@@ -10094,4 +10095,142 @@ func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.NotNil(t, policies[0].SoftwareInstallerID)
 	require.Equal(t, installerA, *policies[0].SoftwareInstallerID, "GitOps must resolve to the first-added package")
+}
+
+// testApplyPolicySpecPinnedInstaller verifies that when a spec sets SoftwarePackageID,
+// the datastore pins the policy to that specific installer instead of falling back
+// to the title's first-added package. Covers the case where multiple single-package
+// YAMLs share a bundle identifier and collapse into one title with several
+// installers, and GitOps needs to preserve which installer the policy YAML referenced.
+func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Spec Pinned", "spec-pinned@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-pinned-team"})
+	require.NoError(t, err)
+
+	var titleID uint
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "SpecPinnedPkg",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.specpinnedpkg",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return id
+	}
+	installerA := newPkg("pinned-a", "pkgA.pkg")
+	installerB := newPkg("pinned-b", "pkgB.pkg")
+	require.Less(t, installerA, installerB)
+
+	t.Run("SoftwarePackageID pins the non-first-added installer", func(t *testing.T) {
+		err := ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+			{
+				Name:              "policy pinned to B",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &installerB,
+			},
+		})
+		require.NoError(t, err)
+
+		policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+		require.NoError(t, err)
+		var pinned *fleet.Policy
+		for _, p := range policies {
+			if p.Name == "policy pinned to B" {
+				pinned = p
+				break
+			}
+		}
+		require.NotNil(t, pinned)
+		require.NotNil(t, pinned.SoftwareInstallerID)
+		require.Equal(t, installerB, *pinned.SoftwareInstallerID, "SoftwarePackageID must pin the specific installer, not the first-added default")
+	})
+
+	t.Run("two policies on the same title with different pins land on different installers", func(t *testing.T) {
+		// Regression guard for the collision path: when two policies share
+		// (team, title) but pin different installers, the applier can't stash
+		// the per-policy id in a team+title-keyed map — the second pin would
+		// overwrite the first and both rows would end up on the last one.
+		// Validate + use inline instead.
+		err := ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+			{
+				Name:              "collision A pins first installer",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &installerA,
+			},
+			{
+				Name:              "collision B pins second installer",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &installerB,
+			},
+		})
+		require.NoError(t, err)
+
+		policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+		require.NoError(t, err)
+		byName := map[string]*fleet.Policy{}
+		for _, p := range policies {
+			byName[p.Name] = p
+		}
+		polA := byName["collision A pins first installer"]
+		polB := byName["collision B pins second installer"]
+		require.NotNil(t, polA)
+		require.NotNil(t, polB)
+		require.NotNil(t, polA.SoftwareInstallerID)
+		require.NotNil(t, polB.SoftwareInstallerID)
+		require.Equal(t, installerA, *polA.SoftwareInstallerID, "first policy must keep its own pin")
+		require.Equal(t, installerB, *polB.SoftwareInstallerID, "second policy must keep its own pin, not overwrite the first")
+	})
+
+	t.Run("SoftwarePackageID that doesn't belong to the title is rejected", func(t *testing.T) {
+		// Create a second title with its own installer, then try to pin a policy
+		// on the first title to the second title's installer.
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("other"), t.TempDir)
+		require.NoError(t, err)
+		otherInstaller, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        "pinned-other",
+			Filename:         "other.pkg",
+			Title:            "SpecPinnedOther",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.specpinnedother",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+			{
+				Name:              "policy pinned to wrong title's installer",
+				Query:             "SELECT 1;",
+				Team:              team.Name,
+				SoftwareTitleID:   &titleID,
+				SoftwarePackageID: &otherInstaller,
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "does not belong to software_title_id")
+	})
 }

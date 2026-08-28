@@ -4108,6 +4108,7 @@ func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]
 SELECT
   si.team_id,
   si.title_id,
+  si.id AS installer_id,
   si.url,
   si.storage_id AS hash_sha256,
   si.fleet_maintained_app_id,
@@ -4128,6 +4129,7 @@ UNION ALL
 SELECT
 	iha.team_id,
 	iha.title_id,
+	0 AS installer_id,
 	iha.url,
 	iha.storage_id as hash_sha256,
 	NULL as fleet_maintained_app_id,
