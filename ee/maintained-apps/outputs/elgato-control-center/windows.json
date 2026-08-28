@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.8.2.714",
+      "version": "1.9.0.818",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Elgato Control Center' AND publisher = 'Corsair Memory, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elgato Control Center' AND publisher = 'Corsair Memory, Inc.' AND version_compare(version, '1.8.2.714') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Elgato Control Center' AND publisher = 'Corsair Memory, Inc.' AND version_compare(version, '1.9.0.818') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'elgato control center.exe');"
       },
-      "installer_url": "https://edge.elgato.com/egc/windows/eccw/1.8.2/ControlCenter_1.8.2.714_x64.msi",
+      "installer_url": "https://edge.elgato.com/egc/windows/eccw/1.9/Elgato.ControlCenter_1.9.0.818_x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "86c1798d",
-      "sha256": "63e05035eac3f98255f24827d1dcfb47a1e12ebdfd04b53735b2cd0b6a3ac9fe",
+      "sha256": "8b172310722dedd241a51e4138423587040fb171868f84712c1429599dc68400",
       "default_categories": [
         "Productivity"
       ],
