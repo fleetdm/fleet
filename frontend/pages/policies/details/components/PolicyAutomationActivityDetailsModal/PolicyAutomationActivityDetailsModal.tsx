@@ -11,6 +11,7 @@ import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
 import Textarea from "components/Textarea";
 import Icon from "components/Icon";
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
@@ -20,9 +21,6 @@ import {
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
 const baseClass = "policy-automation-activity-details-modal";
-
-const SKIPPED_PRE_INSTALL_OUTPUT =
-  "Query didn't return result or failed\nThe app was open";
 
 interface IPolicyAutomationActivityDetailsModalProps {
   activity: IPolicyAutomationActivity;

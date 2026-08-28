@@ -7,12 +7,13 @@ import { createCustomRenderer } from "test/test-utils";
 
 import policiesAPI from "services/entities/policies";
 
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+
 import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable";
 import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
   getDetailOutputText,
-  SKIPPED_INSTALL_DETAILS,
 } from "./helpers";
 
 jest.mock("services/entities/policies");

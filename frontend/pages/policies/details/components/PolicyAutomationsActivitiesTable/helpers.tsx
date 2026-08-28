@@ -1,5 +1,6 @@
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { Colors } from "styles/var/colors";
 
 const withName = (base: string, name?: string) =>
@@ -72,9 +73,6 @@ export const getAutomationStatusIcon = (
     ? { name: "error-outline" }
     : { name: "success-outline" };
 };
-
-export const SKIPPED_INSTALL_DETAILS =
-  "The app was open. It will update once the user closes it and policy runs again, or update via self service.";
 
 /**
  * Text shown in the "Details" column: the explanation for a deferred patch, the
