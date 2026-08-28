@@ -13772,7 +13772,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| features                                                | object  | body | Per-fleet feature toggles. Accepts only certain sub-fields; other `features` sub-fields are writable per-fleet only via GitOps. See [features](#features2) below. |
+| features                                                | object  | body | Per-fleet feature toggles. Accepts only certain sub-fields; other `features` sub-fields are writable per-fleet only via GitOps. See [features](#features) below. |
 
 #### Example (transfer hosts to a fleet)
 
