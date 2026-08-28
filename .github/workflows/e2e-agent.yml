@@ -258,6 +258,15 @@ jobs:
         sudo killall -HUP mDNSResponder || true
 
 
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # The tunnel DNS record can lag behind on some runners; retry before the first fleetctl call.
+        until curl -sf -o /dev/null ${{ needs.gen.outputs.address }}/healthz; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
+
     - name: Install fleetd
       run: |
         ARCH=$(uname -m)
@@ -351,6 +360,15 @@ jobs:
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
         done
 
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # The tunnel DNS record can lag behind on some runners; retry before the first fleetctl call.
+        until curl -sf -o /dev/null ${{ needs.gen.outputs.address }}/healthz; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
+
     - name: Install Orbit
       run: |
         ARCH=$(uname -m)
@@ -441,6 +459,15 @@ jobs:
         # that have no associated DNS client address object.
         Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" -ErrorAction SilentlyContinue }
         Clear-DnsClientCache
+
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # The tunnel DNS record can lag behind on some runners; retry before the first fleetctl call.
+        until curl -sf -o /dev/null ${{ needs.gen.outputs.address }}/healthz; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
 
     - name: Install fleetctl
       shell: bash
