@@ -45,11 +45,11 @@ type AliasRule struct {
 	// at any depth, which is how every rule behaved before scoping existed.
 	// Set via the `renamescope` struct tag.
 	//
-	// Rules are keyed by bare key name, so a scope is what keeps a name that is
-	// deprecated in one object from being rewritten in another where it is
-	// canonical: `enable_managed_local_account` is the deprecated spelling of
-	// the Apple toggle under `macos_setup`, and at the same time the canonical
-	// name of the Windows toggle under `windows_settings`.
+	// Rules are keyed by bare key name, so a scope is what stops a name that is
+	// the old spelling in one object from being rewritten in another where it
+	// is canonical. `enable_managed_local_account` is one of those: the Apple
+	// toggle's former name under `macos_setup`, and at the same time the
+	// Windows toggle's real name under `windows_settings`.
 	Scope []string
 }
 
