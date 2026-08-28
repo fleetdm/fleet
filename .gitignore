@@ -10,7 +10,7 @@ dist
 # generated artifacts
 assets/bundle*.*
 assets/*@*.svg
-assets/*@*.png
+assets/**/*@*.png
 assets/*@*.gif
 assets/*@*.eot
 assets/*@*.woff

@@ -395,6 +395,7 @@ export interface IHost {
   policy_updated_at: string;
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
+  last_mdm_checked_in_at: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;
