@@ -5951,7 +5951,7 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 
 `Status: 204`
 
-> This endpoint sends a blank APNs push notification. It does not enqueue an MDM command. To verify the host checked in after receiving the ping, use the Get host endpoint to check the host's `last_seen_at` timestamp.
+> This endpoint sends a blank APNs push notification. It does not enqueue an MDM command. To verify the host checked in after receiving the ping, use the [Get host](#get-host) endpoint to check the host's `last_seen_at` timestamp.
 
 ### Get host's past activity
 
