@@ -230,7 +230,7 @@ func TestIngestValidations(t *testing.T) {
 			if c.inputApp.Token == "1password" {
 				// 1Password's login-item helpers run inside the bundle with the app closed,
 				// so only the app's own executable counts as open.
-				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/1Password') WHERE a.bundle_identifier = 'com.1password.1password');"
+				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path LIKE '%/1Password.app/Contents/MacOS/1Password');"
 			}
 			require.Equal(t, wantOpen, out.Queries.Open)
 		})

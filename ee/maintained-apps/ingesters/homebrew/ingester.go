@@ -298,12 +298,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	if input.Token == "1password" {
 		// 1Password's browser helper and launcher are login items that live inside
 		// 1Password.app and keep running after the app is quit, so the default match on
-		// any process in the bundle's subtree always reports the app as open. Match only
-		// the app's own executable.
-		out.Queries.Open = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/1Password') WHERE a.bundle_identifier = '%s');",
-			out.UniqueIdentifier,
-		)
+		// any process in the bundle's subtree always reports the app as open. Match the
+		// app's own executable instead; its path already carries the bundle, so there's
+		// no need to resolve one from the apps table.
+		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path LIKE '%/1Password.app/Contents/MacOS/1Password');"
 	}
 
 	return out, nil
