@@ -1965,9 +1965,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 				}
 
-				// determine disk encryption and action required here based on profiles and
-				// raw decryptable key status.
-				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+				diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host disk encryption settings")
+				}
+				// determine disk encryption and action required from profiles, key
+				// status and disk state.
+				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, diskEncryptionConfig, host.DiskEncryptionEnabled)
 
 				// populate host-name template enforcement status (macOS, iOS, iPadOS).
 				// Omitted entirely when the host has no enforcement row.
@@ -2022,6 +2026,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
+
+				// bootstrap tokens are only applicable to macOS hosts
+				if host.Platform == "darwin" && details != nil {
+					host.MDM.BootstrapTokenEscrowed = &details.BootstrapTokenEscrowed
+				}
 			}
 		}
 	}
@@ -2040,7 +2049,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		if diskEncryptionConfig.Enabled {
+		if diskEncryptionConfig.LinuxEscrowEnabled {
 			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")

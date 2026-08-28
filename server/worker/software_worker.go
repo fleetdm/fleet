@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -214,6 +215,15 @@ func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, appli
 			}
 			substituted, err := v.substituteFleetVarsInConfigs(ctx, configByAppID, subHost)
 			if err != nil {
+				// One host that can't supply a referenced value must not block the
+				// rest of the batch, nor burn the job's retries on something no
+				// retry can fix. Whichever value is missing has its own resend
+				// trigger for when it lands.
+				if isUnresolvableAndroidAppConfigForHost(err) {
+					v.Log.WarnContext(ctx, "skipping android app config for host that can't supply a referenced value",
+						"host_uuid", hostUUID, "application_id", applicationID, "err", err)
+					continue
+				}
 				return ctxerr.Wrapf(ctx, err, "substitute fleet vars for host %s", hostUUID)
 			}
 
@@ -567,6 +577,20 @@ func (v *SoftwareWorker) substituteFleetVarsInConfigs(
 		result[appID] = substituted
 	}
 	return result, nil
+}
+
+// isUnresolvableAndroidAppConfigForHost separates "this host can't supply a
+// referenced value" — a custom host vital with no value set for this host, or
+// an unresolvable $FLEET_VAR_* — from a real failure. The former is host state
+// no retry can fix, so it's a per-host skip rather than a batch failure.
+func isUnresolvableAndroidAppConfigForHost(err error) bool {
+	if err == nil {
+		return false
+	}
+	if _, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
+		return true
+	}
+	return errors.Is(err, profiles.ErrUnresolvableAndroidAppConfigVar)
 }
 
 func androidHostToSubstitutionHost(h *fleet.AndroidHost) profiles.AndroidAppConfigSubstitutionHost {

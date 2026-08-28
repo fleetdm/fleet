@@ -72,43 +72,12 @@ var cleanupBatchSize = 1000
 // Any remaining orphans will be processed on the next hourly cron cycle.
 var cleanupMaxIterations = 100
 
-// softwareTitleCacheKey builds a string key for the in-process cache of known software titles.
-// It mirrors the titleKey struct used inside preInsertSoftwareInventory.
-func softwareTitleCacheKey(name, source, extensionFor, bundleID string, isKernel bool) string {
-	return strings.Join([]string{
-		strings.ToLower(normalizeForCollation(name)),
-		source,
-		extensionFor,
-		strings.ToLower(bundleID),
-		strconv.FormatBool(isKernel),
-	}, fleet.SoftwareFieldSeparator)
-}
-
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
 		result[s.ToUniqueStr()] = s
 	}
 	return result
-}
-
-func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
-	ds.knownSoftwareTitleKeysMu.Lock()
-	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	if _, loaded := ds.knownSoftwareTitleKeys[key]; loaded {
-		return
-	}
-	if len(ds.knownSoftwareTitleKeys) >= maxKnownSoftwareTitleKeys {
-		ds.evictKnownSoftwareTitleKeysLocked()
-	}
-	// Store after potential eviction so the caller's key survives.
-	ds.knownSoftwareTitleKeys[key] = struct{}{}
-}
-
-func (ds *Datastore) clearKnownSoftwareTitleKeys() {
-	ds.knownSoftwareTitleKeysMu.Lock()
-	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
 // windowsFMAMatchesCacheTTL bounds how long ingestion may keep matching against a stale
@@ -164,33 +133,6 @@ func (ds *Datastore) expireWindowsFMAMatchesCache() {
 	ds.windowsFMAMatchesExpiry = time.Now().Add(-time.Second)
 }
 
-func (ds *Datastore) deleteKnownSoftwareTitleKey(key string) {
-	ds.knownSoftwareTitleKeysMu.Lock()
-	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	delete(ds.knownSoftwareTitleKeys, key)
-}
-
-func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
-	ds.knownSoftwareTitleKeysMu.RLock()
-	defer ds.knownSoftwareTitleKeysMu.RUnlock()
-	_, ok := ds.knownSoftwareTitleKeys[key]
-	return ok
-}
-
-func (ds *Datastore) evictKnownSoftwareTitleKeysLocked() {
-	evicted := 0
-	// Go map iteration order is randomized, so this evicts an arbitrary half of the cache.
-	// That is sufficient here because any retained title key still avoids an INSERT IGNORE, and
-	// arbitrary bulk eviction is much cheaper than maintaining a strict LRU in this hot path.
-	for key := range ds.knownSoftwareTitleKeys {
-		delete(ds.knownSoftwareTitleKeys, key)
-		evicted++
-		if evicted >= evictKnownSoftwareTitleKeys {
-			return
-		}
-	}
-}
-
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
 	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
@@ -227,7 +169,12 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	// Not using withRetryTxx on purpose.
+	// If we use withRetryTxx, when this table is contended, retrying parks connections
+	// on the same locks for up to another lock-wait timeout each, multiplying the load.
+	// Failing fast is safe because the delta is recomputed from scratch on the
+	// host's next software report.
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteHostSoftwareInstalledPaths(ctx, tx, toD); err != nil {
 			return err
 		}
@@ -1282,66 +1229,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 		}
 
-		// INSERT IGNORE new software titles OUTSIDE the main transaction (#48719).
-		// Each INSERT IGNORE is auto-committed independently, so it holds row/gap locks
-		// for only microseconds instead of the entire transaction duration. This eliminates
-		// lock convoys when many hosts concurrently report the same software catalog.
-		if len(newTitlesNeeded) > 0 {
-			// Build the full set of unique titles (for ID resolution later).
-			uniqueTitles := make(map[titleKey]fleet.SoftwareTitle)
-			for _, title := range newTitlesNeeded {
-				bundleID := ""
-				if title.BundleIdentifier != nil {
-					bundleID = *title.BundleIdentifier
-				}
-				key := titleKey{
-					name:         strings.ToLower(normalizeForCollation(title.Name)),
-					source:       title.Source,
-					extensionFor: title.ExtensionFor,
-					bundleID:     bundleID,
-					isKernel:     title.IsKernel,
-				}
-				if _, exists := uniqueTitles[key]; !exists {
-					uniqueTitles[key] = title
-				}
-			}
-
-			// INSERT IGNORE each title individually using auto-commit (outside any transaction).
-			// singleflight ensures that for each title key, only one goroutine actually
-			// executes the INSERT; concurrent goroutines wait and share the result.
-			// The in-process cache prevents future DB hits entirely.
-			const insertTitleStmt = `INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES (?,?,?,?,?,?,?)`
-			for key, title := range uniqueTitles {
-				cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, key.bundleID, title.IsKernel)
-				if ds.hasKnownSoftwareTitleKey(cacheKey) {
-					continue
-				}
-				// Capture loop variables for the closure.
-				titleCopy := title
-				_, sfErr, _ := ds.titleInsertSF.Do(cacheKey, func() (any, error) {
-					// Double-check cache after winning the singleflight race.
-					if ds.hasKnownSoftwareTitleKey(cacheKey) {
-						return nil, nil
-					}
-					// Use context.WithoutCancel so the INSERT completes even if the
-					// leader goroutine's request is canceled mid-flight (#48719).
-					insertCtx := context.WithoutCancel(ctx)
-					if _, err := ds.writer(insertCtx).ExecContext(insertCtx, insertTitleStmt,
-						titleCopy.Name, titleCopy.Source, titleCopy.ExtensionFor, titleCopy.BundleIdentifier,
-						titleCopy.IsKernel, titleCopy.ApplicationID, titleCopy.UpgradeCode,
-					); err != nil {
-						return nil, ctxerr.Wrap(ctx, err, "pre-insert software_titles")
-					}
-					ds.cacheKnownSoftwareTitleKey(cacheKey)
-					return nil, nil
-				})
-				if sfErr != nil {
-					return sfErr
-				}
-			}
-		}
-
-		// Each batch in its own transaction (for SELECT title IDs + INSERT software).
+		// Each batch in its own transaction
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Map to store title IDs for all titles (both existing and new)
 			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitleSummaries))
@@ -1351,7 +1239,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				titleIDsByChecksum[checksum] = titleSummary.ID
 			}
 			if len(newTitlesNeeded) > 0 {
-				// Build the set of unique titles for the SELECT query.
 				uniqueTitles := make(map[titleKey]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
@@ -1359,6 +1246,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
+						// adjust for matching MySQL collation
 						name:         strings.ToLower(normalizeForCollation(title.Name)),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
@@ -1370,8 +1258,20 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					}
 				}
 
+				// Insert software titles
+				const numberOfArgsPerSoftwareTitles = 7
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?),", len(uniqueTitles)), ",")
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES %s", titlesValues)
+				titlesArgs := make([]any, 0, len(uniqueTitles)*numberOfArgsPerSoftwareTitles)
+				for _, title := range uniqueTitles {
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel, title.ApplicationID, title.UpgradeCode)
+				}
+
+				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
+				}
+
 				// Retrieve the IDs for the titles we just inserted (or that already existed).
-				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
 				// The branches are UNIONed, not ORed: a single OR across these columns causes a regression to a full table scan.
 				var (
 					bundleArgs  []any // (bundle_identifier, source, extension_for)
@@ -1547,7 +1447,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			)
 
 			args := make([]any, 0, len(batchKeys)*numberOfArgsPerSoftware)
-			var missingChecksums []string
+			var missingSoftwareTitles []string
 			for _, checksum := range batchKeys {
 				sw := batchSoftware[checksum]
 				var titleID *uint
@@ -1555,9 +1455,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if id, ok := titleIDsByChecksum[checksum]; ok {
 					titleID = &id
 				} else {
-					// Track software missing title IDs; titles inserted outside the
-					// transaction may have been deleted by a concurrent CleanupSoftwareTitles.
-					missingChecksums = append(missingChecksums, checksum)
+					// Track software missing title IDs for debugging
+					missingSoftwareTitles = append(missingSoftwareTitles,
+						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 				}
 
 				// Use FMA canonical name if available, otherwise use osquery-reported name.
@@ -1591,38 +1491,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				)
 			}
 
-			// When title IDs are missing, a concurrent CleanupSoftwareTitles likely
-			// deleted the titles we just inserted (they were orphaned briefly outside the
-			// transaction). Clear those cache entries so they are re-inserted on the next
-			// agent check-in. The software row proceeds with NULL title_id; the next
-			// ingestion cycle will re-create the title and link it.
-			if len(missingChecksums) > 0 {
-				var examples []string
-				for _, checksum := range missingChecksums {
-					sw := batchSoftware[checksum]
-					if len(examples) < 3 {
-						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
-					}
-					// Evict from the in-process cache so the next ingestion cycle re-inserts the title.
-					if title, ok := newTitlesNeeded[checksum]; ok {
-						bundleID := ""
-						if title.BundleIdentifier != nil {
-							bundleID = *title.BundleIdentifier
-						}
-						cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, bundleID, title.IsKernel)
-						ds.deleteKnownSoftwareTitleKey(cacheKey)
-					}
-				}
-				// Log rather than return a hard error: the title INSERT is outside the
-				// transaction, so withRetryTxx cannot re-insert the title on retry.
-				// The software row proceeds with NULL title_id and the evicted cache
-				// entry ensures the title is re-created on the next ingestion cycle.
-				if ds.logger != nil {
-					ds.logger.ErrorContext(ctx, "inserting software without title_id",
-						"count", len(missingChecksums),
-						"examples", strings.Join(examples, "; "),
-					)
-				}
+			// Log an error if we have software without title IDs
+			// This shouldn't happen in normal operation. And this code is here to catch bugs.
+			if len(missingSoftwareTitles) > 0 && ds.logger != nil {
+				exampleCount := min(len(missingSoftwareTitles), 3)
+				ds.logger.ErrorContext(ctx, "inserting software without title_id",
+					"count", len(missingSoftwareTitles),
+					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
+				)
 			}
 
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -3303,295 +3179,6 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 	return nil
 }
 
-// Reconciliation tuning for repairing pre-v4.76.0 software checksums. These are
-// vars (not consts) so tests can lower them to exercise batching.
-var (
-	// reconcileGroupsPerRun caps how many duplicate software groups are fetched and
-	// repaired per iteration; the loop repeats until none remain.
-	reconcileGroupsPerRun = 500
-	// reconcileRepointBatch bounds how many rows each host-reference statement
-	// touches, keeping every transaction small even for widely-installed software.
-	// (Fleet migrations run in a single transaction and cannot batch, which is why
-	// this repair lives in a cron where we control transaction size.)
-	reconcileRepointBatch = 1000
-)
-
-// softwareChecksumDupGroup is one row of the duplicate-detection query: an identity
-// shared by more than one software row. The identity columns must stay in sync with
-// Software.ComputeRawChecksum.
-type softwareChecksumDupGroup struct {
-	Name             string `db:"name"`
-	Version          string `db:"version"`
-	Source           string `db:"source"`
-	BundleIdentifier string `db:"bundle_identifier"`
-	Release          string `db:"release"`
-	Arch             string `db:"arch"`
-	Vendor           string `db:"vendor"`
-	ExtensionFor     string `db:"extension_for"`
-	ExtensionID      string `db:"extension_id"`
-	ApplicationID    string `db:"application_id"`
-	UpgradeCode      string `db:"upgrade_code"`
-	MemberCount      int    `db:"member_count"`
-	// Members is "id:checksumhex" per row, joined with ",". Encoding both in one
-	// token keeps ids and checksums aligned. A duplicate group has only a handful of
-	// members (one per historical checksum formula), so GROUP_CONCAT won't truncate;
-	// MemberCount is checked against the parsed list to catch it if it ever does.
-	Members string `db:"members"`
-}
-
-// software rebuilds the fleet.Software identity so its canonical checksum can be
-// recomputed via ComputeRawChecksum (the sole source of truth).
-func (g softwareChecksumDupGroup) software() fleet.Software {
-	sw := fleet.Software{
-		Name: g.Name, Version: g.Version, Source: g.Source,
-		BundleIdentifier: g.BundleIdentifier, Release: g.Release, Arch: g.Arch,
-		Vendor: g.Vendor, ExtensionFor: g.ExtensionFor, ExtensionID: g.ExtensionID,
-	}
-	if g.ApplicationID != "" {
-		appID := g.ApplicationID
-		sw.ApplicationID = &appID
-	}
-	if g.UpgradeCode != "" {
-		upgradeCode := g.UpgradeCode
-		sw.UpgradeCode = &upgradeCode
-	}
-	return sw
-}
-
-// ReconcileSoftwareChecksums repairs software rows whose checksum was computed
-// with the pre-v4.76.0 field ordering. Such rows no longer match the checksum
-// the current ingestion path computes, so a second row gets inserted for the
-// same software, producing duplicate inventory entries (same name/version/source,
-// different checksum, split host counts).
-//
-// It runs to completion, merging every duplicate group onto a single canonical row
-// (the one whose stored checksum equals ComputeRawChecksum). It is idempotent —
-// re-running finds nothing to do — so it is safe to run repeatedly. It is invoked by
-// the one-shot cronSoftwareChecksumMigration schedule (auto-runs once after startup,
-// re-triggerable with `fleetctl trigger --name software_checksum_migration`).
-func (ds *Datastore) ReconcileSoftwareChecksums(ctx context.Context) error {
-	ds.logger.InfoContext(ctx, "software checksum migration starting")
-
-	// COALESCE the nullable columns so NULL and '' group together, matching
-	// ComputeRawChecksum which treats an empty application_id/upgrade_code as absent.
-	findGroupsStmt := `
-		SELECT
-			name, version, source, COALESCE(bundle_identifier, '') AS bundle_identifier,
-			` + "`release`" + `, arch, vendor, extension_for, extension_id,
-			COALESCE(application_id, '') AS application_id,
-			COALESCE(upgrade_code, '') AS upgrade_code,
-			COUNT(*) AS member_count,
-			GROUP_CONCAT(CONCAT(id, ':', LOWER(HEX(checksum)))) AS members
-		FROM software
-		GROUP BY
-			name, version, source, COALESCE(bundle_identifier, ''), ` + "`release`" + `,
-			arch, vendor, extension_for, extension_id,
-			COALESCE(application_id, ''), COALESCE(upgrade_code, '')
-		HAVING COUNT(*) > 1
-		LIMIT ?`
-
-	total := 0
-	// Each iteration merges up to reconcileGroupsPerRun groups (deleting their stale
-	// rows), so the duplicate count strictly decreases and the loop terminates. There
-	// is no covering index for this GROUP BY, so each iteration is a full-table scan;
-	// acceptable for a one-shot background job, and a full batch is rare.
-	for {
-		// Read from the primary: each iteration merges groups (writes) and then
-		// re-scans, so a lagging replica could return groups we already merged.
-		var groups []softwareChecksumDupGroup
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &groups, findGroupsStmt, reconcileGroupsPerRun); err != nil {
-			return ctxerr.Wrap(ctx, err, "find duplicate software groups")
-		}
-		for _, g := range groups {
-			if err := ds.reconcileSoftwareGroup(ctx, g); err != nil {
-				return ctxerr.Wrap(ctx, err, "reconcile software group")
-			}
-		}
-		total += len(groups)
-		// A short batch means we fetched every remaining group and just resolved them,
-		// so another scan would find nothing.
-		if len(groups) < reconcileGroupsPerRun {
-			break
-		}
-	}
-
-	ds.logger.InfoContext(ctx, "software checksum migration complete", "groups_merged", total)
-	return nil
-}
-
-type softwareChecksumMember struct {
-	id       uint64
-	checksum string
-}
-
-// parseSoftwareChecksumMembers parses the GROUP_CONCAT "id:checksumhex" list for a
-// duplicate group. The id is kept as uint64 (its parsed type) since it is only ever
-// passed as a SQL bind argument. It verifies the list was not truncated by
-// GROUP_CONCAT (group_concat_max_len) by requiring the parsed count to equal the
-// group's member count, so we never merge against a partial view of the group.
-func parseSoftwareChecksumMembers(members string, memberCount int) ([]softwareChecksumMember, error) {
-	var parsed []softwareChecksumMember
-	for tok := range strings.SplitSeq(members, ",") {
-		idStr, cksum, ok := strings.Cut(tok, ":")
-		if !ok {
-			return nil, fmt.Errorf("malformed reconciliation member token %q", tok)
-		}
-		id, err := strconv.ParseUint(idStr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("parse software id %q: %w", idStr, err)
-		}
-		parsed = append(parsed, softwareChecksumMember{id: id, checksum: cksum})
-	}
-	if len(parsed) != memberCount {
-		return nil, fmt.Errorf("reconciliation member list truncated: parsed %d of %d members", len(parsed), memberCount)
-	}
-	return parsed, nil
-}
-
-// reconcileSoftwareGroup merges a single duplicate group onto its canonical row.
-func (ds *Datastore) reconcileSoftwareGroup(ctx context.Context, g softwareChecksumDupGroup) error {
-	sw := g.software()
-	canonical, err := sw.ComputeRawChecksum()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "compute canonical checksum")
-	}
-	canonicalHex := hex.EncodeToString(canonical)
-
-	parsed, err := parseSoftwareChecksumMembers(g.Members, g.MemberCount)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, fmt.Sprintf("reconcile group %s/%s/%s", sw.Name, sw.Version, sw.Source))
-	}
-	if len(parsed) < 2 {
-		// A duplicate group always has at least two members; nothing to merge otherwise.
-		return nil
-	}
-
-	// Survivor is the row whose stored checksum already equals canonical.
-	survivorIdx := -1
-	for i, m := range parsed {
-		if m.checksum == canonicalHex {
-			survivorIdx = i
-			break
-		}
-	}
-
-	if survivorIdx == -1 {
-		// No member matches canonical: fix the first member's checksum in place and
-		// make it the survivor. This cannot collide on the unique checksum index —
-		// any row with the canonical checksum shares this identity and would be in
-		// this group, and none here has it.
-		survivorIdx = 0
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, `UPDATE software SET checksum = ? WHERE id = ?`, canonical, parsed[0].id)
-			return err
-		}); err != nil {
-			return ctxerr.Wrap(ctx, err, "fix software checksum in place")
-		}
-		ds.logger.DebugContext(ctx, "software checksum migration: fixed checksum in place",
-			"name", sw.Name, "version", sw.Version, "source", sw.Source,
-			"software_id", parsed[0].id, "old_checksum", parsed[0].checksum, "new_checksum", canonicalHex)
-	}
-
-	survivorID := parsed[survivorIdx].id
-	for i, m := range parsed {
-		if i == survivorIdx {
-			continue
-		}
-		moved, err := ds.mergeSoftwareRow(ctx, m.id, survivorID)
-		if err != nil {
-			return err
-		}
-		ds.logger.DebugContext(ctx, "software checksum migration: merged duplicate software",
-			"name", sw.Name, "version", sw.Version, "source", sw.Source,
-			"survivor_id", survivorID, "stale_id", m.id,
-			"stale_checksum", m.checksum, "canonical_checksum", canonicalHex, "hosts_repointed", moved)
-	}
-	return nil
-}
-
-// mergeSoftwareRow repoints all host references from staleID onto survivorID in
-// bounded batches, then deletes the now-unreferenced stale software row. Returns
-// the number of host_software rows repointed.
-func (ds *Datastore) mergeSoftwareRow(ctx context.Context, staleID, survivorID uint64) (int64, error) {
-	// host_software has a composite PK (host_id, software_id). If a host is linked to
-	// both rows, repointing the stale link would collide with the survivor's. Resolve
-	// those collisions by deleting the redundant stale link first (the derived table
-	// lets us reference host_software in the subquery of its own DELETE), then repoint
-	// the rest with a plain UPDATE. This avoids UPDATE IGNORE, whose skipped rows would
-	// make a LIMIT-batched loop terminate early and drop still-movable links.
-	if _, err := ds.execReconcileBatches(ctx,
-		`DELETE FROM host_software
-		 WHERE software_id = ?
-		   AND host_id IN (SELECT host_id FROM (SELECT host_id FROM host_software WHERE software_id = ?) surv)
-		 LIMIT ?`, staleID, survivorID); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "delete colliding host_software links")
-	}
-	moved, err := ds.execReconcileBatches(ctx,
-		`UPDATE host_software SET software_id = ? WHERE software_id = ? LIMIT ?`, survivorID, staleID)
-	if err != nil {
-		return moved, ctxerr.Wrap(ctx, err, "repoint host_software")
-	}
-
-	// host_software_installed_paths has no unique (host_id, software_id), so a plain
-	// repoint cannot collide.
-	if _, err := ds.execReconcileBatches(ctx,
-		`UPDATE host_software_installed_paths SET software_id = ? WHERE software_id = ? LIMIT ?`,
-		survivorID, staleID); err != nil {
-		return moved, ctxerr.Wrap(ctx, err, "repoint host_software_installed_paths")
-	}
-
-	// kernel_host_counts is a derived aggregate with no cascade; drop the stale rows so
-	// no dangling software_id remains (recomputed by the kernel counters).
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM kernel_host_counts WHERE software_id = ?`, staleID)
-		return err
-	}); err != nil {
-		return moved, ctxerr.Wrap(ctx, err, "delete stale kernel host counts")
-	}
-	// Deleting the stale software row cascades software_cpe (FK ON DELETE CASCADE).
-	// software_cve and software_host_counts for the stale id are removed by the
-	// existing orphan-cleanup crons, matching cleanupUnusedSoftware's behavior.
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM software WHERE id = ?`, staleID)
-		return err
-	}); err != nil {
-		return moved, ctxerr.Wrap(ctx, err, "delete stale software row")
-	}
-	return moved, nil
-}
-
-// execReconcileBatches runs stmt repeatedly, appending reconcileRepointBatch as the
-// final bound argument (the statement must end with `LIMIT ?`), until a run affects
-// fewer rows than the batch size. Returns the total number of rows affected. Keeping
-// each statement to a bounded row count keeps its transaction small.
-func (ds *Datastore) execReconcileBatches(ctx context.Context, stmt string, args ...any) (int64, error) {
-	// The args and batch size are constant across iterations, so build the full
-	// argument list once (args... followed by the LIMIT value).
-	fullArgs := append(append([]any{}, args...), reconcileRepointBatch)
-	var total int64
-	for {
-		// Each batch runs in its own transaction with deadlock retry: batches run
-		// concurrently with live software ingestion writing host_software, so a
-		// transient deadlock should retry rather than fail the whole migration.
-		var n int64
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			res, err := tx.ExecContext(ctx, stmt, fullArgs...)
-			if err != nil {
-				return err
-			}
-			n, err = res.RowsAffected()
-			return err
-		}); err != nil {
-			return total, err
-		}
-		total += n
-		if n < int64(reconcileRepointBatch) {
-			break
-		}
-	}
-	return total, nil
-}
-
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
 	defer func(start time.Time) {
@@ -3631,7 +3218,7 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "find orphaned software titles for cleanup")
 		}
 		if len(ids) == 0 {
-			break
+			return nil
 		}
 		lastID = ids[len(ids)-1]
 
@@ -3646,13 +3233,6 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 		ra, _ := res.RowsAffected()
 		n += ra
 	}
-
-	// If any titles were deleted, clear the in-process title cache so that future
-	// software ingestions re-insert titles instead of skipping them.
-	if n > 0 {
-		ds.clearKnownSoftwareTitleKeys()
-	}
-
 	return nil
 }
 
@@ -7059,7 +6639,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		matchClause := ""
 		matchArgs := []interface{}{}
 		if opts.ListOptions.MatchQuery != "" {
-			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name")
+			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery,
+				"software_titles.name",
+				"software_titles.bundle_identifier",
+				"stdn.display_name",
+			)
 		}
 
 		var (
@@ -7154,6 +6738,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			FROM
 				software_titles
 			LEFT JOIN
+				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
+			LEFT JOIN
 				-- Pin to the resolved first-added in-scope package per title so a multi-package title
 				-- yields one deterministic row (no duplicate titles, no arbitrary sibling).
 				software_installers ON software_titles.id = software_installers.title_id
@@ -7214,6 +6800,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vpp_apps ON software_titles.id = vpp_apps.title_id AND vpp_apps.platform = :host_platform
 			INNER JOIN
 				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+			LEFT JOIN
+				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
 			WHERE
 				vpp_apps.adam_id IN (?)
 				AND true
@@ -7252,6 +6840,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles
 			INNER JOIN in_house_apps ON
 				software_titles.id = in_house_apps.title_id AND in_house_apps.platform = :host_platform AND in_house_apps.global_or_team_id = :global_or_team_id
+			LEFT JOIN
+				software_title_display_names stdn ON stdn.software_title_id = software_titles.id AND stdn.team_id = :global_or_team_id
 			WHERE
 				in_house_apps.id IN (?)
 				AND true

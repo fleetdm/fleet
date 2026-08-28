@@ -57,9 +57,9 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @georgekarrv @ddribeiro
-/charts/ @rfairburn @ksatter @georgekarrv @ddribeiro
-/terraform/ @rfairburn @ksatter @georgekarrv @ddribeiro
+/infrastructure/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
+/charts/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
+/terraform/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -67,7 +67,7 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @ddribeiro
+/docs/solutions                                         @AdamBaali # « @AdamBaali added as interim co-owner while @ddribeiro is OOO
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
@@ -106,6 +106,9 @@ go.mod @fleetdm/go
 /docs/Contributing/product-groups/security-compliance   @sharon-fdm @juan-fdz-hawa
 /docs/Contributing/research/security-compliance         @sharon-fdm @juan-fdz-hawa
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
+
+# Website
+/website/api/models                                     @eashaw
 
 ##############################################################################################
 # 🌐 Repo automation and change control settings

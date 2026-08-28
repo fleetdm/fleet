@@ -17,6 +17,7 @@ assets/*@*.woff
 assets/*@*.woff2
 assets/*@*.ttf
 assets/*@*.mp4
+assets/icons/
 frontend/templates/react.tmpl
 bindata.go
 server/bindata/generated.go

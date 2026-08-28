@@ -1,0 +1,1 @@
+- Fixed an issue where stale fleet names could appear in `mdm.apple_business` after renaming a fleet.
