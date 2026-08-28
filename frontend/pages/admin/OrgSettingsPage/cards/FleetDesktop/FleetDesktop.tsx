@@ -24,7 +24,7 @@ const SSO_REQUIRES_IDP_TOOLTIP =
   "This setting requires an IdP configured in Settings > Integrations > Authentication (SSO) > End users.";
 
 const SSO_TOKEN_ROTATION_TOOLTIP =
-  "Fleet still rotates the hourly token when SSO is selected. SSO adds an extra layer of protection for the My device page.";
+  "Fleet still rotates the token. SSO authentication is added on top.";
 
 enum EndUserAuthType {
   TOKEN_ROTATION = "token_rotation",
