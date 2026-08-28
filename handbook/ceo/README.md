@@ -114,7 +114,7 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 The CEO's calendar should reflect the following schedule for travel:
-- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always bring a carry-on bag),
+- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always brings a carry-on bag),
   - 45 minutes
   - Calendar event name: Pack
 - Travel time to the airport the CEO is going to,
