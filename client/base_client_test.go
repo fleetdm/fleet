@@ -306,23 +306,31 @@ func TestFileResponseHandlePathTraversal(t *testing.T) {
 	})
 
 	// SkipMediaType is set on the Orbit signed-URL installer download path, where
-	// DestFile carries the server-supplied installer filename. Only its base name
-	// should be used when building the destination path.
-	t.Run("SkipMediaType DestFile is stripped to base filename", func(t *testing.T) {
+	// DestFile carries the server-supplied installer filename. A name that walks
+	// out of DestPath must not reach a file outside the download directory: plant
+	// a canary at the target and confirm the download cannot overwrite it.
+	t.Run("SkipMediaType DestFile cannot escape DestPath", func(t *testing.T) {
 		root := t.TempDir()
 		destDir := filepath.Join(root, "downloads")
 		require.NoError(t, os.Mkdir(destDir, 0o700))
 
-		fr := &FileResponse{DestPath: destDir, DestFile: "../installer.pkg", SkipMediaType: true}
+		canary := filepath.Join(root, "target.txt")
+		require.NoError(t, os.WriteFile(canary, []byte("original"), 0o600))
+
+		// "../target.txt" from destDir resolves to the canary one level up.
+		fr := &FileResponse{DestPath: destDir, DestFile: "../target.txt", SkipMediaType: true}
 		resp := &http.Response{
 			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader("content")),
+			Body:       io.NopCloser(strings.NewReader("attacker-controlled")),
 			Header:     http.Header{},
 		}
 
-		err := fr.Handle(resp)
+		require.NoError(t, fr.Handle(resp))
+
+		got, err := os.ReadFile(canary)
 		require.NoError(t, err)
-		require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		require.Equal(t, "original", string(got),
+			"download escaped DestPath and overwrote %q", canary)
 		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
 			"download must stay within DestPath, got %q", fr.DestFilePath)
 	})
