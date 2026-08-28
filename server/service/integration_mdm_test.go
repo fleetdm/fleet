@@ -28081,3 +28081,212 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
 }
+
+// fileVaultStatusHelpers returns helpers to drive the host's FileVault profile
+// status and assert the derived disk encryption status through the API.
+func (s *integrationMDMTestSuite) fileVaultStatusHelpers(ctx context.Context, host *fleet.Host) (
+	setProfileStatus func(fleet.MDMDeliveryStatus),
+	checkHost func(want fleet.DiskEncryptionStatus, wantAction *fleet.ActionRequiredState),
+	checkHostListFilter func(status fleet.DiskEncryptionStatus, wantIncluded bool),
+) {
+	t := s.T()
+
+	fileVaultProf := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	hostCmdUUID := uuid.New().String()
+	setProfileStatus = func(status fleet.MDMDeliveryStatus) {
+		require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       fileVaultProf.ProfileUUID,
+			ProfileIdentifier: fileVaultProf.Identifier,
+			HostUUID:          host.UUID,
+			CommandUUID:       hostCmdUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &status,
+			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
+		}}))
+	}
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			HostUUID:      host.UUID,
+			CommandUUID:   hostCmdUUID,
+			ProfileUUID:   fileVaultProf.ProfileUUID,
+			Status:        &fleet.MDMDeliveryVerifying,
+			OperationType: fleet.MDMOperationTypeRemove,
+		}))
+		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileUUID)
+	})
+
+	checkHost = func(want fleet.DiskEncryptionStatus, wantAction *fleet.ActionRequiredState) {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+		require.Equal(t, want, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+		if wantAction == nil {
+			require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+		} else {
+			require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+			require.Equal(t, *wantAction, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+		}
+		require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+		require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+		require.Equal(t, want, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	}
+
+	checkHostListFilter = func(status fleet.DiskEncryptionStatus, wantIncluded bool) {
+		for _, param := range []string{"os_settings_disk_encryption", "macos_settings_disk_encryption"} {
+			var listResp listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, param, string(status))
+			var found bool
+			for _, h := range listResp.Hosts {
+				if h.ID == host.ID {
+					found = true
+				}
+			}
+			require.Equal(t, wantIncluded, found, "%s=%s", param, status)
+		}
+	}
+	return setProfileStatus, checkHost, checkHostListFilter
+}
+
+func (s *integrationMDMTestSuite) submitDarwinDiskEncryptionResults(nodeKey string, encrypted bool) {
+	var rows []map[string]string
+	if encrypted {
+		rows = []map[string]string{{"1": "1"}}
+	}
+	distributedReq := SubmitDistributedQueryResultsRequest{
+		NodeKey:  nodeKey,
+		Results:  map[string][]map[string]string{"fleet_detail_query_disk_encryption_darwin": rows},
+		Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_disk_encryption_darwin": 0},
+	}
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+}
+
+func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, nodeKey, recoveryKey string) {
+	t := s.T()
+	cert, err := assets.CAKeyPair(ctx, s.ds)
+	require.NoError(t, err)
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{cert.Leaf})
+	require.NoError(t, err)
+
+	distributedReq := SubmitDistributedQueryResultsRequest{
+		NodeKey: nodeKey,
+		Results: map[string][]map[string]string{
+			"fleet_detail_query_mdm_disk_encryption_key_file_darwin": {{
+				"encrypted":     "1",
+				"filevault_key": base64.StdEncoding.EncodeToString(encryptedKey),
+			}},
+		},
+		Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_mdm_disk_encryption_key_file_darwin": 0},
+	}
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+}
+
+// Escrow without enforcement: status follows the escrowed key, not the disk
+// state — action required (rotate key) → verifying → verified.
+func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+	}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+		}`), http.StatusOK)
+	})
+
+	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
+	rotateKey := fleet.ActionRequiredRotateKey
+
+	setProfileStatus(fleet.MDMDeliveryPending)
+	checkHost(fleet.DiskEncryptionEnforcing, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// profile installed, disk encrypted by a third party, no key escrowed yet
+	setProfileStatus(fleet.MDMDeliveryVerified)
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
+	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	checkHostListFilter(fleet.DiskEncryptionVerified, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// Escrow Buddy rotated the key and osquery reported it
+	s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "ABC-111-222")
+	checkHost(fleet.DiskEncryptionVerifying, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerifying, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// the cron decrypted the key
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()))
+	checkHost(fleet.DiskEncryptionVerified, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerified, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// undecryptable key: back to action required despite the encrypted disk
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
+	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}
+
+// Enforcement without escrow: status follows the reported disk state —
+// enforcing → verifying (unknown) → action required (log out) → verified.
+func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true, "enable_escrow_disk_encryption_key": false } }
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	require.False(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_disk_encryption": false } }
+		}`), http.StatusOK)
+	})
+
+	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
+	logOut := fleet.ActionRequiredLogOut
+
+	setProfileStatus(fleet.MDMDeliveryPending)
+	checkHost(fleet.DiskEncryptionEnforcing, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// profile installed, osquery hasn't reported the disk state yet
+	setProfileStatus(fleet.MDMDeliveryVerified)
+	checkHost(fleet.DiskEncryptionVerifying, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerifying, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// FileVault is deferred until the user logs out, so the disk is still unencrypted
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &logOut)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	checkHostListFilter(fleet.DiskEncryptionVerified, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, &fleet.MDMProfilesSummary{Pending: 1})
+
+	// the user logged out and FileVault turned on
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
+	checkHost(fleet.DiskEncryptionVerified, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerified, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Verified: 1}, &fleet.MDMProfilesSummary{Verified: 1})
+
+	// a key, in any state, doesn't affect enforce-only derivation
+	s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "ABC-111-222")
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
+	checkHost(fleet.DiskEncryptionVerified, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}

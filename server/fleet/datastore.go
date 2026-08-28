@@ -1560,6 +1560,13 @@ type Datastore interface {
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
 
+	// UpsertMDMAppleFleetConfigProfile inserts or updates a Fleet-controlled
+	// configuration profile by its `team_id` and `identifier`, keeping the
+	// existing `profile_uuid` so hosts see a changed payload rather than a
+	// different profile. Re-writing identical bytes leaves the row untouched, so
+	// profile reconciliation stays a no-op.
+	UpsertMDMAppleFleetConfigProfile(ctx context.Context, p MDMAppleConfigProfile) error
+
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
@@ -2525,9 +2532,9 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
-	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
-	// "failed" with the provided detail.
-	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given (hostUUID,
+	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending."
+	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to
@@ -3240,8 +3247,8 @@ type Datastore interface {
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
-	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
-	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	// BatchSetSoftwareInstallers sets the software installers for the given team or no team, and returns installer ids that were modified.
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]uint, error)
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
@@ -3501,6 +3508,10 @@ type Datastore interface {
 	// ResendHostCertificateProfile marks the given profile UUID to be resent to the host with the given UUID. It
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
+
+	// ResendWindowsHostCertificateProfile marks the given Windows profile to be resent to the given host after Fleet
+	// turned a SCEP request away (an expired or rejected challenge).
+	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables

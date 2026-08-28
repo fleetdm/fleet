@@ -44,7 +44,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  canTriggerAPNSPing,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import {
@@ -112,6 +115,10 @@ import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
 
+import {
+  getDiskEncryptionSettings,
+  isMacOSDiskEncryptionEnforceOnly,
+} from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import UserCard from "../cards/User";
@@ -771,6 +778,17 @@ const HostDetailsPage = ({
       // unless there is an error. The spinner state is also controlled in the fullyReloadHost
       // method.
       setShowRefetchSpinner(true);
+
+      // Trigger APNS ping independently
+      if (
+        canTriggerAPNSPing(host) &&
+        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.team_id)
+      ) {
+        hostAPI.apnsPing(host.id).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
+
       try {
         await hostAPI.refetch(host).then(() => {
           setRefetchStartTime(Date.now());
@@ -1027,6 +1045,13 @@ const HostDetailsPage = ({
     () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
     [host]
   );
+
+  // enforce-only (macOS disk encryption on, escrow off) fleets never receive
+  // keys, so the disk encryption control drops its key phrasing
+  const hostFleetMdm = host?.team_id
+    ? teams?.find((team) => team.id === host.team_id)?.mdm
+    : config?.mdm;
+  const fleetDiskEncryptionSettings = getDiskEncryptionSettings(hostFleetMdm);
 
   const onSelectHostAction = (action: string) => {
     switch (action) {
@@ -1435,7 +1460,7 @@ const HostDetailsPage = ({
                 <TabText>Library</TabText>
               </Tab>
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__software-inventory-tab-panel`}>
               <SoftwareInventoryCard
                 id={host.id}
                 platform={host.platform}
@@ -1506,7 +1531,7 @@ const HostDetailsPage = ({
             </TabPanel>
           </>
         ) : (
-          <>
+          <div className={`${baseClass}__software-inventory-tab-panel`}>
             <SoftwareInventoryCard
               id={host.id}
               platform={host.platform}
@@ -1528,7 +1553,7 @@ const HostDetailsPage = ({
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             )}
-          </>
+          </div>
         )}
       </div>
     );
@@ -1760,6 +1785,9 @@ const HostDetailsPage = ({
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
                     resendHostNameTemplate={resendHostNameTemplate}
                     onProfileResent={refetchHostDetails}
+                    isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
+                      fleetDiskEncryptionSettings
+                    )}
                     router={router}
                   />
                 </TabPanel>
@@ -2195,12 +2223,16 @@ const HostDetailsPage = ({
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (
           <MDMStatusModal
-            fleetId={currentTeam?.id}
+            fleetId={host.team_id}
             hostId={host.id}
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isAppleDevice={isAppleDeviceHost}
+            platform={host.platform}
+            lastMDMCheckIn={host.last_mdm_checked_in_at}
+            connectedToFleet={host.mdm.connected_to_fleet}
+            onSuccessfulCheckIn={refetchHostDetails}
+            user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}
           />

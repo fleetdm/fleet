@@ -2417,8 +2417,13 @@ var (
 	// bogus DisplayVersion. The optional middle group lets those component names
 	// normalize to the same marketing version as the bundle, so a single install
 	// doesn't show up in inventory under two different versions.
-	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
-	basicAppSanitizers = []struct {
+	pythonNameVersion = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
+	// anyDeskClientVersion strips the client-ID prefix AnyDesk writes into its
+	// Windows registry DisplayVersion: "ad 9.7.15" for the generic client, and
+	// "ad<id> 9.7.15" for a custom client. version_compare can't order those
+	// against a real version, so the patch policy would never see a match.
+	anyDeskClientVersion = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*\s+(\d+(?:\.\d+)*)$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2577,6 +2582,22 @@ var (
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// AnyDesk on Windows prefixes its registry DisplayVersion with the
+			// client ID: the generic client reports "ad 9.7.15" and a custom client
+			// "ad<id> 9.7.15". Strip the prefix so the version sorts and compares
+			// against the real one.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "anydesk") &&
+					anyDeskClientVersion.MatchString(s.Version)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := anyDeskClientVersion.FindStringSubmatch(s.Version); len(matches) == 2 {
 					s.Version = matches[1]
 				}
 			},
@@ -3018,7 +3039,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
@@ -3103,7 +3124,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",

@@ -677,9 +677,7 @@ type MDMAppleEraseDeviceFunc func(ctx context.Context, hostID uint) error
 
 type MDMListHostConfigurationProfilesFunc func(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error)
 
-type MDMAppleEnableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint) error
-
-type MDMAppleDisableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uint) error
+type MDMAppleReconcileFileVaultProfileFunc func(ctx context.Context, teamID *uint) error
 
 type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error
 
@@ -1008,6 +1006,10 @@ type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.AB
 type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error)
 
 type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
+
+type SendAPNSPingFunc func(ctx context.Context, hostID uint) error
+
+type DeviceSendAPNSPingFunc func(ctx context.Context, host *fleet.Host) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -1994,11 +1996,8 @@ type Service struct {
 	MDMListHostConfigurationProfilesFunc        MDMListHostConfigurationProfilesFunc
 	MDMListHostConfigurationProfilesFuncInvoked bool
 
-	MDMAppleEnableFileVaultAndEscrowFunc        MDMAppleEnableFileVaultAndEscrowFunc
-	MDMAppleEnableFileVaultAndEscrowFuncInvoked bool
-
-	MDMAppleDisableFileVaultAndEscrowFunc        MDMAppleDisableFileVaultAndEscrowFunc
-	MDMAppleDisableFileVaultAndEscrowFuncInvoked bool
+	MDMAppleReconcileFileVaultProfileFunc        MDMAppleReconcileFileVaultProfileFunc
+	MDMAppleReconcileFileVaultProfileFuncInvoked bool
 
 	UpdateMDMDiskEncryptionFunc        UpdateMDMDiskEncryptionFunc
 	UpdateMDMDiskEncryptionFuncInvoked bool
@@ -2491,6 +2490,12 @@ type Service struct {
 
 	ApplyMicrosoftGraphCredentialsFunc        ApplyMicrosoftGraphCredentialsFunc
 	ApplyMicrosoftGraphCredentialsFuncInvoked bool
+
+	SendAPNSPingFunc        SendAPNSPingFunc
+	SendAPNSPingFuncInvoked bool
+
+	DeviceSendAPNSPingFunc        DeviceSendAPNSPingFunc
+	DeviceSendAPNSPingFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4791,18 +4796,11 @@ func (s *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID u
 	return s.MDMListHostConfigurationProfilesFunc(ctx, hostID)
 }
 
-func (s *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
+func (s *Service) MDMAppleReconcileFileVaultProfile(ctx context.Context, teamID *uint) error {
 	s.mu.Lock()
-	s.MDMAppleEnableFileVaultAndEscrowFuncInvoked = true
+	s.MDMAppleReconcileFileVaultProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleEnableFileVaultAndEscrowFunc(ctx, teamID)
-}
-
-func (s *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	s.mu.Lock()
-	s.MDMAppleDisableFileVaultAndEscrowFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleDisableFileVaultAndEscrowFunc(ctx, teamID)
+	return s.MDMAppleReconcileFileVaultProfileFunc(ctx, teamID)
 }
 
 func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, payload fleet.MDMDiskEncryptionSettingsPayload) error {
@@ -5951,4 +5949,18 @@ func (s *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, creds []fl
 	s.ApplyMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyMicrosoftGraphCredentialsFunc(ctx, creds, dryRun)
+}
+
+func (s *Service) SendAPNSPing(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.SendAPNSPingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SendAPNSPingFunc(ctx, hostID)
+}
+
+func (s *Service) DeviceSendAPNSPing(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.DeviceSendAPNSPingFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceSendAPNSPingFunc(ctx, host)
 }

@@ -81,7 +81,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/goreleaser/nfpm/v2 v2.47.0
 	github.com/gorilla/mux v1.8.1
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
 	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
@@ -100,7 +100,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
-	github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87
+	github.com/micromdm/plist v0.3.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2

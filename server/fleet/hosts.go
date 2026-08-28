@@ -950,15 +950,50 @@ type HostMDMMacOSSetup struct {
 	BootstrapPackageName   string                    `db:"bootstrap_package_name" json:"bootstrap_package_name" csv:"-"`
 }
 
+// fileVaultVerification is whether encryption is confirmed once the FileVault
+// profile is delivered: from the escrowed key's decryptability, or from the
+// reported disk state when enforcing without escrow.
+type fileVaultVerification int
+
+const (
+	fileVaultVerificationUnknown fileVaultVerification = iota
+	fileVaultVerificationNotConfirmed
+	fileVaultVerificationConfirmed
+)
+
+func (d *MDMHostData) keyVerification() fileVaultVerification {
+	switch {
+	case d.rawDecryptable == nil:
+		return fileVaultVerificationUnknown
+	case *d.rawDecryptable == 1:
+		return fileVaultVerificationConfirmed
+	default:
+		// no key row (-1) or a key we could not decrypt (0)
+		return fileVaultVerificationNotConfirmed
+	}
+}
+
+func diskVerification(diskEncrypted *bool) fileVaultVerification {
+	switch {
+	case diskEncrypted == nil:
+		return fileVaultVerificationUnknown
+	case *diskEncrypted:
+		return fileVaultVerificationConfirmed
+	default:
+		return fileVaultVerificationNotConfirmed
+	}
+}
+
 // PopulateOSSettingsAndMacOSSettings populates the OSSettings and MacOSSettings
-// on the MDMHostData struct. It determines the disk encryption status for the
-// host based on the file-vault profile in its list of profiles and whether its
-// disk encryption key is available and decryptable. The file-vault profile
-// identifier is received as an argument to avoid a circular dependency.
+// on the MDMHostData struct. It derives the disk encryption status from the
+// file-vault profile in its list of profiles and, once delivered, from the
+// escrowed key's decryptability — or from diskEncrypted when cfg enforces
+// FileVault without escrow. The file-vault profile identifier is received as
+// an argument to avoid a circular dependency.
 //
 // NOTE: This overwrites both OSSettings and MacOSSettings on the MDMHostData struct. Any existing
 // data in those fields will be lost.
-func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMAppleProfile, fileVaultIdentifier string, cfg DiskEncryptionConfig, diskEncrypted *bool) {
 	var settings MDMHostMacOSSettings
 
 	var fvprof *HostMDMAppleProfile
@@ -974,31 +1009,28 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 		case MDMOperationTypeInstall:
 			switch {
 			case fvprof.Status != nil && (*fvprof.Status == MDMDeliveryVerifying || *fvprof.Status == MDMDeliveryVerified):
-				if d.rawDecryptable != nil && *d.rawDecryptable == 1 { //nolint:gocritic // ignore ifElseChain
-					//  if a FileVault profile has been successfully installed on the host
-					//  AND we have fetched and are able to decrypt the key
+				verification := d.keyVerification()
+				// logging out lets the deferred FileVault enablement run; rotating
+				// produces a key Fleet can escrow
+				actionRequired := ActionRequiredRotateKey
+				if cfg.MacOSEnforceOnly() {
+					verification = diskVerification(diskEncrypted)
+					actionRequired = ActionRequiredLogOut
+				}
+
+				switch verification {
+				case fileVaultVerificationConfirmed:
 					switch *fvprof.Status {
 					case MDMDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
 					case MDMDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
-				} else if d.rawDecryptable != nil {
-					// if a FileVault profile has been successfully installed on the host
-					// but either we didn't get an encryption key or we're not able to
-					// decrypt the key we've got
+				case fileVaultVerificationNotConfirmed:
 					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
-					settings.ActionRequired = ActionRequiredRotateKey.addrOf()
-				} else {
-					// if [a FileVault profile is pending to be installed or] the
-					// matching row in host_disk_encryption_keys has a field decryptable
-					// = NULL
-					switch *fvprof.Status {
-					case MDMDeliveryVerifying, MDMDeliveryVerified:
-						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case MDMDeliveryPending:
-						settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
-					}
+					settings.ActionRequired = actionRequired.addrOf()
+				case fileVaultVerificationUnknown:
+					settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
 				}
 
 			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
@@ -1006,8 +1038,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
 			default:
-				// if a FileVault profile is pending to be installed [or the matching
-				// row in host_disk_encryption_keys has a field decryptable = NULL]
+				// if a FileVault profile is pending to be installed
 				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 			}
 
