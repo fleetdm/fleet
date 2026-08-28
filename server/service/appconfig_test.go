@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -24,6 +25,7 @@ import (
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -1363,9 +1365,9 @@ func TestMDMConfig(t *testing.T) {
 			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-				RequireBitLockerPIN:         optjson.Bool{Set: true},
+				CustomSettings:            optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				EnableManagedLocalAccount: optjson.SetBool(false),
+				RequireBitLockerPIN:       optjson.Bool{Set: true},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3490,54 +3492,54 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		},
 		{
 			name:               "windows: enabling managed local account persists and fires activity",
-			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			patch:              `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},
 		{
 			name:           "windows: disabling managed local account persists and fires activity",
 			startWindows:   true,
-			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			patch:          `{"mdm": {"windows_settings": {"enable_managed_local_account": false}}}`,
 			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
 			name:               "windows: null managed local account enabled means not provided",
 			startWindows:       true,
-			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": null}}}}`,
+			patch:              `{"mdm": {"windows_settings": {"enable_managed_local_account": null}}}`,
 			wantWindowsEnabled: true,
 		},
 		{
 			name:  "windows: managed local account no-op change fires no activity",
-			patch: `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			patch: `{"mdm": {"windows_settings": {"enable_managed_local_account": false}}}`,
 		},
 		{
 			name:               "enabling managed local account on both platforms in one payload fires one activity per platform",
-			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"enable_managed_local_account": true}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:darwin", "enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},
 		{
 			name:     "windows: enabling managed local account requires premium",
 			freeTier: true,
-			patch:    `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			patch:    `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`,
 			wantErr:  "missing or invalid license",
 		},
 		{
 			name:           "windows: disabling managed local account is allowed without premium (license downgrade)",
 			freeTier:       true,
 			startWindows:   true,
-			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			patch:          `{"mdm": {"windows_settings": {"enable_managed_local_account": false}}}`,
 			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
 			name:          "windows: enabling managed local account requires Windows MDM",
 			windowsMDMOff: true,
-			patch:         `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
-			wantErr:       "windows_settings.managed_local_account_settings",
+			patch:         `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`,
+			wantErr:       "windows_settings.enable_managed_local_account",
 		},
 		{
 			name:    "windows: managed local account with end_user_local_account_type rejected",
-			patch:   `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}, "end_user_local_account_type": "admin"}}}`,
+			patch:   `{"mdm": {"windows_settings": {"enable_managed_local_account": true, "end_user_local_account_type": "admin"}}}`,
 			wantErr: "end_user_local_account_type",
 		},
 	}
@@ -3564,7 +3566,7 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 			dsAppConfig.MDM.EnabledAndConfigured = !tt.appleMDMOff
 			dsAppConfig.MDM.WindowsEnabledAndConfigured = !tt.windowsMDMOff
 			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startMacOS)
-			dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(tt.startWindows)
+			dsAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(tt.startWindows)
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
@@ -3597,7 +3599,7 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantActivities, gotActivities)
-			require.Equal(t, tt.wantWindowsEnabled, dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+			require.Equal(t, tt.wantWindowsEnabled, dsAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 		})
 	}
 }
@@ -3994,4 +3996,40 @@ func TestDiskEncryptionPrecedence(t *testing.T) {
 			tc.check(t, dsAppConfig.MDM)
 		})
 	}
+}
+
+// TestWindowsEnableManagedLocalAccountKeyIsNotAliased pins the `renamescope` on MacOSSetup.EnableManagedLocalAccount.
+// Alias rules are keyed by bare key name, so without the scope the Apple toggle's macos_setup→setup_experience rename
+// would also rewrite the identically named Windows toggle.
+func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
+	rules := endpointer.ExtractAliasRules(appConfigResponse{})
+	require.NotEmpty(t, rules)
+
+	windowsSettings := func(t *testing.T, b []byte) map[string]any {
+		t.Helper()
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		return out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
+	}
+
+	t.Run("response encoding leaves the Windows toggle single-named", func(t *testing.T) {
+		var ac fleet.AppConfig
+		ac.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(true)
+		body, err := json.Marshal(ac)
+		require.NoError(t, err)
+
+		ws := windowsSettings(t, endpointer.DuplicateJSONKeys(body, rules))
+		assert.Equal(t, true, ws["enable_managed_local_account"])
+		assert.NotContains(t, ws, "enable_create_local_admin_account")
+	})
+
+	t.Run("request decoding keeps the Windows toggle off the deprecated list", func(t *testing.T) {
+		body := `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`
+		r := endpointer.NewJSONKeyRewriteReader(strings.NewReader(body), rules)
+		out, err := io.ReadAll(r)
+		require.NoError(t, err)
+
+		assert.Equal(t, true, windowsSettings(t, out)["enable_managed_local_account"])
+		assert.Empty(t, r.UsedDeprecatedKeys())
+	})
 }
