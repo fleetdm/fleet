@@ -1822,12 +1822,11 @@ type HostRecoveryLockPasswordPayload struct {
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
 type HostRecoveryLockRotationStatus struct {
-	HostUUID            string  // Host UUID
-	HasPassword         bool    // encrypted_password is not null and deleted=0
-	Status              *string // current status (verified, failed, pending, NULL)
-	OperationType       string  // install or remove
-	HasPendingRotation  bool    // pending_encrypted_password is not null
-	PendingErrorMessage *string // error from failed rotation
+	HostUUID           string  // Host UUID
+	HasPassword        bool    // encrypted_password is not null and deleted=0
+	Status             *string // current status (verified, failed, pending, NULL)
+	OperationType      string  // install or remove
+	HasPendingRotation bool    // pending_encrypted_password is not null
 }
 
 // HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.

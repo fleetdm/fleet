@@ -8177,7 +8177,6 @@ func softDeleteHostRecoveryLockPassword(ctx context.Context, tx sqlx.ExtContext,
 		UPDATE host_recovery_key_passwords
 		SET deleted = 1,
 		    pending_encrypted_password = NULL,
-		    pending_error_message = NULL,
 		    auto_rotate_at = NULL
 		WHERE host_uuid = ? AND deleted = 0`, hostUUID)
 	if err != nil {
@@ -8199,7 +8198,6 @@ func (ds *Datastore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx conte
 		JOIN host_mdm hm ON hm.host_id = h.id AND hm.enrolled = 0
 		SET rkp.deleted = 1,
 		    rkp.pending_encrypted_password = NULL,
-		    rkp.pending_error_message = NULL,
 		    rkp.auto_rotate_at = NULL
 		WHERE rkp.deleted = 0`)
 	if err != nil {
@@ -8238,7 +8236,6 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID 
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET pending_encrypted_password = ?,
-		    pending_error_message = NULL,
 		    status = '%s'
 		WHERE host_uuid = ?
 		  AND deleted = 0
@@ -8296,7 +8293,6 @@ func (ds *Datastore) CompleteRecoveryLockRotation(ctx context.Context, hostUUID 
 		UPDATE host_recovery_key_passwords
 		SET encrypted_password = pending_encrypted_password,
 		    pending_encrypted_password = NULL,
-		    pending_error_message = NULL,
 		    status = '%s',
 		    error_message = NULL,
 		    auto_rotate_at = NULL
@@ -8324,7 +8320,7 @@ func (ds *Datastore) FailRecoveryLockRotation(ctx context.Context, hostUUID stri
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET status = '%s',
-		    pending_error_message = ?
+		    error_message = ?
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND pending_encrypted_password IS NOT NULL
@@ -8352,7 +8348,6 @@ func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID str
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET pending_encrypted_password = NULL,
-		    pending_error_message = NULL,
 		    status = CASE WHEN error_message IS NOT NULL THEN '%s' ELSE '%s' END
 		WHERE host_uuid = ?
 		  AND deleted = 0
@@ -8389,20 +8384,18 @@ func (ds *Datastore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID
 			encrypted_password IS NOT NULL AND deleted = 0 AS has_password,
 			status,
 			operation_type,
-			pending_encrypted_password IS NOT NULL AS has_pending_rotation,
-			pending_error_message
+			pending_encrypted_password IS NOT NULL AS has_pending_rotation
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ?
 		  AND deleted = 0
 	`
 
 	var row struct {
-		HostUUID            string  `db:"host_uuid"`
-		HasPassword         bool    `db:"has_password"`
-		Status              *string `db:"status"`
-		OperationType       string  `db:"operation_type"`
-		HasPendingRotation  bool    `db:"has_pending_rotation"`
-		PendingErrorMessage *string `db:"pending_error_message"`
+		HostUUID           string  `db:"host_uuid"`
+		HasPassword        bool    `db:"has_password"`
+		Status             *string `db:"status"`
+		OperationType      string  `db:"operation_type"`
+		HasPendingRotation bool    `db:"has_pending_rotation"`
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
@@ -8414,12 +8407,11 @@ func (ds *Datastore) GetRecoveryLockRotationStatus(ctx context.Context, hostUUID
 	}
 
 	return &fleet.HostRecoveryLockRotationStatus{
-		HostUUID:            row.HostUUID,
-		HasPassword:         row.HasPassword,
-		Status:              row.Status,
-		OperationType:       row.OperationType,
-		HasPendingRotation:  row.HasPendingRotation,
-		PendingErrorMessage: row.PendingErrorMessage,
+		HostUUID:           row.HostUUID,
+		HasPassword:        row.HasPassword,
+		Status:             row.Status,
+		OperationType:      row.OperationType,
+		HasPendingRotation: row.HasPendingRotation,
 	}, nil
 }
 
