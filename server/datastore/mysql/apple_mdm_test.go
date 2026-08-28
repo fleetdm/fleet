@@ -10005,10 +10005,10 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	addHostMDMCommandsBatchSizeOrig := addHostMDMCommandsBatchSize
-	addHostMDMCommandsBatchSize = 2
+	hostMDMCommandsBatchSizeOrig := hostMDMCommandsBatchSize
+	hostMDMCommandsBatchSize = 2
 	t.Cleanup(func() {
-		addHostMDMCommandsBatchSize = addHostMDMCommandsBatchSizeOrig
+		hostMDMCommandsBatchSize = hostMDMCommandsBatchSizeOrig
 	})
 
 	// create a host
