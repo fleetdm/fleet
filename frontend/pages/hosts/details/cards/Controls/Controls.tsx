@@ -102,8 +102,8 @@ const Controls = ({
   const emptyStateInfo = () => {
     if (!isConnectedToFleetMdm) {
       return isDeviceUser
-        ? "No controls available. MDM is off for your device."
-        : "No controls available. MDM is off for this host.";
+        ? "No controls available. Your device isn't talking to Fleet for MDM features."
+        : "No controls available. This host isn't talking to Fleet for MDM features.";
     }
     return isDeviceUser
       ? "No controls have been added for your device."
