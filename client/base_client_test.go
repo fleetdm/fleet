@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -324,6 +325,31 @@ func TestFileResponseHandlePathTraversal(t *testing.T) {
 		require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
 		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
 			"download must stay within DestPath, got %q", fr.DestFilePath)
+	})
+
+	// Windows treats both "/" and "\" as path separators, so a name using either
+	// must reduce to its base there. On Unix "\" is an ordinary filename
+	// character, so the join simply stays inside DestPath. Either way the write
+	// must land within DestPath; this runs on the Windows CI runner too.
+	t.Run("backslash-separated DestFile stays within DestPath", func(t *testing.T) {
+		root := t.TempDir()
+		destDir := filepath.Join(root, "downloads")
+		require.NoError(t, os.Mkdir(destDir, 0o700))
+
+		fr := &FileResponse{DestPath: destDir, DestFile: `..\installer.pkg`, SkipMediaType: true}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header:     http.Header{},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
+			"download must stay within DestPath, got %q", fr.DestFilePath)
+		if runtime.GOOS == "windows" {
+			require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		}
 	})
 }
 
