@@ -1019,7 +1019,9 @@ const dueHostsChunkSize = 1000
 // distributed/read would include interval work or an unanswered live query
 // campaign, keyed by host ID with the reason it is due. It reuses the read
 // path's staleness gates (shouldUpdate, including the per-host jitter
-// tables), so notification and read decisions agree by construction.
+// tables), so notification and read decisions agree by construction. IDs
+// with no hosts row (deleted while their agent held a connection) are also
+// returned, with AgentWSReasonHostNotFound, so the caller can drop them.
 //
 // The live query check makes the pub/sub wake-up a latency optimization only:
 // a campaign whose one-shot wake-up was lost anywhere along the way is
@@ -1049,6 +1051,15 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs[start:end])
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list hosts due for distributed read")
+		}
+		found := make(map[uint]struct{}, len(hosts))
+		for _, host := range hosts {
+			found[host.ID] = struct{}{}
+		}
+		for _, id := range hostIDs[start:end] {
+			if _, ok := found[id]; !ok {
+				due[id] = fleet.AgentWSReasonHostNotFound
+			}
 		}
 		for _, host := range hosts {
 			if reason := svc.hostDueForDistributedRead(host); reason != "" {
