@@ -6908,7 +6908,6 @@ Deletes the label specified by ID.
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update host name template](#update-host-name-template)
 - [Resend host name template](#resend-host-name-template)
-- [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
