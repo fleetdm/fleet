@@ -79,6 +79,61 @@ extension AuthenticationViewController {
         }
     }
 
+    // fetchRequestNonce obtains the single-use request_nonce every token request
+    // must carry. The body mirrors what AppSSOAgent sends; Fleet ignores it.
+    func fetchRequestNonce(nonceURL: URL) async throws -> String {
+        var req = URLRequest(url: nonceURL)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.httpBody = Data("grant_type=srv_challenge".utf8)
+        let body: Data
+        let resp: URLResponse
+        do {
+            (body, resp) = try await URLSession.shared.data(for: req)
+        } catch {
+            logger.error("fetchRequestNonce: request failed: \(String(describing: error), privacy: .public)")
+            throw UserRegistrationError.network(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw UserRegistrationError.internalFailure("nonce: non-HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            logger.error("fetchRequestNonce: HTTP \(http.statusCode, privacy: .public)")
+            throw UserRegistrationError.server(status: http.statusCode)
+        }
+        struct NonceResponse: Decodable {
+            let nonce: String
+            enum CodingKeys: String, CodingKey { case nonce = "Nonce" }
+        }
+        guard let decoded = try? JSONDecoder().decode(NonceResponse.self, from: body), !decoded.nonce.isEmpty else {
+            throw UserRegistrationError.internalFailure("nonce: undecodable response")
+        }
+        return decoded.nonce
+    }
+
+    // postTokenRequest submits a signed login assertion and returns the HTTP
+    // status. The response JWE is encrypted to the device key and not needed
+    // here: the status alone says whether the IdP accepted the credentials.
+    func postTokenRequest(assertion: String, tokenURL: URL) async throws -> Int {
+        var req = URLRequest(url: tokenURL)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.httpBody = formURLEncodedBody([URLQueryItem(name: "assertion", value: assertion)])
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else {
+                throw UserRegistrationError.internalFailure("token: non-HTTP response")
+            }
+            logger.log("postTokenRequest: HTTP \(http.statusCode, privacy: .public)")
+            return http.statusCode
+        } catch let error as UserRegistrationError {
+            throw error
+        } catch {
+            logger.error("postTokenRequest: request failed: \(String(describing: error), privacy: .public)")
+            throw UserRegistrationError.network(error)
+        }
+    }
+
     // formURLEncodedBody serializes query items as an x-www-form-urlencoded
     // body, percent-encoding everything outside the RFC 3986 unreserved set so
     // '+', '/', '=', spaces and newlines in PEM values survive intact.

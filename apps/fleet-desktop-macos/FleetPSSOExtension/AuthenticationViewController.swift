@@ -5,7 +5,8 @@
 // ASAuthorizationProviderExtensionLoginManager. Conforms minimally to
 // ASAuthorizationProviderExtensionAuthorizationRequestHandler so the
 // extension binary loads; Password-mode registration and sign-in have no
-// browser leg, so no web view is needed.
+// browser leg, so no web view is needed. The view only ever hosts the native
+// sign-in form used for interactive user registration.
 
 import AuthenticationServices
 import Cocoa
@@ -24,9 +25,14 @@ final class AuthenticationViewController: NSViewController,
     var loginManager: ASAuthorizationProviderExtensionLoginManager?
     var pendingRequest: ASAuthorizationProviderExtensionAuthorizationRequest?
     var registrationEndpointURL: URL?
+    var registrationForm: RegistrationFormView?
+    var userRegistrationCompletion: ((ASAuthorizationProviderExtensionRegistrationResult) -> Void)?
+
+    static let formSize = NSSize(width: 480, height: 300)
 
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 720))
+        view = NSView(frame: NSRect(origin: .zero, size: Self.formSize))
+        preferredContentSize = Self.formSize
     }
 
     func beginAuthorization(
