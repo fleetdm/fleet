@@ -77,8 +77,6 @@ struct PSSOLoginRequestBuilder {
         return try signES256(header: header, claims: claims)
     }
 
-    // MARK: - JWS
-
     private func signES256(header: [String: Any], claims: [String: Any]) throws -> String {
         let headerB64 = try Self.jsonData(header).base64URLEncodedString()
         let claimsB64 = try Self.jsonData(claims).base64URLEncodedString()
@@ -90,61 +88,15 @@ struct PSSOLoginRequestBuilder {
         else {
             throw PSSOLoginRequestError.signing(Self.describe(error))
         }
-        // Security returns an X9.62 DER ECDSA-Sig-Value; JWS wants raw R || S.
-        let raw = try Self.ecdsaDERToRaw(der, componentLength: 32)
+        // Security returns a DER ECDSA-Sig-Value; JWS wants raw R || S.
+        let raw: Data
+        do {
+            raw = try P256.Signing.ECDSASignature(derRepresentation: der).rawRepresentation
+        } catch {
+            throw PSSOLoginRequestError.signing("undecodable DER signature: \(error)")
+        }
         return "\(headerB64).\(claimsB64).\(raw.base64URLEncodedString())"
     }
-
-    // ecdsaDERToRaw converts SEQUENCE { INTEGER r, INTEGER s } into fixed-width
-    // R || S, stripping DER sign padding and left-padding short components.
-    static func ecdsaDERToRaw(_ der: Data, componentLength: Int) throws -> Data {
-        var cursor = der.startIndex
-
-        func readByte() throws -> UInt8 {
-            guard cursor < der.endIndex else {
-                throw PSSOLoginRequestError.signing("truncated DER signature")
-            }
-            defer { cursor += 1 }
-            return der[cursor]
-        }
-        func readLength() throws -> Int {
-            let first = try readByte()
-            guard first & 0x80 != 0 else { return Int(first) }
-            var length = 0
-            for _ in 0..<Int(first & 0x7f) {
-                length = (length << 8) | Int(try readByte())
-            }
-            return length
-        }
-        func readInteger() throws -> Data {
-            guard try readByte() == 0x02 else {
-                throw PSSOLoginRequestError.signing("DER signature component is not an INTEGER")
-            }
-            let length = try readLength()
-            guard cursor + length <= der.endIndex else {
-                throw PSSOLoginRequestError.signing("DER signature component overruns buffer")
-            }
-            var value = der[cursor..<(cursor + length)]
-            cursor += length
-            while value.count > componentLength, value.first == 0 {
-                value = value.dropFirst()
-            }
-            guard value.count <= componentLength else {
-                throw PSSOLoginRequestError.signing("DER signature component too large")
-            }
-            return Data(repeating: 0, count: componentLength - value.count) + value
-        }
-
-        guard try readByte() == 0x30 else {
-            throw PSSOLoginRequestError.signing("DER signature is not a SEQUENCE")
-        }
-        _ = try readLength()
-        let r = try readInteger()
-        let s = try readInteger()
-        return r + s
-    }
-
-    // MARK: - JWE (ECDH-ES direct + A256GCM)
 
     static func encryptECDHES(plaintext: Data, recipientPoint: Data, apv: Data, typ: String) throws -> String {
         let recipient: P256.KeyAgreement.PublicKey
@@ -226,8 +178,6 @@ struct PSSOLoginRequestBuilder {
     private static func bigEndian(_ value: UInt32) -> Data {
         withUnsafeBytes(of: value.bigEndian) { Data($0) }
     }
-
-    // MARK: - Keys
 
     // rawPublicPoint returns the ANSI X9.63 uncompressed point (0x04 || X || Y)
     // for a public or private EC SecKey — the encoding Fleet hashes into key IDs
