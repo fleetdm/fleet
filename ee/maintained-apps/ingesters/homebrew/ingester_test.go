@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "docker-desktop", "steam", "swiftdialog", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "steam", "swiftdialog", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -142,6 +142,7 @@ func TestIngestValidations(t *testing.T) {
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", inputApp{Token: "1password", UniqueIdentifier: "com.1password.1password", InstallerFormat: "pkg", Name: "1Password", Slug: "1password/darwin"}},
 		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.docker.docker", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
 		{"", inputApp{Token: "firefox@developer-edition", UniqueIdentifier: "org.mozilla.firefoxdeveloperedition", InstallerFormat: "dmg", Name: "Mozilla Firefox Developer Edition", Slug: "firefox@developer-edition/darwin"}},
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
@@ -225,10 +226,13 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 			// The managed "is app open" query matches a running process inside the app bundle.
-			require.Equal(t,
-				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');", out.UniqueIdentifier),
-				out.Queries.Open,
-			)
+			wantOpen := fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');", out.UniqueIdentifier)
+			if c.inputApp.Token == "1password" {
+				// 1Password's login-item helpers run inside the bundle with the app closed,
+				// so only the app's own executable counts as open.
+				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/1Password') WHERE a.bundle_identifier = 'com.1password.1password');"
+			}
+			require.Equal(t, wantOpen, out.Queries.Open)
 		})
 	}
 }

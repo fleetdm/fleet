@@ -295,6 +295,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 
 	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
+	if input.Token == "1password" {
+		// 1Password's browser helper and launcher are login items that live inside
+		// 1Password.app and keep running after the app is quit, so the default match on
+		// any process in the bundle's subtree always reports the app as open. Match only
+		// the app's own executable.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/1Password') WHERE a.bundle_identifier = '%s');",
+			out.UniqueIdentifier,
+		)
+	}
 
 	return out, nil
 }
