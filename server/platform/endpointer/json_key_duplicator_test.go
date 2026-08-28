@@ -593,3 +593,32 @@ func TestDuplicateJSONKeysIdempotent(t *testing.T) {
 	second := DuplicateJSONKeys(first, rules)
 	assert.Equal(t, expected, string(second))
 }
+
+// TestDuplicateJSONKeysScopedRule is the response-side counterpart of
+// TestJSONKeyRewriteReader_ScopedRule: the renamed `macos_setup` container still
+// splits into an all-new `setup_experience` sibling, while the same leaf name
+// under `windows_settings` must not gain a second spelling.
+func TestDuplicateJSONKeysScopedRule(t *testing.T) {
+	rules := []AliasRule{
+		{OldKey: "macos_setup", NewKey: "setup_experience"},
+		{
+			OldKey: "enable_managed_local_account",
+			NewKey: "enable_create_local_admin_account",
+			Scope:  []string{"macos_setup", "setup_experience"},
+		},
+	}
+
+	input := `{"mdm": {
+		"macos_setup": {"enable_managed_local_account": true},
+		"windows_settings": {"enable_managed_local_account": false}
+	}}`
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(DuplicateJSONKeys([]byte(input), rules), &result))
+	mdm := result["mdm"].(map[string]any)
+
+	assert.Equal(t, map[string]any{"enable_managed_local_account": true}, mdm["macos_setup"])
+	assert.Equal(t, map[string]any{"enable_create_local_admin_account": true}, mdm["setup_experience"])
+	assert.Equal(t, map[string]any{"enable_managed_local_account": false}, mdm["windows_settings"],
+		"the out-of-scope key must not gain an enable_create_local_admin_account twin")
+}

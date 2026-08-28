@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/go-json-experiment/json/jsontext"
 )
@@ -37,6 +40,63 @@ type AliasRule struct {
 	// affects response encoding (DuplicateJSONKeys); request decoding ignores
 	// it.
 	Inline bool
+	// Scope restricts the rule to keys sitting directly inside an object that
+	// was reached through one of these key names. Empty means the rule applies
+	// at any depth, which is how every rule behaved before scoping existed.
+	// Set via the `renamescope` struct tag.
+	//
+	// Rules are keyed by bare key name, so a scope is what keeps a name that is
+	// deprecated in one object from being rewritten in another where it is
+	// canonical: `enable_managed_local_account` is the deprecated spelling of
+	// the Apple toggle under `macos_setup`, and at the same time the canonical
+	// name of the Windows toggle under `windows_settings`.
+	Scope []string
+}
+
+// appliesIn reports whether the rule may rewrite a key sitting directly inside
+// an object reached through enclosingKey. The root object of a document has an
+// empty enclosingKey, which only unscoped rules match.
+func (r AliasRule) appliesIn(enclosingKey string) bool {
+	return len(r.Scope) == 0 || slices.Contains(r.Scope, enclosingKey)
+}
+
+// key returns a comparable identity for the rule, for deduplication.
+func (r AliasRule) key() string {
+	return strings.Join(append([]string{r.OldKey, r.NewKey, strconv.FormatBool(r.Inline)}, r.Scope...), "\x00")
+}
+
+// aliasIndex groups rules by key name. A name can carry more than one rule when
+// the same name is renamed differently in different objects, so lookups are
+// resolved against the enclosing key.
+type aliasIndex map[string][]AliasRule
+
+func newAliasIndex(rules []AliasRule, keyOf func(AliasRule) string) aliasIndex {
+	idx := make(aliasIndex, len(rules))
+	for _, r := range rules {
+		k := keyOf(r)
+		idx[k] = append(idx[k], r)
+	}
+	return idx
+}
+
+// lookup returns the rule registered under key that applies inside
+// enclosingKey. A scoped rule wins over an unscoped one so that declaration
+// order can't decide which of two same-named rules matches.
+func (idx aliasIndex) lookup(key, enclosingKey string) (AliasRule, bool) {
+	var fallback AliasRule
+	var haveFallback bool
+	for _, r := range idx[key] {
+		if len(r.Scope) == 0 {
+			if !haveFallback {
+				fallback, haveFallback = r, true
+			}
+			continue
+		}
+		if r.appliesIn(enclosingKey) {
+			return r, true
+		}
+	}
+	return fallback, haveFallback
 }
 
 // JSONKeyRewriteReader is a streaming io.Reader that handles
@@ -54,10 +114,15 @@ type JSONKeyRewriteReader struct {
 	reader  *bytes.Reader
 	initErr error
 
-	// Map from old (deprecated) key to its AliasRule for fast lookup.
-	oldKeyIndex map[string]AliasRule
-	// Map from new key to its AliasRule for fast lookup.
-	newKeyIndex map[string]AliasRule
+	// Rules indexed by old (deprecated) key name.
+	oldKeyIndex aliasIndex
+	// Rules indexed by new key name.
+	newKeyIndex aliasIndex
+
+	// rootKey is the object key the document being rewritten was nested under,
+	// empty for a whole document. It seeds scope matching so a fragment lifted
+	// out of a larger document still resolves scoped rules.
+	rootKey string
 
 	// Tracks which deprecated keys have been used (old key -> true).
 	usedDeprecated map[string]bool
@@ -68,16 +133,9 @@ type JSONKeyRewriteReader struct {
 // from src, handles bidirectional key aliasing, detects conflicts, and
 // writes the result to an internal buffer.
 func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule) *JSONKeyRewriteReader {
-	oldIdx := make(map[string]AliasRule, len(rules))
-	newIdx := make(map[string]AliasRule, len(rules))
-	for _, r := range rules {
-		oldIdx[r.OldKey] = r
-		newIdx[r.NewKey] = r
-	}
-
 	rw := &JSONKeyRewriteReader{
-		oldKeyIndex:    oldIdx,
-		newKeyIndex:    newIdx,
+		oldKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.OldKey }),
+		newKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.NewKey }),
 		usedDeprecated: make(map[string]bool),
 	}
 
@@ -129,18 +187,20 @@ func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
 // won't have seen the inner fields, so this function can be called before the
 // deferred unmarshal.
 func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]string, error) {
+	return rewriteDeprecatedKeysIn(data, rules, "")
+}
+
+// rewriteDeprecatedKeysIn is RewriteDeprecatedKeys for a fragment that was
+// nested under rootKey in a larger document, so that rules scoped to that key
+// still apply. rootKey is empty for a whole document.
+func rewriteDeprecatedKeysIn(data []byte, rules []AliasRule, rootKey string) ([]byte, map[string]string, error) {
 	if len(rules) == 0 || len(data) == 0 {
 		return data, nil, nil
 	}
-	oldIdx := make(map[string]AliasRule, len(rules))
-	newIdx := make(map[string]AliasRule, len(rules))
-	for _, r := range rules {
-		oldIdx[r.OldKey] = r
-		newIdx[r.NewKey] = r
-	}
 	rw := &JSONKeyRewriteReader{
-		oldKeyIndex:    oldIdx,
-		newKeyIndex:    newIdx,
+		oldKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.OldKey }),
+		newKeyIndex:    newAliasIndex(rules, func(r AliasRule) string { return r.NewKey }),
+		rootKey:        rootKey,
 		usedDeprecated: make(map[string]bool),
 	}
 	var buf bytes.Buffer
@@ -149,7 +209,9 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 	}
 	deprecatedKeysMap := make(map[string]string, len(rw.usedDeprecated))
 	for k := range rw.usedDeprecated {
-		deprecatedKeysMap[k] = rw.oldKeyIndex[k].NewKey
+		if rules := rw.oldKeyIndex[k]; len(rules) > 0 {
+			deprecatedKeysMap[k] = rules[0].NewKey
+		}
 	}
 	return buf.Bytes(), deprecatedKeysMap, nil
 }
@@ -160,13 +222,20 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 // for deserialization, but you want to return a response with the new keys
 // for forward compatibility.
 func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
+	return rewriteOldToNewKeysIn(data, rules, "")
+}
+
+// rewriteOldToNewKeysIn is RewriteOldToNewKeys for a fragment that was nested
+// under rootKey in a larger document. Scope is direction-agnostic (it names the
+// enclosing object, not a key being renamed), so it survives the reversal.
+func rewriteOldToNewKeysIn(data []byte, rules []AliasRule, rootKey string) ([]byte, error) {
 	reversed := make([]AliasRule, len(rules))
 	for i, r := range rules {
 		// Inline is intentionally not preserved: this only renames keys, it
 		// never duplicates them.
-		reversed[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey}
+		reversed[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey, Scope: r.Scope}
 	}
-	result, _, err := RewriteDeprecatedKeys(data, reversed)
+	result, _, err := rewriteDeprecatedKeysIn(data, reversed, rootKey)
 	return result, err
 }
 
@@ -194,15 +263,34 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 	// whether the container being opened lives under `software`.
 	pendingKey := ""
 	softwareDepth := 0
+
+	// enclosing records, per open container, the object key that container was
+	// reached through, so scoped rules can be resolved. Array elements inherit
+	// the array's own key.
+	var enclosing []string
+	currentEnclosing := func() string {
+		if len(enclosing) == 0 {
+			return r.rootKey
+		}
+		return enclosing[len(enclosing)-1]
+	}
 	openContainer := func() {
 		if softwareDepth > 0 || pendingKey == softwareScopeKey {
 			softwareDepth++
 		}
+		key := pendingKey
+		if key == "" {
+			key = currentEnclosing()
+		}
+		enclosing = append(enclosing, key)
 		pendingKey = ""
 	}
 	closeContainer := func() {
 		if softwareDepth > 0 {
 			softwareDepth--
+		}
+		if len(enclosing) > 0 {
+			enclosing = enclosing[:len(enclosing)-1]
 		}
 	}
 
@@ -280,7 +368,7 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 				// Both OldKey (pass-through) and NewKey (rewrite) resolve
 				// to the same canonical key for conflict detection.
 
-				if rule, ok := r.oldKeyIndex[keyName]; ok {
+				if rule, ok := r.oldKeyIndex.lookup(keyName, currentEnclosing()); ok {
 					// This is an OldKey (deprecated name). Pass through
 					// as-is — the struct expects this name. Track it for
 					// deprecation logging.
@@ -301,7 +389,7 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 					if err := enc.WriteToken(tok); err != nil {
 						return err
 					}
-				} else if rule, ok := r.newKeyIndex[keyName]; ok {
+				} else if rule, ok := r.newKeyIndex.lookup(keyName, currentEnclosing()); ok {
 					// This is a NewKey. Rewrite it to OldKey so the
 					// struct can deserialize it.
 					canonicalKey := rule.OldKey

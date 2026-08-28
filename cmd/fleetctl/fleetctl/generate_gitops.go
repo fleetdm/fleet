@@ -128,14 +128,28 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
+// aliasRule is a deprecated JSON key name's replacement, plus the object keys the
+// rename is confined to. An empty scope applies the rename at any depth.
+type aliasRule struct {
+	newKey string
+	scope  []string
+}
+
+// appliesIn reports whether the rule may rename a key sitting directly inside an
+// object reached through enclosingKey.
+func (r aliasRule) appliesIn(enclosingKey string) bool {
+	return len(r.scope) == 0 || slices.Contains(r.scope, enclosingKey)
+}
+
 // aliasRules maps deprecated JSON key names to their new canonical names.
 // Used by replaceAliasKeys and yamlMarshalRenamed to rename keys in serialized output
 // for generate_gitops, fleetctl get (via printSpec), and fleetctl apply.
-// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments.
+// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments,
+// with scopes from spec.DeprecatedGitOpsKeyScopes.
 var aliasRules = buildAliasRules()
 
-func buildAliasRules() map[string]string {
-	rules := make(map[string]string)
+func buildAliasRules() map[string]aliasRule {
+	rules := make(map[string]aliasRule)
 	for _, m := range spec.DeprecatedGitOpsKeyMappings {
 		// Take the last segment of the old and new paths as the leaf key names.
 		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
@@ -151,7 +165,7 @@ func buildAliasRules() map[string]string {
 		}
 		newLeaf = strings.TrimSuffix(newLeaf, "[]")
 
-		rules[oldLeaf] = newLeaf
+		rules[oldLeaf] = aliasRule{newKey: newLeaf, scope: spec.DeprecatedGitOpsKeyScopes[oldLeaf]}
 	}
 	return rules
 }
@@ -163,7 +177,14 @@ func buildAliasRules() map[string]string {
 // its original child keys untouched and the new key receives a deep copy with
 // children recursively renamed (old child keys removed). This avoids duplicating
 // every nested key under both the old and new parent.
-func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
+func replaceAliasKeys(v any, rules map[string]aliasRule, deleteOld bool) {
+	replaceAliasKeysIn(v, rules, deleteOld, "")
+}
+
+// replaceAliasKeysIn is replaceAliasKeys with the key of the object enclosing v,
+// which scoped rules are resolved against. Values inside an array are reached
+// through the array's own key.
+func replaceAliasKeysIn(v any, rules map[string]aliasRule, deleteOld bool, enclosingKey string) {
 	switch val := v.(type) {
 	case map[string]any:
 		if val == nil {
@@ -172,8 +193,8 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 		type rename struct{ oldKey, newKey string }
 		var renames []rename
 		for k := range val {
-			if newKey, ok := rules[k]; ok {
-				renames = append(renames, rename{k, newKey})
+			if rule, ok := rules[k]; ok && rule.appliesIn(enclosingKey) {
+				renames = append(renames, rename{k, rule.newKey})
 			}
 		}
 
@@ -189,7 +210,7 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 				// Container key: old copy keeps original children,
 				// new copy gets a deep copy with children renamed.
 				copied := deepCopyAny(childMap).(map[string]any)
-				replaceAliasKeys(copied, rules, true)
+				replaceAliasKeysIn(copied, rules, true, r.newKey)
 				val[r.newKey] = copied
 				handled[r.oldKey] = true
 				handled[r.newKey] = true
@@ -203,11 +224,11 @@ func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 			if handled[k] {
 				continue
 			}
-			replaceAliasKeys(v, rules, deleteOld)
+			replaceAliasKeysIn(v, rules, deleteOld, k)
 		}
 	case []any:
 		for _, item := range val {
-			replaceAliasKeys(item, rules, deleteOld)
+			replaceAliasKeysIn(item, rules, deleteOld, enclosingKey)
 		}
 	}
 }
@@ -1419,10 +1440,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
 			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
 			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
-			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
-				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
-					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,
-				}
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.EnableManagedLocalAccount.Value {
+				windowsSettings[jsonFieldName(windowsSettingsT, "EnableManagedLocalAccount")] = true
 			}
 
 		}

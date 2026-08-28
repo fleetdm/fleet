@@ -2882,6 +2882,10 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.RequireBitLockerPIN == nil {
 			defaultUnsetToFalse(&windowsSettings.RequireBitLockerPIN)
 		}
+		// GitOps is declarative: a file that doesn't name the managed local account
+		// toggle turns it off, so it has to go out as an explicit false rather than
+		// as the omitted-means-unchanged null the API otherwise reads.
+		defaultUnsetToFalse(&windowsSettings.EnableManagedLocalAccount)
 		mdmAppConfig["macos_settings"] = macOSSettings
 		mdmAppConfig["windows_settings"] = windowsSettings
 		mdmAppConfig["linux_settings"] = linuxSettings

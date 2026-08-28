@@ -593,3 +593,57 @@ func TestRewriteOldToNewKeys(t *testing.T) {
 		assert.Equal(t, float64(42), result["fleet_id"])
 	})
 }
+
+// TestJSONKeyRewriteReader_ScopedRule covers a key name that is deprecated inside
+// one object and canonical inside another: `enable_managed_local_account` is the
+// deprecated Apple toggle under `macos_setup` and the Windows toggle's real name
+// under `windows_settings`. Without the scope, the Windows key would be rewritten
+// and reported as deprecated.
+func TestJSONKeyRewriteReader_ScopedRule(t *testing.T) {
+	rules := []AliasRule{
+		{OldKey: "macos_setup", NewKey: "setup_experience"},
+		{
+			OldKey: "enable_managed_local_account",
+			NewKey: "enable_create_local_admin_account",
+			Scope:  []string{"macos_setup", "setup_experience"},
+		},
+	}
+
+	rewrite := func(t *testing.T, input string) (map[string]any, []string) {
+		t.Helper()
+		r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
+		out, err := io.ReadAll(r)
+		require.NoError(t, err)
+		var result map[string]any
+		require.NoError(t, json.Unmarshal(out, &result))
+		return result["mdm"].(map[string]any), r.UsedDeprecatedKeys()
+	}
+
+	t.Run("in scope, new name is rewritten to the struct's name", func(t *testing.T) {
+		mdm, deprecated := rewrite(t, `{"mdm": {"setup_experience": {"enable_create_local_admin_account": true}}}`)
+		assert.Equal(t, map[string]any{"enable_managed_local_account": true}, mdm["macos_setup"])
+		assert.Empty(t, deprecated)
+	})
+
+	t.Run("in scope, old name passes through and is reported deprecated", func(t *testing.T) {
+		mdm, deprecated := rewrite(t, `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`)
+		assert.Equal(t, map[string]any{"enable_managed_local_account": true}, mdm["macos_setup"])
+		assert.ElementsMatch(t, []string{"macos_setup", "enable_managed_local_account"}, deprecated)
+	})
+
+	t.Run("out of scope, the same name is left alone", func(t *testing.T) {
+		mdm, deprecated := rewrite(t, `{"mdm": {"windows_settings": {"enable_managed_local_account": true}}}`)
+		assert.Equal(t, map[string]any{"enable_managed_local_account": true}, mdm["windows_settings"])
+		assert.Empty(t, deprecated)
+	})
+
+	t.Run("both objects in one payload keep their own names", func(t *testing.T) {
+		mdm, deprecated := rewrite(t, `{"mdm": {
+			"setup_experience": {"enable_create_local_admin_account": true},
+			"windows_settings": {"enable_managed_local_account": false}
+		}}`)
+		assert.Equal(t, map[string]any{"enable_managed_local_account": true}, mdm["macos_setup"])
+		assert.Equal(t, map[string]any{"enable_managed_local_account": false}, mdm["windows_settings"])
+		assert.Empty(t, deprecated)
+	})
+}

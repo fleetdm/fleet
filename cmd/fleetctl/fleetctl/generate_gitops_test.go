@@ -1876,7 +1876,7 @@ func TestGenerateControls(t *testing.T) {
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 	// The disabled Windows managed local account is not emitted (absent key means disabled).
 	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
-		require.NotContains(t, windowsSection, "managed_local_account_settings")
+		require.NotContains(t, windowsSection, "enable_managed_local_account")
 	}
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
@@ -1886,7 +1886,7 @@ func TestGenerateControls(t *testing.T) {
 			EnableEndUserAuthentication: true,
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
@@ -1896,7 +1896,15 @@ func TestGenerateControls(t *testing.T) {
 	// The enabled Windows managed local account is emitted.
 	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
 	require.True(t, ok, "expected a windows_settings section")
-	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
+
+	// It survives the alias pass that writes the file. The same key name is the
+	// deprecated spelling of the Apple toggle, so an unscoped rename would turn
+	// this into enable_create_local_admin_account on the way out.
+	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
+	require.NoError(t, err)
+	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
+	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
 
 	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	require.NoError(t, err)
@@ -3205,9 +3213,9 @@ func TestSillyTeamNames(t *testing.T) {
 }
 
 func TestReplaceAliasKeys(t *testing.T) {
-	rules := map[string]string{
-		"old_key":    "new_key",
-		"nested_old": "nested_new",
+	rules := map[string]aliasRule{
+		"old_key":    {newKey: "new_key"},
+		"nested_old": {newKey: "nested_new"},
 	}
 
 	t.Run("deleteOld=true removes old keys", func(t *testing.T) {
@@ -3275,9 +3283,9 @@ func TestReplaceAliasKeys(t *testing.T) {
 	})
 
 	t.Run("container key deleteOld=false: old keeps old children, new gets new children", func(t *testing.T) {
-		rules := map[string]string{
-			"old_container": "new_container",
-			"child_old":     "child_new",
+		rules := map[string]aliasRule{
+			"old_container": {newKey: "new_container"},
+			"child_old":     {newKey: "child_new"},
 		}
 		data := map[string]any{
 			"old_container": map[string]any{
@@ -3303,9 +3311,9 @@ func TestReplaceAliasKeys(t *testing.T) {
 	})
 
 	t.Run("container key deleteOld=true: children renamed, old container removed", func(t *testing.T) {
-		rules := map[string]string{
-			"old_container": "new_container",
-			"child_old":     "child_new",
+		rules := map[string]aliasRule{
+			"old_container": {newKey: "new_container"},
+			"child_old":     {newKey: "child_new"},
 		}
 		data := map[string]any{
 			"old_container": map[string]any{
@@ -3327,6 +3335,29 @@ func TestReplaceAliasKeys(t *testing.T) {
 		replaceAliasKeys(nil, rules, false)
 		var m map[string]any
 		replaceAliasKeys(m, rules, true)
+	})
+
+	// A scoped rule only renames inside the objects it belongs to, which is what
+	// keeps windows_settings.enable_managed_local_account (canonical) from being
+	// rewritten by the setup_experience rename that shares its name.
+	t.Run("scoped rule only applies inside its own object", func(t *testing.T) {
+		scopedRules := map[string]aliasRule{
+			"macos_setup": {newKey: "setup_experience"},
+			"enable_managed_local_account": {
+				newKey: "enable_create_local_admin_account",
+				scope:  []string{"macos_setup", "setup_experience"},
+			},
+		}
+		for _, deleteOld := range []bool{true, false} {
+			data := map[string]any{
+				"macos_setup":      map[string]any{"enable_managed_local_account": true},
+				"windows_settings": map[string]any{"enable_managed_local_account": false},
+			}
+			replaceAliasKeys(data, scopedRules, deleteOld)
+
+			require.Equal(t, map[string]any{"enable_create_local_admin_account": true}, data["setup_experience"])
+			require.Equal(t, map[string]any{"enable_managed_local_account": false}, data["windows_settings"])
+		}
 	})
 }
 
