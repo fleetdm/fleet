@@ -36,6 +36,12 @@ against each other to catch regressions release-over-release.
 
 # 1h lookback, filed under the mdm category
 ./collect-metrics.sh --workspace 483applemdm --interval 1h --category mdm
+
+# An arbitrary past window: the 90 minutes ending 2 hours ago
+./collect-metrics.sh --workspace 486loadtest --interval 90m --end 2h
+
+# Or pin the end to an exact UTC timestamp
+./collect-metrics.sh --workspace 486loadtest --interval 15m --end 2026-08-28T02:28:58Z
 ```
 
 Key flags (`--help` for the full list):
@@ -43,13 +49,16 @@ Key flags (`--help` for the full list):
 | Flag | Meaning |
 |------|---------|
 | `-w, --workspace` | Terraform workspace name (required). AWS resource names are derived from it. |
-| `-i, --interval`  | Lookback window: `<N>h`, `<N>m`, or a bare integer (hours). Default `3h`. |
+| `-i, --interval`  | Window length: `<N>h`, `<N>m`, or a bare integer (hours). Default `3h`. |
+| `-e, --end`       | End of the window: an absolute UTC timestamp (`2026-08-28T02:28:58Z`) or a relative age (`2h`, `90m`). Default: now. Combine with `--interval` to collect any past range. |
 | `-c, --category`  | File the run under a category: `baseline` \| `migration` \| `mdm`. |
 | `-o, --output`    | Override the output file path. |
 | `-r, --region`    | AWS region. Default `us-east-2`. |
 
 Output lands in `runs/[<category>/]<workspace>/<workspace>-<timestamp>-<interval>.json`
-alongside a matching `.md` synopsis.
+alongside a matching `.md` synopsis. The timestamp is the **end of the window**, not the
+moment the script ran, so historical collections are self-describing and sort in window
+order; the wall-clock run time is recorded separately as `metadata.collected_at`.
 
 > The `--workspace` value is not free-form — `collect-metrics.sh` derives AWS resource
 > names from it (`fleet-<ws>-backend`, `fleetdm-<ws>-mysql`, `fleet-<ws>-redis`, …), so it

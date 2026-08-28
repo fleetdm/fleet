@@ -7,7 +7,12 @@
 #
 # Options:
 #   -w, --workspace NAME  Terraform workspace name (required)
-#   -i, --interval RANGE  Lookback interval. Accepts <N>h, <N>m, or a bare integer (treated as hours). Default: 3h
+#   -i, --interval RANGE  Window length. Accepts <N>h, <N>m, or a bare integer (treated as hours). Default: 3h
+#   -e, --end WHEN        End of the window. Accepts an absolute UTC timestamp
+#                         (2026-08-28T02:28:58Z) or a relative age (<N>h / <N>m / bare
+#                         integer hours, meaning "that long ago"). Default: now.
+#                         Combine with --interval to grab an arbitrary past range, e.g.
+#                         "--interval 90m --end 2h" = the 90 minutes ending 2 hours ago.
 #   -c, --category CAT    Run category for filing output: baseline | migration | mdm.
 #                         Files output under runs/<category>/<workspace>/. Omit to use runs/<workspace>/.
 #   -o, --output FILE     Output file path (default: runs/[<category>/]<workspace>/<workspace>-<date>Z-<interval>.json)
@@ -15,7 +20,7 @@
 #   -h, --help            Show this help message
 #
 # The script discovers AWS resources by naming convention from the Terraform workspace name,
-# then collects CloudWatch metrics averaged over the specified interval ending at the current time.
+# then collects CloudWatch metrics averaged over the window [end - interval, end].
 #
 # Required: aws cli v2, jq
 
@@ -40,12 +45,14 @@ WORKSPACE=""
 OUTPUT=""
 REGION="us-east-2"
 INTERVAL_INPUT="3h"
+END_INPUT=""
 CATEGORY=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -w|--workspace)  WORKSPACE="$2"; shift 2 ;;
     -i|--interval)   INTERVAL_INPUT="$2"; shift 2 ;;
+    -e|--end)        END_INPUT="$2"; shift 2 ;;
     -c|--category)   CATEGORY="$2"; shift 2 ;;
     -o|--output)     OUTPUT="$2"; shift 2 ;;
     -r|--region)     REGION="$2"; shift 2 ;;
@@ -95,30 +102,55 @@ case "$INTERVAL_UNIT" in
 esac
 INTERVAL_LABEL="${INTERVAL_NUM}${INTERVAL_UNIT}"
 
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Resolve the end of the window: now, an absolute UTC timestamp, or a relative age.
+if [[ -z "$END_INPUT" ]]; then
+  END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+elif [[ "$END_INPUT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+  END_TIME="$END_INPUT"
+elif [[ "$END_INPUT" =~ ^([0-9]+)([hm]?)$ ]]; then
+  end_num="${BASH_REMATCH[1]}"; end_unit="${BASH_REMATCH[2]:-h}"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    case "$end_unit" in
+      h) END_TIME=$(date -u -v-${end_num}H +"%Y-%m-%dT%H:%M:%SZ") ;;
+      m) END_TIME=$(date -u -v-${end_num}M +"%Y-%m-%dT%H:%M:%SZ") ;;
+    esac
+  else
+    case "$end_unit" in
+      h) END_TIME=$(date -u -d "${end_num} hours ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
+      m) END_TIME=$(date -u -d "${end_num} minutes ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
+    esac
+  fi
+else
+  echo "Error: --end must be a UTC timestamp (2026-08-28T02:28:58Z) or a relative age ('2h', '90m', or a bare integer meaning hours). Got: '$END_INPUT'" >&2
+  exit 1
+fi
+
+TIMESTAMP="$END_TIME"
+# Wall-clock time this run actually executed. Distinct from the window end once
+# --end is used to collect a historical range.
+COLLECTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Runs are filed under runs/[<category>/]<workspace>/. compare-metrics.sh discovers
 # them recursively, so the category subfolder is purely for human organization.
 METRICS_DIR="${SCRIPT_DIR}/runs${CATEGORY:+/$CATEGORY}/${WORKSPACE}"
 mkdir -p "$METRICS_DIR"
-OUTPUT="${OUTPUT:-${METRICS_DIR}/${WORKSPACE}-$(date -u +%Y-%m-%d-%H%M%SZ)-${INTERVAL_LABEL}.json}"
+END_STAMP="${END_TIME//:/}"
+END_STAMP="${END_STAMP/T/-}"
+OUTPUT="${OUTPUT:-${METRICS_DIR}/${WORKSPACE}-${END_STAMP}-${INTERVAL_LABEL}.json}"
 # Ensure the parent dir exists even when a custom --output path is given.
 mkdir -p "$(dirname "$OUTPUT")"
 
 # ---------------------------------------------------------------------------
 # Time window: <interval> ending now
 # ---------------------------------------------------------------------------
-END_TIME="$TIMESTAMP"
+# START_TIME is END_TIME minus the interval, so an explicit --end shifts the whole
+# window into the past rather than just changing its length.
 if [[ "$(uname)" == "Darwin" ]]; then
-  case "$INTERVAL_UNIT" in
-    h) START_TIME=$(date -u -v-${INTERVAL_NUM}H +"%Y-%m-%dT%H:%M:%SZ") ;;
-    m) START_TIME=$(date -u -v-${INTERVAL_NUM}M +"%Y-%m-%dT%H:%M:%SZ") ;;
-  esac
+  END_EPOCH_TMP=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$END_TIME" +%s)
+  START_TIME=$(date -u -r $((END_EPOCH_TMP - INTERVAL_SECONDS)) +"%Y-%m-%dT%H:%M:%SZ")
 else
-  case "$INTERVAL_UNIT" in
-    h) START_TIME=$(date -u -d "${INTERVAL_NUM} hours ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
-    m) START_TIME=$(date -u -d "${INTERVAL_NUM} minutes ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
-  esac
+  END_EPOCH_TMP=$(date -u -d "$END_TIME" +%s)
+  START_TIME=$(date -u -d "@$((END_EPOCH_TMP - INTERVAL_SECONDS))" +"%Y-%m-%dT%H:%M:%SZ")
 fi
 
 # Epoch equivalents of the window bounds, used by Logs Insights and ECS stopped-task
@@ -135,6 +167,18 @@ fi
 # Max 5-min data points expected in this window (minimum 1 to avoid div-by-zero
 # on sub-5-minute intervals).
 MAX_POINTS=$(( INTERVAL_SECONDS / 300 ))
+
+# Performance Insights aligns the requested window to a multiple of
+# --period-in-seconds. With period=3600 a sub-hour window collapses (aligned
+# start == aligned end, zero datapoints) and a 30m window can expand to 2h, so
+# Top SQL silently comes back empty or for the wrong time range. Keep the period
+# small enough that alignment error stays bounded, while capping the datapoint
+# count for long windows. Valid PI periods: 1, 60, 300, 3600, 86400.
+if (( INTERVAL_SECONDS <= 21600 )); then
+  PI_PERIOD=300      # <= 6h: at most 72 points, alignment error <= 5m
+else
+  PI_PERIOD=3600     # longer windows: hour alignment is a small relative skew
+fi
 [[ $MAX_POINTS -lt 1 ]] && MAX_POINTS=1
 
 echo "Collecting metrics for workspace: $WORKSPACE"
@@ -752,12 +796,15 @@ if [[ -n "$RDS_WRITER_DBI_RESOURCE_ID" ]]; then
     --identifier "$RDS_WRITER_DBI_RESOURCE_ID" \
     --start-time "$START_TIME" \
     --end-time "$END_TIME" \
-    --period-in-seconds 3600 \
+    --period-in-seconds "$PI_PERIOD" \
     --metric-queries '[{"Metric":"db.load.avg","GroupBy":{"Group":"db.sql_tokenized","Limit":5}}]' \
     --region "$REGION" \
     --output json 2>/dev/null || echo '{}')
 
   RDS_PI_WRITER=$(flatten_top_sql "$pi_raw")
+  if [[ "$(echo "$RDS_PI_WRITER" | jq 'length')" -eq 0 ]]; then
+    echo "    [!] no Top SQL returned for the writer — window aligned to $(echo "$pi_raw" | jq -r '.AlignedStartTime // "?"') .. $(echo "$pi_raw" | jq -r '.AlignedEndTime // "?"')"
+  fi
 fi
 
 # Performance Insights for reader(s)
@@ -774,12 +821,15 @@ if [[ ${#RDS_READER_DBI_RESOURCE_IDS[@]} -gt 0 ]]; then
       --identifier "$rid" \
       --start-time "$START_TIME" \
       --end-time "$END_TIME" \
-      --period-in-seconds 3600 \
+      --period-in-seconds "$PI_PERIOD" \
       --metric-queries '[{"Metric":"db.load.avg","GroupBy":{"Group":"db.sql_tokenized","Limit":5}}]' \
       --region "$REGION" \
       --output json 2>/dev/null || echo '{}')
 
     pi_flat=$(flatten_top_sql "$pi_raw")
+    if [[ "$(echo "$pi_flat" | jq 'length')" -eq 0 ]]; then
+      echo "    [!] no Top SQL returned for $reader_label — window aligned to $(echo "$pi_raw" | jq -r '.AlignedStartTime // "?"') .. $(echo "$pi_raw" | jq -r '.AlignedEndTime // "?"')"
+    fi
     pi_reader_obj=$(jq -n --arg inst "$reader_label" --argjson sql "$pi_flat" '{instance: $inst, top_sql: $sql}')
     pi_reader_arr=$(echo "$pi_reader_arr" | jq --argjson obj "$pi_reader_obj" '. + [$obj]')
     idx=$((idx + 1))
@@ -1320,7 +1370,7 @@ echo "Assembling results..."
 
 jq -n \
   --arg workspace "$WORKSPACE" \
-  --arg collected_at "$TIMESTAMP" \
+  --arg collected_at "$COLLECTED_AT" \
   --arg region "$REGION" \
   --arg interval "${INTERVAL_LABEL}" \
   --arg start_time "$START_TIME" \
@@ -1374,7 +1424,7 @@ MD_OUTPUT="${OUTPUT%.json}.md"
 {
 echo "# Metrics Synopsis: ${WORKSPACE}"
 echo ""
-echo "- **Collected:** ${TIMESTAMP}"
+echo "- **Collected:** ${COLLECTED_AT}"
 echo "- **Interval:** ${INTERVAL_LABEL}"
 echo "- **Window:** ${START_TIME} to ${END_TIME}"
 echo ""
