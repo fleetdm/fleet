@@ -2641,6 +2641,26 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, reclaimed.ProfileUUID))
 
+	// renaming onto a name held by ANOTHER PLATFORM's profile is rejected too:
+	// that collision has no index behind it, so it's the NOT EXISTS guard in the
+	// UPDATE that catches it, not a duplicate-key error.
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("cross-platform-name", "com.example.cross", 0), nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "cross-platform-name",
+		SyncML:      newSyncML,
+	}, nil)
+	require.Error(t, err)
+	_, isExists = errors.AsType[endpointer.ExistsErrorInterface](err)
+	require.True(t, isExists, "expected an exists error, got %v", err)
+
+	// the blocked rename left the profile alone
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "A Different Name", stored.Name)
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleProf.ProfileUUID))
+
 	// a rename must also refresh the denormalized name on the per-host rows,
 	// which a content-only edit gets for free from the reinstall upsert.
 	hostUUID := uuid.NewString()
