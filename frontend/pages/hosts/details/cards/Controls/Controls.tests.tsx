@@ -198,23 +198,19 @@ describe("Controls card", () => {
     // A host Fleet has no MDM connection to can't receive controls at all, so
     // "none have been added" would point at the wrong problem.
     describe("a host not connected to Fleet MDM", () => {
-      it("says the host isn't enrolled", () => {
+      it("says MDM is off for the host", () => {
         renderControls({ canAddControls: true, isConnectedToFleetMdm: false });
 
         expect(
-          screen.getByText(
-            "No controls available. This host isn't enrolled in MDM."
-          )
+          screen.getByText("No controls available. MDM is off for this host.")
         ).toBeInTheDocument();
       });
 
-      it("says the device isn't enrolled on My device", () => {
+      it("says MDM is off on My device", () => {
         renderControls({ isDeviceUser: true, isConnectedToFleetMdm: false });
 
         expect(
-          screen.getByText(
-            "No controls available. Your device isn't enrolled in MDM."
-          )
+          screen.getByText("No controls available. MDM is off for your device.")
         ).toBeInTheDocument();
       });
 

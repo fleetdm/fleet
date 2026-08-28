@@ -1,0 +1,1 @@
+- Updated the host details "Controls" card's empty state to use "MDM is off" instead of "isn't enrolled in MDM," matching Fleet's "MDM on/off" terminology.
