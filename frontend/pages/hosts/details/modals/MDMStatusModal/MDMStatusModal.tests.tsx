@@ -82,6 +82,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -105,6 +106,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -121,6 +123,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -142,6 +145,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -171,6 +175,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -207,6 +212,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -240,6 +246,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -263,6 +270,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -292,6 +300,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -320,6 +329,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -351,6 +361,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -385,6 +396,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -418,6 +430,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -453,6 +466,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={jest.fn()}
       />
     );
@@ -480,6 +494,7 @@ describe("MDMStatusModal - component", () => {
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
         onExit={onExit}
       />
     );
@@ -539,6 +554,8 @@ describe("MDMStatusModal - MDM check-in", () => {
         lastMDMCheckIn={LAST_CHECK_IN}
         onSuccessfulCheckIn={jest.fn()}
         onExit={jest.fn()}
+        fleetId={props.fleetId ?? null}
+        connectedToFleet
         {...props}
       />
     );
