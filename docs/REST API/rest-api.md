@@ -7203,12 +7203,18 @@ Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` 
 
 ##### Uploading a new profile file
 
-You can upload a new profile file to replace the contents of the existing profile. The new profile must match the identity of the existing profile:
+You can upload a new profile file to replace the contents of the existing profile. What the new file must match, and how the profile is renamed, depends on the profile type:
 
-- **DDM (declarative management) profiles** (`.json`): The new profile must have the same **Identifier** as the existing profile.
-- **.mobileconfig profiles**: The new profile must have the same **PayloadIdentifier** as the existing profile.
+- **.mobileconfig profiles**: The new file must have the same **PayloadIdentifier** as the existing profile. The profile is renamed to the new file's **PayloadDisplayName**.
+- **DDM (declarative management) profiles** (`.json`): The new file must have the same **Identifier** as the existing profile. The profile keeps its current name.
+- **Windows profiles** (`.xml`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces. The profile is renamed to the uploaded file's name, without its extension.
+- **Android profiles** (`.json`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces. The profile keeps its current name.
 
-If the new profile does not match the required identifiers, the request will be rejected.
+If a `.mobileconfig` or DDM profile doesn't have the required identifier, the request is rejected.
+
+Renaming a profile doesn't change its `profile_uuid` or which hosts it targets, and doesn't reinstall it on hosts unless the contents changed too. If another configuration profile in the same fleet already uses the new name, the request is rejected with a `409` status.
+
+Requests that only update labels don't include a file, so the profile's name is left unchanged.
 
 #### Example
 
