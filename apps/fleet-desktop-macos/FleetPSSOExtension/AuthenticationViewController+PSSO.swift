@@ -133,10 +133,7 @@ extension AuthenticationViewController:
     // dropped rather than called.
     func registrationDidCancel() {
         logger.log("registrationDidCancel")
-        DispatchQueue.main.async {
-            self.userRegistrationCompletion = nil
-            self.discardRegistrationForm()
-        }
+        DispatchQueue.main.async { self.abandonUserRegistration() }
     }
 
     func protocolVersion() -> ASAuthorizationProviderExtensionPlatformSSOProtocolVersion {

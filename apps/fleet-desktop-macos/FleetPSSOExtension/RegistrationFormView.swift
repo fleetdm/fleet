@@ -64,9 +64,7 @@ final class RegistrationFormView: NSView {
         subtitle.textColor = .secondaryLabelColor
 
         usernameField.placeholderString = "Username or email"
-        usernameField.nextKeyView = passwordField
         passwordField.placeholderString = "Password"
-        passwordField.nextKeyView = usernameField
 
         errorLabel.font = .systemFont(ofSize: 12)
         errorLabel.textColor = .systemRed

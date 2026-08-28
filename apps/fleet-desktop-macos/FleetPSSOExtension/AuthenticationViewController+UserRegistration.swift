@@ -64,6 +64,17 @@ extension AuthenticationViewController {
         registrationForm = nil
     }
 
+    // abandonUserRegistration drops everything an in-progress interactive
+    // registration holds. Cancelling the task matters: a verification that
+    // finishes after the framework cancelled must not save a configuration or
+    // complete the abandoned request.
+    func abandonUserRegistration() {
+        verificationTask?.cancel()
+        verificationTask = nil
+        userRegistrationCompletion = nil
+        discardRegistrationForm()
+    }
+
     private func showRegistrationForm(loginManager: ASAuthorizationProviderExtensionLoginManager) {
         discardRegistrationForm()
         let form = RegistrationFormView(initialUserName: loginManager.userLoginConfiguration?.loginUserName)
@@ -92,14 +103,22 @@ extension AuthenticationViewController {
         loginManager: ASAuthorizationProviderExtensionLoginManager
     ) {
         registrationForm?.setBusy(true)
-        Task {
+        verificationTask?.cancel()
+        verificationTask = Task {
             do {
                 try await self.verifyIdPCredentials(username: username, password: password, loginManager: loginManager)
+                try Task.checkCancellation()
                 let config = ASAuthorizationProviderExtensionUserLoginConfiguration(loginUserName: username)
                 try loginManager.saveUserLoginConfiguration(config)
                 logger.log("beginUserRegistration: credentials verified, user login configuration saved")
                 await MainActor.run { self.finishUserRegistration(.success) }
             } catch {
+                // URLSession surfaces cancellation as URLError.cancelled, which
+                // the networking helpers wrap; the task flag is the reliable signal.
+                if Task.isCancelled {
+                    logger.log("beginUserRegistration: credential verification cancelled")
+                    return
+                }
                 let registrationError = (error as? UserRegistrationError)
                     ?? .internalFailure(String(describing: error))
                 logger.error("beginUserRegistration: credential verification failed: \(String(describing: registrationError), privacy: .public)")
@@ -130,10 +149,7 @@ extension AuthenticationViewController {
         guard !signingKeyID.isEmpty else {
             throw UserRegistrationError.internalFailure("signing key export failed")
         }
-        guard let serverEncKey = await loginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks")) else {
-            throw UserRegistrationError.internalFailure("failed to load Fleet encryption key from JWKS")
-        }
-
+        let serverEncKey = try await fetchLoginRequestEncryptionKey(jwksURL: pssoEndpointURL(base, "jwks"))
         let requestNonce = try await fetchRequestNonce(nonceURL: pssoEndpointURL(base, "nonce"))
 
         let builder = PSSOLoginRequestBuilder(
@@ -161,9 +177,8 @@ extension AuthenticationViewController {
     }
 
     private func finishUserRegistration(_ result: ASAuthorizationProviderExtensionRegistrationResult) {
-        discardRegistrationForm()
         let completion = userRegistrationCompletion
-        userRegistrationCompletion = nil
+        abandonUserRegistration()
         logger.log("beginUserRegistration: completing with \(result.rawValue, privacy: .public)")
         completion?(result)
     }

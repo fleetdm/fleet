@@ -27,6 +27,7 @@ final class AuthenticationViewController: NSViewController,
     var registrationEndpointURL: URL?
     var registrationForm: RegistrationFormView?
     var userRegistrationCompletion: ((ASAuthorizationProviderExtensionRegistrationResult) -> Void)?
+    var verificationTask: Task<Void, Never>?
 
     static let formSize = NSSize(width: 480, height: 300)
 

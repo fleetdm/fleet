@@ -24,32 +24,40 @@ extension AuthenticationViewController {
     // assertion. Fleet always publishes an encryption key, so the caller treats
     // nil as fatal rather than proceeding with password encryption disabled.
     func loginRequestEncryptionKey(jwksURL: URL) async -> SecKey? {
-        let data: Data
         do {
-            let (body, resp) = try await URLSession.shared.data(from: jwksURL)
-            guard let http = resp as? HTTPURLResponse,
-                  (200...299).contains(http.statusCode) else {
-                let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
-                logger.error("loginRequestEncryptionKey: JWKS fetch returned HTTP \(status, privacy: .public)")
-                return nil
-            }
-            data = body
+            return try await fetchLoginRequestEncryptionKey(jwksURL: jwksURL)
         } catch {
-            logger.error("loginRequestEncryptionKey: JWKS fetch failed: \(String(describing: error), privacy: .public)")
+            logger.error("loginRequestEncryptionKey: \(String(describing: error), privacy: .public)")
             return nil
+        }
+    }
+
+    // fetchLoginRequestEncryptionKey is the throwing form, keeping the failure
+    // category (network vs. server vs. malformed) so an interactive caller can
+    // tell the user something more specific than "something went wrong".
+    func fetchLoginRequestEncryptionKey(jwksURL: URL) async throws -> SecKey {
+        let data: Data
+        let resp: URLResponse
+        do {
+            (data, resp) = try await URLSession.shared.data(from: jwksURL)
+        } catch {
+            throw UserRegistrationError.network(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw UserRegistrationError.internalFailure("jwks: non-HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw UserRegistrationError.server(status: http.statusCode)
         }
         guard let jwks = try? JSONDecoder().decode(JWKSet.self, from: data) else {
-            logger.error("loginRequestEncryptionKey: JWKS decode failed")
-            return nil
+            throw UserRegistrationError.internalFailure("jwks: undecodable response")
         }
-
         for jwk in jwks.keys where jwk.use == "enc" {
             if let key = jwk.ecPublicSecKey() {
                 return key
             }
         }
-        logger.error("loginRequestEncryptionKey: no usable enc key in JWKS")
-        return nil
+        throw UserRegistrationError.internalFailure("jwks: no usable enc key published")
     }
 
     // postDeviceRegistration POSTs the registration payload to Fleet and
