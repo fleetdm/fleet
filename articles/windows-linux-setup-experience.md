@@ -147,7 +147,7 @@ running an earlier fleetd are skipped, and no error is reported for them.
 4. Press **Save**.
 
 You can also turn it on with Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or
-[GitOps](https://fleetdm.com/docs/configuration/yaml-files), using `windows_settings.managed_local_account_settings.enabled`.
+[GitOps](https://fleetdm.com/docs/configuration/yaml-files), using `windows_settings.enable_managed_local_account`.
 
 Hosts create their account on their next check-in, usually within a couple of minutes. Fleet stops asking a host once it has
 reported the password back.
