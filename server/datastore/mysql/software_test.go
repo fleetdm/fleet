@@ -1107,16 +1107,13 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 			_, _, err := ds.ListSoftware(context.Background(), opts)
 			require.Error(t, err, "SQL injection payload should be rejected: %s", payload)
-			// The payload names no supported sort key, so it is rejected before
-			// it reaches the query rather than by the database.
+			// Rejected before reaching the query.
 			require.Contains(t, err.Error(), "invalid order_key", "Expected order key rejection for payload: %s", payload)
 		}
 	})
 
 	t.Run("order key must be a supported sort key", func(t *testing.T) {
-		// These name real columns, so they would sort successfully if the order
-		// key were passed through. Sorting by a column the response doesn't
-		// return would expose its values through the resulting order.
+		// Real columns the response doesn't return: sortable only if unguarded.
 		for _, key := range []string{"s.id", "s.title_id", "s.application_id", "vendor_old", "checksum"} {
 			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
 				ListOptions: fleet.ListOptions{OrderKey: key},
@@ -1126,10 +1123,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		}
 
 		// Supported keys, including a multi-column key, keep working.
-		// Sorting on hosts_count alone is served by a separate query that builds
-		// its own ordering, so it is paired with a second key here to keep it on
-		// the path this list guards. It also needs the host counts to be part of
-		// the query, which is what the endpoints always ask for.
+		// hosts_count alone goes to the separate query, so pair it with a second
+		// key to stay on this path.
 		for _, key := range []string{"name", "generated_cpe", "cvss_score", "name,version", "hosts_count,name"} {
 			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
 				ListOptions:      fleet.ListOptions{OrderKey: key},
@@ -1139,9 +1134,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			require.NoError(t, err, "order key %q should be accepted", key)
 		}
 
-		// The vulnerability columns are only part of the query when scores are
-		// included, so sorting on them otherwise is rejected rather than being
-		// left to fail against the database.
+		// CVE columns are only selected when scores are included.
 		for _, key := range []string{"cvss_score", "cve_published", "epss_probability", "cisa_known_exploit"} {
 			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
 				ListOptions: fleet.ListOptions{OrderKey: key},
@@ -1150,9 +1143,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
 		}
 
-		// hosts_count is likewise only sortable when the counts are part of the
-		// query. Sorting on it alone is served by the separate query, so this
-		// pairs it with a second key to reach the list, as above.
+		// Same for hosts_count, again paired to stay on this path.
 		for _, key := range []string{"hosts_count", "hosts_count,name"} {
 			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
 				ListOptions: fleet.ListOptions{OrderKey: key},
