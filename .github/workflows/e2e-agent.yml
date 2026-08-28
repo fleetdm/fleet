@@ -261,8 +261,10 @@ jobs:
     - name: Wait until fleet address is reachable and fleet responds
       shell: bash
       run: |
-        # The tunnel DNS record can lag behind on some runners; retry before the first fleetctl call.
-        until curl -sf -o /dev/null ${{ needs.gen.outputs.address }}/healthz; do
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
           echo "Awaiting until fleet server responds..."
           sleep 5
         done
@@ -363,8 +365,10 @@ jobs:
     - name: Wait until fleet address is reachable and fleet responds
       shell: bash
       run: |
-        # The tunnel DNS record can lag behind on some runners; retry before the first fleetctl call.
-        until curl -sf -o /dev/null ${{ needs.gen.outputs.address }}/healthz; do
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
           echo "Awaiting until fleet server responds..."
           sleep 5
         done
@@ -460,21 +464,23 @@ jobs:
         Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" -ErrorAction SilentlyContinue }
         Clear-DnsClientCache
 
-    - name: Wait until fleet address is reachable and fleet responds
-      shell: bash
-      run: |
-        # The tunnel DNS record can lag behind on some runners; retry before the first fleetctl call.
-        until curl -sf -o /dev/null ${{ needs.gen.outputs.address }}/healthz; do
-          echo "Awaiting until fleet server responds..."
-          sleep 5
-        done
-
     - name: Install fleetctl
       shell: bash
       # On Windows we need to set rootca or tls-skip verify. Since this is a test environment we can skip TLS verification.
       run: |
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
+
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
 
     - name: Install WiX toolset (arm runner only)
       if: matrix.runner == 'windows-11-arm'
