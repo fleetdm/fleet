@@ -155,8 +155,7 @@ func extractAliasRulesFromType(t reflect.Type, seen map[string]bool, rules *[]Al
 	extractAliasRulesRecursive(t, seen, rules, visited)
 }
 
-// parseRenameScope reads the comma-separated `renamescope` tag listing the
-// object keys a rename is confined to.
+// parseRenameScope reads the comma-separated `renamescope` tag listing the object keys a rename is confined to.
 func parseRenameScope(tag reflect.StructTag) []string {
 	raw, ok := tag.Lookup("renamescope")
 	if !ok || raw == "" {

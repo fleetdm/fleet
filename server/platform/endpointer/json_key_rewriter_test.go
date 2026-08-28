@@ -594,11 +594,9 @@ func TestRewriteOldToNewKeys(t *testing.T) {
 	})
 }
 
-// TestJSONKeyRewriteReader_ScopedRule covers a key name that is deprecated inside
-// one object and canonical inside another: `enable_managed_local_account` is the
-// deprecated Apple toggle under `macos_setup` and the Windows toggle's real name
-// under `windows_settings`. Without the scope, the Windows key would be rewritten
-// and reported as deprecated.
+// TestJSONKeyRewriteReader_ScopedRule covers a key name that is deprecated inside one object and canonical inside
+// another: `enable_managed_local_account` is the deprecated Apple toggle under `macos_setup` and the Windows toggle's
+// real name under `windows_settings`. Without the scope, the Windows key would be rewritten and reported as deprecated.
 func TestJSONKeyRewriteReader_ScopedRule(t *testing.T) {
 	rules := []AliasRule{
 		{OldKey: "macos_setup", NewKey: "setup_experience"},

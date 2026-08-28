@@ -58,8 +58,8 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 // place), while nested renamed *leaves* are duplicated in place. The new-named
 // subtree is always a clean RewriteOldToNewKeys copy.
 //
-// rootKey is the object key data was nested under in a larger document (empty
-// for a whole document); it seeds scope matching for the recursive calls.
+// rootKey is the object key data was nested under in a larger document (empty for a whole document); it seeds scope
+// matching for the recursive calls.
 func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool, rootKey string) []byte {
 	if len(rules) == 0 || len(data) == 0 {
 		return data
@@ -91,9 +91,8 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool, rootKey str
 	}
 	var scopes []scopeState
 
-	// enclosing records, per open container, the object key that container was
-	// reached through, so scoped rules can be resolved. Array elements inherit
-	// the array's own key.
+	// enclosing records, per open container, the object key that container was reached through, so scoped rules can be
+	// resolved. Array elements inherit the array's own key.
 	var enclosing []string
 	pendingKey := ""
 	currentEnclosing := func() string {

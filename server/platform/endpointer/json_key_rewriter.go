@@ -40,22 +40,14 @@ type AliasRule struct {
 	// affects response encoding (DuplicateJSONKeys); request decoding ignores
 	// it.
 	Inline bool
-	// Scope restricts the rule to keys sitting directly inside an object that
-	// was reached through one of these key names. Empty means the rule applies
-	// at any depth, which is how every rule behaved before scoping existed.
-	// Set via the `renamescope` struct tag.
-	//
-	// Rules are keyed by bare key name, so a scope is what stops a name that is
-	// the old spelling in one object from being rewritten in another where it
-	// is canonical. `enable_managed_local_account` is one of those: the Apple
-	// toggle's former name under `macos_setup`, and at the same time the
-	// Windows toggle's real name under `windows_settings`.
+	// Scope restricts the rule to keys sitting directly inside an object that was reached through one of these key
+	// names. Empty means the rule applies at any depth, which is how every rule behaved before scoping existed. Set via
+	// the `renamescope` struct tag.
 	Scope []string
 }
 
-// appliesIn reports whether the rule may rewrite a key sitting directly inside
-// an object reached through enclosingKey. The root object of a document has an
-// empty enclosingKey, which only unscoped rules match.
+// appliesIn reports whether the rule may rewrite a key sitting directly inside an object reached through enclosingKey.
+// The root object of a document has an empty enclosingKey, which only unscoped rules match.
 func (r AliasRule) appliesIn(enclosingKey string) bool {
 	return len(r.Scope) == 0 || slices.Contains(r.Scope, enclosingKey)
 }
@@ -65,9 +57,8 @@ func (r AliasRule) key() string {
 	return strings.Join(append([]string{r.OldKey, r.NewKey, strconv.FormatBool(r.Inline)}, r.Scope...), "\x00")
 }
 
-// aliasIndex groups rules by key name. A name can carry more than one rule when
-// the same name is renamed differently in different objects, so lookups are
-// resolved against the enclosing key.
+// aliasIndex groups rules by key name. A name can carry more than one rule when the same name is renamed differently in
+// different objects, so lookups are resolved against the enclosing key.
 type aliasIndex map[string][]AliasRule
 
 func newAliasIndex(rules []AliasRule, keyOf func(AliasRule) string) aliasIndex {
@@ -79,9 +70,8 @@ func newAliasIndex(rules []AliasRule, keyOf func(AliasRule) string) aliasIndex {
 	return idx
 }
 
-// lookup returns the rule registered under key that applies inside
-// enclosingKey. A scoped rule wins over an unscoped one so that declaration
-// order can't decide which of two same-named rules matches.
+// lookup returns the rule registered under key that applies inside enclosingKey. A scoped rule wins over an unscoped one
+// so that declaration order can't decide which of two same-named rules matches.
 func (idx aliasIndex) lookup(key, enclosingKey string) (AliasRule, bool) {
 	var fallback AliasRule
 	var haveFallback bool
@@ -119,9 +109,8 @@ type JSONKeyRewriteReader struct {
 	// Rules indexed by new key name.
 	newKeyIndex aliasIndex
 
-	// rootKey is the object key the document being rewritten was nested under,
-	// empty for a whole document. It seeds scope matching so a fragment lifted
-	// out of a larger document still resolves scoped rules.
+	// rootKey is the object key the document being rewritten was nested under, empty for a whole document. It seeds
+	// scope matching so a fragment lifted out of a larger document still resolves scoped rules.
 	rootKey string
 
 	// Tracks which deprecated keys have been used (old key -> true).
@@ -190,9 +179,8 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 	return rewriteDeprecatedKeysIn(data, rules, "")
 }
 
-// rewriteDeprecatedKeysIn is RewriteDeprecatedKeys for a fragment that was
-// nested under rootKey in a larger document, so that rules scoped to that key
-// still apply. rootKey is empty for a whole document.
+// rewriteDeprecatedKeysIn is RewriteDeprecatedKeys for a fragment that was nested under rootKey in a larger document, so
+// that rules scoped to that key still apply. rootKey is empty for a whole document.
 func rewriteDeprecatedKeysIn(data []byte, rules []AliasRule, rootKey string) ([]byte, map[string]string, error) {
 	if len(rules) == 0 || len(data) == 0 {
 		return data, nil, nil
@@ -225,9 +213,7 @@ func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
 	return rewriteOldToNewKeysIn(data, rules, "")
 }
 
-// rewriteOldToNewKeysIn is RewriteOldToNewKeys for a fragment that was nested
-// under rootKey in a larger document. Scope is direction-agnostic (it names the
-// enclosing object, not a key being renamed), so it survives the reversal.
+// rewriteOldToNewKeysIn is RewriteOldToNewKeys for a fragment that was nested under rootKey in a larger document.
 func rewriteOldToNewKeysIn(data []byte, rules []AliasRule, rootKey string) ([]byte, error) {
 	reversed := make([]AliasRule, len(rules))
 	for i, r := range rules {
@@ -264,9 +250,8 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 	pendingKey := ""
 	softwareDepth := 0
 
-	// enclosing records, per open container, the object key that container was
-	// reached through, so scoped rules can be resolved. Array elements inherit
-	// the array's own key.
+	// enclosing records, per open container, the object key that container was reached through, so scoped rules can be
+	// resolved. Array elements inherit the array's own key.
 	var enclosing []string
 	currentEnclosing := func() string {
 		if len(enclosing) == 0 {

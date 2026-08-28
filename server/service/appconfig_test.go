@@ -3998,12 +3998,9 @@ func TestDiskEncryptionPrecedence(t *testing.T) {
 	}
 }
 
-// TestWindowsEnableManagedLocalAccountKeyIsNotAliased pins the `renamescope` on
-// MacOSSetup.EnableManagedLocalAccount. Alias rules are keyed by bare key name, so
-// without the scope the Apple toggle's macos_setup→setup_experience rename would
-// also rewrite the identically named Windows toggle: config responses would carry a
-// bogus windows_settings.enable_create_local_admin_account, and requests naming the
-// real key would be reported as using a deprecated one.
+// TestWindowsEnableManagedLocalAccountKeyIsNotAliased pins the `renamescope` on MacOSSetup.EnableManagedLocalAccount.
+// Alias rules are keyed by bare key name, so without the scope the Apple toggle's macos_setup→setup_experience rename
+// would also rewrite the identically named Windows toggle.
 func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
 	rules := endpointer.ExtractAliasRules(appConfigResponse{})
 	require.NotEmpty(t, rules)
