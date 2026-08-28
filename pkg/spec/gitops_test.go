@@ -3598,6 +3598,74 @@ software:
 	})
 }
 
+// TestGitOpsPolicyReferencesPathSourcedSoftware exercises the full GitOpsFromFile
+// pipeline (parseSoftware followed by parsePolicies) to confirm that a policy's
+// install_software.fleet_maintained_app_slug/app_store_id correctly cross-references
+// fleet_maintained_apps/app_store_apps entries that were themselves sourced from a
+// path: reference, not just inline entries.
+func TestGitOpsPolicyReferencesPathSourcedSoftware(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fleet_maintained_app_slug and app_store_id resolve", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies"})
+		config += `
+software:
+  fleet_maintained_apps:
+    - path: software/zoom.yml
+  app_store_apps:
+    - path: software/bear.yml
+policies:
+  - name: Install Zoom
+    query: SELECT 1;
+    install_software:
+      fleet_maintained_app_slug: zoom/darwin
+  - name: Install Bear
+    query: SELECT 1;
+    install_software:
+      app_store_id: "1016366447"
+`
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "zoom.yml"), []byte("- slug: zoom/darwin\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "bear.yml"), []byte("- app_store_id: \"1016366447\"\n"), 0o644))
+
+		result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+
+		require.Len(t, result.Software.FleetMaintainedApps, 1)
+		assert.Equal(t, "zoom/darwin", result.Software.FleetMaintainedApps[0].Slug)
+		require.Len(t, result.Software.AppStoreApps, 1)
+		assert.Equal(t, "1016366447", result.Software.AppStoreApps[0].AppStoreID)
+
+		require.Len(t, result.Policies, 2)
+		assert.Equal(t, "zoom/darwin", result.Policies[0].InstallSoftware.Other.FleetMaintainedAppSlug)
+		assert.Equal(t, "1016366447", result.Policies[1].InstallSoftware.Other.AppStoreID)
+	})
+
+	t.Run("fleet_maintained_app_slug not found when sourced from path", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"policies"})
+		config += `
+software:
+  fleet_maintained_apps:
+    - path: software/zoom.yml
+policies:
+  - name: Install Zoom
+    query: SELECT 1;
+    install_software:
+      fleet_maintained_app_slug: not-zoom/darwin
+`
+		path, basePath := createTempFile(t, "", config)
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "zoom.yml"), []byte("- slug: zoom/darwin\n"), 0o644))
+
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, `fleet_maintained_app_slug "not-zoom/darwin" not found`)
+	})
+}
+
 func TestGitOpsGlobScripts(t *testing.T) {
 	t.Parallel()
 
