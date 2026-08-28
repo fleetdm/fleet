@@ -763,6 +763,7 @@ type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
+	// macos_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
 }
 
@@ -1035,6 +1036,7 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 	if fvprof != nil {
 		hde.Detail = fvprof.Detail
 	}
+	hde.ActionRequired = settings.ActionRequired
 	d.OSSettings = &HostMDMOSSettings{DiskEncryption: hde}
 }
 
