@@ -1631,7 +1631,6 @@ func TestDeleteTeamWindowsEnrollmentDefaultFleet(t *testing.T) {
 				return nil
 			}
 			ds.DeleteTeamFunc = func(context.Context, uint) error { return nil }
-			ds.FlushHostCacheByIDsFunc = func(context.Context, []uint) error { return nil }
 
 			var activities []string
 			mockSvc := &svcmock.Service{}
@@ -1666,69 +1665,6 @@ func TestDeleteTeamWindowsEnrollmentDefaultFleet(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestDeleteTeamFlushesHostCache(t *testing.T) {
-	authorizer, err := authz.NewAuthorizer()
-	require.NoError(t, err)
-	ctx := test.UserContext(context.Background(),
-		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
-
-	ds := new(mock.Store)
-	ds.TeamLiteFunc = func(_ context.Context, tid uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{ID: tid, Name: "doomed-team"}, nil
-	}
-	ds.ListHostsFunc = func(context.Context, fleet.TeamFilter, fleet.HostListOptions) ([]*fleet.Host, error) {
-		return []*fleet.Host{
-			{ID: 100},
-			{ID: 101},
-			{ID: 102},
-		}, nil
-	}
-	ds.GetCertificateTemplatesByTeamIDFunc = func(context.Context, uint, fleet.ListOptions) (
-		[]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error,
-	) {
-		return nil, nil, nil
-	}
-	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
-	ds.GetABMTokenOrgNamesAssociatedByDefaultTeamsFunc = func(context.Context, *uint) ([]string, error) {
-		return nil, nil
-	}
-	ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
-		return nil, &notFoundError{}
-	}
-	ds.GetWindowsEnrollmentDefaultFleetFunc = func(context.Context) (*uint, string, error) {
-		return nil, "", nil
-	}
-	ds.DeleteTeamFunc = func(context.Context, uint) error { return nil }
-	ds.BulkSetPendingMDMHostProfilesFunc = func(context.Context, []uint, []uint, []string, []string) (fleet.MDMProfilesUpdates, error) {
-		return fleet.MDMProfilesUpdates{}, nil
-	}
-	ds.CleanupDiskEncryptionKeysOnTeamChangeFunc = func(context.Context, []uint, *uint) error { return nil }
-
-	var flushedIDs []uint
-	ds.FlushHostCacheByIDsFunc = func(_ context.Context, hostIDs []uint) error {
-		flushedIDs = hostIDs
-		return nil
-	}
-
-	mockSvc := &svcmock.Service{}
-	mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
-		return nil
-	}
-
-	svc := &Service{
-		Service: mockSvc,
-		ds:      ds,
-		authz:   authorizer,
-		logger:  slog.New(slog.DiscardHandler),
-	}
-
-	require.NoError(t, svc.DeleteTeam(ctx, 99))
-	require.True(t, ds.FlushHostCacheByIDsFuncInvoked, "FlushHostCacheByIDs must be called after team deletion")
-	require.Equal(t, []uint{100, 101, 102}, flushedIDs, "must flush cache for all hosts that were in the deleted team")
 }
 
 func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {

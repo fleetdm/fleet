@@ -315,10 +315,12 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
-// FlushHostCacheByIDs is a no-op for the MySQL datastore; host caching is
-// handled by the mysqlredis layer.
-func (ds *Datastore) FlushHostCacheByIDs(_ context.Context, _ []uint) error {
-	return nil
+func (ds *Datastore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, `SELECT id FROM hosts WHERE team_id = ?`, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host IDs by team")
+	}
+	return ids, nil
 }
 
 // prepareWindowsProfilesForTeamDeletion retains the content of the team's Windows config profiles (so the profile-manager cron can
