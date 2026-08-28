@@ -15,7 +15,7 @@
   }
 
   &__software-inventory-tab-panel {
-    @include vertical-card-layout;
+    @include vertical-page-tab-panel-layout;
   }
 
   @media screen and (min-width: $break-md) {

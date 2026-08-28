@@ -8,7 +8,7 @@ import CardHeader from "components/CardHeader";
 
 import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
-const baseClass = "munki-issues-card";
+const baseClass = "munki-issues-section";
 
 interface IMunkiIssuesTableProps {
   isLoading: boolean;
