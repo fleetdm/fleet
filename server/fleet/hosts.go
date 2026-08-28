@@ -410,11 +410,11 @@ type Host struct {
 	GigsTotalDiskSpace float64  `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 	GigsAllDiskSpace   *float64 `json:"gigs_all_disk_space" db:"gigs_all_disk_space" csv:"gigs_all_disk_space"`
 
-	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
-	// exportable as CSV (which is the result of List Hosts endpoint). It is
-	// a *bool because for some Linux we set it to NULL and omit it from the JSON
-	// response if the host does not have disk encryption enabled. It is also
-	// omitted if we don't have encryption information yet.
+	// DiskEncryptionEnabled is not exportable as CSV (which is the result of
+	// the List Hosts endpoint). It is a *bool because for some Linux we set
+	// it to NULL and omit it from the JSON response if the host does not
+	// have disk encryption enabled. It is also omitted if we don't have
+	// encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
 	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.

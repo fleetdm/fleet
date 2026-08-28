@@ -1,0 +1,1 @@
+- Added `disk_encryption_enabled` to the `GET /api/v1/fleet/hosts` (List hosts) response, matching the field already returned by `GET /api/v1/fleet/hosts/{id}` (Get host).

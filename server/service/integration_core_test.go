@@ -2086,6 +2086,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	// set disk space information for some hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0, nil))  // low disk
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0, nil)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hosts[0].ID, true, nil))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -2095,6 +2096,8 @@ func (s *integrationTestSuite) TestListHosts() {
 		case hosts[0].ID:
 			assert.Equal(t, 10.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
+			require.NotNil(t, h.DiskEncryptionEnabled)
+			assert.True(t, *h.DiskEncryptionEnabled)
 		case hosts[1].ID:
 			assert.Equal(t, 40.0, h.GigsDiskSpaceAvailable)
 			assert.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
