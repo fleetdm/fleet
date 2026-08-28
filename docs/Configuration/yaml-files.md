@@ -1389,9 +1389,9 @@ org_settings:
       byod_fleet: 📱 BYOD iPhones
 ```
 
-#### windows_autopilot
+#### windows_automatic_enrollment
 
-The `windows_autopilot` section lets you control the default fleet that new MDM enrolled Windows hosts get placed in.
+The `windows_automatic_enrollment` section lets you control the default fleet that new MDM enrolled Windows hosts get placed in.
 
 - `default_fleet` specifies the name of the fleet that new MDM enrolled Windows hosts will automatically be added to (default: `""`).
 
@@ -1400,7 +1400,7 @@ The `windows_autopilot` section lets you control the default fleet that new MDM 
 ```yaml
 org_settings:
   mdm:
-    windows_autopilot: # Available in Fleet Premium
+    windows_automatic_enrollment: # Available in Fleet Premium
       default_fleet: Windows Workstations
 ```
 
