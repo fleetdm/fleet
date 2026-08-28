@@ -44,7 +44,7 @@ With an output-file, writes the schema there; otherwise prints to stdout.`)
 		repoRoot = filepath.Join(filepath.Dir(thisFile), "..", "..")
 	}
 
-	renames := map[string]renameRule{}
+	renames := map[string]string{}
 	collectRenames(reflect.TypeFor[GitOpsSpec](), map[reflect.Type]bool{}, renames)
 
 	reflector := &jsonschema.Reflector{
@@ -98,7 +98,6 @@ With an output-file, writes the schema there; otherwise prints to stdout.`)
 	// relaxNulls to restore the string types it drops.
 	nodes := collectNodes(schemaKeys)
 	annotate(nodes, renames)
-	annotateScopedRenames(schemaKeys, renames)
 	addGitOpsKeyNotes(schemaKeys)
 	addPathReferences(schemaKeys)
 	addRequiredKeys(schemaKeys)
@@ -268,19 +267,10 @@ func toSnake(name string) string {
 	return string(result)
 }
 
-// renameRule is a `renameto` alias plus, for a rename carrying a `renamescope`
-// tag, the $defs name (the declaring Go type) the alias is confined to. Scoping
-// keeps a key name that is deprecated in one struct from being flagged in
-// another struct where it is canonical.
-type renameRule struct {
-	newName  string
-	scopedTo string
-}
-
 // collectRenames walks the type tree recording json-tag -> renameto name. Fleet
 // aliases many config keys with a `renameto` tag for the new fleets/reports
 // terminology, and GitOps YAML uses the renamed key, but invopop only reads json.
-func collectRenames(goType reflect.Type, visited map[reflect.Type]bool, renames map[string]renameRule) {
+func collectRenames(goType reflect.Type, visited map[reflect.Type]bool, renames map[string]string) {
 	for goType.Kind() == reflect.Pointer || goType.Kind() == reflect.Slice || goType.Kind() == reflect.Array || goType.Kind() == reflect.Map {
 		goType = goType.Elem()
 	}
@@ -296,11 +286,7 @@ func collectRenames(goType reflect.Type, visited map[reflect.Type]bool, renames 
 			jsonName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 			renameName, _, _ := strings.Cut(renameTo, ",")
 			if jsonName != "" && renameName != "" {
-				rule := renameRule{newName: renameName}
-				if field.Tag.Get("renamescope") != "" {
-					rule.scopedTo = goType.Name()
-				}
-				renames[jsonName] = rule
+				renames[jsonName] = renameName
 			}
 		}
 
@@ -488,9 +474,8 @@ func resolveReference(definitions map[string]any, node map[string]any) map[strin
 // annotate walks the collected nodes once and, per node, does two things: label
 // each property with its type (shown on hover), then add an alias for any renamed
 // key alongside the deprecated original. Labeling comes first so an alias, a shallow
-// copy of the property, inherits the label. Scoped renames are left to
-// annotateScopedRenames, which applies them to one definition instead of every node.
-func annotate(nodes []map[string]any, renames map[string]renameRule) {
+// copy of the property, inherits the label.
+func annotate(nodes []map[string]any, renames map[string]string) {
 	for _, node := range nodes {
 		properties, ok := node["properties"].(map[string]any)
 		if !ok {
@@ -511,56 +496,29 @@ func annotate(nodes []map[string]any, renames map[string]renameRule) {
 			appendDescription(property, "type: `"+label+"`")
 		}
 
-		for jsonName, rule := range renames {
-			// Scoped renames are applied by annotateScopedRenames, which knows
-			// which definition they belong to.
-			if rule.scopedTo == "" {
-				addRenameAlias(properties, jsonName, rule.newName)
+		for jsonName, renameName := range renames {
+			original, present := properties[jsonName]
+			if !present {
+				continue
+			}
+
+			property, isObject := original.(map[string]any)
+			_, aliasExists := properties[renameName]
+
+			switch {
+			case aliasExists:
+				// Keep an alias that's already present rather than overwriting it.
+			case isObject:
+				properties[renameName] = maps.Clone(property)
+			default:
+				properties[renameName] = original
+			}
+
+			if isObject {
+				property["deprecated"] = true
+				property["deprecationMessage"] = "'" + jsonName + "' is deprecated, use '" + renameName + "' instead"
 			}
 		}
-	}
-}
-
-// annotateScopedRenames applies each scoped rename to the one $defs node that
-// declared it, leaving other structs that happen to use the same key name alone.
-func annotateScopedRenames(schemaKeys map[string]any, renames map[string]renameRule) {
-	for jsonName, rule := range renames {
-		if rule.scopedTo == "" {
-			continue
-		}
-
-		properties, ok := definitionProperties(schemaKeys, rule.scopedTo)
-		if !ok {
-			continue
-		}
-
-		addRenameAlias(properties, jsonName, rule.newName)
-	}
-}
-
-// addRenameAlias adds renameName alongside jsonName in properties and marks the
-// original deprecated. An alias that is already present is left as is.
-func addRenameAlias(properties map[string]any, jsonName, renameName string) {
-	original, present := properties[jsonName]
-	if !present {
-		return
-	}
-
-	property, isObject := original.(map[string]any)
-	_, aliasExists := properties[renameName]
-
-	switch {
-	case aliasExists:
-		// Keep an alias that's already present rather than overwriting it.
-	case isObject:
-		properties[renameName] = maps.Clone(property)
-	default:
-		properties[renameName] = original
-	}
-
-	if isObject {
-		property["deprecated"] = true
-		property["deprecationMessage"] = "'" + jsonName + "' is deprecated, use '" + renameName + "' instead"
 	}
 }
 

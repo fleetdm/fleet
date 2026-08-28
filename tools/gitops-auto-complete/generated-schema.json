@@ -3144,7 +3144,7 @@
           ]
         },
         "sso_enabled": {
-          "description": "SSOEnabled requires end users to authenticate with the IdP configured in\nmdm.end_user_authentication, which must be set before this can be enabled.\n\ntype: `boolean`",
+          "description": "SSOEnabled records that end users should authenticate with the IdP\nconfigured in mdm.end_user_authentication, which must be set before this can\nbe enabled. Nothing enforces it yet: the setting is only persisted and\nreported.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -3596,13 +3596,6 @@
         },
         "query": {
           "description": "Query is the policy's SQL query.\n\ntype: `string`",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "resend_configuration_profile": {
-          "description": "type: `string`",
           "type": [
             "string",
             "null"
@@ -4076,23 +4069,6 @@
         "null"
       ]
     },
-    "LinuxSettings": {
-      "additionalProperties": false,
-      "description": "LinuxSettings contains MDM-related settings specific to Linux hosts.",
-      "properties": {
-        "enable_escrow_disk_encryption_key": {
-          "description": "EnableEscrowDiskEncryptionKey makes Fleet escrow the LUKS passphrase of\nLinux hosts.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        }
-      },
-      "type": [
-        "object",
-        "null"
-      ]
-    },
     "MDM": {
       "additionalProperties": false,
       "description": "MDM is part of AppConfig and defines the mdm settings.",
@@ -4220,10 +4196,6 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "IPadOSUpdates defines the OS update settings for iPadOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
-        "linux_settings": {
-          "$ref": "#/$defs/LinuxSettings",
-          "description": "type: `LinuxSettings`"
-        },
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
           "description": "type: `MacOSMigration`"
@@ -4323,7 +4295,7 @@
           ]
         },
         "windows_require_bitlocker_pin": {
-          "description": "RequireBitLockerPIN is deprecated: use\nWindowsSettings.RequireBitLockerPIN, which it mirrors.\n\ntype: `boolean`",
+          "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4539,14 +4511,7 @@
           ]
         },
         "enable_disk_encryption": {
-          "description": "EnableDiskEncryption enforces FileVault on macOS hosts.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enable_escrow_disk_encryption_key": {
-          "description": "EnableEscrowDiskEncryptionKey makes Fleet escrow the FileVault recovery\nkey of macOS hosts, independently of whether Fleet enforces FileVault.\n\ntype: `boolean`",
+          "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4831,6 +4796,23 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ManagedLocalAccountSettings": {
+      "additionalProperties": false,
+      "description": "ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.",
+      "properties": {
+        "enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5694,10 +5676,6 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
         },
-        "linux_settings": {
-          "$ref": "#/$defs/LinuxSettings",
-          "description": "type: `LinuxSettings`"
-        },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "deprecated": true,
@@ -6102,26 +6080,9 @@
             "null"
           ]
         },
-        "enable_disk_encryption": {
-          "description": "EnableDiskEncryption enforces BitLocker on Windows hosts.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "enable_managed_local_account": {
-          "description": "EnableManagedLocalAccount turns on the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "require_bitlocker_pin": {
-          "description": "RequireBitLockerPIN requires end users on Windows hosts to set a\nBitLocker PIN. Requires EnableDiskEncryption.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
+        "managed_local_account_settings": {
+          "$ref": "#/$defs/ManagedLocalAccountSettings",
+          "description": "ManagedLocalAccountSettings configures the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `ManagedLocalAccountSettings`"
         }
       },
       "type": [
