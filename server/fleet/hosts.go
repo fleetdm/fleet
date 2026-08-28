@@ -762,6 +762,8 @@ type HostMDMHostNameSetting struct {
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
+	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
+	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMRecoveryLockPassword struct {
@@ -928,6 +930,8 @@ type ActionRequiredState string
 const (
 	ActionRequiredLogOut    ActionRequiredState = "log_out"
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+	// ActionRequiredCreatePIN is Windows-only: BitLocker policy requires a startup PIN and the end user has not set one.
+	ActionRequiredCreatePIN ActionRequiredState = "create_pin"
 )
 
 func (s ActionRequiredState) addrOf() *ActionRequiredState {

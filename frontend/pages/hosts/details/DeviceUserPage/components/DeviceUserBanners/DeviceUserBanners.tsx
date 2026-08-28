@@ -167,9 +167,11 @@ const DeviceUserBanners = ({
       }
     }
 
+    // Gate on action_required naming the PIN.
     if (
       hostPlatform === "windows" &&
-      diskEncryptionOSSetting?.status === "action_required"
+      diskEncryptionOSSetting?.status === "action_required" &&
+      diskEncryptionOSSetting?.action_required === "create_pin"
     ) {
       return (
         <InfoBanner

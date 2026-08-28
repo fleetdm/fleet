@@ -934,6 +934,37 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				})
 			})
 
+			// action_required tells the UI whether the END USER can do anything. Only a missing startup PIN qualifies.
+			t.Run("action_required names the end-user action only when there is one", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, targetHost.ID, "the TPM is not ready"))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+
+				// PIN not required: nothing the end user can do about an unready TPM.
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.Nil(t, bls.ActionRequired)
+
+				// PIN required and unset: now there is.
+				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, targetHost.ID, ""))
+				ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+				ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true)
+				require.NoError(t, ds.SaveAppConfig(ctx, ac))
+				defer func() {
+					ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+					ac.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+					require.NoError(t, ds.SaveAppConfig(ctx, ac))
+				}()
+
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionActionRequired, *bls.Status)
+				require.NotNil(t, bls.ActionRequired)
+				require.Equal(t, fleet.ActionRequiredCreatePIN, *bls.ActionRequired)
+			})
+
 			t.Run("detail message for protection off", func(t *testing.T) {
 				// Restore targetHost to encrypted + protection off
 				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOff)))

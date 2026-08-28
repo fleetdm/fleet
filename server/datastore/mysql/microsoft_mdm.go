@@ -1955,6 +1955,14 @@ WHERE
 	}
 
 	// Build a meaningful detail message for action_required when there's no client error.
+	var actionRequired *fleet.ActionRequiredState
+	if dest.Status == fleet.DiskEncryptionActionRequired {
+		// Name the end-user action only when there is one. A missing startup PIN is the sole Windows case the end user
+		// can resolve themselves.
+		if diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet {
+			actionRequired = new(fleet.ActionRequiredCreatePIN)
+		}
+	}
 	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
 		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
 		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
@@ -1972,8 +1980,9 @@ WHERE
 	}
 
 	return &fleet.HostMDMDiskEncryption{
-		Status: &dest.Status,
-		Detail: dest.Detail,
+		Status:         &dest.Status,
+		Detail:         dest.Detail,
+		ActionRequired: actionRequired,
 	}, nil
 }
 
