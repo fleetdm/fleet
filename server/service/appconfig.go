@@ -297,13 +297,13 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}
 	winStoredName := ""
-	if ac.MDM.WindowsEnrollment.Set && ac.MDM.WindowsEnrollment.Valid {
-		winStoredName = ac.MDM.WindowsEnrollment.Value.DefaultFleet
+	if ac.MDM.WindowsAutomaticEnrollment.Set && ac.MDM.WindowsAutomaticEnrollment.Valid {
+		winStoredName = ac.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet
 	}
 	if winDefaultTeamID != nil || winStoredName != winDefaultFleetName {
-		ac.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+		ac.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
 			Set: true, Valid: true,
-			Value: fleet.WindowsEnrollment{DefaultFleet: winDefaultFleetName},
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: winDefaultFleetName},
 		}
 	}
 
@@ -1118,13 +1118,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
 	if windowsEnrollmentDefined {
-		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+		appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
 			Set: true, Valid: true,
-			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: windowsEnrollmentFleetName},
 		}
-	} else if appConfig.MDM.WindowsEnrollment.Set && !appConfig.MDM.WindowsEnrollment.Valid {
-		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore the stored value.
-		appConfig.MDM.WindowsEnrollment = oldAppConfig.MDM.WindowsEnrollment
+	} else if appConfig.MDM.WindowsAutomaticEnrollment.Set && !appConfig.MDM.WindowsAutomaticEnrollment.Valid {
+		// A null windows_automatic_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore
+		// the stored value.
+		appConfig.MDM.WindowsAutomaticEnrollment = oldAppConfig.MDM.WindowsAutomaticEnrollment
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -2491,7 +2492,7 @@ func (svc *Service) validateMDM(
 	return nil
 }
 
-// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload and resolves its default
+// validateWindowsEnrollment validates the mdm.windows_automatic_enrollment section of a config modify payload and resolves its default
 // fleet name to a team id. Returns defined=false when the section was omitted (no-op). When defined, teamID is the resolved team
 // id (nil to clear) and fleetName is the canonical team name (empty when clearing).
 func (svc *Service) validateWindowsEnrollment(
@@ -2500,13 +2501,13 @@ func (svc *Service) validateWindowsEnrollment(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (defined bool, teamID *uint, fleetName string, err error) {
-	if !newMDM.WindowsEnrollment.Set || !newMDM.WindowsEnrollment.Valid {
+	if !newMDM.WindowsAutomaticEnrollment.Set || !newMDM.WindowsAutomaticEnrollment.Valid {
 		// Omitted key or explicit null: keep the persisted setting (same convention as
 		// enable_disk_encryption). Only an object clears or changes it.
 		return false, nil, "", nil
 	}
 
-	name := newMDM.WindowsEnrollment.Value.DefaultFleet
+	name := newMDM.WindowsAutomaticEnrollment.Value.DefaultFleet
 	if name == "" || fleet.IsUnassignedFleetName(name) {
 		// Explicitly clearing the default; allowed on any tier.
 		return true, nil, "", nil
@@ -2522,14 +2523,14 @@ func (svc *Service) validateWindowsEnrollment(
 		if name == curName {
 			return true, curTeamID, curName, nil
 		}
-		invalid.Append("mdm.windows_enrollment.default_fleet", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_automatic_enrollment.default_fleet", ErrMissingLicense.Error())
 		return true, nil, "", nil
 	}
 
 	tm, err := svc.ds.TeamByName(ctx, name)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			invalid.Append("mdm.windows_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
+			invalid.Append("mdm.windows_automatic_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
 			return true, nil, "", nil
 		}
 		return true, nil, "", ctxerr.Wrap(ctx, err, "get team by name for windows enrollment default fleet")

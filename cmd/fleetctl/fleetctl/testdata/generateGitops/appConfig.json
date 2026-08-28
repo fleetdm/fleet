@@ -297,7 +297,7 @@
       "require_bitlocker_pin": false
     },
     "volume_purchasing_program": null,
-    "windows_enrollment": {
+    "windows_automatic_enrollment": {
       "default_fleet": "💻 Workstations"
     },
     "android_enabled_and_configured": true,
