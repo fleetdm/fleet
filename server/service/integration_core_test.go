@@ -1397,6 +1397,10 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
 
+	// an unsupported order_key returns 422
+	s.Do("GET", "/api/latest/fleet/software", nil, http.StatusUnprocessableEntity, "order_key", "vendor_old")
+	s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusUnprocessableEntity, "order_key", "vendor_old")
+
 	// default sort, not only vulnerable
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp)
