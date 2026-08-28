@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   createMockSoftwareTitle,
+  createMockSoftwareTitleDetails,
   createMockSoftwarePackage,
   createMockSoftwarePackageIos,
   createMockAppStoreApp,
@@ -730,6 +731,92 @@ describe("Software Summary Card", () => {
 
       expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Policy B").length).toBeGreaterThan(0);
+    });
+
+    it("renders the Auto updates pill when a VPP app has auto_update_enabled", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Auto updates")).toBeInTheDocument();
+    });
+
+    it("does not render the Auto updates pill when auto_update_enabled is false", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+            software_package: null,
+            auto_update_enabled: false,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Auto updates")).not.toBeInTheDocument();
+    });
+
+    it("opens the Schedule auto updates modal when the Auto updates pill is clicked", async () => {
+      // Modal fires a labels useQuery; needs withBackendMock so the tree has
+      // a QueryClient. The request itself can fail silently, we just check
+      // the dialog appears.
+      const renderWithBackend = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: false,
+                repository_url: "",
+              },
+            },
+          },
+        },
+      });
+      const { user } = renderWithBackend(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Auto updates"));
+
+      // Actions dropdown item of the same text is only in the DOM when opened;
+      // asserting on the modal's title text is unambiguous here.
+      expect(screen.getByText("Schedule auto updates")).toBeInTheDocument();
     });
 
     it("does not render the pills row when there is no installer", () => {
