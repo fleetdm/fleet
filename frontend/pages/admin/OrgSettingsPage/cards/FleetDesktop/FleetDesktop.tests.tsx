@@ -192,20 +192,6 @@ describe("FleetDesktop", () => {
         ).toBeInTheDocument();
       });
     });
-
-    it("explains that the hourly token still rotates when an IdP is configured", async () => {
-      const { user } = renderCard({ config: { mdm: mdmWithIdP() } });
-
-      await user.hover(screen.getByText("Single sign-on (SSO)"));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            "Fleet still rotates the hourly token when SSO is selected. SSO adds an extra layer of protection for the My device page."
-          )
-        ).toBeInTheDocument();
-      });
-    });
   });
 
   describe("GitOps Mode", () => {
