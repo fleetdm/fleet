@@ -66,8 +66,7 @@ spec:
     windows_settings:
       custom_settings: null
       configuration_profiles: null
-      managed_local_account_settings:
-        enabled: false
+      enable_managed_local_account: false
     android_settings:
       custom_settings: null
       configuration_profiles: null

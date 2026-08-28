@@ -1330,19 +1330,19 @@ func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
 			Name: teamName,
 			MDM: fleet.TeamSpecMDM{
 				WindowsSettings: fleet.WindowsSettings{
-					ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+					EnableManagedLocalAccount: optjson.SetBool(true),
 				},
 			},
 		}
 		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
-		require.True(t, (*saved).Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+		require.True(t, (*saved).Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 
 		// an explicit false disables the managed local account again
-		spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+		spec.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
 		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
-		require.False(t, (*saved).Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+		require.False(t, (*saved).Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 	})
 
 	t.Run("adds android profile when AppConfig reports Android MDM on (happy path)", func(t *testing.T) {
@@ -1493,7 +1493,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 
 	windowsPayload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
 		WindowsSettings: &fleet.TeamPayloadWindowsSettings{
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}}
 
@@ -1509,7 +1509,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 	t.Run("windows enable admin account requires Windows MDM", func(t *testing.T) {
 		_, err := svc.ModifyTeam(ctx, 1, windowsPayload)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "windows_settings.managed_local_account_settings")
+		require.Contains(t, err.Error(), "windows_settings.enable_managed_local_account")
 		require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 	})
 
@@ -1517,7 +1517,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 		windowsMDMConfigured = true
 		team, err := svc.ModifyTeam(ctx, 1, windowsPayload)
 		require.NoError(t, err)
-		require.True(t, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+		require.True(t, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
 		require.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Equal(t, []string{"enabled_managed_local_account:windows"}, activities)
 	})

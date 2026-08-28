@@ -875,7 +875,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 // windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled for the host's team.
 func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (bool, error) {
 	if host.TeamID == nil {
-		return appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil
+		return appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
 	}
 	teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
 	if err != nil {
@@ -884,7 +884,7 @@ func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host 
 	if teamMDM == nil {
 		return false, nil
 	}
-	return teamMDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil
+	return teamMDM.WindowsSettings.EnableManagedLocalAccount.Value, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {

@@ -2763,6 +2763,14 @@ func (c *Client) DoGitOps(
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
 			}
 		}
+		// GitOps is declarative: a file that doesn't name the managed local account
+		// toggle turns it off, so it has to go out as an explicit false rather than
+		// as the omitted-means-unchanged null the API otherwise reads.
+		if windowsSettings, ok := mdmAppConfig["windows_settings"].(fleet.WindowsSettings); ok &&
+			!windowsSettings.EnableManagedLocalAccount.Valid {
+			windowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+			mdmAppConfig["windows_settings"] = windowsSettings
+		}
 		// Put in default values for android_settings
 		if incoming.Controls.AndroidSettings != nil {
 			mdmAppConfig["android_settings"] = incoming.Controls.AndroidSettings
@@ -2806,6 +2814,7 @@ func (c *Client) DoGitOps(
 		}
 
 		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
 		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 

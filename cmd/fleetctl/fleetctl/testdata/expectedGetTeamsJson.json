@@ -71,9 +71,7 @@
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "configuration_profiles": null,
-          "managed_local_account_settings": {
-            "enabled": false
-          }
+          "enable_managed_local_account": false
         },
         "windows_updates": {
           "deadline_days": null,
@@ -163,9 +161,7 @@
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "custom_settings": null,
-          "managed_local_account_settings": {
-            "enabled": false
-          }
+          "enable_managed_local_account": false
         },
         "windows_updates": {
           "deadline_days": null,
@@ -276,9 +272,7 @@
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "configuration_profiles": null,
-          "managed_local_account_settings": {
-            "enabled": false
-          }
+          "enable_managed_local_account": false
         },
         "windows_updates": {
           "deadline_days": 7,
@@ -383,9 +377,7 @@
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
           "custom_settings": null,
-          "managed_local_account_settings": {
-            "enabled": false
-          }
+          "enable_managed_local_account": false
         },
         "windows_updates": {
           "deadline_days": 7,

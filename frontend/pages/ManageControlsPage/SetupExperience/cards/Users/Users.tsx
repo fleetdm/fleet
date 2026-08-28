@@ -59,13 +59,11 @@ const getEnabledManagedLocalAccountWindows = (
 ): boolean => {
   if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
     return (
-      globalConfig?.mdm?.windows_settings?.managed_local_account_settings
-        ?.enabled ?? false
+      globalConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
     );
   }
   return (
-    teamConfig?.mdm?.windows_settings?.managed_local_account_settings
-      ?.enabled ?? false
+    teamConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
   );
 };
 
