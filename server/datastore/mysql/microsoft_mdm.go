@@ -3103,13 +3103,18 @@ INSERT INTO
 // UpdateMDMWindowsConfigProfile updates an existing profile's contents (if
 // cp.SyncML is non-empty), name and/or label targeting in place. The profile is
 // keyed by cp.ProfileUUID, so a rename keeps the same row.
+//
+// Retried, because a rename's cross-table NOT EXISTS guard locks rows in the
+// other platforms' profile tables while the create paths lock this one, which
+// deadlocks under concurrent claims of the same name. Every attempt re-reads
+// the profile, so the retry recomputes its own state.
 func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	var teamID uint
 	if cp.TeamID != nil {
 		teamID = *cp.TeamID
 	}
 
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name   string `db:"name"`
 			SyncML []byte `db:"syncml"`
