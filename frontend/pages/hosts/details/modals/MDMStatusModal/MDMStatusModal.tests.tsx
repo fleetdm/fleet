@@ -78,6 +78,7 @@ describe("MDMStatusModal - component", () => {
       <MDMStatusModal
         hostId={3}
         enrollmentStatus="On (manual)"
+        platform="windows"
         router={mockRouter}
         user={createMockUser()}
         lastMDMCheckIn=""
@@ -102,7 +103,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier={false}
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -119,7 +120,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice={false}
+        platform="windows"
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -141,7 +142,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -169,6 +170,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
+        platform="windows"
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
@@ -208,7 +210,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -242,7 +244,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -266,7 +268,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -296,7 +298,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -325,7 +327,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -356,7 +358,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         depProfileError
         user={createMockUser()}
         lastMDMCheckIn=""
@@ -391,7 +393,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={router}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         depProfileError
         user={createMockUser()}
         lastMDMCheckIn=""
@@ -425,6 +427,7 @@ describe("MDMStatusModal - component", () => {
     const { user } = render(
       <MDMStatusModal
         hostId={3}
+        platform="windows"
         enrollmentStatus="On (manual)"
         router={router}
         user={createMockUser()}
@@ -462,7 +465,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -490,7 +493,7 @@ describe("MDMStatusModal - component", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn=""
         onSuccessfulCheckIn={jest.fn()}
@@ -507,7 +510,7 @@ describe("MDMStatusModal - component", () => {
 describe("MDMStatusModal - MDM check-in", () => {
   const LAST_CHECK_IN = "2026-02-10T18:30:00Z";
 
-  // The check-in action is gated at maintainer-or-higher, and the modal reads
+  // The check-in action is gated at observer-or-higher, and the modal reads
   // the role off its `user` prop rather than app context -- so cases that
   // exercise the gate have to set both.
   const MAINTAINER = createMockUser({
@@ -549,7 +552,7 @@ describe("MDMStatusModal - MDM check-in", () => {
         enrollmentStatus="On (manual)"
         router={mockRouter}
         isPremiumTier
-        isAppleDevice
+        platform={"darwin"}
         user={createMockUser()}
         lastMDMCheckIn={LAST_CHECK_IN}
         onSuccessfulCheckIn={jest.fn()}
@@ -588,7 +591,7 @@ describe("MDMStatusModal - MDM check-in", () => {
   });
 
   it("does not render the check-in button for a non-Apple host", async () => {
-    renderModal(renderAsAdmin, { isAppleDevice: false });
+    renderModal(renderAsAdmin, { platform: "windows" });
 
     // "MDM status" is also the modal title, so settle on the status row's
     // value instead to know the list rendered.

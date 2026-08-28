@@ -44,7 +44,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  canTriggerAPNSPing,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import {
@@ -778,10 +781,7 @@ const HostDetailsPage = ({
 
       // Trigger APNS ping independently
       if (
-        isAppleDevice(host.platform) &&
-        host.mdm.connected_to_fleet &&
-        host.mdm.enrollment_status !== "Off" &&
-        host.mdm.enrollment_status !== "Pending" &&
+        canTriggerAPNSPing(host) &&
         permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.team_id)
       ) {
         hostAPI.apnsPing(host.id).catch((error) => {
@@ -2228,7 +2228,7 @@ const HostDetailsPage = ({
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isAppleDevice={isAppleDeviceHost}
+            platform={host.platform}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             connectedToFleet={host.mdm.connected_to_fleet}
             onSuccessfulCheckIn={refetchHostDetails}

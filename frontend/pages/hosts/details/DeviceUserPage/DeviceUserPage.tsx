@@ -2,12 +2,12 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
 import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
 import classNames from "classnames";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
 
 import deviceUserAPI, {
   IGetDeviceCertsApiParams,
@@ -55,25 +55,13 @@ import {
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
+import { canTriggerAPNSPing } from "interfaces/mdm";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
-import InfoModal from "./InfoModal";
-import {
-  getErrorMessage,
-  hasRemainingSetupSteps,
-  isSoftwareScriptSetup,
-  isIPhone,
-  isIPad,
-  isRecentlyEnrolled,
-} from "./helpers";
-import useDeviceSSO from "./useDeviceSSO";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import BitLockerPinModal from "./BitLockerPinModal";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
 import {
@@ -84,13 +72,26 @@ import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageMod
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import SelfService from "../cards/Software/SelfService";
-import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
+import BitLockerPinModal from "./BitLockerPinModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import useDeviceSSO from "./useDeviceSSO";
+import {
+  getErrorMessage,
+  hasRemainingSetupSteps,
+  isSoftwareScriptSetup,
+  isIPhone,
+  isIPad,
+  isRecentlyEnrolled,
+} from "./helpers";
+import InfoModal from "./InfoModal";
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
@@ -539,12 +540,7 @@ const DeviceUserPage = ({
     setShowRefetchSpinner(true);
 
     // Trigger APNS ping independently of the main refetch
-    if (
-      isAppleDevice(host.platform) &&
-      host.mdm.connected_to_fleet &&
-      host.mdm.enrollment_status !== "Off" &&
-      host.mdm.enrollment_status !== "Pending"
-    ) {
+    if (canTriggerAPNSPing(host)) {
       deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
         notify.error("Failed to send APNS ping", { response: error });
       });

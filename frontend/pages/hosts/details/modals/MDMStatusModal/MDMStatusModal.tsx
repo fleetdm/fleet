@@ -17,6 +17,7 @@ import paths from "router/paths";
 import {
   MdmEnrollmentStatus,
   MDM_ENROLLMENT_STATUS_UI_MAP,
+  canTriggerAPNSPing,
 } from "interfaces/mdm";
 import hostAPI, {
   DEPDeviceStatus,
@@ -37,17 +38,21 @@ import { IconNames } from "components/icons";
 import { notify } from "components/ToastNotification";
 import { IUser } from "interfaces/user";
 import permissions from "utilities/permissions";
+import {
+  HostPlatform,
+  isAppleDevice as isAppleDevicePlatform,
+} from "interfaces/platform";
 
 const baseClass = "mdm-status-modal";
 
 interface IMDMStatusModal {
   fleetId: number | null;
   hostId: number;
+  platform: HostPlatform;
   enrollmentStatus: MdmEnrollmentStatus;
   depProfileError?: boolean;
   router: InjectedRouter;
   isPremiumTier?: boolean;
-  isAppleDevice?: boolean;
   lastMDMCheckIn: string | null;
   connectedToFleet?: boolean;
   onSuccessfulCheckIn: () => void;
@@ -162,13 +167,14 @@ const MDMStatusModal = ({
   enrollmentStatus,
   depProfileError = false,
   isPremiumTier = false,
-  isAppleDevice = false,
+  platform,
   lastMDMCheckIn,
   connectedToFleet = false,
   onSuccessfulCheckIn,
   router,
   onExit,
 }: IMDMStatusModal) => {
+  const isAppleDevice = isAppleDevicePlatform(platform);
   const {
     data: depAssignmentData,
     isFetching: isLoadingDepAssignment,
@@ -274,12 +280,13 @@ const MDMStatusModal = ({
     const { value: lastCheckIn } = item;
 
     const canSeeButton =
-      isAppleDevice &&
-      !(["Off", "Pending"] as MdmEnrollmentStatus[]).includes(
-        enrollmentStatus
-      ) &&
-      connectedToFleet &&
-      permissions.isGlobalOrTeamObserverOrAbove(user, fleetId ?? null);
+      canTriggerAPNSPing({
+        platform,
+        mdm: {
+          connected_to_fleet: connectedToFleet,
+          enrollment_status: enrollmentStatus,
+        },
+      }) && permissions.isGlobalOrTeamObserverOrAbove(user, fleetId ?? null);
 
     return (
       <>
