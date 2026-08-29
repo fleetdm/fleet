@@ -6908,7 +6908,6 @@ Deletes the label specified by ID.
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update host name template](#update-host-name-template)
 - [Resend host name template](#resend-host-name-template)
-- [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
@@ -10365,6 +10364,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
+| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
@@ -10596,6 +10596,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |

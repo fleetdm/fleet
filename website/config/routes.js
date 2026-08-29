@@ -221,6 +221,38 @@ module.exports.routes = {
     }
   },// handles /announcements/foo
 
+  'GET /newsletters': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /newsletters/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /newsletters/foo
+
+  'GET /industry-news': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /industry-news/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /industry-news/foo
+
   'GET /podcasts': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -650,6 +682,10 @@ module.exports.routes = {
       pageTitleForMeta: 'Capex savings',
       pageDescriptionForMeta: 'Fleet collects real performance data from every device, so you can see which computers need replacing, which ones don\'t, and safely defer refresh cycles.',
     }
+  },
+
+  'GET /configuration-generator': {
+    action: 'view-configuration-generator'
   },
 
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
@@ -1316,6 +1352,7 @@ module.exports.routes = {
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
+  'GET /learn-more-about/android-zero-touch-portal': 'https://enterprise.google.com/android/zero-touch/customers',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',

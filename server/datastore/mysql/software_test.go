@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"maps"
 	"math/rand"
+	"reflect"
 	std_slices "slices"
 	"sort"
 	"strconv"
@@ -112,6 +113,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned", testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned},
 		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
+		{"TestListHostSoftwareSearchByBundleAndDisplayName", testListHostSoftwareSearchByBundleAndDisplayName},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
 		{"TestListHostSoftwareLastOpenedAt", testListHostSoftwareLastOpenedAt},
@@ -557,6 +559,74 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 		case "foo":
 			assert.Len(t, software.Vulnerabilities, 0)
 		}
+	}
+}
+
+// TestCanUseOptimizedListQueryOrderKeys pins which requests take the covering-index
+// path, including the spacing the ordering helper tolerates.
+func TestCanUseOptimizedListQueryOrderKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		orderKey       string
+		withHostCounts bool
+		want           bool
+	}{
+		{"", false, true},                 // default ordering, unchanged
+		{"  ", false, true},               // trims to empty, so still the default
+		{"hosts_count", true, true},       // counts requested and returned
+		{" hosts_count ", true, true},     // same request, just spaced
+		{"hosts_count", false, false},     // counts not returned, so not sortable
+		{" hosts_count ", false, false},   // spacing must not get around that
+		{"name", true, false},             // not the covering index column
+		{"hosts_count,name", true, false}, // multi-column defeats the index
+		{" hosts_count , name ", true, false},
+	} {
+		name := fmt.Sprintf("%q/counts=%v", tc.orderKey, tc.withHostCounts)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := canUseOptimizedListQuery(fleet.SoftwareListOptions{
+				ListOptions:    fleet.ListOptions{OrderKey: tc.orderKey},
+				WithHostCounts: tc.withHostCounts,
+			})
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestAppendOrderByToSelectRequiresAllowlist(t *testing.T) {
+	t.Parallel()
+
+	_, err := appendOrderByToSelect(dialect.From("software"), fleet.ListOptions{OrderKey: "name"}, nil)
+	require.Error(t, err, "a missing allowlist must reject every order key")
+}
+
+// TestSoftwareOrderKeysCoverListedColumns fails when a column is added to the
+// software list without deciding whether it is sortable, so the decision is
+// made deliberately rather than by omission.
+func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
+	// Returned by the list, but not selected by its query, so not sortable.
+	notSelected := map[string]struct{}{
+		"last_opened_at": {},
+	}
+
+	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
+	typ := reflect.TypeFor[fleet.Software]()
+	for field := range typ.Fields() {
+		column := field.Tag.Get("db")
+		if column == "" {
+			continue
+		}
+		_, allowed := sortable[column]
+		_, skipped := notSelected[column]
+
+		if field.Tag.Get("json") == "-" {
+			assert.False(t, allowed, "%s is not returned by the list, so sorting on it would expose it", column)
+			continue
+		}
+		assert.True(t, allowed || skipped,
+			"%s is returned by the list: add it to softwareAllowedOrderKeys, or to notSelected here if the query doesn't select it",
+			column)
 	}
 }
 
@@ -1036,8 +1106,71 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			}
 
 			_, _, err := ds.ListSoftware(context.Background(), opts)
-			require.Error(t, err, "SQL injection payload should result in column error: %s", payload)
-			require.Contains(t, err.Error(), "Unknown column", "Expected column error for payload: %s", payload)
+			require.Error(t, err, "SQL injection payload should be rejected: %s", payload)
+			// Rejected before reaching the query.
+			require.Contains(t, err.Error(), "invalid order_key", "Expected order key rejection for payload: %s", payload)
+		}
+	})
+
+	t.Run("order key must be a supported sort key", func(t *testing.T) {
+		// Real columns the response doesn't return: sortable only if unguarded.
+		for _, key := range []string{"s.id", "s.title_id", "s.application_id", "vendor_old", "checksum"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "order key %q should be rejected", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Supported keys, including a multi-column key, keep working.
+		// hosts_count alone goes to the separate query, so pair it with a second
+		// key to stay on this path.
+		for _, key := range []string{"name", "generated_cpe", "cvss_score", "name,version", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: key},
+				IncludeCVEScores: true,
+				WithHostCounts:   true,
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
+		}
+
+		// CVE columns are only selected when scores are included.
+		for _, key := range []string{"cvss_score", "cve_published", "epss_probability", "cisa_known_exploit"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "order key %q should be rejected without CVE scores", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Same for hosts_count, again paired to stay on this path.
+		for _, key := range []string{"hosts_count", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "%q should be rejected without host counts", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Not naming an order key still uses the default ordering.
+		_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{})
+		require.NoError(t, err)
+
+		// Whitespace and empty segments around a key are tolerated.
+
+		for _, key := range []string{" name , version ", "name,", ",name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
+		}
+
+		// ...and keys that don't depend on them work either way.
+		for _, key := range []string{"name", "generated_cpe"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
 		}
 	})
 
@@ -9224,6 +9357,79 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
 }
 
+func testListHostSoftwareSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "search-team"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "search-host", "", "search-hostkey", "search-hostuuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	// name / bundle_identifier / display_name share no substrings so each search targets one column.
+	software := []fleet.Software{
+		{Name: "acme-secure-client", Version: "1.0", Source: "apps", BundleIdentifier: "com.zeta.vpn.service"},
+		{Name: "other-app", Version: "1.0", Source: "apps", BundleIdentifier: "com.other.app"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Look up the title id for the target software so we can attach a custom display name.
+	// Filter by bundle_identifier: it's unique in this fixture, so we don't rely on name
+	// matching or LIMIT ordering, which would silently drift if a future edit added another
+	// row with the same name but a different title_id.
+	var targetTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &targetTitleID,
+			`SELECT id FROM software_titles WHERE bundle_identifier = ?`, "com.zeta.vpn.service")
+	})
+	require.NotZero(t, targetTitleID)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &tm.ID, targetTitleID, "Cisco Secure Client")
+	})
+
+	search := func(q string) []*fleet.HostSoftwareWithInstaller {
+		out, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:               10,
+				IncludeMetadata:       true,
+				OrderKey:              "name",
+				TestSecondaryOrderKey: "source",
+				MatchQuery:            q,
+			},
+		})
+		require.NoError(t, err)
+		return out
+	}
+
+	// Sanity check that inventory is present without a search filter.
+	all := search("")
+	require.Len(t, all, 2)
+
+	// Match by name.
+	got := search("acme")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// Match by bundle_identifier substring absent from name and display_name.
+	got = search("zeta")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// Match by custom display_name substring absent from name and bundle_identifier.
+	got = search("Cisco")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// No false positives.
+	got = search("nomatch-xyz")
+	require.Empty(t, got)
+}
+
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -13914,7 +14120,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-removal-team"})
 	require.NoError(t, err)
 
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:   `echo 'foo'`,
 			StorageID:       "batch-pending-storage",
@@ -13971,7 +14177,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 		return err
 	})
 
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
 
 	var batchPendingRow struct {

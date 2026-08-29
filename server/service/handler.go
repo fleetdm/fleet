@@ -800,6 +800,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.DELETE("/api/_version_/fleet/assets/{asset_uuid}", deleteAppleDDMAssetEndpoint, deleteAppleDDMAssetRequest{})
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/assets/batch", batchSetAppleDDMAssetsEndpoint, batchSetAppleDDMAssetsRequest{})
 
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/apns_ping", apnsPingRequestEndpoint, sendAPNSPingRequest{})
+
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
@@ -1021,6 +1023,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
+	demdm.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
 
 	// host-authenticated endpoints
 	//

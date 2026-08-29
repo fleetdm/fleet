@@ -6,16 +6,20 @@ import {
   SOFTWARE_NAME_TO_ICON_MAP,
   SOFTWARE_SOURCE_TO_ICON_MAP,
 } from ".";
+import MatchedIcon from "./MatchedIcon";
 
 // Extend the props type to include the new selection prop because name and source are mutually exclusive
 type IconWrapperProps = Pick<ISoftware, "name" | "source"> & {
   selection?: string;
 };
 
-const IconWrapper: React.FC<IconWrapperProps> = ({ ...props }) => {
-  const Icon = getMatchedSoftwareIcon(props);
-  return <Icon />;
-};
+const IconWrapper: React.FC<IconWrapperProps> = ({ ...props }) => (
+  <MatchedIcon
+    icon={getMatchedSoftwareIcon(props)}
+    size="medium"
+    className="software-icon software-icon__medium"
+  />
+);
 
 const meta: Meta<typeof IconWrapper> = {
   title: "Components/Icon/SoftwareIcon",

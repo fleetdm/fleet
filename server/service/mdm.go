@@ -4137,13 +4137,14 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	// settings on. No activity is recorded: the settings themselves didn't
 	// change, the profile is (re)created as a side effect of turning on Apple
 	// MDM.
+	//
+	// Re-enabling Apple MDM mints a new CA, and a key escrowed against the old
+	// one can no longer be decrypted, so the profile is rebuilt from the current
+	// certificate. That changes its bytes, which is what makes the reconciler
+	// re-push it to every Mac.
 	if appCfg.MDM.MacOSSettings.EnableDiskEncryption.Value || appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
-		// Delete the file vault profile first, to ensure we get updated keys.
-		if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "delete no-team FileVault profile")
-		}
-		if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "enable no-team FileVault escrow")
+		if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team FileVault profile")
 		}
 	}
 	// Enable FileVault escrow for teams that already have disk encryption enforced
@@ -4158,12 +4159,8 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
 		}
 		if diskEncryptionConfig.MacOSEnabled || diskEncryptionConfig.MacOSEscrowEnabled {
-			// Delete the file vault profile first, to ensure we get updated keys.
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "delete team FileVault profile")
-			}
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable FileVault escrow for team")
+			if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "reconcile FileVault profile for team")
 			}
 		}
 	}

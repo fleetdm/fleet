@@ -297,13 +297,13 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}
 	winStoredName := ""
-	if ac.MDM.WindowsEnrollment.Set && ac.MDM.WindowsEnrollment.Valid {
-		winStoredName = ac.MDM.WindowsEnrollment.Value.DefaultFleet
+	if ac.MDM.WindowsAutomaticEnrollment.Set && ac.MDM.WindowsAutomaticEnrollment.Valid {
+		winStoredName = ac.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet
 	}
 	if winDefaultTeamID != nil || winStoredName != winDefaultFleetName {
-		ac.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+		ac.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
 			Set: true, Valid: true,
-			Value: fleet.WindowsEnrollment{DefaultFleet: winDefaultFleetName},
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: winDefaultFleetName},
 		}
 	}
 
@@ -967,15 +967,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
-	// windows_settings.managed_local_account_settings.enabled: like EnableDiskEncryption above, an explicit JSON null
+	// windows_settings.enable_managed_local_account: like EnableDiskEncryption above, an explicit JSON null
 	// means "not provided": keep the old value rather than persisting an invalid optjson state.
-	if !oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	if !oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
 	}
-	if newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+	if newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	} else {
-		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -1118,13 +1118,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
 	if windowsEnrollmentDefined {
-		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+		appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
 			Set: true, Valid: true,
-			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: windowsEnrollmentFleetName},
 		}
-	} else if appConfig.MDM.WindowsEnrollment.Set && !appConfig.MDM.WindowsEnrollment.Valid {
-		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore the stored value.
-		appConfig.MDM.WindowsEnrollment = oldAppConfig.MDM.WindowsEnrollment
+	} else if appConfig.MDM.WindowsAutomaticEnrollment.Set && !appConfig.MDM.WindowsAutomaticEnrollment.Valid {
+		// A null windows_automatic_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore
+		// the stored value.
+		appConfig.MDM.WindowsAutomaticEnrollment = oldAppConfig.MDM.WindowsAutomaticEnrollment
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -1658,19 +1659,10 @@ func (svc *Service) processSavedAppConfigChanges(
 	linuxDiskEncryptionChanged := oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 
 	if macOSDiskEncryptionChanged && oldAppConfig.MDM.EnabledAndConfigured {
-		// The FileVault profile can cover both enforcement and key escrow, so
-		// only the off<->on transition of the pair creates or deletes it.
-		macOSDiskEncryptionOn := appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value || appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		macOSDiskEncryptionWasOn := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value || oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
-		switch {
-		case macOSDiskEncryptionOn && !macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-				return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
-			}
-		case !macOSDiskEncryptionOn && macOSDiskEncryptionWasOn:
-			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
-			}
+		// The profile's payloads follow both macOS settings, so a change to either
+		// one is reconciled — not just the off<->on transition of the pair.
+		if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team filevault profile")
 		}
 	}
 
@@ -1744,9 +1736,9 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+	if oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value != appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
 		var act fleet.ActivityDetails
-		if appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+		if appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
 			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
 		} else {
 			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
@@ -2168,9 +2160,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
-	if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
-		mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !lic.IsPremium() {
-		invalid.Append("windows_settings.managed_local_account_settings.enabled", ErrMissingLicense.Error())
+	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
+		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
+		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
@@ -2243,10 +2235,10 @@ func (svc *Service) validateMDM(
 				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 
-		if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
-			!oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
-			invalid.Append("windows_settings.managed_local_account_settings.enabled",
-				"Couldn’t enable windows_settings.managed_local_account_settings. "+fleet.WindowsMDMNotTurnedOnMessage)
+		if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
+			!oldMdm.WindowsSettings.EnableManagedLocalAccount.Value {
+			invalid.Append("windows_settings.enable_managed_local_account",
+				"Couldn’t enable windows_settings.enable_managed_local_account. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
@@ -2500,7 +2492,7 @@ func (svc *Service) validateMDM(
 	return nil
 }
 
-// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload and resolves its default
+// validateWindowsEnrollment validates the mdm.windows_automatic_enrollment section of a config modify payload and resolves its default
 // fleet name to a team id. Returns defined=false when the section was omitted (no-op). When defined, teamID is the resolved team
 // id (nil to clear) and fleetName is the canonical team name (empty when clearing).
 func (svc *Service) validateWindowsEnrollment(
@@ -2509,13 +2501,13 @@ func (svc *Service) validateWindowsEnrollment(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (defined bool, teamID *uint, fleetName string, err error) {
-	if !newMDM.WindowsEnrollment.Set || !newMDM.WindowsEnrollment.Valid {
+	if !newMDM.WindowsAutomaticEnrollment.Set || !newMDM.WindowsAutomaticEnrollment.Valid {
 		// Omitted key or explicit null: keep the persisted setting (same convention as
 		// enable_disk_encryption). Only an object clears or changes it.
 		return false, nil, "", nil
 	}
 
-	name := newMDM.WindowsEnrollment.Value.DefaultFleet
+	name := newMDM.WindowsAutomaticEnrollment.Value.DefaultFleet
 	if name == "" || fleet.IsUnassignedFleetName(name) {
 		// Explicitly clearing the default; allowed on any tier.
 		return true, nil, "", nil
@@ -2531,14 +2523,14 @@ func (svc *Service) validateWindowsEnrollment(
 		if name == curName {
 			return true, curTeamID, curName, nil
 		}
-		invalid.Append("mdm.windows_enrollment.default_fleet", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_automatic_enrollment.default_fleet", ErrMissingLicense.Error())
 		return true, nil, "", nil
 	}
 
 	tm, err := svc.ds.TeamByName(ctx, name)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			invalid.Append("mdm.windows_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
+			invalid.Append("mdm.windows_automatic_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
 			return true, nil, "", nil
 		}
 		return true, nil, "", ctxerr.Wrap(ctx, err, "get team by name for windows enrollment default fleet")

@@ -49,6 +49,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
 		{"TestMDMWindowsProfileManagement", testMDMWindowsProfileManagement},
+		{"TestWindowsProfileRetryOnDeviceFailure", testWindowsProfileRetryOnDeviceFailure},
 		{"TestBulkOperationsMDMWindowsHostProfiles", testBulkOperationsMDMWindowsHostProfiles},
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch2", testBulkOperationsMDMWindowsHostProfilesBatch2},
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
@@ -7228,6 +7229,21 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
+// readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.
+func readWindowsHostProfile(t *testing.T, ds *Datastore, hostUUID, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
+	t.Helper()
+	var row struct {
+		Status  fleet.MDMDeliveryStatus `db:"status"`
+		Detail  string                  `db:"detail"`
+		Retries int                     `db:"retries"`
+	}
+	require.NoError(t, sqlx.GetContext(context.Background(), ds.reader(context.Background()), &row,
+		`SELECT COALESCE(status, '') AS status, COALESCE(detail, '') AS detail, retries
+		 FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+		hostUUID, profileUUID))
+	return row.Status, row.Detail, row.Retries
+}
+
 // readWindowsProfilesStatusRollup returns every host_mdm_windows_profiles_status row keyed by host
 // UUID, read directly from the table (no reconcile).
 func readWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) map[string]string {
@@ -8580,4 +8596,61 @@ func testDeleteMDMWindowsConfigProfileWithPolicyAutomation(t *testing.T, ds *Dat
 	require.NoError(t, batchSet(nil))
 	_, err = ds.GetMDMWindowsConfigProfile(ctx, profB.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+// testWindowsProfileRetryOnDeviceFailure covers the device-reported failure path. An install profile the host rejects
+// goes back to "pending" (NULL status) and consumes one retry per attempt; only once the budget is gone does the
+// failure become terminal and surface the device's error.
+func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "wretry", "10.0.0.42", "wretry-key", "wretry-uuid", time.Now())
+
+	const (
+		profileUUID = "w-retry-prof"
+		commandUUID = "cmd-retry"
+		deviceError = "./Device/Vendor/MSFT/Policy/Config/L1: status 400"
+	)
+
+	pending := fleet.MDMDeliveryPending
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+		ProfileUUID:   profileUUID,
+		ProfileName:   "retry-profile",
+		HostUUID:      host.UUID,
+		CommandUUID:   commandUUID,
+		OperationType: fleet.MDMOperationTypeInstall,
+		Status:        &pending,
+		Checksum:      []byte{1},
+	}}))
+
+	reportFailure := func(t *testing.T) {
+		t.Helper()
+		failed := fleet.MDMDeliveryFailed
+		require.NoError(t, updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
+			[]*fleet.MDMWindowsProfilePayload{{
+				HostUUID:    host.UUID,
+				CommandUUID: commandUUID,
+				Status:      &failed,
+				Detail:      deviceError,
+			}},
+			fleet.WindowsUserContextPresent, true))
+	}
+
+	for attempt := 1; attempt <= mdm.MaxWindowsProfileRetries; attempt++ {
+		reportFailure(t)
+		status, detail, retries := readWindowsHostProfile(t, ds, host.UUID, profileUUID)
+		require.Empty(t, status, "attempt %d must leave the profile queued for another try", attempt)
+		require.Empty(t, detail, "attempt %d must not leave the failed attempt's error on a pending profile", attempt)
+		require.Equal(t, attempt, retries)
+	}
+
+	// Budget exhausted: the next device failure is terminal and the device's error is surfaced to the admin.
+	reportFailure(t)
+	status, detail, retries := readWindowsHostProfile(t, ds, host.UUID, profileUUID)
+	require.Equal(t, fleet.MDMDeliveryFailed, status)
+	require.Equal(t, deviceError, detail)
+	require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+
+	// Terminal failures must reach the rollup that GetMDMWindowsProfilesSummary reads.
+	require.Equal(t, string(fleet.MDMDeliveryFailed), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
 }
