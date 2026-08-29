@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260826205421, Down_20260826205421)
+	MigrationClient.AddMigration(Up_20260829141931, Down_20260829141931)
 }
 
-func Up_20260826205421(tx *sql.Tx) error {
+func Up_20260829141931(tx *sql.Tx) error {
 	// bitlocker_protection_error holds the reason the agent could not restore BitLocker protection, and
 	// bitlocker_protection_outcome separates a repair it deliberately deferred, which resolves itself, from one that
 	// failed. Together they let the host's disk encryption detail state what happened and name what has to happen next.
@@ -23,6 +23,6 @@ func Up_20260826205421(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260826205421(tx *sql.Tx) error {
+func Down_20260829141931(tx *sql.Tx) error {
 	return nil
 }
