@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.talon-sec.Work';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.talon-sec.Work' AND version_compare(bundle_short_version, '151.26.6.174') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.talon-sec.Work');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.talon-sec.Work' AND a.bundle_executable != '');"
       },
       "installer_url": "https://updates.talon-sec.com/releases/Prisma%20Access%20Browser/mac/packaged/universal/Prisma%20Access%20Browser-151.26.6.174-fb288ec4.pkg",
       "install_script_ref": "827875fd",

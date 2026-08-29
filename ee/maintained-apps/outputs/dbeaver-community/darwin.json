@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product' AND version_compare(bundle_short_version, '26.1.5') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.jkiss.dbeaver.core.product');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.jkiss.dbeaver.core.product' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dbeaver.io/files/26.1.5/dbeaver-ce-26.1.5-macos-aarch64.dmg",
       "install_script_ref": "277d4c1a",

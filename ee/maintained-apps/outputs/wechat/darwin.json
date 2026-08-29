@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_short_version, '4.1.13.11') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.tencent.xinWeChat');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.tencent.xinWeChat' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dldir1.qq.com/weixin/Universal/Mac/xWeChatMac_universal_4.1.13.11_269579.dmg",
       "install_script_ref": "f191200e",
