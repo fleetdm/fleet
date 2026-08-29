@@ -2661,8 +2661,10 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.Equal(t, "A Different Name", stored.Name)
 	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleProf.ProfileUUID))
 
-	// a rename must also refresh the denormalized name on the per-host rows,
-	// which a content-only edit gets for free from the reinstall upsert.
+	// A rename does NOT write the per-host rows: reads resolve the name from the
+	// live profile, so the denormalized copy is allowed to go stale while the
+	// profile exists. Renaming with identical content enqueues nothing, so if the
+	// rename wrote those rows this host would be touched.
 	hostUUID := uuid.NewString()
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
@@ -2683,7 +2685,67 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 			`SELECT profile_name FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
 			hostUUID, initial.ProfileUUID)
 	})
-	require.Equal(t, "Renamed Again", hostProfileName)
+	require.Equal(t, "A Different Name", hostProfileName, "the rename must not write per-host rows")
+
+	// but the host's profile list still reports the current name, resolved from the
+	// live profile row rather than the stale copy above
+	hostProfs, err := ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, 1)
+	require.Equal(t, "Renamed Again", hostProfs[0].Name)
+
+	// once the profile is deleted the live name is gone, so the copy has to have been
+	// snapshotted on the way out or the host would show the pre-rename name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET operation_type = ?, status = NULL WHERE profile_uuid = ?`,
+			fleet.MDMOperationTypeRemove, initial.ProfileUUID)
+		return err
+	})
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, initial.ProfileUUID))
+	hostProfs, err = ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, 1)
+	require.Equal(t, "Renamed Again", hostProfs[0].Name, "deleted profile must keep its post-rename name")
+
+	// recreate so the assertions below keep reading as before
+	initial, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Renamed Again",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// A rename that only changes case must still be snapshotted on delete. The
+	// name column is utf8mb4_unicode_ci, so the snapshot's "has it drifted" check
+	// has to compare as BINARY or MySQL calls these two names equal and skips it.
+	caseHostUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, command_uuid, checksum)
+			 VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`,
+			caseHostUUID, initial.ProfileUUID, "Renamed Again", uuid.NewString(), newSyncML)
+		return err
+	})
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "RENAMED AGAIN",
+		SyncML:      newSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, initial.ProfileUUID))
+	var caseStoredName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &caseStoredName,
+			`SELECT profile_name FROM host_mdm_windows_profiles WHERE host_uuid = ?`, caseHostUUID)
+	})
+	require.Equal(t, "RENAMED AGAIN", caseStoredName, "a case-only rename must still be snapshotted")
+
+	// recreate again for the remaining assertions
+	initial, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Renamed Again",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
 
 	// put the name back so the assertions below keep reading as before
 	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
