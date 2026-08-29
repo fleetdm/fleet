@@ -15,7 +15,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -764,13 +763,39 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	})
 }
 
+// optionalOf mirrors the shape the optjson types use: whether the key was
+// present is tracked separately from the value, so an explicit null leaves the
+// field non-zero. This package may not depend on that one, which
+// TestEndpointerPackageDependencies enforces, so the shape is restated here.
+type optionalOf[T any] struct {
+	Set   bool
+	Valid bool
+	Value T
+}
+
+func (o optionalOf[T]) HasValue() bool { return o.Set && o.Valid }
+
+func (o *optionalOf[T]) UnmarshalJSON(data []byte) error {
+	o.Set, o.Valid = true, false
+	if bytes.Equal(data, []byte("null")) {
+		var zero T
+		o.Value = zero
+		return nil
+	}
+	if err := json.Unmarshal(data, &o.Value); err != nil {
+		return err
+	}
+	o.Valid = true
+	return nil
+}
+
 type premiumGatedNullableRequest struct {
-	SoftwareTitleID optjson.Any[uint]     `json:"software_title_id" premium:"true"`
-	ProfileUUID     optjson.String        `json:"profile_uuid" premium:"true"`
-	Enabled         optjson.Bool          `json:"enabled" premium:"true"`
-	Count           optjson.Int           `json:"count" premium:"true"`
-	Names           optjson.Slice[string] `json:"names" premium:"true"`
-	Free            string                `json:"free"`
+	SoftwareTitleID optionalOf[uint]     `json:"software_title_id" premium:"true"`
+	ProfileUUID     optionalOf[string]   `json:"profile_uuid" premium:"true"`
+	Enabled         optionalOf[bool]     `json:"enabled" premium:"true"`
+	Count           optionalOf[int]      `json:"count" premium:"true"`
+	Names           optionalOf[[]string] `json:"names" premium:"true"`
+	Free            string               `json:"free"`
 }
 
 func TestMakeDecoderPremiumAllowsExplicitNull(t *testing.T) {
