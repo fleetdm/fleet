@@ -795,8 +795,8 @@ func TestMakeDecoderPremiumAllowsExplicitNull(t *testing.T) {
 		} {
 			// Having these unset is the only state a free instance can be in, so
 			// asking for them to be unset is not asking for a premium feature.
-			// These types keep null as set-but-not-valid, which made them look
-			// like supplied values to a plain zero check.
+			// These types stay non-zero once the key is present, which made a
+			// null look like a supplied value to a plain zero check.
 			require.NoError(t, decodeBody(t, body), body)
 		}
 	})
@@ -820,5 +820,13 @@ func TestMakeDecoderPremiumAllowsExplicitNull(t *testing.T) {
 
 	t.Run("an omitted premium field still decodes", func(t *testing.T) {
 		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
+	})
+
+	t.Run("a value that fails to decode is reported as such", func(t *testing.T) {
+		// A rejected value lands in the same state as a null one, so the gate
+		// must not answer for it before the decode error is surfaced.
+		err := decodeBody(t, `{"software_title_id":"nope"}`)
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "requires a premium license")
 	})
 }

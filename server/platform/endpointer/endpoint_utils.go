@@ -106,22 +106,28 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
-// explicitNuller is implemented by the optjson types, which record a JSON null
-// as set-but-not-valid so that callers can tell it apart from an absent key.
-type explicitNuller interface {
-	IsNull() bool
+// optionalValue is implemented by the optjson types, which record whether the
+// payload carried a value separately from the value itself.
+type optionalValue interface {
+	HasValue() bool
 }
 
-// isExplicitNull reports whether a field holds a value the client sent as JSON
-// null. Such a value is no longer the zero value once the key is present, so a
-// zero check alone reads it as if the caller had supplied a value. The premium
-// gate needs the difference: null clears an option rather than setting one.
-func isExplicitNull(v reflect.Value) bool {
+// premiumValueSupplied reports whether a premium-tagged field carries a value
+// the caller actually supplied.
+//
+// A type that models an optional value stays non-zero once its key is present,
+// even when that key was null, so the zero check alone reads an explicit null
+// as a supplied value. Such a type answers for itself; anything else is judged
+// by the zero check on its own.
+func premiumValueSupplied(v reflect.Value) bool {
 	if !v.CanInterface() {
-		return false
+		return true
 	}
-	n, ok := v.Interface().(explicitNuller)
-	return ok && n.IsNull()
+	o, ok := reflect.TypeAssert[optionalValue](v)
+	if !ok {
+		return true
+	}
+	return o.HasValue()
 }
 
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
@@ -779,7 +785,7 @@ func MakeDecoder(
 					if err != nil {
 						return nil, err
 					}
-					if val && !fp.V.IsZero() && !isExplicitNull(fp.V) {
+					if val && !fp.V.IsZero() && premiumValueSupplied(fp.V) {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
 							requestFieldName(fp.Sf),

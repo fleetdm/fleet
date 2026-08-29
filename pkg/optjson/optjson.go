@@ -54,9 +54,10 @@ func (s *String) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// IsNull reports whether the key was present in the payload and set to null,
-// which is distinct from the key being absent.
-func (s String) IsNull() bool { return s.Set && !s.Valid }
+// HasValue reports whether the payload supplied a usable value for this key.
+// It is false when the key was absent, when it was explicitly null, and when
+// its value failed to decode, since none of those leave a value behind.
+func (s String) HasValue() bool { return s.Set && s.Valid }
 
 // Bool represents an optional boolean value.
 type Bool struct {
@@ -97,9 +98,10 @@ func (b *Bool) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// IsNull reports whether the key was present in the payload and set to null,
-// which is distinct from the key being absent.
-func (b Bool) IsNull() bool { return b.Set && !b.Valid }
+// HasValue reports whether the payload supplied a usable value for this key.
+// It is false when the key was absent, when it was explicitly null, and when
+// its value failed to decode, since none of those leave a value behind.
+func (b Bool) HasValue() bool { return b.Set && b.Valid }
 
 // Int represents an optional integer value.
 type Int struct {
@@ -140,9 +142,10 @@ func (i *Int) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// IsNull reports whether the key was present in the payload and set to null,
-// which is distinct from the key being absent.
-func (i Int) IsNull() bool { return i.Set && !i.Valid }
+// HasValue reports whether the payload supplied a usable value for this key.
+// It is false when the key was absent, when it was explicitly null, and when
+// its value failed to decode, since none of those leave a value behind.
+func (i Int) HasValue() bool { return i.Set && i.Valid }
 
 type Slice[T any] struct {
 	Set   bool
@@ -182,9 +185,10 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// IsNull reports whether the key was present in the payload and set to null,
-// which is distinct from the key being absent.
-func (s Slice[T]) IsNull() bool { return s.Set && !s.Valid }
+// HasValue reports whether the payload supplied a usable value for this key.
+// It is false when the key was absent, when it was explicitly null, and when
+// its value failed to decode, since none of those leave a value behind.
+func (s Slice[T]) HasValue() bool { return s.Set && s.Valid }
 
 type Any[T any] struct {
 	Set   bool
@@ -221,6 +225,7 @@ func (s *Any[T]) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// IsNull reports whether the key was present in the payload and set to null,
-// which is distinct from the key being absent.
-func (s Any[T]) IsNull() bool { return s.Set && !s.Valid }
+// HasValue reports whether the payload supplied a usable value for this key.
+// It is false when the key was absent, when it was explicitly null, and when
+// its value failed to decode, since none of those leave a value behind.
+func (s Any[T]) HasValue() bool { return s.Set && s.Valid }
