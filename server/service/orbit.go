@@ -1499,11 +1499,11 @@ func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, out
 		return badRequest("host is not enrolled with fleet MDM")
 	}
 
-	if outcome != fleet.DiskEncryptionProtectionRestored && strings.TrimSpace(clientError) == "" {
+	// clientError is untrusted input from fleetd: normalize it before judging whether it says anything.
+	clientError = str.TruncateRunes(strings.TrimSpace(clientError), bitLockerProtectionErrorMaxLength)
+	if outcome != fleet.DiskEncryptionProtectionRestored && clientError == "" {
 		return fleet.NewInvalidArgumentError("client_error", fmt.Sprintf("cannot be empty when outcome is %q", outcome))
 	}
-	// clientError is untrusted input from fleetd: truncate by rune.
-	clientError = str.TruncateRunes(clientError, bitLockerProtectionErrorMaxLength)
 
 	switch outcome {
 	case fleet.DiskEncryptionProtectionRestored:

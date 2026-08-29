@@ -631,6 +631,26 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		return
 	}
 
+	// Defer while a restart is staged, because enabling protection re-seals the key to the current boot measurements and a staged
+	// update would then change them. A pending restart is the actionable fact even when the protector state cannot be read.
+	restartPending := w.restartPendingFn
+	if restartPending == nil {
+		restartPending = isRestartPending
+	}
+	if pending, err := restartPending(); err != nil {
+		log.Error().Err(err).Msg("cannot determine whether a restart is pending, not restoring protection")
+		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
+			fmt.Sprintf("could not determine whether a restart is pending: %v", err))
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
+		return
+	} else if pending {
+		log.Info().Msg("a restart is pending, deferring BitLocker protection restore until after it")
+		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionDeferred,
+			"a restart is pending on this host; protection will be restored after it completes")
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
+		return
+	}
+
 	// Never enable protection on a volume that cannot unseal at boot, adding a TPM if absent.
 	hasProtector, err := w.execHasTPMProtectorFn(targetVolume)
 	if err != nil {
@@ -651,26 +671,6 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			w.protectionRetryAfter = time.Now().Add(w.Frequency)
 			return
 		}
-	}
-
-	// Defer while a restart is staged, because enabling protection re-seals to the current boot measurements and a pending update
-	// would then change them.
-	restartPending := w.restartPendingFn
-	if restartPending == nil {
-		restartPending = isRestartPending
-	}
-	if pending, err := restartPending(); err != nil {
-		log.Error().Err(err).Msg("cannot determine whether a restart is pending, not restoring protection")
-		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionFailed,
-			fmt.Sprintf("could not determine whether a restart is pending: %v", err))
-		w.protectionRetryAfter = time.Now().Add(w.Frequency)
-		return
-	} else if pending {
-		log.Info().Msg("a restart is pending, deferring BitLocker protection restore until after it")
-		w.reportProtectionOutcome(fleet.DiskEncryptionProtectionDeferred,
-			"a restart is pending on this host; protection will be restored after it completes")
-		w.protectionRetryAfter = time.Now().Add(w.Frequency)
-		return
 	}
 
 	// Finally, enable protection.

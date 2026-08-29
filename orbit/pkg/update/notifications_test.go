@@ -876,6 +876,27 @@ func TestBitlockerOperations(t *testing.T) {
 				reason:         "re-sealing before a staged update applies risks a recovery prompt",
 			},
 			{
+				// A deferral promises the volume was left alone, so the protector must not be added first. Adding one
+				// is not itself unsafe, since the later enable re-seals, but it contradicts the reported outcome.
+				name:           "defers without adding a protector when a restart is pending",
+				status:         suspended,
+				restartPending: true,
+				wantOutcome:    fleet.DiskEncryptionProtectionDeferred,
+				wantBackoff:    true,
+				reason:         "a staged restart must stop the repair before the volume is modified",
+			},
+			{
+				// The pending restart is the actionable fact, so it is reported even when the protector state cannot be
+				// read. The earlier ordering surfaced the query failure and lost the deferral.
+				name:            "prefers the deferral over a protector query failure",
+				status:          suspended,
+				hasProtectorErr: errors.New("WMI query failed"),
+				restartPending:  true,
+				wantOutcome:     fleet.DiskEncryptionProtectionDeferred,
+				wantBackoff:     true,
+				reason:          "a staged restart stops the repair before the protector is queried",
+			},
+			{
 				name:            "reports and backs off when the restart check fails",
 				status:          suspended,
 				hasProtector:    true,

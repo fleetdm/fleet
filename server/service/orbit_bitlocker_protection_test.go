@@ -183,6 +183,24 @@ func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 		}
 	})
 
+	t.Run("whitespace padding never becomes the stored reason", func(t *testing.T) {
+		t.Run("padding alone is rejected", func(t *testing.T) {
+			svc, _, rec := setup()
+
+			require.Error(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed,
+				strings.Repeat(" ", bitLockerProtectionErrorMaxLength+50)))
+			require.False(t, rec.errorSet)
+		})
+
+		t.Run("padding is stripped so the reason survives truncation", func(t *testing.T) {
+			svc, _, rec := setup()
+
+			padded := strings.Repeat(" ", bitLockerProtectionErrorMaxLength+50) + "the TPM is not ready"
+			require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed, padded))
+			require.Equal(t, "the TPM is not ready", rec.storedError)
+		})
+	})
+
 	t.Run("truncates an over-long reason to a whole number of runes", func(t *testing.T) {
 		for _, tc := range []struct {
 			name string
