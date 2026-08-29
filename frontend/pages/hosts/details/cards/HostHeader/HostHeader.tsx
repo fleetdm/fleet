@@ -15,6 +15,7 @@ import { HostMdmDeviceStatusUIState } from "../../helpers";
 import {
   ANDROID_NO_REFETCH_TOOLTIP_MESSAGE,
   DEVICE_STATUS_TAGS,
+  getLastFetchedTime,
   REFETCH_TOOLTIP_MESSAGES,
 } from "./helpers";
 
@@ -160,6 +161,11 @@ const HostHeader = ({
     );
   };
 
+  const lastFetchedTime = getLastFetchedTime(
+    summaryData.detail_updated_at,
+    summaryData.policy_updated_at
+  );
+
   // `summaryData` is run through `normalizeEmptyValues`, so a host that has
   // never checked in reports "---", while platforms whose API response omits
   // the field altogether leave it undefined.
@@ -178,12 +184,7 @@ const HostHeader = ({
           <>
             <span>
               Last fetched:
-              <b>
-                {" "}
-                {internationalTimeFormat(
-                  new Date(summaryData.detail_updated_at)
-                )}
-              </b>
+              <b> {internationalTimeFormat(new Date(lastFetchedTime))}</b>
             </span>
             <br />
             <span>
@@ -202,13 +203,11 @@ const HostHeader = ({
   };
 
   // eslint-disable-next-line no-nested-ternary
-  const lastFetched = summaryData.detail_updated_at ? (
+  const lastFetched = lastFetchedTime ? (
     hasMdmCheckIn ? (
-      humanLastSeen(summaryData.detail_updated_at)
+      humanLastSeen(lastFetchedTime)
     ) : (
-      <HumanTimeDiffWithFleetLaunchCutoff
-        timeString={summaryData.detail_updated_at}
-      />
+      <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetchedTime} />
     )
   ) : (
     ": unavailable"

@@ -11,7 +11,10 @@ import { useQuery } from "react-query";
 import { timeAgo } from "utilities/date_format";
 import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  POLICY_AUTOMATIONS_GUIDE_LINK,
+} from "utilities/constants";
 
 import {
   IHostSoftware,
@@ -157,7 +160,12 @@ export const StatusMessage = ({
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
             {displayTimeStamp}. The app was open. It will update once the user
-            closes it and policy runs again, or update via self service.
+            closes it and policy runs again, or update via self service.{" "}
+            <CustomLink
+              url={POLICY_AUTOMATIONS_GUIDE_LINK}
+              text="Learn how often policies run"
+              newTab
+            />
           </span>
         }
       />

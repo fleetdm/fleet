@@ -1316,6 +1316,13 @@ func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+// HostOnly hides app-open skips from the global activity feed: a patch-when-closed
+// policy can re-fire this activity on every refetch while the app stays open, and
+// that noise is only useful in the context of the one host it's happening on.
+func (a ActivityTypeInstalledSoftware) HostOnly() bool {
+	return a.SkippedInstall
+}
+
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 	return a.PolicyID != nil || a.FromSetupExperience
 }

@@ -170,6 +170,21 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
   ),
 } as const;
 
+/** Policy checks can run far more often than detail queries (e.g. triggered by a
+ * software install/uninstall, VPP verification, or an MDM check-in), so
+ * policy_updated_at is often the more recent signal that Fleet actually heard
+ * back from the host. Returns undefined if neither timestamp is set. */
+export const getLastFetchedTime = (
+  detailUpdatedAt?: string | null,
+  policyUpdatedAt?: string | null
+): string | undefined => {
+  if (!detailUpdatedAt) return policyUpdatedAt ?? undefined;
+  if (!policyUpdatedAt) return detailUpdatedAt;
+  return new Date(policyUpdatedAt) > new Date(detailUpdatedAt)
+    ? policyUpdatedAt
+    : detailUpdatedAt;
+};
+
 export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
   <>
     There&apos;s no manual <b>Refetch</b> button because Android hosts sync data

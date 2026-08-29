@@ -374,3 +374,26 @@ func TestMDMEnrolledActivityHostIDOmission(t *testing.T) {
 		assert.EqualValues(t, 42, got["host_id"])
 	})
 }
+
+func TestInstalledSoftwareActivityHostOnly(t *testing.T) {
+	t.Run("app-open skip is host-only, hidden from the global feed", func(t *testing.T) {
+		act := ActivityTypeInstalledSoftware{
+			HostID:         1,
+			SoftwareTitle:  "Grammarly Desktop",
+			Status:         "failed_install",
+			SkippedInstall: true,
+		}
+
+		assert.True(t, act.HostOnly())
+	})
+
+	t.Run("a real install/failure is not host-only, still shows in the global feed", func(t *testing.T) {
+		act := ActivityTypeInstalledSoftware{
+			HostID:        1,
+			SoftwareTitle: "Grammarly Desktop",
+			Status:        "installed",
+		}
+
+		assert.False(t, act.HostOnly())
+	})
+}

@@ -71,6 +71,7 @@ export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
+export const POLICY_AUTOMATIONS_GUIDE_LINK = `${LEARN_MORE_ABOUT_BASE_LINK}/policy-automations`;
 export const ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details";
 

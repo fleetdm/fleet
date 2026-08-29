@@ -159,6 +159,12 @@ describe("SoftwareInstallDetailsModal", () => {
       // Grey "!" (error-outline), not the red failure icon.
       expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
       expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /Learn how often policies run/ })
+      ).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/learn-more-about/policy-automations"
+      );
     });
 
     it("on host details page/install activity, renders installed message with timestamp", () => {
