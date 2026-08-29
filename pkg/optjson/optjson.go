@@ -54,6 +54,10 @@ func (s *String) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// IsNull reports whether the key was present in the payload and set to null,
+// which is distinct from the key being absent.
+func (s String) IsNull() bool { return s.Set && !s.Valid }
+
 // Bool represents an optional boolean value.
 type Bool struct {
 	Set   bool
@@ -92,6 +96,10 @@ func (b *Bool) UnmarshalJSON(data []byte) error {
 	b.Valid = true
 	return nil
 }
+
+// IsNull reports whether the key was present in the payload and set to null,
+// which is distinct from the key being absent.
+func (b Bool) IsNull() bool { return b.Set && !b.Valid }
 
 // Int represents an optional integer value.
 type Int struct {
@@ -132,6 +140,10 @@ func (i *Int) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// IsNull reports whether the key was present in the payload and set to null,
+// which is distinct from the key being absent.
+func (i Int) IsNull() bool { return i.Set && !i.Valid }
+
 type Slice[T any] struct {
 	Set   bool
 	Valid bool
@@ -170,6 +182,10 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// IsNull reports whether the key was present in the payload and set to null,
+// which is distinct from the key being absent.
+func (s Slice[T]) IsNull() bool { return s.Set && !s.Valid }
+
 type Any[T any] struct {
 	Set   bool
 	Valid bool
@@ -204,3 +220,7 @@ func (s *Any[T]) UnmarshalJSON(data []byte) error {
 	s.Valid = true
 	return nil
 }
+
+// IsNull reports whether the key was present in the payload and set to null,
+// which is distinct from the key being absent.
+func (s Any[T]) IsNull() bool { return s.Set && !s.Valid }

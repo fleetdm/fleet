@@ -106,6 +106,24 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
+// explicitNuller is implemented by the optjson types, which record a JSON null
+// as set-but-not-valid so that callers can tell it apart from an absent key.
+type explicitNuller interface {
+	IsNull() bool
+}
+
+// isExplicitNull reports whether a field holds a value the client sent as JSON
+// null. Such a value is no longer the zero value once the key is present, so a
+// zero check alone reads it as if the caller had supplied a value. The premium
+// gate needs the difference: null clears an option rather than setting one.
+func isExplicitNull(v reflect.Value) bool {
+	if !v.CanInterface() {
+		return false
+	}
+	n, ok := v.Interface().(explicitNuller)
+	return ok && n.IsNull()
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -761,7 +779,7 @@ func MakeDecoder(
 					if err != nil {
 						return nil, err
 					}
-					if val && !fp.V.IsZero() {
+					if val && !fp.V.IsZero() && !isExplicitNull(fp.V) {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
 							requestFieldName(fp.Sf),

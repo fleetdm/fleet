@@ -483,3 +483,58 @@ func TestAny(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNull(t *testing.T) {
+	// The zero value is an absent key, which is not the same as a null one.
+	t.Run("absent", func(t *testing.T) {
+		assert.False(t, String{}.IsNull())
+		assert.False(t, Bool{}.IsNull())
+		assert.False(t, Int{}.IsNull())
+		assert.False(t, Slice[string]{}.IsNull())
+		assert.False(t, Any[uint]{}.IsNull())
+	})
+
+	t.Run("null", func(t *testing.T) {
+		var s String
+		require.NoError(t, json.Unmarshal([]byte(`null`), &s))
+		assert.True(t, s.IsNull())
+
+		var b Bool
+		require.NoError(t, json.Unmarshal([]byte(`null`), &b))
+		assert.True(t, b.IsNull())
+
+		var i Int
+		require.NoError(t, json.Unmarshal([]byte(`null`), &i))
+		assert.True(t, i.IsNull())
+
+		var sl Slice[string]
+		require.NoError(t, json.Unmarshal([]byte(`null`), &sl))
+		assert.True(t, sl.IsNull())
+
+		var a Any[uint]
+		require.NoError(t, json.Unmarshal([]byte(`null`), &a))
+		assert.True(t, a.IsNull())
+	})
+
+	t.Run("value", func(t *testing.T) {
+		var s String
+		require.NoError(t, json.Unmarshal([]byte(`"x"`), &s))
+		assert.False(t, s.IsNull())
+
+		var b Bool
+		require.NoError(t, json.Unmarshal([]byte(`false`), &b))
+		assert.False(t, b.IsNull())
+
+		var i Int
+		require.NoError(t, json.Unmarshal([]byte(`0`), &i))
+		assert.False(t, i.IsNull())
+
+		var sl Slice[string]
+		require.NoError(t, json.Unmarshal([]byte(`[]`), &sl))
+		assert.False(t, sl.IsNull())
+
+		var a Any[uint]
+		require.NoError(t, json.Unmarshal([]byte(`0`), &a))
+		assert.False(t, a.IsNull())
+	})
+}

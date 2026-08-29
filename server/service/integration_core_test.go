@@ -18367,3 +18367,32 @@ func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium(
 		}},
 	}, http.StatusOK)
 }
+
+func (s *integrationTestSuite) TestPolicyPremiumFieldsAcceptExplicitNull() {
+	t := s.T()
+	ctx := context.Background()
+
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  t.Name(),
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// Having no automation is the only state a free instance can be in, so asking
+	// for one to be cleared is not asking for a premium option. Clients that PATCH
+	// a whole policy object send these keys as null.
+	for _, body := range []string{
+		`{"software_title_id": null}`,
+		`{"software_installer_id": null}`,
+		`{"script_id": null}`,
+		`{"profile_uuid": null}`,
+		`{"software_title_id": null, "software_installer_id": null, "script_id": null, "profile_uuid": null}`,
+	} {
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", pol.ID), json.RawMessage(body), http.StatusOK)
+	}
+
+	// A supplied value is still gated.
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", pol.ID),
+		json.RawMessage(`{"software_title_id": 1}`), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "option software_title_id requires a premium license")
+}
