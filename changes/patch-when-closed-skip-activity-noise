@@ -1,3 +1,0 @@
-- Host details page now shows the more recent of `detail_updated_at` and `policy_updated_at` as "Last fetched," so it no longer appears older than a policy-driven activity (like a patch-when-closed skip) that just happened.
-- "Fleet skipped install" activities are no longer shown in the global activity feed (they still show on the host's own activity feed), and the activity's copy now links to an explanation of how often policy checks run.
-- Documented that policy checks (and policy automations) can run much more often than the configurable 1-hour schedule, since a manual refetch, calendar event, software install/uninstall completion, VPP verification, or MDM check-in can each trigger an early check.
