@@ -14,7 +14,7 @@ Fleet's GitOps templates don't include a built-in staging/production structure, 
 
 ### Option 1: Two separate repos
 
-[Fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/fork-a-repo) a `fleet-gitops-staging` repo from your `fleet-gitops-production` repo, each with its own secrets, collaborators, and workflow. On GitHub, promote changes by using the "Contribute" button to [open a PR from the fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) against the production repo. To pull production changes back down into staging, [sync the fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork).
+[Fork](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/fork-a-repo) a `fleet-gitops-staging` repo from your `fleet-gitops-production` repo, each with its own secrets, collaborators, and workflow. On GitHub, promote changes by using the "Contribute" button to [open a PR from the fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) against the production repo. If production ever gets out of sync with staging (try to avoid this by always making changes in staging first and promoting them up to production), pull production changes back down into staging by [syncing the fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork).
 
 - Clean secret isolation. There's no shared workflow file that could accidentally reference the wrong environment's secret.
 - The ability to add branches to separate proposed changes and test them one at a time. This is great if you're working on the repo with multiple users, and working on multiple changes at a time that need to be tested individually.
@@ -35,18 +35,6 @@ Use a `staging` branch that deploys to your staging instance and a `main` branch
 If you went with [Option 1](#option-1-two-separate-repos) above, you already get secret isolation for free: each repo has its own set of secrets, so there's no way for a staging run to see the production token. This section is for [Option 2](#option-2-one-repo-two-branches), where staging and production share a repo.
 
 Don't rely on a single set of [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) (**Settings > Secrets and variables > Actions > Repository secrets**) for both branches. A repository secret is available to every workflow run in the repo, regardless of which branch triggered it, so a typo in a branch condition could point a staging run at your production API token. There are two ways to avoid that.
-
-### Repo secrets, chosen by branch
-
-Add separate secrets for each environment, for example `STAGING_FLEET_API_TOKEN` and `PROD_FLEET_API_TOKEN`, and pick between them in your workflow with the [`github.ref` context](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs#github-context), based on which branch triggered the run:
-
-```yaml
-env:
-  FLEET_URL: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FLEET_URL || secrets.STAGING_FLEET_URL }}
-  FLEET_API_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FLEET_API_TOKEN || secrets.STAGING_FLEET_API_TOKEN }}
-```
-
-This works on any GitHub plan, but it depends on that conditional being correct in every job. A typo in the branch check silently points a staging run at the production secret.
 
 ### GitHub environments (recommended)
 
@@ -73,11 +61,23 @@ jobs:
 
 This way, a run triggered from `staging` can only ever see the staging environment's secrets, even if the workflow file has a bug.
 
+### Repo secrets, chosen by branch
+
+Add separate secrets for each environment, for example `STAGING_FLEET_API_TOKEN` and `PROD_FLEET_API_TOKEN`, and pick between them in your workflow with the [`github.ref` context](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/accessing-contextual-information-about-workflow-runs#github-context), based on which branch triggered the run:
+
+```yaml
+env:
+  FLEET_URL: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FLEET_URL || secrets.STAGING_FLEET_URL }}
+  FLEET_API_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FLEET_API_TOKEN || secrets.STAGING_FLEET_API_TOKEN }}
+```
+
+This works on any GitHub plan, but it depends on that conditional being correct in every job. A typo in the branch check silently points a staging run at the production secret.
+
 ## Enable secrets for forked repo pull requests
 
 If you went with [Option 1](#option-1-two-separate-repos) above, your staging repo is a fork of your production repo. GitHub treats a fork's pull requests as coming from an outside contributor by default, even when the fork lives in the same GitHub org. The "Contribute" PR [won't have access](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflows-in-forked-repositories) to your Fleet API token, so any dry-run step in that workflow will fail until you enable one of the options below. This same default also protects you if you have actual external contributors: it stops someone opening a PR that exfiltrates your secrets through a modified workflow file. GitHub covers this attack, and how to defend against it, in [Security hardening for GitHub Actions](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions).
 
-> **Warning:** Only enable this if you understand the risk. Any workflow that has access to your secrets and runs against fork PR code can be used to leak those secrets, since the fork's author controls the workflow's behavior at PR time.
+> **Warning:** Only enable this if you understand the risk. GitHub masks a secret's value if a workflow prints it directly to the log, but that doesn't stop someone who controls the workflow's behavior: a modified workflow step can encode the secret before printing it (defeating the mask) or send it to an external server in a network request, which never touches the log at all. Any workflow that has access to your secrets and runs against fork PR code can do this, since the fork's author controls that workflow at PR time.
 
 If you need fork PR workflows to run against a real Fleet instance (for example, to dry-run GitOps changes before merge), keep in mind that `fleetctl gitops --dry-run` still authenticates to Fleet and validates the change against its current state. It only skips the final apply step, so it still needs a valid API token. There's no secret-free way to run it.
 
