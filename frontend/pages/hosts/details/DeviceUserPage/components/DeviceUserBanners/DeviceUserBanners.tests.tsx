@@ -157,6 +157,32 @@ describe("Device User Banners", () => {
     expect(screen.getByText(createPINExepectedText)).toBeInTheDocument();
   });
 
+  it("asks the end user to restart when the repair is waiting on one", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="windows"
+        diskEncryptionOSSetting={{
+          status: "action_required",
+          detail: "",
+          action_required: "restart",
+        }}
+        diskIsEncrypted
+        diskEncryptionKeyAvailable={false}
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+    expect(screen.getByText(/Restart your device/)).toBeInTheDocument();
+    // A PIN is not what unblocks this, so offering one would send the end user down the wrong path.
+    expect(screen.queryByText(createPINExepectedText)).toBeNull();
+  });
+
   // BitLocker reaches action_required for problems the end user cannot touch: an unready TPM, or policy forbidding a
   // TPM-only protector. Offering "Create PIN" there points them at a fix that cannot work, and the promised Refetch
   // never clears the banner because the cause persists.

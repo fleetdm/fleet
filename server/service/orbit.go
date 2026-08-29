@@ -966,21 +966,11 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 // shouldEnableBitLockerProtection reports whether Fleet should ask the agent to turn BitLocker protection back on.
 // This method requires a host loaded by LoadHostByOrbitNodeKey. A host from a loader that does not select bitlocker
 // columns reports nil, which this reads as "nothing to act on" rather than as an error.
-func shouldEnableBitLockerProtection(host *fleet.Host, diskEncryption fleet.DiskEncryptionConfig) bool {
+func shouldEnableBitLockerProtection(host *fleet.Host) bool {
 	// Only act on a volume that is encrypted and positively reported as unprotected.
 	encrypted := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
-	if !encrypted || host.BitLockerProtectionStatus == nil ||
-		*host.BitLockerProtectionStatus != fleet.BitLockerProtectionStatusOff {
-		return false
-	}
-
-	// Where a startup PIN is required, policy forbids a TPM-only protector, so a host that has no PIN cannot be
-	// repaired by Fleet at all: only the end user can enroll one.
-	if diskEncryption.BitLockerPINRequired && !host.TPMPINSet {
-		return false
-	}
-
-	return true
+	return encrypted && host.BitLockerProtectionStatus != nil &&
+		*host.BitLockerProtectionStatus == fleet.BitLockerProtectionStatusOff
 }
 
 func (svc *Service) setDiskEncryptionNotifications(
@@ -1044,7 +1034,7 @@ func (svc *Service) setDiskEncryptionNotifications(
 
 		// A host already being told to encrypt is not also told to restore protection: the encrypt path owns the volume.
 		if !notifs.EnforceBitLockerEncryption {
-			notifs.EnableBitLockerProtection = shouldEnableBitLockerProtection(host, diskEncryption)
+			notifs.EnableBitLockerProtection = shouldEnableBitLockerProtection(host)
 		}
 	}
 
@@ -1503,14 +1493,14 @@ func (svc *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, out
 	case fleet.DiskEncryptionProtectionRestored:
 		// The agent's report is a claim, not an observation of record: osquery owns bitlocker_protection_status. Clear
 		// the recorded reason and ask the host to refetch, so the status flips on evidence quickly.
-		if err := svc.ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, ""); err != nil {
+		if err := svc.ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, outcome, ""); err != nil {
 			return ctxerr.Wrap(ctx, err, "clearing disk encryption protection error")
 		}
 		if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "requesting refetch after restoring protection")
 		}
 	case fleet.DiskEncryptionProtectionDeferred, fleet.DiskEncryptionProtectionFailed:
-		if err := svc.ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, clientError); err != nil {
+		if err := svc.ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, outcome, clientError); err != nil {
 			return ctxerr.Wrap(ctx, err, "set disk encryption protection error")
 		}
 	default:

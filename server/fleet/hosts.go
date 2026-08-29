@@ -933,6 +933,9 @@ const (
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
 	// ActionRequiredCreatePIN is Windows-only: BitLocker policy requires a startup PIN and the end user has not set one.
 	ActionRequiredCreatePIN ActionRequiredState = "create_pin"
+	// ActionRequiredRestart is Windows-only: BitLocker protection is off and the agent is waiting for a staged restart
+	// before turning it back on.
+	ActionRequiredRestart ActionRequiredState = "restart"
 )
 
 func (s ActionRequiredState) addrOf() *ActionRequiredState {

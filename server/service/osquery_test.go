@@ -1659,6 +1659,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "certificates_windows":                    {},
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
 		hostDetailQueryPrefix + "tpm_pin_set_verify":                      {},
+		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":          {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

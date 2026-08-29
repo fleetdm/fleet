@@ -10746,56 +10746,64 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	// The recorded protection reason is cleared by the same upsert that reports the status, so these cases pin which
 	// reported statuses clear it and which leave it alone.
 	ctx := t.Context()
-	readRow := func(hostID uint) (protectionError *string, updatedAt time.Time) {
+	readRow := func(hostID uint) (protectionError *string, outcome *string, updatedAt time.Time) {
 		var row struct {
-			BitLockerProtectionError *string   `db:"bitlocker_protection_error"`
-			UpdatedAt                time.Time `db:"updated_at"`
+			BitLockerProtectionError   *string   `db:"bitlocker_protection_error"`
+			BitLockerProtectionOutcome *string   `db:"bitlocker_protection_outcome"`
+			UpdatedAt                  time.Time `db:"updated_at"`
 		}
 		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &row,
-			`SELECT bitlocker_protection_error, updated_at FROM host_disks WHERE host_id = ?`, hostID))
-		return row.BitLockerProtectionError, row.UpdatedAt
+			`SELECT bitlocker_protection_error, bitlocker_protection_outcome, updated_at FROM host_disks WHERE host_id = ?`,
+			hostID))
+		return row.BitLockerProtectionError, row.BitLockerProtectionOutcome, row.UpdatedAt
 	}
 
 	t.Run("protection reported on clears the recorded reason", func(t *testing.T) {
-		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, "the TPM is not ready"))
-		stored, before := readRow(host.ID)
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+		stored, outcome, before := readRow(host.ID)
 		require.NotNil(t, stored)
+		require.NotNil(t, outcome)
 
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, new(fleet.BitLockerProtectionStatusOn)))
 
-		stored, after := readRow(host.ID)
+		stored, outcome, after := readRow(host.ID)
 		require.Nil(t, stored, "a host reporting protection on has nothing left to explain")
+		require.Nil(t, outcome, "the outcome is cleared with the reason it explains")
 		require.True(t, after.After(before), "updated_at must advance on every report")
 	})
 
 	t.Run("protection reported off keeps the recorded reason", func(t *testing.T) {
-		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, "policy forbids a TPM-only protector"))
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "policy forbids a TPM-only protector"))
 
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, new(fleet.BitLockerProtectionStatusOff)))
 
-		stored, _ := readRow(host.ID)
+		stored, outcome, _ := readRow(host.ID)
 		require.NotNil(t, stored)
 		require.Equal(t, "policy forbids a TPM-only protector", *stored)
+		require.NotNil(t, outcome)
 	})
 
 	t.Run("unknown protection status keeps the recorded reason", func(t *testing.T) {
-		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, "the TPM is not ready"))
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
 
 		// A nil status makes the IF condition NULL rather than false, which must not be read as "clear it".
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, nil))
 
-		stored, _ := readRow(host.ID)
+		stored, outcome, _ := readRow(host.ID)
 		require.NotNil(t, stored)
 		require.Equal(t, "the TPM is not ready", *stored)
+		require.NotNil(t, outcome)
 	})
 
 	t.Run("reporting the volume unencrypted clears the recorded reason", func(t *testing.T) {
-		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionError(ctx, host.ID, "the TPM is not ready"))
-		stored, _ := readRow(host.ID)
+		require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, host.ID, fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
+		stored, outcome, _ := readRow(host.ID)
 		require.NotNil(t, stored)
+		require.NotNil(t, outcome)
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, false, nil))
-		stored, _ = readRow(host.ID)
+		stored, outcome, _ = readRow(host.ID)
 		require.Nil(t, stored)
+		require.Nil(t, outcome)
 	})
 
 	t.Run("insert path works for a host with no disks row", func(t *testing.T) {
@@ -10803,8 +10811,9 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, fresh.ID, true, new(fleet.BitLockerProtectionStatusOn)))
 
-		stored, _ := readRow(fresh.ID)
+		stored, outcome, _ := readRow(fresh.ID)
 		require.Nil(t, stored)
+		require.Nil(t, outcome)
 		got, err := ds.Host(ctx, fresh.ID)
 		require.NoError(t, err)
 		require.True(t, *got.DiskEncryptionEnabled)

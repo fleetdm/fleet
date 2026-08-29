@@ -803,7 +803,8 @@ CREATE TABLE `host_disks` (
   `tpm_pin_set` tinyint(1) DEFAULT '0',
   `gigs_all_disk_space` decimal(10,2) DEFAULT NULL,
   `bitlocker_protection_status` tinyint(1) DEFAULT NULL,
-  `bitlocker_protection_error` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bitlocker_protection_error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bitlocker_protection_outcome` enum('deferred','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`host_id`),
   KEY `idx_host_disks_gigs_disk_space_available` (`gigs_disk_space_available`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

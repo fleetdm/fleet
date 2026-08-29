@@ -902,7 +902,7 @@ type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase6
 
 type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
-type SetOrUpdateHostBitLockerProtectionErrorFunc func(ctx context.Context, hostID uint, protectionError string) error
+type SetOrUpdateHostBitLockerProtectionOutcomeFunc func(ctx context.Context, hostID uint, outcome fleet.DiskEncryptionProtectionOutcome, protectionError string) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -3680,8 +3680,8 @@ type DataStore struct {
 	DeleteLUKSDataFunc        DeleteLUKSDataFunc
 	DeleteLUKSDataFuncInvoked bool
 
-	SetOrUpdateHostBitLockerProtectionErrorFunc        SetOrUpdateHostBitLockerProtectionErrorFunc
-	SetOrUpdateHostBitLockerProtectionErrorFuncInvoked bool
+	SetOrUpdateHostBitLockerProtectionOutcomeFunc        SetOrUpdateHostBitLockerProtectionOutcomeFunc
+	SetOrUpdateHostBitLockerProtectionOutcomeFuncInvoked bool
 
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
@@ -8946,11 +8946,11 @@ func (s *DataStore) DeleteLUKSData(ctx context.Context, hostID uint, keySlot uin
 	return s.DeleteLUKSDataFunc(ctx, hostID, keySlot)
 }
 
-func (s *DataStore) SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error {
+func (s *DataStore) SetOrUpdateHostBitLockerProtectionOutcome(ctx context.Context, hostID uint, outcome fleet.DiskEncryptionProtectionOutcome, protectionError string) error {
 	s.mu.Lock()
-	s.SetOrUpdateHostBitLockerProtectionErrorFuncInvoked = true
+	s.SetOrUpdateHostBitLockerProtectionOutcomeFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostBitLockerProtectionErrorFunc(ctx, hostID, protectionError)
+	return s.SetOrUpdateHostBitLockerProtectionOutcomeFunc(ctx, hostID, outcome, protectionError)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {

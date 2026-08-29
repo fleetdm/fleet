@@ -23,7 +23,6 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 		encrypted    *bool
 		protection   *int
 		tpmPINSet    bool
-		pinRequired  bool
 		wantNotified bool
 	}{
 		{
@@ -49,20 +48,17 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			protection: nil,
 		},
 		{
-			// Policy forbids a TPM-only protector, and only the end user can enrol a PIN, so Fleet cannot repair this
-			// host. It stays "Action required" rather than the agent failing on every config poll.
-			name:        "PIN required but not set cannot be repaired by Fleet",
-			encrypted:   new(true),
-			protection:  &protectionOff,
-			tpmPINSet:   false,
-			pinRequired: true,
+			name:         "a missing startup PIN allows repair",
+			encrypted:    new(true),
+			protection:   &protectionOff,
+			tpmPINSet:    false,
+			wantNotified: true,
 		},
 		{
-			name:         "PIN required and set can be repaired",
+			name:         "a host that already has a PIN is repaired the same way",
 			encrypted:    new(true),
 			protection:   &protectionOff,
 			tpmPINSet:    true,
-			pinRequired:  true,
 			wantNotified: true,
 		},
 		{
@@ -77,10 +73,7 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 				BitLockerProtectionStatus: tc.protection,
 				TPMPINSet:                 tc.tpmPINSet,
 			}
-			// Only BitLockerPINRequired is read here; the platform gate lives in the caller.
-			diskEncryption := fleet.DiskEncryptionConfig{BitLockerPINRequired: tc.pinRequired}
-
-			require.Equal(t, tc.wantNotified, shouldEnableBitLockerProtection(host, diskEncryption))
+			require.Equal(t, tc.wantNotified, shouldEnableBitLockerProtection(host))
 		})
 	}
 }
@@ -88,9 +81,10 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 	// recorder captures what reached the datastore, so each case asserts on values rather than only on invocation.
 	type recorder struct {
-		storedError  string
-		errorSet     bool
-		refetchValue *bool
+		storedError   string
+		storedOutcome fleet.DiskEncryptionProtectionOutcome
+		errorSet      bool
+		refetchValue  *bool
 	}
 	setup := func() (*Service, *mock.Store, *recorder) {
 		ds := new(mock.Store)
@@ -99,8 +93,10 @@ func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 		svc := &Service{ds: ds, authz: svcAuthz}
 		rec := &recorder{}
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) { return true, nil }
-		ds.SetOrUpdateHostBitLockerProtectionErrorFunc = func(_ context.Context, _ uint, e string) error {
-			rec.errorSet, rec.storedError = true, e
+		ds.SetOrUpdateHostBitLockerProtectionOutcomeFunc = func(
+			_ context.Context, _ uint, o fleet.DiskEncryptionProtectionOutcome, e string,
+		) error {
+			rec.errorSet, rec.storedError, rec.storedOutcome = true, e, o
 			return nil
 		}
 		ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, value bool) error {
@@ -129,7 +125,18 @@ func TestSetOrUpdateDiskEncryptionProtection(t *testing.T) {
 
 		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionFailed, "the TPM is not ready"))
 		require.Equal(t, "the TPM is not ready", rec.storedError)
+		require.Equal(t, fleet.DiskEncryptionProtectionFailed, rec.storedOutcome)
 		require.Nil(t, rec.refetchValue, "a host that was not repaired has nothing new to observe")
+	})
+
+	t.Run("a deferred repair is recorded as deferred, not failed", func(t *testing.T) {
+		svc, _, rec := setup()
+
+		require.NoError(t, svc.SetOrUpdateDiskEncryptionProtection(ctx(), fleet.DiskEncryptionProtectionDeferred,
+			"a restart is pending on this host"))
+		require.Equal(t, fleet.DiskEncryptionProtectionDeferred, rec.storedOutcome)
+		require.Equal(t, "a restart is pending on this host", rec.storedError)
+		require.Nil(t, rec.refetchValue, "nothing has changed on the host yet")
 	})
 
 	t.Run("never writes the disk encryption key", func(t *testing.T) {

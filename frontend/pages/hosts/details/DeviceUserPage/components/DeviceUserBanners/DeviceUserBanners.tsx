@@ -167,6 +167,21 @@ const DeviceUserBanners = ({
       }
     }
 
+    // Fleet is holding the repair until the host restarts, so the restart is the only thing that moves it along.
+    if (
+      hostPlatform === "windows" &&
+      diskEncryptionOSSetting?.status === "action_required" &&
+      diskEncryptionOSSetting?.action_required === "restart"
+    ) {
+      return (
+        <InfoBanner color="yellow">
+          Disk encryption: Restart your device to finish protecting your data.
+          Your organization will turn disk encryption protection back on after
+          the restart.
+        </InfoBanner>
+      );
+    }
+
     // Gate on action_required naming the PIN.
     if (
       hostPlatform === "windows" &&

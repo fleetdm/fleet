@@ -5088,23 +5088,28 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 			encrypted = VALUES(encrypted),
 			bitlocker_protection_status = VALUES(bitlocker_protection_status),
 			bitlocker_protection_error = IF(VALUES(bitlocker_protection_status) = ? OR NOT VALUES(encrypted), NULL, bitlocker_protection_error),
+			bitlocker_protection_outcome = IF(VALUES(bitlocker_protection_status) = ? OR NOT VALUES(encrypted), NULL, bitlocker_protection_outcome),
 			updated_at = CURRENT_TIMESTAMP(6)`,
-		hostID, encrypted, bitlockerProtectionStatus, fleet.BitLockerProtectionStatusOn,
+		hostID, encrypted, bitlockerProtectionStatus, fleet.BitLockerProtectionStatusOn, fleet.BitLockerProtectionStatusOn,
 	)
 	return ctxerr.Wrap(ctx, err, "set or update host disks encryption")
 }
 
-// SetOrUpdateHostBitLockerProtectionError records why the agent could not restore BitLocker protection.
-func (ds *Datastore) SetOrUpdateHostBitLockerProtectionError(ctx context.Context, hostID uint, protectionError string) error {
-	var value *string
-	if strings.TrimSpace(protectionError) != "" {
-		value = &protectionError
+// SetOrUpdateHostBitLockerProtectionOutcome records what the agent did about a volume that was encrypted but
+// unprotected, and why, so the host's disk encryption detail can name what actually has to happen next.
+func (ds *Datastore) SetOrUpdateHostBitLockerProtectionOutcome(
+	ctx context.Context, hostID uint, outcome fleet.DiskEncryptionProtectionOutcome, protectionError string,
+) error {
+	var reason, recorded *string
+	if outcome != fleet.DiskEncryptionProtectionRestored && strings.TrimSpace(protectionError) != "" {
+		reason = &protectionError
+		recorded = new(string(outcome))
 	}
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET bitlocker_protection_error = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (bitlocker_protection_error, host_id) VALUES (?, ?)`,
-		value, hostID,
+		`UPDATE host_disks SET bitlocker_protection_error = ?, bitlocker_protection_outcome = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (bitlocker_protection_error, bitlocker_protection_outcome, host_id) VALUES (?, ?, ?)`,
+		reason, recorded, hostID,
 	)
 }
 

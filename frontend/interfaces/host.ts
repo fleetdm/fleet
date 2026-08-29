@@ -104,7 +104,8 @@ export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
  * fixable from the My device page. Absent means show the reason without offering a call to action. */
 export type DiskEncryptionActionRequired =
   | MacDiskEncryptionActionRequired
-  | "create_pin";
+  | "create_pin"
+  | "restart";
 
 export type HostAndroidCertStatus =
   | "verified"

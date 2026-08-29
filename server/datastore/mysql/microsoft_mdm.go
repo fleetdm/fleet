@@ -1911,7 +1911,8 @@ SELECT
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
 	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set,
-	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error
+	COALESCE(hd.bitlocker_protection_error, '') as bitlocker_protection_error,
+	COALESCE(hd.bitlocker_protection_outcome, '') as bitlocker_protection_outcome
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -1931,11 +1932,12 @@ WHERE
 	)
 
 	var dest struct {
-		Status           fleet.DiskEncryptionStatus `db:"status"`
-		Detail           string                     `db:"detail"`
-		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
-		TpmPinSet        bool                       `db:"tpm_pin_set"`
-		ProtectionError  string                     `db:"bitlocker_protection_error"`
+		Status            fleet.DiskEncryptionStatus `db:"status"`
+		Detail            string                     `db:"detail"`
+		ProtectionStatus  *int                       `db:"bitlocker_protection_status"`
+		TpmPinSet         bool                       `db:"tpm_pin_set"`
+		ProtectionError   string                     `db:"bitlocker_protection_error"`
+		ProtectionOutcome string                     `db:"bitlocker_protection_outcome"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -1954,24 +1956,35 @@ WHERE
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 
-	// Build a meaningful detail message for action_required when there's no client error.
+	protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
+	pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+
+	deferred := dest.ProtectionOutcome == string(fleet.DiskEncryptionProtectionDeferred)
+
 	var actionRequired *fleet.ActionRequiredState
 	if dest.Status == fleet.DiskEncryptionActionRequired {
-		// Name the end-user action only when there is one. A missing startup PIN is the sole Windows case the end user
-		// can resolve themselves.
-		if diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet {
+		switch {
+		// The agent is waiting on a restart it will not perform itself, so restarting is the action, and it takes
+		// precedence: nothing else can proceed until it happens.
+		case deferred:
+			actionRequired = new(fleet.ActionRequiredRestart)
+		// Creating a PIN goes through "Change how the drive is unlocked at startup", which Windows only offers on a
+		// protected volume, so while protection is off there is nothing for the end user to do here and the reason
+		// belongs in the detail instead.
+		case pinMissing && !protectionOff:
 			actionRequired = new(fleet.ActionRequiredCreatePIN)
 		}
 	}
-	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
-		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
-		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
 
+	// Build a meaningful detail message for action_required when there's no client error.
+	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
 		switch {
+		case protectionOff && deferred:
+			dest.Detail = "BitLocker protection is off. Fleet will turn it back on after this host restarts."
 		case protectionOff && dest.ProtectionError != "":
 			dest.Detail = fmt.Sprintf("BitLocker protection is off. Fleet could not turn it back on: %s", dest.ProtectionError)
 		case protectionOff && pinMissing:
-			dest.Detail = "BitLocker protection is off and a required startup PIN is not set. The disk is encrypted but the TPM protector is not active, and a BitLocker PIN must be configured."
+			dest.Detail = "BitLocker protection is off and a startup PIN is required. Windows only offers PIN setup while the volume is protected, so the end user cannot create one until protection is restored."
 		case protectionOff:
 			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
 		case pinMissing:

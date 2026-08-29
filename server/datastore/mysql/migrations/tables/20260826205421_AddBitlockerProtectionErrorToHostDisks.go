@@ -10,10 +10,15 @@ func init() {
 }
 
 func Up_20260826205421(tx *sql.Tx) error {
-	// Holds the reason the agent could not restore BitLocker protection, so the host's disk encryption detail can state
-	// what actually happened.
-	if _, err := tx.Exec(`ALTER TABLE host_disks ADD COLUMN bitlocker_protection_error VARCHAR(255) NULL DEFAULT NULL`); err != nil {
-		return fmt.Errorf("adding bitlocker_protection_error to host_disks: %w", err)
+	// bitlocker_protection_error holds the reason the agent could not restore BitLocker protection, and
+	// bitlocker_protection_outcome separates a repair it deliberately deferred, which resolves itself, from one that
+	// failed. Together they let the host's disk encryption detail state what happened and name what has to happen next.
+	if _, err := tx.Exec(`ALTER TABLE host_disks
+		ADD COLUMN bitlocker_protection_error VARCHAR(255)
+			CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+		ADD COLUMN bitlocker_protection_outcome ENUM('deferred','failed')
+			CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL`); err != nil {
+		return fmt.Errorf("adding bitlocker protection columns to host_disks: %w", err)
 	}
 	return nil
 }
