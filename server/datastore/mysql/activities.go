@@ -1862,9 +1862,11 @@ WHERE
 		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
 		}
+		// The device fetches this itself, so it has to be the URL Apple devices
+		// reach Fleet on, which is a separate hostname when apple_server_url is set.
 		manifestURL := fmt.Sprintf(
 			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
+			appConfig.MDMUrl(), p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
