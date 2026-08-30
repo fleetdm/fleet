@@ -311,6 +311,57 @@ func testQueriesGetByName(t *testing.T, ds *Datastore) {
 	_, err = ds.QueryByName(context.Background(), &teamRocket.ID, "xxx")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// QueriesByName resolves many (team, name) pairs in one lookup, keeps global
+	// and same-named team queries distinct, and omits names that don't exist.
+	got, err := ds.QueriesByName(context.Background(), []fleet.TeamScopedQueryName{
+		{TeamID: nil, Name: "q1"},              // global q1
+		{TeamID: &teamRocket.ID, Name: "q1"},   // team q1, same name
+		{TeamID: nil, Name: "nope"},            // missing
+		{TeamID: &teamRocket.ID, Name: "nope"}, // missing
+		{TeamID: nil, Name: "q1"},              // duplicate of the first
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	globalHit := got[fleet.TeamScopedQueryName{TeamID: nil, Name: "q1"}.Key()]
+	require.NotNil(t, globalHit)
+	require.Equal(t, globalQ.ID, globalHit.ID)
+	require.Nil(t, globalHit.TeamID)
+
+	teamHit := got[fleet.TeamScopedQueryName{TeamID: &teamRocket.ID, Name: "q1"}.Key()]
+	require.NotNil(t, teamHit)
+	require.Equal(t, teamRocketQ.ID, teamHit.ID)
+	require.Equal(t, teamRocket.ID, *teamHit.TeamID)
+
+	// A name that exists on one team must not resolve when requested for another
+	// team: the tuple scoping must be exact, not name-only.
+	teamB, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "Team B", Description: "b"})
+	require.NoError(t, err)
+	crossTeam, err := ds.QueriesByName(context.Background(), []fleet.TeamScopedQueryName{
+		{TeamID: &teamB.ID, Name: "q1"}, // q1 exists globally and on teamRocket, not teamB
+	})
+	require.NoError(t, err)
+	require.Empty(t, crossTeam)
+
+	// Forcing a tiny batch size exercises the multi-chunk path: every existing
+	// pair must still resolve across chunk boundaries.
+	defer func(orig int) { queriesByNameBatchSize = orig }(queriesByNameBatchSize)
+	queriesByNameBatchSize = 1
+	chunked, err := ds.QueriesByName(context.Background(), []fleet.TeamScopedQueryName{
+		{TeamID: nil, Name: "q1"},
+		{TeamID: &teamRocket.ID, Name: "q1"},
+		{TeamID: nil, Name: "nope"},
+	})
+	require.NoError(t, err)
+	require.Len(t, chunked, 2)
+	require.NotNil(t, chunked[fleet.TeamScopedQueryName{TeamID: nil, Name: "q1"}.Key()])
+	require.NotNil(t, chunked[fleet.TeamScopedQueryName{TeamID: &teamRocket.ID, Name: "q1"}.Key()])
+
+	// Empty input must not hit the DB and returns an empty map.
+	empty, err := ds.QueriesByName(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, empty)
 }
 
 func testQueriesDeleteMany(t *testing.T, ds *Datastore) {

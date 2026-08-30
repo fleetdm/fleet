@@ -4401,6 +4401,161 @@ org_settings:
 	}
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsSSOEnabled() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	globalCfgTpl, err := template.New("t1").Parse(`
+agent_options:
+controls:
+reports:
+policies:
+org_settings:
+  secrets:
+    - secret: test_secret
+{{ if .IdP }}  mdm:
+    end_user_authentication:
+      idp_name: Okta
+      entity_id: fleet
+      metadata_url: https://idp.example.com/metadata
+{{ end }}{{ if .FleetDesktop }}  fleet_desktop:
+    sso_enabled: {{ .SSOEnabled }}
+{{ end }}`)
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+
+	writeCfg := func(t *testing.T, ssoEnabled, idp bool) string {
+		t.Helper()
+		return writeCfgOpts(t, globalCfgTpl, ssoEnabled, idp, true)
+	}
+
+	// captured activities are drained on every read
+	getActivities := s.captureSSOFleetDesktopActivities(t)
+
+	assertStored := func(t *testing.T, wantSSO, wantIdP bool) {
+		t.Helper()
+		storedCfg, err := s.DS.AppConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, wantSSO, storedCfg.FleetDesktop.SSOEnabled)
+		require.Equal(t, wantIdP, !storedCfg.MDM.EndUserAuthentication.IsEmpty())
+	}
+
+	// The dry run has to reject this: the prerequisite is checked before the
+	// dry-run return, so a bad config fails in CI rather than on the real apply.
+	// The non-dry-run 422 is covered by the enterprise API integration test.
+	noIdPCfg := writeCfg(t, true, false)
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg, "--dry-run"},
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
+	assertStored(t, false, false)
+	require.Empty(t, getActivities())
+
+	// setting the IdP and the flag in the same run succeeds
+	enabledCfg := writeCfg(t, true, true)
+	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg, "--dry-run"}))
+	require.Empty(t, getActivities(), "dry run must not emit activities")
+
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg}))
+	assertStored(t, true, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	// dropping the mdm block while SSO is on clears the IdP in overwrite mode,
+	// which the reverse guard has to reject
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", noIdPCfg},
+		"applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
+	assertStored(t, true, true)
+	require.Empty(t, getActivities())
+
+	// disabling emits the disabled activity
+	disabledCfg := writeCfg(t, false, true)
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", disabledCfg}))
+	assertStored(t, false, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	// GitOps is declarative: re-enable, then apply a config that keeps the IdP
+	// but drops fleet_desktop entirely. The setting has to go back to false.
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", enabledCfg}))
+	assertStored(t, true, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeEnabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	omittedCfg := writeCfgOpts(t, globalCfgTpl, false, true, false)
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", omittedCfg}))
+	assertStored(t, false, true)
+	require.Equal(t,
+		[]string{fleet.ActivityTypeDisabledSSOFleetDesktop{}.ActivityName()},
+		activityNames(getActivities()))
+
+	// Restore the shared suite's app config directly; another gitops run would
+	// cost ~0.6s to assert nothing new.
+	storedCfg, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	storedCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	require.NoError(t, s.DS.SaveAppConfig(ctx, storedCfg))
+}
+
+// writeCfgOpts renders the SSO gitops template. Pass fleetDesktop=false to leave
+// the fleet_desktop block out of the file entirely.
+func writeCfgOpts(t *testing.T, tpl *template.Template, ssoEnabled, idp, fleetDesktop bool) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	require.NoError(t, tpl.Execute(f, struct {
+		SSOEnabled   bool
+		IdP          bool
+		FleetDesktop bool
+	}{SSOEnabled: ssoEnabled, IdP: idp, FleetDesktop: fleetDesktop}))
+	return f.Name()
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) captureSSOFleetDesktopActivities(t *testing.T) func() []activity_api.ActivityDetails {
+	t.Helper()
+	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
+	prev := s.activityMock.NewActivityFunc
+	var (
+		mu       sync.Mutex
+		captured []activity_api.ActivityDetails
+	)
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		switch a.(type) {
+		case fleet.ActivityTypeEnabledSSOFleetDesktop, fleet.ActivityTypeDisabledSSOFleetDesktop:
+			mu.Lock()
+			captured = append(captured, a)
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, user, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	return func() []activity_api.ActivityDetails {
+		mu.Lock()
+		defer mu.Unlock()
+		out := captured
+		captured = nil
+		return out
+	}
+}
+
+func activityNames(acts []activity_api.ActivityDetails) []string {
+	names := make([]string, 0, len(acts))
+	for _, a := range acts {
+		names = append(names, a.ActivityName())
+	}
+	return names
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPApps() {
 	t := s.T()
 	ctx := context.Background()

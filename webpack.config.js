@@ -64,7 +64,26 @@ const config = {
     noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       {
+        // Fleet-maintained app icons: always emitted as separate files, never
+        // inlined as data URLs. There are thousands of them and a page renders at
+        // most a screenful, so inlining any of them would put bytes in the
+        // bundle that almost no page load needs.
+        test: /\.png$/,
+        include: path.join(
+          repo,
+          "frontend/pages/SoftwarePage/components/icons/png"
+        ),
+        type: "asset/resource",
+        generator: {
+          filename: "icons/[name]@[hash][ext]",
+        },
+      },
+      {
         test: /\.(pdf|png|gif|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
+        exclude: path.join(
+          repo,
+          "frontend/pages/SoftwarePage/components/icons/png"
+        ),
         type: "asset",
         generator: {
           filename: "[name]@[hash][ext]",

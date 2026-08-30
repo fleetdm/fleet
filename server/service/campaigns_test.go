@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -420,4 +421,76 @@ func TestLiveQueryLabelBypassPrevented(t *testing.T) {
 			assert.Equal(t, user, capturedFilter.User)
 		})
 	}
+}
+
+type captureAgentNotifier struct {
+	err        error
+	hostIDs    []uint
+	campaignID uint
+	invoked    bool
+}
+
+func (c *captureAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+	c.invoked = true
+	c.hostIDs = hostIDs
+	c.campaignID = campaignID
+	return c.err
+}
+
+func TestNewDistributedQueryCampaignNotifiesAgents(t *testing.T) {
+	setup := func(t *testing.T) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, pubsub.NewInmemQueryResults(), nopLiveQuery{})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+			return &fleet.Query{ID: id, Query: "SELECT 1", ObserverCanRun: true, Logging: fleet.LoggingSnapshot}, nil
+		}
+		ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+			camp.ID = 99
+			return camp, nil
+		}
+		ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+			return target, nil
+		}
+		ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+			return []uint{10, 20}, nil
+		}
+		ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+			return fleet.TargetMetrics{TotalHosts: 2}, nil
+		}
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+		return svc, ctx
+	}
+
+	t.Run("notifier receives targeted hosts and campaign ID", func(t *testing.T) {
+		svc, ctx := setup(t)
+		notifier := &captureAgentNotifier{}
+		svc.SetAgentCheckInNotifier(notifier)
+
+		campaign, err := svc.NewDistributedQueryCampaign(ctx, "", new(uint(1)), fleet.HostTargets{HostIDs: []uint{10, 20}})
+		require.NoError(t, err)
+		require.True(t, notifier.invoked)
+		assert.Equal(t, []uint{10, 20}, notifier.hostIDs)
+		assert.Equal(t, campaign.ID, notifier.campaignID)
+	})
+
+	t.Run("notifier error does not fail the campaign", func(t *testing.T) {
+		svc, ctx := setup(t)
+		notifier := &captureAgentNotifier{err: errors.New("redis down")}
+		svc.SetAgentCheckInNotifier(notifier)
+
+		_, err := svc.NewDistributedQueryCampaign(ctx, "", new(uint(1)), fleet.HostTargets{HostIDs: []uint{10, 20}})
+		require.NoError(t, err)
+		require.True(t, notifier.invoked)
+	})
+
+	t.Run("no notifier set", func(t *testing.T) {
+		svc, ctx := setup(t)
+		_, err := svc.NewDistributedQueryCampaign(ctx, "", new(uint(1)), fleet.HostTargets{HostIDs: []uint{10, 20}})
+		require.NoError(t, err)
+	})
 }

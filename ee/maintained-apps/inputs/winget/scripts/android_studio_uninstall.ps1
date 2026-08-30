@@ -51,10 +51,11 @@ if ($existingArgs -notmatch '\b/S\b') {
 }
 # Run the uninstaller synchronously from its install dir so /S applies and the
 # script waits for completion. InstallLocation is the app dir; the uninstaller
-# (uninstall.exe) sits there too.
+# (uninstall.exe) sits there too. "_?=" must be unquoted and last on the command
+# line -- quoting it makes the uninstaller exit 2 without removing anything.
 if ($uninstall.InstallLocation -and ($existingArgs -notmatch '_\?=')) {
     $installDir = $uninstall.InstallLocation.TrimEnd('\')
-    $existingArgs = ("$existingArgs _?=`"$installDir`"").Trim()
+    $existingArgs = ("$existingArgs _?=$installDir").Trim()
 }
 
 Write-Host "Uninstall command: $exePath"

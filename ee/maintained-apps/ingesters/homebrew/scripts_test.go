@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -463,4 +464,93 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 	require.Contains(t, script, `while read -r _ _ id; do`)
 	require.NotContains(t, script, `[[ "$pid" =~ ^[0-9]+$ ]]`)
 	require.NotContains(t, script, `(( pid != 0 ))`)
+}
+
+// TestUninstallScriptEarlyScriptDirective covers the `early_script` uninstall
+// directive: it takes the same shape as `script`, and casks use it for the
+// commands that make the rest of the removal possible (clearing an immutable
+// flag, unloading a system extension), so it has to run before them.
+func TestUninstallScriptEarlyScriptDirective(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{
+						EarlyScript: optjson.StringOr[map[string]any]{
+							IsOther: true,
+							Other: map[string]any{
+								"executable":   "/usr/bin/chflags",
+								"args":         []any{"-RL", "noschg", "/Applications/Foo.app"},
+								"must_succeed": false,
+							},
+						},
+					},
+					{
+						PkgUtil: optjson.StringOr[[]string]{String: "com.example.foo"},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	chflags := `(cd /Users/$LOGGED_IN_USER && '/usr/bin/chflags' '-RL' 'noschg' '/Applications/Foo.app') || true`
+	require.Contains(t, script, chflags)
+	require.Less(t, strings.Index(script, chflags), strings.Index(script, `remove_pkg_files 'com.example.foo'`))
+}
+
+// TestUninstallScriptEarlyScriptHonorsSudo checks the shared script-directive
+// options still apply to early_script.
+func TestUninstallScriptEarlyScriptHonorsSudo(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{
+						EarlyScript: optjson.StringOr[map[string]any]{
+							IsOther: true,
+							Other: map[string]any{
+								"executable": "/Applications/Foo.app/Contents/MacOS/Foo",
+								"args":       []any{"--unload-system-extension"},
+								"sudo":       true,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.Contains(t, script, `(cd /Users/$LOGGED_IN_USER && sudo '/Applications/Foo.app/Contents/MacOS/Foo' '--unload-system-extension')`)
+	require.NotContains(t, script, "|| true")
+}
+
+// TestUninstallScriptSkipsHomebrewPrefixScript drops script directives pointing
+// into the Caskroom: that path only exists where Homebrew installed the app, so
+// the command can't do anything on a Fleet-managed host.
+func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{
+						EarlyScript: optjson.StringOr[map[string]any]{
+							IsOther: true,
+							Other: map[string]any{
+								"executable":   "/usr/sbin/installer",
+								"args":         []any{"-pkg", "$HOMEBREW_PREFIX/Caskroom/foo/1.0/Remove Foo.pkg", "-target", "/"},
+								"sudo":         true,
+								"must_succeed": false,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.NotContains(t, script, "$HOMEBREW_PREFIX")
+	require.NotContains(t, script, "/usr/sbin/installer")
 }

@@ -67,9 +67,9 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB).
+Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 
-To configure via the Fleet UI:
+How to enforce account types on macOS hosts:
 
 1. Head to **Controls > Setup experience**.
 

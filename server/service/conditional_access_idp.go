@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/google/uuid"
 )
 
@@ -31,7 +33,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadCertificateFileName</key>
             <string>conditional_access_ca.der</string>
             <key>PayloadContent</key>
-            <data>{{.CACertBase64}}</data>
+            <data>{{ xml .CACertBase64 }}</data>
             <key>PayloadDescription</key>
             <string>Fleet conditional access CA certificate</string>
             <key>PayloadDisplayName</key>
@@ -41,7 +43,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadType</key>
             <string>com.apple.security.root</string>
             <key>PayloadUUID</key>
-            <string>{{.CACertUUID}}</string>
+            <string>{{ xml .CACertUUID }}</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
@@ -50,9 +52,9 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 			<key>PayloadContent</key>
 			<dict>
 				<key>URL</key>
-				<string>{{.SCEPURL}}</string>
+				<string>{{ xml .SCEPURL }}</string>
 				<key>Challenge</key>
-				<string>{{.Challenge}}</string>
+				<string>{{ xml .Challenge }}</string>
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>Key Type</key>
@@ -68,7 +70,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 					<array>
 						<array>
 							<string>CN</string>
-							<string>{{.CertificateCN}}</string>
+							<string>{{ xml .CertificateCN }}</string>
 						</array>
 					</array>
 					<array>
@@ -104,16 +106,16 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 			<key>PayloadType</key>
 			<string>com.apple.security.scep</string>
 			<key>PayloadUUID</key>
-			<string>{{.SCEPPayloadUUID}}</string>
+			<string>{{ xml .SCEPPayloadUUID }}</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
         <!-- Identity preference for mTLS endpoint -->
         <dict>
             <key>Name</key>
-            <string>{{.MTLSURL}}</string>
+            <string>{{ xml .MTLSURL }}</string>
             <key>PayloadCertificateUUID</key>
-            <string>{{.SCEPPayloadUUID}}</string>
+            <string>{{ xml .SCEPPayloadUUID }}</string>
             <key>PayloadDescription</key>
             <string>Identity preference for mTLS endpoints</string>
             <key>PayloadDisplayName</key>
@@ -123,7 +125,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadType</key>
             <string>com.apple.security.identitypreference</string>
             <key>PayloadUUID</key>
-            <string>{{.IdentityPrefUUID}}</string>
+            <string>{{ xml .IdentityPrefUUID }}</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
@@ -136,7 +138,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadIdentifier</key>
             <string>com.fleetdm.chrome.certs</string>
             <key>PayloadUUID</key>
-            <string>{{.ChromeConfigUUID}}</string>
+            <string>{{ xml .ChromeConfigUUID }}</string>
             <key>PayloadDisplayName</key>
             <string>Chrome mTLS auto-select</string>
             <key>PayloadContent</key>
@@ -153,7 +155,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
                                 <key>AutoSelectCertificateForUrls</key>
                                 <array>
                                     <!-- MUST be stringified JSON -->
-                                    <string>{"pattern":"{{.MTLSURL}}","filter":{"SUBJECT":{"CN":"{{.CertificateCN}}"}}}</string>
+                                    <string>{"pattern":"{{ jsonString .MTLSURL }}","filter":{"SUBJECT":{"CN":"{{ jsonString .CertificateCN }}"}}}</string>
                                 </array>
                             </dict>
                         </dict>
@@ -177,15 +179,38 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>{{.RootPayloadUUID}}</string>
+	<string>{{ xml .RootPayloadUUID }}</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
 </plist>
 `
 
-var conditionalAccessAppleProfileTemplateParsed = template.Must(template.New("conditionalAccessAppleProfile").Parse(
-	conditionalAccessAppleProfileTemplate))
+// jsonString renders s as the contents of a JSON string, without the
+// surrounding quotes. The Chrome payload above carries stringified JSON inside
+// an XML text node, where XML escaping is the wrong layer: a quote escaped as
+// &#34; is decoded back to " before Chrome parses the value as JSON, so it has
+// to be escaped as JSON instead. encoding/json also escapes <, > and & as
+// \uXXXX, which keeps the result safe in the XML text node it sits in.
+func jsonString(s string) (string, error) {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return "", err
+	}
+	return string(b[1 : len(b)-1]), nil
+}
+
+// Every interpolation in the template above must go through one of these, or a
+// value carrying markup becomes structure rather than text.
+var conditionalAccessProfileFuncMap = map[string]any{
+	"xml":        mobileconfig.XMLEscapeString,
+	"jsonString": jsonString,
+}
+
+var conditionalAccessAppleProfileTemplateParsed = template.Must(
+	template.New("conditionalAccessAppleProfile").
+		Funcs(conditionalAccessProfileFuncMap).
+		Parse(conditionalAccessAppleProfileTemplate))
 
 // fleetConditionalAccessNamespace is a custom UUID namespace for Fleet Okta conditional access profiles.
 // Generated using: uuid.NewSHA1(uuid.NameSpaceURL, []byte("https://fleetdm.com/learn-more-about/okta-conditional-access"))

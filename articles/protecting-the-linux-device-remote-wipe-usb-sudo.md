@@ -21,7 +21,7 @@ Malicious USB devices can inject commands and exfiltrate data within seconds of 
 
 The [MITRE ATT&CK](https://attack.mitre.org/techniques/T1025/) framework classifies these as techniques "attacks from removable media". There are several classifications of threats: **HID injection** which introduces malware via keyboard hijacking, **network adapter impersonation** like an Ethernet adapter that can re-route traffic through malicious networks and **firmware attacks** that target unpatched drivers.
 
-Though CISA, NIST and other regulatory frameworks reccommend that organizations broadly apply restrictions on USB connections (especially on end user workstations and portable devices) some work requires USB devices. If users regularly attach USB-to-serial adapters for lab equipment or transfer media through removable storage, security policy must to adapt to these workflows.
+Though CISA, NIST and other regulatory frameworks recommend that organizations broadly apply restrictions on USB connections (especially on end user workstations and portable devices) some work requires USB devices. If users regularly attach USB-to-serial adapters for lab equipment or transfer media through removable storage, security policy must to adapt to these workflows.
 
 USB enforcement is possible on Linux. With tools like `usbutils` and [`USBGuard`](https://usbguard.github.io/) administrators can block unauthorized devices based on vendor ID, product ID, or device class. However, like other Linux security controls, the range of features is not the issue. It's keeping track of device state to enable consistent policy enforcement. Managing physical security without policy enforcement is wildly impractical. 
 

@@ -42,7 +42,10 @@ val Context.prefDataStore: DataStore<Preferences> by preferencesDataStore(name =
 /**
  * Result of fetching a certificate template, including the computed SCEP URL.
  */
-data class CertificateTemplateResult(val template: GetCertificateTemplateResponse, val scepUrl: String)
+data class CertificateTemplateResult(val template: GetCertificateTemplateResponse, val scepUrl: String) {
+    // scepUrl ends with a one-time challenge, so keep it out of the generated toString().
+    override fun toString(): String = "CertificateTemplateResult(template=$template, scepUrl=${scepUrl.redactSecrets()})"
+}
 
 /**
  * Interface for certificate-related API operations.
@@ -355,7 +358,8 @@ object ApiClient : CertificateApiClient {
             body = UpdateCertificateStatusRequest(
                 status = status,
                 operationType = operationType,
-                detail = detail,
+                // Details come from exception messages, which can carry the SCEP proxy challenge.
+                detail = detail?.redactSecrets(),
                 notAfter = notAfter?.toISO8601String(),
                 notBefore = notBefore?.toISO8601String(),
                 serialNumber = serialNumber?.toString(16), // hex
@@ -626,10 +630,21 @@ data class GetCertificateTemplateResponse(
 
     @Transient
     val signatureAlgorithm: String = "SHA256withRSA",
-)
+) {
+    // Both challenges are enrollment secrets: scepChallenge is the CA's challenge password and
+    // fleetChallenge authenticates a single request to Fleet's SCEP proxy. The generated data class
+    // toString() prints them, so any log line interpolating a template hands them to logcat.
+    override fun toString(): String = "GetCertificateTemplateResponse(" +
+        "id=$id, name=$name, certificateAuthorityId=$certificateAuthorityId, " +
+        "certificateAuthorityName=$certificateAuthorityName, createdAt=$createdAt, " +
+        "subjectName=$subjectName, subjectAlternativeName=$subjectAlternativeName, " +
+        "certificateAuthorityType=$certificateAuthorityType, status=$status, " +
+        "scepChallenge=${scepChallenge.redacted()}, fleetChallenge=${fleetChallenge.redacted()}, " +
+        "keyLength=$keyLength, signatureAlgorithm=$signatureAlgorithm)"
+}
 
 /**
  * Builds the SCEP proxy URL for this certificate template.
  */
 fun GetCertificateTemplateResponse.buildScepUrl(serverUrl: String, hostUUID: String): String =
-    "$serverUrl/mdm/scep/proxy/$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
+    "$serverUrl$SCEP_PROXY_PATH$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"

@@ -1,0 +1,1 @@
+- Added support for listing and viewing results of Android custom MDM commands via the API and fleetctl CLI.

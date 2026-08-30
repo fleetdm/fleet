@@ -1,0 +1,1 @@
+- Added a new "End user authentication" setting (`fleet_desktop.sso_enabled`, Fleet Premium) that requires end users to sign in via single sign-on (SSO) before accessing Fleet Desktop's "My device" page.

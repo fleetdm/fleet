@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -325,17 +326,23 @@ func TestMacOSMigrationModeIsValid(t *testing.T) {
 
 func TestAppConfigDeprecatedFields(t *testing.T) {
 	cases := []struct {
-		msg                string
-		in                 json.RawMessage
-		wantFeatures       Features
-		wantDiskEncryption bool
+		msg          string
+		in           json.RawMessage
+		wantFeatures Features
+		// wantDiskEncryption is the expected flat mdm.enable_disk_encryption.
+		wantDiskEncryption      bool
+		wantMacOSDiskEncryption bool
 	}{
-		{"both empty", json.RawMessage(`{}`), Features{}, false},
-		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false},
+		{"both empty", json.RawMessage(`{}`), Features{}, false, false},
+		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false, false},
 		{
-			"a feature and disk encryption set",
+			// macos_settings.enable_disk_encryption is no longer an alias of
+			// the flat toggle: it enables macOS enforcement only, so the
+			// virtual flat toggle reads false.
+			"a feature and macOS disk encryption set",
 			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"macos_settings": {"enable_disk_encryption": true}}}`),
 			Features{EnableHostUsers: true},
+			false,
 			true,
 		},
 		{
@@ -343,12 +350,23 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "features": {"enable_host_users": false}}`),
 			Features{EnableHostUsers: true},
 			false,
+			false,
 		},
 		{
-			"disk encryption legacy and new setting set",
+			"flat disk encryption false and macOS setting true",
 			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true}}}`),
 			Features{},
 			false,
+			true,
+		},
+		{
+			// a legacy-only write fans out to every per-platform setting on
+			// serialization
+			"flat disk encryption only",
+			json.RawMessage(`{"mdm": {"enable_disk_encryption": true}}`),
+			Features{},
+			true,
+			true,
 		},
 	}
 
@@ -358,11 +376,8 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			err := json.Unmarshal(c.in, &ac)
 			require.NoError(t, err)
 			require.Nil(t, ac.DeprecatedHostSettings)
-			require.Nil(t, ac.MDM.MacOSSettings.DeprecatedEnableDiskEncryption)
 			require.Equal(t, c.wantFeatures, ac.Features)
-			require.Equal(t, c.wantDiskEncryption, ac.MDM.EnableDiskEncryption.Value)
 
-			// marshalling the fields again doesn't contain deprecated fields
 			acJSON, err := json.Marshal(ac)
 			require.NoError(t, err)
 			var resultMap map[string]interface{}
@@ -373,13 +388,19 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			_, exists := resultMap["host_settings"]
 			require.False(t, exists)
 
-			// mdm.macos_settings.enable_disk_encryption is not present
-			mdm, ok := resultMap["mdm"].(map[string]interface{})
+			// the per-platform settings are always explicit booleans
+			mdm, ok := resultMap["mdm"].(map[string]any)
 			require.True(t, ok)
-			macosSettings, ok := mdm["macos_settings"].(map[string]interface{})
+			macosSettings, ok := mdm["macos_settings"].(map[string]any)
 			require.True(t, ok)
-			_, exists = macosSettings["enable_disk_encryption"]
-			require.False(t, exists)
+			require.EqualValues(t, c.wantMacOSDiskEncryption, macosSettings["enable_disk_encryption"])
+			require.EqualValues(t, c.wantDiskEncryption, macosSettings["enable_escrow_disk_encryption_key"])
+			windowsSettings, ok := mdm["windows_settings"].(map[string]any)
+			require.True(t, ok)
+			require.EqualValues(t, c.wantDiskEncryption, windowsSettings["enable_disk_encryption"])
+			linuxSettings, ok := mdm["linux_settings"].(map[string]any)
+			require.True(t, ok)
+			require.EqualValues(t, c.wantDiskEncryption, linuxSettings["enable_escrow_disk_encryption_key"])
 
 			diskEncryption, exists := mdm["enable_disk_encryption"]
 			require.True(t, exists)
@@ -1029,30 +1050,280 @@ func TestMacOSSetupValidate(t *testing.T) {
 	})
 }
 
-// TestManagedLocalAccountSettingsMarshalDefaults verifies every marshal/save path defaults the
-// Windows managed local account toggle to enabled: false and preserves a set value.
-func TestManagedLocalAccountSettingsMarshalDefaults(t *testing.T) {
-	windowsSettings := func(b []byte) any {
+// TestEnableManagedLocalAccountMarshalDefaults verifies every marshal/save path defaults the
+// Windows managed local account toggle to false and preserves a set value.
+func TestEnableManagedLocalAccountMarshalDefaults(t *testing.T) {
+	windowsToggle := func(b []byte) any {
 		var out map[string]any
 		require.NoError(t, json.Unmarshal(b, &out))
-		return out["mdm"].(map[string]any)["windows_settings"].(map[string]any)["managed_local_account_settings"]
+		return out["mdm"].(map[string]any)["windows_settings"].(map[string]any)["enable_managed_local_account"]
 	}
 	marshaled := func(v any) any {
 		b, err := json.Marshal(v)
 		require.NoError(t, err)
-		return windowsSettings(b)
+		return windowsToggle(b)
 	}
 
 	var ac AppConfig
-	require.Equal(t, map[string]any{"enabled": false}, marshaled(ac))
-	ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
-	require.Equal(t, map[string]any{"enabled": true}, marshaled(ac))
+	require.Equal(t, false, marshaled(ac))
+	ac.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(true)
+	require.Equal(t, true, marshaled(ac))
 
 	team := Team{ID: 1, Name: "t1"}
-	require.Equal(t, map[string]any{"enabled": false}, marshaled(team))
+	require.Equal(t, false, marshaled(team))
 
 	// the DB save path (TeamConfig.Value) applies the same default
 	v, err := team.Config.Value()
 	require.NoError(t, err)
-	require.Equal(t, map[string]any{"enabled": false}, windowsSettings(v.([]byte)))
+	require.Equal(t, false, windowsToggle(v.([]byte)))
+}
+
+func TestMDMAppleABMAssignmentInfoRenameTeam(t *testing.T) {
+	base := MDMAppleABMAssignmentInfo{
+		OrganizationName: "Acme Inc",
+		MacOSTeam:        "Workstations",
+		IOSTeam:          "Phones",
+		IpadOSTeam:       "Workstations",
+		BYODTeam:         "",
+	}
+
+	t.Run("renames every platform pointing at the old name", func(t *testing.T) {
+		info := base
+		require.True(t, info.RenameTeam("Workstations", "Laptops"))
+		require.Equal(t, "Laptops", info.MacOSTeam)
+		require.Equal(t, "Laptops", info.IpadOSTeam)
+		require.Equal(t, "Phones", info.IOSTeam, "unrelated fleets must not move")
+		require.Empty(t, info.BYODTeam, `"no fleet" must stay unset`)
+	})
+
+	t.Run("no match reports false and changes nothing", func(t *testing.T) {
+		info := base
+		require.False(t, info.RenameTeam("Servers", "Laptops"))
+		require.Equal(t, base, info)
+	})
+
+	t.Run("empty old name must not claim the unassigned platforms", func(t *testing.T) {
+		info := base
+		require.False(t, info.RenameTeam("", "Laptops"))
+		require.Equal(t, base, info)
+	})
+}
+
+func TestMDMAppleVolumePurchasingProgramInfoRenameTeam(t *testing.T) {
+	base := MDMAppleVolumePurchasingProgramInfo{
+		Location: "Acme HQ",
+		Teams:    []string{"Workstations", "Servers", "Workstations"},
+	}
+	clone := func() MDMAppleVolumePurchasingProgramInfo {
+		return MDMAppleVolumePurchasingProgramInfo{Location: base.Location, Teams: slices.Clone(base.Teams)}
+	}
+
+	t.Run("renames every occurrence and leaves the rest", func(t *testing.T) {
+		info := clone()
+		require.True(t, info.RenameTeam("Workstations", "Laptops"))
+		require.Equal(t, []string{"Laptops", "Servers", "Laptops"}, info.Teams)
+	})
+
+	t.Run("no match reports false and changes nothing", func(t *testing.T) {
+		info := clone()
+		require.False(t, info.RenameTeam("Tablets", "Laptops"))
+		require.Equal(t, base.Teams, info.Teams)
+	})
+
+	t.Run("empty old name must not claim entries", func(t *testing.T) {
+		info := clone()
+		info.Teams = append(info.Teams, "")
+		require.False(t, info.RenameTeam("", "Laptops"))
+		require.Equal(t, append(slices.Clone(base.Teams), ""), info.Teams)
+	})
+
+	t.Run("all-teams is a display name, not a fleet", func(t *testing.T) {
+		info := MDMAppleVolumePurchasingProgramInfo{Location: "Acme HQ", Teams: []string{DisplayNameAllTeams}}
+		require.False(t, info.RenameTeam("Workstations", "Laptops"))
+		require.Equal(t, []string{DisplayNameAllTeams}, info.Teams)
+	})
+}
+
+func TestBitLockerPINAliasSync(t *testing.T) {
+	t.Run("marshal mirrors the deprecated key and its canonical home", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			mdm  MDM
+			want bool
+		}{
+			{"deprecated only", MDM{RequireBitLockerPIN: optjson.SetBool(true)}, true},
+			{"canonical only", MDM{WindowsSettings: WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)}}, true},
+			{"canonical wins", MDM{
+				RequireBitLockerPIN: optjson.SetBool(false),
+				WindowsSettings:     WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+			}, true},
+			{"neither defaults to false", MDM{}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				b, err := json.Marshal(&AppConfig{MDM: tc.mdm})
+				require.NoError(t, err)
+				var doc map[string]any
+				require.NoError(t, json.Unmarshal(b, &doc))
+				mdm := doc["mdm"].(map[string]any)
+				require.Equal(t, tc.want, mdm["windows_require_bitlocker_pin"])
+				require.Equal(t, tc.want, mdm["windows_settings"].(map[string]any)["require_bitlocker_pin"])
+			})
+		}
+	})
+
+	t.Run("unmarshal fills the canonical home from a legacy document", func(t *testing.T) {
+		var ac AppConfig
+		require.NoError(t, json.Unmarshal([]byte(`{"mdm": {"windows_require_bitlocker_pin": true}}`), &ac))
+		require.True(t, ac.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+		require.True(t, ac.MDM.BitLockerPINRequired())
+
+		// an explicitly present canonical value is never overridden
+		ac = AppConfig{}
+		require.NoError(t, json.Unmarshal([]byte(`{"mdm": {
+			"windows_require_bitlocker_pin": true,
+			"windows_settings": {"require_bitlocker_pin": false}
+		}}`), &ac))
+		require.False(t, ac.MDM.BitLockerPINRequired())
+	})
+}
+
+func TestBitLockerPINRequirementError(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		oldWindowsEnabled bool
+		cfg               DiskEncryptionConfig
+		wantField         string
+		wantMsg           string
+	}{
+		{
+			name: "PIN with encryption on is valid",
+			cfg:  DiskEncryptionConfig{WindowsEnabled: true, BitLockerPINRequired: true},
+		},
+		{
+			name: "no PIN with encryption off is valid",
+			cfg:  DiskEncryptionConfig{},
+		},
+		{
+			name:      "enabling the PIN without encryption blames the PIN field",
+			cfg:       DiskEncryptionConfig{BitLockerPINRequired: true},
+			wantField: "mdm.windows_settings.require_bitlocker_pin",
+			wantMsg:   CantEnablePINRequiredIfDiskEncryptionEnabled,
+		},
+		{
+			name:              "disabling encryption while the PIN is required blames the encryption field",
+			oldWindowsEnabled: true,
+			cfg:               DiskEncryptionConfig{BitLockerPINRequired: true},
+			wantField:         "mdm.windows_settings.enable_disk_encryption",
+			wantMsg:           CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			field, msg := BitLockerPINRequirementError(tc.oldWindowsEnabled, tc.cfg)
+			require.Equal(t, tc.wantField, field)
+			require.Equal(t, tc.wantMsg, msg)
+		})
+	}
+}
+
+func TestResolveBitLockerPINAlias(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		deprecated optjson.Bool
+		canonical  optjson.Bool
+		want       optjson.Bool
+		wantErr    bool
+	}{
+		{name: "neither provided leaves the stored value alone"},
+		{
+			name:       "deprecated only",
+			deprecated: optjson.SetBool(true),
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:      "canonical only",
+			canonical: optjson.SetBool(true),
+			want:      optjson.SetBool(true),
+		},
+		{
+			name:       "both agreeing is accepted, as a round-tripped document sends",
+			deprecated: optjson.SetBool(true),
+			canonical:  optjson.SetBool(true),
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:       "explicit null on the canonical key falls back to the deprecated one",
+			deprecated: optjson.SetBool(true),
+			canonical:  optjson.Bool{Set: true},
+			want:       optjson.SetBool(true),
+		},
+		{
+			name:       "disagreeing values are rejected",
+			deprecated: optjson.SetBool(false),
+			canonical:  optjson.SetBool(true),
+			wantErr:    true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolveBitLockerPINAlias(tc.deprecated, tc.canonical)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want.Valid, got.Valid)
+			if tc.want.Valid {
+				require.Equal(t, tc.want.Value, got.Value)
+			}
+		})
+	}
+}
+
+func TestFleetDesktopBrowserUrl(t *testing.T) {
+	cases := []struct {
+		name                   string
+		serverURL              string
+		alternativeBrowserHost string
+		want                   string
+	}{
+		{
+			name:      "no alternative browser host",
+			serverURL: "https://fleet.example.com",
+			want:      "https://fleet.example.com/device/abc123",
+		},
+		{
+			name:                   "alternative browser host replaces only the host",
+			serverURL:              "https://fleet.example.com",
+			alternativeBrowserHost: "proxy.example.com",
+			want:                   "https://proxy.example.com/device/abc123",
+		},
+		{
+			name:                   "alternative browser host keeps its port",
+			serverURL:              "https://fleet.example.com",
+			alternativeBrowserHost: "proxy.example.com:8443",
+			want:                   "https://proxy.example.com:8443/device/abc123",
+		},
+		{
+			name:                   "alternative browser host given with a scheme is tolerated",
+			serverURL:              "https://fleet.example.com",
+			alternativeBrowserHost: "https://proxy.example.com",
+			want:                   "https://proxy.example.com/device/abc123",
+		},
+		{
+			name:      "url_prefix on the server URL is preserved",
+			serverURL: "https://fleet.example.com/prefix",
+			want:      "https://fleet.example.com/prefix/device/abc123",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var appConfig AppConfig
+			appConfig.ServerSettings.ServerURL = c.serverURL
+			appConfig.FleetDesktop.AlternativeBrowserHost = c.alternativeBrowserHost
+
+			base, err := appConfig.FleetDesktopBrowserUrl()
+			require.NoError(t, err)
+			require.Equal(t, c.want, base.JoinPath("/device/abc123").String())
+		})
+	}
 }

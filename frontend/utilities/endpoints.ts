@@ -40,6 +40,9 @@ export default {
 
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_USER_APNS_PING: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/apns_ping`;
+  },
   DEVICE_SOFTWARE: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
@@ -122,6 +125,7 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping/idp`,
   HOST_DEP_ASSIGNMENT: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/dep_assignment`,
+  HOST_APNS_PING: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/apns_ping`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,

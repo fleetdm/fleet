@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +34,9 @@ func TestSCIM(t *testing.T) {
 		{"CreateGroup", testCreateGroup},
 		{"UpdateUser", testUpdateUser},
 		{"DeactivationDeprovisionsMutatedUser", testDeactivationDeprovisionsMutatedUser},
+		{"TwoStepDeactivationDeprovisionsFleetUser", testTwoStepDeactivationDeprovisionsFleetUser},
+		{"JITDeactivationDeprovisionsFleetUser", testJITDeactivationDeprovisionsFleetUser},
+		{"DeactivationWithoutIdentifiersFlagsSkippedDeprovision", testDeactivationWithoutIdentifiersFlagsSkippedDeprovision},
 		{"UpdateGroup", testUpdateGroup},
 		{"PatchUserEmails", testPatchUserEmails},
 		{"PatchUserAttributes", testPatchUserAttributes},
@@ -237,10 +242,6 @@ func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string
 	return userID, createResp
 }
 
-// testDeactivationDeprovisionsMutatedUser verifies that a SCIM PATCH which
-// mutates userName/emails in the same request that sets active=false still
-// deprovisions the matching Fleet user, resolving it from the persisted
-// (pre-patch) identifiers rather than the mutated state.
 func testDeactivationDeprovisionsMutatedUser(t *testing.T, s *Suite) {
 	ctx := t.Context()
 
@@ -278,6 +279,138 @@ func testDeactivationDeprovisionsMutatedUser(t *testing.T, s *Suite) {
 	_, err = s.DS.UserByEmail(ctx, email)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deleted, got: %v", err)
+}
+
+func testTwoStepDeactivationDeprovisionsFleetUser(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	email := "two_step_target@example.com"
+	role := fleet.RoleObserver
+	_, err := s.DS.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "Two Step Target",
+		Email:      email,
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Creating the SCIM user links it to the Fleet user (both exist now).
+	userID, _ := createTestUser(t, s, email)
+
+	// Request 1: mutate identifiers, leave active=true.
+	mutatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_user_bypass"},
+			{"op": "remove", "path": "emails"},
+		},
+	}
+	var mutateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), mutatePayload, http.StatusOK, &mutateResp)
+
+	// Request 2: deactivate in a separate request.
+	deactivatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var deactivateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deactivatePayload, http.StatusOK, &deactivateResp)
+
+	// The Fleet account must be deprovisioned via the durable link.
+	_, err = s.DS.UserByEmail(ctx, email)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deprovisioned, got: %v", err)
+}
+
+func testJITDeactivationDeprovisionsFleetUser(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	email := "jit_target@example.com"
+
+	// SCIM user created first; no Fleet user exists yet, so it links to nothing.
+	userID, _ := createTestUser(t, s, email)
+
+	// Fleet SSO user appears later (e.g., via JIT SSO login), with no re-sync.
+	role := fleet.RoleObserver
+	_, err := s.DS.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "JIT Target",
+		Email:      email,
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Request 1: mutate identifiers, leave active=true. Linking runs off the
+	// pre-mutation identifiers, so the link is established now.
+	mutatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_user_bypass"},
+			{"op": "remove", "path": "emails"},
+		},
+	}
+	var mutateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), mutatePayload, http.StatusOK, &mutateResp)
+
+	// Request 2: deactivate.
+	deactivatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var deactivateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deactivatePayload, http.StatusOK, &deactivateResp)
+
+	_, err = s.DS.UserByEmail(ctx, email)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deprovisioned via the pre-mutation link, got: %v", err)
+}
+
+func testDeactivationWithoutIdentifiersFlagsSkippedDeprovision(t *testing.T, s *Suite) {
+	// SCIM user with no matching Fleet user, so it never links.
+	userID, _ := createTestUser(t, s, "orphan_target@example.com")
+
+	// Wipe the identifiers, then deactivate in a separate request.
+	mutatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_orphan"},
+			{"op": "remove", "path": "emails"},
+		},
+	}
+	var mutateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), mutatePayload, http.StatusOK, &mutateResp)
+
+	deactivatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var deactivateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deactivatePayload, http.StatusOK, &deactivateResp)
+
+	// The skipped deprovisioning must be flagged in the audit log.
+	var rawDetails []json.RawMessage
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(t.Context(), q, &rawDetails,
+			`SELECT details FROM activity_past WHERE activity_type = 'scim_user_deprovision_skipped'`)
+	})
+	require.Len(t, rawDetails, 1, "expected a scim_user_deprovision_skipped activity in the audit log")
+	var details struct {
+		ScimUserID   uint   `json:"scim_user_id"`
+		ScimUserName string `json:"scim_user_name"`
+	}
+	require.NoError(t, json.Unmarshal(rawDetails[0], &details))
+	require.Equal(t, userID, fmt.Sprint(details.ScimUserID))
+	require.Equal(t, "nondomain_orphan", details.ScimUserName)
 }
 
 func testUsersBasicCRUD(t *testing.T, s *Suite) {

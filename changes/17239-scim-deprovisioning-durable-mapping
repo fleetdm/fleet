@@ -1,0 +1,2 @@
+- Improved SCIM user deactivation to more reliably deprovision the matching Fleet user.
+- Added an audit activity when a deprovisioned SCIM user has no email to match a Fleet account, so operators can spot accounts that may remain active.

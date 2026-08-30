@@ -1,8 +1,7 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# IntelliJ IDEA Ultimate ships as a Nullsoft (NSIS) installer; /S runs it
-# silently.
+# IntelliJ IDEA ships as a Nullsoft (NSIS) installer; /S runs it silently.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 

@@ -1006,8 +1006,9 @@ type fleetSelfServiceSoftwareInstallAllRequest struct {
 	Token      string `url:"token"`
 	CategoryID *uint  `query:"category_id,optional"`
 	// Query mirrors the `query` param on the self-service list endpoint. When
-	// set, only titles whose name matches are queued — so the button installs
-	// exactly what the user sees on screen.
+	// set, only titles whose name, bundle_identifier, or custom display_name
+	// matches are queued, so the button installs exactly what the user sees
+	// on screen.
 	Query string `query:"query,optional"`
 }
 

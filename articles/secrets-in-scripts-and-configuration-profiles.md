@@ -42,6 +42,8 @@ Variables are global, meaning they can be used in scripts, configuration profile
       FLEET_SECRET_EXAMPLE_API_TOKEN: ${{ secrets.FLEET_SECRET_EXAMPLE_API_TOKEN }}
 ```
 
+> For GitLab, this typically goes in the `.gitlab-ci.yml` file, and uses `variables:` rather than `env:`.
+
 ### Scripts and configuration profiles
 
 During a GitOps run, Fleet scans scripts and profiles for variables, pulls their values from GitHub or GitLab, and uploads them to Fleet.

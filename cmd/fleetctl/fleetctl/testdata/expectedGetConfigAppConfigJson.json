@@ -79,6 +79,7 @@
     },
     "fleet_desktop": {
       "alternative_browser_host": "",
+      "sso_enabled": false,
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {
@@ -157,8 +158,9 @@
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "windows_entra_tenant_ids": null,
-      "windows_entra_client_ids": null,"microsoft_graph_credential_invalid":false,
-      "windows_require_bitlocker_pin": null,
+      "windows_entra_client_ids": null,
+      "microsoft_graph_credential_invalid": false,
+      "windows_require_bitlocker_pin": false,
       "apple_require_hardware_attestation": false,
       "macos_migration": {
         "enable": false,
@@ -166,10 +168,14 @@
         "webhook_url": ""
       },
       "apple_settings": {
-        "configuration_profiles": null
+        "configuration_profiles": null,
+        "enable_disk_encryption": false,
+        "enable_escrow_disk_encryption_key": false
       },
       "macos_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "enable_disk_encryption": false,
+        "enable_escrow_disk_encryption_key": false
       },
       "macos_setup": {
         "bootstrap_package": null,
@@ -199,13 +205,16 @@
         "require_all_software_windows": false,
         "software": null
       },
-      "windows_enrollment": null,
+      "windows_automatic_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
+        "enable_disk_encryption": false,
         "configuration_profiles": null,
-        "managed_local_account_settings": {
-          "enabled": false
-        }
+        "enable_managed_local_account": false,
+        "require_bitlocker_pin": false
+      },
+      "linux_settings": {
+        "enable_escrow_disk_encryption_key": false
       },
       "android_settings": {
         "certificates": null,

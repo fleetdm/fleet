@@ -92,6 +92,17 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team), Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
+### Review third-party app access requests
+
+When a Fleetie is blocked from connecting a third-party app to their Google Workspace account, the request comes in as an issue on the 🌐 [IT board](https://github.com/orgs/fleetdm/projects/101) with the `:help-it` label.
+
+1. Confirm the issue includes the app name, the client ID in text (not a screenshot), and the business use case.
+2. In [Google Admin](https://admin.google.com), go to **Security → Access and data control → API controls → Manage third-party app access** and find the pending request.
+3. Review the OAuth scopes the app is requesting. Check whether the same app is already trusted under a different client ID — if it is, investigate why this request came in under a new one before approving.
+4. Approve the app with the least privilege that meets the use case, limited to the services it actually needs. Deny apps that aren't business-critical or that duplicate a tool Fleet already supports.
+5. Comment on the issue with the decision, the scopes granted, and the reason, then close the issue. This comment is the audit trail for future access reviews.
+
+
 ### Exclude a host from a screen lock policy
 
 The `macOS - Screen lock after inactivity (15 minutes or less)` and `Windows - Interactive logon screen lock timeout configured` policies, plus their associated configuration profiles (`screen-lock-inactivity.mobileconfig`, `Screen lock timeout.xml`), are deployed to every host on the [💻 Workstations](https://github.com/fleetdm/fleet/blob/main/it-and-security/fleets/workstations.yml) fleet. To exclude a host (e.g., a kiosk, a conference-room display driver, or a host under approved temporary investigation), add its Fleet host ID to the matching exclusion label.

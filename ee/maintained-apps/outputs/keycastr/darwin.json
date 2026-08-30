@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.10.5",
+      "version": "0.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.keycastr';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.keycastr' AND version_compare(bundle_short_version, '0.10.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.keycastr' AND version_compare(bundle_short_version, '0.11.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'io.github.keycastr');"
       },
-      "installer_url": "https://github.com/keycastr/keycastr/releases/download/v0.10.5/KeyCastr.app.zip",
+      "installer_url": "https://github.com/keycastr/keycastr/releases/download/v0.11.0/KeyCastr.app.zip",
       "install_script_ref": "68bfaec3",
       "uninstall_script_ref": "966ade0a",
-      "sha256": "c97c63eadbf4304c04802c0c8375c99b58084584be314e964c8366eca318b752",
+      "sha256": "00cc656a786012bcbdb5b203b1a56604727ad2ced5e4f5c1d189296f62881033",
       "default_categories": [
         "Productivity"
       ]

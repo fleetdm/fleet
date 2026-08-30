@@ -148,6 +148,7 @@ org_settings:
       vulnerabilities: true
   fleet_desktop:
     alternative_browser_host: musica.alternativa
+    sso_enabled: false
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
@@ -197,7 +198,7 @@ org_settings:
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
       location: Fleet Device Management Inc.
-    windows_enrollment:
+    windows_automatic_enrollment:
       default_fleet: "💻 Workstations"
   org_info:
     contact_url: https://fleetdm.com/company/contact

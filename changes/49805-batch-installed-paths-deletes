@@ -1,0 +1,1 @@
+- Improved software ingestion performance at scale by batching `host_software_installed_paths` deletes (previously unbounded single statements).

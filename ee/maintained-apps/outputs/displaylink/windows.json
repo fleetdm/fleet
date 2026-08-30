@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "12.2.2412.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'DisplayLink Graphics' AND publisher = 'DisplayLink Corp.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DisplayLink Graphics' AND publisher = 'DisplayLink Corp.' AND version_compare(version, '12.2.2412.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'displaylink usb graphics software.exe');"
+      },
+      "installer_url": "https://www.synaptics.com/sites/default/files/msi_files/2026-07/DisplayLink%20USB%20Graphics%20Software%20for%20Windows12.2%20M2-MSI.zip",
+      "install_script_ref": "89ce2e8f",
+      "uninstall_script_ref": "44957a48",
+      "sha256": "4628de09eb122ee8170db79dc0c7d03036f9ac77733c5ad2798faf5fea6c0a76",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "44957a48": "# Uninstalls DisplayLink Graphics (MSI installed from a zip-wrapped installer).\n# The MSI ProductCode differs per architecture and per release, so look the\n# product up in the registry by its exact DisplayName.\n\n$softwareName = \"DisplayLink Graphics\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $productCode = $key.PSChildName\n        if ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n            Write-Host \"Unexpected uninstall key name (not a ProductCode GUID): $productCode\"\n            continue\n        }\n        Write-Host \"Uninstalling product code: $productCode\"\n        $process = Start-Process -FilePath \"msiexec.exe\" `\n            -ArgumentList \"/x $productCode /qn /norestart\" `\n            -NoNewWindow -PassThru -Wait\n        $exitCode = $process.ExitCode\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "89ce2e8f": "# DisplayLink ships one zip holding both the x64 and arm64 MSIs, so this script\n# picks DisplayLink_Win10RS.msi (x64) by name rather than taking the first MSI\n# it finds. Installing the graphics driver commonly asks for a reboot.\n\n$zipFilePath = \"${env:INSTALLER_PATH}\"\n$msiName = \"DisplayLink_Win10RS.msi\"\n\ntry {\n    $extractPath = Join-Path $env:TEMP \"DisplayLinkInstall\"\n\n    if (Test-Path $extractPath) {\n        Remove-Item -Path $extractPath -Recurse -Force\n    }\n\n    Expand-Archive -Path $zipFilePath -DestinationPath $extractPath -Force\n\n    $msi = Get-ChildItem -Path $extractPath -Filter $msiName -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1\n    if (-not $msi) {\n        Write-Host \"Error: $msiName not found under $extractPath\"\n        Exit 1\n    }\n\n    $logFile = Join-Path $env:TEMP \"DisplayLinkInstall.log\"\n    $process = Start-Process -FilePath \"msiexec.exe\" `\n        -ArgumentList \"/i `\"$($msi.FullName)`\" /quiet /norestart /l*v `\"$logFile`\"\" `\n        -PassThru -Wait\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code (msiexec): $exitCode\"\n\n    Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue\n\n    # 3010 = success, reboot required; 1641 = success, reboot initiated.\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n        Exit 0\n    }\n\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

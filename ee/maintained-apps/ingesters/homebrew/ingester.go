@@ -673,6 +673,10 @@ type brewUninstall struct {
 	PkgUtil   optjson.StringOr[[]string] `json:"pkgutil"`
 	// brew docs says string or hash, but our only case has a single string.
 	Script optjson.StringOr[map[string]any] `json:"script"`
+	// same shape as Script, but brew runs it before every other directive, so
+	// it's what casks use to make the rest of the removal possible (unloading a
+	// system extension, clearing an immutable flag).
+	EarlyScript optjson.StringOr[map[string]any] `json:"early_script"`
 	// format: [0]=signal, [1]=process name (although the brew documentation says
 	// it's an array of arrays, it's not like that in our single case that uses
 	// it).

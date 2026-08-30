@@ -118,10 +118,9 @@ func TestHostDetails(t *testing.T) {
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
-func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-
+// setupHostDetailsMDMAppleDiskEncryptionMocks stubs what getHostDetails touches
+// for a macOS host, except the config and profiles mocks each case sets.
+func setupHostDetailsMDMAppleDiskEncryptionMocks(ds *mock.Store) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -173,6 +172,17 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
+
+}
+
+func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
+	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
+	svc := &Service{ds: ds}
+
+	setupHostDetailsMDMAppleDiskEncryptionMocks(ds)
 
 	cases := []struct {
 		name       string
@@ -423,6 +433,89 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 }
 
+func TestHostDetailsMDMAppleDiskEncryptionPerPlatformSettings(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	setupHostDetailsMDMAppleDiskEncryptionMocks(ds)
+
+	bothOn := fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}
+	enforceOnly := fleet.DiskEncryptionConfig{MacOSEnabled: true}
+	escrowOnly := fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}
+
+	installed := func(status fleet.MDMDeliveryStatus) *fleet.HostMDMAppleProfile {
+		return &fleet.HostMDMAppleProfile{
+			HostUUID:      "abc",
+			Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+		}
+	}
+
+	cases := []struct {
+		name          string
+		cfg           fleet.DiskEncryptionConfig
+		rawDecrypt    *int
+		diskEncrypted *bool
+		fvProf        *fleet.HostMDMAppleProfile
+		wantState     fleet.DiskEncryptionStatus
+		wantAction    fleet.ActionRequiredState
+		wantStatus    fleet.MDMDeliveryStatus
+	}{
+		// enforce-only follows the disk state, the key is irrelevant
+		{"enforce only, verified profile, disk encrypted, no key", enforceOnly, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
+		{"enforce only, verified profile, disk not encrypted", enforceOnly, new(-1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredLogOut, fleet.MDMDeliveryPending},
+		{"enforce only, verified profile, disk state unknown", enforceOnly, new(-1), nil, installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
+		{"enforce only, verifying profile, disk encrypted, undecryptable key", enforceOnly, new(0), new(true), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
+		{"enforce only, verifying profile, disk not encrypted, decryptable key", enforceOnly, new(1), new(false), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredLogOut, fleet.MDMDeliveryPending},
+		{"enforce only, pending profile, disk encrypted", enforceOnly, new(-1), new(true), installed(fleet.MDMDeliveryPending), fleet.DiskEncryptionEnforcing, "", fleet.MDMDeliveryPending},
+		// escrow (with or without enforce) follows the key, the disk state is irrelevant
+		{"escrow only, verified profile, decryptable key, disk not encrypted", escrowOnly, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
+		{"escrow only, verified profile, no key, disk encrypted", escrowOnly, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"escrow only, verified profile, unchecked key", escrowOnly, nil, new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
+		{"both on, verified profile, no key, disk encrypted", bothOn, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"both on, verified profile, decryptable key, disk not encrypted", bothOn, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var mdmData fleet.MDMHostData
+			rawDecrypt := "null"
+			if c.rawDecrypt != nil {
+				rawDecrypt = strconv.Itoa(*c.rawDecrypt)
+			}
+			require.NoError(t, mdmData.Scan(fmt.Appendf(nil, `{"raw_decryptable": %s}`, rawDecrypt)))
+
+			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc", Platform: "darwin", DiskEncryptionEnabled: c.diskEncrypted}
+			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+				require.Nil(t, teamID)
+				return c.cfg, nil
+			}
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+				return []fleet.HostMDMAppleProfile{*c.fvProf}, nil
+			}
+
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			require.True(t, ds.GetConfigEnableDiskEncryptionFuncInvoked)
+			ds.GetConfigEnableDiskEncryptionFuncInvoked = false
+
+			require.NotNil(t, hostDetail.MDM.MacOSSettings)
+			require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
+			require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+			require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
+			require.Equal(t, c.wantState, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
+			if c.wantAction == "" {
+				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+			} else {
+				require.NotNil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+				require.Equal(t, c.wantAction, *hostDetail.MDM.MacOSSettings.ActionRequired)
+			}
+			profs := *hostDetail.MDM.Profiles
+			require.Len(t, profs, 1)
+			require.EqualValues(t, c.wantStatus, *profs[0].Status)
+		})
+	}
+}
+
 func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
@@ -491,9 +584,10 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{
-			LastMDMEnrollmentTime: &ts1,
-			LastMDMSeenTime:       &ts2,
-			HardwareAttested:      false,
+			LastMDMEnrollmentTime:  &ts1,
+			LastMDMSeenTime:        &ts2,
+			HardwareAttested:       false,
+			BootstrapTokenEscrowed: true,
 		}, nil
 	}
 
@@ -532,6 +626,12 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				assert.False(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
+			}
+			if testcase.platform == "darwin" {
+				require.NotNil(t, hostDetail.MDM.BootstrapTokenEscrowed)
+				assert.True(t, *hostDetail.MDM.BootstrapTokenEscrowed)
+			} else {
+				assert.Nil(t, hostDetail.MDM.BootstrapTokenEscrowed)
 			}
 		})
 	}
@@ -910,6 +1010,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 
 func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -1029,6 +1132,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 
 func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
@@ -1162,6 +1268,9 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 
 func TestHostDetailsOSUpdates(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
@@ -4018,6 +4127,9 @@ func TestHostEncryptionKey(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostMDMProfileDetail(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -4154,6 +4266,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostMDMProfileScopes(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -5002,13 +5117,25 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 				ctx = capabilities.NewContext(ctx, &r)
 			}
 
+			// "configured" means configured for every platform; per-platform
+			// gating has its own cases below the table-driven run
+			var diskEncryption fleet.DiskEncryptionConfig
+			if tt.diskEncryptionConfigured {
+				diskEncryption = fleet.DiskEncryptionConfig{
+					MacOSEnabled:       true,
+					MacOSEscrowEnabled: true,
+					WindowsEnabled:     true,
+					LinuxEscrowEnabled: true,
+				}
+			}
+
 			notifs := &fleet.OrbitConfigNotifications{}
 			err := svc.setDiskEncryptionNotifications(
 				ctx,
 				notifs,
 				tt.host,
 				tt.appConfig,
-				tt.diskEncryptionConfigured,
+				diskEncryption,
 				tt.isConnectedToFleetMDM,
 				tt.mdmInfo,
 			)
@@ -5021,6 +5148,79 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
+
+	t.Run("notifications follow the host platform's setting, not the aggregate", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return nil, newNotFoundError()
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+
+		windowsHost := &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(false), OsqueryHostID: new("foo")}
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// only Windows configured: the Windows host is notified even though the
+		// aggregate (AND of the four settings) is off
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.EnforceBitLockerEncryption)
+
+		// only macOS configured: the Windows host is not notified
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, windowsHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.EnforceBitLockerEncryption)
+
+		// only Windows configured: the macOS host's key-fetch path is skipped
+		// entirely, so no rotation is requested
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
+
+	t.Run("macOS rotation follows escrow, not enforcement", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		// a key that Fleet cannot decrypt is what makes rotation wanted
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{Decryptable: new(false)}, nil
+		}
+		r := http.Request{
+			Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+		}
+		ctx := capabilities.NewContext(ctx, &r)
+		macHost := &fleet.Host{ID: 2, Platform: "darwin", OsqueryHostID: new("foo")}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+
+		// escrow on: Escrow Buddy is asked to produce a key Fleet can store
+		notifs := &fleet.OrbitConfigNotifications{}
+		err := svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.True(t, notifs.RotateDiskEncryptionKey)
+
+		// enforcement alone: the profile carries no escrow payload, so rotating
+		// would produce a key with nowhere to go
+		notifs = &fleet.OrbitConfigNotifications{}
+		err = svc.setDiskEncryptionNotifications(ctx, notifs, macHost, appConfig,
+			fleet.DiskEncryptionConfig{MacOSEnabled: true}, true, mdmInfo)
+		require.NoError(t, err)
+		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
 }
 
 func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {

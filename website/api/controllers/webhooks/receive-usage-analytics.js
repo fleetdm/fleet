@@ -54,6 +54,7 @@ module.exports = {
     conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeEnabled: {type: 'boolean', defaultsTo: false},
     gitOpsModeExceptions: {type: ['string'], defaultsTo: [] },
+    fleetDesktopSSOEnabled: {type: 'boolean', defaultsTo: false},
     numHostsFleetMDMEnrolledMacOS: {type: 'number', defaultsTo: 0 },
     numHostsFleetMDMEnrolledWindows: {type: 'number', defaultsTo: 0 },
   },

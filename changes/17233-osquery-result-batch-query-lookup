@@ -1,0 +1,1 @@
+* Reduced database load when processing osquery result logs by resolving scheduled query names in a single batch lookup instead of one query per result.

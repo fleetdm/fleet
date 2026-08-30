@@ -626,8 +626,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
-			DeprecatedEnableDiskEncryption: ptr.Bool(false),
+			CustomSettings:       []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+			EnableDiskEncryption: optjson.SetBool(false),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			BootstrapPackage: optjson.SetString("bootstrap"),
@@ -685,8 +685,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("2022-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 nil,
-			DeprecatedEnableDiskEncryption: ptr.Bool(true),
+			CustomSettings:       nil,
+			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}
 	updateTeam := &fleet.Team{

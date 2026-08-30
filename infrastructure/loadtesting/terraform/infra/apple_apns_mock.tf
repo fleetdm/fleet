@@ -86,6 +86,74 @@ resource "aws_security_group" "apple_apns_mock" {
   }
 }
 
+# ---- Redis ----
+#
+# Dedicated rather than shared with Fleet's: the instances put a full-fleet
+# push wave (~900k commands at 300k devices) through this, and running that
+# over Fleet's cache would perturb the very system the load test measures.
+
+resource "aws_security_group" "apple_apns_mock_redis" {
+  count       = var.enable_apple_mdm ? 1 : 0
+  name_prefix = "${local.customer}-apns-mock-redis-"
+  vpc_id      = data.terraform_remote_state.shared.outputs.vpc.vpc_id
+  description = "Apple APNS mock Redis - allows 6379 from the mock tasks"
+
+  ingress {
+    description     = "Redis from the mock APNs tasks"
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.apple_apns_mock[0].id]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_elasticache_parameter_group" "apple_apns_mock" {
+  count  = var.enable_apple_mdm ? 1 : 0
+  name   = "${local.customer}-apns-mock-redis"
+  family = "redis7"
+
+  # Every push is fanned out to every instance, so a subscriber that falls
+  # behind must not be disconnected for it. Unlimited, as Fleet's cache does.
+  parameter {
+    name  = "client-output-buffer-limit-pubsub-hard-limit"
+    value = "0"
+  }
+  parameter {
+    name  = "client-output-buffer-limit-pubsub-soft-limit"
+    value = "0"
+  }
+  parameter {
+    name  = "client-output-buffer-limit-pubsub-soft-seconds"
+    value = "0"
+  }
+}
+
+resource "aws_elasticache_replication_group" "apple_apns_mock" {
+  count                       = var.enable_apple_mdm ? 1 : 0
+  replication_group_id        = "${local.customer}-apns-mock"
+  description                 = "${local.customer} mock APNs coordination"
+  engine                      = "redis"
+  engine_version              = "7.1"
+  node_type                   = var.apple_apns_mock_redis_instance_size
+  num_cache_clusters          = var.apple_apns_mock_redis_instance_count
+  parameter_group_name        = aws_elasticache_parameter_group.apple_apns_mock[0].id
+  subnet_group_name           = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
+  security_group_ids          = [aws_security_group.apple_apns_mock_redis[0].id]
+  preferred_cache_cluster_azs = slice(["us-east-2a", "us-east-2b", "us-east-2c"], 0, min(var.apple_apns_mock_redis_instance_count, 3))
+  port                        = 6379
+
+  # Pending pushes are disposable by design, and failover needs a replica.
+  snapshot_retention_limit   = 0
+  automatic_failover_enabled = var.apple_apns_mock_redis_instance_count > 1
+  at_rest_encryption_enabled = false #tfsec:ignore:aws-elasticache-enable-at-rest-encryption
+  transit_encryption_enabled = false #tfsec:ignore:aws-elasticache-enable-in-transit-encryption
+  apply_immediately          = true
+}
+
 # ---- ECS Task Definition ----
 
 resource "aws_ecs_task_definition" "apple_apns_mock" {
@@ -93,8 +161,8 @@ resource "aws_ecs_task_definition" "apple_apns_mock" {
   family                   = "${local.customer}-apple-apns-mock"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 2048
-  memory                   = 4096
+  cpu                      = var.apple_apns_mock_cpu
+  memory                   = var.apple_apns_mock_memory
   execution_role_arn       = module.loadtest.byo-db.byo-ecs.execution_iam_role_arn
   task_role_arn            = module.loadtest.byo-db.byo-ecs.iam_role_arn
 
@@ -122,7 +190,13 @@ resource "aws_ecs_task_definition" "apple_apns_mock" {
         }
       ]
 
-      command = ["--listen", ":${local.apple_apns_mock_port}"]
+      # Instances coordinate through Redis so Fleet can push to any of them and
+      # it reaches whichever holds the device's SSE stream.
+      command = [
+        "--listen", ":${local.apple_apns_mock_port}",
+        "--redis-address", "${aws_elasticache_replication_group.apple_apns_mock[0].primary_endpoint_address}:6379",
+        "--redis-key-prefix", "${local.customer}:apns:",
+      ]
 
       # Go does not read the cgroup limit, so without GOMEMLIMIT the GC sizes
       # the heap against the host and lets RSS sail past the task limit until
@@ -131,7 +205,7 @@ resource "aws_ecs_task_definition" "apple_apns_mock" {
       environment = [
         {
           name  = "GOMEMLIMIT"
-          value = "${floor(4096 * 0.9)}MiB"
+          value = "${floor(var.apple_apns_mock_memory * 0.9)}MiB"
         }
       ]
       secrets = []
@@ -155,7 +229,7 @@ resource "aws_ecs_service" "apple_apns_mock" {
   name            = "${local.customer}-apple-apns-mock"
   cluster         = module.loadtest.byo-db.cluster.cluster_name
   task_definition = aws_ecs_task_definition.apple_apns_mock[0].arn
-  desired_count   = 1
+  desired_count   = var.apple_apns_mock_instance_count
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -184,6 +258,11 @@ resource "aws_lb_target_group" "apple_apns_mock" {
   target_type          = "ip"
   vpc_id               = data.terraform_remote_state.shared.outputs.vpc.vpc_id
   deregistration_delay = 10
+
+  # SSE streams are one long-lived request each, so "outstanding requests" is
+  # the connection count: this spreads devices evenly across instances, where
+  # round-robin would only spread new connections.
+  load_balancing_algorithm_type = "least_outstanding_requests"
 
   health_check {
     path                = "/healthz"

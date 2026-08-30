@@ -426,6 +426,9 @@ type FMAAutoUpdateCandidate struct {
 	Version string `db:"version"`
 	// Slug is the Fleet-maintained app slug (for logging).
 	Slug string `db:"slug"`
+	// InstallScriptEdited and UninstallScriptEdited are the active installer's flags.
+	InstallScriptEdited   bool `db:"install_script_edited"`
+	UninstallScriptEdited bool `db:"uninstall_script_edited"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.

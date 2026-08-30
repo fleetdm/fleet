@@ -53,7 +53,7 @@ func (svc *Service) GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint
 	diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamId)
 	if err != nil {
 		return summary, ctxerr.Wrap(ctx, err)
-	} else if !diskEncryptionConfig.Enabled {
+	} else if !diskEncryptionConfig.LinuxEscrowEnabled {
 		return summary, nil
 	}
 

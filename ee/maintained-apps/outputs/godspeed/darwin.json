@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.9.19",
+      "version": "1.9.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.godspeedapp.Godspeed';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.godspeedapp.Godspeed' AND version_compare(bundle_short_version, '1.9.19') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.godspeedapp.Godspeed' AND version_compare(bundle_short_version, '1.9.22') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.godspeedapp.Godspeed');"
       },
-      "installer_url": "https://app-updates.godspeedapp.com/1.9.19%2FGodspeed.zip",
+      "installer_url": "https://app-updates.godspeedapp.com/1.9.22%2FGodspeed.zip",
       "install_script_ref": "9dbdbbed",
       "uninstall_script_ref": "8a1135a8",
-      "sha256": "61f56b65a1bf3819e96034044b3bf2faa3f2f980696564d6ece677a4512016fa",
+      "sha256": "14b552d706ce31cf4eb8a8448856b47b95bd38973434676b607a78a6ea781002",
       "default_categories": [
         "Productivity"
       ]

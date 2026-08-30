@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.7.2",
+      "version": "4.7.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Weasis' AND publisher = 'Weasis Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Weasis' AND publisher = 'Weasis Team' AND version_compare(version, '4.7.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Weasis' AND publisher = 'Weasis Team' AND version_compare(version, '4.7.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'weasis.exe');"
       },
-      "installer_url": "https://github.com/nroduit/Weasis/releases/download/v4.7.2/Weasis-4.7.2-x86-64.msi",
+      "installer_url": "https://github.com/nroduit/Weasis/releases/download/v4.7.3/Weasis-4.7.3-x86-64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "0130a935",
-      "sha256": "1f2ccff3975efc31320479690957460c8f6849fa75e2dc69ab4f4f828e014171",
+      "sha256": "c15358f95b79d936dd908ebd9afeebbce90bd463a9ba97aeda5edcfb78712f1c",
       "default_categories": [
         "Productivity"
       ],

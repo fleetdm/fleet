@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
@@ -17,6 +17,7 @@ import paths from "router/paths";
 import {
   MdmEnrollmentStatus,
   MDM_ENROLLMENT_STATUS_UI_MAP,
+  canTriggerAPNSPing,
 } from "interfaces/mdm";
 import hostAPI, {
   DEPDeviceStatus,
@@ -34,17 +35,28 @@ import List from "components/List";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IconNames } from "components/icons";
+import { notify } from "components/ToastNotification";
+import { IUser } from "interfaces/user";
+import permissions from "utilities/permissions";
+import {
+  HostPlatform,
+  isAppleDevice as isAppleDevicePlatform,
+} from "interfaces/platform";
 
 const baseClass = "mdm-status-modal";
 
 interface IMDMStatusModal {
-  fleetId?: number;
+  fleetId: number | null;
   hostId: number;
+  platform: HostPlatform;
   enrollmentStatus: MdmEnrollmentStatus;
   depProfileError?: boolean;
   router: InjectedRouter;
   isPremiumTier?: boolean;
-  isAppleDevice?: boolean;
+  lastMDMCheckIn: string | null;
+  connectedToFleet?: boolean;
+  onSuccessfulCheckIn: () => void;
+  user: IUser | null;
   onExit: () => void;
 }
 
@@ -135,8 +147,8 @@ export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
 
 interface IStatusRowItem {
   id: string;
-  name: string;
-  status: MdmEnrollmentStatus;
+  value: string;
+  render: (item: IStatusRowItem) => JSX.Element;
 }
 
 interface IProfileRowItem {
@@ -151,13 +163,18 @@ interface IProfileRowItem {
 const MDMStatusModal = ({
   fleetId,
   hostId,
+  user,
   enrollmentStatus,
   depProfileError = false,
   isPremiumTier = false,
-  isAppleDevice = false,
+  platform,
+  lastMDMCheckIn,
+  connectedToFleet = false,
+  onSuccessfulCheckIn,
   router,
   onExit,
 }: IMDMStatusModal) => {
+  const isAppleDevice = isAppleDevicePlatform(platform);
   const {
     data: depAssignmentData,
     isFetching: isLoadingDepAssignment,
@@ -171,6 +188,7 @@ const MDMStatusModal = ({
       retry: false,
     }
   );
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
 
   const enrollmentFilterValue =
     MDM_ENROLLMENT_STATUS_UI_MAP[enrollmentStatus].filterValue;
@@ -181,6 +199,19 @@ const MDMStatusModal = ({
       fleet_id: fleetId,
     });
     router.push(path);
+  };
+
+  const handleClickCheckInNow = async () => {
+    setIsCheckingIn(true);
+
+    try {
+      await hostAPI.apnsPing(hostId);
+      onSuccessfulCheckIn();
+    } catch (error) {
+      notify.error("Failed to send an APNS ping.", { response: error });
+    } finally {
+      setIsCheckingIn(false);
+    }
   };
 
   const handleClickProfileRow = (item: IProfileRowItem) => {
@@ -217,20 +248,22 @@ const MDMStatusModal = ({
     router.push(path);
   };
 
-  const renderStatusRow = (item: IStatusRowItem) => {
-    const statusTooltip = MDM_STATUS_TOOLTIP[item.status];
+  const renderMDMStatusRow = (item: IStatusRowItem) => {
+    const { value } = item;
+    const status = value as MdmEnrollmentStatus;
+    const statusTooltip = MDM_STATUS_TOOLTIP[status];
 
     return (
       <>
         <div className={`${baseClass}__status`}>
-          <div className={`${baseClass}__status-title`}>{item.name}</div>
+          <div className={`${baseClass}__status-title`}>MDM status</div>
           <div className={`${baseClass}__status-value`}>
             {statusTooltip ? (
-              <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[item.status]}>
-                {MDM_ENROLLMENT_STATUS_UI_MAP[item.status].displayName}
+              <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
+                {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
               </TooltipWrapper>
             ) : (
-              MDM_ENROLLMENT_STATUS_UI_MAP[item.status].displayName
+              MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName
             )}
           </div>
         </div>
@@ -239,6 +272,43 @@ const MDMStatusModal = ({
           rowHover
           noLink
         />
+      </>
+    );
+  };
+
+  const renderMDMCheckinRow = (item: IStatusRowItem) => {
+    const { value: lastCheckIn } = item;
+
+    const canSeeButton =
+      canTriggerAPNSPing({
+        platform,
+        mdm: {
+          connected_to_fleet: connectedToFleet,
+          enrollment_status: enrollmentStatus,
+        },
+      }) && permissions.isGlobalOrTeamObserverOrAbove(user, fleetId ?? null);
+
+    return (
+      <>
+        <div className={`${baseClass}__status`}>
+          <div className={`${baseClass}__status-title`}>Last MDM check-in</div>
+          <div className={`${baseClass}__status-value`}>
+            {lastCheckIn
+              ? internationalTimeFormat(new Date(lastCheckIn))
+              : "Never"}
+          </div>
+        </div>
+        {canSeeButton && (
+          <Button
+            onClick={handleClickCheckInNow}
+            icon="refresh"
+            variant="subdued"
+            disabled={isCheckingIn}
+            isLoading={isCheckingIn}
+          >
+            Check in now
+          </Button>
+        )}
       </>
     );
   };
@@ -289,16 +359,28 @@ const MDMStatusModal = ({
     const data: IStatusRowItem[] = [
       {
         id: "mdm-status",
-        name: "MDM status",
-        status: enrollmentStatus,
+        value: enrollmentStatus,
+        render: renderMDMStatusRow,
       },
     ];
+
+    if (lastMDMCheckIn !== null || connectedToFleet) {
+      data.push({
+        id: "mdm-checkin",
+        value: lastMDMCheckIn ?? "",
+        render: renderMDMCheckinRow,
+      });
+    }
 
     return (
       <List<IStatusRowItem>
         data={data}
-        renderItemRow={renderStatusRow}
-        onClickRow={handleClickStatusRow}
+        renderItemRow={(item) => item.render(item)}
+        isRowClickable={(row) => row.id === "mdm-status"}
+        onClickRow={(row) => {
+          if (row.id === "mdm-status" && handleClickStatusRow)
+            handleClickStatusRow();
+        }}
       />
     );
   };

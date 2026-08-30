@@ -146,9 +146,8 @@ const UsersForm = ({
       if (isWindowsMdmEnabledAndConfigured) {
         const mdmUpdate = {
           windows_settings: {
-            managed_local_account_settings: {
-              enabled: formData.enableManagedLocalAccountWindows,
-            },
+            enable_managed_local_account:
+              formData.enableManagedLocalAccountWindows,
           },
         };
         if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {

@@ -169,6 +169,11 @@ func (oc *OrbitClient) requestWithExternal(ctx context.Context, verb string, pat
 			return err
 		}
 		oc.SetClientCapabilitiesHeader(request)
+		// Some endpoints authenticate via a request header instead of (or in
+		// addition to) the body; let the params set any headers they need.
+		if hs, ok := params.(interface{ setRequestHeaders(*http.Request) }); ok {
+			hs.setRequestHeaders(request)
+		}
 	}
 	response, err := oc.DoHTTPRequest(request)
 	if err != nil {

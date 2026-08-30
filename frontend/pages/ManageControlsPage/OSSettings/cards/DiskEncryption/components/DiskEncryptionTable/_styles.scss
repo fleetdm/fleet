@@ -14,24 +14,10 @@
     max-width: 120px;
     padding-left: 0 !important; // Removes 24px of unnecessary table scroll
   }
-}
 
-@media (max-width: 1250px) {
-  // Prevents unnecessary status new line wrap
-  .view-hosts-link {
-    span {
-      display: none;
-    }
-  }
-  .linkToFilteredHosts {
-    &__header {
-      width: 0;
-      .column-header {
-        width: 0;
-      }
-    }
-    &__cell {
-      width: min-content;
+  @media (max-width: 768px) {
+    .linkToFilteredHosts__cell {
+      padding-right: 0 !important;
     }
   }
 }

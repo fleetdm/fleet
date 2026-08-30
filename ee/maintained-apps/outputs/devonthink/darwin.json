@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.3.2",
+      "version": "4.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.think';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.think' AND version_compare(bundle_short_version, '4.3.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.think' AND version_compare(bundle_short_version, '4.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.devon-technologies.think');"
       },
-      "installer_url": "https://download.devontechnologies.com/download/devonthink/4.3.2/DEVONthink.app.zip",
+      "installer_url": "https://download.devontechnologies.com/download/devonthink/4.4/DEVONthink.app.zip",
       "install_script_ref": "a5908de1",
       "uninstall_script_ref": "26b33428",
-      "sha256": "8496de08384066bd4da57c8b21f705f2b033d2aab9c40c827ecd4583b9cecaf3",
+      "sha256": "9ace25ae408d9413e5b0424eb560b2e3e50c2e485665490fb758efe23ee7c95e",
       "default_categories": [
         "Productivity"
       ]

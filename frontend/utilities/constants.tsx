@@ -441,6 +441,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "maintenance_window", // Not rendered on my device page
   "os_version",
   "mdm",
+  "last_mdm_checked_in_at",
 ];
 
 export const HOST_VITALS_DATA = [

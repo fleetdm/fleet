@@ -87,7 +87,7 @@ export interface IPolicySoftwareToInstall {
   /** Present when the policy pins a specific package on a multi-package
    * title. Absent for VPP-backed policies. When absent the automations UI
    * falls back to auto-selecting the title's first-added package. */
-  software_installer_id?: number;
+  software_package_id?: number;
 }
 
 export interface IPolicyResendConfigurationProfile {
@@ -156,9 +156,9 @@ export interface IPolicyFormData {
   patch_when_closed?: boolean;
   software_title_id?: number | null;
   /** Pins the policy to a specific package on a multi-package title. `null`
-   * on PATCH lets the backend fall back to the title's first-added package
-   * (mirrors `software_title_id`'s unset asymmetry). */
-  software_installer_id?: number | null;
+   * on PATCH clears the pinned package (mirrors `software_title_id`'s unset
+   * asymmetry). */
+  software_package_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
   profile_uuid?: string | null;

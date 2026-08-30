@@ -1725,12 +1725,35 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 		}
 
+		// A pinned package with no title has nothing to associate against — reject
+		// early. Also catches global policies since global specs (empty Team) never
+		// carry a title, so any non-zero SoftwarePackageID there is invalid.
+		if spec.SoftwarePackageID != nil && *spec.SoftwarePackageID != 0 &&
+			(spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0) {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf(
+					"software_package_id %d requires software_title_id to be set on policy %q",
+					*spec.SoftwarePackageID, spec.Name,
+				),
+			}, "validate policy spec")
+		}
+
 		if spec.SoftwareTitleID == nil || *spec.SoftwareTitleID == 0 {
 			continue
 		}
 		if spec.Team == "" {
 			return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "create policy from spec")
 		}
+
+		// When the caller pinned a specific package, skip the first-added default
+		// lookup for this spec. Validation + direct use happens inline in the
+		// INSERT loop below (the map is keyed by team+title, so a per-policy pin
+		// can't live in it — two policies on the same team+title with different
+		// pins would collide).
+		if spec.SoftwarePackageID != nil && *spec.SoftwarePackageID != 0 {
+			continue
+		}
+
 		var ids struct {
 			SoftwareInstallerID *uint `db:"si_id"`
 			VPPAppsTeamsID      *uint `db:"vat_id"`
@@ -1868,7 +1891,30 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				var vppAppsTeamsID *uint
 				if spec.SoftwareTitleID != nil {
 					if _, ok := vppTitleIDs[*spec.SoftwareTitleID]; !ok {
-						softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+						// Pinned specs: validate the installer id belongs to the
+						// title on this team, then use it directly. Bypasses the
+						// team+title map, which can only hold one value per key.
+						if spec.SoftwarePackageID != nil && *spec.SoftwarePackageID != 0 {
+							var pinnedInstallerID uint
+							err := sqlx.GetContext(ctx, tx, &pinnedInstallerID,
+								`SELECT id FROM software_installers
+									WHERE id = ? AND global_or_team_id = ? AND title_id = ? AND is_active = 1`,
+								*spec.SoftwarePackageID, teamNameToID[spec.Team], *spec.SoftwareTitleID)
+							if err != nil {
+								if errors.Is(err, sql.ErrNoRows) {
+									return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+										Message: fmt.Sprintf(
+											"software_package_id %d does not belong to software_title_id %d on team %q",
+											*spec.SoftwarePackageID, *spec.SoftwareTitleID, spec.Team,
+										),
+									}, "validate pinned software package id")
+								}
+								return ctxerr.Wrap(ctx, err, "validate pinned software package id")
+							}
+							softwareInstallerID = &pinnedInstallerID
+						} else {
+							softwareInstallerID = softwareInstallerIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
+						}
 					} else {
 						vppAppsTeamsID = vppAppsTeamsIDs[teamNameToID[spec.Team]][*spec.SoftwareTitleID]
 					}

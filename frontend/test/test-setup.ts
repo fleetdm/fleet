@@ -3,6 +3,23 @@ import mockServer from "./mock-server";
 
 // Needed for testing react-tooltip-5
 window.CSS.supports = jest.fn();
+
+// JSDOM does not implement matchMedia, which useIsMobileWidth (DeviceUserPage)
+// calls unguarded on mount. Default to the desktop breakpoint; tests that need
+// mobile can override.
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: jest.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(), // for older APIs
+    removeListener: jest.fn(),
+    onchange: null,
+    dispatchEvent: jest.fn(),
+  })),
+});
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),

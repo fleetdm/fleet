@@ -1,0 +1,14 @@
+{
+  "name": "RingCentral",
+  "slug": "ringcentral/windows",
+  "package_identifier": "RingCentral.RingCentral",
+  "unique_identifier": "RingCentral",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "use_display_version_for_patch": true,
+  "ignore_hash": true,
+  "default_categories": [
+    "Communication"
+  ]
+}

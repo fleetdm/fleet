@@ -1,0 +1,1 @@
+- Removed the unused `jq` binary from the `fleetdm/fleet` Docker image to reduce the image's attack surface and prevent SBOM scanners from flagging `jq` CVEs.

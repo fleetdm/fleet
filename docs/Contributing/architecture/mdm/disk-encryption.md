@@ -100,8 +100,9 @@ sequenceDiagram
 #### Troubleshooting
 The key stored in host_disk_encryption_keys for a given host will be deleted under the following circumstances:
 - MDM re-enrollment or enrollment profile reinstallation, outside Fleet-initiated MDM SCEP certificate renewal
-- Disk encryption disabled for a host's fleet
 - Host moved to a fleet with disk encryption disabled
+
+Turning disk encryption off for a fleet does not delete the keys of the hosts already in it. Deletion on a fleet change only runs when hosts move fleets and only when the destination fleet has no disk encryption profile.
 
 If the host is still in an encrypted fleet after the MDM re-enrollment, or in the case of a fleet
 change, once the host is moved to a fleet with encryption enabled, Fleet will initiate one of the processes
@@ -162,8 +163,9 @@ sequenceDiagram
         fleetd->>fleetd: execute reports
         fleetd->>fleet: return report data including encryption status
         fleet->>fleetd: Disable notifs.EnforceBitLockerEncryption in orbit<br>config because Host is encrypted and a<br>key is escrowed
-        fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
+
+Unlike macOS, there is no periodic decryptability check for Windows. The key is marked decryptable when it's escrowed and is never re-verified.
 
 #### Troubleshooting
 
@@ -221,8 +223,9 @@ sequenceDiagram
         fleetd->>host: Use user passphrase to create new<br>keyslot with random passphrase
         fleetd->>fleet: Encrypt and send new passphrase
         fleet->>fleetd: Disable notifs.RunDiskEncryptionEscrow in orbit<br>config because Host is encrypted and a<br>key is escrowed
-        fleet->>fleet: Verify that recovery key is decryptable<br>(hourly cron job)
 ```
+
+As with Windows, there is no periodic decryptability check for Linux.
 
 #### TPM-backed FDE (Ubuntu 26 and later)
 
@@ -294,10 +297,18 @@ orphaned key is harmless because its secret was never stored anywhere.
 
 ## Key storage and security
 
-Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is
-encrypted using Fleet's CA certificate, and thus can only be decrypted if you have the CA private
-key. Additionally, a backup copy of any key that gets escrowed is stored in the
-`host_disk_encryption_keys_archive` table. In the event that a host's encryption key is unavailable
+Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is encrypted with a credential that depends on the host's platform, and can only be decrypted with the matching private key:
+
+| Platform | Encrypted with | Decrypted in `getHostDiskEncryptionKey` using |
+| --- | --- | --- |
+| macOS, iOS, iPadOS | Fleet's CA certificate | `assets.CACertsAndKeyForDecryption` |
+| Windows | WSTEP identity certificate | `mdm.windows_wstep_identity_cert_bytes` and its key |
+| Linux | Fleet server private key | `server.private_key` |
+
+Replacing any of these leaves every key that was escrowed against the old credential undecryptable. Fleet re-verifies decryptability hourly for macOS only, and only for keys it has not verified before. Windows and Linux keys are marked decryptable at escrow time and are never re-checked, and no platform re-checks a key already marked decryptable.
+
+Additionally, a backup copy of any key that gets escrowed is stored in the
+`host_disk_encryption_keys_archive` table. Archived keys are encrypted the same way as live ones, so they don't survive a credential change either. In the event that a host's encryption key is unavailable
 due to a rotation or other event, it is possible to restore the host's most recently archived key by
 executing the following query against the Fleet server's MySQL database, replacing HOST_ID with the
 ID of the host in question:

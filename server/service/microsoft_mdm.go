@@ -2964,14 +2964,17 @@ func buildESPBlockCommands(provID, errorText, blockButtons string) []*mdm_types.
 }
 
 // buildESPReleaseCommands builds SyncML commands that release the device from the ESP. The release path advances
-// DevicePreparation to "complete" and signals ServerHasFinishedProvisioning at both Device and User scopes to
-// complete both the Device setup and Account setup phases of the ESP so Windows proceeds to login.
+// DevicePreparation to "complete", signals ServerHasFinishedProvisioning at both Device and User scopes to
+// complete both the Device setup and Account setup phases, and sets SkipUserStatusPage=true so that subsequent
+// user logins skip the Account setup ESP phase (#51380).
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", provID), "true"),
 	}
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
@@ -4492,16 +4495,17 @@ func executeWindowsProfileReconcileBatch(
 	scepConfigSvc := scep.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
 	deps := microsoft_mdm.ProfilePreprocessDependencies{
-		Context:                    ctx,
-		Logger:                     logger,
-		DataStore:                  ds,
-		HostIDForUUIDCache:         make(map[string]uint),
-		AppConfig:                  appConfig,
-		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
-		ManagedCertificatePayloads: managedCertificatePayloads,
-		NDESConfig:                 groupedCAs.NDESSCEP,
-		GetNDESSCEPChallenge:       scepConfigSvc.GetNDESSCEPChallenge,
-		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
+		Context:                      ctx,
+		Logger:                       logger,
+		DataStore:                    ds,
+		HostIDForUUIDCache:           make(map[string]uint),
+		AppConfig:                    appConfig,
+		CustomSCEPCAs:                groupedCAs.ToCustomSCEPProxyCAMap(),
+		ManagedCertificatePayloads:   managedCertificatePayloads,
+		NDESConfig:                   groupedCAs.NDESSCEP,
+		GetNDESSCEPChallenge:         scepConfigSvc.GetNDESSCEPChallenge,
+		NDESChallengeErrorToDetail:   scep.NDESChallengeErrorToDetail,
+		NDESChallengeErrorIsTerminal: scep.IsTerminalNDESChallengeError,
 	}
 
 	// Guard against a race where an admin deletes a profile between the
@@ -4634,13 +4638,23 @@ func executeWindowsProfileReconcileBatch(
 					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
 					string(p.SyncML),
 				)
-				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
-				if err != nil && !errors.As(err, &profileProcessingError) {
-					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
-				} else if err != nil && errors.As(err, &profileProcessingError) {
-					hp.Status = &fleet.MDMDeliveryFailed
-					hp.Detail = profileProcessingError.Error()
+				// AsType reports false for a nil error, so these double as the "no error" check.
+				transientErr, isTransient := errors.AsType[*microsoft_mdm.MicrosoftProfileTransientError](err)
+				processingErr, isProcessing := errors.AsType[*microsoft_mdm.MicrosoftProfileProcessingError](err)
+				switch {
+				case isTransient:
+					// Preprocessing hit something that clears on its own, so no profile was ever built for this host and
+					// nothing was delivered, so there is no host-side outcome to report. Leave the row untouched: it
+					// still has a NULL status, so the next tick picks it up again.
+					logger.WarnContext(ctx, "skipping Windows profile install; profile variables could not be substituted yet, will retry on a later tick",
+						"err", transientErr.Error(), "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
+				case isProcessing:
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = processingErr.Error()
+					continue
+				case err != nil:
+					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
 				}
 
 				// Create a unique command UUID for this host since the content is unique

@@ -60,6 +60,7 @@
   .run-item { display: flex; align-items: baseline; gap: 7px; padding: 2px 0; }
   .run-item label { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .run-item .date { color: var(--muted); font-size: 12px; }
+  .run-note { color: var(--muted); font-size: 12px; font-style: italic; margin: 0 0 4px 24px; white-space: normal; }
   .cat-toggle { font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 0 4px; }
 
   main { flex: 1; padding: 18px 22px; overflow-x: hidden; }
@@ -192,6 +193,25 @@ const REGISTRY = [
   { group: 'Loadtest', name: 'Loadtest Memory', path: 'loadtest_containers.memory_utilization.Average', unit: '%', warn: 20, alert: 40, abs: 90, floor: 5 },
   { group: 'Loadtest', name: 'Loadtest Containers', path: 'loadtest_containers.task_counts.runningCount', unit: '', dir: 'info' },
 
+  // CPU/Memory are service-wide averages across every running container; the
+  // hottest-task rows are what reveal an unevenly loaded instance.
+  { group: 'apns-mock', name: 'apns-mock CPU', path: 'apns_mock.cpu_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 90, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock Memory', path: 'apns_mock.memory_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock CPU (hottest task)', path: 'apns_mock.per_task.cpu.max_pct', unit: '%', warn: 20, alert: 40, abs: 95, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock Memory (hottest task)', path: 'apns_mock.per_task.memory.max_pct', unit: '%', warn: 20, alert: 40, abs: 90, floor: 5 },
+  { group: 'apns-mock', name: 'apns-mock Containers', path: 'apns_mock.task_counts.runningCount', unit: '', dir: 'info' },
+  { group: 'apns-mock', name: 'apns-mock Traffic TX/h', path: 'apns_mock.network.network_tx_bytes.Sum', unit: 'bytes', dir: 'info', rate: true },
+  { group: 'apns-mock', name: 'apns-mock Stops', path: 'apns_mock.container_health.abnormal_stops', unit: '', zero: true },
+
+  { group: 'apns-mock Redis', name: 'apns Redis CPU', path: 'apns_mock_redis.0.cpu_utilization.Average', unit: '%', warn: 20, alert: 40, abs: 80, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis CPU (max)', path: 'apns_mock_redis.0.cpu_utilization.Maximum', unit: '%', warn: 20, alert: 40, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis Memory', path: 'apns_mock_redis.0.memory_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 70, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis Conns', path: 'apns_mock_redis.0.curr_connections.Average', unit: '', warn: 50, alert: 100, floor: 5 },
+  { group: 'apns-mock Redis', name: 'apns Redis Pending Items', path: 'apns_mock_redis.0.curr_items.Average', unit: '', warn: 50, alert: 100, floor: 100 },
+  { group: 'apns-mock Redis', name: 'apns Redis Evictions/h', path: 'apns_mock_redis.0.evictions.Sum', unit: '', zero: true, rate: true },
+  { group: 'apns-mock Redis', name: 'apns Redis String Cmds/h', path: 'apns_mock_redis.0.string_based_cmds.Sum', unit: '', dir: 'info', rate: true },
+  { group: 'apns-mock Redis', name: 'apns Redis PubSub Cmds/h', path: 'apns_mock_redis.0.pubsub_based_cmds.Sum', unit: '', dir: 'info', rate: true },
+
   { group: 'RDS Writer', name: 'Writer CPU', path: 'rds_writer.cpu_utilization.Average', unit: '%', warn: 15, alert: 30, abs: 80, floor: 5 },
   { group: 'RDS Writer', name: 'Writer Connections', path: 'rds_writer.database_connections.Average', unit: '', warn: 50, alert: 100, floor: 50 },
   { group: 'RDS Writer', name: 'Writer Read IOPS', path: 'rds_writer.read_iops.Average', unit: '', warn: 50, alert: 100, floor: 200 },
@@ -237,7 +257,7 @@ const REGISTRY = [
 
 /* ============================ state ============================ */
 const state = {
-  runs: [],                 // {id, workspace, category, collectedAt, interval, hours, data}
+  runs: [],                 // {id, workspace, category, collectedAt, interval, hours, note, data}
   selected: new Set(),      // run ids
   metric: REGISTRY[0],      // registry entry or {name, path, raw:true}
   view: 'overview',
@@ -387,6 +407,9 @@ async function ingestFiles(fileRecs) {
     state.runs.push({
       id, workspace: ws, collectedAt: ts, interval,
       hours: intervalHours(interval),
+      // Optional free-form annotation from `collect-metrics.sh --note`; absent on
+      // un-annotated runs. Displayed only — never charted or compared.
+      note: typeof data.metadata.note === 'string' ? data.metadata.note.trim() : '',
       category: inferCategory(relPath, ws, data.metadata.category),
       data,
     });
@@ -456,9 +479,16 @@ function renderRunList() {
       dt.className = 'date';
       dt.textContent = r.collectedAt.slice(0, 10) + ' · ' + r.interval;
       lb.appendChild(dt);
-      lb.title = r.workspace + ' — collected ' + r.collectedAt + ' (' + r.interval + ' window)';
+      lb.title = r.workspace + ' — collected ' + r.collectedAt + ' (' + r.interval + ' window)'
+        + (r.note ? '\n\n' + r.note : '');
       div.append(cb, lb);
       el.appendChild(div);
+      if (r.note) {
+        const nt = document.createElement('div');
+        nt.className = 'run-note';
+        nt.textContent = r.note;
+        el.appendChild(nt);
+      }
     }
   }
 }
@@ -660,6 +690,12 @@ function renderDetail() {
       tip.appendChild(trun);
       tip.append(p.run.collectedAt + ' · ' + p.run.interval + ' window');
       tip.appendChild(document.createElement('br'));
+      if (p.run.note) {
+        const tn = document.createElement('em');
+        tn.textContent = p.run.note;
+        tip.appendChild(tn);
+        tip.appendChild(document.createElement('br'));
+      }
       tip.append(m.name + ': ');
       const val = document.createElement('b');
       val.textContent = fmtVal(p.value, m.unit);

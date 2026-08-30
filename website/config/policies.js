@@ -84,4 +84,5 @@ module.exports.policies = {
   'view-security-and-control': true,
   'view-ai-in-it': true,
   'view-capex-savings': true,
+  'view-configuration-generator': true,
 };

@@ -524,6 +524,12 @@
                         </dict>
                         <dict>
                             <key>name</key>
+                            <string>🤖 Kanban board (#g-byod)</string>
+                            <key>url</key>
+                            <string>https://github.com/orgs/fleetdm/projects/112</string>
+                        </dict>
+                        <dict>
+                            <key>name</key>
                             <string>🪄 Current sprint (#g-orchestration)</string>
                             <key>url</key>
                             <string>https://github.com/orgs/fleetdm/projects/71</string>

@@ -58,6 +58,7 @@ module.exports = {
     entraConditionalAccessConfigured: {required: true, type: 'boolean'},
     gitOpsModeEnabled: {required: true, type: 'boolean'},
     gitOpsModeExceptions: {required: true, type: 'json'},
+    fleetDesktopSSOEnabled: {required: true, type: 'boolean'},
     numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
     numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

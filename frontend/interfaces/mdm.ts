@@ -1,5 +1,6 @@
 import { IConfigServerSettings } from "./config";
-import { HostAndroidCertStatus } from "./host";
+import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
+import { isAppleDevice } from "./platform";
 
 export interface IMdmApple {
   common_name: string;
@@ -367,4 +368,25 @@ export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
 /** Android COBO (company-owned, fully managed) enrollment. */
 export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
   return enrollmentStatus === "On (automatic)";
+};
+
+// canTriggerAPNSPing checks the host state if it's allowed to hit APNS ping, it does not do any permission level checks.
+
+type ICanTriggerAPNSPingHost = Pick<IHostDevice, "platform"> & {
+  mdm: Pick<IHostMdmData, "connected_to_fleet"> &
+    Pick<IHostMdmData, "enrollment_status">;
+};
+
+export const canTriggerAPNSPing = (host: ICanTriggerAPNSPingHost) => {
+  return (
+    isAppleDevice(host.platform) &&
+    host.mdm.connected_to_fleet &&
+    host.mdm.enrollment_status !== null &&
+    ([
+      "On (automatic)",
+      "On (manual)",
+      "On (manual - personal)",
+      "On (company-owned)",
+    ] as MdmEnrollmentStatus[]).includes(host.mdm.enrollment_status)
+  );
 };

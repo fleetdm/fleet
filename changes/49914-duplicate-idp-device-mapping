@@ -1,0 +1,1 @@
+- Fixed duplicate IdP device mapping ("2 users") shown for a host after it re-enrolled through ADE with end user authentication when its IdP username had previously been set manually. The enrollment now replaces the manually set mapping instead of adding a second one.

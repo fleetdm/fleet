@@ -593,3 +593,100 @@ func TestDuplicateJSONKeysIdempotent(t *testing.T) {
 	second := DuplicateJSONKeys(first, rules)
 	assert.Equal(t, expected, string(second))
 }
+
+// TestDuplicateJSONKeysScopedRule is the response-side counterpart of TestJSONKeyRewriteReader_ScopedRule. The first
+// case is the real Fleet shape: the renamed `macos_setup` container still splits into an all-new `setup_experience`
+// sibling, while the same leaf name under `windows_settings` must not gain a second spelling. The rest pin how a scope
+// resolves against the enclosing object: array elements answer to the array's own key, the document root matches no
+// scope at all, and a scoped rule beats an unscoped one sharing its name so declaration order can't decide which wins.
+func TestDuplicateJSONKeysScopedRule(t *testing.T) {
+	fleetKeys := []AliasRule{
+		{OldKey: "macos_setup", NewKey: "setup_experience"},
+		{
+			OldKey: "enable_managed_local_account",
+			NewKey: "enable_create_local_admin_account",
+			Scope:  []string{"macos_setup", "setup_experience"},
+		},
+	}
+	arrayScoped := []AliasRule{{OldKey: "macos_team", NewKey: "macos_fleet", Scope: []string{"abm_tokens"}}}
+	parentScoped := []AliasRule{{OldKey: "k", NewKey: "k2", Scope: []string{"parent"}}}
+	tie := []AliasRule{
+		{OldKey: "k", NewKey: "unscoped"},
+		{OldKey: "k", NewKey: "scoped", Scope: []string{"parent"}},
+	}
+	inlined := []AliasRule{
+		{OldKey: "abm_tokens", NewKey: "ab_tokens", Inline: true},
+		{OldKey: "macos_team", NewKey: "macos_fleet", Scope: []string{"abm_tokens", "ab_tokens"}},
+	}
+
+	cases := []struct {
+		name  string
+		rules []AliasRule
+		input string
+		want  string
+	}{
+		{
+			name:  "the Windows toggle keeps its only name while macos_setup splits",
+			rules: fleetKeys,
+			input: `{"mdm": {
+				"macos_setup": {"enable_managed_local_account": true},
+				"windows_settings": {"enable_managed_local_account": false}
+			}}`,
+			want: `{"mdm": {
+				"macos_setup": {"enable_managed_local_account": true},
+				"setup_experience": {"enable_create_local_admin_account": true},
+				"windows_settings": {"enable_managed_local_account": false}
+			}}`,
+		},
+		{
+			name:  "array elements inherit the array's key",
+			rules: arrayScoped,
+			input: `{"abm_tokens":[{"macos_team":"a"}]}`,
+			want:  `{"abm_tokens":[{"macos_team":"a","macos_fleet":"a"}]}`,
+		},
+		{
+			name:  "an array under another key is out of scope",
+			rules: arrayScoped,
+			input: `{"other":[{"macos_team":"a"}]}`,
+			want:  `{"other":[{"macos_team":"a"}]}`,
+		},
+		{
+			name:  "the document root matches no scope",
+			rules: parentScoped,
+			input: `{"k":1}`,
+			want:  `{"k":1}`,
+		},
+		{
+			name:  "a new key already present in scope suppresses the duplicate",
+			rules: parentScoped,
+			input: `{"parent":{"k":1,"k2":9}}`,
+			want:  `{"parent":{"k":1,"k2":9}}`,
+		},
+		{
+			name:  "a scoped rule wins over an unscoped one inside its scope",
+			rules: tie,
+			input: `{"parent":{"k":1}}`,
+			want:  `{"parent":{"k":1,"scoped":1}}`,
+		},
+		{
+			name:  "the unscoped rule still applies outside that scope",
+			rules: tie,
+			input: `{"elsewhere":{"k":1}}`,
+			want:  `{"elsewhere":{"k":1,"unscoped":1}}`,
+		},
+		{
+			name:  "an inlined container carries its scoped leaf under both names",
+			rules: inlined,
+			input: `{"abm_tokens":[{"macos_team":"a"}]}`,
+			want:  `{"abm_tokens":[{"macos_team":"a","macos_fleet":"a"}],"ab_tokens":[{"macos_fleet":"a"}]}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.JSONEq(t, tc.want, string(DuplicateJSONKeys([]byte(tc.input), tc.rules, DuplicateJSONKeysOpts{Compact: true})))
+			// the indent option controls formatting only, never which keys are emitted
+			assert.JSONEq(t, tc.want, string(DuplicateJSONKeys([]byte(tc.input), tc.rules)))
+		})
+	}
+}

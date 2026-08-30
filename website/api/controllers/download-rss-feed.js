@@ -23,6 +23,8 @@ module.exports = {
         'podcasts',
         'report',
         'articles',
+        'newsletters',
+        'industry-news',
       ],
     }
 
@@ -85,6 +87,14 @@ module.exports = {
       case 'report':
         articleCategoryTitle = 'Reports | Fleet blog';
         categoryDescription = '';
+        break;
+      case 'newsletters':
+        articleCategoryTitle = 'Newsletters | Fleet blog';
+        categoryDescription = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        articleCategoryTitle = 'Industry news | Fleet blog';
+        categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
         break;
       case 'articles':
         articleCategoryTitle = 'Fleet blog | Fleet';

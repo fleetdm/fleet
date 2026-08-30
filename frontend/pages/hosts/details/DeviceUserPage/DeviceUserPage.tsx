@@ -2,12 +2,12 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
 import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
 import classNames from "classnames";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
 
 import deviceUserAPI, {
   IGetDeviceCertsApiParams,
@@ -55,24 +55,13 @@ import {
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 
+import { canTriggerAPNSPing } from "interfaces/mdm";
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
-import InfoModal from "./InfoModal";
-import {
-  getErrorMessage,
-  hasRemainingSetupSteps,
-  isSoftwareScriptSetup,
-  isIPhone,
-  isIPad,
-  isRecentlyEnrolled,
-} from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import BitLockerPinModal from "./BitLockerPinModal";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
 import {
@@ -83,13 +72,26 @@ import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageMod
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import SelfService from "../cards/Software/SelfService";
-import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
+import BitLockerPinModal from "./BitLockerPinModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import useDeviceSSO from "./useDeviceSSO";
+import {
+  getErrorMessage,
+  hasRemainingSetupSteps,
+  isSoftwareScriptSetup,
+  isIPhone,
+  isIPad,
+  isRecentlyEnrolled,
+} from "./helpers";
+import InfoModal from "./InfoModal";
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
@@ -129,6 +131,7 @@ interface IDeviceUserPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       setup_only?: string;
+      sso_error?: string;
     };
     search?: string;
   };
@@ -211,6 +214,7 @@ const DeviceUserPage = ({
     data: deviceCertificates,
     isLoading: isLoadingDeviceCertificates,
     isError: isErrorDeviceCertificates,
+    error: deviceCertificatesError,
     refetch: refetchDeviceCertificates,
   } = useQuery<
     IGetDeviceCertificatesResponse,
@@ -271,7 +275,7 @@ const DeviceUserPage = ({
   const {
     data: dupDetails,
     isLoading: isLoadingDupDetails,
-    error: isDupDetailsError,
+    error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
     ["host", deviceAuthToken],
@@ -364,7 +368,7 @@ const DeviceUserPage = ({
   );
 
   const isAuthenticationError =
-    isDupDetailsError && isDupDetailsError.status === 401;
+    dupDetailsError && dupDetailsError.status === 401;
 
   const {
     host,
@@ -413,6 +417,7 @@ const DeviceUserPage = ({
     data: setupStepStatuses,
     isLoading: isLoadingSetupSteps,
     isError: isErrorSetupSteps,
+    error: setupStepsError,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     AxiosError,
@@ -460,6 +465,23 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  const {
+    isSSORequired,
+    isRedirecting: isRedirectingToSSO,
+    retry: retryDeviceSSO,
+  } = useDeviceSSO({
+    deviceAuthToken,
+    errors: [
+      dupDetailsError,
+      deviceCertificatesError,
+      setupStepsError,
+      mdmManualEnrollUrlError,
+    ],
+    ssoErrorParam: location.query.sso_error,
+    isSetupOnly: !!location.query.setup_only,
+    hasSession: !!dupDetails,
+  });
 
   const { bypassConditionalAccess } = deviceUserAPI;
 
@@ -516,6 +538,14 @@ const DeviceUserPage = ({
   const onRefetchHost = useCallback(async () => {
     if (!host) return;
     setShowRefetchSpinner(true);
+
+    // Trigger APNS ping independently of the main refetch
+    if (canTriggerAPNSPing(host)) {
+      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+        notify.error("Failed to send APNS ping", { response: error });
+      });
+    }
+
     try {
       await deviceUserAPI.refetch(deviceAuthToken);
       setRefetchStartTime(Date.now());
@@ -962,6 +992,26 @@ const DeviceUserPage = ({
     );
   };
 
+  const renderDeviceSSOState = () => {
+    if (isRedirectingToSSO) {
+      return (
+        <div className={`${baseClass}__sso-redirect`} role="status">
+          <Spinner {...(isMobileView && { variant: "mobile" })} />
+          <span>Redirecting to your organization’s sign-in page…</span>
+        </div>
+      );
+    }
+
+    return (
+      <DeviceUserError
+        isMobileView={isMobileView}
+        isMobileDevice={isMobileDevice}
+        ssoError="sign_in_failed"
+        onRetry={retryDeviceSSO}
+      />
+    );
+  };
+
   const coreWrapperClassnames = classNames("core-wrapper", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
@@ -969,6 +1019,26 @@ const DeviceUserPage = ({
   const siteNavContainerClassnames = classNames("site-nav-container", {
     "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
   });
+
+  // The SSO branch has to come first: a refused device call is an error to
+  // every query on the page, but one the end user can act on by signing in.
+  const renderDeviceUserBody = () => {
+    if (isSSORequired) {
+      return renderDeviceSSOState();
+    }
+    if (dupDetailsError || enrollUrlError) {
+      return (
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
+          isAuthenticationError={!!isAuthenticationError}
+        />
+      );
+    }
+    return (
+      <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
+    );
+  };
 
   return (
     <div className="app-wrap">
@@ -1001,15 +1071,7 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDupDetailsError || enrollUrlError ? (
-        <DeviceUserError
-          isMobileView={isMobileView}
-          isMobileDevice={isMobileDevice}
-          isAuthenticationError={!!isAuthenticationError}
-        />
-      ) : (
-        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
-      )}
+      {renderDeviceUserBody()}
       {showInfoModal && (
         <InfoModal
           onCancel={toggleInfoModal}

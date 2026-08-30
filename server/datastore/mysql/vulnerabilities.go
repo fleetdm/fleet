@@ -817,7 +817,12 @@ func (ds *Datastore) atomicTableSwapVulnerabilityCounts(ctx context.Context, cou
 
 	// Atomic table swap using RENAME TABLE
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS vulnerability_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "dropping stale old table")
+		}
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			RENAME TABLE
 				vulnerability_host_counts TO vulnerability_host_counts_old,
 				%s TO vulnerability_host_counts

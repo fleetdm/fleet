@@ -69,6 +69,15 @@ const (
 	// error gives the end user nothing to act on.
 	FleetUISSOCallbackSessionExpired = FleetUISSOCallbackError + "&reason=session_expired"
 
+	// FleetUIDeviceSSOError is where the Fleet Desktop SSO flow lands when the
+	// callback fails before loading the SSO session: the device-page counterpart
+	// of FleetUISSOCallbackError.
+	FleetUIDeviceSSOError = "/device/sso-error?reason=error"
+
+	// FleetUIDeviceSSOErrorSessionExpired is the device-page counterpart of
+	// FleetUISSOCallbackSessionExpired.
+	FleetUIDeviceSSOErrorSessionExpired = "/device/sso-error?reason=session_expired"
+
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"

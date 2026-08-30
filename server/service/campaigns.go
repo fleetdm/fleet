@@ -166,6 +166,18 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
 
+	// Wake up targeted agents connected over the WebSocket transport so they
+	// pick up the campaign immediately instead of on their next poll.
+	// Best-effort: agents the notification misses get the query through
+	// polling or the interval check job. The wired notifier delays the publish
+	// so the live query store's in-memory cache can't hide the fresh campaign
+	// (see pubsub.DelayedAgentNotifier).
+	if svc.agentNotifier != nil {
+		if err := svc.agentNotifier.NotifyAgentsForLiveQuery(ctx, hostIDs, campaign.ID); err != nil {
+			svc.logger.ErrorContext(ctx, "notify agents for live query", "campaign_id", campaign.ID, "err", err)
+		}
+	}
+
 	return campaign, nil
 }
 

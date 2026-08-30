@@ -9,6 +9,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 import {
@@ -159,10 +160,56 @@ const HostHeader = ({
     );
   };
 
+  // `summaryData` is run through `normalizeEmptyValues`, so a host that has
+  // never checked in reports "---", while platforms whose API response omits
+  // the field altogether leave it undefined.
+  const lastMdmCheckIn = summaryData.last_mdm_checked_in_at;
+  const hasMdmCheckIn =
+    !!lastMdmCheckIn && lastMdmCheckIn !== DEFAULT_EMPTY_CELL_VALUE;
+
+  const withTooltip = (content: React.ReactNode) => {
+    if (!hasMdmCheckIn) {
+      return content;
+    }
+
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            <span>
+              Last fetched:
+              <b>
+                {" "}
+                {internationalTimeFormat(
+                  new Date(summaryData.detail_updated_at)
+                )}
+              </b>
+            </span>
+            <br />
+            <span>
+              Last MDM check-in:
+              <b> {internationalTimeFormat(new Date(lastMdmCheckIn))}</b>
+            </span>
+          </>
+        }
+        position="top"
+        underline={false}
+        showArrow
+      >
+        {content}
+      </TooltipWrapper>
+    );
+  };
+
+  // eslint-disable-next-line no-nested-ternary
   const lastFetched = summaryData.detail_updated_at ? (
-    <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={summaryData.detail_updated_at}
-    />
+    hasMdmCheckIn ? (
+      humanLastSeen(summaryData.detail_updated_at)
+    ) : (
+      <HumanTimeDiffWithFleetLaunchCutoff
+        timeString={summaryData.detail_updated_at}
+      />
+    )
   ) : (
     ": unavailable"
   );
@@ -219,7 +266,11 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            {"Last fetched"} {lastFetched}
+            {withTooltip(
+              <>
+                {"Last fetched"} {lastFetched}
+              </>
+            )}
           </div>
         </div>
       </div>
