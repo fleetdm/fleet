@@ -2245,15 +2245,10 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 }
 
 // snapshotWindowsProfileNamesForDeletionDB copies each profile's live name onto its host
-// rows before the profile row is deleted. Those rows outlive the profile so the removal can
-// still be tracked and displayed, and their denormalized profile_name is what reads fall back
-// to once the live name is gone. No-op unless a name actually drifted, so an unrenamed
-// profile costs nothing to delete. The comparison casts to BINARY because the column's
-// utf8mb4_unicode_ci collation is case-insensitive and PAD SPACE, so a plain != would
-// skip a rename that only changed case or trailing space.
-//
-// Only the delete paths need this. While the profile row exists, reads resolve the name from
-// it, so an edit has nothing to snapshot.
+// rows before the profile row is deleted: those rows outlive it, and their denormalized
+// profile_name is what reads fall back to once the live name is gone. Casts to BINARY
+// because the column's collation is case-insensitive, so a plain != would skip a rename
+// that only changed case.
 func snapshotWindowsProfileNamesForDeletionDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
 	if len(profileUUIDs) == 0 {
 		return nil
@@ -3176,12 +3171,10 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
 
-			// A name is unique per team across all four profile tables. Each has
-			// its own unique index, but none of them span tables, so a rename
-			// into another platform's name has to be checked here. Guarding in
-			// the statement rather than a preceding SELECT keeps check and write
-			// atomic, as NewMDMWindowsConfigProfile does on insert. Rename-only,
-			// so a content edit can't fail on a pre-existing cross-table duplicate.
+			// A name is unique per team across all four profile tables and no index
+			// spans them, so a cross-platform clash is checked here. In the statement
+			// rather than a preceding SELECT so check and write are atomic, as
+			// NewMDMWindowsConfigProfile does on insert.
 			stmt := setClause
 			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
 			if nameChanged {
