@@ -129,8 +129,17 @@ orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`).
 
 The server determines whether the disk is encrypted by checking both `conversion_status` (whether
 the data is encrypted) and `protection_status` (whether the TPM protector is active) from the
-osquery `bitlocker_info` table. If the disk is encrypted but protection is off (e.g., BitLocker
-suspended for a BIOS update), the host shows "Action required" in the Fleet UI.
+osquery `bitlocker_info` table.
+
+#### Restoring protection
+
+A disk that is encrypted but has protection off, for example because BitLocker was suspended for a BIOS update and never resumed, keeps its key available in the clear. It is encrypted but not protected. Fleet repairs this rather than leaving the host in that state: the server sets the `enable_bitlocker_protection` notification and orbit turns protection back on.
+
+Before enabling, orbit makes sure the volume can unseal at boot, adding a TPM protector when no TPM-family protector is present. If a restart is already pending, orbit changes nothing and reports a deferral, because enabling re-seals the key to the current boot measurements and a staged update would change them.
+
+Orbit reports what it did (`restored`, `deferred`, or `failed`) to `POST /api/fleet/orbit/disk_encryption_protection`. While Fleet is repairing the host it shows "Enforcing". It shows "Action required" only once orbit reports that it cannot finish, and the host's disk encryption details then carry the reason.
+
+Windows startup-authentication policy can forbid the TPM-only protector orbit needs, which an admin, another tool, or a previous MDM can leave behind. When a volume is unprotected and has no TPM-family protector at all, Fleet clears that policy so the repair can proceed.
 
 ```mermaid
 sequenceDiagram

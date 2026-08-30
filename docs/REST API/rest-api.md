@@ -4247,7 +4247,8 @@ Returns the information of the specified host.
       "os_settings": {
         "disk_encryption": {
           "status": "verified",
-          "detail": ""
+          "detail": "",
+          "action_required": null
         },
         "host_name": {
           "status": "verified",
@@ -4271,6 +4272,8 @@ Returns the information of the specified host.
 ```
 
 `mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
+
+`mdm.os_settings.disk_encryption.action_required` names what the **end user** can do about a disk encryption problem, and is only present when there is something they can do. On Windows it is `create_pin` when BitLocker policy requires a startup PIN the end user hasn't set, and `restart` when Fleet is waiting for a pending restart before turning protection back on. On macOS it is `log_out` or `rotate_key`. It's absent when `status` is `action_required` for a reason the end user can't fix, such as a TPM that isn't ready or a policy that forbids the key protector Fleet needs.
 
 `mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
 
@@ -4505,7 +4508,8 @@ In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. j
       "os_settings": {
         "disk_encryption": {
           "status": null,
-          "detail": ""
+          "detail": "",
+          "action_required": null
         }
       },
       "profiles": [
@@ -4744,7 +4748,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
       "os_settings": {
         "disk_encryption": {
           "status": "verified",
-          "detail": ""
+          "detail": "",
+          "action_required": null
         }
       },
       "profiles": [
