@@ -40,9 +40,9 @@ In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. Y
 
 > It may take up to two hours for Fleet to collect and store the disk encryption keys from all hosts.
 
-* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. On Windows, this status also appears when BitLocker protection is off and Fleet couldn't turn it back on. The host's disk encryption details give the reason. If the end user can resolve it, they'll be asked to on their **My device** page, either to restart the host or to create a BitLocker PIN.
+* Action required (pending): the end user must take action to turn disk encryption on or reset their disk encryption key. On Windows, this status also appears when the disk is encrypted and the key is escrowed but BitLocker protection is off (e.g., suspended for a BIOS update or due to a TPM configuration issue).
 
-* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online. On Windows, this status also appears while Fleet is turning BitLocker protection back on for a disk that's already encrypted.
+* Enforcing (pending): the host will receive the MDM command to install the configuration profile when the host comes online.
 
 * Removing enforcement (pending): the host will receive the MDM command to remove the disk encryption profile when the host comes online.
 
@@ -147,16 +147,6 @@ Currently, on macOS and Linux, Fleet detects when the disk encryption key change
 On macOS hosts, if an end user with local admin permissions changes the key using the `sudo fdesetup changerecovery -personal` command, Fleet will escrow that new key.
 
 For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#enforce-disk-encryption-on-linux).
-
-### BitLocker protection (Windows)
-
-A Windows disk can be fully encrypted while BitLocker protection is off. This happens when something suspends BitLocker and never resumes it, such as a firmware update, an installer, or another management tool. The data stays encrypted, but the key is available in the clear, so the disk isn't protected.
-
-Fleet turns protection back on for these hosts. While Fleet is working, the host shows "Enforcing". If Fleet can't finish, the host moves to "Action required" and the reason appears in the host's disk encryption details.
-
-Two of those reasons are things the end user can resolve, and they'll be asked to on their **My device** page: restarting the host, when a restart is already pending and Fleet is waiting for it, and creating a BitLocker PIN, when your fleet requires one and the host doesn't have one yet. Reasons the end user can't resolve, such as a TPM that isn't ready, are shown to the admin without asking the end user to do anything.
-
-If a policy on the host forbids the key protector Fleet needs, Fleet clears that policy so protection can be restored.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
