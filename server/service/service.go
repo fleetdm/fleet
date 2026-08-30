@@ -72,7 +72,8 @@ type Service struct {
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
-	keyValueStore fleet.KeyValueStore
+	keyValueStore         fleet.KeyValueStore
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter
 
 	androidSvc android.Service
 
@@ -84,6 +85,10 @@ type Service struct {
 
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
+
+	// agentNotifier publishes check-in wake-ups for agents connected over the
+	// WebSocket transport; nil when the transport is disabled.
+	agentNotifier fleet.AgentCheckInNotifier
 
 	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
 	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
@@ -161,6 +166,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	androidSvc android.Service,
 	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
@@ -201,6 +207,7 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
+		installAttemptCounter:           installAttemptCounter,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 		packConfigCache:                 gocache.New(1*time.Minute, 30*time.Second),
@@ -222,6 +229,12 @@ func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 // This should be called after NewService to inject the ACME service dependency.
 func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
 	svc.acmeSvc = acmeSvc
+}
+
+// SetAgentCheckInNotifier sets the notifier used to wake up agents connected
+// over the WebSocket transport; when unset, no notifications are published.
+func (svc *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
+	svc.agentNotifier = notifier
 }
 
 type validationMiddleware struct {

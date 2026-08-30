@@ -84,6 +84,9 @@ type StatisticsPayload struct {
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
 
+	// FleetDesktopSSOEnabled is true when SSO is required in front of Fleet Desktop (fleet_desktop.sso_enabled).
+	FleetDesktopSSOEnabled bool `json:"fleetDesktopSSOEnabled"`
+
 	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM

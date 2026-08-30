@@ -136,6 +136,10 @@ type Datastore interface {
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
+	// QueriesByName resolves multiple (team, name) pairs in a single lookup. The
+	// returned map is keyed by TeamScopedQueryName.Key() and contains only the
+	// pairs that exist; absent pairs are simply not in the map.
+	QueriesByName(ctx context.Context, names []TeamScopedQueryName) (map[string]*Query, error)
 	// QueriesPerHost returns the IDs of the saved queries that are scheduled for the given host,
 	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
 	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
@@ -709,6 +713,8 @@ type Datastore interface {
 	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
+	// HostIDsByTeamID returns the IDs of all hosts in the given team.
+	HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error)
 	// TeamByName retrieves the Team by Name (including extras).
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
@@ -816,13 +822,6 @@ type Datastore interface {
 	// software_title installed and stores that information in the
 	// software_titles_host_counts table.
 	SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error
-
-	// ReconcileSoftwareChecksums repairs software rows whose checksum predates
-	// the field-ordering change in Fleet v4.76.0, which produced duplicate
-	// software inventory entries (same name/version/source, different checksum).
-	// It merges each duplicate group onto a single canonical row in batched
-	// transactions and self-limits once no duplicates remain.
-	ReconcileSoftwareChecksums(ctx context.Context) error
 
 	// HostVulnSummariesBySoftwareIDs returns a list of all hosts that have at least one of the
 	// specified Software installed. Includes the path were the software was installed.
@@ -958,7 +957,17 @@ type Datastore interface {
 	BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
-	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
+	// UnblockHostsUpcomingActivityQueue activates the queue of up to maxHosts
+	// hosts that have pending activities but none activated. When
+	// skipFleetInitiated is true, hosts waiting solely on deferred
+	// fleet-initiated activities are left for ReleaseFleetInitiatedUpcomingActivities
+	// so its per-minute budget isn't bypassed.
+	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int, skipFleetInitiated bool) (int, error)
+	// ReleaseFleetInitiatedUpcomingActivities activates the queue of up to
+	// maxHosts hosts whose pending fleet-initiated activities were enqueued
+	// with deferred activation (policy automations), oldest first. It is the
+	// release valve for the activity.fleet_initiated_release_per_minute budget.
+	ReleaseFleetInitiatedUpcomingActivities(ctx context.Context, maxHosts int) (int, error)
 	// ReapStuckActivatedMDMInstalls fails App Store and in-house app installs that have been
 	// activated longer than olderThan and can no longer make progress, releasing the activity
 	// queue each one is holding. See ReapStuckMDMInstalls for why such an install blocks a queue
@@ -1547,6 +1556,13 @@ type Datastore interface {
 	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
+
+	// UpsertMDMAppleFleetConfigProfile inserts or updates a Fleet-controlled
+	// configuration profile by its `team_id` and `identifier`, keeping the
+	// existing `profile_uuid` so hosts see a changed payload rather than a
+	// different profile. Re-writing identical bytes leaves the row untouched, so
+	// profile reconciliation stays a no-op.
+	UpsertMDMAppleFleetConfigProfile(ctx context.Context, p MDMAppleConfigProfile) error
 
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
@@ -2513,9 +2529,9 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
-	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
-	// "failed" with the provided detail.
-	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given (hostUUID,
+	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending."
+	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to
@@ -3228,8 +3244,8 @@ type Datastore interface {
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
-	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
-	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	// BatchSetSoftwareInstallers sets the software installers for the given team or no team, and returns installer ids that were modified.
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]uint, error)
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
@@ -3490,6 +3506,10 @@ type Datastore interface {
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
+	// ResendWindowsHostCertificateProfile marks the given Windows profile to be resent to the given host after Fleet
+	// turned a SCEP request away (an expired or rejected challenge).
+	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
@@ -3663,6 +3683,11 @@ type Datastore interface {
 
 	// CreateScimUser creates a new SCIM user in the database
 	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// SetScimUserFleetUserID sets the durable link from a SCIM user to its
+	// matching Fleet user. Set-once: a no-op when a link is already set, so an
+	// established link can never be re-pointed (it is only cleared by the FK
+	// when the linked Fleet user is deleted).
+	SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID uint) error
 	// ScimUserByID retrieves a SCIM user by ID
 	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
 	// ScimUserByUserName retrieves a SCIM user by username
@@ -4115,6 +4140,10 @@ type AndroidDatastore interface {
 	// InsertMDMAndroidCommand inserts a row into mdm_android_commands without updating host_mdm_actions.
 	// Used for custom commands that have no corresponding UI state (lock/wipe/passcode refs).
 	InsertMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+	// GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
+	// If hostUUID is non-empty, results are filtered to that host.
+	GetMDMAndroidCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
 	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.

@@ -30,6 +30,7 @@ import MfaPage from "pages/MfaPage";
 import CoreLayout from "layouts/CoreLayout";
 import DashboardPage from "pages/DashboardPage";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
+import DeviceUserSSOErrorPage from "pages/DeviceUserSSOErrorPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
@@ -336,6 +337,10 @@ const routes = (
                   to="os-settings/configuration-profiles"
                 />
                 <Route path="os-settings/:section" component={OSSettings} />
+                <Route
+                  path="os-settings/:section/:platform"
+                  component={OSSettings}
+                />
 
                 <Route path="setup-experience" component={SetupExperience} />
                 <Redirect
@@ -462,6 +467,7 @@ const routes = (
       </Route>
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
+        <Route path="sso-error" component={DeviceUserSSOErrorPage} />
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />

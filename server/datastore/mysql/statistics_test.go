@@ -106,6 +106,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.False(t, stats.ConditionalAccessEnabled)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
 	assert.False(t, stats.GitOpsModeEnabled)
+	assert.False(t, stats.FleetDesktopSSOEnabled)
 	// Existing-install defaults applied by migration 20260323144117_AddGitOpsExceptionsToAppConfig
 	// (labels + secrets on, software off) and baked into the dumped test schema.
 	assert.Equal(t, []string{"labels", "secrets"}, stats.GitOpsModeExceptions)
@@ -834,6 +835,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	cfg.GitOpsConfig.Exceptions.Labels = false
 	cfg.GitOpsConfig.Exceptions.Software = false
 	cfg.GitOpsConfig.Exceptions.Secrets = false
+	cfg.FleetDesktop.SSOEnabled = true
 	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
 
 	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
@@ -841,6 +843,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.GitOpsModeEnabled)
 	assert.Equal(t, []string{}, stats.GitOpsModeExceptions)
+	assert.True(t, stats.FleetDesktopSSOEnabled)
 }
 
 func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
