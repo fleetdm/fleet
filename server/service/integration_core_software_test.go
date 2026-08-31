@@ -1054,6 +1054,10 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, 1, gResp.Software[0].HostsCount)
 }
 
+// TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
+// are inserted properly and subsequent reports of the same software do not generate new
+// entries in the `software` table. (It mainly tests the comparison between the currenly
+// inserted software and the incoming software from a host.)
 func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	t := s.T()
 

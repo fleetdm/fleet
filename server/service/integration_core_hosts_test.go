@@ -2124,7 +2124,3 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
 }
-
-// TestOsqueryConfigPackCacheLabelScopedQueries verifies that the per-team pack
-// config cache does not serve one host's label-scoped query set to other hosts
-// of the same team. Reproduces the bug described in #51033.

@@ -1382,6 +1382,9 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 	)
 }
 
+// Free tier must not expose or accept fleet_desktop.sso_enabled, and must not
+// let a value stored under a premium license (before a downgrade) block
+// unrelated config changes.
 func (s *integrationTestSuite) TestFleetDesktopSSOFreeTier() {
 	t := s.T()
 	ctx := t.Context()

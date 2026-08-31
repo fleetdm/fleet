@@ -1621,6 +1621,9 @@ func (s *integrationTestSuite) TestAddingRemovingManualLabels() {
 	require.Empty(t, teamHost2Labels)
 }
 
+// TestLabelScopePremiumGate verifies that all policy label scope fields
+// (include_any, include_all, exclude_any, exclude_all) are premium-gated on
+// every entry point for the free-tier (core) server.
 func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	t := s.T()
 

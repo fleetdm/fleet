@@ -807,6 +807,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), tpParams, http.StatusConflict, &tpResp)
 }
 
+// TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
 func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	t := s.T()
 

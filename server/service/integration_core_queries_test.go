@@ -1812,7 +1812,9 @@ func (s *integrationTestSuite) TestQueryReports() {
 	// TODO: Set global discard flag and verify that all data is gone.
 }
 
-// Creates a set of results for use in tests for Query Results.
+// TestOsqueryConfigPackCacheLabelScopedQueries verifies that the per-team pack
+// config cache does not serve one host's label-scoped query set to other hosts
+// of the same team. Reproduces the bug described in #51033.
 func (s *integrationTestSuite) TestOsqueryConfigPackCacheLabelScopedQueries() {
 	t := s.T()
 	ctx := t.Context()

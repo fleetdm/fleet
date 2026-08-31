@@ -13,8 +13,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/google/uuid"
@@ -199,4 +201,37 @@ func (s *integrationTestSuite) TestAndroidHostStorageInAPI() {
 	// clean up
 	err := s.ds.DeleteHost(ctx, hostID)
 	require.NoError(t, err)
+}
+
+func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *uint) []uint {
+	ids := make([]uint, 0, count)
+	for i := range count {
+		host := &fleet.AndroidHost{
+			Host: &fleet.Host{
+				Hostname:       fmt.Sprintf("hostname%d", i),
+				ComputerName:   fmt.Sprintf("computer_name%d", i),
+				Platform:       "android",
+				OSVersion:      "Android 14",
+				Build:          fmt.Sprintf("build%d", i),
+				Memory:         1024,
+				TeamID:         teamID,
+				HardwareSerial: uuid.NewString(),
+			},
+			Device: &android.Device{
+				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
+				EnterpriseSpecificID: new(uuid.NewString()),
+				AppliedPolicyID:      new("1"),
+				LastPolicySyncTime:   new(time.Now().Add(-time.Hour)), // 1 hour ago
+			},
+		}
+		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
+		ahost, err := ds.NewAndroidHost(context.Background(), host, false)
+		require.NoError(t, err)
+		ids = append(ids, ahost.Host.ID)
+	}
+	return ids
+}
+
+func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
+	return createAndroidHostForTest(t, ds, teamID, false)
 }

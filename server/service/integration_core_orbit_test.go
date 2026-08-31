@@ -161,7 +161,6 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	require.Equal(t, orbitHost.ID, got.ID)
 }
 
-// this test can be deleted once the "v1" version is removed.
 func (s *integrationTestSuite) TestOrbitConfigExtensions() {
 	t := s.T()
 	ctx := context.Background()

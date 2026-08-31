@@ -65,8 +65,6 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
-// TestMDMAnyMiddlewareAccess performs an end-to-end check through the HTTP
-// handler to confirm the new middleware respects each platform toggle.
 func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 	t := s.T()
 
@@ -725,10 +723,6 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, fmt.Sprint(sqs.WallTime), row["wall_time_ms"])
 }
 
-// TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
-// are inserted properly and subsequent reports of the same software do not generate new
-// entries in the `software` table. (It mainly tests the comparison between the currenly
-// inserted software and the incoming software from a host.)
 func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	t := s.T()
 

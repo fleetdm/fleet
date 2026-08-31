@@ -28,6 +28,8 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+// TestMDMAnyMiddlewareAccess performs an end-to-end check through the HTTP
+// handler to confirm the new middleware respects each platform toggle.
 func (s *integrationTestSuite) TestMDMAnyMiddlewareAccess() {
 	t := s.T()
 	ctx := context.Background()
@@ -452,7 +454,6 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil}, http.StatusOK)
 }
 
-// TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
 func (s *integrationTestSuite) TestStatus() {
 	var statusResp statusResponse
 	s.DoJSON("GET", "/api/latest/fleet/status/result_store", nil, http.StatusOK, &statusResp)
@@ -561,6 +562,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
+// this test can be deleted once the "v1" version is removed.
 func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	t := s.T()
 
