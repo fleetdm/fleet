@@ -1,0 +1,325 @@
+name: sentinelone
+description: |-
+  State of the local SentinelOne agent, as reported by `sentinelctl status`. One row when SentinelOne is installed, no rows when it isn't.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  Full SentinelOne status for a host.
+
+  ```
+  SELECT * FROM sentinelone;
+  ```
+
+  Report which hosts have SentinelOne protected and talking to the management console. Hosts without the agent return no rows.
+
+  ```
+  SELECT agent_version, protection, management_connected FROM sentinelone;
+  ```
+
+  Use as the query for a policy that passes only when the agent is protecting the host and connected to the console.
+
+  ```
+  SELECT 1 FROM sentinelone WHERE protection = 'enabled' AND management_connected = 'yes';
+  ```
+
+  Find hosts that haven't checked in with the SentinelOne console in over a day.
+
+  ```
+  SELECT agent_id, management_server, management_last_seen FROM sentinelone
+  WHERE management_last_seen != '' AND management_last_seen < (strftime('%s', 'now') - 86400);
+  ```
+
+  Find hosts where a SentinelOne daemon isn't ready.
+
+  ```
+  SELECT agent_id FROM sentinelone
+  WHERE service_agent_helper != 'ready' OR service_guard != 'ready' OR service_framework != 'ready';
+  ```
+notes: |-
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+
+  Values are the status strings `sentinelctl` reports, passed through unchanged. A column is an empty string when the installed agent doesn't report that field, so an empty value means "not reported," not "off."
+
+  `sentinelctl` on Windows reports a smaller, flatter set of fields than on macOS and Linux. Where a Windows field has a macOS equivalent it populates the same column: agent build ID fills `agent_version`, disable state fills `operational_state`, SentinelMonitor fills `es_framework`, and SentinelNetworkMonitor fills `network_monitoring`. The remaining Windows-only fields have their own columns (`tamper_protection`, `agent_run_mode`, `mitigation_policy`), and the columns Windows doesn't report at all (threat protection, daemons, launchd, management) are empty.
+
+  Because `sentinelctl` needs root to report full status, this table depends on osquery running as root (macOS and Linux) or LocalSystem (Windows), which is how fleetd runs it.
+columns:
+  - name: agent_version
+    description: Version of the installed SentinelOne agent. On Windows, taken from the monitor build ID.
+    type: text
+    required: false
+  - name: agent_id
+    description: Unique ID the SentinelOne console uses for this agent.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: install_date
+    description: Unix timestamp of when the agent was installed. Empty when the reported date can't be read.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: es_framework
+    description: State of the agent's kernel-level event source, `started` or `stopped`. Apple's EndpointSecurity framework on macOS, SentinelMonitor on Windows.
+    type: text
+    required: false
+  - name: operational_state
+    description: Whether the agent is operating, e.g. `enabled` or `disabled`. On Windows, derived from whether a user disabled the agent.
+    type: text
+    required: false
+  - name: remote_profiler
+    description: State of the agent's remote profiler.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: network_monitoring
+    description: State of the agent's network monitoring, e.g. `started` or `stopped`.
+    type: text
+    required: false
+  - name: network_extension
+    description: State of the agent's network extension.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: network_extension_content_filter
+    description: State of the network extension's content filter.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: ready
+    description: Whether the agent is ready, `yes` or `no`.
+    type: text
+    required: false
+  - name: protection
+    description: Whether the agent's threat protection is on, e.g. `enabled` or `disabled`. Windows reports its anti-tamper state instead, in `tamper_protection`.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: infected
+    description: Whether the agent has found an unresolved threat on the host, `yes` or `no`.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: network_quarantine
+    description: Whether the host is network quarantined by SentinelOne, `yes` or `no`.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: compatible_os
+    description: Whether the host's OS version is compatible with the installed agent.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: command_authentication
+    description: Whether `sentinelctl` commands require a passphrase.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_agent_helper
+    description: State of the agent helper service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_agent_ui
+    description: State of the agent UI service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_cleaner
+    description: State of the cleaner service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_control_service
+    description: State of the control service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_framework
+    description: State of the framework service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_guard
+    description: State of the guard service, which protects the agent from tampering.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_helper_service
+    description: State of the helper service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_lib_hooks_service
+    description: State of the library hooks service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_lib_logs_service
+    description: State of the library logs service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: service_shell
+    description: State of the shell service.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: integrity_sentineld
+    description: Integrity check result for the `sentineld` daemon.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: integrity_sentineld_guard
+    description: Integrity check result for the `sentineld_guard` daemon.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: integrity_sentineld_helper
+    description: Integrity check result for the `sentineld_helper` daemon.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: integrity_sentineld_shell
+    description: Integrity check result for the `sentineld_shell` daemon.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: launchd_agent_helper
+    description: Validity of the `agent-helper` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: launchd_agent_ui
+    description: Validity of the `agent-ui` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: launchd_sentinel_extensions
+    description: Validity of the `sentinel-extensions` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: launchd_sentineld
+    description: Validity of the `sentineld` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: launchd_sentineld_guard
+    description: Validity of the `sentineld-guard` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: launchd_sentineld_helper
+    description: Validity of the `sentineld-helper` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: launchd_sentineld_shell
+    description: Validity of the `sentineld-shell` launchd job.
+    type: text
+    required: false
+    platforms:
+      - darwin
+  - name: management_server
+    description: URL of the SentinelOne management console this agent reports to.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: management_site_key
+    description: Site key the agent enrolled with.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: management_last_seen
+    description: Unix timestamp of the agent's last successful check-in with the management console. Empty when the reported date can't be read.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: management_connected
+    description: Whether the agent is currently connected to the management console, `yes` or `no`.
+    type: text
+    required: false
+    platforms:
+      - darwin
+      - linux
+  - name: tamper_protection
+    description: Whether the agent's self-protection (anti-tamper) is on, `enabled` or `disabled`. This is not the same as `protection`, which reports threat protection on macOS and Linux.
+    type: text
+    required: false
+    platforms:
+      - windows
+  - name: agent_run_mode
+    description: How the agent process is running, e.g. `running as PPL` for Protected Process Light.
+    type: text
+    required: false
+    platforms:
+      - windows
+  - name: mitigation_policy
+    description: Mitigation policy the agent is applying, e.g. `none`.
+    type: text
+    required: false
+    platforms:
+      - windows
