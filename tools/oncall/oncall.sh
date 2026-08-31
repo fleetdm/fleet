@@ -75,7 +75,7 @@ prs() {
 	defs='def pad($n): . + ((" " * ($n - length)) // "");
 		def body_text: (.body // "") | gsub("<!--.*?-->"; ""; "m");
 		def linked_issue:
-			[body_text | scan("(?i)\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s*:?\\s*(?:https://github\\.com/fleetdm/fleet/issues/|fleetdm/fleet#|#)([0-9]+)")]
+			[body_text | scan("(?i)\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s*:?\\s*(?:https://github\\.com/fleetdm/fleet/issues/|fleetdm/fleet#|#)([0-9]+)\\b")]
 			| if length > 0 then .[0][0] else "" end;
 		def manually_tested:
 			if body_text | test("(?i)[-*]\\s*\\[x\\][^\\n]*(?:QA.?d all new/changed functionality|Attached a screenshot or screen recording)")
