@@ -827,7 +827,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			CVSSScore:        new(7.5),
 			EPSSProbability:  new(0.5),
 			CISAKnownExploit: new(true),
-			Published:        new(mockTime),
+			Published:        &mockTime,
 			Description:      "Test CVE 2021-12345",
 		},
 		{

@@ -578,7 +578,7 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 
 	// try to schedule that query on the endpoint that is deprecated
 	// in that version
-	gsParams := fleet.ScheduledQueryPayload{QueryID: new(qr.ID), Interval: new(uint(42))}
+	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
 	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
 	res.Body.Close()
 	// use the correct version for that deprecated API
