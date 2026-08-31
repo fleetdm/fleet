@@ -260,8 +260,8 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 // local account toggle force-defaulted to disabled.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
 	return fleet.WindowsSettings{
-		CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+		CustomSettings:            optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		EnableManagedLocalAccount: optjson.SetBool(false),
 	}
 }
 
@@ -29033,7 +29033,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
+	// Non-ASCII on purpose: the migration hashes script_contents in MySQL against
+	// hashes taken over the manifest text, which only agree if the bytes survive.
+	const manifestScript = "#!/bin/sh\n# café — naïve ✓ 你好\ninstaller -pkg \"$TMPDIR/cloudflare-warp.msi\" -target /\n"
+	warp := &fmaTestState{
+		version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi",
+		patchQuery: warpQueryV1, installScript: manifestScript,
+	}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
@@ -29075,6 +29081,35 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 				LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
 				LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
 				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
+		})
+		return row.Install, row.Uninstall
+	}
+	// LENGTH is bytes, CHAR_LENGTH is characters. Comparing bytes against Go catches
+	// a transcode that reading the text back through the same connection would hide.
+	activeScriptBytes := func(teamID, titleID uint) (bytes int, chars int) {
+		var row struct {
+			Bytes int `db:"stored_bytes"`
+			Chars int `db:"stored_chars"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT LENGTH(sc.contents) AS stored_bytes, CHAR_LENGTH(sc.contents) AS stored_chars
+				FROM software_installers si
+				JOIN script_contents sc ON sc.id = si.install_script_content_id
+				WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.is_active = 1`, teamID, titleID)
+		})
+		return row.Bytes, row.Chars
+	}
+	activeScriptEditedFlags := func(teamID, titleID uint) (install bool, uninstall bool) {
+		var row struct {
+			Install   bool `db:"install_script_edited"`
+			Uninstall bool `db:"uninstall_script_edited"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT install_script_edited, uninstall_script_edited
+				FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`, teamID, titleID)
 		})
 		return row.Install, row.Uninstall
 	}
@@ -29122,6 +29157,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		return resp.Policy.Query
 	}
 	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
+	// The manifest script has to survive the add byte for byte, or the backfill
+	// migration can't recognize it as one Fleet published.
+	gotInstall, _ := activeScripts(team.ID, titleID)
+	require.Equal(t, manifestScript, gotInstall)
+	storedBytes, storedChars := activeScriptBytes(team.ID, titleID)
+	require.Equal(t, len(manifestScript), storedBytes)
+	require.Greater(t, storedBytes, storedChars, "fixture lost its multi-byte characters")
 
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
@@ -29193,13 +29236,79 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, customInstall, gotInstall)
 	require.Equal(t, customUninstall, gotUninstall)
 
-	// A newly published version must keep the custom scripts, not revert to the manifest's.
+	// Scripts spelled out in the batch payload are flagged as edited, so they survive
+	// a newly published version rather than reverting to the manifest's.
+	editedInstall, editedUninstall := activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall)
+	require.True(t, editedUninstall)
+
 	setManifest("5.0", []byte("v50"))
 	runCron()
 	require.Equal(t, "5.0", activeTitle(team.ID).SoftwarePackage.Version)
 	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
 	require.Equal(t, customInstall, gotInstall, "custom install script must survive auto-update")
 	require.Equal(t, customUninstall, gotUninstall, "custom uninstall script must survive auto-update")
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall, "the flags carry onto the new version")
+	require.True(t, editedUninstall, "the flags carry onto the new version")
+
+	// === Section F: dropping the scripts from the batch payload hands the app back to Fleet ===
+	var batchRespF batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
+			{Slug: new(slug), SelfService: true},
+		}, TeamName: team.Name},
+		http.StatusAccepted, &batchRespF, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespF.RequestUUID)
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.False(t, editedInstall)
+	require.False(t, editedUninstall)
+
+	// The manifest scripts now win on the next published version.
+	setManifest("6.0", []byte("v60"))
+	runCron()
+	require.Equal(t, "6.0", activeTitle(team.ID).SoftwarePackage.Version)
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.NotEqual(t, customInstall, gotInstall, "an unedited install script follows the manifest")
+	require.NotEqual(t, customUninstall, gotUninstall, "an unedited uninstall script follows the manifest")
+
+	// === Section G: the update endpoint writes the flags, one script at a time ===
+	const patchedInstall = "echo patched-install"
+	activeInstallerID := func(teamID, titleID uint) uint {
+		var id uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `
+				SELECT id FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`, teamID, titleID)
+		})
+		return id
+	}
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+		InstallerID:   activeInstallerID(team.ID, titleID),
+		InstallScript: new(patchedInstall),
+		SelfService:   new(true),
+	}, http.StatusOK, "")
+
+	// Read back from MySQL, not from the payload the service handed the datastore.
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall, "the update endpoint marks the script it replaced")
+	require.False(t, editedUninstall, "the untouched script stays unmarked")
+
+	// The install script it just wrote survives the next version, the uninstall doesn't.
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall)
+	setManifest("7.0", []byte("v70"))
+	runCron()
+	require.Equal(t, "7.0", activeTitle(team.ID).SoftwarePackage.Version)
+	patchedUninstall := gotUninstall
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall, "a script the update endpoint marked survives auto-update")
+	require.Equal(t, patchedUninstall, gotUninstall, "the unmarked script follows the manifest")
+	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
+	require.True(t, editedInstall)
+	require.False(t, editedUninstall)
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
@@ -35878,9 +35987,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesInstallPrec
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostNeither.ID, titleID), nil, http.StatusBadRequest, &resp)
 }
 
-// TestPolicyAutomationSoftwareInstallerSelection verifies a team policy defaults its install-software
-// automation to the title's first-added package and honors an explicitly chosen software_installer_id.
-func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSelection() {
+// TestPolicyAutomationSoftwarePackageSelection verifies a team policy defaults its install-software
+// automation to the title's first-added package and honors an explicitly chosen software_package_id.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSelection() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -35911,12 +36020,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSe
 		require.NoError(t, err)
 		return id
 	}
-	installerA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
-	installerB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
-	require.Less(t, installerA, installerB)
+	packageA := newPkg("pol-storage-a", "pkgA.deb", "1.0")
+	packageB := newPkg("pol-storage-b", "pkgB.deb", "2.0")
+	require.Less(t, packageA, packageB)
 	titleID := getSoftwareTitleID(t, s.ds, "PolicyMultiPkgApp", "deb_packages")
 
-	storedInstallerID := func(policyID uint) uint {
+	// storedPackageID reads the DB column, which is still named software_installer_id.
+	storedPackageID := func(policyID uint) uint {
 		var ids []uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &ids, `SELECT software_installer_id FROM policies WHERE id = ?`, policyID)
@@ -35925,42 +36035,42 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallerSe
 		return ids[0]
 	}
 
-	// No installer chosen → defaults to first-added.
+	// No package chosen → defaults to first-added.
 	var defResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
 		Name:            "default first-added",
 		Query:           "SELECT 1;",
 		SoftwareTitleID: &titleID,
 	}, http.StatusOK, &defResp)
-	require.Equal(t, installerA, storedInstallerID(defResp.Policy.ID))
+	require.Equal(t, packageA, storedPackageID(defResp.Policy.ID))
 
-	// Explicit installer chosen → honored.
+	// Explicit package chosen → honored.
 	var chosenResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
 		Name:                "explicit choice",
 		Query:               "SELECT 2;",
 		SoftwareTitleID:     &titleID,
-		SoftwareInstallerID: &installerB,
+		SoftwareInstallerID: &packageB,
 	}, http.StatusOK, &chosenResp)
-	require.Equal(t, installerB, storedInstallerID(chosenResp.Policy.ID))
+	require.Equal(t, packageB, storedPackageID(chosenResp.Policy.ID))
 
 	// Modify the first policy to point at the chosen package.
 	var modResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", teamID, defResp.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: installerB},
+			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
 		},
 	}, http.StatusOK, &modResp)
-	require.Equal(t, installerB, storedInstallerID(defResp.Policy.ID))
+	require.Equal(t, packageB, storedPackageID(defResp.Policy.ID))
 
-	// An installer_id that doesn't belong to the title is rejected.
+	// A package_id that doesn't belong to the title is rejected.
 	var badResp fleet.TeamPolicyResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID), fleet.TeamPolicyRequest{
-		Name:                "bad installer",
+		Name:                "bad package",
 		Query:               "SELECT 3;",
 		SoftwareTitleID:     &titleID,
-		SoftwareInstallerID: new(installerB + 100000),
+		SoftwareInstallerID: new(packageB + 100000),
 	}, http.StatusBadRequest, &badResp)
 }
 

@@ -474,6 +474,12 @@ func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name strin
 	return query, nil
 }
 
+// QueriesByName delegates straight to the underlying store: a batch lookup is
+// already a single round-trip, so there is nothing for the per-name cache to add.
+func (ds *cachedMysql) QueriesByName(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	return ds.Datastore.QueriesByName(ctx, names)
+}
+
 func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	key := fmt.Sprintf(queryResultsCountKey, queryID)
 

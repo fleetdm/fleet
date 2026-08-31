@@ -146,6 +146,10 @@ type Datastore interface {
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
+	// QueriesByName resolves multiple (team, name) pairs in a single lookup. The
+	// returned map is keyed by TeamScopedQueryName.Key() and contains only the
+	// pairs that exist; absent pairs are simply not in the map.
+	QueriesByName(ctx context.Context, names []TeamScopedQueryName) (map[string]*Query, error)
 	// QueriesPerHost returns the IDs of the saved queries that are scheduled for the given host,
 	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
 	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
@@ -725,6 +729,8 @@ type Datastore interface {
 	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
+	// HostIDsByTeamID returns the IDs of all hosts in the given team.
+	HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error)
 	// TeamByName retrieves the Team by Name (including extras).
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
@@ -2539,9 +2545,9 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
-	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
-	// "failed" with the provided detail.
-	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given (hostUUID,
+	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending."
+	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to
@@ -3516,6 +3522,10 @@ type Datastore interface {
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
+	// ResendWindowsHostCertificateProfile marks the given Windows profile to be resent to the given host after Fleet
+	// turned a SCEP request away (an expired or rejected challenge).
+	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
@@ -3689,6 +3699,11 @@ type Datastore interface {
 
 	// CreateScimUser creates a new SCIM user in the database
 	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// SetScimUserFleetUserID sets the durable link from a SCIM user to its
+	// matching Fleet user. Set-once: a no-op when a link is already set, so an
+	// established link can never be re-pointed (it is only cleared by the FK
+	// when the linked Fleet user is deleted).
+	SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID uint) error
 	// ScimUserByID retrieves a SCIM user by ID
 	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
 	// ScimUserByUserName retrieves a SCIM user by username

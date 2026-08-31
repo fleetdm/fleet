@@ -150,6 +150,12 @@ type SoftwareInstaller struct {
 
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
 	AppOpenQuery string `json:"-" db:"app_open_query"`
+
+	// InstallScriptEdited records that an admin replaced the install script, which
+	// makes the Fleet-maintained app auto-update cron carry it forward.
+	InstallScriptEdited bool `json:"-" db:"install_script_edited"`
+	// UninstallScriptEdited is the same for the uninstall script.
+	UninstallScriptEdited bool `json:"-" db:"uninstall_script_edited"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -159,6 +165,11 @@ type SoftwarePackageResponse struct {
 	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
+	// InstallerID is the row ID of the specific software_installers entry this
+	// response describes. Zero for in-house apps, which come from a different
+	// table. GitOps uses this to pin a policy to the exact package the YAML
+	// referenced when several installers share a title.
+	InstallerID uint `json:"installer_id" db:"installer_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// HashSHA256 is the SHA256 hash of the software installer.
@@ -675,7 +686,9 @@ type UploadSoftwareInstallerPayload struct {
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
-	AppOpenQuery string
+	AppOpenQuery          string
+	InstallScriptEdited   bool
+	UninstallScriptEdited bool
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -774,6 +787,10 @@ type UpdateSoftwareInstallerPayload struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. FMA-only.
 	PatchWhenClosed *bool
+	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
+	// request of whether to change them.
+	InstallScriptEdited   bool
+	UninstallScriptEdited bool
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {

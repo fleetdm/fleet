@@ -4692,6 +4692,88 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 	return nil, fleet.ErrMissingLicense
 }
 
+type sendAPNSPingRequest struct {
+	HostID uint `url:"id"`
+}
+
+type sendAPNSPingResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r sendAPNSPingResponse) Error() error { return r.Err }
+
+func (r sendAPNSPingResponse) Status() int { return http.StatusNoContent }
+
+func apnsPingRequestEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*sendAPNSPingRequest)
+	err := svc.SendAPNSPing(ctx, req.HostID)
+	if err != nil {
+		return sendAPNSPingResponse{Err: err}, nil
+	}
+	return sendAPNSPingResponse{Err: nil}, nil
+}
+
+func (svc *Service) SendAPNSPing(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	// Fetch the host then authorize based on the host's team.
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return err
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	return svc.handleSendAPNSPing(ctx, host)
+}
+
+func (svc *Service) DeviceSendAPNSPing(ctx context.Context, host *fleet.Host) error {
+	return svc.handleSendAPNSPing(ctx, host)
+}
+
+func (svc *Service) handleSendAPNSPing(ctx context.Context, host *fleet.Host) error {
+	if !fleet.IsApplePlatform(host.Platform) {
+		return &fleet.BadRequestError{Message: "Host is not an Apple device."}
+	}
+
+	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting NanoMDM enrollment")
+	}
+
+	if enrollment == nil || !enrollment.Enabled {
+		return &fleet.BadRequestError{Message: "Host does not have MDM turned on."}
+	}
+
+	if err := svc.mdmAppleCommander.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending APNS ping")
+	}
+	svc.logger.DebugContext(ctx, "successfully sent APNS ping", "host.uuid", host.UUID)
+
+	if fleet.IsMacOSPlatform(host.Platform) {
+		// try for a user channel
+		userEnrollment, err := svc.ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting NanoMDM user enrollment")
+		}
+		if userEnrollment == nil || !userEnrollment.Enabled {
+			// nil just means no user channel or enrollment
+			return nil
+		}
+
+		if err := svc.mdmAppleCommander.SendNotifications(ctx, []string{userEnrollment.ID}); err != nil {
+			return ctxerr.Wrap(ctx, err, "sending APNS ping for user enrollment")
+		}
+
+		svc.logger.DebugContext(ctx, "successfully sent APNS ping for user enrollment", "user_enrollment.id", userEnrollment.ID, "host.uuid", host.UUID)
+	}
+
+	return nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////

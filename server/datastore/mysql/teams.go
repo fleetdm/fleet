@@ -315,6 +315,14 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 }
 
+func (ds *Datastore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, `SELECT id FROM hosts WHERE team_id = ?`, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host IDs by team")
+	}
+	return ids, nil
+}
+
 // prepareWindowsProfilesForTeamDeletion retains the content of the team's Windows config profiles (so the profile-manager cron can
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.

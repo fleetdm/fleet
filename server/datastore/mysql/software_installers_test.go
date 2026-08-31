@@ -5596,6 +5596,48 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, v2ID, again)
 
+	// A rebuild of v2 (same version, new bytes) refreshes the row in place, and must
+	// leave a script the admin edited on it alone.
+	const rebuildAdminInstall = "echo ADMIN install"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO script_contents (contents, md5_checksum) VALUES (?, UNHEX(MD5(?)))
+			ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`, rebuildAdminInstall, rebuildAdminInstall)
+		if err != nil {
+			return err
+		}
+		scriptID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`UPDATE software_installers SET install_script_content_id = ?, install_script_edited = 1 WHERE id = ?`,
+			scriptID, v2ID)
+		return err
+	})
+	rebuilt, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "sha-v2-rebuilt",
+		URL: "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
+	})
+	require.NoError(t, err)
+	require.Equal(t, v2ID, rebuilt)
+
+	var refreshed struct {
+		Storage       string `db:"storage_id"`
+		Install       string `db:"install_script"`
+		InstallEdited bool   `db:"install_script_edited"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &refreshed, `
+			SELECT si.storage_id, si.install_script_edited, sc.contents AS install_script
+			FROM software_installers si
+			JOIN script_contents sc ON sc.id = si.install_script_content_id
+			WHERE si.id = ?`, v2ID)
+	})
+	require.Equal(t, "sha-v2-rebuilt", refreshed.Storage)
+	require.True(t, refreshed.InstallEdited)
+	require.Equal(t, rebuildAdminInstall, refreshed.Install, "a rebuild keeps the script the admin edited")
+
 	// Force v2 to be the oldest non-active version so eviction is deterministic.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE software_installers SET uploaded_at = '2000-01-01 00:00:00' WHERE id = ?`, v2ID)
@@ -5715,6 +5757,25 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 		return err
 	})
 
+	// The same admin replaces v2's install script and leaves its uninstall script alone.
+	const adminInstall = "echo ADMIN install"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO script_contents (contents, md5_checksum) VALUES (?, UNHEX(MD5(?)))
+			ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`, adminInstall, adminInstall)
+		if err != nil {
+			return err
+		}
+		scriptID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`UPDATE software_installers SET install_script_content_id = ?, install_script_edited = 1 WHERE id = ?`,
+			scriptID, v2)
+		return err
+	})
+
 	// Insert v3 with the STALE caller id (v1). Config must clone from live active (v2).
 	v3, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
 		Version: "3.0", Filename: "foo-3.0.pkg", Extension: "pkg", StorageID: "clone-v3",
@@ -5723,15 +5784,29 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 	require.NoError(t, err)
 
 	var r struct {
-		SelfService        bool `db:"self_service"`
-		InstallDuringSetup bool `db:"install_during_setup"`
+		SelfService        bool   `db:"self_service"`
+		InstallDuringSetup bool   `db:"install_during_setup"`
+		Install            string `db:"install_script"`
+		Uninstall          string `db:"uninstall_script"`
+		InstallEdited      bool   `db:"install_script_edited"`
+		UninstallEdited    bool   `db:"uninstall_script_edited"`
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &r,
-			`SELECT self_service, install_during_setup FROM software_installers WHERE id = ?`, v3)
+		return sqlx.GetContext(ctx, q, &r, `
+			SELECT si.self_service, si.install_during_setup,
+				si.install_script_edited, si.uninstall_script_edited,
+				sci.contents AS install_script, scu.contents AS uninstall_script
+			FROM software_installers si
+			JOIN script_contents sci ON sci.id = si.install_script_content_id
+			JOIN script_contents scu ON scu.id = si.uninstall_script_content_id
+			WHERE si.id = ?`, v3)
 	})
 	require.True(t, r.SelfService, "self_service cloned from live active (v2), not stale v1")
 	require.True(t, r.InstallDuringSetup, "install_during_setup cloned from live active (v2), not stale v1")
+	require.True(t, r.InstallEdited)
+	require.Equal(t, adminInstall, r.Install, "an edited script is cloned from live active, not taken from the payload")
+	require.False(t, r.UninstallEdited)
+	require.Equal(t, "echo u3", r.Uninstall, "an unedited script still comes from the payload")
 }
 
 // testGetSoftwareInstallerMetadataByStorageID verifies metadata recovery works

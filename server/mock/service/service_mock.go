@@ -1011,6 +1011,10 @@ type ListMicrosoftGraphCredentialsFunc func(ctx context.Context) ([]*fleet.Micro
 
 type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.MicrosoftGraphCredential, dryRun bool) error
 
+type SendAPNSPingFunc func(ctx context.Context, hostID uint) error
+
+type DeviceSendAPNSPingFunc func(ctx context.Context, host *fleet.Host) error
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2496,6 +2500,12 @@ type Service struct {
 
 	ApplyMicrosoftGraphCredentialsFunc        ApplyMicrosoftGraphCredentialsFunc
 	ApplyMicrosoftGraphCredentialsFuncInvoked bool
+
+	SendAPNSPingFunc        SendAPNSPingFunc
+	SendAPNSPingFuncInvoked bool
+
+	DeviceSendAPNSPingFunc        DeviceSendAPNSPingFunc
+	DeviceSendAPNSPingFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5963,4 +5973,18 @@ func (s *Service) ApplyMicrosoftGraphCredentials(ctx context.Context, creds []fl
 	s.ApplyMicrosoftGraphCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyMicrosoftGraphCredentialsFunc(ctx, creds, dryRun)
+}
+
+func (s *Service) SendAPNSPing(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.SendAPNSPingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SendAPNSPingFunc(ctx, hostID)
+}
+
+func (s *Service) DeviceSendAPNSPing(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.DeviceSendAPNSPingFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceSendAPNSPingFunc(ctx, host)
 }

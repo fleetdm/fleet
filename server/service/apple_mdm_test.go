@@ -2160,6 +2160,9 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsMDMProfiles(t *testing.T) {
 	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	expected := []fleet.HostMDMAppleProfile{
@@ -10612,5 +10615,151 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 
 		require.NoError(t, svc.handleScheduledUpdates(t.Context(), host, reported))
 		require.Equal(t, []string{adamID}, installer.installs)
+	})
+}
+
+func TestSendAPNSPing(t *testing.T) {
+	ds := new(mock.Store)
+
+	cfg := config.TestConfig()
+	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
+
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	depStorage := &nanodep_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
+	)
+
+	opts := &TestServerOpts{
+		FleetConfig:    &cfg,
+		MDMStorage:     mdmStorage,
+		DEPStorage:     depStorage,
+		MDMPusher:      pusher,
+		License:        &fleet.LicenseInfo{Tier: fleet.TierFree},
+		ProfileMatcher: nopProfileMatcher{},
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+
+	var pushed []string
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, uuids []string) (map[string]*mdm.Push, error) {
+		pushed = append(pushed, uuids...)
+		res := make(map[string]*mdm.Push, len(uuids))
+		for _, u := range uuids {
+			res[u] = &mdm.Push{PushMagic: "magic", Token: []byte(u), Topic: "topic"}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	appleHost := func(platform string) *fleet.Host {
+		return &fleet.Host{
+			ID:       1,
+			UUID:     "HOST-UUID",
+			Platform: platform,
+			TeamID:   new(uint(1)),
+		}
+	}
+
+	enrolled := func(id string) *fleet.NanoEnrollment {
+		return &fleet.NanoEnrollment{ID: id, Enabled: true}
+	}
+
+	// A nil enrollment stands for a channel the host doesn't have.
+	sendPing := func(t *testing.T, user *fleet.User, host *fleet.Host, device, userChannel *fleet.NanoEnrollment) ([]string, error) {
+		t.Helper()
+		pushed = nil
+		ds.GetNanoMDMUserEnrollmentFuncInvoked = false
+		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			require.Equal(t, host.ID, id)
+			return host, nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			require.Equal(t, host.UUID, hostUUID)
+			return device, nil
+		}
+		ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			require.Equal(t, host.UUID, hostUUID)
+			return userChannel, nil
+		}
+		err := svc.SendAPNSPing(test.UserContext(ctx, user), host.ID)
+		return pushed, err
+	}
+
+	t.Run("enrolled Apple host is pushed to", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("darwin"), enrolled("HOST-UUID"), nil)
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID"}, got)
+	})
+
+	t.Run("macOS host with a user channel is pushed to on both channels", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("darwin"), enrolled("HOST-UUID"), enrolled("USER-ENROLLMENT-ID"))
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID", "USER-ENROLLMENT-ID"}, got)
+	})
+
+	t.Run("disabled user channel is not pushed to", func(t *testing.T) {
+		userChannel := &fleet.NanoEnrollment{ID: "USER-ENROLLMENT-ID", Enabled: false}
+		got, err := sendPing(t, test.UserAdmin, appleHost("darwin"), enrolled("HOST-UUID"), userChannel)
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID"}, got)
+	})
+
+	// The user channel only exists on macOS, so other Apple platforms must not
+	// be looked up for one.
+	t.Run("iOS host is only pushed to on the device channel", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("ios"), enrolled("HOST-UUID"), enrolled("USER-ENROLLMENT-ID"))
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID"}, got)
+		require.False(t, ds.GetNanoMDMUserEnrollmentFuncInvoked)
+	})
+
+	// The device endpoint authenticates by device token, so it takes the host
+	// directly and runs no authorization check.
+	t.Run("device pings its own host", func(t *testing.T) {
+		host := appleHost("darwin")
+		pushed = nil
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			return enrolled(hostUUID), nil
+		}
+		ds.GetNanoMDMUserEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+			return nil, nil
+		}
+		require.NoError(t, svc.DeviceSendAPNSPing(ctx, host))
+		require.Equal(t, []string{"HOST-UUID"}, pushed)
+	})
+
+	t.Run("non-Apple host", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("windows"), enrolled("HOST-UUID"), nil)
+		require.ErrorContains(t, err, "not an Apple device")
+		require.Empty(t, got)
+	})
+
+	t.Run("host without an MDM connection", func(t *testing.T) {
+		got, err := sendPing(t, test.UserAdmin, appleHost("darwin"), nil, nil)
+		require.ErrorContains(t, err, "MDM turned on")
+		require.Empty(t, got)
+
+		disabled := &fleet.NanoEnrollment{ID: "HOST-UUID", Enabled: false}
+		got, err = sendPing(t, test.UserAdmin, appleHost("darwin"), disabled, nil)
+		require.ErrorContains(t, err, "MDM turned on")
+		require.Empty(t, got)
+	})
+
+	t.Run("observer is allowed to ping", func(t *testing.T) {
+		got, err := sendPing(t, test.UserObserver, appleHost("darwin"), enrolled("HOST-UUID"), nil)
+		require.NoError(t, err)
+		require.Equal(t, []string{"HOST-UUID"}, got)
 	})
 }

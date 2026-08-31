@@ -1439,7 +1439,9 @@ const dueHostsChunkSize = 1000
 // distributed/read would include interval work or an unanswered live query
 // campaign, keyed by host ID with the reason it is due. It reuses the read
 // path's staleness gates (shouldUpdate, including the per-host jitter
-// tables), so notification and read decisions agree by construction.
+// tables), so notification and read decisions agree by construction. IDs
+// with no hosts row (deleted while their agent held a connection) are also
+// returned, with AgentWSReasonHostNotFound, so the caller can drop them.
 //
 // The live query check makes the pub/sub wake-up a latency optimization only:
 // a campaign whose one-shot wake-up was lost anywhere along the way is
@@ -1469,6 +1471,15 @@ func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostID
 		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs[start:end])
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list hosts due for distributed read")
+		}
+		found := make(map[uint]struct{}, len(hosts))
+		for _, host := range hosts {
+			found[host.ID] = struct{}{}
+		}
+		for _, id := range hostIDs[start:end] {
+			if _, ok := found[id]; !ok {
+				due[id] = fleet.AgentWSReasonHostNotFound
+			}
 		}
 		for _, host := range hosts {
 			if reason := svc.hostDueForDistributedRead(host); reason != "" {
@@ -3842,6 +3853,13 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 // needs the query IDs to check them against the host's schedule either way. queryReportsDisabled
 // only suppresses injecting `query_id` into the raw logs, to keep the payload reaching the logging
 // destination unchanged for deployments that disable reports.
+// maxDistinctQueryNamesPerSubmission bounds how many distinct query names a
+// single result submission will resolve. It sits far above any realistic host
+// schedule (global plus one team's scheduled queries) and exists only to cap the
+// work a compromised/malicious host can force, since the request body size is
+// unbounded in header-auth mode. A var so tests can force the cap cheaply.
+var maxDistinctQueryNamesPerSubmission = 10000
+
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
 	osqueryResults []json.RawMessage,
@@ -3877,32 +3895,106 @@ func (svc *Service) preProcessOsqueryResults(
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
+
+	// A host controls the result names it sends, and each name needs its query
+	// looked up. Parse every distinct name once and resolve them all in a single
+	// batch lookup, so a submission carrying many (or many repeated non-existent)
+	// names costs one query instead of one round-trip per result entry.
+	type parsedName struct {
+		scope fleet.TeamScopedQueryName
+		ok    bool
+		// capped marks a name left unresolved because the submission hit the
+		// distinct-name cap, as opposed to one Fleet does not know. The two must
+		// stay distinguishable: unknown names pass through, capped ones drop.
+		capped bool
+	}
+	parsedByRaw := make(map[string]parsedName)
+	var toResolve []fleet.TeamScopedQueryName
+	seenScope := make(map[string]struct{})
+	var cappedNames int
+	for _, queryResult := range unmarshaledResults {
+		if queryResult == nil {
+			continue
+		}
+		if _, done := parsedByRaw[queryResult.QueryName]; done {
+			continue
+		}
+		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, fleet.ErrLegacyQueryPack) {
+			// Legacy query. Cannot be stored and cannot infer team ID, but still
+			// used by some customers.
+			parsedByRaw[queryResult.QueryName] = parsedName{}
+			continue
+		}
+		if err != nil {
+			svc.logger.DebugContext(ctx, "querying name and team ID from result", "err", err)
+			parsedByRaw[queryResult.QueryName] = parsedName{}
+			continue
+		}
+		scope := fleet.TeamScopedQueryName{TeamID: teamID, Name: queryName}
+		parsedByRaw[queryResult.QueryName] = parsedName{scope: scope, ok: true}
+		if _, dup := seenScope[scope.Key()]; !dup {
+			// Bound the number of distinct names resolved per submission,
+			// independent of any request body-size limit (which does not apply in
+			// header-auth mode). A real host's schedule is far below this; names
+			// past the cap are treated as unresolved, so results still stream to
+			// the log destination but skip report attribution.
+			if len(toResolve) >= maxDistinctQueryNamesPerSubmission {
+				cappedNames++
+				parsedByRaw[queryResult.QueryName] = parsedName{capped: true}
+				continue
+			}
+			seenScope[scope.Key()] = struct{}{}
+			toResolve = append(toResolve, scope)
+		}
+	}
+	// Count the names actually dropped rather than comparing against the cap, so
+	// a submission that lands exactly on it does not report a breach it didn't
+	// cause.
+	if cappedNames > 0 {
+		var hostID uint
+		if host, ok := hostctx.FromContext(ctx); ok && host != nil {
+			hostID = host.ID
+		}
+		svc.logger.WarnContext(ctx, "osquery result submission exceeded distinct query name cap; excess names left unresolved",
+			"host_id", hostID, "cap", maxDistinctQueryNamesPerSubmission, "unresolved", cappedNames)
+	}
+
+	resolved, err := svc.ds.QueriesByName(ctx, toResolve)
+	if err != nil {
+		// Keep whatever resolved before the failure, so one failing chunk doesn't
+		// leave the whole submission unresolved. Names still unresolved here are
+		// treated as unknown to Fleet, which passes their results through to the
+		// log destination without a schedule check.
+		svc.logger.ErrorContext(ctx, "batch loading queries by name", "err", err)
+		if resolved == nil {
+			resolved = map[string]*fleet.Query{}
+		}
+	}
+
 	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
 			// These are results that could not be unmarshaled.
 			continue
 		}
-		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
-		if errors.Is(err, fleet.ErrLegacyQueryPack) {
-			// Legacy query. Cannot be stored and cannot
-			// infer team ID, but still used by some customers
+		parsed := parsedByRaw[queryResult.QueryName]
+		if parsed.capped {
+			// Fail closed. A name Fleet declined to resolve must not inherit the
+			// pass-through that names Fleet genuinely doesn't know get below,
+			// otherwise filling the cap with junk would launder results for a
+			// real query past the host's schedule check.
+			unmarshaledResults[i] = nil
 			continue
 		}
-		if err != nil {
-			svc.logger.DebugContext(ctx, "querying name and team ID from result", "err", err)
+		if !parsed.ok {
 			continue
 		}
-
-		existingQuery, foundQuery := queriesDBData[queryResult.QueryName]
+		existingQuery, foundQuery := resolved[parsed.scope.Key()]
 		if !foundQuery {
-			query, err := svc.ds.QueryByName(ctx, teamID, queryName)
-			if err != nil {
-				svc.logger.DebugContext(ctx, "loading query by name", "err", err, "team", teamID, "name", queryName)
-				continue
-			}
-			queriesDBData[queryResult.QueryName] = query
-			existingQuery = query
+			// Name does not exist on this team.
+			continue
 		}
+		queriesDBData[queryResult.QueryName] = existingQuery
 
 		if queryReportsDisabled {
 			continue

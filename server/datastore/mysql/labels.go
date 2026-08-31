@@ -1438,19 +1438,20 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		whereParams = append(whereParams, *opt.LowDiskSpaceFilter)
 	}
 
-	var err error
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	query, whereParams = filterHostsByStatus(ds.clock.Now(), query, opt, whereParams)
 	query, whereParams = filterHostsByTeam(query, opt, whereParams)
 	query, whereParams = filterHostsByMDM(query, opt, whereParams)
-	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams)
+	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
 	}
-	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
+	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
-	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
-		return "", nil, err
-	} else if opt.OSSettingsFilter.IsValid() {
+	if opt.OSSettingsFilter.IsValid() {
 		query, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err

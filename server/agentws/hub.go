@@ -103,6 +103,27 @@ func (h *Hub) unregister(hostID uint, c *conn) {
 	h.mu.Unlock()
 }
 
+// Disconnect closes and removes the connections held for hostIDs, and returns
+// how many were closed. Used when a host no longer exists: the agent
+// reconnects (re-enrolled, under its new host ID) instead of lingering under
+// a stale one.
+func (h *Hub) Disconnect(hostIDs []uint) int {
+	h.mu.Lock()
+	conns := make([]*conn, 0, len(hostIDs))
+	for _, id := range hostIDs {
+		if c, ok := h.conns[id]; ok {
+			delete(h.conns, id)
+			conns = append(conns, c)
+		}
+	}
+	h.mu.Unlock()
+
+	for _, c := range conns {
+		c.close()
+	}
+	return len(conns)
+}
+
 // Notify enqueues a notification of the given type and reason to each of
 // hostIDs whose connection this instance holds, and returns how many were
 // notified. Hosts connected to other instances (or not connected at all) are

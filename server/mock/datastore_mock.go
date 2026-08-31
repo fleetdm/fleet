@@ -120,6 +120,8 @@ type LabelScopedScheduledQueryScopesFunc func(ctx context.Context) (fleet.Config
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
+type QueriesByNameFunc func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error)
+
 type QueriesPerHostFunc func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
@@ -503,6 +505,8 @@ type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.TeamLite, error)
 type TeamLitesByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.TeamLite, error)
 
 type DeleteTeamFunc func(ctx context.Context, tid uint) error
+
+type HostIDsByTeamIDFunc func(ctx context.Context, teamID uint) ([]uint, error)
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
@@ -1490,7 +1494,7 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
-type SetMDMWindowsHostProfileFailedFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+type SetMDMWindowsHostProfileFailedOrRetryFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error)
 
@@ -1942,6 +1946,8 @@ type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID strin
 
 type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
+type ResendWindowsHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
+
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error)
 
 type CreateSecretVariableFunc func(ctx context.Context, name string, value string) (id uint, err error)
@@ -2137,6 +2143,8 @@ type BulkGetInHouseAppConfigurationsFunc func(ctx context.Context, inHouseAppIDs
 type DeleteInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
+
+type SetScimUserFleetUserIDFunc func(ctx context.Context, scimUserID uint, fleetUserID uint) error
 
 type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
 
@@ -2508,6 +2516,9 @@ type DataStore struct {
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
+
+	QueriesByNameFunc        QueriesByNameFunc
+	QueriesByNameFuncInvoked bool
 
 	QueriesPerHostFunc        QueriesPerHostFunc
 	QueriesPerHostFuncInvoked bool
@@ -3084,6 +3095,9 @@ type DataStore struct {
 
 	DeleteTeamFunc        DeleteTeamFunc
 	DeleteTeamFuncInvoked bool
+
+	HostIDsByTeamIDFunc        HostIDsByTeamIDFunc
+	HostIDsByTeamIDFuncInvoked bool
 
 	TeamByNameFunc        TeamByNameFunc
 	TeamByNameFuncInvoked bool
@@ -4564,8 +4578,8 @@ type DataStore struct {
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
 
-	SetMDMWindowsHostProfileFailedFunc        SetMDMWindowsHostProfileFailedFunc
-	SetMDMWindowsHostProfileFailedFuncInvoked bool
+	SetMDMWindowsHostProfileFailedOrRetryFunc        SetMDMWindowsHostProfileFailedOrRetryFunc
+	SetMDMWindowsHostProfileFailedOrRetryFuncInvoked bool
 
 	BatchResendMDMProfileToHostsFunc        BatchResendMDMProfileToHostsFunc
 	BatchResendMDMProfileToHostsFuncInvoked bool
@@ -5242,6 +5256,9 @@ type DataStore struct {
 	ResendHostCertificateProfileFunc        ResendHostCertificateProfileFunc
 	ResendHostCertificateProfileFuncInvoked bool
 
+	ResendWindowsHostCertificateProfileFunc        ResendWindowsHostCertificateProfileFunc
+	ResendWindowsHostCertificateProfileFuncInvoked bool
+
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
 
@@ -5535,6 +5552,9 @@ type DataStore struct {
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
+
+	SetScimUserFleetUserIDFunc        SetScimUserFleetUserIDFunc
+	SetScimUserFleetUserIDFuncInvoked bool
 
 	ScimUserByIDFunc        ScimUserByIDFunc
 	ScimUserByIDFuncInvoked bool
@@ -6212,6 +6232,13 @@ func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) 
 	s.QueryByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryByNameFunc(ctx, teamID, name)
+}
+
+func (s *DataStore) QueriesByName(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	s.mu.Lock()
+	s.QueriesByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueriesByNameFunc(ctx, names)
 }
 
 func (s *DataStore) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
@@ -7556,6 +7583,13 @@ func (s *DataStore) DeleteTeam(ctx context.Context, tid uint) error {
 	s.DeleteTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteTeamFunc(ctx, tid)
+}
+
+func (s *DataStore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.HostIDsByTeamIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDsByTeamIDFunc(ctx, teamID)
 }
 
 func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
@@ -11009,11 +11043,11 @@ func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, p
 	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
 }
 
-func (s *DataStore) SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error {
+func (s *DataStore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error) {
 	s.mu.Lock()
-	s.SetMDMWindowsHostProfileFailedFuncInvoked = true
+	s.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetMDMWindowsHostProfileFailedFunc(ctx, hostUUID, profileUUID, detail)
+	return s.SetMDMWindowsHostProfileFailedOrRetryFunc(ctx, hostUUID, profileUUID, detail)
 }
 
 func (s *DataStore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
@@ -12591,6 +12625,13 @@ func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID s
 	return s.ResendHostCertificateProfileFunc(ctx, hostUUID, profUUID)
 }
 
+func (s *DataStore) ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	s.mu.Lock()
+	s.ResendWindowsHostCertificateProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendWindowsHostCertificateProfileFunc(ctx, hostUUID, profUUID)
+}
+
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
 	s.mu.Lock()
 	s.UpsertSecretVariablesFuncInvoked = true
@@ -13275,6 +13316,13 @@ func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (u
 	s.CreateScimUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.CreateScimUserFunc(ctx, user)
+}
+
+func (s *DataStore) SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID uint) error {
+	s.mu.Lock()
+	s.SetScimUserFleetUserIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetScimUserFleetUserIDFunc(ctx, scimUserID, fleetUserID)
 }
 
 func (s *DataStore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {

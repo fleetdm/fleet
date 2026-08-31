@@ -105,6 +105,7 @@ type OsqueryService interface {
 	// constant or a live-<campaign ID> reason; the first due gate wins). Used
 	// by the WebSocket transport's interval check job; applies the same
 	// staleness gates (including per-host jitter) as GetDistributedQueries.
+	// IDs with no hosts row are returned with AgentWSReasonHostNotFound.
 	ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error)
 }
 
@@ -1705,6 +1706,10 @@ type Service interface {
 	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
 	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is deleted.
 	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error
+
+	// SendAPNSPing sends a ping to the specified host via APNS. Only valid for Apple hosts.
+	SendAPNSPing(ctx context.Context, hostID uint) error
+	DeviceSendAPNSPing(ctx context.Context, host *Host) error
 }
 
 type KeyValueStore interface {

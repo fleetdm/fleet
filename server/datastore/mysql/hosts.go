@@ -1544,13 +1544,8 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByPolicy(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByMDM(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByConnectedToFleet(sqlStmt, opt, whereParams)
-	var err error
-	sqlStmt, whereParams, err = filterHostsByMacOSSettingsStatus(sqlStmt, opt, whereParams)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter)
 	if err != nil {
-		return "", nil, ctxerr.Wrap(ctx, err, "building query to filter macOS settings status")
-	}
-	sqlStmt, whereParams = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, whereParams)
-	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil, ctxerr.Wrap(
 				ctx, &fleet.BadRequestError{
@@ -1560,7 +1555,13 @@ func (ds *Datastore) applyHostFilters(
 			)
 		}
 		return "", nil, err
-	} else if opt.OSSettingsFilter.IsValid() {
+	}
+	sqlStmt, whereParams, err = filterHostsByMacOSSettingsStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "building query to filter macOS settings status")
+	}
+	sqlStmt, whereParams = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
+	if opt.OSSettingsFilter.IsValid() {
 		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, sqlStmt, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err
@@ -1731,7 +1732,7 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 	return sql, params
 }
 
-func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []any) (string, []any, error) {
+func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any, error) {
 	if !opt.MacOSSettingsFilter.IsValid() {
 		return sql, params, nil
 	}
@@ -1744,25 +1745,26 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		whereStatus += ` AND h.team_id IS NULL`
 	}
 
-	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus())
+	whereStatus += fmt.Sprintf(` AND %s = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()))
 
 	return sql + whereStatus, append(params, opt.MacOSSettingsFilter), nil
 }
 
-func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any) {
 	if !opt.MacOSSettingsDiskEncryptionFilter.IsValid() {
 		return sql, params
 	}
 
+	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
 	var subquery string
 	var subqueryParams []interface{}
 	switch opt.MacOSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
-		subquery, subqueryParams = subqueryFileVaultVerified()
+		subquery, subqueryParams = subqueryFileVaultVerified(enforceOnly)
 	case fleet.DiskEncryptionVerifying:
-		subquery, subqueryParams = subqueryFileVaultVerifying()
+		subquery, subqueryParams = subqueryFileVaultVerifying(enforceOnly)
 	case fleet.DiskEncryptionActionRequired:
-		subquery, subqueryParams = subqueryFileVaultActionRequired()
+		subquery, subqueryParams = subqueryFileVaultActionRequired(enforceOnly)
 	case fleet.DiskEncryptionEnforcing:
 		subquery, subqueryParams = subqueryFileVaultEnforcing()
 	case fleet.DiskEncryptionFailed:
@@ -1771,7 +1773,13 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
 	}
 
-	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery), append(params, subqueryParams...)
+	whereStatus := fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery)
+	// the derivation depends on the fleet's settings, so scope to "no team"
+	// like the other OS settings filters
+	if opt.TeamFilter == nil {
+		whereStatus += ` AND h.team_id IS NULL`
+	}
+	return sql + whereStatus, append(params, subqueryParams...)
 }
 
 func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any, error) {
@@ -1816,7 +1824,7 @@ AND (
 )`
 
 	// construct the WHERE for macOS
-	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus())
+	whereMacOS = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAppleStatus(diskEncryptionConfig.MacOSEnforceOnly()))
 	paramsMacOS := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for linux
@@ -1929,6 +1937,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
 	)`
 
+	enforceOnly := diskEncryptionConfig.MacOSEnforceOnly()
 	var subqueryMacOS string
 	var subqueryParams []interface{}
 	whereWindows := "FALSE"
@@ -1940,19 +1949,19 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerified()
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerified(enforceOnly)
 
 	case fleet.DiskEncryptionVerifying:
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
+		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying(enforceOnly)
 
 	case fleet.DiskEncryptionActionRequired:
 		if diskEncryptionConfig.WindowsEnabled {
 			whereWindows = ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
+		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired(enforceOnly)
 
 	case fleet.DiskEncryptionEnforcing:
 		if diskEncryptionConfig.WindowsEnabled {
