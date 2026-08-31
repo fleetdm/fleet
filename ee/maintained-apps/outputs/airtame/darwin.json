@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.15.0",
+      "version": "4.16.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application' AND version_compare(bundle_short_version, '4.15.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application' AND version_compare(bundle_short_version, '4.16.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.airtame.airtame-application' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads-cdn.airtame.com/app/latest/mac/Airtame-4.15.0.dmg",
+      "installer_url": "https://downloads-cdn.airtame.com/app/latest/mac/Airtame-4.16.0.dmg",
       "install_script_ref": "4e4b470a",
       "uninstall_script_ref": "7c597d39",
-      "sha256": "73b70be70c598354d5d4cbec5e2ad69e8d64131cc0ff1c20de9e8eeffbcc392d",
+      "sha256": "90b41d06290be8d80903f7be7d571a9eda2cf9325db4539c486632f784585236",
       "default_categories": [
         "Productivity"
       ]
