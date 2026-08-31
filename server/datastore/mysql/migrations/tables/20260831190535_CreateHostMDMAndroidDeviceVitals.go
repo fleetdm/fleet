@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260828141553, Down_20260828141553)
+	MigrationClient.AddMigration(Up_20260831190535, Down_20260831190535)
 }
 
-// Up_20260828141553 creates host_mdm_android_device_vitals, which holds the
+// Up_20260831190535 creates host_mdm_android_device_vitals, which holds the
 // additional Android host vitals collected from AMAPI status reports (see
 // #49791). The table is keyed by host_uuid, has no FK, and is registered in
 // additionalHostRefsByUUID for host-deletion cleanup.
@@ -18,7 +18,7 @@ func init() {
 // via Pub/Sub and a device may not report a given section at all, depending
 // on its Android version, ownership type, and the status reporting settings
 // of the applied policy.
-func Up_20260828141553(tx *sql.Tx) error {
+func Up_20260831190535(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE host_mdm_android_device_vitals (
   host_uuid                varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE host_mdm_android_device_vitals (
   bootloader_version       varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   system_update_status     varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   security_posture         varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  api_level                int DEFAULT NULL,
+  api_level                bigint DEFAULT NULL,
   security_posture_details json DEFAULT NULL,
   telephony_infos          json DEFAULT NULL,
   created_at               datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -46,6 +46,6 @@ CREATE TABLE host_mdm_android_device_vitals (
 	return nil
 }
 
-func Down_20260828141553(tx *sql.Tx) error {
+func Down_20260831190535(tx *sql.Tx) error {
 	return nil
 }

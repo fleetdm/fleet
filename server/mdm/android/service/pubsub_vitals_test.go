@@ -218,10 +218,16 @@ func TestAndroidDeviceVitals(t *testing.T) {
 			},
 		},
 		{
-			// An api_level outside the signed int column's range is garbage;
-			// dropping it beats failing the report.
-			name:   "out of range api level is dropped",
+			// api_level is a bigint matching AMAPI's int64, so a large value
+			// stores rather than failing the write.
+			name:   "large api level is stored",
 			device: &androidmanagement.Device{ApiLevel: math.MaxInt32 + 1},
+			want:   fleet.MDMAndroidDeviceVitals{APILevel: new(int64(math.MaxInt32 + 1))},
+		},
+		{
+			// 0 is AMAPI's "not reported" for this field.
+			name:   "zero api level is dropped",
+			device: &androidmanagement.Device{ApiLevel: 0},
 			want:   fleet.MDMAndroidDeviceVitals{},
 		},
 		{

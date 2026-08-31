@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -1085,9 +1084,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 func androidDeviceVitals(device *androidmanagement.Device) fleet.MDMAndroidDeviceVitals {
 	var vitals fleet.MDMAndroidDeviceVitals
 
-	// The column is a signed int; anything outside that range is garbage from a
-	// device we shouldn't fail the whole status report over.
-	if device.ApiLevel > 0 && device.ApiLevel <= math.MaxInt32 {
+	// api_level is a bigint, matching AMAPI's int64, so any value it reports
+	// stores as-is; 0 just means it wasn't reported.
+	if device.ApiLevel > 0 {
 		vitals.APILevel = new(device.ApiLevel)
 	}
 
