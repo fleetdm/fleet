@@ -1417,7 +1417,7 @@ When `false`, the `Authorization: NodeKey` header is required and the body's `no
 
 ### osquery_config_etags
 
-Enables conditional osquery config requests on `/api/osquery/config`. Enabled by default.
+Enables conditional osquery config requests on `/api/osquery/config`. Disabled by default.
 
 When enabled, an agent that sends an `"etag"` field in its config request body receives the config with an `"etag"` key added, and the minimal `{"etag":"ok"}` body when its etag matches the current config. Agents that don't send the field are unaffected either way.
 
@@ -1433,7 +1433,7 @@ Setting this to `false` is the escape hatch that disables the feature entirely: 
 
 ### osquery_redis_config_etags
 
-Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Enabled by default.
+Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Disabled by default.
 
 When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets (teams) whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
 
