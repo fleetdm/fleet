@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
-import { isEmpty, noop } from "lodash";
+import { isEmpty } from "lodash";
 
 import TableContainer from "components/TableContainer";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
@@ -290,7 +290,7 @@ const ApiEndpointSelectorTable = ({
             // react-table's built-in sorting, discarding the relevance
             // order computed above.
             manualSortBy
-            onClickRow={disabled ? noop : handleRowSelect}
+            onClickRow={disabled ? undefined : handleRowSelect}
           />
         </div>
       )}

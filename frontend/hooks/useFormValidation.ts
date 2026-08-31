@@ -11,9 +11,6 @@ import { notify } from "components/ToastNotification";
  */
 export type IFormErrors = Record<string, string>;
 
-/** Error maps coming back from the API commonly use `null` for "no error". */
-export type IServerFormErrors = Record<string, string | null | undefined>;
-
 /**
  * Pure function: current form data in, `fieldName` -> message out. Must not
  * read component state other than what it closes over, and must not fire side
@@ -31,7 +28,7 @@ interface IUseFormValidationOptions<TFormData> {
    * its output. Pass a new object per failed request: each batch is shown
    * inline and toasted once.
    */
-  serverErrors?: IServerFormErrors | null;
+  serverErrors?: IFormErrors | null;
   /**
    * In-flight state owned by a parent (a page that holds the request promise
    * and passes `isSubmitting` down). OR-ed with the hook's own in-flight state
