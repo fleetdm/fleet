@@ -1,1 +1,0 @@
-- Updated the "Interval" field help text and the "Collecting results..." empty state to explain that a host only reports in after it's been online for the selected interval, instead of implying Fleet polls hosts on a schedule.
