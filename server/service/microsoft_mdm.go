@@ -1168,8 +1168,9 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
-	// Removing the device if already MDM enrolled
-	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg)
+	// Removing the prior enrollment held by this same host, if any. hostUUID is what keeps a duplicate hardware ID from evicting a
+	// different host's enrollment.
+	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
@@ -3032,17 +3033,20 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 	return nil
 }
 
-// removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
-// HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+// removeWindowsDeviceIfAlreadyMDMEnrolled removes the prior MDM enrollment held by the host that is re-enrolling, keyed on the pair
+// (HWDevID, host UUID) rather than on HWDevID alone.
+//
+// hostUUID is authoritative for programmatic enrollments (resolved from the orbit node key) and empty for Entra automatic enrollments,
+// which are linked to a host later by serial. When another host already holds an enrollment for the same HWDevID, that enrollment is left
+// in place so both hosts stay managed, and the collision is logged and recorded as an activity instead of happening silently.
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string) error {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return err
 	}
 
-	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
+	collidingHostUUIDs, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID, hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -3050,7 +3054,29 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 		return err
 	}
 
+	if len(collidingHostUUIDs) > 0 {
+		svc.reportWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID, collidingHostUUIDs)
+	}
+
 	return nil
+}
+
+// reportWindowsMDMHardwareIDCollision logs the fact that two hosts share an HWDevID. This log is the only signal for the collision, so it
+// carries the shared hardware ID, the enrolling host and every incumbent host. Best effort by construction: it cannot return an error, so a
+// duplicate hardware ID can never fail an enrollment.
+func (svc *Service) reportWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID string, collidingHostUUIDs []string) {
+	// An unlinked Entra automatic enrollment has no host yet, so say so rather than logging an empty value.
+	enrollingHostUUID := hostUUID
+	if enrollingHostUUID == "" {
+		enrollingHostUUID = "(not yet linked to a host)"
+	}
+
+	svc.logger.WarnContext(ctx, "windows host enrolled in MDM with a hardware ID already held by another host; both hosts remain enrolled. "+
+		"This usually means their Windows images share an ancestor that was cloned without running sysprep /generalize",
+		"mdm_hardware_id", hardwareID,
+		"enrolling_host_uuid", enrollingHostUUID,
+		"existing_host_uuids", strings.Join(collidingHostUUIDs, ","),
+	)
 }
 
 // getDeviceProvisioningInformation returns a valid WapProvisioningDoc

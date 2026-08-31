@@ -95,6 +95,8 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
+		{"TestMDMWindowsDuplicateHardwareIDKeepsBothEnrolled", testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled},
+		{"TestMDMWindowsDuplicateHardwareIDUnlinkedEnrollment", testMDMWindowsDuplicateHardwareIDUnlinkedEnrollment},
 	}
 
 	for _, c := range cases {
@@ -137,14 +139,14 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, gotEnrolledDevice.AwaitingConfiguration)
 	require.Nil(t, gotEnrolledDevice.AwaitingConfigurationAt)
 
-	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID, enrolledDevice.HostUUID)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID, enrolledDevice.HostUUID)
 	require.ErrorAs(t, err, &nfe)
 
 	// Test using device ID instead of hardware ID
@@ -168,7 +170,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID, enrolledDevice.HostUUID)
 	require.ErrorAs(t, err, &nfe)
 
 	// Test that awaiting configuration is persisted and updated on upsert.
@@ -265,7 +267,8 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, activityCount)
 
 	// Run the re-enrollment cleanup.
-	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, cleanupDevice.MDMHardwareID))
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, cleanupDevice.MDMHardwareID, cleanupDevice.HostUUID)
+	require.NoError(t, err)
 
 	// All three related tables must be cleaned for this host.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -8716,4 +8719,227 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 
 	// Terminal failures must reach the rollup that GetMDMWindowsProfilesSummary reads.
 	require.Equal(t, string(fleet.MDMDeliveryFailed), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
+}
+
+// enrollWindowsHostWithHardwareID inserts an enrolled Windows MDM device for the host under a caller-chosen hardware ID and marks
+// host_mdm.enrolled, mirroring what osquery's directIngestMDMWindows does once it sees the device's registry.
+func enrollWindowsHostWithHardwareID(t *testing.T, ds *Datastore, h *fleet.Host, hardwareID string) *fleet.MDMWindowsEnrolledDevice {
+	t.Helper()
+	ctx := context.Background()
+	device := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          hardwareID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-" + h.Hostname,
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               h.UUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, device))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true,
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+	return device
+}
+
+// testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled covers issue #50612. HWDevID follows the Windows image, so machines whose images share
+// an ancestor that was never generalized with sysprep present the same value. The second one to enroll used to take over the first one's
+// enrollment row and silently stop Fleet from managing it. Both must now stay enrolled with their own row.
+func testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	sharedHWID := uuid.New().String() + uuid.New().String()
+
+	hostA := test.NewHost(t, ds, "dup-hw-a", "10.0.0.1", "dup-hw-key-a", "dup-hw-uuid-a", time.Now())
+	hostA.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostA))
+	enrollWindowsHostWithHardwareID(t, ds, hostA, sharedHWID)
+
+	// Give host A delivered state that the old eviction path destroyed.
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES (?, ?, ?, ?, ?, UNHEX(MD5('test')), ?)`,
+			hostA.UUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall, uuid.NewString(), "TestProfile", profUUID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `INSERT INTO upcoming_activities
+				(host_id, activity_type, execution_id, payload) VALUES (?, ?, ?, ?)`,
+			hostA.ID, "script", uuid.NewString(), `{}`)
+		return err
+	})
+
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, hostA)
+	require.NoError(t, err)
+	require.True(t, connected, "host A must start out connected")
+
+	// Host B is a different Fleet host (its own SMBIOS UUID) presenting the image's hardware ID.
+	hostB := test.NewHost(t, ds, "dup-hw-b", "10.0.0.2", "dup-hw-key-b", "dup-hw-uuid-b", time.Now())
+	hostB.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostB))
+
+	collisions, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, sharedHWID, hostB.UUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{hostA.UUID}, collisions, "host A must be reported as a collision, not evicted")
+
+	enrollWindowsHostWithHardwareID(t, ds, hostB, sharedHWID)
+
+	// Both enrollment rows coexist under the shared hardware ID.
+	var enrollCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, sharedHWID)
+	})
+	require.Equal(t, 2, enrollCount)
+
+	// Neither host lost management.
+	for _, h := range []*fleet.Host{hostA, hostB} {
+		connected, err := ds.IsHostConnectedToFleetMDM(ctx, h)
+		require.NoError(t, err)
+		require.True(t, connected, "host %s must stay connected after the collision", h.Hostname)
+
+		reconcile, err := ds.GetWindowsMDMHostForReconcile(ctx, h.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, reconcile, "host %s must stay eligible for the profile reconciler", h.Hostname)
+	}
+
+	// Host A's delivered state survived untouched.
+	profs, err := ds.GetHostMDMWindowsProfiles(ctx, hostA.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1, "host A must keep its profile row")
+
+	var activityCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &activityCount,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, hostA.ID)
+	})
+	require.Equal(t, 1, activityCount, "host A must keep its upcoming activities")
+
+	// Commands enqueued per host must land on that host's own enrollment, which is the #20764 guard.
+	enrollmentIDByHost := make(map[string]uint, 2)
+	for _, h := range []*fleet.Host{hostA, hostB} {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{h.UUID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte(`<Exec></Exec>`),
+			TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/Fleet/Test" + h.UUID,
+		}))
+		var enrollmentID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &enrollmentID,
+				`SELECT enrollment_id FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
+		})
+		enrollmentIDByHost[h.UUID] = enrollmentID
+	}
+	require.NotEqual(t, enrollmentIDByHost[hostA.UUID], enrollmentIDByHost[hostB.UUID],
+		"each host's command must target its own enrollment")
+
+	// With both enrollments coexisting, colliding sets are discoverable by grouping on the hardware ID. This is the detection path an
+	// admin uses; under the old unique key only the winner's row survived, so it could never return a row.
+	type collidingSet struct {
+		MDMHardwareID string `db:"mdm_hardware_id"`
+		Hosts         int    `db:"hosts"`
+	}
+	var colliding []collidingSet
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &colliding, `
+			SELECT mdm_hardware_id, COUNT(DISTINCT host_uuid) AS hosts
+			FROM mdm_windows_enrollments WHERE host_uuid != ''
+			GROUP BY mdm_hardware_id HAVING hosts > 1`)
+	})
+	require.Len(t, colliding, 1)
+	require.Equal(t, sharedHWID, colliding[0].MDMHardwareID)
+	require.Equal(t, 2, colliding[0].Hosts)
+
+	// Ordinary re-enrollment of host A (same host_uuid) still resets that host and reports no collision with itself.
+	collisions, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, sharedHWID, hostA.UUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{hostB.UUID}, collisions)
+
+	profs, err = ds.GetHostMDMWindowsProfiles(ctx, hostA.UUID)
+	require.NoError(t, err)
+	require.Empty(t, profs, "host A's own re-enrollment must still reset its profiles")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &activityCount,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, hostA.ID)
+	})
+	require.Zero(t, activityCount, "host A's own re-enrollment must still clear its upcoming activities")
+
+	// Host B was untouched by host A's re-enrollment.
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, hostB)
+	require.NoError(t, err)
+	require.True(t, connected, "host B must survive host A re-enrolling")
+}
+
+// testMDMWindowsDuplicateHardwareIDUnlinkedEnrollment covers the Entra automatic path, where host_uuid is empty at enroll time because the
+// enrollment is linked to a host later by serial. An unlinked row must never evict a linked one, and a linked row must be reported as a
+// collision rather than replaced.
+func testMDMWindowsDuplicateHardwareIDUnlinkedEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	sharedHWID := uuid.New().String() + uuid.New().String()
+
+	hostA := test.NewHost(t, ds, "unlinked-a", "10.0.0.3", "unlinked-key-a", "unlinked-uuid-a", time.Now())
+	hostA.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostA))
+	enrollWindowsHostWithHardwareID(t, ds, hostA, sharedHWID)
+
+	// An automatic enrollment arrives for the same hardware ID with no host known yet.
+	collisions, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, sharedHWID, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{hostA.UUID}, collisions, "a linked host must be reported, not evicted, by an unlinked enrollment")
+
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, hostA)
+	require.NoError(t, err)
+	require.True(t, connected, "host A must stay connected when an unlinked enrollment shares its hardware ID")
+
+	// Insert the unlinked row alongside host A's.
+	unlinked := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          sharedHWID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-UNLINKED",
+		MDMEnrollType:          "AzureADJoin",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, unlinked))
+
+	var enrollCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, sharedHWID)
+	})
+	require.Equal(t, 2, enrollCount)
+
+	// A second unlinked automatic enrollment replaces only the other unlinked row, since nothing distinguishes the two devices yet.
+	collisions, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, sharedHWID, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{hostA.UUID}, collisions)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, sharedHWID)
+	})
+	require.Equal(t, 1, enrollCount, "only the unlinked row is removed")
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, hostA)
+	require.NoError(t, err)
+	require.True(t, connected, "host A must still be the surviving enrollment")
+
+	// Once the enrolling host is known, the leftover unlinked row for the same hardware ID is cleared so the later serial-based
+	// linking cannot collide with the (mdm_hardware_id, host_uuid) key.
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, unlinked))
+	collisions, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, sharedHWID, hostA.UUID)
+	require.NoError(t, err)
+	require.Empty(t, collisions)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, sharedHWID)
+	})
+	require.Zero(t, enrollCount, "the enrolling host's own row and the unlinked row are both cleared")
 }

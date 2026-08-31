@@ -3571,3 +3571,78 @@ func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
 		"release commands must include SkipUserStatusPage=true; without it, a second user "+
 			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
 }
+
+// TestRemoveWindowsDeviceIfAlreadyMDMEnrolledCollision covers the observability half of issue #50612. When another host already holds an
+// enrollment for the incoming HWDevID, the enrollment must proceed, nothing may be deleted, and the collision must be logged. The log is the
+// only signal, so it has to carry the shared hardware ID plus both sides of the collision.
+func TestRemoveWindowsDeviceIfAlreadyMDMEnrolledCollision(t *testing.T) {
+	const (
+		sharedHWID       = "BF2D12A95AE42E47D58465E9A71336CAF33FCCAD3088F140F4D50B371FB2256F"
+		enrollingHostUID = "enrolling-host-uuid"
+		existingHostUID  = "existing-host-uuid"
+		otherHostUID     = "other-host-uuid"
+	)
+
+	newSvc := func(t *testing.T, collisions []string) (*Service, *testutils.TestHandler) {
+		t.Helper()
+		ds := new(mock.Store)
+		ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(ctx context.Context, mdmDeviceHWID, hostUUID string) ([]string, error) {
+			require.Equal(t, sharedHWID, mdmDeviceHWID)
+			return collisions, nil
+		}
+
+		handler := testutils.NewTestHandler()
+		return &Service{ds: ds, logger: slog.New(handler)}, handler
+	}
+
+	secTokenMsg := &fleet.RequestSecurityToken{
+		AdditionalContext: fleet.AdditionalContext{
+			ContextItems: []fleet.ContextItem{
+				{Name: syncml.ReqSecTokenContextItemHWDevID, Value: sharedHWID},
+			},
+		},
+	}
+
+	t.Run("collision is logged with both hosts", func(t *testing.T) {
+		svc, handler := newSvc(t, []string{existingHostUID})
+
+		require.NoError(t, svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, enrollingHostUID))
+
+		last := handler.LastRecord()
+		require.NotNil(t, last, "the collision must be logged")
+		require.Equal(t, slog.LevelWarn, last.Level)
+		attrs := testutils.RecordAttrs(last)
+		require.Equal(t, sharedHWID, attrs["mdm_hardware_id"])
+		require.Equal(t, enrollingHostUID, attrs["enrolling_host_uuid"])
+		require.Equal(t, existingHostUID, attrs["existing_host_uuids"])
+	})
+
+	t.Run("every incumbent host is named", func(t *testing.T) {
+		svc, handler := newSvc(t, []string{existingHostUID, otherHostUID})
+
+		require.NoError(t, svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, enrollingHostUID))
+
+		attrs := testutils.RecordAttrs(handler.LastRecord())
+		require.Equal(t, existingHostUID+","+otherHostUID, attrs["existing_host_uuids"])
+	})
+
+	t.Run("no collision stays quiet", func(t *testing.T) {
+		svc, handler := newSvc(t, nil)
+
+		require.NoError(t, svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, enrollingHostUID))
+
+		require.Empty(t, handler.Records(), "an ordinary re-enrollment must not log a collision")
+	})
+
+	t.Run("unlinked automatic enrollment is still logged", func(t *testing.T) {
+		svc, handler := newSvc(t, []string{existingHostUID})
+
+		// hostUUID is empty for an Entra automatic enrollment, which is linked to a host later by serial.
+		require.NoError(t, svc.removeWindowsDeviceIfAlreadyMDMEnrolled(t.Context(), secTokenMsg, ""))
+
+		attrs := testutils.RecordAttrs(handler.LastRecord())
+		require.Equal(t, sharedHWID, attrs["mdm_hardware_id"])
+		require.Equal(t, existingHostUID, attrs["existing_host_uuids"])
+		require.NotEmpty(t, attrs["enrolling_host_uuid"], "the unlinked case must not log an empty enrolling host")
+	})
+}

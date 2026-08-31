@@ -9446,7 +9446,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID, windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -22494,12 +22494,12 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
-	// enroll a new host that will re-enroll as the same host for Windows MDM
-	// (via the same hardware device ID).
+	// A second host now enrolls presenting the SAME hardware device ID. HWDevID follows the Windows image, so this is what two machines
+	// whose images share an ancestor that was never generalized with sysprep look like on the wire (issue #50612). It used to evict this
+	// host's enrollment and erase its wipe status. Both hosts must now keep their own enrollment and their own lock/wipe state.
 	newHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
 	require.NotEqual(t, host.ID, newHost.ID)
 
-	// now re-enroll in MDM for the new host but with the same hardware device ID
 	newHostDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *newHost.OrbitNodeKey)
 	newHostDevice.HardwareID = winMDMClient.HardwareID
 	err = newHostDevice.Enroll()
@@ -22511,21 +22511,27 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	err = s.ds.SetOrUpdateMDMData(ctx, newHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
-	// refresh the (old) host's status, it should not 500
+	// The original host keeps its MDM enrollment: the collision no longer unenrolls it.
+	connected, err := s.ds.IsHostConnectedToFleetMDM(ctx, host)
+	require.NoError(t, err)
+	require.True(t, connected, "the original host must stay enrolled when another host shares its hardware ID")
+
+	// Its wipe really happened, so the status stays "wiped" rather than being silently reset to "unlocked" by the other host's
+	// enrollment. Resetting it was part of the cross-host cleanup this fix removed.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
-	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
-	// attempting to wipe the old host entry should fail, as it is not reported
-	// as enrolled in Fleet MDM anymore
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity, &wipeResp)
-
-	// attempting to wipe the new host entry works
+	// wiping the new host entry works and does not disturb the original host
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidEnterpriseDeletedDetection() {
@@ -28289,4 +28295,118 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
 	checkHost(fleet.DiskEncryptionVerified, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}
+
+// TestWindowsMDMDuplicateHardwareIDKeepsBothHostsEnrolled covers issue #50612 on the programmatic (fleetd) enrollment path. HWDevID follows
+// the Windows image, so two machines whose images share an ancestor that was never generalized with sysprep present the same value. The
+// second one to enroll used to silently take over the first one's enrollment. Both must now stay managed, and the collision must be visible.
+func (s *integrationMDMTestSuite) TestWindowsMDMDuplicateHardwareIDKeepsBothHostsEnrolled() {
+	t := s.T()
+	ctx := t.Context()
+
+	hostA := createOrbitEnrolledHost(t, "windows", "-dup-hw-a", s.ds)
+	deviceA := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *hostA.OrbitNodeKey)
+	require.NoError(t, deviceA.Enroll())
+
+	connected, err := s.ds.IsHostConnectedToFleetMDM(ctx, hostA)
+	require.NoError(t, err)
+	require.True(t, connected)
+
+	// Host B is its own Fleet host (its own SMBIOS UUID) presenting the shared image's hardware ID.
+	hostB := createOrbitEnrolledHost(t, "windows", "-dup-hw-b", s.ds)
+	require.NotEqual(t, hostA.UUID, hostB.UUID)
+
+	deviceB := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *hostB.OrbitNodeKey)
+	deviceB.HardwareID = deviceA.HardwareID
+	require.NoError(t, deviceB.Enroll())
+
+	// Neither host lost management, and each is still reachable by the profile reconciler.
+	for _, h := range []*fleet.Host{hostA, hostB} {
+		connected, err := s.ds.IsHostConnectedToFleetMDM(ctx, h)
+		require.NoError(t, err)
+		require.True(t, connected, "host %s must stay connected after the collision", h.UUID)
+
+		reconcile, err := s.ds.GetWindowsMDMHostForReconcile(ctx, h.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, reconcile, "host %s must stay eligible for the reconciler", h.UUID)
+	}
+
+	// Both devices can still run a management session. Before the fix, host A got a SOAP fault here.
+	_, err = deviceA.StartManagementSession()
+	require.NoError(t, err, "host A's device must still be able to check in")
+	_, err = deviceB.StartManagementSession()
+	require.NoError(t, err)
+
+	// Commands enqueued per host land on that host's own enrollment, guarding against a regression of #20764.
+	enrollmentIDs := make(map[string]uint, 2)
+	for _, h := range []*fleet.Host{hostA, hostB} {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, s.ds.MDMWindowsInsertCommandForHosts(ctx, []string{h.UUID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte(`<Exec></Exec>`),
+			TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/Fleet/Test" + h.UUID,
+		}))
+		var enrollmentID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &enrollmentID,
+				`SELECT enrollment_id FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
+		})
+		enrollmentIDs[h.UUID] = enrollmentID
+	}
+	require.NotEqual(t, enrollmentIDs[hostA.UUID], enrollmentIDs[hostB.UUID])
+
+	// Because both enrollments now coexist, an admin can find every colliding set by querying for hardware IDs held by more than one
+	// host. Under the old unique key only the winner's row survived, so this query could never return anything.
+	var collidingHosts int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &collidingHosts, `
+			SELECT COUNT(DISTINCT host_uuid) FROM mdm_windows_enrollments
+			WHERE host_uuid != '' GROUP BY mdm_hardware_id HAVING COUNT(DISTINCT host_uuid) > 1`)
+	})
+	require.Equal(t, 2, collidingHosts, "the collision must be discoverable by querying mdm_windows_enrollments")
+}
+
+// TestWindowsMDMDuplicateHardwareIDAutomaticEnrollment covers the same collision on the Entra automatic path, where host_uuid is empty at
+// enroll time. The already-linked host must not be evicted by an unlinked enrollment.
+func (s *integrationMDMTestSuite) TestWindowsMDMDuplicateHardwareIDAutomaticEnrollment() {
+	t := s.T()
+	ctx := t.Context()
+
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config",
+			json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": [] } }`), http.StatusOK, &appConfigResponse{})
+	})
+
+	// A fleetd-enrolled host holds the enrollment for the shared hardware ID.
+	hostA := createOrbitEnrolledHost(t, "windows", "-dup-hw-auto-a", s.ds)
+	deviceA := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *hostA.OrbitNodeKey)
+	require.NoError(t, deviceA.Enroll())
+
+	// An Entra-joined clone enrolls automatically with the same hardware ID and no host known yet.
+	deviceB := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "dup.hw.clone@example.com",
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+	deviceB.HardwareID = deviceA.HardwareID
+	require.NoError(t, deviceB.Enroll())
+
+	// Host A keeps its enrollment and can still check in.
+	connected, err := s.ds.IsHostConnectedToFleetMDM(ctx, hostA)
+	require.NoError(t, err)
+	require.True(t, connected, "the linked host must not be evicted by an unlinked automatic enrollment")
+
+	_, err = deviceA.StartManagementSession()
+	require.NoError(t, err, "host A's device must still be able to check in")
+	_, err = deviceB.StartManagementSession()
+	require.NoError(t, err, "the automatic enrollment must also work")
+
+	// Both rows coexist under the shared hardware ID.
+	var enrollCount int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &enrollCount,
+			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, deviceA.HardwareID)
+	})
+	require.Equal(t, 2, enrollCount)
 }

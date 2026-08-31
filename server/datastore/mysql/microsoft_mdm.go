@@ -607,14 +607,76 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 	return nil
 }
 
-// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
-// enrollment entry from the database using the device's hardware ID as it is
-// re-enrolling. It also cleans up host_mdm_windows_profiles so profile
-// delivery statuses are reset for the new enrollment.
-func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
+// MDMWindowsDeleteEnrolledDeviceOnReenrollment removes the prior Windows MDM enrollment held by the host that is now re-enrolling and
+// resets the per-host state that has to be re-delivered on the new enrollment. It returns the host UUIDs of any OTHER hosts that already
+// hold an enrollment for the same hardware ID.
+//
+// hostUUID is the authoritative identity of the enrolling host, resolved from the orbit node key for programmatic enrollments. It is empty
+// for Entra automatic enrollments, which are linked to a host later by the serial reported on the first management session.
+//
+// Scoping the delete to the enrolling host's own row is the point. HWDevID is derived from OS state in the Windows image, so machines whose
+// images share an ancestor that was never generalized with sysprep report the same value. Deleting by hardware ID alone let the second such
+// machine to enroll take over the first one's enrollment and silently stop Fleet from managing it (issue #50612).
+//
+// Unlinked rows (host_uuid = ”) for the same hardware ID are also removed once the enrolling host is known. They carry no host-visible
+// state, so removing them cannot cause the silent unenrollment above, and leaving them would break the later serial-based linking, which
+// does a bare UPDATE of host_uuid and would now hit the (mdm_hardware_id, host_uuid) unique key.
+//
+// Returns notFound when there was nothing to delete and no collision, which preserves the caller's existing first-enrollment fast path.
+func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID, hostUUID string) ([]string, error) {
+	const loadStmt = "SELECT COALESCE(host_uuid, '') AS host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
+
+	var collisions []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		collisions = nil
+
+		var existing []string
+		if err := sqlx.SelectContext(ctx, tx, &existing, loadStmt, mdmDeviceHWID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load host_uuids for MDMWindowsEnrolledDevice")
+		}
+
+		// Partition the rows sharing this hardware ID into the enrolling host's own (deletable) and other hosts' (left alone).
+		deletable := make([]string, 0, len(existing))
+		for _, rowHostUUID := range existing {
+			// The enrolling host's own row, plus any not-yet-linked row for this hardware ID, which carries no host state.
+			if rowHostUUID == hostUUID || rowHostUUID == "" {
+				deletable = append(deletable, rowHostUUID)
+				continue
+			}
+			collisions = append(collisions, rowHostUUID)
+		}
+
+		var deleted int64
+		for _, rowHostUUID := range deletable {
+			if rowHostUUID != "" {
+				if err := resetWindowsHostStateOnReenrollmentDB(ctx, tx, rowHostUUID); err != nil {
+					return err
+				}
+			}
+			res, err := tx.ExecContext(ctx,
+				"DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? AND host_uuid = ?", mdmDeviceHWID, rowHostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete MDMWindowsEnrolledDevice")
+			}
+			aff, _ := res.RowsAffected()
+			deleted += aff
+		}
+
+		if deleted == 0 && len(collisions) == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return collisions, nil
+}
+
+// resetWindowsHostStateOnReenrollmentDB clears the per-host MDM state that has to be rebuilt when a host re-enrolls. It only ever runs for
+// the host that is actually re-enrolling; running it for any other host is the silent-unenrollment bug in issue #50612.
+func resetWindowsHostStateOnReenrollmentDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	const (
-		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
-		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
 		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
 		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; for Windows that's the
@@ -626,58 +688,31 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var hostUUID sql.NullString
-		switch err := sqlx.GetContext(ctx, tx, &hostUUID, loadStmt, mdmDeviceHWID); err {
-		case nil:
-			if hostUUID.Valid {
-				// Clear lock/wipe status
-				if _, err := tx.ExecContext(ctx, delActionsStmt, hostUUID.String); err != nil {
-					return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for host")
-				}
-				// Clear profile delivery statuses so they get re-delivered
-				// on the new enrollment.
-				if _, err := tx.ExecContext(ctx, delProfilesStmt, hostUUID.String); err != nil {
-					return ctxerr.Wrap(ctx, err, "delete host_mdm_windows_profiles for host")
-				}
-				// Drop the now-orphaned per-host profile status rollup row.
-				if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}, false); err != nil {
-					return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup on re-enrollment")
-				}
-				// Clear setup experience results so they get re-enqueued on the new enrollment.
-				if _, err := tx.ExecContext(ctx, delSetupExpStmt, hostUUID.String); err != nil {
-					return ctxerr.Wrap(ctx, err, "delete setup_experience_status_results for host")
-				}
-				// Clear ALL stale upcoming activities (any activity_type) so they don't block new activities on re-enrollment.
-				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
-					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
-				}
-				// Retire the escrowed managed local account password.
-				if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID.String); err != nil {
-					return ctxerr.Wrap(ctx, err, "soft delete managed local account password on re-enrollment")
-				}
-			}
-
-		case sql.ErrNoRows:
-			// nothing to delete, return early
-			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
-
-		default:
-			return ctxerr.Wrap(ctx, err, "load host_uuid for MDMWindowsEnrolledDevice")
-		}
-
-		res, err := tx.ExecContext(ctx, delStmt, mdmDeviceHWID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete MDMWindowsEnrolledDevice")
-		}
-
-		deleted, _ := res.RowsAffected()
-		if deleted == 1 {
-			return nil
-		}
-
-		return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
-	})
+	// Clear lock/wipe status
+	if _, err := tx.ExecContext(ctx, delActionsStmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for host")
+	}
+	// Clear profile delivery statuses so they get re-delivered on the new enrollment.
+	if _, err := tx.ExecContext(ctx, delProfilesStmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_mdm_windows_profiles for host")
+	}
+	// Drop the now-orphaned per-host profile status rollup row.
+	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, false); err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup on re-enrollment")
+	}
+	// Clear setup experience results so they get re-enqueued on the new enrollment.
+	if _, err := tx.ExecContext(ctx, delSetupExpStmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete setup_experience_status_results for host")
+	}
+	// Clear ALL stale upcoming activities (any activity_type) so they don't block new activities on re-enrollment.
+	if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
+	}
+	// Retire the escrowed managed local account password.
+	if err := softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft delete managed local account password on re-enrollment")
+	}
+	return nil
 }
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given

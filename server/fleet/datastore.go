@@ -2414,9 +2414,11 @@ type Datastore interface {
 	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
-	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows
-	// device enrollment entry from the database using the HW device id.
-	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error
+	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes the windows device enrollment entry held by the re-enrolling host, identified
+	// by the pair (HW device id, host uuid), and resets that host's per-host MDM state. hostUUID is empty for Entra automatic
+	// enrollments, which are linked to a host later. It returns the host UUIDs of any OTHER hosts already enrolled under the same HW
+	// device id, which happens when machines share a Windows image lineage that was never generalized with sysprep.
+	MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID, hostUUID string) ([]string, error)
 
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
