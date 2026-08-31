@@ -59,8 +59,12 @@ prs() {
 	ensure_gh_auth
 
 	verbose=""
-	if [ "${1:-}" = "-v" ]; then
+	if [ "${1:-}" = "-v" ] || [ "${1:-}" = "--verbose" ]; then
 		verbose="yes"
+	elif [ -n "${1:-}" ]; then
+		echo "Invalid argument for prs: $1"
+		usage
+		exit 1
 	fi
 
 	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login) + ["app/dependabot", "app/kiloconnect", "app/kilo-code-bot"]')"
@@ -71,7 +75,7 @@ prs() {
 	defs='def pad($n): . + ((" " * ($n - length)) // "");
 		def body_text: (.body // "") | gsub("<!--.*?-->"; ""; "m");
 		def linked_issue:
-			[body_text | scan("(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s*:?\\s*(?:https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#|#)([0-9]+)")]
+			[body_text | scan("(?i)\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s*:?\\s*(?:https://github\\.com/fleetdm/fleet/issues/|fleetdm/fleet#|#)([0-9]+)")]
 			| if length > 0 then .[0][0] else "" end;
 		def manually_tested:
 			if body_text | test("(?i)[-*]\\s*\\[x\\][^\\n]*(?:QA.?d all new/changed functionality|Attached a screenshot or screen recording)")
@@ -90,7 +94,7 @@ prs() {
 	issue_labels="{}"
 	if [ -n "$verbose" ]; then
 		for issue in $(jq -r --argjson members "$members" "$defs"'open_prs | map(linked_issue) | unique | .[] | select(. != "")' <<<"$prs_json"); do
-			labels="$(gh issue view "$issue" --repo fleetdm/fleet --json labels -q '[.labels[].name] | join(", ")')"
+			labels="$(gh issue view "$issue" --repo fleetdm/fleet --json labels -q '[.labels[].name] | join(", ")' || true)"
 			issue_labels="$(jq --arg issue "$issue" --arg labels "$labels" '. + {($issue): $labels}' <<<"$issue_labels")"
 		done
 	fi
@@ -100,7 +104,7 @@ prs() {
 		| .[]
 		| [(.url | split("/") | last), .createdAt, linked_issue, manually_tested, .author.login]
 		+ (if $verbose == "" then [] else [([.assignees[].login] | join(", ")), .url] end)
-		+ [.title]
+		+ [(.title | gsub("[\\r\\n\\t]"; " "))]
 		+ (if $verbose == "" then [] else [($issue_labels[linked_issue] // "")] end)]
 		| (transpose | map(map(length) | max)) as $widths
 		| .[]
