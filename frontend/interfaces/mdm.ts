@@ -338,6 +338,16 @@ export const isBYODManualEnrollment = (
   return enrollmentStatus === "On (manual)";
 };
 
+/** Personal (BYOD) enrollment status. Note this covers BOTH manual BYOD and
+ * Account-Driven User Enrollment — the status alone cannot tell them apart, so
+ * use the host's `account_driven_user_enrollment` field when the difference
+ * matters (e.g. re-enrollment instructions). See #50868. */
+export const isPersonalEnrollmentStatus = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (manual - personal)";
+};
+
 /** This checks if the device is enrolled via an Apple ID user enrollment.
  * We refer to that as "account driven user enrollment". Note that this same
  * status now also covers manual BYOD enrollments (Apple) and Android BYO

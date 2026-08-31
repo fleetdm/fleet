@@ -2014,6 +2014,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if host.Platform == "darwin" && details != nil {
 					host.MDM.BootstrapTokenEscrowed = &details.BootstrapTokenEscrowed
 				}
+
+				// Manual BYOD and Account-Driven User Enrollment both report the
+				// "On (manual - personal)" status, so the UI needs the enrollment
+				// channel to tell them apart.
+				if fleet.IsAppleMobilePlatform(host.Platform) && details != nil {
+					host.MDM.AccountDrivenUserEnrollment = &details.AccountDrivenUserEnrollment
+				}
 			}
 		}
 	}

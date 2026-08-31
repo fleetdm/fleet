@@ -717,6 +717,13 @@ type MDMHostData struct {
 	// host-returning methods.
 	ConnectedToFleet *bool `json:"connected_to_fleet" csv:"-" db:"connected_to_fleet"`
 
+	// AccountDrivenUserEnrollment reports whether an iOS/iPadOS host enrolled
+	// through Account-Driven User Enrollment rather than the manual BYOD flow.
+	// Both produce the "On (manual - personal)" enrollment status, so the status
+	// alone can't tell them apart and re-enrollment instructions differ. Only
+	// filled in by getHostDetails.
+	AccountDrivenUserEnrollment *bool `json:"account_driven_user_enrollment,omitempty" db:"-" csv:"-"`
+
 	// WipeAllowed, LockAllowed, and ClearPasscodeAllowed indicate whether the
 	// corresponding MDM commands are permitted for this host based on the
 	// AccessRights delivered in the host's enrollment profile. They are nil for

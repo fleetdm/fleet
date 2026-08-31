@@ -133,6 +133,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
+		{"GetNanoMDMEnrollmentDetailsAccountDriven", testGetNanoMDMEnrollmentDetailsAccountDriven},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -15632,4 +15633,37 @@ FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
 			mobileconfig.FleetFileVaultPayloadIdentifier)
 	})
 	require.Equal(t, 2, count)
+}
+
+// Manual BYOD and Account-Driven User Enrollment both report the
+// "On (manual - personal)" status, so the enrollment channel is the only way to
+// tell them apart. See #50868.
+func testGetNanoMDMEnrollmentDetailsAccountDriven(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "adue-host-" + suffix,
+			OsqueryHostID: new("adue-osq-" + suffix),
+			NodeKey:       new("adue-key-" + suffix),
+			UUID:          "adue-uuid-" + suffix,
+			Platform:      "ios",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	manualBYOD := newHost("manual")
+	nanoEnroll(t, ds, manualBYOD, false)
+
+	accountDriven := newHost("account-driven")
+	nanoEnrollUserDevice(t, ds, accountDriven)
+
+	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, manualBYOD.UUID)
+	require.NoError(t, err)
+	require.False(t, details.AccountDrivenUserEnrollment)
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, accountDriven.UUID)
+	require.NoError(t, err)
+	require.True(t, details.AccountDrivenUserEnrollment)
 }

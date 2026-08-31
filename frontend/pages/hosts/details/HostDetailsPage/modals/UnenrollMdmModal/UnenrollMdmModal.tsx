@@ -10,8 +10,8 @@ import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   isAutomaticDeviceEnrollment,
-  isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
+  isPersonalEnrollmentStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 
@@ -22,6 +22,10 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
+  /** Account-Driven User Enrollment re-enrolls through Apple's "Sign in to Work
+   * or School Account" flow; every other personal enrollment re-enrolls through
+   * the enrollment link. Both report the same enrollmentStatus. */
+  isAccountDrivenUserEnrollment?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -31,6 +35,7 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
+  isAccountDrivenUserEnrollment,
   onClose,
   onSuccess,
 }: IUnenrollMdmModalProps) => {
@@ -80,14 +85,7 @@ const UnenrollMdmModal = ({
   };
 
   const generateIosOrIpadosDescription = () => {
-    if (isBYODManualEnrollment(enrollmentStatus)) {
-      return (
-        <p>
-          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
-          share the link with end user.
-        </p>
-      );
-    } else if (isBYODAccountDrivenUserEnrollment(enrollmentStatus)) {
+    if (isAccountDrivenUserEnrollment) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}
@@ -96,6 +94,16 @@ const UnenrollMdmModal = ({
             to Work or School Account...
           </b>{" "}
           on their host and to log in with their work email.
+        </p>
+      );
+    } else if (
+      isBYODManualEnrollment(enrollmentStatus) ||
+      isPersonalEnrollmentStatus(enrollmentStatus)
+    ) {
+      return (
+        <p>
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
         </p>
       );
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {

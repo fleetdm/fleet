@@ -195,6 +195,13 @@ export interface IHostMdmData {
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
   /**
+   * account_driven_user_enrollment indicates an iOS/iPadOS host enrolled through
+   * Account-Driven User Enrollment rather than the manual BYOD flow. Both report
+   * enrollment_status "On (manual - personal)", so the status alone cannot tell
+   * them apart. Only populated for GET /hosts/:id.
+   */
+  account_driven_user_enrollment?: boolean;
+  /**
    * wipe/lock/clear_passcode_allowed indicate whether the corresponding MDM
    * commands are permitted for this host based on the AccessRights delivered
    * in the host's manual (SCEP/ACME) enrollment profile. They are only
