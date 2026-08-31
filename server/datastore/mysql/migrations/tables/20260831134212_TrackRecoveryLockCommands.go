@@ -16,10 +16,10 @@ func Up_20260831134212(tx *sql.Tx) error {
 	- verify_command_uuid covers the last verify operation for the recovery lock
 	*/
 	_, err := tx.Exec(`ALTER TABLE host_recovery_key_passwords
-		ADD COLUMN pending_set_command_uuid VARCHAR(127) NULL,
-		ADD COLUMN pending_verify_command_uuid VARCHAR(127) NULL,
-		ADD COLUMN set_command_uuid VARCHAR(127) NULL,
-		ADD COLUMN verify_command_uuid VARCHAR(127) NULL,
+		ADD COLUMN pending_set_command_uuid VARCHAR(127) NULL COLLATE utf8mb4_unicode_ci,
+		ADD COLUMN pending_verify_command_uuid VARCHAR(127) NULL COLLATE utf8mb4_unicode_ci,
+		ADD COLUMN set_command_uuid VARCHAR(127) NULL COLLATE utf8mb4_unicode_ci,
+		ADD COLUMN verify_command_uuid VARCHAR(127) NULL COLLATE utf8mb4_unicode_ci,
 		ADD COLUMN retry INT NOT NULL DEFAULT 0,
 		DROP COLUMN pending_error_message,
 		MODIFY COLUMN encrypted_password BLOB NULL;
