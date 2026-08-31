@@ -102,6 +102,9 @@ export const generateHostSWLibraryTableHeaders = ({
           icon_url,
           app_store_app,
           software_package,
+          auto_update_enabled,
+          auto_update_window_start,
+          auto_update_window_end,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -134,6 +137,9 @@ export const generateHostSWLibraryTableHeaders = ({
             pageContext="hostDetailsLibrary"
             isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            autoUpdateEnabled={auto_update_enabled}
+            autoUpdateWindowStart={auto_update_window_start}
+            autoUpdateWindowEnd={auto_update_window_end}
           />
         );
       },

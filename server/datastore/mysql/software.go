@@ -7258,7 +7258,71 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
+	// Hydrate VPP auto-update fields from software_update_schedules. Cheaper as a
+	// post-pagination lookup than as a JOIN inside the assembly SQL: at most one
+	// row per title, small table, indexed by (team_id, title_id). Skip when the
+	// host has no team — schedules are per-team.
+	if host.TeamID != nil && len(software) > 0 {
+		if err := ds.hydrateHostSoftwareAutoUpdateFields(ctx, software, globalOrTeamID); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "hydrate host software auto-update fields")
+		}
+	}
+
 	return software, metaData, nil
+}
+
+// hydrateHostSoftwareAutoUpdateFields looks up software_update_schedules rows for
+// the given team and the title IDs in `software`, then copies the enabled/window
+// fields onto each result. No-op when no schedules exist for the team.
+func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
+	ctx context.Context,
+	software []*fleet.HostSoftwareWithInstaller,
+	teamID uint,
+) error {
+	titleIDs := make([]uint, 0, len(software))
+	for _, s := range software {
+		titleIDs = append(titleIDs, s.ID)
+	}
+
+	stmt, args, err := sqlx.In(`
+		SELECT title_id, enabled, start_time, end_time
+		FROM software_update_schedules
+		WHERE team_id = ? AND title_id IN (?)`,
+		teamID, titleIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build auto-update schedule lookup")
+	}
+
+	type scheduleRow struct {
+		TitleID   uint   `db:"title_id"`
+		Enabled   bool   `db:"enabled"`
+		StartTime string `db:"start_time"`
+		EndTime   string `db:"end_time"`
+	}
+	var rows []scheduleRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select auto-update schedules")
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	byTitle := make(map[uint]scheduleRow, len(rows))
+	for _, r := range rows {
+		byTitle[r.TitleID] = r
+	}
+	for _, s := range software {
+		if r, ok := byTitle[s.ID]; ok {
+			enabled := r.Enabled
+			start := r.StartTime
+			end := r.EndTime
+			s.AutoUpdateEnabled = &enabled
+			s.AutoUpdateStartTime = &start
+			s.AutoUpdateEndTime = &end
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error) {
