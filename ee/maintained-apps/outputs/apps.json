@@ -5427,6 +5427,13 @@
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
     },
     {
+      "name": "Microsoft Defender",
+      "slug": "microsoft-defender/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.microsoft.wdav",
+      "description": "Microsoft Defender is an enterprise endpoint protection and antivirus client."
+    },
+    {
       "name": "Microsoft .NET Desktop Runtime 10",
       "slug": "microsoft-dotnet-desktop-runtime-10/windows",
       "platform": "windows",

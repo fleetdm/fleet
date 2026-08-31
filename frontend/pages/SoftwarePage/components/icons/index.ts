@@ -646,6 +646,7 @@ import MerlinProject from "./png/MerlinProject.png";
 import Microsoft365Copilot from "./png/Microsoft365Copilot.png";
 import MicrosoftAutoUpdate from "./png/MicrosoftAutoUpdate.png";
 import MicrosoftAzureStorageExplorer from "./png/MicrosoftAzureStorageExplorer.png";
+import MicrosoftDefender from "./png/MicrosoftDefender.png";
 import MicrosoftDotnetRuntime from "./png/MicrosoftDotnetRuntime.png";
 import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
@@ -1811,6 +1812,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
+  "microsoft defender": MicrosoftDefender,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
