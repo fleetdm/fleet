@@ -1064,6 +1064,7 @@ import Vellum from "./png/Vellum.png";
 import VernierSpectralAnalysis from "./png/VernierSpectralAnalysis.png";
 import Versions from "./png/Versions.png";
 import Via from "./png/Via.png";
+import Vim from "./png/Vim.png";
 import Vimcal from "./png/Vimcal.png";
 import VirtualBox from "./png/VirtualBox.png";
 import VirtualBuddy from "./png/VirtualBuddy.png";
@@ -2239,6 +2240,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vernier spectral analysis": VernierSpectralAnalysis,
   versions: Versions,
   via: Via,
+  vim: Vim,
   vimcal: Vimcal,
   virtualbox: VirtualBox,
   virtualbuddy: VirtualBuddy,

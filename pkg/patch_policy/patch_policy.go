@@ -244,6 +244,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"RustRover":                    "IN ('rustrover.exe','rustrover64.exe')",
 	"Spotify":                      "IN ('spotify.exe','spotifywebhelper.exe')",
 	"Sublime Text":                 "= 'sublime_text.exe'",
+	"Vim":                          "IN ('gvim.exe','vim.exe')",
 	"VirtualBox":                   "LIKE 'virtualbox%'",
 	"Wacom Tablet":                 "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
 	"WebStorm":                     "IN ('webstorm.exe','webstorm64.exe')",
