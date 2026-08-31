@@ -810,6 +810,22 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 	return 0
 }
 
+// countActivitiesOfType returns how many activities of the given type exist. Used to assert that an operation records
+// no activity, which "last activity" helpers cannot express on a suite that shares its database across tests.
+func (ts *withServer) countActivitiesOfType(name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
+}
+
 func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
 	t := ts.s.T()
 

@@ -2460,6 +2460,12 @@ type Datastore interface {
 	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
+	// enrollment, returning true for the first caller only. Azure (automatic) enrollments know neither the host nor its
+	// serial at enrollment time, so their activity is deferred to the first time the enrollment is linked to a host,
+	// and this keeps the several paths that can do that linking from each emitting one.
+	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmDeviceID string) (bool, error)
+
 	// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments: nil fleet
 	// id and empty name when unset.
 	GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error)

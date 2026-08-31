@@ -9528,6 +9528,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	requestBytes, err := s.newSecurityTokenMsg(azureADTok, false, false)
 	require.NoError(t, err)
 
+	mdmEnrolledCountBefore := s.countActivitiesOfType(fleet.ActivityTypeMDMEnrolled{}.ActivityName())
+
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
@@ -9548,18 +9550,10 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
 
-	// Checking if an activity was created for the enrollment
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		`{
-			"mdm_platform": "microsoft",
-			"host_serial": "",
-			"installed_from_dep": false,
-			"host_display_name": "DESKTOP-0C89RC0",
-			"enrollment_id": null,
-			"platform": "windows"
-		 }`,
-		0)
+	// No activity yet: an Azure enrollment carries neither a host UUID nor a serial, so recording one here would
+	// produce an mdm_enrolled with an empty host_serial and no host_id. It is deferred to the first time the enrollment
+	// is linked to a host (see the deferred-activity tests, and the enrollment is left unclaimed below).
+	require.Equal(t, mdmEnrolledCountBefore, s.countActivitiesOfType(fleet.ActivityTypeMDMEnrolled{}.ActivityName()))
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
 
@@ -9567,6 +9561,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	d, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), expectedDeviceID)
 	require.NoError(t, err)
 	require.Empty(t, d.HostUUID)
+	require.Nil(t, d.EnrolledActivityAt, "an unlinked enrollment must leave the activity claim for the linking path")
 }
 
 func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
@@ -10439,6 +10434,28 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
+	// findEnrolledActivity returns the mdm_enrolled activity for a host, or nil when there is none yet.
+	findEnrolledActivity := func(hostID uint) *fleet.ActivityTypeMDMEnrolled {
+		var listResp listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp,
+			"order_key", "a.id", "order_direction", "desc", "per_page", "200")
+		for _, act := range listResp.Activities {
+			if act.Type != (fleet.ActivityTypeMDMEnrolled{}).ActivityName() || act.Details == nil {
+				continue
+			}
+			var details fleet.ActivityTypeMDMEnrolled
+			require.NoError(t, json.Unmarshal(*act.Details, &details))
+			if details.HostID == hostID {
+				return &details
+			}
+		}
+		return nil
+	}
+
+	// Neither Azure enrollment has an mdm_enrolled activity yet: the WSTEP exchange carries no serial and no host UUID,
+	// so the activity waits for the enrollment to be linked to a host rather than being recorded without either.
+	require.Nil(t, findEnrolledActivity(settingsAppHost.ID))
+
 	// start a management session, will receive the install fleetd commands
 	checkinAndAck(settingsAppDevice, true)
 
@@ -10465,9 +10482,29 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	require.NoError(t, err)
 	require.Equal(t, settingsAppDevice.DeviceID, mdmEnrollment.MDMDeviceID)
 
+	// Linking happened through osquery's direct-ingest backstop, which cannot record an activity itself, so the
+	// enrollment is still unannounced until the device's next management session.
+	require.Nil(t, findEnrolledActivity(settingsAppHost.ID))
+
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
 	checkinAndAck(settingsAppDevice, false)
+
+	// That session recorded the deferred activity, now carrying the host id and serial the Azure enrollment could not
+	// know. This host enrolled from the settings app (not in OOBE), so it is a manual enrollment.
+	settingsAppActivity := findEnrolledActivity(settingsAppHost.ID)
+	require.NotNil(t, settingsAppActivity)
+	require.NotNil(t, settingsAppActivity.HostSerial)
+	require.Equal(t, settingsAppHost.HardwareSerial, *settingsAppActivity.HostSerial)
+	require.Equal(t, settingsAppHost.DisplayName(), settingsAppActivity.HostDisplayName)
+	require.Equal(t, fleet.MDMPlatformMicrosoft, settingsAppActivity.MDMPlatform)
+	require.Equal(t, "windows", settingsAppActivity.Platform)
+	require.False(t, settingsAppActivity.InstalledFromDEP)
+	require.Equal(t, []uint{settingsAppHost.ID}, settingsAppActivity.HostIDs(), "the activity must land on the host's timeline")
+
+	// A further session must not record a second one.
+	checkinAndAck(settingsAppDevice, false)
+	require.Equal(t, settingsAppActivity, findEnrolledActivity(settingsAppHost.ID))
 
 	// But the autopilot device still receives commands...
 	checkinAndAck(autopilotDevice, true)
@@ -10492,6 +10529,14 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	mdmEnrollment, err = s.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, autopilotHost.UUID)
 	require.NoError(t, err)
 	require.Equal(t, autopilotDevice.DeviceID, mdmEnrollment.MDMDeviceID)
+
+	// Same for the Autopilot device, except this one enrolled during OOBE, so it is an automatic enrollment.
+	checkinAndAck(autopilotDevice, false)
+	autopilotActivity := findEnrolledActivity(autopilotHost.ID)
+	require.NotNil(t, autopilotActivity)
+	require.NotNil(t, autopilotActivity.HostSerial)
+	require.Equal(t, autopilotHost.HardwareSerial, *autopilotActivity.HostSerial)
+	require.True(t, autopilotActivity.InstalledFromDEP)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", autopilotHost.ID), nil, http.StatusOK, &hostResp)
 

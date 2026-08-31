@@ -94,6 +94,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
+		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
 	}
 
@@ -8409,6 +8410,93 @@ func testWindowsPerHostReconcileLoaders(t *testing.T, ds *Datastore) {
 	require.NotNil(t, row.Status)
 	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
 	require.NotEmpty(t, row.Checksum)
+}
+
+func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-CLAIM",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollUserID:        "user@example.com",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+
+	t.Run("first caller wins and later callers do not", func(t *testing.T) {
+		device := newEnrollment()
+
+		loaded, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.Nil(t, loaded.EnrolledActivityAt, "a new enrollment starts unclaimed")
+
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.False(t, claimed, "a second caller must not record a duplicate activity")
+
+		loaded, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.NotNil(t, loaded.EnrolledActivityAt, "the claim is what marks the enrollment as announced")
+	})
+
+	t.Run("unknown device id claims nothing", func(t *testing.T) {
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, uuid.New().String())
+		require.NoError(t, err)
+		require.False(t, claimed)
+	})
+
+	t.Run("re-enrollment is claimable again", func(t *testing.T) {
+		// A device that re-enrolls is a new enrollment and gets its own activity. The re-enroll path deletes the
+		// previous row by hardware id before inserting; the upsert clears the claim for the same reason.
+		device := newEnrollment()
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID))
+		reEnrolled := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          device.MDMHardwareID,
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-CLAIM",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollUserID:        "user@example.com",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnrolled))
+
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, reEnrolled.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, claimed, "a re-enrollment must get its own mdm_enrolled activity")
+	})
+
+	t.Run("upsert over an existing row clears the claim", func(t *testing.T) {
+		// Same hardware id, so the insert takes the ON DUPLICATE KEY UPDATE branch rather than creating a new row.
+		device := newEnrollment()
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, device))
+
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, claimed)
+	})
 }
 
 func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore) {

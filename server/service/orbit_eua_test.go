@@ -10,6 +10,7 @@ import (
 	"time"
 
 	hostidentity_types "github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -319,7 +320,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		Platform:       "windows",
 	}
 
-	newSvc := func(t *testing.T) (fleet.Service, *enrollOrbitStore) {
+	newSvc := func(t *testing.T) (fleet.Service, *enrollOrbitStore, *TestServerOpts) {
 		inner := new(mock.Store)
 		ds := &enrollOrbitStore{
 			Store: inner,
@@ -327,7 +328,8 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 				return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: "windows"}, nil
 			},
 		}
-		svc, _ := newTestService(t, ds, nil, nil)
+		serverOpts := &TestServerOpts{}
+		svc, _ := newTestService(t, ds, nil, nil, serverOpts)
 		inner.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 			return &fleet.EnrollSecret{Secret: secret}, nil
 		}
@@ -340,11 +342,20 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			return cfg, nil
 		}
 		inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
-		return svc, ds
+		// A reverse-link is the moment an Azure enrollment first has a host, so it is also when its deferred
+		// mdm_enrolled activity gets recorded.
+		inner.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			require.Equal(t, []string{"host-uuid-1"}, uuids)
+			return []*fleet.Host{{ID: 42, UUID: "host-uuid-1", HardwareSerial: testSerial, Hostname: "DESKTOP-1"}}, nil
+		}
+		inner.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmDeviceID string) (bool, error) {
+			return true, nil
+		}
+		return svc, ds, serverOpts
 	}
 
 	t.Run("windows mdm not configured: no reverse-link attempted", func(t *testing.T) {
-		svc, ds := newSvc(t)
+		svc, ds, _ := newSvc(t)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
@@ -356,7 +367,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 	})
 
 	t.Run("no unlinked enrollment: enrollment succeeds without linking", func(t *testing.T) {
-		svc, ds := newSvc(t)
+		svc, ds, _ := newSvc(t)
 		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			require.Equal(t, testSerial, serial)
 			return nil, newNotFoundError()
@@ -371,7 +382,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 	})
 
 	t.Run("lookup error is non-fatal", func(t *testing.T) {
-		svc, ds := newSvc(t)
+		svc, ds, _ := newSvc(t)
 		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return nil, errors.New("db unavailable")
 		}
@@ -383,7 +394,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 	})
 
 	t.Run("unlinked enrollment found: linked and default fleet assigned before returning", func(t *testing.T) {
-		svc, ds := newSvc(t)
+		svc, ds, serverOpts := newSvc(t)
 		device := &fleet.MDMWindowsEnrolledDevice{
 			ID:              1,
 			MDMDeviceID:     "device-1",
@@ -426,6 +437,14 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			return nil, nil
 		}
 
+		var enrolledActivity *fleet.ActivityTypeMDMEnrolled
+		serverOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if a, ok := act.(*fleet.ActivityTypeMDMEnrolled); ok {
+				enrolledActivity = a
+			}
+			return nil
+		}
+
 		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "secret", "")
 		require.NoError(t, err)
 		require.NotEmpty(t, nodeKey)
@@ -433,5 +452,14 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.True(t, ds.AddHostsToTeamFuncInvoked, "default fleet must be assigned before EnrollOrbit returns")
 		require.NotNil(t, assignedTeamID)
 		require.Equal(t, defaultTeamID, *assignedTeamID)
+
+		// The enrollment had no host when it was created, so this is where its mdm_enrolled activity is recorded, now
+		// carrying the host id and serial the Azure enrollment could not know.
+		require.True(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		require.NotNil(t, enrolledActivity, "expected the deferred mdm_enrolled activity")
+		require.Equal(t, uint(42), enrolledActivity.HostID)
+		require.NotNil(t, enrolledActivity.HostSerial)
+		require.Equal(t, testSerial, *enrolledActivity.HostSerial)
+		require.Equal(t, fleet.MDMPlatformMicrosoft, enrolledActivity.MDMPlatform)
 	})
 }

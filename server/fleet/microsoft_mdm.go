@@ -949,9 +949,14 @@ type MDMWindowsEnrolledDevice struct {
 	HasPendingCommands bool `db:"has_pending_commands"`
 	// HardwareSerial is the SMBIOS serial the device reported over OMA-DM (DevDetail), persisted while the enrollment
 	// is still unlinked so the orbit enrollment path can reverse-link it.
-	HardwareSerial *string   `db:"hardware_serial"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+	HardwareSerial *string `db:"hardware_serial"`
+	// EnrolledActivityAt is when the mdm_enrolled activity was recorded for this enrollment, and nil until it has been.
+	// Azure (automatic) enrollments know neither the host nor its serial at enrollment time, so their activity is
+	// deferred to the first time the enrollment is linked to a host; this doubles as the one-shot claim that keeps the
+	// several paths which can do that linking from each emitting their own activity.
+	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
+	CreatedAt          time.Time  `db:"created_at"`
+	UpdatedAt          time.Time  `db:"updated_at"`
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
