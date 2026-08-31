@@ -36,8 +36,7 @@ func batchStates(repo string, numbers []int, field string) (map[int]string, erro
 		}
 		q.WriteString("}}")
 
-		cmd := fmt.Sprintf("gh api graphql -f query='%s' -f o='%s' -f n='%s'", q.String(), owner, name)
-		res, err := RunCommandWithRetry(cmd, 3)
+		res, err := RunGHWithRetry(3, "api", "graphql", "-f", "query="+q.String(), "-f", "o="+owner, "-f", "n="+name)
 		if err != nil {
 			return out, err
 		}

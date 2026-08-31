@@ -29,7 +29,7 @@ type actionMeta struct {
 var actionMetas = map[Action]actionMeta{
 	ActNone:           {"", ""},
 	ActStartWork:      {"start work", "w"},
-	ActOpenPR:         {"open PR", "P"},
+	ActOpenPR:         {"open PR", "J"},
 	ActAddressPR:      {"your move", "J"},
 	ActMarkInReview:   {"mark in review", "v"},
 	ActMerge:          {"merge", "m"},
@@ -134,7 +134,6 @@ func (w WorkItem) nextAction() Action {
 // shipped and the issue is ready to advance to QA. May be nil.
 func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[int]string, projects map[int]int, mergedPRs map[int]*ghapi.PullRequest, role string) []WorkItem {
 	role = normalizeRole(role)
-	// Index PR items by number and by head branch.
 	prByNum := map[int]*Item{}
 	prByBranch := map[string]*Item{}
 	for _, bk := range BucketOrder {

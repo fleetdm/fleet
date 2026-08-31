@@ -114,7 +114,7 @@ func (s *TriageStore) Visible(key string, itemUpdated, now time.Time) bool {
 		if now.After(e.SnoozeUntil) {
 			return true // snooze expired
 		}
-		if !itemUpdated.IsZero() && itemUpdated.After(e.SetAt) {
+		if !itemUpdated.IsZero() && itemUpdated.After(e.ItemUpdated) {
 			return true // activity since you snoozed
 		}
 		return false

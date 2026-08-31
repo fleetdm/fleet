@@ -19,7 +19,7 @@ func RunCommandAndReturnOutput(command string) ([]byte, error) {
 
 	if err := cmd.Run(); err != nil {
 		logger.Errorf("Error running command: %s", out.String())
-		return nil, err
+		return out.Bytes(), err
 	}
 	return out.Bytes(), nil
 }
@@ -55,13 +55,22 @@ func isTransient(out []byte) bool {
 // failure looks transient (GitHub 5xx/gateway/timeout). Permanent errors return
 // immediately. The output of the last attempt is returned alongside the error.
 func RunCommandWithRetry(command string, attempts int) ([]byte, error) {
+	return withRetry(attempts, func() ([]byte, error) { return RunCommandAndReturnOutput(command) })
+}
+
+// RunGHWithRetry is RunGH with the same transient-error retry as RunCommandWithRetry.
+func RunGHWithRetry(attempts int, args ...string) ([]byte, error) {
+	return withRetry(attempts, func() ([]byte, error) { return RunGH(args...) })
+}
+
+func withRetry(attempts int, run func() ([]byte, error)) ([]byte, error) {
 	if attempts < 1 {
 		attempts = 1
 	}
 	var out []byte
 	var err error
 	for i := 0; i < attempts; i++ {
-		out, err = RunCommandAndReturnOutput(command)
+		out, err = run()
 		if err == nil {
 			return out, nil
 		}

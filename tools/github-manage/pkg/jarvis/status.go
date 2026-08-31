@@ -19,7 +19,7 @@ var (
 
 // resolveAndSetStatus sets an issue's project Status to the first board option
 // matching one of the candidate intents, returning the resolved option name
-// actually written. No-op returning "" when project is 0 (issue isn't on a board).
+// actually written. Errors when project is 0 (issue isn't on a board).
 func resolveAndSetStatus(issue, project int, intents []string) (string, error) {
 	if project == 0 {
 		return "", fmt.Errorf("no project board known for issue #%d", issue)
