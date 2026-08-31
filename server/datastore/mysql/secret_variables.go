@@ -637,6 +637,10 @@ func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, h
 		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
 	}
 
+	if len(encryptedPassword) == 0 {
+		return "", ctxerr.New(ctx, "encrypted recovery lock password is missing")
+	}
+
 	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
@@ -657,6 +661,10 @@ func (ds *Datastore) getHostRecoveryLockPendingPasswordDecrypted(ctx context.Con
 				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 		}
 		return "", ctxerr.Wrap(ctx, err, "getting encrypted pending recovery lock password")
+	}
+
+	if len(encryptedPassword) == 0 {
+		return "", ctxerr.New(ctx, "encrypted pending recovery lock password is missing")
 	}
 
 	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
