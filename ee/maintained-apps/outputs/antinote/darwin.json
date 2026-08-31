@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.9",
+      "version": "2.0.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.chabomakers.Antinote';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.chabomakers.Antinote' AND version_compare(bundle_short_version, '2.0.9') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.chabomakers.Antinote');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.chabomakers.Antinote' AND version_compare(bundle_short_version, '2.0.10') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.chabomakers.Antinote' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://antinote.io/updates/Antinote_2.0.9.dmg",
+      "installer_url": "https://antinote.io/updates/Antinote_2.0.10.dmg",
       "install_script_ref": "3be1a226",
       "uninstall_script_ref": "2d505ef1",
-      "sha256": "ed8a8990a646961e93aeba8277bb12ddb4aed1b7c46c4c5387b77a30e7bd830d",
+      "sha256": "8402aae2a57547cd919055c4f78c47f22c9d644b19d29b5662970519565b1240",
       "default_categories": [
         "Productivity"
       ]

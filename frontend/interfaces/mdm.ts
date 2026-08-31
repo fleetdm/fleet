@@ -1,5 +1,6 @@
 import { IConfigServerSettings } from "./config";
-import { HostAndroidCertStatus } from "./host";
+import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
+import { isAppleDevice } from "./platform";
 
 export interface IMdmApple {
   common_name: string;
@@ -347,6 +348,22 @@ export const isBYODAccountDrivenUserEnrollment = (
   return enrollmentStatus === "On (manual - personal)";
 };
 
+/** Whether the host's last recorded MDM enrollment was personal (BYOD), including
+ * hosts that have since unenrolled. `is_personal_enrollment` is not cleared on
+ * unenrollment while `enrollment_status` flips to "Off", so UI that identifies a
+ * BYOD device (which never reports a serial number) must not rely on the status
+ * alone. The status is still checked because not every host payload carries the
+ * flag: only queries built on the server's shared host-MDM select populate it. */
+export const wasBYODEnrolled = (
+  enrollmentStatus: MdmEnrollmentStatus | null,
+  isPersonalEnrollment?: boolean
+) => {
+  return (
+    isPersonalEnrollment === true ||
+    isBYODAccountDrivenUserEnrollment(enrollmentStatus)
+  );
+};
+
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
  * This was previously known as automatic enrollment but was updatd to company owned. Here we check
  * for both to current and legacy enrollment status */
@@ -367,4 +384,25 @@ export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
 /** Android COBO (company-owned, fully managed) enrollment. */
 export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
   return enrollmentStatus === "On (automatic)";
+};
+
+// canTriggerAPNSPing checks the host state if it's allowed to hit APNS ping, it does not do any permission level checks.
+
+type ICanTriggerAPNSPingHost = Pick<IHostDevice, "platform"> & {
+  mdm: Pick<IHostMdmData, "connected_to_fleet"> &
+    Pick<IHostMdmData, "enrollment_status">;
+};
+
+export const canTriggerAPNSPing = (host: ICanTriggerAPNSPingHost) => {
+  return (
+    isAppleDevice(host.platform) &&
+    host.mdm.connected_to_fleet &&
+    host.mdm.enrollment_status !== null &&
+    ([
+      "On (automatic)",
+      "On (manual)",
+      "On (manual - personal)",
+      "On (company-owned)",
+    ] as MdmEnrollmentStatus[]).includes(host.mdm.enrollment_status)
+  );
 };

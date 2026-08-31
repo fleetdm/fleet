@@ -511,6 +511,15 @@ type agent struct {
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
 	winMDMWake chan struct{}
 
+	// ws simulates orbit's WebSocket notification transport; non-nil only
+	// while the server's orbit-config directive has it enabled (see
+	// syncWSTransport). wsSupported gates which orbit agents follow the
+	// directive (-websocket_prob), simulating older fleetd versions that
+	// ignore it.
+	wsMu        sync.Mutex
+	ws          *wsTransport
+	wsSupported bool
+
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -643,6 +652,19 @@ type agent struct {
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
 	installedAdamIDs         []int
+
+	// configTLSETag enables the native osquery conditional config request
+	// behavior: the agent sends an "etag" field in the config request body
+	// and treats the constant {"etag":"ok"} response as "unchanged".
+	configTLSETag bool
+	// configETag holds the etag from the last config response RECEIVED
+	// (matching the real client, which stores the validator on receipt, not
+	// on successful apply). Opaque and server-assigned; echoed verbatim.
+	configETag string
+	// lastConfigBodyBytes is the size of the last received full config body.
+	// Used to estimate the body bytes avoided by a subsequent not-modified
+	// response for this host.
+	lastConfigBodyBytes int64
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -742,8 +764,10 @@ func newAgent(
 	cancelableCmdAckDelay time.Duration,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	configTLSETag bool,
 	psso pssoParams,
 	mdmAPNSPushURL string,
+	websocketProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -837,6 +861,7 @@ func newAgent(
 		macMDMClient:   macMDMClient,
 		winMDMClient:   winMDMClient,
 		mdmUserProb:    mdmUserProb,
+		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
 
@@ -855,6 +880,7 @@ func newAgent(
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+		configTLSETag:            configTLSETag,
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -956,6 +982,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	_ = a.config()
 
+	// This startup read runs before runOrbitLoop, so it cannot race with the
+	// WebSocket transport (started only from that loop's config checks).
 	resp, err := a.DistributedRead()
 	if err == nil {
 		if len(resp.Queries) > 0 {
@@ -1002,6 +1030,11 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
+			// With the WebSocket transport running, the tick belongs to it
+			// (see wsPollTick).
+			if a.wsPollTick() {
+				continue
+			}
 			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
 				_ = a.DistributedWrite(resp.Queries)
 			}
@@ -1186,8 +1219,10 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit does a config check when it starts
-	if _, err := orbitClient.GetConfig(); err != nil {
+	if cfg, err := orbitClient.GetConfig(); err != nil {
 		a.stats.IncrementOrbitErrors()
+	} else {
+		a.syncWSTransport(cfg.WebSocketTransport)
 	}
 
 	tokenRotationEnabled := false
@@ -1264,6 +1299,8 @@ func (a *agent) runOrbitLoop() {
 				a.stats.IncrementOrbitErrors()
 				continue
 			}
+			// Follow the server's WebSocket transport directive, like fleetd.
+			a.syncWSTransport(cfg.WebSocketTransport)
 			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 				// there are pending scripts to execute on this host, start a goroutine
 				// that will simulate executing them.
@@ -2414,7 +2451,22 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 }
 
 func (a *agent) config() error {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	// The presence of the "etag" field — even empty — is the opt-in to
+	// conditional responses; its value is the etag from the last config
+	// response received (see the configETag field docs).
+	sentConditional := a.configTLSETag && a.configETag != ""
+	requestBody := []byte(`{"node_key": "` + a.nodeKey + `"}`)
+	if a.configTLSETag {
+		var err error
+		requestBody, err = json.Marshal(map[string]string{
+			"node_key": a.nodeKey,
+			"etag":     a.configETag,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader(requestBody))
 	if err != nil {
 		return err
 	}
@@ -2428,10 +2480,58 @@ func (a *agent) config() error {
 
 	a.stats.IncrementConfigRequests()
 
-	statusCode := response.StatusCode
-	if statusCode != http.StatusOK {
+	if response.StatusCode != http.StatusOK {
 		a.stats.IncrementConfigErrors()
-		return fmt.Errorf("config request failed: %d", statusCode)
+		return fmt.Errorf("config request failed: %d", response.StatusCode)
+	}
+
+	// Read the full body
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("read config body: %w", err)
+	}
+
+	// Extract the body-carried etag, if the server assigned one.
+	var envelope struct {
+		ETag *string `json:"etag"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("json parse at config: %w", err)
+	}
+
+	// The reserved value "ok" means the config is unchanged. The server may
+	// only say this to an agent that echoed one of its validators.
+	if envelope.ETag != nil && *envelope.ETag == "ok" {
+		if !sentConditional {
+			a.stats.IncrementConfigErrors()
+			return fmt.Errorf("invalid config unchanged response: sent_etag=%t", sentConditional)
+		}
+		a.stats.RecordConfigNotModified(int64(len(body)), a.lastConfigBodyBytes)
+		return nil
+	}
+
+	if a.configTLSETag {
+		if envelope.ETag != nil {
+			serverETag := *envelope.ETag
+			// Drift diagnostic only: the validator should be the SHA-256 of
+			// the canonical config — the body with the etag key stripped.
+			// The server value stays authoritative regardless.
+			if canonical, err := canonicalConfigBody(body); err == nil && serverETag != sha256Hex(canonical) {
+				a.stats.IncrementConfigETagDrift()
+			}
+			// Store on receive, BEFORE processing the config — the real
+			// client echoes the etag of the last config received, not
+			// applied, so a config the agent fails to process is confirmed
+			// unchanged instead of re-downloaded.
+			a.configETag = serverETag
+			a.lastConfigBodyBytes = int64(len(body))
+		} else {
+			// The server assigned no etag (it does not support conditional
+			// requests): hold no validator, keep opting in with an empty one.
+			a.configETag = ""
+		}
 	}
 
 	parsedResp := struct {
@@ -2439,7 +2539,7 @@ func (a *agent) config() error {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
 	}{}
-	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+	if err := json.Unmarshal(body, &parsedResp); err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
 	}
@@ -2495,7 +2595,34 @@ func (a *agent) config() error {
 	a.scheduledQueryData = newScheduledQueryData
 	a.scheduledQueryMapMutex.Unlock()
 
+	a.stats.RecordFullConfigResponse(int64(len(body)), sentConditional)
+
 	return nil
+}
+
+// canonicalConfigBody returns the config body with the top-level "etag" key
+// removed, re-marshaled the way the server marshals configs (two-space
+// indent, trailing newline) — the representation the validator covers.
+func canonicalConfigBody(body []byte) ([]byte, error) {
+	var config map[string]any
+	if err := json.Unmarshal(body, &config); err != nil {
+		return nil, err
+	}
+	delete(config, "etag")
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(config); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// sha256Hex returns the lowercase hex SHA-256 digest of the given bytes,
+// matching the server-assigned validator format.
+func sha256Hex(data []byte) string {
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum)
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -3010,7 +3137,7 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.distributedNodeKey()+`"}`)))
 	if err != nil {
 		return nil, err
 	}
@@ -3545,6 +3672,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		// only mdm_config_profiles_darwin_with_user runs. Report no results
 		// and no status, as osquery does for queries whose discovery fails.
 		return true, nil, nil, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_macos_software_update_id":
+		return true, []map[string]string{
+			{
+				"key":   "compatible",
+				"value": "VMA2MACOSAP", // report an osquery-perf host as a VM
+			},
+		}, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin_with_user":
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
@@ -3945,7 +4079,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Messages: make(map[string]string),
 		Stats:    make(map[string]*fleet.Stats),
 	}
-	r.NodeKey = a.nodeKey
+	r.NodeKey = a.distributedNodeKey()
 
 	cachedResults := cachedResults{}
 
@@ -3986,7 +4120,7 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		panic(err)
 	}
 
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/write", bytes.NewReader(body))
+	request, err := http.NewRequest("POST", a.serverAddress+a.distributedAPIPrefix()+"/distributed/write", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -4253,6 +4387,7 @@ func main() {
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		websocketProb       = flag.Float64("websocket_prob", 1.0, "Probability of an orbit agent supporting the WebSocket notification transport when the server's orbit config directive enables it (older fleetd versions ignore the directive)")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies only to Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
@@ -4356,6 +4491,9 @@ func main() {
 		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
 		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
+
+		configTLSETag = flag.Bool("config_tls_etag", false,
+			"Enable native osquery conditional config requests (sends an \"etag\" field in the request body, treats the {\"etag\":\"ok\"} response as unchanged). Default false — opt in to measure bandwidth savings.")
 
 		// Android load testing flags
 		androidPubSubToken       = flag.String("android_pubsub_token", "", "PubSub token for authenticating fake Android device messages to Fleet")
@@ -4651,6 +4789,7 @@ func main() {
 			*mdmCancelableCommandAckDelay,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*configTLSETag,
 			pssoParams{
 				prob:      *mdmPSSOProb,
 				clientID:  *mdmPSSOClientID,
@@ -4661,6 +4800,7 @@ func main() {
 				keyProb:   *mdmPSSOKeyProb,
 			},
 			*mdmAPNSURL,
+			*websocketProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
