@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -113,6 +114,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(allowCustomDiskEncryption
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
+	}
+	if utf8.RuneCountInString(m.Name) > MaxProfileNameLength {
+		return errors.New(MaxProfileNameLengthErrMsg + ".")
 	}
 
 	validator := newWindowsProfileValidator(m.SyncML, allowCustomDiskEncryption)

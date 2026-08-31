@@ -58,7 +58,7 @@ func (c *IntervalChecker) checkOnce(ctx context.Context) {
 	// (see orbit/pkg/wstransport).
 	hostIDs := c.Hub.HeldHostIDs()
 
-	notified := 0
+	notified, disconnected := 0, 0
 	for start := 0; start < len(hostIDs); start += c.BatchSize {
 		if ctx.Err() != nil {
 			return
@@ -84,12 +84,19 @@ func (c *IntervalChecker) checkOnce(ctx context.Context) {
 			byReason[reason] = append(byReason[reason], id)
 		}
 		for reason, ids := range byReason {
+			if reason == fleet.AgentWSReasonHostNotFound {
+				// The host was deleted while its agent held a connection.
+				// Nothing else closes it, so it would linger under the stale
+				// host ID (and keep marking it seen) indefinitely.
+				disconnected += c.Hub.Disconnect(ids)
+				continue
+			}
 			notified += c.Hub.Notify(fleet.AgentWSMessageTypeDistributedRead, reason, ids)
 		}
 	}
 
-	if notified > 0 {
-		c.Logger.DebugContext(ctx, "notified agents with due interval work",
-			"checked", len(hostIDs), "notified", notified)
+	if notified > 0 || disconnected > 0 {
+		c.Logger.DebugContext(ctx, "checked agents for due interval work",
+			"checked", len(hostIDs), "notified", notified, "disconnected", disconnected)
 	}
 }

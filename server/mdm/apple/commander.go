@@ -732,8 +732,11 @@ func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
+	// The command is durably enqueued at this point; failures below only mean
+	// the push notification didn't go out, so they are wrapped in
+	// NotificationFailedError to let callers tell the two stages apart.
 	if err := svc.SendNotifications(ctx, hostUUIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "sending notifications")
+		return ctxerr.Wrap(ctx, &NotificationFailedError{err: err}, "sending notifications")
 	}
 	return nil
 }
@@ -892,6 +895,21 @@ func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUID s
 
 	return nil
 }
+
+// NotificationFailedError reports a failure in the APNs notification stage of
+// enqueueAndNotify. The command was durably enqueued before the push was
+// attempted, so affected devices will still receive it at their next MDM
+// check-in. Callers that compensate for enqueue failures (e.g. by removing
+// host_mdm_commands tracking rows) must NOT do so when the error is of this
+// type. Unwrap exposes the underlying error, so errors.As for
+// *APNSDeliveryError keeps working through it.
+type NotificationFailedError struct {
+	err error
+}
+
+func (e *NotificationFailedError) Error() string { return e.err.Error() }
+
+func (e *NotificationFailedError) Unwrap() error { return e.err }
 
 // APNSDeliveryError records an error and the associated host UUIDs in which it
 // occurred.
