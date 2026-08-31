@@ -109,6 +109,7 @@ type Service struct {
 
 	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
 	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	// Nil when osquery.config_in_memory_cache is disabled.
 	packConfigCache *gocache.Cache
 }
 
@@ -195,6 +196,11 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
+	var packConfigCache *gocache.Cache
+	if config.Osquery.ConfigInMemoryCache {
+		packConfigCache = gocache.New(PackConfigCacheTTL, 30*time.Second)
+	}
+
 	svc := &Service{
 		ds:                ds,
 		task:              task,
@@ -232,7 +238,7 @@ func NewService(
 		installAttemptCounter:           installAttemptCounter,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		packConfigCache:                 gocache.New(PackConfigCacheTTL, 30*time.Second),
+		packConfigCache:                 packConfigCache,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
