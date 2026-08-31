@@ -41,6 +41,8 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
+  SKIPPED_INSTALL_DETAILS,
+  SKIPPED_PRE_INSTALL_OUTPUT,
   getInstallDetailsStatusPredicate,
 } from "../constants";
 
@@ -156,8 +158,7 @@ export const StatusMessage = ({
           <span>
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}. The app was open. It will update once the user
-            closes it and policy runs again, or update via self service.
+            {displayTimeStamp}. {SKIPPED_INSTALL_DETAILS}
           </span>
         }
       />
@@ -318,7 +319,7 @@ export const SoftwareInstallDetailsModal = ({
       {
         label: "Pre-install query output:",
         value: detailsFromProps.skipped_install
-          ? "Query didn't return result or failed\nThe app was open"
+          ? SKIPPED_PRE_INSTALL_OUTPUT
           : swInstallResult?.pre_install_query_output,
       },
       {
