@@ -616,7 +616,11 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 //
 // Scoping the delete to the enrolling host's own row is the point. Two distinct machines can present the same HWDevID, and deleting by
 // hardware ID alone let the second one to enroll take over the first one's enrollment and silently stop Fleet from managing it
-// (issue #50612). What makes two machines report the same HWDevID is not established; cloning a non-generalized image does not do it.
+// (issue #50612). The HWDevID is cached in the OS enrollment state, so machines cloned from an image that was already enrolled in MDM
+// all present the image's value.
+//
+// Keeping both rows is not full support for a shared HWDevID: such a clone inherits the mdm_device_id too, and management sessions
+// resolve the enrollment by device ID, so devices that cloned one enrollment still collapse onto the newest row.
 //
 // Unlinked rows (host_uuid = '') for the same hardware ID are also removed once the enrolling host is known. They carry no host-visible
 // state, so removing them cannot cause the silent unenrollment above, and leaving them would break the later serial-based linking, which
@@ -1813,16 +1817,69 @@ WHERE
 func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
 	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically
 	// signals a new MDM enrollment in certain cases, as it is the first time we associate a host with an enrollment
-	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ? AND host_uuid <> ?`
-	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
+	const stmt = `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ? AND host_uuid <> ?`
+
+	var updated bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		updated = false
+
+		// An automatic enrollment is inserted unlinked, so the enroll-time cleanup could not tell it apart from a different machine
+		// and left this host's previous row for the same hardware ID in place. Linking is the point where the two are known to be the
+		// same host, so retire that row here. Without this the UPDATE below hits (mdm_hardware_id, host_uuid) and the re-enrolled
+		// device stays unlinked with commands still queued against the stale enrollment.
+		if err := retireSupersededWindowsEnrollmentDB(ctx, tx, hostUUID, mdmDeviceID); err != nil {
+			return err
+		}
+
+		res, err := tx.ExecContext(ctx, stmt, hostUUID, mdmDeviceID, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+		}
+		aff, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
+		}
+		updated = aff > 0
+		return nil
+	})
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+		return false, err
 	}
-	aff, err := res.RowsAffected()
+	return updated, nil
+}
+
+// retireSupersededWindowsEnrollmentDB removes the enrollment row hostUUID already holds for the same hardware ID as the row now being
+// linked, and resets the per-host state that the new enrollment has to rebuild. It is a no-op unless such a row exists, which only
+// happens when this host is re-enrolling and the enroll-time cleanup could not identify it because the new row was still unlinked.
+func retireSupersededWindowsEnrollmentDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, mdmDeviceID string) error {
+	const findStmt = `
+		SELECT superseded.mdm_device_id
+		FROM mdm_windows_enrollments incoming
+		JOIN mdm_windows_enrollments superseded
+			ON superseded.mdm_hardware_id = incoming.mdm_hardware_id AND superseded.host_uuid = ?
+		WHERE incoming.mdm_device_id = ? AND incoming.host_uuid <> ? AND superseded.mdm_device_id <> incoming.mdm_device_id`
+
+	var supersededDeviceIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &supersededDeviceIDs, findStmt, hostUUID, mdmDeviceID, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "load superseded windows enrollment for host")
+	}
+	if len(supersededDeviceIDs) == 0 {
+		return nil
+	}
+
+	if err := resetWindowsHostStateOnReenrollmentDB(ctx, tx, hostUUID); err != nil {
+		return err
+	}
+
+	deleteStmt, args, err := sqlx.In(`DELETE FROM mdm_windows_enrollments WHERE host_uuid = ? AND mdm_device_id IN (?)`,
+		hostUUID, supersededDeviceIDs)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
+		return ctxerr.Wrap(ctx, err, "building delete for superseded windows enrollment")
 	}
-	return aff > 0, nil
+	if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete superseded windows enrollment for host")
+	}
+	return nil
 }
 
 func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {

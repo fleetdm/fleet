@@ -28361,7 +28361,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMDuplicateHardwareIDKeepsBothHost
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &collidingHosts, `
 			SELECT COUNT(DISTINCT host_uuid) FROM mdm_windows_enrollments
-			WHERE host_uuid != '' GROUP BY mdm_hardware_id HAVING COUNT(DISTINCT host_uuid) > 1`)
+			WHERE mdm_hardware_id = ? AND host_uuid != ''`, deviceA.HardwareID)
 	})
 	require.Equal(t, 2, collidingHosts, "the collision must be discoverable by querying mdm_windows_enrollments")
 }

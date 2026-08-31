@@ -97,6 +97,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
 		{"TestMDMWindowsDuplicateHardwareIDKeepsBothEnrolled", testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled},
 		{"TestMDMWindowsDuplicateHardwareIDUnlinkedEnrollment", testMDMWindowsDuplicateHardwareIDUnlinkedEnrollment},
+		{"TestMDMWindowsAutomaticReenrollmentRelinks", testMDMWindowsAutomaticReenrollmentRelinks},
 	}
 
 	for _, c := range cases {
@@ -8942,4 +8943,63 @@ func testMDMWindowsDuplicateHardwareIDUnlinkedEnrollment(t *testing.T, ds *Datas
 			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, sharedHWID)
 	})
 	require.Zero(t, enrollCount, "the enrolling host's own row and the unlinked row are both cleared")
+}
+
+// testMDMWindowsAutomaticReenrollmentRelinks covers the fallout of the (mdm_hardware_id, host_uuid) unique key on the Entra automatic
+// path. An automatic enrollment is inserted unlinked, so the enroll-time cleanup cannot tell the host's own re-enrollment apart from a
+// different machine and leaves the host's previous row alone. Linking is where the two are known to be the same host, so the stale row has
+// to be retired there. Without that, the link hits the unique key and the re-enrolled device is left unmanaged.
+func testMDMWindowsAutomaticReenrollmentRelinks(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	sharedHWID := uuid.New().String() + uuid.New().String()
+
+	hostA := test.NewHost(t, ds, "relink-a", "10.0.0.11", "relink-key-a", "relink-uuid-a", time.Now())
+	hostA.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostA))
+	firstDevice := enrollWindowsHostWithHardwareID(t, ds, hostA, sharedHWID)
+
+	// A second, unrelated host holds its own enrollment under the same hardware ID. Retiring host A's stale row must not touch it.
+	hostB := test.NewHost(t, ds, "relink-b", "10.0.0.12", "relink-key-b", "relink-uuid-b", time.Now())
+	hostB.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostB))
+	hostBDevice := enrollWindowsHostWithHardwareID(t, ds, hostB, sharedHWID)
+
+	// Host A re-enrolls through the automatic path, where the host UUID is unknown at enroll time.
+	_, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, sharedHWID, "")
+	require.NoError(t, err)
+
+	secondDeviceID := uuid.New().String()
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID: secondDeviceID, MDMHardwareID: sharedHWID,
+		MDMDeviceState: microsoft_mdm.MDMDeviceStateEnrolled, MDMDeviceType: "CIMClient_Windows",
+		MDMDeviceName: "DESKTOP-" + hostA.Hostname, MDMEnrollType: "AutomaticEnrollment",
+		MDMEnrollProtoVersion: "5.0", MDMEnrollClientVersion: "10.0.26200.8037", HostUUID: "",
+	}))
+
+	// Serial-based linking resolves the new row to host A, which already holds a row for this hardware ID.
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostA.UUID, secondDeviceID)
+	require.NoError(t, err, "linking the re-enrolled device must not hit the composite unique key")
+	require.True(t, updated, "the re-enrolled device must actually get linked")
+
+	// Host A now holds exactly its new enrollment; the superseded row is gone.
+	var hostADeviceIDs []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &hostADeviceIDs,
+			`SELECT mdm_device_id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? AND host_uuid = ?`, sharedHWID, hostA.UUID)
+	})
+	require.Equal(t, []string{secondDeviceID}, hostADeviceIDs)
+	require.NotEqual(t, firstDevice.MDMDeviceID, secondDeviceID)
+
+	// Host B kept its own enrollment throughout, which is the #50612 guarantee.
+	var hostBDeviceIDs []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &hostBDeviceIDs,
+			`SELECT mdm_device_id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? AND host_uuid = ?`, sharedHWID, hostB.UUID)
+	})
+	require.Equal(t, []string{hostBDevice.MDMDeviceID}, hostBDeviceIDs)
+
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, hostB)
+	require.NoError(t, err)
+	require.True(t, connected, "host B must stay connected while host A re-enrolls")
 }
