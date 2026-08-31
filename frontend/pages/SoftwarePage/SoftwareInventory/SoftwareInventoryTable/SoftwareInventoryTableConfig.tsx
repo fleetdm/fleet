@@ -131,6 +131,11 @@ const generateTableHeaders = (
             }
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            autoUpdateEnabled={cellProps.row.original.auto_update_enabled}
+            autoUpdateWindowStart={
+              cellProps.row.original.auto_update_window_start
+            }
+            autoUpdateWindowEnd={cellProps.row.original.auto_update_window_end}
           />
         );
       },
