@@ -133,4 +133,7 @@ jobs:
         fi
 
         echo "checking: $NEW_MIGRATIONS"
-        go run ./tools/migration-retry-check -migrations="$NEW_MIGRATIONS"
+        if ! go run ./tools/migration-retry-check -migrations="$NEW_MIGRATIONS"; then
+          echo "::error::A migration cannot be retried after a partial failure. See the log for which one and how to fix it."
+          exit 1
+        fi

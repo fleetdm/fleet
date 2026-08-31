@@ -109,12 +109,12 @@ GRANT INSERT ON migration_retry_check.%s TO 'ddlonly'@'%%'`, tables.MigrationCli
 
 	// 1142 and 1143 are the table and column level access denied errors.
 	if !strings.Contains(output, "Error 1142") && !strings.Contains(output, "Error 1143") {
-		return fmt.Errorf("%d: the run without write privileges failed for another reason", migrationVersion)
+		return fmt.Errorf("❌ fail: %d could not be checked, the run without write privileges failed for another reason", migrationVersion)
 	}
 
 	if exitCode, _ := applyMigrationInSubprocess("root"); exitCode != 0 {
-		return fmt.Errorf("%d is not retryable after a mid-migration failure\n"+
-			"Make its CREATE and ALTER statements safe to run twice: IF NOT EXISTS, or columnExists and friends in migration.go", migrationVersion)
+		return fmt.Errorf("❌ fail: %d is not retryable after a mid-migration failure\n"+
+			"make its CREATE and ALTER statements safe to run twice: IF NOT EXISTS, or columnExists and friends in migration.go", migrationVersion)
 	}
 
 	return nil
