@@ -62,7 +62,7 @@ const UnenrollMdmModal = ({
       // stale data, so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
         notify.error(
-          "Couldn't turn off MDM. MDM is already off for this host.",
+          "Couldn't turn off MDM. This host already has MDM turned off.",
           { response: unenrollMdmError }
         );
         onSuccess();
