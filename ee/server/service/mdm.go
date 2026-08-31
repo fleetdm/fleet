@@ -2052,7 +2052,7 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 }
 
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -2061,7 +2061,12 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 		return nil, ctxerr.Wrap(ctx, err, "host lite")
 	}
 
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// The platform is part of the authorization input because the policy grants
+	// technicians passcode clearing on iOS/iPadOS only.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID:   host.TeamID,
+		Platform: host.Platform,
+	}, fleet.ActionClearPasscode); err != nil {
 		return nil, err
 	}
 

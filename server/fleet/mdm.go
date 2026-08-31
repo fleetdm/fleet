@@ -392,7 +392,8 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"`                    // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.

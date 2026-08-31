@@ -23561,6 +23561,14 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	team1MacOSHost, team1MacOSMDMClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team1MacOSHost.ID}}, http.StatusOK)
+	// iOS hosts to test clearing passcodes (MDM enrollment sends the unlock token).
+	globalIOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	team1IOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team1IOSHost.ID}}, http.StatusOK)
+	team2IOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &t2.ID, HostIDs: []uint{team2IOSHost.ID}}, http.StatusOK)
 	// Add a configuration profile to t1.
 	mcUUID := "a" + uuid.NewString()
 	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
@@ -23831,6 +23839,14 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		TeamID:  nil,
 		HostIDs: []uint{h1.ID},
 	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// Attempt to clear the passcode on an iOS host, should allow.
+	var cpResp fleet.ClearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", globalIOSHost.ID), nil, http.StatusOK, &cpResp)
+
+	// Attempt to lock a host, should fail. Lock, unlock and wipe share the same
+	// authorization, so lock stands in for all three.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", globalIOSHost.ID), nil, http.StatusForbidden)
 
 	// Attempt to create a global label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -24268,6 +24284,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.Nil(t, teamTechConfigResp.SMTPSettings)
 	require.Nil(t, teamTechConfigResp.SSOSettings)
 	require.Nil(t, teamTechConfigResp.AgentOptions)
+
+	// Attempt to clear the passcode on an iOS host of its team, should allow.
+	var teamCpResp fleet.ClearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team1IOSHost.ID), nil, http.StatusOK, &teamCpResp)
+
+	// Attempt to clear the passcode on an iOS host of another team, should fail.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team2IOSHost.ID), nil, http.StatusForbidden)
 
 	// Attempt to create queries in global domain, should allow.
 	tcqr := fleet.CreateQueryResponse{}
