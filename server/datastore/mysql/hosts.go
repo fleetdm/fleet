@@ -674,6 +674,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_device_vitals":          "host_uuid",
 	"host_mdm_apple_service_subscriptions":  "host_uuid",
 	"host_mdm_apple_os_updates":             "host_uuid",
+	"host_mdm_android_device_vitals":        "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which

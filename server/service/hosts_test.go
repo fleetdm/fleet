@@ -641,15 +641,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	}
 }
 
-// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
-// BYOD/personal enrollments never receive the device vitals fields (see
-// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
-// getHostDetails shouldn't even load them -- both to avoid an unnecessary
-// datastore call and so a personal host's response can't carry data it was
-// never supposed to have.
-func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
+// mockHostDetailsDatastore stubs out the datastore calls getHostDetails makes
+// for every host, so that a test only has to set up the ones it asserts on.
+func mockHostDetailsDatastore(ds *mock.Store) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -663,9 +657,9 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 		return nil
 	}
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
-		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
-			PushToken: []byte("sensitive-push-token"),
-		}
+		return nil
+	}
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -719,6 +713,24 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 		return nil, nil
 	}
+}
+
+// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
+// BYOD/personal enrollments never receive the device vitals fields (see
+// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
+// getHostDetails shouldn't even load them -- both to avoid an unnecessary
+// datastore call and so a personal host's response can't carry data it was
+// never supposed to have.
+func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
+			PushToken: []byte("sensitive-push-token"),
+		}
+		return nil
+	}
 
 	personal := fleet.MDMEnrollmentStatusPersonal
 	manual := fleet.MDMEnrollmentStatusManual
@@ -749,6 +761,104 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 				assert.Equal(t, []byte("sensitive-push-token"), hostDetail.PushToken)
 			} else {
 				assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, hostDetail.HostMDMAppleDeviceVitals)
+			}
+		})
+	}
+}
+
+// TestHostDetailsSuppressesAndroidPhoneNumberForBYOD checks that a
+// personally-owned Android host never surfaces a phone number, whatever ended
+// up stored: ingestion gates on the device-reported ownership, which AMAPI may
+// omit, so the response is gated on Fleet's own enrollment record.
+func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
+			Manufacturer:   new("Google"),
+			TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
+		}
+		return nil
+	}
+
+	personal := fleet.MDMEnrollmentStatusPersonal
+	manual := fleet.MDMEnrollmentStatusManual
+
+	cases := []struct {
+		name             string
+		enrollmentStatus *string
+		wantTelephony    bool
+	}{
+		{"personal enrollment", &personal, false},
+		{"company owned", &manual, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := &fleet.Host{
+				ID:       5,
+				Platform: "android",
+				UUID:     "android-byod-uuid",
+				MDM:      fleet.MDMHostData{EnrollmentStatus: tc.enrollmentStatus},
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			// The other vitals load either way; only the phone number is gated.
+			assert.Equal(t, "Google", *hostDetail.Manufacturer)
+			if tc.wantTelephony {
+				assert.Len(t, hostDetail.TelephonyInfos, 1)
+			} else {
+				assert.Nil(t, hostDetail.TelephonyInfos)
+			}
+		})
+	}
+}
+
+// TestHostDetailsLoadsAndroidDeviceVitals checks that the Android-only vitals
+// are loaded for Android hosts and for nothing else, so that a host on another
+// platform can't carry Android fields in its response.
+func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
+			Manufacturer: new("Google"),
+			APILevel:     new(int64(36)),
+		}
+		return nil
+	}
+
+	cases := []struct {
+		name             string
+		platform         string
+		wantVitalsLoaded bool
+	}{
+		{"android host", "android", true},
+		{"darwin host", "darwin", false},
+		{"ipados host", "ipados", false},
+		{"windows host", "windows", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked = false
+			host := &fleet.Host{
+				ID:       4,
+				Platform: tc.platform,
+				UUID:     "android-vitals-uuid",
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVitalsLoaded, ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked)
+			if tc.wantVitalsLoaded {
+				assert.Equal(t, "Google", *hostDetail.Manufacturer)
+				assert.Equal(t, int64(36), *hostDetail.APILevel)
+			} else {
+				assert.Equal(t, fleet.HostMDMAndroidDeviceVitals{}, hostDetail.HostMDMAndroidDeviceVitals)
 			}
 		})
 	}
