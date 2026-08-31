@@ -82,7 +82,8 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
 		}
-		decrypted = new(string(decryptedPassword))
+		s := string(decryptedPassword)
+		decrypted = &s
 	}
 
 	return &fleet.HostRecoveryLockPassword{
@@ -297,7 +298,7 @@ func (ds *Datastore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUI
 	return nil
 }
 
-func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error) {
+func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error) {
 	// Query hosts that need recovery lock cleared where config has it disabled.
 	// This includes:
 	// 1. New clears: verified passwords (operation_type='install', status='verified')
@@ -340,7 +341,8 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 	// time that auto-rotation will never honor.
 	updateStmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET operation_type = '%s', status = '%s', auto_rotate_at = NULL
+		SET operation_type = '%s', status = '%s', auto_rotate_at = NULL,
+		    pending_set_command_uuid = ?, pending_verify_command_uuid = NULL
 		WHERE host_uuid IN (?)
 	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -354,7 +356,7 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 			return nil
 		}
 
-		query, args, err := sqlx.In(updateStmt, hostUUIDs)
+		query, args, err := sqlx.In(updateStmt, clearCommandUUID, hostUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build update query")
 		}
@@ -375,7 +377,7 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 // DeleteHostRecoveryLockPassword hard deletes the host's recovery lock password row from the database.
 func (ds *Datastore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error {
 	stmt := fmt.Sprintf(`DELETE FROM host_recovery_key_passwords 
-		WHERE host_uuid = ? AND deleted = 0 AND pending_verify_command_uuid = ? AND status = '%s' AND operation_type = '%s'`, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove)
+		WHERE host_uuid = ? AND deleted = 0 AND pending_verify_command_uuid = ? AND status = '%s' AND operation_type = '%s'`, fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeRemove)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, verifyCommandUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host recovery lock password")
@@ -503,6 +505,7 @@ func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID str
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
 		SET pending_encrypted_password = NULL,
+		    pending_set_command_uuid = NULL,
 		    status = CASE WHEN error_message IS NOT NULL THEN '%s' ELSE '%s' END
 		WHERE host_uuid = ?
 		  AND deleted = 0
@@ -627,9 +630,9 @@ func (ds *Datastore) GetPendingRecoveryLock(ctx context.Context, hostUUID string
 	var pending fleet.HostRecoveryLockPending
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &pending, `
-		SELECT 
-			host_uuid, pending_set_command_uuid, pending_verify_command_uuid, 
-			status, operation_type,
+		SELECT
+			pending_set_command_uuid, pending_verify_command_uuid,
+			operation_type,
 			encrypted_password IS NOT NULL AS has_current_password,
 			retry
 		FROM host_recovery_key_passwords

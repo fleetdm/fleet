@@ -1853,7 +1853,7 @@ type Datastore interface {
 	// enable_recovery_lock_password=false and either:
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
-	ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error)
+	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
 
 	// DeleteHostRecoveryLockPassword hard deletes the recovery lock password record for the given host.
 	DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error

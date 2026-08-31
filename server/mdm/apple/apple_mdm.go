@@ -2180,7 +2180,10 @@ func sendClearRecoveryLockCommands(
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
-	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+	// The command UUID is recorded on the claimed rows so the result handler can match the
+	// result back to the in-flight clear, so it has to be minted before claiming.
+	cmdUUID := uuid.NewString()
+	hosts, err := ds.ClaimHostsForRecoveryLockClear(ctx, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock clear action")
 	}
@@ -2194,7 +2197,6 @@ func sendClearRecoveryLockCommands(
 
 	// Enqueue clear command. The CurrentPassword placeholder will be expanded at
 	// delivery time by ExpandHostSecrets (which looks up by host UUID).
-	cmdUUID := uuid.NewString()
 	if err := commander.ClearRecoveryLock(ctx, hosts, cmdUUID); err != nil {
 		var apnsErr *APNSDeliveryError
 		if errors.As(err, &apnsErr) {

@@ -1172,7 +1172,7 @@ type RetryRecoveryLockFunc func(ctx context.Context, hostUUID string) error
 
 type ClearRecoveryLockPendingStatusFunc func(ctx context.Context, hostUUIDs []string) error
 
-type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context) ([]string, error)
+type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context, clearCommandUUID string) ([]string, error)
 
 type DeleteHostRecoveryLockPasswordFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string) error
 
@@ -9956,11 +9956,11 @@ func (s *DataStore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUID
 	return s.ClearRecoveryLockPendingStatusFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]string, error) {
+func (s *DataStore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error) {
 	s.mu.Lock()
 	s.ClaimHostsForRecoveryLockClearFuncInvoked = true
 	s.mu.Unlock()
-	return s.ClaimHostsForRecoveryLockClearFunc(ctx)
+	return s.ClaimHostsForRecoveryLockClearFunc(ctx, clearCommandUUID)
 }
 
 func (s *DataStore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUID string, verifyCommandUUID string) error {

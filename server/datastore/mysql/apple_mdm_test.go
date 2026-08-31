@@ -12052,8 +12052,8 @@ func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	// Create a host and enroll it in nano MDM.
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:        "test-cleanup-host",
-		OsqueryHostID:   ptr.String("cleanup-osquery-id"),
-		NodeKey:         ptr.String("cleanup-node-key"),
+		OsqueryHostID:   new("cleanup-osquery-id"),
+		NodeKey:         new("cleanup-node-key"),
 		UUID:            "cleanup-test-uuid",
 		Platform:        "ios",
 		DetailUpdatedAt: time.Now(),
@@ -12168,8 +12168,8 @@ func testCleanupOrphanedNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	// Create a host and enroll it for FK constraints.
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:        "test-orphan-host",
-		OsqueryHostID:   ptr.String("orphan-osquery-id"),
-		NodeKey:         ptr.String("orphan-node-key"),
+		OsqueryHostID:   new("orphan-osquery-id"),
+		NodeKey:         new("orphan-node-key"),
 		UUID:            "orphan-test-uuid",
 		Platform:        "ios",
 		DetailUpdatedAt: time.Now(),

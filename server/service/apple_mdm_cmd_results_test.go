@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -321,24 +324,282 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	hostUUID := "test-host-uuid"
 	cmdUUID := "set-recovery-lock-cmd-uuid"
 
-	t.Run("acknowledged sets verified", func(t *testing.T) {
-		ds := new(mock.DataStore)
+	// newTestCommander returns a commander whose enqueued commands are captured in
+	// enqueued, keyed by RequestType.
+	newTestCommander := func(t *testing.T) (*apple_mdm.MDMAppleCommander, map[string]*mdm.CommandWithSubtype) {
+		t.Helper()
+		enqueued := make(map[string]*mdm.CommandWithSubtype)
+		mdmStorage := &mdmmock.MDMAppleStore{}
+		mdmStorage.EnqueueCommandFunc = func(_ context.Context, _ []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			enqueued[cmd.Command.Command.RequestType] = cmd
+			return nil, nil
+		}
+		mdmStorage.RetrievePushInfoFunc = func(_ context.Context, ids []string) (map[string]*mdm.Push, error) {
+			return map[string]*mdm.Push{}, nil
+		}
+		pushFactory, _ := newMockAPNSPushProviderFactory()
+		pusher := nanomdm_pushsvc.New(
+			mdmStorage,
+			mdmStorage,
+			pushFactory,
+			NewNanoMDMLogger(slog.New(slog.DiscardHandler)),
+		)
+		return apple_mdm.NewMDMAppleCommander(mdmStorage, pusher), enqueued
+	}
 
-		// Mock GetRecoveryLockOperationType to return 'install' (SET operation)
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeInstall, nil
+	// pendingFn mocks GetPendingRecoveryLock for a host awaiting the SetRecoveryLock result.
+	pendingFn := func(op fleet.MDMOperationType, retries int) func(context.Context, string) (*fleet.HostRecoveryLockPending, error) {
+		return func(_ context.Context, hUUID string) (*fleet.HostRecoveryLockPending, error) {
+			return &fleet.HostRecoveryLockPending{
+				PendingSetCommandUUID: new(cmdUUID),
+				OperationType:         op,
+				Retries:               retries,
+			}, nil
 		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
-		var verifiedCalled bool
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID string) error {
-			verifiedCalled = true
+	}
+
+	newResult := func(status string, errChain []mdm.ErrorChain) fleet.MDMCommandResults {
+		return NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: cmdUUID,
+			Status:      status,
+			ErrorChain:  errChain,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+	}
+
+	t.Run("acknowledged promotes to verifying and enqueues VerifyRecoveryLock", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, 0)
+
+		var verifyingCalled bool
+		var capturedSetCmdUUID, capturedVerifyCmdUUID string
+		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, hUUID, commandUUID, pendingVerifyCommandUUID string) error {
+			verifyingCalled = true
 			assert.Equal(t, hostUUID, hUUID)
+			capturedSetCmdUUID = commandUUID
+			capturedVerifyCmdUUID = pendingVerifyCommandUUID
 			return nil
 		}
 
+		commander, enqueued := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
+		require.NoError(t, err)
+
+		assert.True(t, verifyingCalled)
+		assert.Equal(t, cmdUUID, capturedSetCmdUUID)
+
+		// The verify command is enqueued under the same UUID recorded as pending.
+		verifyCmd, ok := enqueued[fleet.VerifyRecoveryLockCmdName]
+		require.True(t, ok, "VerifyRecoveryLock should be enqueued")
+		assert.Equal(t, capturedVerifyCmdUUID, verifyCmd.CommandUUID)
+	})
+
+	t.Run("acknowledged clear enqueues VerifyRecoveryLock with empty password", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeRemove, 0)
+		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, _, _, _ string) error { return nil }
+
+		commander, enqueued := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
+		require.NoError(t, err)
+
+		verifyCmd, ok := enqueued[fleet.VerifyRecoveryLockCmdName]
+		require.True(t, ok, "VerifyRecoveryLock should be enqueued for a clear")
+		// Clearing is verified with an empty password, so no host secret placeholder.
+		assert.NotContains(t, string(verifyCmd.Raw), fleet.HostSecretPrefix)
+	})
+
+	t.Run("error with retries exhausted sets failed", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, maxRecoveryLockRetries)
+
+		var failedCalled bool
+		var capturedError, capturedCmdUUID string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID, commandUUID, errorMsg string) error {
+			failedCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			capturedCmdUUID = commandUUID
+			capturedError = errorMsg
+			return nil
+		}
+
+		commander, _ := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
+			[]mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Test error"}}))
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled)
+		assert.Equal(t, cmdUUID, capturedCmdUUID)
+		assert.Contains(t, capturedError, "Test error")
+	})
+
+	t.Run("error with retries remaining retries", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, 0)
+
+		var retryCalled bool
+		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID string) error {
+			retryCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, _ string) error {
+			t.Fatal("SetRecoveryLockFailed should not be called while retries remain")
+			return nil
+		}
+
+		commander, _ := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
+			[]mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Network timeout or temporary failure"}}))
+		require.NoError(t, err)
+
+		assert.True(t, retryCalled, "RetryRecoveryLock should be called for transient errors")
+	})
+
+	t.Run("command format error sets failed with default message", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, 0)
+
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, errorMsg string) error {
+			capturedError = errorMsg
+			return nil
+		}
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _ string) error {
+			t.Fatal("RetryRecoveryLock should not be called for command format errors")
+			return nil
+		}
+
+		commander, _ := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusCommandFormatError, nil))
+		require.NoError(t, err)
+
+		assert.Equal(t, "SetRecoveryLock command failed", capturedError)
+	})
+
+	t.Run("password mismatch on clear sets failed", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeRemove, 0)
+
+		var failedCalled bool
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, errorMsg string) error {
+			failedCalled = true
+			capturedError = errorMsg
+			return nil
+		}
+
+		commander, _ := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
+			[]mdm.ErrorChain{{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Existing recovery lock password not provided"}}))
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled)
+		assert.Contains(t, capturedError, "Existing recovery lock password not provided")
+	})
+
+	t.Run("clear errors are never retried", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeRemove, 0)
+
+		var failedCalled bool
+		var capturedError string
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, errorMsg string) error {
+			failedCalled = true
+			capturedError = errorMsg
+			return nil
+		}
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _ string) error {
+			t.Fatal("RetryRecoveryLock should not be called for clear operations")
+			return nil
+		}
+
+		commander, _ := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
+			[]mdm.ErrorChain{{ErrorCode: 8, ErrorDomain: "ROSLockoutServiceDaemonErrorDomain", LocalizedDescription: "The provided recovery password failed to validate."}}))
+		require.NoError(t, err)
+
+		assert.True(t, failedCalled)
+		assert.Contains(t, capturedError, "The provided recovery password failed to validate")
+	})
+
+	t.Run("result for a stale command UUID is ignored", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = func(_ context.Context, _ string) (*fleet.HostRecoveryLockPending, error) {
+			return &fleet.HostRecoveryLockPending{
+				PendingSetCommandUUID: new("some-other-cmd-uuid"),
+				OperationType:         fleet.MDMOperationTypeInstall,
+			}, nil
+		}
+		ds.SetRecoveryLockVerifyingFunc = func(_ context.Context, _, _, _ string) error {
+			t.Fatal("SetRecoveryLockVerifying should not be called for a stale result")
+			return nil
+		}
+
+		commander, _ := newTestCommander(t)
+		handler := NewSetRecoveryLockResultsHandler(ds, logger, commander)
+
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
+		require.NoError(t, err)
+	})
+}
+
+func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.Default()
+
+	hostUUID := "test-host-uuid"
+	verifyCmdUUID := "verify-recovery-lock-cmd-uuid"
+
+	// pendingFn mocks GetPendingRecoveryLock for a host awaiting the VerifyRecoveryLock result.
+	pendingFn := func(op fleet.MDMOperationType, hasCurrentPassword bool, retries int) func(context.Context, string) (*fleet.HostRecoveryLockPending, error) {
+		return func(_ context.Context, _ string) (*fleet.HostRecoveryLockPending, error) {
+			return &fleet.HostRecoveryLockPending{
+				PendingVerifyCommandUUID: new(verifyCmdUUID),
+				OperationType:            op,
+				HasCurrentPassword:       hasCurrentPassword,
+				Retries:                  retries,
+			}, nil
+		}
+	}
+
+	newResult := func(status string, errChain []mdm.ErrorChain) fleet.MDMCommandResults {
+		return NewRecoveryLockResult(&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: verifyCmdUUID,
+			Status:      status,
+			ErrorChain:  errChain,
+			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
+		})
+	}
+
+	t.Run("acknowledged sets verified and logs activity", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
+
+		var verifiedCalled bool
+		var capturedCmdUUID string
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, hUUID, commandUUID string) error {
+			verifiedCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			capturedCmdUUID = commandUUID
+			return nil
+		}
 		ds.HostLiteByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.HostLite, error) {
 			assert.Equal(t, hostUUID, identifier)
 			return &fleet.HostLite{ID: 1, Hostname: "Test Host"}, nil
@@ -356,447 +617,136 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusAcknowledged,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
 
-		// Verify status was set to verified
 		assert.True(t, verifiedCalled)
+		assert.Equal(t, verifyCmdUUID, capturedCmdUUID)
 		assert.True(t, activityCalled)
 		assert.Equal(t, uint(1), capturedHostID)
 		assert.Equal(t, "Test Host", capturedDisplayName)
 	})
 
-	t.Run("error status sets failed", func(t *testing.T) {
+	t.Run("acknowledged rotation sets verified without activity", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		// A host that already had a password is a rotation; its activity is logged at
+		// rotation enqueue time, not here.
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, true, 0)
 
-		// Mock GetRecoveryLockOperationType to return 'install' (SET operation)
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeInstall, nil
-		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
-		var failedCalled bool
-		var capturedError string
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			failedCalled = true
-			assert.Equal(t, hostUUID, hUUID)
-			capturedError = errorMsg
+		var verifiedCalled bool
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, _, _ string) error {
+			verifiedCalled = true
 			return nil
 		}
 
 		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			t.Fatal("activity should not be called on error")
+			t.Fatal("activity should not be created for a rotation")
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusError,
-			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test", LocalizedDescription: "Test error"}},
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
 
-		assert.True(t, failedCalled)
-		assert.Contains(t, capturedError, "Test error")
-	})
-
-	t.Run("command format error sets failed with default message", func(t *testing.T) {
-		ds := new(mock.DataStore)
-
-		// Mock GetRecoveryLockOperationType to return 'install' (SET operation)
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeInstall, nil
-		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
-		var capturedError string
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			capturedError = errorMsg
-			return nil
-		}
-
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			t.Fatal("activity should not be called on error")
-			return nil
-		}
-
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusCommandFormatError,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
-		require.NoError(t, err)
-
-		assert.Equal(t, "SetRecoveryLock command failed", capturedError)
+		assert.True(t, verifiedCalled)
 	})
 
 	t.Run("acknowledged clear deletes password", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeRemove, true, 0)
 
-		// Mock GetRecoveryLockOperationType to return 'remove' (CLEAR operation)
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeRemove, nil
-		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
 		var deleteCalled bool
-		ds.DeleteHostRecoveryLockPasswordFunc = func(_ context.Context, hUUID string) error {
+		var capturedCmdUUID string
+		ds.DeleteHostRecoveryLockPasswordFunc = func(_ context.Context, hUUID, commandUUID string) error {
 			deleteCalled = true
 			assert.Equal(t, hostUUID, hUUID)
+			capturedCmdUUID = commandUUID
 			return nil
 		}
 
 		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatal("activity should not be created for a clear")
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, newActivityFn)
 
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusAcknowledged,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
 
 		assert.True(t, deleteCalled)
+		assert.Equal(t, verifyCmdUUID, capturedCmdUUID)
 	})
 
-	t.Run("error clear with password mismatch sets failed", func(t *testing.T) {
+	t.Run("password not set error is terminal", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
 
-		// Mock GetRecoveryLockOperationType to return 'remove' (CLEAR operation)
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeRemove, nil
-		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
 		var failedCalled bool
 		var capturedError string
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, errorMsg string) error {
 			failedCalled = true
 			capturedError = errorMsg
 			return nil
 		}
-
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _ string) error {
+			t.Fatal("RetryRecoveryLock should not be called when the password is not set")
 			return nil
 		}
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, nil)
 
-		// Test MDMClientError 70 (password not provided)
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusError,
-			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Existing recovery lock password not provided"}},
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
+		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
+			[]mdm.ErrorChain{{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Recovery lock password not set"}}))
 		require.NoError(t, err)
 
 		assert.True(t, failedCalled)
-		assert.Contains(t, capturedError, "Existing recovery lock password not provided")
+		assert.Contains(t, capturedError, "Recovery lock password not set")
 	})
 
-	t.Run("error clear with ROSLockoutService password validation error sets failed", func(t *testing.T) {
+	t.Run("error with retries remaining retries", func(t *testing.T) {
 		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
 
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeRemove, nil
-		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
-		var failedCalled bool
-		var capturedError string
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			failedCalled = true
-			capturedError = errorMsg
-			return nil
-		}
-
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			return nil
-		}
-
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		// Test ROSLockoutServiceDaemonErrorDomain 8 (password failed to validate)
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusError,
-			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 8, ErrorDomain: "ROSLockoutServiceDaemonErrorDomain", LocalizedDescription: "The provided recovery password failed to validate."}},
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
-		require.NoError(t, err)
-
-		assert.True(t, failedCalled)
-		assert.Contains(t, capturedError, "The provided recovery password failed to validate")
-	})
-
-	t.Run("error clear with transient error resets for retry", func(t *testing.T) {
-		ds := new(mock.DataStore)
-
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeRemove, nil
-		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
-		var resetCalled bool
-		ds.ResetRecoveryLockForRetryFunc = func(_ context.Context, hUUID string) error {
-			resetCalled = true
+		var retryCalled bool
+		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID string) error {
+			retryCalled = true
 			assert.Equal(t, hostUUID, hUUID)
 			return nil
 		}
-		// SetRecoveryLockFailed should NOT be called for transient errors
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			t.Fatal("SetRecoveryLockFailed should not be called for transient errors")
+		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, _ string) error {
+			t.Fatal("SetRecoveryLockFailed should not be called while retries remain")
 			return nil
 		}
 
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			return nil
-		}
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, nil)
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		// Test a generic transient error (not password mismatch)
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusError,
-			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Network timeout or temporary failure"}},
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
+		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
+			[]mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Network timeout"}}))
 		require.NoError(t, err)
 
-		assert.True(t, resetCalled, "ResetRecoveryLockForRetry should be called for transient errors")
+		assert.True(t, retryCalled)
 	})
 
-	t.Run("command format error clear sets failed not retry", func(t *testing.T) {
+	t.Run("result for a stale command UUID is ignored", func(t *testing.T) {
 		ds := new(mock.DataStore)
-
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, hUUID string) (fleet.MDMOperationType, error) {
-			return fleet.MDMOperationTypeRemove, nil
+		ds.GetPendingRecoveryLockFunc = func(_ context.Context, _ string) (*fleet.HostRecoveryLockPending, error) {
+			return &fleet.HostRecoveryLockPending{
+				PendingVerifyCommandUUID: new("some-other-cmd-uuid"),
+				OperationType:            fleet.MDMOperationTypeInstall,
+			}, nil
 		}
-		// Mock HasPendingRecoveryLockRotation to return false (no rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
-		var failedCalled bool
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			failedCalled = true
-			assert.Equal(t, hostUUID, hUUID)
-			return nil
-		}
-		// ResetRecoveryLockForRetry should NOT be called for command format errors
-		ds.ResetRecoveryLockForRetryFunc = func(_ context.Context, hUUID string) error {
-			t.Fatal("ResetRecoveryLockForRetry should not be called for command format errors")
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, _, _ string) error {
+			t.Fatal("SetRecoveryLockVerified should not be called for a stale result")
 			return nil
 		}
 
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			return nil
-		}
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, nil)
 
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		// CommandFormatError is terminal - command is malformed and will never succeed
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusCommandFormatError,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
+		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
-
-		assert.True(t, failedCalled, "SetRecoveryLockFailed should be called for command format errors")
 	})
-
-	// Rotation tests - verify rotation branch doesn't fall through to SET/CLEAR logic
-
-	t.Run("rotation acknowledged completes rotation", func(t *testing.T) {
-		ds := new(mock.DataStore)
-
-		// Mock HasPendingRecoveryLockRotation to return true (rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			assert.Equal(t, hostUUID, hUUID)
-			return true, nil
-		}
-
-		var completeRotationCalled bool
-		ds.CompleteRecoveryLockRotationFunc = func(_ context.Context, hUUID string) error {
-			completeRotationCalled = true
-			assert.Equal(t, hostUUID, hUUID)
-			return nil
-		}
-
-		// These should NOT be called for rotation
-		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, _ string) error {
-			t.Fatal("SetRecoveryLockVerified should not be called for rotation")
-			return nil
-		}
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, _ string) (fleet.MDMOperationType, error) {
-			t.Fatal("GetRecoveryLockOperationType should not be called for rotation")
-			return "", nil
-		}
-
-		// No activity should be created for manual rotation (activity logged at initiation)
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			t.Fatal("Activity should not be created for manual rotation completion")
-			return nil
-		}
-
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusAcknowledged,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
-		require.NoError(t, err)
-
-		assert.True(t, completeRotationCalled, "CompleteRecoveryLockRotation should be called")
-	})
-
-	t.Run("rotation error fails rotation", func(t *testing.T) {
-		ds := new(mock.DataStore)
-
-		// Mock HasPendingRecoveryLockRotation to return true (rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return true, nil
-		}
-
-		var failRotationCalled bool
-		var capturedError string
-		ds.FailRecoveryLockRotationFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			failRotationCalled = true
-			assert.Equal(t, hostUUID, hUUID)
-			capturedError = errorMsg
-			return nil
-		}
-
-		// These should NOT be called for rotation
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _ string, _ string) error {
-			t.Fatal("SetRecoveryLockFailed should not be called for rotation")
-			return nil
-		}
-		ds.GetRecoveryLockOperationTypeFunc = func(_ context.Context, _ string) (fleet.MDMOperationType, error) {
-			t.Fatal("GetRecoveryLockOperationType should not be called for rotation")
-			return "", nil
-		}
-
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			return nil
-		}
-
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusError,
-			ErrorChain:  []mdm.ErrorChain{{ErrorCode: 8, ErrorDomain: "ROSLockoutServiceDaemonErrorDomain", LocalizedDescription: "Password mismatch during rotation"}},
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
-		require.NoError(t, err)
-
-		assert.True(t, failRotationCalled, "FailRecoveryLockRotation should be called")
-		assert.Contains(t, capturedError, "Password mismatch during rotation")
-	})
-
-	t.Run("rotation command format error fails rotation", func(t *testing.T) {
-		ds := new(mock.DataStore)
-
-		// Mock HasPendingRecoveryLockRotation to return true (rotation pending)
-		ds.HasPendingRecoveryLockRotationFunc = func(_ context.Context, hUUID string) (bool, error) {
-			return true, nil
-		}
-
-		var failRotationCalled bool
-		var capturedError string
-		ds.FailRecoveryLockRotationFunc = func(_ context.Context, hUUID string, errorMsg string) error {
-			failRotationCalled = true
-			capturedError = errorMsg
-			return nil
-		}
-
-		// These should NOT be called for rotation
-		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _ string, _ string) error {
-			t.Fatal("SetRecoveryLockFailed should not be called for rotation")
-			return nil
-		}
-
-		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
-			return nil
-		}
-
-		handler := NewSetRecoveryLockResultsHandler(ds, logger, newActivityFn)
-
-		result := NewRecoveryLockResult(&mdm.CommandResults{
-			Enrollment:  mdm.Enrollment{UDID: hostUUID},
-			CommandUUID: cmdUUID,
-			Status:      fleet.MDMAppleStatusCommandFormatError,
-			Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict></dict></plist>`),
-		})
-
-		err := handler(ctx, result)
-		require.NoError(t, err)
-
-		assert.True(t, failRotationCalled, "FailRecoveryLockRotation should be called for command format errors")
-		assert.Equal(t, "RotateRecoveryLock command failed", capturedError)
-	})
-
-	// Note: Activity logging for auto-rotation now happens at initiation time
-	// (in the cron job's sendAutoRotationCommands), not at completion time.
-	// Manual rotation activity is logged at the API handler level.
 }

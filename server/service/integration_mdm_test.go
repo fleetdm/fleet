@@ -24697,6 +24697,33 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NoError(t, err)
 	}
 
+	// Helper that walks the two-command handshake a recovery lock operation now takes: the
+	// device acknowledges SetRecoveryLock, Fleet responds by enqueuing VerifyRecoveryLock,
+	// and only once the device acknowledges that too does the staged password become the
+	// host's active one. Returns the SetRecoveryLock command that was acknowledged.
+	ackSetThenVerify := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
+		t.Helper()
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		// The verify command is enqueued while this acknowledgment is being handled, so it
+		// may not ride back on that same response; fall back to the next check-in.
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd, "acknowledging SetRecoveryLock should enqueue VerifyRecoveryLock")
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+
+		_, err = mdmClient.Acknowledge(verifyCmd.CommandUUID)
+		require.NoError(t, err)
+		return setCmd
+	}
+
 	// Helper to get host details and return recovery lock password status
 	getHostRecoveryLockStatus := func(hostID uint) *fleet.HostMDMRecoveryLockPassword {
 		var getHostResp getHostResponse
@@ -24751,20 +24778,14 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status, "status should be set after cron runs")
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status, "status should be pending")
 
-		// Simulate MDM client checking in and receiving the command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-
-		// Acknowledge the command (success)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// Simulate the device acknowledging SetRecoveryLock and then the VerifyRecoveryLock
+		// that Fleet issues to confirm the device really took the password.
+		ackSetThenVerify(t, mdmClient)
 
 		// Host should now be in verified state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "status should be verified after acknowledgment")
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "status should be verified after the verify step")
 		assert.True(t, rlpStatus.PasswordAvailable)
 
 		// Verify activity was created for setting password
@@ -24796,17 +24817,23 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 
-		// Simulate MDM client receiving command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		// This error is transient, so it is retried rather than failed outright. The host is
+		// only marked failed once the retry budget is exhausted.
+		for attempt := 0; attempt <= maxRecoveryLockRetries; attempt++ {
+			if attempt > 0 {
+				// A retry clears the status, so the next cron tick re-enqueues the command.
+				runRecoveryLockCron(t)
+			}
+			cmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd, "attempt %d should have a command queued", attempt)
+			assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
 
-		// Simulate error response
-		_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
-		})
-		require.NoError(t, err)
+			_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
+			})
+			require.NoError(t, err)
+		}
 
 		// Host should now be in failed state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -24831,13 +24858,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command
+		// Run cron and complete the set + verify handshake
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Get recovery lock password via API
 		var getPasswordResp getHostRecoveryLockPasswordResponse
@@ -24867,44 +24890,35 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Get the current password
 		var getPasswordResp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
 
 		// Initiate rotation
 		var rotateResp rotateRecoveryLockPasswordResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateResp)
 
-		// Host should still have a password (pending rotation)
+		// While the rotation is in flight the row is no longer 'verified', so the API
+		// withholds the password rather than hand back one that may already be stale.
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		// Password should still be the original until rotation is acknowledged
-		assert.Equal(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Nil(t, getPasswordResp.RecoveryLockPassword.Password, "password is withheld until the rotation verifies")
 
-		// MDM client receives SetRecoveryLock command for rotation
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-
-		// Acknowledge the rotation command
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// The rotation is delivered and verified the same way an initial set is
+		ackSetThenVerify(t, mdmClient)
 
 		// Password should now be different (rotated)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password, "password should be different after rotation")
+		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password, "password should be different after rotation")
 
 		// Verify activity was created for user-triggered rotation
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
@@ -24948,13 +24962,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 
-		// Now simulate the MDM client receiving and acknowledging the SetRecoveryLock command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// Now simulate the device completing the set + verify handshake
+		ackSetThenVerify(t, mdmClient)
 
 		// Host is now verified
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -24981,13 +24990,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
@@ -25006,15 +25011,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *rlpStatus.Status)
 
-		// Simulate MDM client receiving ClearRecoveryLock command
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType) // ClearRecoveryLock is also SetRecoveryLock command type
-
-		// Acknowledge clear command
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// The clear is delivered as a SetRecoveryLock with an empty new password, and is
+		// confirmed by its own VerifyRecoveryLock before the row is dropped.
+		ackSetThenVerify(t, mdmClient)
 
 		// Host should no longer have a recovery lock password record
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -25033,13 +25032,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Disable feature to trigger clear
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
@@ -25140,12 +25135,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 
-		// Acknowledge command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// Complete the set + verify handshake
+		ackSetThenVerify(t, mdmClient)
 
 		// Verify host is verified
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -25179,16 +25170,22 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		runRecoveryLockCron(t)
 
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-
-		// Simulate specific error
+		// This error is transient, so it is retried; the message is only persisted as a
+		// terminal failure once the retry budget is spent.
 		errorMsg := "DeviceAlreadyHasPIN"
-		_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: errorMsg},
-		})
-		require.NoError(t, err)
+		for attempt := 0; attempt <= maxRecoveryLockRetries; attempt++ {
+			if attempt > 0 {
+				runRecoveryLockCron(t)
+			}
+			cmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd, "attempt %d should have a command queued", attempt)
+
+			_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: errorMsg},
+			})
+			require.NoError(t, err)
+		}
 
 		// Verify error message is captured in detail
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -25255,13 +25252,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 		}
 
-		// Acknowledge commands for all hosts
+		// Complete the set + verify handshake for all hosts
 		for _, c := range mdmClients {
-			cmd, err := c.Idle()
-			require.NoError(t, err)
-			require.NotNil(t, cmd)
-			_, err = c.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
+			ackSetThenVerify(t, c)
 		}
 
 		// All hosts should be verified
@@ -25288,13 +25281,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// View the password
 		var getPasswordResp getHostRecoveryLockPasswordResponse
@@ -25324,19 +25313,17 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Get the original password
 		var getPasswordResp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
 
 		// Manually set auto_rotate_at to the past to trigger auto-rotation
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -25349,21 +25336,14 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Run the cron job - should trigger auto-rotation
 		runRecoveryLockCron(t)
 
-		// Host should receive SetRecoveryLock command for rotation
-		// (rotation uses the same MDM command type as initial setup, but with a new password)
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd, "should receive rotation command")
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-
-		// Acknowledge the rotation command
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// The rotation is delivered as a SetRecoveryLock and confirmed by its own
+		// VerifyRecoveryLock, exactly like an initial set.
+		ackSetThenVerify(t, mdmClient)
 
 		// Password should now be different (rotated)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password, "password should be different after auto-rotation")
+		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password, "password should be different after auto-rotation")
 
 		// auto_rotate_at should be set again (viewing the password schedules another rotation)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword.AutoRotateAt, "auto_rotate_at should be set after viewing rotated password")
@@ -25391,15 +25371,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron → pending, then ack → verified.
+		// Run cron → pending, then complete the set + verify handshake → verified.
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		require.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-		originalCmdUUID := cmd.CommandUUID
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		originalCmdUUID := ackSetThenVerify(t, mdmClient).CommandUUID
 
 		// Host detail API reports verified.
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -25411,7 +25385,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		var getPasswordResp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
 		require.NotEmpty(t, originalPassword)
 
 		// Simulate device re-enrollment (MDM profile was removed, device re-enrolls).
@@ -25433,13 +25409,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.True(t, rlpStatus.PasswordAvailable)
 
 		// Ack the re-enrollment's fresh command.
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd, "a fresh SetRecoveryLock command must be delivered after re-enrollment")
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-		assert.NotEqual(t, originalCmdUUID, cmd.CommandUUID, "re-enrollment must enqueue a new command, not replay the old one")
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		freshCmd := ackSetThenVerify(t, mdmClient)
+		assert.NotEqual(t, originalCmdUUID, freshCmd.CommandUUID, "re-enrollment must enqueue a new command, not replay the old one")
 
 		// Verified again, with a different password than before the re-enrollment.
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -25448,7 +25419,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
 		assert.NotEmpty(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password,
+		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password,
 			"a new password must be generated after re-enrollment; the original is no longer on the device")
 
 		// Disable recovery lock password.
@@ -25467,11 +25438,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Verified before the unenroll.
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -25510,11 +25477,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
@@ -25546,11 +25509,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)

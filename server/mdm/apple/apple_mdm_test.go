@@ -955,7 +955,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return nil, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -991,7 +991,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1047,7 +1047,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1103,7 +1103,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1191,7 +1191,7 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 
 		hostUUID := "host-uuid-1"
 		// ClaimHostsForRecoveryLockClear queries verified hosts where config is disabled and marks them pending
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1228,7 +1228,7 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			return nil, nil
 		}
 
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
