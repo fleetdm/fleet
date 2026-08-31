@@ -14,7 +14,7 @@ columns:
     required: false
     type: integer
   - name: error
-    description: Why the client's state could not be read — `netskope client not installed`, an `nsdiag failed: ...` message (for example a permission failure), or `nsdiag reported no recognized fields`. Empty when the state was read successfully.
+    description: "Why the client's state could not be read — `netskope client not installed`, an `nsdiag failed: ...` message (for example a permission failure), or `nsdiag reported no recognized fields`. Empty when the state was read successfully."
     required: false
     type: text
   - name: install_path
