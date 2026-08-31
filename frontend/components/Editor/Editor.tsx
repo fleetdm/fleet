@@ -14,7 +14,7 @@ import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 
 const baseClass = "editor";
 
-interface IEditorProps {
+export interface IEditorProps {
   focus?: boolean;
   label?: string;
   labelTooltip?: string | JSX.Element;

@@ -2356,7 +2356,3 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, hasIncludeAllReport(hostBoth.ID), "free tier must not surface include_all queries (all labels)")
 	})
 }
-
-// TestLabelScopePremiumGate verifies that all policy label scope fields
-// (include_any, include_all, exclude_any, exclude_all) are premium-gated on
-// every entry point for the free-tier (core) server.
