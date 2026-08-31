@@ -63,6 +63,13 @@ try {
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
     Write-Host "Uninstall exit code: $exitCode"
+
+    # The in-place uninstaller cannot delete its own directory. What's left is
+    # the uninstaller and the installer-written default _vimrc; per-user vimrc
+    # files in user profiles are not touched.
+    if ($exitCode -eq 0 -and $entry.InstallLocation -and (Test-Path $entry.InstallLocation)) {
+        Remove-Item -LiteralPath $entry.InstallLocation.TrimEnd('\') -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Exit $exitCode
 } catch {
     Write-Host "Error running uninstaller: $_"
