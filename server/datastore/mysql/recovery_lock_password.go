@@ -449,7 +449,6 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 			pending_set_command_uuid = ?,
 			pending_verify_command_uuid = NULL,
 			retry = 0,
-			error_message = NULL,
 		    status = NULL
 		WHERE host_uuid = ?
 		  AND deleted = 0

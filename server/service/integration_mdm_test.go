@@ -25406,7 +25406,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status, "cron must re-enqueue SetRecoveryLock after re-enrollment")
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
-		assert.True(t, rlpStatus.PasswordAvailable)
+		assert.False(t, rlpStatus.PasswordAvailable, "password should only be available when verified")
 
 		// Ack the re-enrollment's fresh command.
 		freshCmd := ackSetThenVerify(t, mdmClient)

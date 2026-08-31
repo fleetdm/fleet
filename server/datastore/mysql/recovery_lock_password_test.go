@@ -1431,7 +1431,7 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
 	})
 
-	t.Run("ClearRecoveryLockRotation restores verified status after a failed attempt", func(t *testing.T) {
+	t.Run("ClearRecoveryLockRotation keeps failed after clearing on previous failed attempt", func(t *testing.T) {
 		host := setupHostWithVerifiedPassword(t, "clear-failed-rotate-host", "clearfailedrotuuid")
 
 		// Reach 'failed' the only way a row can: an in-flight rotation that failed.
@@ -1451,12 +1451,11 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		hasPending, _ := getPendingRotationState(t, host.UUID)
 		assert.False(t, hasPending)
 
-		// Initiating the rotation cleared the stale error_message, so cancelling it leaves
-		// the host in its real state: it still holds a verified password.
+		// Verify that the status remains 'failed' after clearing the rotation, reflecting the previous failed attempt.
 		status, err := ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
 		require.NoError(t, err)
 		require.NotNil(t, status.Status)
-		assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
 	})
 
 	t.Run("GetRecoveryLockRotationStatus returns all fields", func(t *testing.T) {
