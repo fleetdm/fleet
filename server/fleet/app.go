@@ -299,9 +299,9 @@ type MDM struct {
 	// Entra or denied by Graph, so an admin has to supply a new secret or grant consent.
 	MicrosoftGraphCredentialInvalid bool `json:"microsoft_graph_credential_invalid"`
 
-	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the
-	// source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
-	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
+	// WindowsAutomaticEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is
+	// the source of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.
+	WindowsAutomaticEnrollment optjson.Any[WindowsAutomaticEnrollment] `json:"windows_automatic_enrollment"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -2511,8 +2511,8 @@ type LinuxSettings struct {
 	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 }
 
-// WindowsEnrollment are settings for new user-driven Windows MDM enrollments.
-type WindowsEnrollment struct {
+// WindowsAutomaticEnrollment are settings for new user-driven Windows MDM enrollments.
+type WindowsAutomaticEnrollment struct {
 	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
 	// Empty means no default: new hosts stay Unassigned.
 	//

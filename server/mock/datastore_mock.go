@@ -118,6 +118,8 @@ type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, 
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
+type QueriesByNameFunc func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error)
+
 type QueriesPerHostFunc func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
 
 type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
@@ -2140,6 +2142,8 @@ type DeleteInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID ui
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
+type SetScimUserFleetUserIDFunc func(ctx context.Context, scimUserID uint, fleetUserID uint) error
+
 type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
 
 type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.ScimUser, error)
@@ -2507,6 +2511,9 @@ type DataStore struct {
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
+
+	QueriesByNameFunc        QueriesByNameFunc
+	QueriesByNameFuncInvoked bool
 
 	QueriesPerHostFunc        QueriesPerHostFunc
 	QueriesPerHostFuncInvoked bool
@@ -5541,6 +5548,9 @@ type DataStore struct {
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
 
+	SetScimUserFleetUserIDFunc        SetScimUserFleetUserIDFunc
+	SetScimUserFleetUserIDFuncInvoked bool
+
 	ScimUserByIDFunc        ScimUserByIDFunc
 	ScimUserByIDFuncInvoked bool
 
@@ -6210,6 +6220,13 @@ func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) 
 	s.QueryByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueryByNameFunc(ctx, teamID, name)
+}
+
+func (s *DataStore) QueriesByName(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	s.mu.Lock()
+	s.QueriesByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueriesByNameFunc(ctx, names)
 }
 
 func (s *DataStore) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
@@ -13287,6 +13304,13 @@ func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (u
 	s.CreateScimUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.CreateScimUserFunc(ctx, user)
+}
+
+func (s *DataStore) SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID uint) error {
+	s.mu.Lock()
+	s.SetScimUserFleetUserIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetScimUserFleetUserIDFunc(ctx, scimUserID, fleetUserID)
 }
 
 func (s *DataStore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {

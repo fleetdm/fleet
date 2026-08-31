@@ -54,6 +54,14 @@ parasails.registerPage('articles', {
         this.articleCategory = 'Webinars';
         this.categoryDescription = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
         break;
+      case 'newsletters':
+        this.articleCategory = 'Newsletters';
+        this.categoryDescription = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        this.articleCategory = 'Industry news';
+        this.categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
+        break;
       case 'articles':
         this.articleCategory = 'Blog';
         this.categoryDescription = 'Read the latest articles from the Fleet team and community.';

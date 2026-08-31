@@ -112,7 +112,7 @@ spec:
       require_all_software_windows: false
       macos_script:
       software:
-    windows_enrollment: null
+    windows_automatic_enrollment: null
     windows_settings:
       require_bitlocker_pin: false
       custom_settings: null

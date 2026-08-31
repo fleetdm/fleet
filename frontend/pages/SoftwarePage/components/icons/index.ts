@@ -890,7 +890,7 @@ import Sabnzbd from "./png/Sabnzbd.png";
 import Safari from "./Safari";
 import SafeExamBrowser from "./png/SafeExamBrowser.png";
 import Sanesidebuttons from "./png/Sanesidebuttons.png";
-import Santa from "./Santa";
+import Santa from "./png/Santa.png";
 import ScaleFt from "./png/ScaleFt.png";
 import ScMenu from "./png/ScMenu.png";
 import Scratch from "./png/Scratch.png";

@@ -47,6 +47,179 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// queriesByNameFromQueryByName adapts a per-name QueryByName stub into the batch
+// QueriesByName that the result path now uses, so existing tests keep their
+// per-name stub logic. A stub that returns an error for a name (not found) leaves
+// it absent from the map, matching the real batch behavior.
+func queriesByNameFromQueryByName(
+	fn func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error),
+) func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	return func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		out := make(map[string]*fleet.Query, len(names))
+		for _, n := range names {
+			q, err := fn(ctx, n.TeamID, n.Name)
+			if err != nil {
+				continue
+			}
+			out[n.Key()] = q
+		}
+		return out, nil
+	}
+}
+
+// setUpBatchResultLogsTest wires the minimum for SubmitResultLogs to reach
+// preProcessOsqueryResults, returning the unwrapped *Service and the store.
+func setUpBatchResultLogsTest(t *testing.T) (*Service, context.Context, *mock.Store) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return len(rows), nil
+	}
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+	serv.osqueryLogWriter = &OsqueryLogger{Result: &testJSONLogger{}}
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+	return serv, ctx, ds
+}
+
+func globalResults(n int) []json.RawMessage {
+	results := make([]json.RawMessage, 0, n)
+	for i := range n {
+		results = append(results, json.RawMessage(fmt.Sprintf(
+			`{"snapshot":[{"a":"b"}],"action":"snapshot","name":"pack/Global/q%d","hostIdentifier":"h","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931}`, i)))
+	}
+	return results
+}
+
+// TestSubmitResultLogsBatchesQueryLookups pins the DoS fix: a submission with
+// many distinct query names must resolve in a single batched lookup, and must
+// never fall back to a per-name QueryByName (left nil so a regression panics).
+func TestSubmitResultLogsBatchesQueryLookups(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+
+	var batchCalls int
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		batchCalls++
+		return map[string]*fleet.Query{}, nil
+	}
+
+	require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(50)))
+	require.Equal(t, 1, batchCalls, "50 distinct names must resolve in a single batched lookup")
+	require.False(t, ds.QueryByNameFuncInvoked, "batched result path must not fall back to per-name QueryByName")
+}
+
+// TestSubmitResultLogsBatchLookupError verifies a batch-lookup failure is
+// swallowed (results pass through unmodified) rather than crashing or erroring.
+func TestSubmitResultLogsBatchLookupError(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		return nil, errors.New("db unavailable")
+	}
+	require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(5)))
+}
+
+// TestSubmitResultLogsCapsDistinctNames verifies the per-submission distinct-name
+// cap bounds how many names reach the datastore.
+func TestSubmitResultLogsCapsDistinctNames(t *testing.T) {
+	defer func(orig int) { maxDistinctQueryNamesPerSubmission = orig }(maxDistinctQueryNamesPerSubmission)
+	maxDistinctQueryNamesPerSubmission = 10
+
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	var maxSeen int
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		maxSeen = len(names)
+		return map[string]*fleet.Query{}, nil
+	}
+
+	require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(100)))
+	require.LessOrEqual(t, maxSeen, 10, "distinct names passed to the datastore must be capped")
+}
+
+// TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck pins the cap to failing
+// closed. A name left unresolved by the cap must not be treated like one Fleet
+// doesn't know: those pass through to the log destination without a schedule
+// check, so inheriting that would let a host fill the cap with junk names and
+// launder a forged result for a query it was never scheduled to run.
+func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
+	defer func(o int) { maxDistinctQueryNamesPerSubmission = o }(maxDistinctQueryNamesPerSubmission)
+	maxDistinctQueryNamesPerSubmission = 2
+
+	// forged names a real Fleet query; the host below is scheduled for nothing.
+	const forged = `{"snapshot":[{"forged":"true"}],"action":"snapshot","name":"pack/Global/report_query","hostIdentifier":"h","unixTime":1484078931}`
+
+	run := func(t *testing.T, fillCap bool) int {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+			out := make(map[string]*fleet.Query, len(names))
+			for _, n := range names {
+				out[n.Key()] = &fleet.Query{ID: 42, Name: n.Name, Logging: fleet.LoggingSnapshot, AutomationsEnabled: true}
+			}
+			return out, nil
+		}
+		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) { return nil, nil }
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m int) (int, error) {
+			return len(rows), nil
+		}
+		logDest := &testJSONLogger{}
+		serv := ((svc.(validationMiddleware)).Service).(*Service)
+		serv.osqueryLogWriter = &OsqueryLogger{Result: logDest}
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+
+		var results []json.RawMessage
+		if fillCap {
+			results = append(results, globalResults(maxDistinctQueryNamesPerSubmission)...)
+		}
+		results = append(results, json.RawMessage(forged))
+		require.NoError(t, serv.SubmitResultLogs(ctx, results))
+		return len(logDest.logs)
+	}
+
+	require.Equal(t, 0, run(t, false), "unscheduled query must be dropped when under the cap")
+	require.Equal(t, 0, run(t, true), "filling the cap must not let an unscheduled query through")
+}
+
+// TestSubmitResultLogsCapWarningOnlyWhenNamesDropped pins the cap's warning to
+// names actually left unresolved: a submission landing exactly on the cap uses
+// every slot without breaching it and must not report one.
+func TestSubmitResultLogsCapWarningOnlyWhenNamesDropped(t *testing.T) {
+	defer func(orig int) { maxDistinctQueryNamesPerSubmission = orig }(maxDistinctQueryNamesPerSubmission)
+	maxDistinctQueryNamesPerSubmission = 10
+
+	for _, tc := range []struct {
+		name        string
+		distinct    int
+		wantWarning bool
+	}{
+		{"under the cap", 9, false},
+		{"exactly at the cap", 10, false},
+		{"over the cap", 11, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			serv, ctx, ds := setUpBatchResultLogsTest(t)
+			serv.logger = slog.New(slog.NewJSONHandler(buf, nil))
+
+			var seen int
+			ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+				seen = len(names)
+				return map[string]*fleet.Query{}, nil
+			}
+
+			require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(tc.distinct)))
+			require.Equal(t, min(tc.distinct, 10), seen)
+			require.Equal(t, tc.wantWarning, strings.Contains(buf.String(), "distinct query name cap"),
+				"warning presence should track names actually dropped; log was: %s", buf.String())
+		})
+	}
+}
+
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
 
@@ -800,6 +973,18 @@ func TestListHostIDsDueForDistributedRead(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, intervalDue, due)
 	})
+
+	t.Run("deleted hosts are reported as not found", func(t *testing.T) {
+		svc, ctx, lq, _ := setup(t)
+		lq.On("LoadActiveQueryNames").Return([]string{}, nil)
+
+		// IDs 8 and 9 have no hosts row (deleted while their agent was connected).
+		due, err := svc.ListHostIDsDueForDistributedRead(ctx, append(slices.Clone(allIDs), 8, 9))
+		require.NoError(t, err)
+		want := map[uint]string{8: fleet.AgentWSReasonHostNotFound, 9: fleet.AgentWSReasonHostNotFound}
+		maps.Copy(want, intervalDue)
+		assert.Equal(t, want, due)
+	})
 }
 
 func TestAuthenticateHostContextCanceled(t *testing.T) {
@@ -966,6 +1151,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		// Mirrors the IDs returned by QueryByNameFunc above. Team 1 queries are never
 		// scheduled here because no host in this test belongs to team 1.
@@ -1260,6 +1446,7 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		}, nil
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
@@ -1315,6 +1502,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		}, nil
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
@@ -1369,6 +1557,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 				AutomationsEnabled: true,
 			}, nil
 		}
+		ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 			if !scheduledForHost {
 				return nil, nil
@@ -1425,6 +1614,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 			return nil, newNotFoundError()
 		}
+		ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 
 		results := newResults()
 		require.NoError(t, svc.SubmitResultLogs(ctx, results))
@@ -1509,6 +1699,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 			Name:               name,
 		}, nil
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
 	}

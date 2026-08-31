@@ -4934,23 +4934,23 @@ software:
 		{
 			name: "delete-other-fleets cannot delete the default fleet",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "💻 Workstations"`),
 				team("Other team"),
 			},
 			extraArgs:    []string{"--delete-other-fleets"},
 			seedTeamName: "💻 Workstations",
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+				require.ErrorContains(t, err, "windows_automatic_enrollment default_fleet 💻 Workstations cannot be deleted")
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+				require.ErrorContains(t, err, "windows_automatic_enrollment default_fleet 💻 Workstations cannot be deleted")
 			},
 		},
 		{
 			name: "fleet declared in the same run",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "💻 Workstations"`),
 				workstations,
 			},
@@ -4969,23 +4969,23 @@ software:
 		{
 			name: "unknown fleet errors",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "Ghosts"`),
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
-				require.ErrorContains(t, err, `windows_enrollment default_fleet "Ghosts" not found in team configs`)
+				require.ErrorContains(t, err, `windows_automatic_enrollment default_fleet "Ghosts" not found in team configs`)
 				assert.Nil(t, defaultTeamID)
 			},
 		},
 		{
 			name: "empty value is accepted and clears",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: ""`),
 				workstations,
 			},
@@ -5002,7 +5002,7 @@ software:
 		{
 			name: "Unassigned is accepted and clears",
 			cfgs: []string{
-				global(`windows_enrollment:
+				global(`windows_automatic_enrollment:
       default_fleet: "Unassigned"`),
 				workstations,
 			},
