@@ -1059,6 +1059,7 @@ import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
+import Vagrant from "./png/Vagrant.png";
 import Vanilla from "./png/Vanilla.png";
 import VcRedistX64 from "./png/VcRedistX64.png";
 import Vellum from "./png/Vellum.png";
@@ -2236,6 +2237,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
+  vagrant: Vagrant,
   vanilla: Vanilla,
   vellum: Vellum,
   "vernier spectral analysis": VernierSpectralAnalysis,

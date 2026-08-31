@@ -8990,6 +8990,13 @@
       "description": "UTM is a virtual machines UI using QEMU."
     },
     {
+      "name": "Vagrant",
+      "slug": "vagrant/windows",
+      "platform": "windows",
+      "unique_identifier": "Vagrant",
+      "description": "Vagrant is a tool for building and managing virtual machine environments."
+    },
+    {
       "name": "Vanilla",
       "slug": "vanilla/darwin",
       "platform": "darwin",
