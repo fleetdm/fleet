@@ -350,6 +350,17 @@ type OsqueryConfig struct {
 	// See fleet.OsqueryService.GetClientConfigWithETag and the
 	// server/service/redis_config_etag package for the full contract.
 	RedisConfigETags bool `yaml:"redis_config_etags"`
+
+	// PackConfigCache enables the in-memory pack (scheduled report) config
+	// cache that serves one marshaled pack config per (team,
+	// query_reports_disabled) for PackConfigCacheTTL, instead of rebuilding
+	// it from the database on every osquery config check-in.
+	//
+	// Default is FALSE: every check-in builds its pack config from the
+	// database, which is slower but immune to any staleness in the cache.
+	// Setting FLEET_OSQUERY_PACK_CONFIG_CACHE=true and restarting opts a
+	// deployment in. Independent of the config ETag options above.
+	PackConfigCache bool `yaml:"pack_config_cache"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -1690,6 +1701,8 @@ func (man Manager) addConfigs() {
 		"Enable conditional osquery config requests: agents that send an etag receive the minimal 'unchanged' body when their config is current. On by default. Set to false as an escape hatch to disable the feature entirely — every response is then the full config with no etag, identical to the behavior before this feature existed.")
 	man.addConfigBool("osquery.redis_config_etags", true,
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. On by default; requires Redis (no effect without it). Set to false to restore the always-full-build behavior while keeping conditional requests active (see osquery.config_etags to disable the feature entirely).")
+	man.addConfigBool("osquery.pack_config_cache", false,
+		"Cache the marshaled osquery pack (scheduled report) config in memory per fleet (team), instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds its pack config from the database.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -2203,6 +2216,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
 			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
+			PackConfigCache:                  man.getConfigBool("osquery.pack_config_cache"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2862,6 +2876,7 @@ func TestConfig() FleetConfig {
 			MaxJitterPercent:      0,
 			AllowBodyAuthFallback: true,
 			ConfigETags:           true,
+			PackConfigCache:       true, // off in production; on here to cover the cache paths
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

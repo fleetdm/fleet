@@ -1,0 +1,1 @@
+* Added the `osquery.pack_config_cache` server configuration option and disabled the in-memory osquery pack config cache by default; set it to `true` to re-enable the cache.
