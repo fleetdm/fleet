@@ -3453,10 +3453,10 @@ the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - `updated_at`: the last time the row in the database for the `hosts` table was updated.
-- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`). This only changes when the host's detail queries run, which is less frequent than policy queries, so it lags behind events (like a policy automation) that were triggered by a policy check alone.
+- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`).
 - `label_updated_at`: the last time Fleet updated the label membership for the host
 - `last_enrolled_at`: the last time the host enrolled to Fleet.
-- `policy_updated_at`: the last time we updated the policy results for the host. Policies can be checked, and policy automations triggered, much more often than the [policy update interval](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval): a manual host refetch, a calendar event, a software install or uninstall completing, VPP app install verification, and an MDM check-in can all trigger an early policy check on top of the regular schedule. The Fleet UI's host details page shows the later of `detail_updated_at` and `policy_updated_at` as "Last fetched," so it reflects the most recent time Fleet actually heard from the host.
+- `policy_updated_at`: the last time we updated the policy results for the host
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
 - `last_restarted_at`: the last time that the host was restarted.
