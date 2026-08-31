@@ -133,7 +133,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
-		{"GetNanoMDMEnrollmentDetailsAccountDriven", testGetNanoMDMEnrollmentDetailsAccountDriven},
+		{"GetNanoMDMEnrollmentDetailsEnrollmentType", testGetNanoMDMEnrollmentDetailsEnrollmentType},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -15638,7 +15638,7 @@ FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
 // Manual BYOD and Account-Driven User Enrollment both report the
 // "On (manual - personal)" status, so the enrollment channel is the only way to
 // tell them apart. See #50868.
-func testGetNanoMDMEnrollmentDetailsAccountDriven(t *testing.T, ds *Datastore) {
+func testGetNanoMDMEnrollmentDetailsEnrollmentType(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	newHost := func(suffix string) *fleet.Host {
@@ -15661,9 +15661,9 @@ func testGetNanoMDMEnrollmentDetailsAccountDriven(t *testing.T, ds *Datastore) {
 
 	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, manualBYOD.UUID)
 	require.NoError(t, err)
-	require.False(t, details.AccountDrivenUserEnrollment)
+	require.Equal(t, "Device", details.EnrollmentType)
 
 	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, accountDriven.UUID)
 	require.NoError(t, err)
-	require.True(t, details.AccountDrivenUserEnrollment)
+	require.Equal(t, "User Enrollment (Device)", details.EnrollmentType)
 }

@@ -2,6 +2,8 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
+import { MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN } from "interfaces/mdm";
+
 import UnenrollMdmModal from "./UnenrollMdmModal";
 
 const MOCK_PROPS = {
@@ -27,7 +29,7 @@ describe("UnenrollMdmModal", () => {
       <UnenrollMdmModal
         {...MOCK_PROPS}
         enrollmentStatus="On (manual - personal)"
-        isAccountDrivenUserEnrollment={false}
+        lastMdmEnrollmentType="Device"
       />
     );
 
@@ -45,7 +47,7 @@ describe("UnenrollMdmModal", () => {
       <UnenrollMdmModal
         {...MOCK_PROPS}
         enrollmentStatus="On (manual - personal)"
-        isAccountDrivenUserEnrollment
+        lastMdmEnrollmentType={MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN}
       />
     );
 
@@ -63,7 +65,7 @@ describe("UnenrollMdmModal", () => {
       <UnenrollMdmModal
         {...MOCK_PROPS}
         enrollmentStatus="On (automatic)"
-        isAccountDrivenUserEnrollment={false}
+        lastMdmEnrollmentType="Device"
       />
     );
 

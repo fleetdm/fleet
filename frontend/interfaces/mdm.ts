@@ -338,10 +338,23 @@ export const isBYODManualEnrollment = (
   return enrollmentStatus === "On (manual)";
 };
 
+/** MDM enrollment channels as reported by the device. Account-Driven User
+ * Enrollment is the only personal (BYOD) flow that enrolls on the user channel;
+ * manual BYOD enrolls on the device channel like company-owned hosts. */
+export const MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN = "User Enrollment (Device)";
+
+/** Whether a host enrolled through Account-Driven User Enrollment, which decides
+ * how the end user re-enrolls. The enrollment status can't answer this: manual
+ * BYOD reports the same "On (manual - personal)". See #50868. */
+export const isAccountDrivenUserEnrollment = (
+  lastMdmEnrollmentType?: string | null
+) => {
+  return lastMdmEnrollmentType === MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN;
+};
+
 /** Personal (BYOD) enrollment status. Note this covers BOTH manual BYOD and
  * Account-Driven User Enrollment — the status alone cannot tell them apart, so
- * use the host's `account_driven_user_enrollment` field when the difference
- * matters (e.g. re-enrollment instructions). See #50868. */
+ * use `isAccountDrivenUserEnrollment` when the difference matters. See #50868. */
 export const isPersonalEnrollmentStatus = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {

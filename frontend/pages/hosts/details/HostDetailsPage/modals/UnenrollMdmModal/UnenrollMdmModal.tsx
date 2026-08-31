@@ -9,6 +9,7 @@ import mdmAPI from "services/entities/mdm";
 import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
+  isAccountDrivenUserEnrollment,
   isAutomaticDeviceEnrollment,
   isBYODManualEnrollment,
   isPersonalEnrollmentStatus,
@@ -22,10 +23,11 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
-  /** Account-Driven User Enrollment re-enrolls through Apple's "Sign in to Work
-   * or School Account" flow; every other personal enrollment re-enrolls through
-   * the enrollment link. Both report the same enrollmentStatus. */
-  isAccountDrivenUserEnrollment?: boolean;
+  /** MDM enrollment channel. Account-Driven User Enrollment re-enrolls through
+   * Apple's "Sign in to Work or School Account" flow; every other personal
+   * enrollment re-enrolls through the enrollment link, and both report the same
+   * enrollmentStatus. */
+  lastMdmEnrollmentType?: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -35,7 +37,7 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
-  isAccountDrivenUserEnrollment,
+  lastMdmEnrollmentType,
   onClose,
   onSuccess,
 }: IUnenrollMdmModalProps) => {
@@ -85,7 +87,7 @@ const UnenrollMdmModal = ({
   };
 
   const generateIosOrIpadosDescription = () => {
-    if (isAccountDrivenUserEnrollment) {
+    if (isAccountDrivenUserEnrollment(lastMdmEnrollmentType)) {
       return (
         <p>
           To re-enroll, ask your end user to navigate to{" "}

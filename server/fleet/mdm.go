@@ -1449,11 +1449,11 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested       bool       `db:"hardware_attested"`
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
-	// AccountDrivenUserEnrollment reports whether the host enrolled through
-	// Account-Driven User Enrollment. Manual BYOD enrollment produces the same
-	// "On (manual - personal)" status, so the enrollment channel is the only way
-	// to tell the two apart.
-	AccountDrivenUserEnrollment bool `db:"account_driven_user_enrollment"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
+	// Enrollment both produce the "On (manual - personal)" status, so the channel
+	// is the only way to tell them apart.
+	EnrollmentType string `db:"enrollment_type"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

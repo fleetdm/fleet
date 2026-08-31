@@ -1917,9 +1917,7 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
-              isAccountDrivenUserEnrollment={
-                host.mdm.account_driven_user_enrollment
-              }
+              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh
