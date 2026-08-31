@@ -1,1 +1,1 @@
-* Fixed an upgrade failure where a MySQL "Prepared statement needs to be re-prepared" error (1615) during the Windows MDM responses migration aborted the whole migration instead of being retried.
+* Fixed an upgrade failure where a MySQL "Prepared statement needs to be re-prepared" error (1615) aborted a database migration instead of being retried.
