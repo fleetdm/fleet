@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver' AND version_compare(bundle_short_version, '1.43.3.10896') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.plexapp.plexmediaserver');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.plexapp.plexmediaserver' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.plex.tv/plex-media-server-new/1.43.3.10896-cb3ebc72d/macos/PlexMediaServer-1.43.3.10896-cb3ebc72d-universal.zip",
       "install_script_ref": "87eb0241",

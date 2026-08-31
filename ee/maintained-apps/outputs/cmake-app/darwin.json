@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.4.2",
+      "version": "4.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.cmake.cmake';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cmake.cmake' AND version_compare(bundle_short_version, '4.4.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.cmake.cmake');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cmake.cmake' AND version_compare(bundle_short_version, '4.4.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.cmake.cmake' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cmake.org/files/v4.4/cmake-4.4.2-macos-universal.dmg",
+      "installer_url": "https://cmake.org/files/v4.4/cmake-4.4.3-macos-universal.dmg",
       "install_script_ref": "bf131a87",
       "uninstall_script_ref": "ff358276",
-      "sha256": "33d16c2683aee4fe9a8c26c9f2d3003e04391ac4c4f48273ab1cf70e9b0bf679",
+      "sha256": "0423c5c00f71fb8e7be281afa834137c5f95a5791a125beec7939eef45bcfc94",
       "default_categories": [
         "Productivity"
       ]

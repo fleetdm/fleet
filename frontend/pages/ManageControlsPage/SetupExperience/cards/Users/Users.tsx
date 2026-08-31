@@ -3,12 +3,13 @@ import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { IConfig, IMdmConfig } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 import { APP_CONTEXT_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
+import { isEndUserIdPConfigured } from "utilities/permissions/permissions";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import PageDescription from "components/PageDescription";
 import { EndUserLocalAccountType } from "interfaces/mdm";
@@ -59,13 +60,11 @@ const getEnabledManagedLocalAccountWindows = (
 ): boolean => {
   if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
     return (
-      globalConfig?.mdm?.windows_settings?.managed_local_account_settings
-        ?.enabled ?? false
+      globalConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
     );
   }
   return (
-    teamConfig?.mdm?.windows_settings?.managed_local_account_settings
-      ?.enabled ?? false
+    teamConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
   );
 };
 
@@ -106,14 +105,6 @@ const getLockEndUserInfo = (
   }
 
   return teamConfig?.mdm?.setup_experience.lock_end_user_info ?? false;
-};
-
-const isIdPConfigured = ({
-  end_user_authentication: idp,
-}: Pick<IMdmConfig, "end_user_authentication">) => {
-  return (
-    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
-  );
 };
 
 const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
@@ -164,7 +155,6 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
     }
-    const mdmConfig = globalConfig.mdm;
     return (
       <UsersForm
         currentTeamId={currentTeamId}
@@ -177,7 +167,7 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
         defaultEnableManagedLocalAccountWindows={
           enableManagedLocalAccountWindows
         }
-        isIdPConfigured={isIdPConfigured(mdmConfig)}
+        isIdPConfigured={isEndUserIdPConfigured(globalConfig)}
       />
     );
   };

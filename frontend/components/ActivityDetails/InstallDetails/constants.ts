@@ -22,6 +22,13 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   skipped_install: "error-outline",
 } as const;
 
+export const SKIPPED_INSTALL_DETAILS =
+  "The app was open. It will update once the user closes it and policy runs again, or update via self service.";
+
+// A skip stores an empty pre-install query output, so there is nothing to echo back.
+export const SKIPPED_PRE_INSTALL_OUTPUT =
+  "Query didn't return result or failed\nThe app was open";
+
 const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   EnhancedSoftwareInstallUninstallStatus | "skipped_install",
   string

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -262,14 +263,26 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
-				}
-
-				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}})
+				// Track before enqueueing so a fast device ack can't race the
+				// insert and leave an orphaned row; on enqueue failure nothing
+				// was queued and the row is removed again, but it stays when
+				// only the APNs notification failed since the command is
+				// durably queued.
+				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}
+				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "add host mdm commands")
+				}
+
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				if err != nil {
+					if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
+						if rmErr := ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
+							logger.ErrorContext(ctx, "untrack refetch apps command after enqueue failure",
+								"err", rmErr, "host_id", hostID)
+						}
+					}
+					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 				}
 			}
 		}
