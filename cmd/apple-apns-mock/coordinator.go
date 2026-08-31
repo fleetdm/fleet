@@ -268,7 +268,6 @@ func (c *coordinator) dispatch(ctx context.Context, msg pushMsg) {
 	if c.reg.deliver(msg.Token, p) == notHeld && !inline {
 		// The stream closed between holds and deliver. An inline push is
 		// deliver-or-discard, so only a claimed one goes back.
-		time.Sleep(5 * time.Millisecond)
 		_ = c.requeue(ctx, msg.Token, p)
 	}
 }

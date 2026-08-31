@@ -69,8 +69,9 @@ func waitAnnouncementsHandled(t *testing.T, c *coordinator) {
 	const marker = "ffffff"
 	sub, _ := c.reg.subscribe(marker, 0)
 
-	// Inline, so the marker needs no pending key. ping is queued after the bump
-	// after the ping is queued, so wait on the counter, not on sub.ch.
+	// Inline, so the marker needs no pending key. Wait for it to reach the stream so we
+	// know this node's subscription has processed all earlier announcements (Redis delivers
+	// to a subscriber in publish order).
 	require.NoError(t, c.publish(t.Context(), pushMsg{Token: marker, Inline: []byte(`{"mdm":"marker"}`)}))
 	waitPing(t, sub, 5*time.Second)
 
@@ -226,10 +227,9 @@ func TestCoordinatorClaimIsExactlyOnce(t *testing.T) {
 
 	expectNoPingOn(t, sub1, 200*time.Millisecond)
 	expectNoPingOn(t, sub2, 200*time.Millisecond)
-	waitFor(t, func() bool {
-		return assert.EqualValues(t, 1, c1.reg.claimMisses.Load()+c2.reg.claimMisses.Load(),
-			"the instance that lost the race records a claim miss")
-	})
+	waitFor(t, func() bool { return c1.reg.claimMisses.Load()+c2.reg.claimMisses.Load() == 1 })
+	assert.EqualValues(t, 1, c1.reg.claimMisses.Load()+c2.reg.claimMisses.Load(),
+		"the instance that lost the race records a claim miss")
 }
 
 func TestCoordinatorReconnectElsewhereMovesToken(t *testing.T) {
