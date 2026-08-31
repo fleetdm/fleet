@@ -538,6 +538,16 @@ type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID st
 
 type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, bool, error)
 
+type PatchNotificationCoversAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+
+type UnsentPatchNotificationForHostFunc func(ctx context.Context, hostID uint) (string, error)
+
+type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
+
+type AddPatchNotificationAppFunc func(ctx context.Context, notificationUUID string, app fleet.PatchNotificationApp) error
+
+type ListPatchNotificationAppsFunc func(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error)
+
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
 type ListSoftwareForVulnDetectionByOSVersionFunc func(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error)
@@ -3107,6 +3117,21 @@ type DataStore struct {
 
 	GetDetailsForUninstallFromExecutionIDFunc        GetDetailsForUninstallFromExecutionIDFunc
 	GetDetailsForUninstallFromExecutionIDFuncInvoked bool
+
+	PatchNotificationCoversAppFunc        PatchNotificationCoversAppFunc
+	PatchNotificationCoversAppFuncInvoked bool
+
+	UnsentPatchNotificationForHostFunc        UnsentPatchNotificationForHostFunc
+	UnsentPatchNotificationForHostFuncInvoked bool
+
+	NewPatchNotificationFunc        NewPatchNotificationFunc
+	NewPatchNotificationFuncInvoked bool
+
+	AddPatchNotificationAppFunc        AddPatchNotificationAppFunc
+	AddPatchNotificationAppFuncInvoked bool
+
+	ListPatchNotificationAppsFunc        ListPatchNotificationAppsFunc
+	ListPatchNotificationAppsFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -7605,6 +7630,41 @@ func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, e
 	s.GetDetailsForUninstallFromExecutionIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDetailsForUninstallFromExecutionIDFunc(ctx, executionID)
+}
+
+func (s *DataStore) PatchNotificationCoversApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
+	s.mu.Lock()
+	s.PatchNotificationCoversAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.PatchNotificationCoversAppFunc(ctx, hostID, softwareTitleID)
+}
+
+func (s *DataStore) UnsentPatchNotificationForHost(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.UnsentPatchNotificationForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnsentPatchNotificationForHostFunc(ctx, hostID)
+}
+
+func (s *DataStore) NewPatchNotification(ctx context.Context, notificationUUID string) error {
+	s.mu.Lock()
+	s.NewPatchNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewPatchNotificationFunc(ctx, notificationUUID)
+}
+
+func (s *DataStore) AddPatchNotificationApp(ctx context.Context, notificationUUID string, app fleet.PatchNotificationApp) error {
+	s.mu.Lock()
+	s.AddPatchNotificationAppFuncInvoked = true
+	s.mu.Unlock()
+	return s.AddPatchNotificationAppFunc(ctx, notificationUUID, app)
+}
+
+func (s *DataStore) ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error) {
+	s.mu.Lock()
+	s.ListPatchNotificationAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPatchNotificationAppsFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {

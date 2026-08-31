@@ -17,18 +17,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Every query here reads the primary. A notification is written and read back
+// within the same few seconds all the way through its life, so there is no
+// query the replica can serve without risking a stale answer.
 type Datastore struct {
 	primary *sqlx.DB
-	replica *sqlx.DB
 	logger  *slog.Logger
 }
 
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
-	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger} // nolint:nilaway // serve.go always passes real connections
-}
-
-func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
-	return ds.replica
+	return &Datastore{primary: conns.Primary, logger: logger} // nolint:nilaway // serve.go always passes real connections
 }
 
 var _ types.Datastore = (*Datastore)(nil)
@@ -101,7 +99,7 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, notificationUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID})
 		}
@@ -114,8 +112,6 @@ func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, ex
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.execution_id = ?`
 
 	var notification api.EndUserNotification
-	// primary, not the replica: fleetd can report a result before the write that
-	// recorded this execution has replicated
 	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, executionID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: executionID})
@@ -151,8 +147,6 @@ LIMIT ?
 `
 
 	var due []*api.EndUserNotification
-	// primary, not the replica: the caller keeps calling this until it comes back
-	// empty, so it has to see the notifications it just marked dispatched
 	if err := sqlx.SelectContext(ctx, ds.primary, &due, listStmt,
 		api.EndUserNotificationPending, api.EndUserNotificationDispatched, limit,
 	); err != nil {
@@ -173,11 +167,13 @@ LIMIT ?
 
 func (ds *Datastore) SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error {
 	// last_reason is cleared because whatever stopped the previous attempt no
-	// longer describes this notification
+	// longer describes this notification. Still pending, because the end user can
+	// act on one between the sweep listing it and this update, and a notification
+	// they finished must not go back out.
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, execution_id = ?, attempt_count = attempt_count + 1, last_reason = NULL
-WHERE uuid = ?
+WHERE uuid = ? AND status = ?
 `
 
 	for _, notification := range notifications {
@@ -189,6 +185,7 @@ WHERE uuid = ?
 	for _, notification := range notifications {
 		if _, err := ds.primary.ExecContext(ctx, updateStmt,
 			api.EndUserNotificationDispatched, *notification.ExecutionID, notification.UUID,
+			api.EndUserNotificationPending,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "set end user notification dispatched")
 		}
@@ -270,20 +267,41 @@ WHERE displayed_at IS NULL
 }
 
 // Only while the notification is still out: a result arriving after the end
-// user delayed it belongs to a send that is already over.
+// user delayed it belongs to a send that is already over. Acted counts as
+// still out because the script only ends when the window closes, so its
+// result always lands after the end user pressed something.
 const verifyEndUserNotificationStmt = `
 UPDATE notifications_end_user
 SET displayed_at = IF(displayed_at IS NULL, ?, displayed_at)
-WHERE uuid = ? AND status = ?
+WHERE uuid = ? AND status IN (?, ?)
 `
 
 // VerifyEndUserNotification records the first time a notification reached its
 // end user. Calling it again doesn't move the timestamp.
 func (ds *Datastore) VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error {
 	if _, err := ds.primary.ExecContext(ctx, verifyEndUserNotificationStmt,
-		displayedAt, notificationUUID, api.EndUserNotificationDispatched,
+		displayedAt, notificationUUID, api.EndUserNotificationDispatched, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "verify end user notification")
+	}
+	return nil
+}
+
+// SetEndUserNotificationActed marks a notification finished because the end
+// user picked an action that resolves it. Terminal: it is left alone by the
+// dispatch, expiry and delay paths from here on.
+func (ds *Datastore) SetEndUserNotificationActed(ctx context.Context, notificationUUID string) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET status = ?
+WHERE uuid = ? AND status IN (?, ?)
+`
+
+	if _, err := ds.primary.ExecContext(ctx, updateStmt,
+		api.EndUserNotificationActed, notificationUUID,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification acted")
 	}
 	return nil
 }
@@ -296,19 +314,19 @@ func (ds *Datastore) DelayEndUserNotification(ctx context.Context, notificationU
 	// result to report, and the next dispatch overwrites it. displayed_at is
 	// cleared so the next send records its own display.
 	//
-	// Expired and failed notifications are excluded so a delay can't revive one.
+	// Terminal notifications are excluded so a delay can't revive one.
 	const updateStmt = `
 UPDATE notifications_end_user
 SET status = ?, next_attempt_at = ?, last_reason = ?, displayed_at = NULL,
 	payload = COALESCE(?, payload)
 WHERE uuid = ?
-	AND status NOT IN (?, ?)
+	AND status NOT IN (?, ?, ?)
 	AND expires_at > NOW(6)
 `
 
 	if _, err := ds.primary.ExecContext(ctx, updateStmt,
 		api.EndUserNotificationPending, nextAttemptAt, api.EndUserNotificationReasonDelayed, payload, notificationUUID,
-		api.EndUserNotificationExpired, api.EndUserNotificationFailed,
+		api.EndUserNotificationExpired, api.EndUserNotificationFailed, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
 	}
@@ -342,7 +360,7 @@ WHERE uuid = ?
 
 		if outcome.Displayed {
 			if _, err := tx.ExecContext(ctx, verifyEndUserNotificationStmt,
-				time.Now().UTC(), notificationUUID, api.EndUserNotificationDispatched,
+				time.Now().UTC(), notificationUUID, api.EndUserNotificationDispatched, api.EndUserNotificationActed,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "verify end user notification")
 			}

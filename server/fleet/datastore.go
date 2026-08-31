@@ -747,6 +747,28 @@ type Datastore interface {
 	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Patch notifications
+
+	// PatchNotificationCoversApp reports whether this app already sits on a patch
+	// notification for this host that hasn't finished yet, so a policy that fires
+	// again doesn't start a second countdown for the same app.
+	PatchNotificationCoversApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+	// UnsentPatchNotificationForHost returns the UUID of a patch notification
+	// queued for this host that hasn't been sent yet, or an empty string. Apps
+	// skipped in the same burst join it so the end user gets one toast listing
+	// all of them.
+	UnsentPatchNotificationForHost(ctx context.Context, hostID uint) (string, error)
+	// NewPatchNotification records the patch-specific half of a notification the
+	// notifications bounded context has already created.
+	NewPatchNotification(ctx context.Context, notificationUUID string) error
+	// AddPatchNotificationApp adds an app to a patch notification, doing nothing
+	// if it is already on it.
+	AddPatchNotificationApp(ctx context.Context, notificationUUID string, app PatchNotificationApp) error
+	// ListPatchNotificationApps returns the apps a patch notification covers,
+	// with the names and icons needed to draw them.
+	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields

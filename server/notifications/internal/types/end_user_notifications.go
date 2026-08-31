@@ -13,6 +13,7 @@ import (
 // Datastore is what the service needs of the notifications tables. Each method
 // is documented on its implementation in internal/mysql.
 type Datastore interface {
+	NewEndUserNotification(ctx context.Context, notification *api.EndUserNotification) (*api.EndUserNotification, error)
 	GetEndUserNotificationByUUID(ctx context.Context, notificationUUID string) (*api.EndUserNotification, error)
 	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error)
 	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error)
@@ -22,6 +23,7 @@ type Datastore interface {
 	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
 	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
+	SetEndUserNotificationActed(ctx context.Context, notificationUUID string) error
 }
 
 type NotFoundError struct {

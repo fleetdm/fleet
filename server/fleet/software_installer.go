@@ -57,6 +57,7 @@ type SoftwareInstallDetails struct {
 	AppOpenQuery         string `json:"-" db:"app_open_query"`
 	PatchWhenClosed      bool   `json:"-" db:"patch_when_closed"`
 	NotifyBeforePatching bool   `json:"-" db:"notify_before_patching"`
+	SkipAppOpenCheck     bool   `json:"-" db:"skip_app_open_check"`
 }
 
 type SoftwareInstallerURL struct {
@@ -1396,6 +1397,11 @@ type HostSoftwareInstallOptions struct {
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
 	WithRetries bool
+	// SkipAppOpenCheck runs the install even though its policy has
+	// patch_when_closed or notify_before_patching set and the app may be open.
+	// Set when the end user asked for the update from the notification Fleet
+	// showed them, where skipping would look like nothing happened.
+	SkipAppOpenCheck bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

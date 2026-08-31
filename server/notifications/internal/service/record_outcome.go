@@ -37,6 +37,12 @@ func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *tim
 		return api.EndUserNotificationReasonScreenLocked, &shortRetry
 	case 42:
 		return api.EndUserNotificationReasonNoDisplay, &shortRetry
+	// Fleet Desktop found a notification already on screen and would not put a
+	// second one over it. Fleet's dispatcher tries not to let this happen, but
+	// only the binary can see what is really there. It needs a Fleet Desktop
+	// release to reach Fleet: cli.swift's ExitCode has no case for it yet.
+	case 50:
+		return api.EndUserNotificationReasonAnotherDisplayed, &shortRetry
 	case 70:
 		return api.EndUserNotificationReasonInternalError, &shortRetry
 

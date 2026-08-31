@@ -51,11 +51,11 @@ func getNotificationEndpoint(ctx context.Context, request any, svc api.Service) 
 		return api_http.GetNotificationResponse{Err: errMissingHost}
 	}
 
-	notification, err := svc.GetNotificationForHost(ctx, hostID, req.UUID)
+	view, err := svc.RenderNotificationForHost(ctx, hostID, req.UUID)
 	if err != nil {
 		return api_http.GetNotificationResponse{Err: err}
 	}
-	return api_http.GetNotificationResponse{Payload: notification.Payload}
+	return api_http.GetNotificationResponse{NotificationView: view}
 }
 
 func notificationActionEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
@@ -66,8 +66,9 @@ func notificationActionEndpoint(ctx context.Context, request any, svc api.Servic
 		return api_http.NotificationActionResponse{Err: errMissingHost}
 	}
 
-	if err := svc.ApplyAction(ctx, hostID, req.UUID, req.EndUserNotificationAction); err != nil {
+	view, err := svc.ApplyAction(ctx, hostID, req.UUID, req.EndUserNotificationAction)
+	if err != nil {
 		return api_http.NotificationActionResponse{Err: err}
 	}
-	return api_http.NotificationActionResponse{}
+	return api_http.NotificationActionResponse{NotificationView: view}
 }

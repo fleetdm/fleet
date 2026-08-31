@@ -61,6 +61,14 @@ func (m *mockDatastore) SetEndUserNotificationOutcome(context.Context, string, a
 	return nil
 }
 
+func (m *mockDatastore) NewEndUserNotification(context.Context, *api.EndUserNotification) (*api.EndUserNotification, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) SetEndUserNotificationActed(context.Context, string) error {
+	return nil
+}
+
 // mockScriptQueue returns the execution IDs it was built with, so a test can
 // leave a host out.
 type mockScriptQueue struct {

@@ -40,6 +40,18 @@ func newTestNotification(t *testing.T, ds *mysql.Datastore, hostID uint, kind st
 	return notificationUUID
 }
 
+// newRenderableTestNotification adds the patch rows and an app, which any test
+// that fetches or acts on a notification needs: the response carries the view,
+// and the patch kind refuses to render one that lists nothing.
+func newRenderableTestNotification(t *testing.T, ds *mysql.Datastore, hostID uint, payload string) string {
+	t.Helper()
+	notificationUUID := newTestNotification(t, ds, hostID, fleet.PatchNotificationKind, payload)
+	require.NoError(t, ds.NewPatchNotification(context.Background(), notificationUUID))
+	require.NoError(t, ds.AddPatchNotificationApp(context.Background(), notificationUUID,
+		fleet.PatchNotificationApp{SoftwareTitleID: 1}))
+	return notificationUUID
+}
+
 // getTestNotification reads a notification row directly, for asserting on
 // state the bounded context's own HTTP API doesn't expose (e.g. status,
 // execution_id).
@@ -177,21 +189,23 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Nil(t, got.NextAttemptAt)
 	})
 
-	t.Run("GET returns the notification's payload", func(t *testing.T) {
+	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-get")
-		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello world"}`)
+		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
-		var resp struct {
-			Payload json.RawMessage `json:"payload"`
-			Err     string          `json:"error,omitempty"`
-		}
+		var resp notifications_api.NotificationView
 		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
 			nil, http.StatusOK, &resp)
-		require.JSONEq(t, `{"title": "hello world"}`, string(resp.Payload))
+		require.Equal(t, notificationUUID, resp.UUID)
+		require.Equal(t, "Save your work 💾", resp.Title)
+		require.Equal(t, []notifications_api.NotificationAction{
+			{ID: "remind", Label: "Remind me 5 minutes before"},
+			{ID: "update_now", Label: "Update now"},
+		}, resp.Actions)
 	})
 
 	t.Run("another host's token 404s on both endpoints", func(t *testing.T) {
@@ -234,19 +248,19 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	// confirms the action is accepted, not that it records anything.
 	t.Run("POST verify is accepted", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-verify")
-		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			[]byte(`{"action": "verify"}`), http.StatusNoContent)
+			[]byte(`{"action": "verify"}`), http.StatusOK)
 	})
 
 	t.Run("POST delay with a registered kind delays it", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-delay-registered")
-		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
@@ -259,7 +273,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, displayed.DisplayedAt)
 
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			[]byte(`{"action": "delay"}`), http.StatusNoContent)
+			[]byte(`{"action": "delay"}`), http.StatusOK)
 
 		got := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
@@ -274,20 +288,40 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, got.NextAttemptAt)
 		require.WithinDuration(t, displayed.DisplayedAt.Add(55*time.Minute), *got.NextAttemptAt, time.Minute)
 
+		// the attempt it comes back for is the reminder, so the payload says so
+		// and the copy the end user reads changes with it
+		require.JSONEq(t, `{"reminder": true}`, string(got.Payload))
+
+		dispatch(t)
+		redispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, redispatched.ExecutionID)
+		_, reminderToken := fetchScript(t, host, *redispatched.ExecutionID)
+
+		var view notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", reminderToken, notificationUUID),
+			nil, http.StatusOK, &view)
+		require.Contains(t, view.Description, "**5 minutes**")
+		require.Equal(t, []notifications_api.NotificationAction{
+			{ID: "dismiss", Label: "Hide"},
+			{ID: "update_now", Label: "Update now"},
+		}, view.Actions, "the reminder swaps Remind for Hide")
+
 		// one that was delayed without ever being displayed has no mark to count
-		// from, so it waits a full interval
-		neverShown := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
+		// from, so it waits a full interval, and comes back as the first
+		// notification rather than the reminder
+		neverShown := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
 		neverShownDispatched := getTestNotification(t, s.ds, neverShown)
 		require.NotNil(t, neverShownDispatched.ExecutionID)
 		_, neverShownToken := fetchScript(t, host, *neverShownDispatched.ExecutionID)
 
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", neverShownToken, neverShown),
-			[]byte(`{"action": "delay"}`), http.StatusNoContent)
+			[]byte(`{"action": "delay"}`), http.StatusOK)
 
 		got = getTestNotification(t, s.ds, neverShown)
 		require.NotNil(t, got.NextAttemptAt)
 		require.WithinDuration(t, time.Now().UTC().Add(notifications_api.EndUserNotificationDelayInterval), *got.NextAttemptAt, time.Minute)
+		require.JSONEq(t, `{"reminder": false}`, string(got.Payload))
 	})
 
 	t.Run("POST delay with no kind registered is a no-op", func(t *testing.T) {
@@ -298,12 +332,26 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, dispatched.ExecutionID)
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
+		// Not found rather than a no-op: the response carries the view, and with no
+		// kind there is nothing that can say what the notification is.
 		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			[]byte(`{"action": "delay"}`), http.StatusNoContent)
+			[]byte(`{"action": "delay"}`), http.StatusNotFound)
 
 		got := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationDispatched, got.Status, "nothing should have applied the delay")
 		require.NotNil(t, got.ExecutionID)
+	})
+
+	t.Run("GET with no kind registered 404s", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-get-unregistered")
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "some_unregistered_kind", `{"title": "hello"}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+
+		s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
+			nil, http.StatusNotFound)
 	})
 
 	t.Run("POST with an unknown action is rejected", func(t *testing.T) {
@@ -371,16 +419,17 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotNil(t, found.ActorFullName)
 		require.Equal(t, "Fleet", *found.ActorFullName)
 
-		// once it runs, it leaves no trace in the past activity feed: Fleet ran
-		// this for itself, so there's no admin action to report
+		// once it runs, it leaves no ran_script trace in the past activity feed:
+		// Fleet ran this for itself, so there's no admin action to report. The
+		// kind reports what the end user saw, which is a different activity.
 		postScriptResult(host, *dispatched.ExecutionID, 0)
 
 		var past listActivitiesResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &past)
 		for _, act := range past.Activities {
-			if act.Details != nil {
+			if act.Type == (fleet.ActivityTypeRanScript{}).ActivityName() && act.Details != nil {
 				require.NotContains(t, string(*act.Details), *dispatched.ExecutionID,
-					"the notification's script should not appear in past activities")
+					"the notification's script should not appear as a script run")
 			}
 		}
 
@@ -477,5 +526,152 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, notifications_api.EndUserNotificationPending, got.Status)
 		require.NotNil(t, got.NextAttemptAt)
 		require.Nil(t, got.DisplayedAt)
+	})
+
+	t.Run("an admin can read the notification script's run, without its device token", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-script-result")
+		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+
+		s.Do("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 50, "output": "Another notification was displayed.", "runtime": 1}`,
+				*host.OrbitNodeKey, *dispatched.ExecutionID)),
+			http.StatusOK)
+
+		// The details modal on the activity reads the run by its execution id, and
+		// picks its wording from the exit code.
+		var resp fleet.GetScriptResultResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", *dispatched.ExecutionID),
+			nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.ExitCode)
+		require.EqualValues(t, 50, *resp.ExitCode)
+		require.Equal(t, "Another notification was displayed.", resp.Output)
+
+		// The script is stored with its variable, not the URL fleetd was handed, so
+		// reading a run doesn't hand an admin the host's device token.
+		require.Contains(t, resp.ScriptContents, string(fleet.FleetVarPatchNotificationURL))
+		require.NotContains(t, resp.ScriptContents, token)
+	})
+
+	t.Run("update now queues an install per app and finishes the notification", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-update-now")
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "update-now-team"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		// Two apps on one notification, each with its own patch policy, so the
+		// install carries the policy the Automation runs table joins on.
+		type app struct {
+			installerID uint
+			titleID     uint
+			policyID    uint
+		}
+		admin := s.users["admin1@example.com"]
+		apps := make([]app, 0, 2)
+		for _, name := range []string{"Update Now App A", "Update Now App B"} {
+			installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript: "echo", Filename: name + ".pkg", StorageID: uuid.NewString(),
+				Title: name, Version: "1.0.0", Source: "apps", Platform: "darwin",
+				UserID: admin.ID,
+				TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+				// Fleet's managed app-open query, which is what update now has to get past.
+				AppOpenQuery: "SELECT 1 FROM processes WHERE name = 'app'",
+			})
+			require.NoError(t, err)
+
+			var titleID uint
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &titleID,
+					`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+			})
+
+			policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+				Name: name + " up to date", Query: "SELECT 1;",
+			})
+			require.NoError(t, err)
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+				return err
+			})
+
+			apps = append(apps, app{installerID: installerID, titleID: titleID, policyID: policy.ID})
+		}
+
+		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+		for _, a := range apps {
+			require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+				PolicyID: &a.policyID, SoftwareTitleID: a.titleID, SoftwareInstallerID: &a.installerID,
+			}))
+		}
+
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+
+		var view notifications_api.NotificationView
+		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
+			json.RawMessage(`{"action": "update_now"}`), http.StatusOK, &view)
+
+		// The page draws the answer straight away rather than fetching again.
+		require.Len(t, view.Items, 2)
+		for _, item := range view.Items {
+			require.Equal(t, "Installing...", item.Status)
+		}
+		require.Equal(t, []notifications_api.NotificationAction{{ID: "dismiss", Label: "Hide"}}, view.Actions)
+
+		acted := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status)
+
+		type queuedInstall struct {
+			SoftwareInstallerID uint `db:"software_installer_id"`
+			PolicyID            uint `db:"policy_id"`
+			SkipAppOpenCheck    bool `db:"skip_app_open_check"`
+		}
+		queuedInstalls := func() []queuedInstall {
+			var installs []queuedInstall
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.SelectContext(ctx, q, &installs, `
+					SELECT siua.software_installer_id, siua.policy_id,
+						COALESCE(ua.payload->'$.skip_app_open_check', 0) AS skip_app_open_check
+					FROM upcoming_activities ua
+						JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+					WHERE ua.host_id = ? ORDER BY siua.software_installer_id`, host.ID)
+			})
+			return installs
+		}
+
+		installs := queuedInstalls()
+		require.Len(t, installs, 2)
+		for i, install := range installs {
+			require.Equal(t, apps[i].installerID, install.SoftwareInstallerID)
+			require.Equal(t, apps[i].policyID, install.PolicyID)
+			require.True(t, install.SkipAppOpenCheck,
+				"the end user asked for this, so it must not skip because the app is open")
+		}
+
+		// The install fleetd is handed carries no pre-install condition, so it runs
+		// with the app open rather than reporting a skip.
+		var firstExecutionID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &firstExecutionID, `
+				SELECT ua.execution_id FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ? ORDER BY siua.software_installer_id LIMIT 1`, host.ID)
+		})
+		details, err := s.ds.GetSoftwareInstallDetails(ctx, firstExecutionID)
+		require.NoError(t, err)
+		require.True(t, details.NotifyBeforePatching)
+		require.Empty(t, details.PreInstallCondition)
+
+		// A second press queues nothing: the first one already did the work.
+		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
+			json.RawMessage(`{"action": "update_now"}`), http.StatusOK, &view)
+		require.Len(t, queuedInstalls(), 2)
 	})
 }

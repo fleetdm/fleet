@@ -3,9 +3,6 @@
 package http
 
 import (
-	"encoding/json"
-	nethttp "net/http"
-
 	"github.com/fleetdm/fleet/v4/server/notifications/api"
 )
 
@@ -19,9 +16,11 @@ func (r *GetNotificationRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
+// GetNotificationResponse is the view itself, not a wrapper around it: the
+// page inside the toast window draws the body as it arrives.
 type GetNotificationResponse struct {
-	Payload json.RawMessage `json:"payload"`
-	Err     error           `json:"error,omitempty"`
+	*api.NotificationView
+	Err error `json:"error,omitempty"`
 }
 
 func (r GetNotificationResponse) Error() error { return r.Err }
@@ -37,12 +36,12 @@ func (r *NotificationActionRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
+// NotificationActionResponse answers with the view as it stands after the
+// action, so picking "Update now" redraws the list as installing without a
+// second request.
 type NotificationActionResponse struct {
+	*api.NotificationView
 	Err error `json:"error,omitempty"`
 }
 
 func (r NotificationActionResponse) Error() error { return r.Err }
-
-// Status is read by the response encoder; acting on a notification returns
-// no body.
-func (r NotificationActionResponse) Status() int { return nethttp.StatusNoContent }

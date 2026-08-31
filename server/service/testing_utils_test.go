@@ -378,7 +378,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	// Set up mock notifications service for unit tests. When DBConns is provided,
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
-	svc.SetNotificationsService(&fleet_mock.MockNotificationsService{})
+	notificationsMock := &fleet_mock.MockNotificationsService{}
+	svc.SetNotificationsService(notificationsMock)
+	if len(opts) > 0 {
+		opts[0].NotificationsMock = notificationsMock
+	}
 
 	return svc, ctx
 }
@@ -540,7 +544,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			logger,
 		)
 		svc.SetNotificationsService(notificationsSvc)
-		notificationsSvc.RegisterKind(NewPatchNotificationKind(notificationsSvc))
+		notificationsSvc.RegisterKind(NewPatchNotificationKind(ds, svc, notificationsSvc, logger))
 		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
 		opts[0].NotificationsSvc = notificationsSvc

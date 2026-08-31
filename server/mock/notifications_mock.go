@@ -5,14 +5,29 @@ import (
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/google/uuid"
 )
 
 type RecordOutcomeFunc func(ctx context.Context, executionID string, exitCode int64, output string) error
 
 type NotificationUUIDForExecutionFunc func(ctx context.Context, executionID string) (string, error)
 
+type CreateNotificationFunc func(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error)
+
 var NoopRecordOutcomeFunc RecordOutcomeFunc = func(_ context.Context, _ string, _ int64, _ string) error {
 	return nil
+}
+
+// NoopCreateNotificationFunc hands back the notification it was given, with a
+// UUID if it didn't have one, so tests that don't care about notifications
+// don't have to set anything up.
+var NoopCreateNotificationFunc CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
+	created := *notification
+	if created.UUID == "" {
+		created.UUID = uuid.NewString()
+	}
+	return &created, nil
 }
 
 // MockNotificationsService stands in for the notifications bounded context in
@@ -23,6 +38,9 @@ type MockNotificationsService struct {
 
 	NotificationUUIDForExecutionFunc        NotificationUUIDForExecutionFunc
 	NotificationUUIDForExecutionFuncInvoked bool
+
+	CreateNotificationFunc        CreateNotificationFunc // defaults to NoopCreateNotificationFunc if nil
+	CreateNotificationFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -48,6 +66,17 @@ func (m *MockNotificationsService) NotificationUUIDForExecution(ctx context.Cont
 		return "", &notFoundError{}
 	}
 	return m.NotificationUUIDForExecutionFunc(ctx, executionID)
+}
+
+func (m *MockNotificationsService) CreateNotification(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
+	m.mu.Lock()
+	m.CreateNotificationFuncInvoked = true
+	m.mu.Unlock()
+	fn := m.CreateNotificationFunc
+	if fn == nil {
+		fn = NoopCreateNotificationFunc
+	}
+	return fn(ctx, notification)
 }
 
 type notFoundError struct{}

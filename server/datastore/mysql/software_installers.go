@@ -71,6 +71,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     si.app_open_query AS app_open_query,
     COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+    hsi.skip_app_open_check AS skip_app_open_check,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -106,6 +107,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     si.app_open_query AS app_open_query,
     COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+    COALESCE(ua.payload->'$.skip_app_open_check', 0) AS skip_app_open_check,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -143,8 +145,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	}
 
 	// A patch-when-closed or notify-before-patching policy install uses the installer's app open
-	// query as its pre-install condition.
-	if result.PatchWhenClosed || result.NotifyBeforePatching {
+	// query as its pre-install condition, unless the end user asked for this install from the
+	// notification Fleet showed them.
+	if (result.PatchWhenClosed || result.NotifyBeforePatching) && !result.SkipAppOpenCheck {
 		result.PreInstallCondition = result.AppOpenQuery
 	}
 
@@ -1936,6 +1939,7 @@ VALUES
 			'software_title_name', ?,
 			'source', ?,
 			'with_retries', ?,
+			'skip_app_open_check', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
@@ -1996,6 +2000,7 @@ VALUES
 			installerDetails.TitleName,
 			installerDetails.Source,
 			opts.WithRetries,
+			opts.SkipAppOpenCheck,
 			userID,
 		)
 		if err != nil {

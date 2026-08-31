@@ -2038,6 +2038,12 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
+		if isAppOpenSkip && hsi.NotifyBeforePatching {
+			if err := svc.notifyEndUserBeforePatching(ctx, host, hsi); err != nil {
+				return ctxerr.Wrap(ctx, err, "notify end user before patching")
+			}
+		}
+
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
 		if status == fleet.SoftwareInstalled {
 			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {

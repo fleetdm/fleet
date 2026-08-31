@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1252,6 +1253,22 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		return nil
 	}
 
+	// The notifications bounded context is mocked here too, but the patch tables it
+	// hangs off are real, so the mock has to write the row they point at.
+	opts.NotificationsMock.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
+		created := *notification
+		created.UUID = uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+				VALUES (?, ?, ?, ?, ?, ?)
+			`, created.UUID, created.HostID, notifications_api.EndUserNotificationPending,
+				created.Kind, created.Payload, created.ExpiresAt)
+			return err
+		})
+		return &created, nil
+	}
+
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Name:       "Admin",
 		Password:   []byte("p4ssw0rd.123"),
@@ -1404,6 +1421,145 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		res.EnhanceOutputDetails()
 		require.NotNil(t, res.PreInstallQueryOutput)
 		require.Equal(t, fleet.SoftwareInstallerAppOpenNotifyCopy, *res.PreInstallQueryOutput)
+	})
+
+	// patchNotificationsForHost returns the host's patch notification UUIDs, oldest first.
+	patchNotificationsForHost := func(t *testing.T, hostID uint) []string {
+		var uuids []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &uuids, `
+				SELECT eun.uuid FROM notifications_end_user eun
+					JOIN patch_notifications pn ON pn.notification_uuid = eun.uuid
+				WHERE eun.host_id = ? ORDER BY eun.id`, hostID)
+		})
+		return uuids
+	}
+
+	patchNotificationTitles := func(t *testing.T, notificationUUID string) []uint {
+		var titleIDs []uint
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &titleIDs,
+				`SELECT software_title_id FROM patch_notification_apps WHERE notification_uuid = ? ORDER BY software_title_id`,
+				notificationUUID)
+		})
+		return titleIDs
+	}
+
+	// newInstaller adds a second app to the team so a host can skip two different ones.
+	newInstaller := func(t *testing.T, title string) (uint, uint) {
+		payload := *installerPayload
+		payload.Title = title
+		payload.Filename = title + ".pkg"
+		payload.StorageID = uuid.NewString()
+		otherInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+		require.NoError(t, err)
+
+		var otherTitleID uint
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &otherTitleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, otherInstallerID)
+		})
+		return otherInstallerID, otherTitleID
+	}
+
+	insertPendingInstallFor := func(t *testing.T, host *fleet.Host, policyID uint, installerID uint, titleID uint) string {
+		installUUID := uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (
+					execution_id, host_id, software_installer_id, policy_id,
+					installer_filename, version, software_title_id, software_title_name
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, installUUID, host.ID, installerID, policyID,
+				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title)
+			return err
+		})
+		return installUUID
+	}
+
+	reportAppOpenSkip := func(t *testing.T, host *fleet.Host, installUUID string) {
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""), // app open
+		}))
+	}
+
+	t.Run("two skips on one host make one notification listing both apps", func(t *testing.T) {
+		host := test.NewHost(t, ds, "batch-host", "10.0.0.5", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		otherInstallerID, otherTitleID := newInstaller(t, "Second Software")
+
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching")))
+		reportAppOpenSkip(t, host, insertPendingInstallFor(t, host,
+			createFailingPolicy(t, host, "notify_before_patching"), otherInstallerID, otherTitleID))
+
+		notificationUUIDs := patchNotificationsForHost(t, host.ID)
+		require.Len(t, notificationUUIDs, 1, "both apps belong on one toast, not one each")
+		require.ElementsMatch(t, []uint{titleID, otherTitleID}, patchNotificationTitles(t, notificationUUIDs[0]))
+	})
+
+	t.Run("a skip for an app already on a live notification makes no second one", func(t *testing.T) {
+		host := test.NewHost(t, ds, "dedup-host", "10.0.0.6", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		policyID := createFailingPolicy(t, host, "notify_before_patching")
+
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, policyID))
+		notificationUUIDs := patchNotificationsForHost(t, host.ID)
+		require.Len(t, notificationUUIDs, 1)
+
+		// The policy re-fires on every refetch, so the same skip arrives again.
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, policyID))
+		require.Equal(t, notificationUUIDs, patchNotificationsForHost(t, host.ID))
+	})
+
+	t.Run("a skip for a different app once the notification has gone out makes a second one", func(t *testing.T) {
+		host := test.NewHost(t, ds, "second-notification-host", "10.0.0.7", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching")))
+		notificationUUIDs := patchNotificationsForHost(t, host.ID)
+		require.Len(t, notificationUUIDs, 1)
+
+		// Stand in for the dispatch pass: the first toast is on screen now, so it
+		// can't take a new app and its hour.
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				UPDATE notifications_end_user SET status = ?, attempt_count = 1, execution_id = ? WHERE uuid = ?`,
+				notifications_api.EndUserNotificationDispatched, uuid.NewString(), notificationUUIDs[0])
+			return err
+		})
+
+		otherInstallerID, otherTitleID := newInstaller(t, "Third Software")
+		reportAppOpenSkip(t, host, insertPendingInstallFor(t, host,
+			createFailingPolicy(t, host, "notify_before_patching"), otherInstallerID, otherTitleID))
+
+		after := patchNotificationsForHost(t, host.ID)
+		require.Len(t, after, 2)
+		require.Equal(t, []uint{titleID}, patchNotificationTitles(t, after[0]))
+		require.Equal(t, []uint{otherTitleID}, patchNotificationTitles(t, after[1]))
+	})
+
+	t.Run("a patch_when_closed skip makes no notification", func(t *testing.T) {
+		host := test.NewHost(t, ds, "no-notification-host", "10.0.0.8", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_when_closed")))
+
+		require.Empty(t, patchNotificationsForHost(t, host.ID))
+	})
+
+	t.Run("skips on two hosts make a notification each", func(t *testing.T) {
+		hostA := test.NewHost(t, ds, "two-hosts-a", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
+		hostB := test.NewHost(t, ds, "two-hosts-b", "10.0.0.10", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostA.ID, hostB.ID})))
+
+		reportAppOpenSkip(t, hostA, insertPendingInstall(t, hostA, createFailingPolicy(t, hostA, "notify_before_patching")))
+		reportAppOpenSkip(t, hostB, insertPendingInstall(t, hostB, createFailingPolicy(t, hostB, "notify_before_patching")))
+
+		require.Len(t, patchNotificationsForHost(t, hostA.ID), 1)
+		require.Len(t, patchNotificationsForHost(t, hostB.ID), 1)
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
