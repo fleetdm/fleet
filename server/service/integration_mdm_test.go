@@ -22494,9 +22494,9 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
-	// A second host now enrolls presenting the SAME hardware device ID. HWDevID follows the Windows image, so this is what two machines
-	// whose images share an ancestor that was never generalized with sysprep look like on the wire (issue #50612). It used to evict this
-	// host's enrollment and erase its wipe status. Both hosts must now keep their own enrollment and their own lock/wipe state.
+	// A second host now enrolls presenting the SAME hardware device ID. This is what two distinct machines presenting the same HWDevID
+	// look like on the wire (issue #50612). It used to evict this host's enrollment and erase its wipe status. Both hosts must now keep
+	// their own enrollment and their own lock/wipe state.
 	newHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
 	require.NotEqual(t, host.ID, newHost.ID)
 
@@ -28297,9 +28297,9 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
 }
 
-// TestWindowsMDMDuplicateHardwareIDKeepsBothHostsEnrolled covers issue #50612 on the programmatic (fleetd) enrollment path. HWDevID follows
-// the Windows image, so two machines whose images share an ancestor that was never generalized with sysprep present the same value. The
-// second one to enroll used to silently take over the first one's enrollment. Both must now stay managed, and the collision must be visible.
+// TestWindowsMDMDuplicateHardwareIDKeepsBothHostsEnrolled covers issue #50612 on the programmatic (fleetd) enrollment path. Two distinct
+// machines can present the same HWDevID. The second one to enroll used to silently take over the first one's enrollment. Both must now
+// stay managed, and the collision must be visible.
 func (s *integrationMDMTestSuite) TestWindowsMDMDuplicateHardwareIDKeepsBothHostsEnrolled() {
 	t := s.T()
 	ctx := t.Context()
@@ -28386,7 +28386,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMDuplicateHardwareIDAutomaticEnro
 	deviceA := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *hostA.OrbitNodeKey)
 	require.NoError(t, deviceA.Enroll())
 
-	// An Entra-joined clone enrolls automatically with the same hardware ID and no host known yet.
+	// A second, Entra-joined machine enrolls automatically with the same hardware ID and no host known yet.
 	deviceB := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "dup.hw.clone@example.com",
 		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	deviceB.HardwareID = deviceA.HardwareID

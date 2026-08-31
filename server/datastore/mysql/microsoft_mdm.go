@@ -618,7 +618,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // hardware ID alone let the second one to enroll take over the first one's enrollment and silently stop Fleet from managing it
 // (issue #50612). What makes two machines report the same HWDevID is not established; cloning a non-generalized image does not do it.
 //
-// Unlinked rows (host_uuid = ”) for the same hardware ID are also removed once the enrolling host is known. They carry no host-visible
+// Unlinked rows (host_uuid = '') for the same hardware ID are also removed once the enrolling host is known. They carry no host-visible
 // state, so removing them cannot cause the silent unenrollment above, and leaving them would break the later serial-based linking, which
 // does a bare UPDATE of host_uuid and would now hit the (mdm_hardware_id, host_uuid) unique key.
 //

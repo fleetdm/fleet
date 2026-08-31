@@ -3038,7 +3038,7 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 //
 // hostUUID is authoritative for programmatic enrollments (resolved from the orbit node key) and empty for Entra automatic enrollments,
 // which are linked to a host later by serial. When another host already holds an enrollment for the same HWDevID, that enrollment is left
-// in place so both hosts stay managed, and the collision is logged and recorded as an activity instead of happening silently.
+// in place so both hosts stay managed, and the collision is logged instead of happening silently.
 func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string) error {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)

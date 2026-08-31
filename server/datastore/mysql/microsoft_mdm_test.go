@@ -8725,7 +8725,7 @@ func testWindowsProfileRetryOnDeviceFailure(t *testing.T, ds *Datastore) {
 // host_mdm.enrolled, mirroring what osquery's directIngestMDMWindows does once it sees the device's registry.
 func enrollWindowsHostWithHardwareID(t *testing.T, ds *Datastore, h *fleet.Host, hardwareID string) *fleet.MDMWindowsEnrolledDevice {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	device := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          hardwareID,
@@ -8743,9 +8743,9 @@ func enrollWindowsHostWithHardwareID(t *testing.T, ds *Datastore, h *fleet.Host,
 	return device
 }
 
-// testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled covers issue #50612. HWDevID follows the Windows image, so machines whose images share
-// an ancestor that was never generalized with sysprep present the same value. The second one to enroll used to take over the first one's
-// enrollment row and silently stop Fleet from managing it. Both must now stay enrolled with their own row.
+// testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled covers issue #50612. Two distinct machines can present the same HWDevID. The second
+// one to enroll used to take over the first one's enrollment row and silently stop Fleet from managing it. Both must now stay enrolled
+// with their own row.
 func testMDMWindowsDuplicateHardwareIDKeepsBothEnrolled(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
