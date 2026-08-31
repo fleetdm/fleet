@@ -1,0 +1,1 @@
+- Fixed the "Single sign-on (SSO)" tooltip on the Fleet Desktop settings page so the underline no longer sits flush against the label text, and so the tooltip style matches whether the option is selectable.

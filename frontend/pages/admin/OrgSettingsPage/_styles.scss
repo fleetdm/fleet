@@ -123,3 +123,14 @@
     @include disabled;
   }
 }
+
+.fleet-desktop {
+  &__sso-radio {
+    // Radio labels use line-height: 1, which leaves no breathing room between
+    // the text and the dashed underline (unlike other underlined tooltips on
+    // this page, e.g. "Browser host", which use the default line-height).
+    .component__tooltip-wrapper__underline {
+      padding-bottom: px-to-rem(3);
+    }
+  }
+}

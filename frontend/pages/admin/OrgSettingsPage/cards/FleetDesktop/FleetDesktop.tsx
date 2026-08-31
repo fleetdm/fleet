@@ -136,7 +136,11 @@ const FleetDesktop = ({
         variant="right-panel"
         content="Customize the Fleet Desktop experience."
       />
-      <form onSubmit={onFormSubmit} autoComplete="off">
+      <form
+        className="fleet-desktop"
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
         <InputField
           label="Custom transparency URL"
           onChange={onInputChange}
@@ -193,12 +197,13 @@ const FleetDesktop = ({
             onChange={onEndUserAuthChange}
           />
           <Radio
+            className="fleet-desktop__sso-radio"
             label={
               <TooltipWrapper
-                showArrow
-                underline={false}
-                position="right"
-                tipOffset={12}
+                showArrow={!isIdPConfigured}
+                underline={isIdPConfigured}
+                position={isIdPConfigured ? "bottom-start" : "right"}
+                tipOffset={8}
                 tipContent={
                   isIdPConfigured
                     ? SSO_TOKEN_ROTATION_TOOLTIP
