@@ -1896,7 +1896,7 @@ func testRecoveryLockResetOnMDMReEnrollment(t *testing.T, ds *Datastore) {
 		status.PopulateStatus()
 		require.NotNil(t, status.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
-		assert.True(t, status.PasswordAvailable)
+		assert.False(t, status.PasswordAvailable, "the re-animated password is pending, not yet verified on the device")
 		assert.Empty(t, status.Detail)
 	})
 
@@ -1965,15 +1965,17 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	type matrixCase struct {
-		name                    string
-		status                  *fleet.MDMDeliveryStatus // nil = SQL NULL
-		operationType           fleet.MDMOperationType
-		hasPassword             bool
-		hasPendingPw            bool
-		deleted                 bool
-		errorMessage            string
-		expectNilFromDatastore  bool
-		expectPopulatedStatus   *fleet.RecoveryLockStatus
+		name                   string
+		status                 *fleet.MDMDeliveryStatus // nil = SQL NULL
+		operationType          fleet.MDMOperationType
+		hasPassword            bool
+		hasPendingPw           bool
+		deleted                bool
+		errorMessage           string
+		expectNilFromDatastore bool
+		expectPopulatedStatus  *fleet.RecoveryLockStatus
+		// Only a verified row offers its password: until the device confirms the
+		// SetRecoveryLock command, the stored password may not be the one on the device.
 		expectPasswordAvailable bool
 		expectDetail            string
 	}
@@ -1993,7 +1995,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			operationType:           fleet.MDMOperationTypeInstall,
 			hasPassword:             true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 		},
 		{
 			name:                    "pending install, no rotation -> pending",
@@ -2001,7 +2003,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			operationType:           fleet.MDMOperationTypeInstall,
 			hasPassword:             true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 		},
 		{
 			name:                    "verified install -> verified",
@@ -2018,7 +2020,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			hasPassword:             true,
 			errorMessage:            "device rejected",
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 			expectDetail:            "device rejected",
 		},
 		{
@@ -2028,7 +2030,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			hasPassword:             true,
 			hasPendingPw:            true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 		},
 		{
 			name:                    "failed install + rotation in flight -> failed",
@@ -2038,7 +2040,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			hasPendingPw:            true,
 			errorMessage:            "set failed",
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 			expectDetail:            "set failed",
 		},
 		{
@@ -2047,7 +2049,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			operationType:           fleet.MDMOperationTypeRemove,
 			hasPassword:             true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 		},
 		{
 			name:                    "NULL status remove -> removing_enforcement (clear retry)",
@@ -2055,7 +2057,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			operationType:           fleet.MDMOperationTypeRemove,
 			hasPassword:             true,
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 		},
 		{
 			name:                    "failed remove -> failed",
@@ -2064,7 +2066,7 @@ func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
 			hasPassword:             true,
 			errorMessage:            "clear failed",
 			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
-			expectPasswordAvailable: true,
+			expectPasswordAvailable: false,
 			expectDetail:            "clear failed",
 		},
 	}

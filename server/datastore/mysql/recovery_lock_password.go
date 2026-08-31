@@ -100,7 +100,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 			status,
 			operation_type,
 			COALESCE(error_message, '') AS detail,
-			encrypted_password IS NOT NULL AS password_available
+			(encrypted_password IS NOT NULL AND status <=> 'verified') AS password_available
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 
@@ -437,7 +437,7 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 		return ctxerr.Wrap(ctx, err, "encrypt pending recovery lock password")
 	}
 
-	// Set the pending password and mark status as pending.
+	// Set the pending password and mark status as NULL (to be picked up).
 	// Only allow rotation if:
 	// - Has an existing password (encrypted_password IS NOT NULL)
 	// - Operation type is 'install' (not removing the password)
@@ -450,14 +450,14 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 			pending_verify_command_uuid = NULL,
 			retry = 0,
 			error_message = NULL,
-		    status = '%s'
+		    status = NULL
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND encrypted_password IS NOT NULL
 		  AND operation_type = '%s'
 		  AND status IN ('%s', '%s')
 		  AND pending_encrypted_password IS NULL
-	`, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
 
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, encryptedPassword, setCommandUUID, hostUUID)
 	if err != nil {
@@ -502,8 +502,10 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 
 func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
 	// Clear pending rotation (e.g., if command enqueue fails).
-	// Only affects rows that were modified by InitiateRecoveryLockRotation
-	// (status = pending AND has pending password).
+	// Only affects rows that were modified by InitiateRecoveryLockRotation, which leaves
+	// status NULL with both a stored and a pending password. The encrypted_password guard
+	// keeps this off an initial install awaiting retry, which is also status NULL with a
+	// pending password but has nothing to restore to — that path is ClearRecoveryLockPendingStatus.
 	// Restores status to previous state: 'failed' if error_message exists, otherwise 'verified'.
 	stmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
@@ -512,9 +514,10 @@ func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID str
 		    status = CASE WHEN error_message IS NOT NULL THEN '%s' ELSE '%s' END
 		WHERE host_uuid = ?
 		  AND deleted = 0
-		  AND status = '%s'
+		  AND status IS NULL
+		  AND encrypted_password IS NOT NULL
 		  AND pending_encrypted_password IS NOT NULL
-	`, fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryPending)
+	`, fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
