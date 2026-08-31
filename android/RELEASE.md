@@ -148,9 +148,11 @@ This brings the version bump and CHANGELOG updates to main and removes only the 
 
 After the release is published, close out the associated GitHub issues and milestone. For the canonical checklist, see [Conclude current milestone](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone):
 
-1. **Prepare for confirm and celebrate**: For each `story`-labeled issue in the `fleetd-android-v1.X.X` milestone, move it to the "Confirm and celebrate" column on its product group's board. Product will close these issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
+1. **Move associated stories to the intake & outtake board**: Stories may not be on the [🦢 Product design intake & outtake](https://github.com/orgs/fleetdm/projects/67) board (project 67) yet. For each `story`-labeled issue in the `fleetd-android-v1.X.X` milestone, apply the `:product` label and remove the `:release` label so it moves onto the board.
 
-2. **Close associated bugs**: Close the remaining (non-story) issues in the `fleetd-android-v1.X.X` milestone.
+2. **Move associated stories to "Confirm and celebrate"**: On the [🦢 Product design intake & outtake](https://github.com/orgs/fleetdm/projects/67) board, filter by the `fleetd-android-v1.X.X` milestone, and move all stories to the "Confirm and celebrate" column. Product will close these issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
+
+3. **Close associated bugs**: Close the remaining (non-story) issues in the `fleetd-android-v1.X.X` milestone.
 
 4. **Close the GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the `fleetd-android-v1.X.X` milestone.
 

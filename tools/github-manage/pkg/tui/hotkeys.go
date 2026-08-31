@@ -246,7 +246,7 @@ func (m *model) HandleHotkeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.labelInput = ""
 				case BulkDemoSummary:
 					return m, m.executeWorkflow()
-				case BulkMoveToCurrentSprint:
+				case BulkSprintKickoff, BulkKickOutOfSprint, BulkMoveToCurrentSprint:
 					if m.projectID != 0 {
 						// Use the provided project ID
 						return m, m.executeWorkflow()

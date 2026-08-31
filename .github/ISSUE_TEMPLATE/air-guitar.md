@@ -2,7 +2,7 @@
 name: 🎸  Air guitar
 about: Request wireframes to be designed right away
 title: '🎸 ____________'
-labels: ['~air-guitar', 'story']
+labels: ['~air-guitar', ':product', 'story']
 assignees: ''
 
 ---

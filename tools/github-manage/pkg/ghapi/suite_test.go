@@ -44,6 +44,7 @@ func TestSuite(t *testing.T) {
 	t.Run("Workflows Tests", func(t *testing.T) {
 		t.Run("BulkAddLabel", TestBulkAddLabel)
 		t.Run("BulkRemoveLabel", TestBulkRemoveLabel)
+		t.Run("BulkSprintKickoff", TestBulkSprintKickoff)
 		t.Run("BulkMilestoneClose", TestBulkMilestoneClose)
 		t.Run("WorkflowFunctionsSignatures", TestWorkflowFunctionsSignatures)
 		t.Run("WorkflowsWithValidIssues", TestWorkflowsWithValidIssues)

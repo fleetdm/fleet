@@ -293,7 +293,6 @@ Each product group runs its own GitHub project board with the following columns,
 | 🐥 Ready for review | A pull request is open and awaiting code review. |
 | ✔️ Awaiting QA | The change is merged and waiting for QA verification. |
 | ✅ Ready for release | QA has verified the change. Held until the next release boundary. |
-| 🎉 Confirm & celebrate | The change has shipped. The Product Designer and Manager of Customer Support and Solutions Architecture [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate) before the issue is closed. |
 | Done | Released. |
 
 There are no formal WIP limits today, but the group should watch for buildup in any one column.
@@ -368,7 +367,7 @@ To deliver on this mission, we need a clear, repeatable process for turning an i
 
 To make a change to Fleet:
 - First, [write it down](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~feature+fest%2C%3Aproduct&projects=&template=feature-request.md&title=)
-  - For every customer/prospect request, file a new GitHub issue. The feature request template automatically applies the `~inbox` label so the request is easy to find alongside other untriaged requests and bugs. Whether the request is the same as an existing request will be determined by the relevant product group's Product Designer and a subject matter expert (SME) in the next step.
+  - For every customer/prospect request, file a new GitHub issue. Whether the request is the same as an existing request will be determined by the Head of Product Design and a subject matter expert (SME) in the next step.
 - Then, it will be looked at by Fleet's [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and a SME [unpack the "why"](https://fleetdm.com/handbook/product-design#inbox-review).
   - For customer/prospect requests to be looked at, they must have a Gong snippet.
 - Then, it will be [prioritized](https://fleetdm.com/handbook/company/product-groups#feature-fest) and written up as one or more user stories.
@@ -514,9 +513,9 @@ Anyone in the product group can initiate an air guitar session.
 
 2. If the air guitar is prioritized, it's assigned to a Product Designer who brings it through the [drafting process](https://fleetdm.com/handbook/company/product-groups#drafting). However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
-3. When the wireframes are approved, assign the requester to the issue, at-mention them to let them know that the wireframes are ready, and add the appropriate label(s) to move the issue to the requester's board (`:help-customers` for CSMs and `:help-gtm-ops` for AEs). The requester (CSM or AE) will then bring the wireframes to a call with the customer or prospect to collect feedback. It's up to the requester to record feedback and add Gong snippets to the issue.
+3. When the wireframes are approved, assign the requester to the issue, at-mention them to let them know that the wireframes are ready, remove the `:product` label, and add the appropriate label(s) to move the issue to the requester's board (`:help-customers` for CSMs and `:help-gtm-ops` for AEs). The requester (CSM or AE) will then bring the wireframes to a call with the customer or prospect to collect feedback. It's up to the requester to record feedback and add Gong snippets to the issue.
 
-4. After feedback has been added to the issue, the requester at-mentions the Head of Product Design (HPD) in the issue and assigns the issue to the HPD to determine an outcome:
+4. After feedback has been added to the issue, the requester adds the `:product` label and assigns the issue to the Head of Product Design to determine an outcome:
 
   - Move forward with the formal drafting process leading to engineering.
   - Keep it open for future consideration.
@@ -685,11 +684,11 @@ Anyone in the company is invited to submit requests or simply listen in on the �
 
 ### Making a request
 
-To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template. If you found that an issue already exists, add the `~inbox` label to it.
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template. If you found that an issue already exists, add the `:product` label to it.
 
 New requests are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, and remove the `~inbox` label if it's still present.
+> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢 Product design intake & outtake project.
 
 
 ### Criteria for prioritization
@@ -706,7 +705,7 @@ Features that are core to Fleet are prioritized over context (mission critical) 
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
-If an issue has the `story` label, then it's a user story that is currently in progress ([drafting](https://fleetdm.com/handbook/company/development-groups#drafting)). The user story will include a link to the original feature request issue.
+If an issue has the `:product` and `story` label, then it's a user story that is currently in progress ([drafting](https://fleetdm.com/handbook/company/development-groups#drafting)). The user story will include a link to the original feature request issue.
 
 
 ### How feature requests are prioritized
@@ -773,9 +772,9 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
-Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). The [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md) automatically applies the `~inbox` label, and the bug is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
+Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the QA Manager is responsible for going through bugs labeled `~inbox` and adding the bug to the correct product group's board. The QA Manager then removes the `~inbox` label.
+At this state, the QA Manager is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
 
 Then, it's the product groups Engineering Manager's (EM) responsibility to review bugs during standup. It's up to the Product Designer to decide if it's a bug and specify the expected behavior.
 

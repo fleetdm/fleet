@@ -103,6 +103,46 @@ func TestBulkRemoveLabel(t *testing.T) {
 	}
 }
 
+func TestBulkSprintKickoff(t *testing.T) {
+	tests := []struct {
+		name      string
+		issues    []Issue
+		projectID int
+	}{
+		{
+			name:      "empty issues slice",
+			issues:    []Issue{},
+			projectID: 58,
+		},
+		{
+			name: "single issue",
+			issues: []Issue{
+				{Number: 123, Title: "Test Issue"},
+			},
+			projectID: 67,
+		},
+		{
+			name: "multiple issues",
+			issues: []Issue{
+				{Number: 123, Title: "Test Issue 1"},
+				{Number: 456, Title: "Test Issue 2"},
+			},
+			projectID: 70,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Skip("BulkSprintKickoff requires GitHub CLI setup and mocking for proper testing")
+			// Since BulkSprintKickoff depends on multiple GitHub CLI commands,
+			err := BulkSprintKickoff(tt.issues, tt.projectID, tt.projectID)
+			if err != nil {
+				t.Errorf("BulkSprintKickoff should return nil (stub implementation), got: %v", err)
+			}
+		})
+	}
+}
+
 func TestBulkMilestoneClose(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -157,6 +197,12 @@ func TestWorkflowFunctionsSignatures(t *testing.T) {
 		// Expected for empty slice
 	}
 
+	// Test BulkSprintKickoff signature
+	err = BulkSprintKickoff(issues, 123, 123)
+	if err != nil {
+		t.Errorf("BulkSprintKickoff unexpected error: %v", err)
+	}
+
 	// Test BulkMilestoneClose signature
 	err = BulkMilestoneClose(issues)
 	if err != nil {
@@ -186,6 +232,14 @@ func TestWorkflowsWithValidIssues(t *testing.T) {
 			},
 		},
 	}
+
+	t.Run("BulkSprintKickoff with valid issues", func(t *testing.T) {
+		t.Skip("BulkSprintKickoff requires GitHub CLI setup and mocking for proper testing")
+		err := BulkSprintKickoff(issues, 58, 58)
+		if err != nil {
+			t.Errorf("BulkSprintKickoff should return nil, got: %v", err)
+		}
+	})
 
 	t.Run("BulkMilestoneClose with valid issues", func(t *testing.T) {
 		t.Skip("BulkMilestoneClose requires GitHub CLI setup and mocking for proper testing")

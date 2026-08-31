@@ -28,29 +28,13 @@ var Aliases = map[string]int{
 	"releases":        87,
 }
 
-// ProjectLabels maps product group project IDs to their corresponding GitHub label.
+// ProjectLabels maps project IDs to their corresponding label filters for the drafting project
 var ProjectLabels = map[int]string{
-	58:  "#g-apple-at-work", // Apple @ Work
-	70:  "#g-auto-patching", // Auto Patching
-	71:  "#g-orchestration", // Orchestration
-	92:  "#g-website",       // Website
-	97:  "#g-supply-chain",  // Supply Chain
-	106: "#g-power-to-pc",   // Power to the PC
-	112: "#g-byod",          // BYOD
-}
-
-// ProjectIDForLabels returns the product group project ID matching one of the given
-// issue labels (e.g. "#g-byod"), and whether a match was found.
-func ProjectIDForLabels(labels []Label) (int, bool) {
-	for _, l := range labels {
-		name := strings.ToLower(strings.TrimSpace(l.Name))
-		for projectID, label := range ProjectLabels {
-			if strings.ToLower(label) == name {
-				return projectID, true
-			}
-		}
-	}
-	return 0, false
+	58:  "#g-mdm",           // mdm project
+	70:  "#g-software",      // g-software project
+	71:  "#g-orchestration", // g-orchestration project
+	97:  "#g-supply-chain",  // g-supply-chain project
+	112: "#g-byod",          // g-byod project
 }
 
 // ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID.

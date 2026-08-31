@@ -54,7 +54,7 @@ These categories compete for priority in the normal product pipeline so that pro
 
 **To file the story:**
 
-1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added and the engineering output and architecture DRI (@lukeheath) is assigned.
+1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
 2. Remove the "Product" section and checklist from the issue description.
 

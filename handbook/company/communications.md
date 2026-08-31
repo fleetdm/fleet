@@ -446,7 +446,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 
 
-> If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', 'story']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
+> If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
 
 
 > ***Create an issue from a Slack message***

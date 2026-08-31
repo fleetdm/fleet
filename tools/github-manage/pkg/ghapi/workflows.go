@@ -152,6 +152,20 @@ func CreateBulkMoveToCurrentSprintIfNotReadyQA(issues []Issue, projectID int) []
 	return CreateBulkSetSprintAction(filtered, projectID)
 }
 
+func CreateBulkSprintKickoffActions(issues []Issue, sourceProjectID, projectID int) []Action {
+	logger.Infof("Creating sprint kickoff actions for %d issues (source project: %d, target project: %d)", len(issues), sourceProjectID, projectID)
+
+	actions := CreateBulkAddIssueToProjectAction(issues, projectID)
+	actions = append(actions, CreateBulkAddLableAction(issues, ":release")...)
+	actions = append(actions, CreateBulkSyncEstimateAction(issues, sourceProjectID, projectID)...)
+	actions = append(actions, CreateBulkSetSprintAction(issues, projectID)...)
+	actions = append(actions, CreateBulkRemoveLabelAction(issues, ":product")...)
+	actions = append(actions, CreateBulkRemoveIssueFromProjectAction(issues, Aliases["draft"])...)
+
+	logger.Infof("Created %d sprint kickoff actions", len(actions))
+	return actions
+}
+
 func CreateBulkMilestoneCloseActions(issues []Issue) []Action {
 	logger.Infof("Creating milestone close actions for %d issues", len(issues))
 	// Split issues by type
@@ -183,17 +197,9 @@ func CreateBulkMilestoneCloseActions(issues []Issue) []Action {
 
 	var actions []Action
 	if len(storyIssues) > 0 {
-		for _, issue := range storyIssues {
-			// Stories already live on their product group's board (there's no
-			// separate drafting board to move them onto) — resolve which board
-			// that is from the issue's own #g-* label and set status there.
-			projectID, ok := ProjectIDForLabels(issue.Labels)
-			if !ok {
-				logger.Errorf("Skipping 'confirm and celebrate' status for issue #%d: no product group label found", issue.Number)
-				continue
-			}
-			actions = append(actions, CreateBulkSetStatusAction([]Issue{issue}, projectID, "confirm and celebrate")...)
-		}
+		actions = append(actions, CreateBulkAddIssueToProjectAction(storyIssues, Aliases["draft"])...)
+		actions = append(actions, CreateBulkAddLableAction(storyIssues, ":product")...)
+		actions = append(actions, CreateBulkSetStatusAction(storyIssues, Aliases["draft"], "confirm and")...)
 		actions = append(actions, CreateBulkRemoveLabelAction(storyIssues, ":release")...)
 	}
 	for _, is := range closeIssues {
@@ -201,6 +207,20 @@ func CreateBulkMilestoneCloseActions(issues []Issue) []Action {
 	}
 
 	logger.Infof("Created %d milestone close actions (stories=%d, close=%d)", len(actions), len(storyIssues), len(closeIssues))
+	return actions
+}
+
+func CreateBulkKickOutOfSprintActions(issues []Issue, sourceProjectID int) []Action {
+	logger.Infof("Creating kick out of sprint actions for %d issues (source project: %d)", len(issues), sourceProjectID)
+
+	actions := CreateBulkAddIssueToProjectAction(issues, Aliases["draft"])
+	actions = append(actions, CreateBulkSetStatusAction(issues, Aliases["draft"], "estimated")...)
+	actions = append(actions, CreateBulkSyncEstimateAction(issues, sourceProjectID, Aliases["draft"])...)
+	actions = append(actions, CreateBulkAddLableAction(issues, ":product")...)
+	actions = append(actions, CreateBulkRemoveLabelAction(issues, ":release")...)
+	actions = append(actions, CreateBulkRemoveIssueFromProjectAction(issues, sourceProjectID)...)
+
+	logger.Infof("Created %d kick out of sprint actions", len(actions))
 	return actions
 }
 
@@ -338,12 +358,79 @@ func BulkRemoveLabel(issues []Issue, label string) error {
 	return nil
 }
 
+// BulkSprintKickoff performs the sprint kickoff workflow for multiple issues.
+// This includes adding issues to the target project, adding release labels, syncing estimates, and setting sprints.
+func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
+	logger.Infof("Starting sprint kickoff workflow for %d issues (source: %d, target: %d)", len(issues), sourceProjectID, projectID)
+
+	// Add ticket to the target product group project
+	logger.Info("Step 1/6: Adding issues to target project")
+	for _, issue := range issues {
+		err := AddIssueToProject(issue.Number, projectID)
+		if err != nil {
+			logger.Errorf("Failed to add issue #%d to project %d: %v", issue.Number, projectID, err)
+			return err
+		}
+		logger.Debugf("Added issue #%d to project %d", issue.Number, projectID)
+	}
+
+	// Add the `:release` label to each issue
+	logger.Info("Step 2/6: Adding release labels")
+	err := BulkAddLabel(issues, ":release")
+	if err != nil {
+		return err
+	}
+
+	// Sync the Estimate field from drafting project to the target product group project
+	logger.Info("Step 3/6: Syncing estimates")
+	for _, issue := range issues {
+		err := SyncEstimateField(issue.Number, sourceProjectID, projectID)
+		if err != nil {
+			logger.Errorf("Failed to sync estimate for issue #%d: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Synced estimate for issue #%d", issue.Number)
+	}
+
+	// Set the sprint to the current sprint
+	logger.Info("Step 4/6: Setting current sprint")
+	for _, issue := range issues {
+		err := SetCurrentSprint(issue.Number, projectID)
+		if err != nil {
+			logger.Errorf("Failed to set current sprint for issue #%d: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Set current sprint for issue #%d", issue.Number)
+	}
+
+	// Remove the `:product` label from each issue
+	logger.Info("Step 5/6: Removing product labels")
+	err = BulkRemoveLabel(issues, ":product")
+	if err != nil {
+		return err
+	}
+
+	// Remove from the drafting project
+	logger.Info("Step 6/6: Removing from drafting project")
+	draftingProjectID := Aliases["draft"]
+	for _, issue := range issues {
+		err := RemoveIssueFromProject(issue.Number, draftingProjectID)
+		if err != nil {
+			logger.Errorf("Failed to remove issue #%d from drafting project: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Removed issue #%d from drafting project", issue.Number)
+	}
+
+	logger.Info("Sprint kickoff workflow completed successfully")
+	return nil
+}
+
 // BulkMilestoneClose performs the milestone close workflow for multiple issues.
-// Stories already live on their product group's board, so this sets status
-// directly on that board (resolved per-issue from its #g-* label) instead of
-// moving anything to a separate drafting project.
+// This includes moving issues back to the drafting project and removing them from product group projects.
 func BulkMilestoneClose(issues []Issue) error {
 	logger.Infof("Starting milestone close workflow for %d issues", len(issues))
+	draftingProjectID := Aliases["draft"]
 	var storyIssues []Issue
 	var closeIssues []Issue
 	for _, is := range issues {
@@ -369,24 +456,30 @@ func BulkMilestoneClose(issues []Issue) error {
 		}
 	}
 
-	// Process story issues: set status to confirm and celebrate on their own
-	// product group board, remove :release
+	// Process story issues: move to drafting, add :product, set status, remove :release
 	if len(storyIssues) > 0 {
 		logger.Infof("Processing %d story issues for milestone close", len(storyIssues))
-		// Step 1: Set status to confirm and celebrate on each issue's product group board
+		// Step 1: Add to drafting
 		for _, issue := range storyIssues {
-			projectID, ok := ProjectIDForLabels(issue.Labels)
-			if !ok {
-				logger.Errorf("Skipping issue #%d: no product group label found, cannot resolve its board", issue.Number)
-				continue
+			err := AddIssueToProject(issue.Number, draftingProjectID)
+			if err != nil {
+				logger.Errorf("Failed to add issue #%d to drafting project: %v", issue.Number, err)
+				return err
 			}
-			err := SetIssueStatus(issue.Number, projectID, "confirm and celebrate")
+		}
+		// Step 2: Add :product
+		if err := BulkAddLabel(storyIssues, ":product"); err != nil {
+			return err
+		}
+		// Step 3: Set status to confirm and celebrate
+		for _, issue := range storyIssues {
+			err := SetIssueStatus(issue.Number, draftingProjectID, "confirm and celebrate")
 			if err != nil {
 				logger.Errorf("Failed to set status for issue #%d: %v", issue.Number, err)
 				return err
 			}
 		}
-		// Step 2: Remove :release
+		// Step 4: Remove :release
 		if err := BulkRemoveLabel(storyIssues, ":release"); err != nil {
 			return err
 		}
@@ -404,5 +497,63 @@ func BulkMilestoneClose(issues []Issue) error {
 	}
 
 	logger.Info("Milestone close workflow completed successfully")
+	return nil
+}
+
+// BulkKickOutOfSprint performs the kick out of sprint workflow for multiple issues.
+// This includes moving issues back to the drafting project, setting status to estimated,
+// syncing estimates from source project, and updating labels.
+func BulkKickOutOfSprint(issues []Issue, sourceProjectID int) error {
+	logger.Infof("Starting kick out of sprint workflow for %d issues (source: %d)", len(issues), sourceProjectID)
+
+	// Add issues to the drafting project
+	logger.Info("Step 1/5: Adding issues to drafting project")
+	draftingProjectID := Aliases["draft"]
+	for _, issue := range issues {
+		err := AddIssueToProject(issue.Number, draftingProjectID)
+		if err != nil {
+			logger.Errorf("Failed to add issue #%d to drafting project: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Added issue #%d to drafting project", issue.Number)
+	}
+
+	// Set the status to "estimated"
+	logger.Info("Step 2/5: Setting status to 'estimated'")
+	for _, issue := range issues {
+		err := SetIssueStatus(issue.Number, draftingProjectID, "estimated")
+		if err != nil {
+			logger.Errorf("Failed to set status for issue #%d: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Set status for issue #%d", issue.Number)
+	}
+
+	// Sync the Estimate field from source project to the drafting project
+	logger.Info("Step 3/5: Syncing estimates from source project")
+	for _, issue := range issues {
+		err := SyncEstimateField(issue.Number, sourceProjectID, draftingProjectID)
+		if err != nil {
+			logger.Errorf("Failed to sync estimate for issue #%d: %v", issue.Number, err)
+			return err
+		}
+		logger.Debugf("Synced estimate for issue #%d", issue.Number)
+	}
+
+	// Add the `:product` label to each issue
+	logger.Info("Step 4/5: Adding product labels")
+	err := BulkAddLabel(issues, ":product")
+	if err != nil {
+		return err
+	}
+
+	// Remove the `:release` label from each issue
+	logger.Info("Step 5/5: Removing release labels")
+	err = BulkRemoveLabel(issues, ":release")
+	if err != nil {
+		return err
+	}
+
+	logger.Info("Kick out of sprint workflow completed successfully")
 	return nil
 }
