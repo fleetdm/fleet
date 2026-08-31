@@ -36,7 +36,7 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, len(lblMap))
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Teams)
 
 	var lblIDs []uint
 	for _, labelID := range lblMap {
@@ -47,22 +47,22 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
-	require.Len(t, searchResp.Targets.Labels, 0)         // All built-in labels have been omitted (pre-selected)
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Labels)          // All built-in labels have been omitted (pre-selected)
+	require.Empty(t, searchResp.Targets.Teams)
 
 	searchResp = fleet.SearchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(1), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
 	require.Len(t, searchResp.Targets.Labels, len(lblMap)) // labels have not been omitted
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Teams)
 
 	searchResp = fleet.SearchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, 1)
 	require.Len(t, searchResp.Targets.Labels, 1) // with a match query, only matching label names and "All Hosts" can be returned (here, only all hosts)
-	require.Len(t, searchResp.Targets.Teams, 0)
+	require.Empty(t, searchResp.Targets.Teams)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }
 

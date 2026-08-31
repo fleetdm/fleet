@@ -130,11 +130,11 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	// List (no-filtering).
 	var lsvr fleet.ListSecretVariablesResponse
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", fleet.ListSecretVariablesRequest{}, http.StatusOK, &lsvr)
-	require.Equal(t, lsvr.Count, 1)
+	require.Equal(t, 1, lsvr.Count)
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.NotZero(t, lsvr.CustomVariables[0].ID)
 	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
-	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.NotEmpty(t, lsvr.CustomVariables[0].UpdatedAt)
 
 	// Make sure we can access the value internally.
 	secretVariables, err := s.ds.GetSecretVariables(ctx, []string{"NAME1"})
@@ -199,7 +199,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.Equal(t, secondVariableID, lsvr.CustomVariables[0].ID)
 	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
-	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.NotEmpty(t, lsvr.CustomVariables[0].UpdatedAt)
 	// List (no-filtering) with pagination (second page).
 	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "1")
@@ -210,7 +210,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.Equal(t, firstVariableID, lsvr.CustomVariables[0].ID)
 	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
-	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.NotEmpty(t, lsvr.CustomVariables[0].UpdatedAt)
 	// List (no-filtering) with pagination (one page, two secrets).
 	// Must be ordered alphabetically.
 	lsvr = fleet.ListSecretVariablesResponse{}
@@ -222,10 +222,10 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.Len(t, lsvr.CustomVariables, 2)
 	require.Equal(t, secondVariableID, lsvr.CustomVariables[0].ID)
 	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
-	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.NotEmpty(t, lsvr.CustomVariables[0].UpdatedAt)
 	require.Equal(t, firstVariableID, lsvr.CustomVariables[1].ID)
 	require.Equal(t, "NAME1", lsvr.CustomVariables[1].Name)
-	require.NotZero(t, lsvr.CustomVariables[1].UpdatedAt)
+	require.NotEmpty(t, lsvr.CustomVariables[1].UpdatedAt)
 
 	// Test deletion of non-existent ID
 	var dsvr fleet.DeleteSecretVariableResponse
@@ -374,9 +374,9 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	// List (no-filtering) should work for non-admins.
 	var lsvr fleet.ListSecretVariablesResponse
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", fleet.ListSecretVariablesRequest{}, http.StatusOK, &lsvr)
-	require.Equal(t, lsvr.Count, 1)
+	require.Equal(t, 1, lsvr.Count)
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.NotZero(t, lsvr.CustomVariables[0].ID)
 	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
-	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.NotEmpty(t, lsvr.CustomVariables[0].UpdatedAt)
 }

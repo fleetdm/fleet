@@ -53,7 +53,7 @@ func (s *integrationTestSuite) TestSessionInfo() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusOK, &delResp)
 
 	// delete session - non-existing
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/sessions/%d", ssn.ID), nil, http.StatusNotFound, &delResp) // nolint:nilaway // createSession fails the test via require internally on error, cannot be nil here
 }
 
 // Free tier must not expose or accept fleet_desktop.sso_enabled, and must not
@@ -102,7 +102,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	actDetails := fleet.ActivityTypeUserFailedLogin{}
 	err := json.Unmarshal(*activity.Details, &actDetails)
 	require.NoError(t, err)
-	require.Equal(t, actDetails.Email, "foobar@example.com")
+	require.Equal(t, "foobar@example.com", actDetails.Email)
 
 	// login with good password, should succeed
 	res = s.DoRawNoAuth(

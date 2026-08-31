@@ -99,7 +99,7 @@ func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
 	config = s.getConfig()
-	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) // nolint:nilaway // getConfig fails the test via require internally on error, cannot be nil here
 }
 
 func (s *integrationTestSuite) TestActivitiesWebhookConfig() {
@@ -223,7 +223,7 @@ func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
 	config := s.getConfig()
 	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
-	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.InDelta(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage, 0.001)
 	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
 
 	// update without a destination url
@@ -269,7 +269,7 @@ func (s *integrationTestSuite) TestHostStatusWebhookConfig() {
 	config = s.getConfig()
 	require.True(t, config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://some/url", config.WebhookSettings.HostStatusWebhook.DestinationURL)
-	require.Equal(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage)
+	require.InDelta(t, 2.0, config.WebhookSettings.HostStatusWebhook.HostPercentage, 0.001)
 	require.Equal(t, 1, config.WebhookSettings.HostStatusWebhook.DaysCount)
 
 	// disabling ignores the invalid parameters

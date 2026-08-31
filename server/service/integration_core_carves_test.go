@@ -41,7 +41,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	require.NoError(t, err)
 	c3, err := s.ds.NewCarve(ctx, &fleet.CarveMetadata{
 		CreatedAt: time.Now(),
-		HostId:    hosts[2].ID,
+		HostId:    hosts[2].ID, // nolint:nilaway // createHosts always returns at least one host
 		Name:      t.Name() + "_3",
 		SessionId: "ssn3",
 	})
@@ -77,7 +77,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 
 	// empty page
 	s.DoJSON("GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "page", "3", "per_page", "2", "order_key", "id", "expired", "1")
-	require.Len(t, listResp.Carves, 0)
+	require.Empty(t, listResp.Carves)
 
 	// get specific carve
 	var getResp fleet.GetCarveResponse
@@ -109,7 +109,7 @@ func (s *integrationTestSuite) TestCarve() {
 	hosts := s.createHosts(t)
 
 	// begin a carve with an invalid node key
-	var errRes map[string]interface{}
+	var errRes map[string]any
 	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey + "zzz",
 		BlockCount: 1,

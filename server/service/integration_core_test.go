@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -170,7 +171,7 @@ func (s *integrationTestSuite) cleanupQuery(queryID uint) {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }
 
-func jsonMustMarshal(t testing.TB, v interface{}) []byte {
+func jsonMustMarshal(t testing.TB, v any) []byte {
 	b, err := json.Marshal(v)
 	require.NoError(t, err)
 	return b
@@ -199,7 +200,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
 				_, err := w.Write([]byte(jiraProjectResponsePayload))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -209,7 +210,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
 				_, err := w.Write([]byte(jiraProjectResponsePayload))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -219,7 +220,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
 				_, err := w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -229,7 +230,7 @@ func startExternalServiceWebServer(t *testing.T) string {
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
 				_, err := w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:

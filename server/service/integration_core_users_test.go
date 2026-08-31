@@ -489,7 +489,7 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	}
 	user, err := s.ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
-	assert.Len(t, user.Teams, 0)
+	assert.Empty(t, user.Teams)
 
 	spec := []byte(fmt.Sprintf(`
   roles:
@@ -539,7 +539,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// list invites, none yet
 	var listResp listInvitesResponse
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
@@ -623,12 +623,12 @@ func (s *integrationTestSuite) TestInvites() {
 	// matches nothing
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "query", " no match                     ")
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// list invites, next page is empty
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp, "page", "1", "per_page", "2")
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// update a non-existing invite
 	updateInviteReq := updateInviteRequest{InvitePayload: fleet.InvitePayload{
@@ -689,7 +689,7 @@ func (s *integrationTestSuite) TestInvites() {
 
 	verify, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
-	require.Equal(t, "", verify.GlobalRole.String)
+	require.Empty(t, verify.GlobalRole.String)
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
@@ -724,7 +724,7 @@ func (s *integrationTestSuite) TestInvites() {
 	// list invites, is now empty
 	listResp = listInvitesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp)
-	require.Len(t, listResp.Invites, 0)
+	require.Empty(t, listResp.Invites)
 
 	// delete a now non-existing invite
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), nil, http.StatusNotFound, &delResp)
@@ -985,7 +985,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// with non-matching query
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", "noone")
-	assert.Len(t, listResp.Users, 0)
+	assert.Empty(t, listResp.Users)
 
 	// with matching query containing leading/trailing whitespaces
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", " user 	")
@@ -1003,8 +1003,8 @@ func (s *integrationTestSuite) TestUsers() {
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
-	assert.Len(t, getMeResp.User.Teams, 0)
-	assert.Len(t, getMeResp.AvailableTeams, 0)
+	assert.Empty(t, getMeResp.User.Teams)
+	assert.Empty(t, getMeResp.AvailableTeams)
 
 	// test user settings from 2 endpoints
 
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
 	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}}, getResp.Settings)
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -1047,7 +1047,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
 	assert.Nil(t, getMeResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"osquery_version"}}, getResp.Settings)
 
 	// modify user ui settings, check they are returned modified
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
@@ -1059,7 +1059,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
 	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}}, getResp.Settings)
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -1069,7 +1069,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
 	assert.Nil(t, getMeResp.User.Settings)
-	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{"hostname", "osquery_version"}}, getMeResp.Settings)
 
 	// modify user ui settings, empty array, check they are returned correctly
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", 1), json.RawMessage(`{
@@ -1081,7 +1081,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", 1), nil, http.StatusOK, &getResp, "include_ui_settings", "true")
 	assert.Equal(t, uint(1), getResp.User.ID)
 	assert.Nil(t, getResp.User.Settings)
-	assert.Equal(t, getResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{}}, getResp.Settings)
 
 	resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/me", []byte(""), http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", ssn.Key),
@@ -1091,7 +1091,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.Equal(t, uint(1), getMeResp.User.ID)
 	assert.NotNil(t, getMeResp.User.GlobalRole)
 	assert.Nil(t, getMeResp.User.Settings)
-	assert.Equal(t, getMeResp.Settings, &fleet.UserSettings{HiddenHostColumns: []string{}})
+	assert.Equal(t, &fleet.UserSettings{HiddenHostColumns: []string{}}, getMeResp.Settings)
 
 	// create a new user
 	var createResp createUserResponse
@@ -1195,14 +1195,14 @@ func (s *integrationTestSuite) TestUsers() {
 	// login as that user and check that teams info is empty
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
-	assert.Len(t, loginResp.User.Teams, 0)
-	assert.Len(t, loginResp.AvailableTeams, 0)
+	assert.Empty(t, loginResp.User.Teams)
+	assert.Empty(t, loginResp.AvailableTeams)
 
 	// get that user from `/users` endpoint and check that teams info is empty
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, u.ID, getResp.User.ID)
-	assert.Len(t, getResp.User.Teams, 0)
-	assert.Len(t, getResp.AvailableTeams, 0)
+	assert.Empty(t, getResp.User.Teams)
+	assert.Empty(t, getResp.AvailableTeams)
 
 	// get non-existing user
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID+1), nil, http.StatusNotFound, &getResp)
@@ -1341,9 +1341,9 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 	}
 	userRawPwd := "foobarbaz1234!"
 	err := user.SetPassword(userRawPwd, 10, 10)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	user, err = s.ds.NewUser(context.Background(), user)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// try to change email with an invalid token
 	var changeResp changeEmailResponse
@@ -1351,7 +1351,7 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 
 	// create a valid token for the test user
 	err = s.ds.PendingEmailChange(context.Background(), user.ID, "testchangeemail2@example.com", "validtoken")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// try to change email with a valid token, but request made from different user
 	changeResp = changeEmailResponse{}

@@ -83,11 +83,11 @@ func (s *integrationTestSuite) TestAppConfigDetailQueriesOverrides() {
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	config := s.getConfig()
 	s.Run("Update interval", func() {
-		require.Equal(s.T(), 1*time.Hour, config.UpdateInterval.OSQueryDetail)
+		s.Require().Equal(1*time.Hour, config.UpdateInterval.OSQueryDetail)
 	})
 
 	s.Run("has logging", func() {
-		require.NotNil(s.T(), config.Logging)
+		s.Require().NotNil(config.Logging)
 	})
 }
 
@@ -667,7 +667,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 			"zendesk": []
 		}
 	}`), http.StatusOK, &appCfgResp)
-	require.Len(t, appCfgResp.Integrations.Jira, 0)
+	require.Empty(t, appCfgResp.Integrations.Jira)
 
 	// set environmental varible to use Zendesk test client
 	t.Setenv("TEST_ZENDESK_CLIENT", "true")
@@ -685,7 +685,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, srvURL, config.Integrations.Zendesk[0].URL)
 	require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
@@ -716,7 +716,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 2)
 
 	// first integration
@@ -758,7 +758,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, int64(123), config.Integrations.Zendesk[0].GroupID)
 
@@ -778,7 +778,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.False(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
@@ -841,7 +841,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
@@ -862,7 +862,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL, fleet.MaskedPassword)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.False(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
@@ -883,7 +883,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`, srvURL)), http.StatusOK)
 
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
+	require.Empty(t, config.Integrations.Jira)
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
@@ -1154,8 +1154,8 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 		}
 	}`), http.StatusOK)
 	config = s.getConfig()
-	require.Len(t, config.Integrations.Jira, 0)
-	require.Len(t, config.Integrations.Zendesk, 0)
+	require.Empty(t, config.Integrations.Jira)
+	require.Empty(t, config.Integrations.Zendesk)
 
 	// enable webhooks
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
@@ -1427,7 +1427,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
 	assert.False(t, acResp.GitOpsConfig.GitopsModeEnabled)
-	assert.Zero(t, acResp.GitOpsConfig.RepositoryURL)
+	assert.Empty(t, acResp.GitOpsConfig.RepositoryURL)
 	expectedMaxPackageSize := config.TestConfig().Server.MaxInstallerSizeBytes
 	assert.Equal(t, expectedMaxPackageSize, acResp.MaxSoftwarePackageSize)
 
@@ -1544,7 +1544,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"agent_options": {}
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, string(*acResp.AgentOptions), "{}")
+	require.Equal(t, "{}", string(*acResp.AgentOptions))
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
 	// test a change that does modify the agent options.
@@ -1552,7 +1552,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"agent_options": { "config": {"views": {"foo": "bar"}} }
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	require.True(t, len(listActivities.Activities) > 1)
+	require.Greater(t, len(listActivities.Activities), 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
@@ -1713,7 +1713,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.Len(t, seenActivitiesIDs, 2)
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
-	require.Len(t, specResp.Spec.Secrets, 0)
+	require.Empty(t, specResp.Spec.Secrets)
 
 	// try to update the apple bm terms flag via PATCH /config
 	// request is ok but modified value is ignored
@@ -1848,7 +1848,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "mode=light")
 	// Deprecated key is in sync.
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, acResp.OrgInfo.OrgLogoURLLightBackground)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusOK)
 	gotBody, err := io.ReadAll(res.Body)
@@ -1888,7 +1888,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
@@ -1911,9 +1911,9 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
-	require.Empty(t, acResp.OrgInfo.OrgLogoURL)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURL) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	// 8. PATCH transitioning a Fleet-hosted URL to an external URL must
 	// preserve the external URL and delete the previously-stored blob.
@@ -1930,7 +1930,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	}`), http.StatusOK)
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightBackground)
+	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	// The orphan blob is actually gone: GET /logo?mode=light returns 404.
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
