@@ -143,7 +143,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[str
 	// Note: hosts with status pending, verified, or failed are NOT included
 	// Note: hosts with operation_type='remove' are handled by RestoreRecoveryLockForReenabledHosts
 	const stmt = `
-		SELECT h.uuid, (rkp.encrypted_password IS NOT NULL OR rkp.pending_encrypted_password IS NOT NULL) as has_password
+		SELECT h.uuid, rkp.encrypted_password IS NOT NULL as has_password
 		FROM hosts h
 		JOIN nano_enrollments ne ON ne.device_id = h.uuid
 		JOIN host_mdm hm ON hm.host_id = h.id
