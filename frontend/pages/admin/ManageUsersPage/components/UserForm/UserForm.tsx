@@ -106,7 +106,7 @@ const UserForm = ({
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
   const { config } = useContext(AppContext);
-  const priMode = config?.partnerships?.enable_primo;
+  const isPrimoMode = config?.partnerships?.enable_primo || false;
 
   // The submit button lives in a ModalFooter outside the <form>, so it reaches
   // the form's onSubmit through this id rather than through its own onClick.
@@ -157,12 +157,14 @@ const UserForm = ({
 
   const isGlobalUser = formData.global_role !== null;
 
-  // watch for population from context, set state
+  // Context-driven population, not user input. commitFields flips isDirty; if
+  // we ever add an unsaved-changes guard, consider extending the hook with a
+  // `hydrate` setter.
   useEffect(() => {
-    if (priMode) {
+    if (isPrimoMode) {
       commitFields({ global_role: "observer", teams: [] });
     }
-  }, [priMode, commitFields]);
+  }, [isPrimoMode, commitFields]);
 
   useEffect(() => {
     // If SSO is globally disabled but user previously signed in via SSO,
@@ -546,7 +548,7 @@ const UserForm = ({
   );
 
   const renderGlobalAdminOptions = () => {
-    if (priMode) {
+    if (isPrimoMode) {
       return (
         <TooltipWrapper
           tipContent={PRIMO_TOOLTIP}
