@@ -679,7 +679,7 @@ const EditQueryForm = ({
                 value={lastEditedQueryFrequency}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                helpText="Hosts will start reporting results after they've been online for this long."
+                helpText="Hosts report new results after they've been online for this long."
               />
               <Slider
                 onChange={() =>
