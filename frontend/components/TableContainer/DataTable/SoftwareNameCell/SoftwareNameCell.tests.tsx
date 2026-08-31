@@ -231,4 +231,48 @@ describe("SoftwareNameCell icon rendering", () => {
       await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
   });
+
+  // VPP auto-update badge — separate from the install-icon family. Renders
+  // alongside the install icon (both can be present on the same row).
+  it("shows a refresh badge with window tooltip when autoUpdateEnabled is true", async () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        autoUpdateEnabled
+        autoUpdateWindowStart="02:00"
+        autoUpdateWindowEnd="04:00"
+      />
+    );
+    // No install icon on this VPP-only row, but the auto-update badge renders.
+    const icons = screen.getAllByTestId("refresh-icon");
+    expect(icons).toHaveLength(1);
+    await userEvent.hover(icons[0]);
+    expect(
+      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+    ).toBeInTheDocument();
+  });
+
+  it("does not render the auto-update badge when autoUpdateEnabled is false", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SoftwareNameCell {...defaultProps} autoUpdateEnabled={false} />);
+    expect(screen.queryByTestId("refresh-icon")).toBeNull();
+  });
+
+  it("renders both the install icon and the auto-update badge when both apply", async () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        hasInstaller
+        automaticInstallPoliciesCount={1}
+        autoUpdateEnabled
+        autoUpdateWindowStart="02:00"
+        autoUpdateWindowEnd="04:00"
+      />
+    );
+    // Auto-install refresh + auto-update refresh — two separate icons.
+    const icons = screen.getAllByTestId("refresh-icon");
+    expect(icons).toHaveLength(2);
+  });
 });

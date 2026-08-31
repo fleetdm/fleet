@@ -3012,6 +3012,26 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
+	// Verify that ListSoftwareTitles surfaces the same auto_update fields (the
+	// list response embeds SoftwareAutoUpdateConfig, so the join must populate
+	// them for FE list-page indicators to render).
+	listTitles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		TeamID: teamID,
+	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	require.NoError(t, err)
+	listed := titleByName(listTitles, "vpp1")
+	require.NotNil(t, listed.AutoUpdateEnabled)
+	require.True(t, *listed.AutoUpdateEnabled)
+	require.NotNil(t, listed.AutoUpdateStartTime)
+	require.Equal(t, startTime, *listed.AutoUpdateStartTime)
+	require.NotNil(t, listed.AutoUpdateEndTime)
+	require.Equal(t, endTime, *listed.AutoUpdateEndTime)
+	// A title with no schedule should marshal all three as nil.
+	unscheduled := titleByName(listTitles, "vpp3")
+	require.Nil(t, unscheduled.AutoUpdateEnabled)
+	require.Nil(t, unscheduled.AutoUpdateStartTime)
+	require.Nil(t, unscheduled.AutoUpdateEndTime)
+
 	// Add valid, disabled auto-update schedule for the other VPP app.
 	// The schedule should be ignored since it's disabled, but it should still be created.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{

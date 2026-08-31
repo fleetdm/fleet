@@ -224,6 +224,9 @@ export interface ISoftwareTitle {
    * `null` when the title has no custom packages. */
   packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }

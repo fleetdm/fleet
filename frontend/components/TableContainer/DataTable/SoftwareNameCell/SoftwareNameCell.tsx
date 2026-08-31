@@ -100,6 +100,41 @@ const getInstallIconType = (
   return isSelfService ? "selfService" : "manual";
 };
 
+interface IAutoUpdateIconWithTooltipProps {
+  windowStart?: string;
+  windowEnd?: string;
+}
+
+export const AutoUpdateIconWithTooltip = ({
+  windowStart,
+  windowEnd,
+}: IAutoUpdateIconWithTooltipProps) => (
+  <div className={`${baseClass}__install-icon-with-tooltip`}>
+    <TooltipWrapper
+      tipContent={
+        windowStart && windowEnd ? (
+          <>
+            Auto updates between {windowStart} and {windowEnd}.
+          </>
+        ) : (
+          <>Auto updates enabled.</>
+        )
+      }
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={12}
+      fixedPositionStrategy
+    >
+      <Icon
+        name="refresh"
+        className={`${baseClass}__install-icon`}
+        color="ui-fleet-black-50"
+      />
+    </TooltipWrapper>
+  </div>
+);
+
 export const InstallIconWithTooltip = ({
   isSelfService,
   automaticInstallPoliciesCount,
@@ -162,6 +197,11 @@ interface ISoftwareNameCellProps {
   iconUrl?: string | null;
   isIosOrIpadosApp?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  /** VPP auto-updates flag from the list response; when true, renders a refresh-icon
+   * badge alongside the install icon. */
+  autoUpdateEnabled?: boolean;
+  autoUpdateWindowStart?: string;
+  autoUpdateWindowEnd?: string;
   /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
   previewIcon?: JSX.Element;
 }
@@ -179,6 +219,9 @@ const SoftwareNameCell = ({
   iconUrl,
   isIosOrIpadosApp = false,
   isAndroidPlayStoreApp = false,
+  autoUpdateEnabled = false,
+  autoUpdateWindowStart,
+  autoUpdateWindowEnd,
   previewIcon,
 }: ISoftwareNameCellProps) => {
   const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
@@ -220,14 +263,24 @@ const SoftwareNameCell = ({
       prefix={icon}
       value={softwareDisplayName}
       suffix={
-        hasInstaller ? (
-          <InstallIconWithTooltip
-            isSelfService={isSelfService}
-            automaticInstallPoliciesCount={automaticInstallPoliciesCount}
-            pageContext={pageContext}
-            isIosOrIpadosApp={isIosOrIpadosApp}
-            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-          />
+        hasInstaller || autoUpdateEnabled ? (
+          <>
+            {hasInstaller && (
+              <InstallIconWithTooltip
+                isSelfService={isSelfService}
+                automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+                pageContext={pageContext}
+                isIosOrIpadosApp={isIosOrIpadosApp}
+                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+              />
+            )}
+            {autoUpdateEnabled && (
+              <AutoUpdateIconWithTooltip
+                windowStart={autoUpdateWindowStart}
+                windowEnd={autoUpdateWindowEnd}
+              />
+            )}
+          </>
         ) : undefined
       }
     />
