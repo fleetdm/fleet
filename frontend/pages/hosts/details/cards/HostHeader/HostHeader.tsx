@@ -167,6 +167,24 @@ const HostHeader = ({
   const hasMdmCheckIn =
     !!lastMdmCheckIn && lastMdmCheckIn !== DEFAULT_EMPTY_CELL_VALUE;
 
+  // "Last fetched" is the most recent of the osquery detail refresh and the
+  // policy refresh, so a patch-when-closed skip driven by a fresh policy
+  // re-eval doesn't look older than the page itself.
+  const detailUpdatedAtMs = Date.parse(summaryData.detail_updated_at);
+  const policyUpdatedAtMs = Date.parse(summaryData.policy_updated_at);
+  const detailValid = Number.isFinite(detailUpdatedAtMs);
+  const policyValid = Number.isFinite(policyUpdatedAtMs);
+  let lastFetchedAt: string | undefined;
+  if (detailValid && policyValid) {
+    lastFetchedAt = new Date(
+      Math.max(detailUpdatedAtMs, policyUpdatedAtMs)
+    ).toISOString();
+  } else if (detailValid) {
+    lastFetchedAt = summaryData.detail_updated_at;
+  } else if (policyValid) {
+    lastFetchedAt = summaryData.policy_updated_at;
+  }
+
   const withTooltip = (content: React.ReactNode) => {
     if (!hasMdmCheckIn) {
       return content;
@@ -180,9 +198,8 @@ const HostHeader = ({
               Last fetched:
               <b>
                 {" "}
-                {internationalTimeFormat(
-                  new Date(summaryData.detail_updated_at)
-                )}
+                {lastFetchedAt &&
+                  internationalTimeFormat(new Date(lastFetchedAt))}
               </b>
             </span>
             <br />
@@ -201,18 +218,14 @@ const HostHeader = ({
     );
   };
 
-  // eslint-disable-next-line no-nested-ternary
-  const lastFetched = summaryData.detail_updated_at ? (
-    hasMdmCheckIn ? (
-      humanLastSeen(summaryData.detail_updated_at)
-    ) : (
-      <HumanTimeDiffWithFleetLaunchCutoff
-        timeString={summaryData.detail_updated_at}
-      />
-    )
-  ) : (
-    ": unavailable"
-  );
+  let lastFetched: React.ReactNode = ": unavailable";
+  if (lastFetchedAt && hasMdmCheckIn) {
+    lastFetched = humanLastSeen(lastFetchedAt);
+  } else if (lastFetchedAt) {
+    lastFetched = (
+      <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetchedAt} />
+    );
+  }
 
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
