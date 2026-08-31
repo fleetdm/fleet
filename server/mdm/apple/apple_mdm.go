@@ -1754,28 +1754,44 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return nil
 	}
 
-	groupDevices := func(commandType string, split func(device fleet.AppleDevicesToRefetch) bool) (in, out deviceGroup) {
+	// groupToSend returns the devices that were not already sent a commandType command.
+	groupToSend := func(commandType string) deviceGroup {
+		var group deviceGroup
 		for _, device := range devices {
 			if slices.Contains(device.CommandsAlreadySent, commandType) {
 				continue
 			}
-			g := &out
-			if split(device) {
-				g = &in
-			}
-			g.hostIDs = append(g.hostIDs, device.HostID)
-			g.uuids = append(g.uuids, device.UUID)
+			group.hostIDs = append(group.hostIDs, device.HostID)
+			group.uuids = append(group.uuids, device.UUID)
 		}
-		return in, out
+		return group
 	}
 
-	appsManagedOnly, appsAll := groupDevices(fleet.RefetchAppsCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
+	// groupsByFlag groups the devices that were not already sent a commandType
+	// command by the value of the command's per-batch flag (e.g. managedOnly),
+	// so each group can be enqueued with the flag value its devices require.
+	groupsByFlag := func(commandType string, flag func(device fleet.AppleDevicesToRefetch) bool) map[bool]deviceGroup {
+		groups := map[bool]deviceGroup{}
+		for _, device := range devices {
+			if slices.Contains(device.CommandsAlreadySent, commandType) {
+				continue
+			}
+			flagValue := flag(device)
+			group := groups[flagValue]
+			group.hostIDs = append(group.hostIDs, device.HostID)
+			group.uuids = append(group.uuids, device.UUID)
+			groups[flagValue] = group
+		}
+		return groups
+	}
+
+	appGroups := groupsByFlag(fleet.RefetchAppsCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
 		isBYODDevice := !device.InstalledFromDEP
-		return isBYODDevice
+		return isBYODDevice // BYOD devices are only queried for managed apps
 	})
-	for i, group := range []deviceGroup{appsManagedOnly, appsAll} {
-		managedOnly := i == 0
-		if len(group.uuids) == 0 {
+	for _, managedOnly := range []bool{true, false} { // fixed order keeps enqueue order deterministic
+		group, ok := appGroups[managedOnly]
+		if !ok {
 			continue
 		}
 
@@ -1789,7 +1805,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 
-	certs, _ := groupDevices(fleet.RefetchCertsCommandUUIDPrefix, func(fleet.AppleDevicesToRefetch) bool { return true })
+	certs := groupToSend(fleet.RefetchCertsCommandUUIDPrefix)
 	if len(certs.uuids) > 0 {
 		commandUUID := uuid.NewString()
 		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, certs,
@@ -1802,12 +1818,12 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 
 	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoPersonal, deviceInfoOther := groupDevices(fleet.RefetchDeviceCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
+	deviceInfoGroups := groupsByFlag(fleet.RefetchDeviceCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
 		return device.IsPersonalEnrollment
 	})
-	for i, group := range []deviceGroup{deviceInfoPersonal, deviceInfoOther} {
-		isPersonalEnrollment := i == 0
-		if len(group.uuids) == 0 {
+	for _, isPersonalEnrollment := range []bool{true, false} {
+		group, ok := deviceInfoGroups[isPersonalEnrollment]
+		if !ok {
 			continue
 		}
 
