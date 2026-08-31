@@ -95,7 +95,7 @@ func Fetch(repo string, limit int, primaryProjects []string, role string) (Fetch
 		}
 	}
 
-	board := BuildBoard(login, myPRs, reviewPRs, issues, sessions, notifications, exclude, time.Now())
+	board := BuildBoard(repo, login, myPRs, reviewPRs, issues, sessions, notifications, exclude, time.Now())
 	if len(primaryItems) > 0 {
 		board.Buckets[BucketPrimary] = primaryItems // ordered header→issues; not re-sorted
 	}

@@ -23,40 +23,42 @@ func parseTime(s string) time.Time {
 
 // BuildBoard classifies the user's PRs and assigned issues into leverage buckets.
 //
+//	repo      — the "owner/name" repo the PR/issue/notification sources were fetched for
 //	myPRs     — open PRs the user authored
 //	reviewPRs — open PRs requesting the user's review
 //	issues    — open issues assigned to the user
 //	login     — the user's GitHub login (to tell first-review from re-review)
 //	now       — current time (injected for testability)
-func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []ghapi.Issue, sessions []Session, notifications []ghapi.Notification, excludeIssues map[int]bool, now time.Time) Board {
+func BuildBoard(repo, login string, myPRs, reviewPRs []ghapi.PullRequest, issues []ghapi.Issue, sessions []Session, notifications []ghapi.Notification, excludeIssues map[int]bool, now time.Time) Board {
 	b := Board{Buckets: map[Bucket][]Item{}}
 	add := func(it Item) { b.Buckets[it.Bucket] = append(b.Buckets[it.Bucket], it) }
 
-	// Track which (kind, number) we've already placed so notifications only fill
-	// gaps — things waiting on you that a richer source didn't already surface.
+	// Track which (repo, kind, number) we've already placed so notifications only
+	// fill gaps — things waiting on you that a richer source didn't already surface.
+	// Issue/PR numbers are only unique per repo, so the repo is part of the key.
 	present := map[string]bool{}
-	pkey := func(k Kind, num int) string { return fmt.Sprintf("%d:%d", k, num) }
+	pkey := func(repo string, k Kind, num int) string { return fmt.Sprintf("%s/%d:%d", repo, k, num) }
 
 	for i := range myPRs {
 		it := classifyMyPR(myPRs[i], login)
 		add(it)
-		present[pkey(KindPR, it.Number)] = true
+		present[pkey(repo, KindPR, it.Number)] = true
 	}
 	for i := range reviewPRs {
 		it := classifyReviewRequest(reviewPRs[i], login)
 		add(it)
-		present[pkey(KindPR, it.Number)] = true
+		present[pkey(repo, KindPR, it.Number)] = true
 	}
 	for i := range issues {
 		// Issues surfaced in the Project View are excluded here (and marked present
 		// so a notification doesn't resurface them elsewhere).
 		if excludeIssues[issues[i].Number] {
-			present[pkey(KindIssue, issues[i].Number)] = true
+			present[pkey(repo, KindIssue, issues[i].Number)] = true
 			continue
 		}
 		it := classifyIssue(issues[i], now)
 		add(it)
-		present[pkey(KindIssue, it.Number)] = true
+		present[pkey(repo, KindIssue, it.Number)] = true
 	}
 
 	for _, n := range notifications {
@@ -68,7 +70,13 @@ func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []gha
 		if n.IsPR() {
 			kind = KindPR
 		}
-		if present[pkey(kind, num)] {
+		// Dedupe against the notification's own repo so a same-numbered item from
+		// another repo can't be swallowed.
+		nRepo := n.Repository.FullName
+		if nRepo == "" {
+			nRepo = repo
+		}
+		if present[pkey(nRepo, kind, num)] {
 			continue
 		}
 		bk, reason := classifyNotification(n)
@@ -82,7 +90,7 @@ func BuildBoard(login string, myPRs, reviewPRs []ghapi.PullRequest, issues []gha
 			Reason:           reason,
 			FromNotification: true,
 		})
-		present[pkey(kind, num)] = true
+		present[pkey(nRepo, kind, num)] = true
 	}
 
 	linkSessions(&b, sessions)

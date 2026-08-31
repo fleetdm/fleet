@@ -62,14 +62,19 @@ func GetNotifications(repo string) ([]Notification, error) {
 	if repo == "" {
 		repo = DefaultRepo
 	}
-	cmd := fmt.Sprintf("gh api /repos/%s/notifications --paginate", repo)
-	out, err := RunCommandWithRetry(cmd, 3)
+	// --paginate emits one JSON array per page; --slurp wraps them in a single
+	// outer array so the output stays parseable past the first page.
+	out, err := RunGHWithRetry(3, "api", fmt.Sprintf("/repos/%s/notifications", repo), "--paginate", "--slurp")
 	if err != nil {
 		return nil, err
 	}
-	var ns []Notification
-	if err := json.Unmarshal(out, &ns); err != nil {
+	var pages [][]Notification
+	if err := json.Unmarshal(out, &pages); err != nil {
 		return nil, err
+	}
+	var ns []Notification
+	for _, page := range pages {
+		ns = append(ns, page...)
 	}
 	return ns, nil
 }

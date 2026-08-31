@@ -112,10 +112,16 @@ func branchRowsForRepo(dir string) []BranchRow {
 		case strings.Contains(track, "gone"):
 			row.State = BranchGone
 		case gitRefExists(dir, "refs/remotes/origin/"+branch):
-			row.Ahead = gitAheadCount(dir, branch)
-			if row.Ahead == 0 {
+			ahead, err := gitAheadCount(dir, branch)
+			switch {
+			case err != nil:
+				// Fail closed: an unverifiable count must not look fully pushed, or
+				// the bulk "delete pushed" sweep could destroy unpushed commits.
+				row.State = BranchAhead
+			case ahead == 0:
 				row.State = BranchPushed
-			} else {
+			default:
+				row.Ahead = ahead
 				row.State = BranchAhead
 			}
 		default:
@@ -137,11 +143,10 @@ func gitRefExists(dir, ref string) bool {
 	return exec.Command("git", "-C", dir, "show-ref", "--verify", "--quiet", ref).Run() == nil
 }
 
-func gitAheadCount(dir, branch string) int {
+func gitAheadCount(dir, branch string) (int, error) {
 	out, err := exec.Command("git", "-C", dir, "rev-list", "--count", "origin/"+branch+".."+branch).Output()
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	n, _ := strconv.Atoi(strings.TrimSpace(string(out)))
-	return n
+	return strconv.Atoi(strings.TrimSpace(string(out)))
 }

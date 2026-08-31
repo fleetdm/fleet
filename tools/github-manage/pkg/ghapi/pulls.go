@@ -213,11 +213,8 @@ func listPullRequests(repo, search, fields string, limit int) ([]PullRequest, er
 	if limit <= 0 {
 		limit = 100
 	}
-	command := fmt.Sprintf(
-		"gh pr list --repo %s --state open --search %q --json %s --limit %d",
-		repo, search, fields, limit,
-	)
-	out, err := RunCommandWithRetry(command, 3)
+	out, err := RunGHWithRetry(3, "pr", "list", "--repo", repo, "--state", "open",
+		"--search", search, "--json", fields, "--limit", strconv.Itoa(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +231,7 @@ func GetPullRequest(repo string, number int) (PullRequest, error) {
 	if repo == "" {
 		repo = DefaultRepo
 	}
-	cmd := fmt.Sprintf("gh pr view %d --repo %s --json %s", number, repo, prListFields)
-	out, err := RunCommandWithRetry(cmd, 3)
+	out, err := RunGHWithRetry(3, "pr", "view", strconv.Itoa(number), "--repo", repo, "--json", prListFields)
 	if err != nil {
 		return PullRequest{}, err
 	}
@@ -264,11 +260,8 @@ func GetPRByBranch(repo, branch string) (PullRequest, bool, error) {
 	if branch == "" {
 		return PullRequest{}, false, nil
 	}
-	cmd := fmt.Sprintf(
-		"gh pr list --repo %s --state all --head %q --json %s --limit 10",
-		repo, branch, prListFields,
-	)
-	out, err := RunCommandWithRetry(cmd, 3)
+	out, err := RunGHWithRetry(3, "pr", "list", "--repo", repo, "--state", "all",
+		"--head", branch, "--json", prListFields, "--limit", "10")
 	if err != nil {
 		return PullRequest{}, false, err
 	}
@@ -327,8 +320,8 @@ func GetIssue(repo string, number int) (Issue, error) {
 	if repo == "" {
 		repo = DefaultRepo
 	}
-	cmd := fmt.Sprintf("gh issue view %d --repo %s --json number,title,url,state,updatedAt,assignees,labels,milestone", number, repo)
-	out, err := RunCommandWithRetry(cmd, 3)
+	out, err := RunGHWithRetry(3, "issue", "view", strconv.Itoa(number), "--repo", repo,
+		"--json", "number,title,url,state,updatedAt,assignees,labels,milestone")
 	if err != nil {
 		return Issue{}, err
 	}
@@ -347,11 +340,9 @@ func GetAssignedIssues(repo string, limit int) ([]Issue, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	command := fmt.Sprintf(
-		"gh issue list --repo %s --state open --assignee @me --json number,title,url,author,assignees,createdAt,updatedAt,state,labels,milestone --limit %d",
-		repo, limit,
-	)
-	out, err := RunCommandWithRetry(command, 3)
+	out, err := RunGHWithRetry(3, "issue", "list", "--repo", repo, "--state", "open", "--assignee", "@me",
+		"--json", "number,title,url,author,assignees,createdAt,updatedAt,state,labels,milestone",
+		"--limit", strconv.Itoa(limit))
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -70,24 +71,14 @@ func GetIssuesByMilestoneLimited(title string, limit int) ([]Issue, bool, error)
 
 // AddLabelToIssue adds a label to an issue.
 func AddLabelToIssue(issueNumber int, label string) error {
-	// Quote the label: it runs through `bash -c`, and labels like "#g-byod" would
-	// otherwise be swallowed as a comment (leaving --add-label without an argument).
-	command := fmt.Sprintf("gh issue edit %d --add-label %q", issueNumber, label)
-	_, err := RunCommandAndReturnOutput(command)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := RunGH("issue", "edit", strconv.Itoa(issueNumber), "--add-label", label)
+	return err
 }
 
 // RemoveLabelFromIssue removes a label from an issue.
 func RemoveLabelFromIssue(issueNumber int, label string) error {
-	command := fmt.Sprintf("gh issue edit %d --remove-label %q", issueNumber, label)
-	_, err := RunCommandAndReturnOutput(command)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := RunGH("issue", "edit", strconv.Itoa(issueNumber), "--remove-label", label)
+	return err
 }
 
 // CloseIssue closes a GitHub issue.
