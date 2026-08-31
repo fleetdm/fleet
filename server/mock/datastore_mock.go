@@ -898,6 +898,10 @@ type SetOrUpdateHostMDMAppleDeviceVitalsFunc func(ctx context.Context, hostUUID 
 
 type LoadHostMDMAppleDeviceVitalsFunc func(ctx context.Context, host *fleet.Host) error
 
+type SetOrUpdateHostMDMAndroidDeviceVitalsFunc func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error
+
+type LoadHostMDMAndroidDeviceVitalsFunc func(ctx context.Context, host *fleet.Host) error
+
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
 type SetOrUpdateHostDiskTpmPINFunc func(ctx context.Context, hostID uint, pinSet bool) error
@@ -3687,6 +3691,12 @@ type DataStore struct {
 
 	LoadHostMDMAppleDeviceVitalsFunc        LoadHostMDMAppleDeviceVitalsFunc
 	LoadHostMDMAppleDeviceVitalsFuncInvoked bool
+
+	SetOrUpdateHostMDMAndroidDeviceVitalsFunc        SetOrUpdateHostMDMAndroidDeviceVitalsFunc
+	SetOrUpdateHostMDMAndroidDeviceVitalsFuncInvoked bool
+
+	LoadHostMDMAndroidDeviceVitalsFunc        LoadHostMDMAndroidDeviceVitalsFunc
+	LoadHostMDMAndroidDeviceVitalsFuncInvoked bool
 
 	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
 	GetConfigEnableDiskEncryptionFuncInvoked bool
@@ -8965,6 +8975,20 @@ func (s *DataStore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *flee
 	s.LoadHostMDMAppleDeviceVitalsFuncInvoked = true
 	s.mu.Unlock()
 	return s.LoadHostMDMAppleDeviceVitalsFunc(ctx, host)
+}
+
+func (s *DataStore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostMDMAndroidDeviceVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostMDMAndroidDeviceVitalsFunc(ctx, hostUUID, vitals)
+}
+
+func (s *DataStore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.LoadHostMDMAndroidDeviceVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.LoadHostMDMAndroidDeviceVitalsFunc(ctx, host)
 }
 
 func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
