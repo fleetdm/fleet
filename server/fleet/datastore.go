@@ -3078,11 +3078,11 @@ type Datastore interface {
 	// Used by the auto-update cron to decide whether to advance versions.
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
-	// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
-	// code of any cached installer (active or inactive) with the given storage_id.
-	// Used by the auto-update cron to recover uninstall-script substitution values
-	// on the byte-dedup path. Returns empty values (no error) when nothing matches.
-	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+	// GetSoftwareInstallerMetadataByStorageID describes any cached installer (active
+	// or inactive) with the given storage_id. Used by the auto-update cron to recover
+	// what it would otherwise have taken off the downloaded file, on the byte-dedup
+	// path. Returns a zero value (no error) when nothing matches.
+	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (CachedInstallerMetadata, error)
 
 	// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
 	// already-installed Fleet-maintained app, cloning the active installer's
@@ -3116,6 +3116,11 @@ type Datastore interface {
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team, and its storage hash.
 	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
+
+	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
+	// installer still on the given version, cancelling pending installs as an edit
+	// does. The version can't be cached as a second row, being the dedup token.
+	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,
