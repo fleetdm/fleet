@@ -16,7 +16,6 @@ const (
 	RoleDesign    = "design"
 )
 
-// roleMeta describes a role for the onboarding picker.
 type roleMeta struct {
 	Role  string
 	Label string
@@ -50,9 +49,9 @@ func normalizeRole(s string) string {
 // PromptData is the template context available to start-work prompts, both the
 // built-in defaults and user overrides in config.json's start_prompts.
 type PromptData struct {
-	Issue  int    // the issue number
-	Title  string // the issue title
-	URL    string // the issue URL ("" if unknown)
+	Issue  int
+	Title  string
+	URL    string // "" if unknown
 	Branch string // the linked branch, if any (used by the QA prompt)
 }
 
@@ -101,7 +100,6 @@ func renderStartPrompt(role string, cfg *Config, data PromptData) string {
 	return b.String()
 }
 
-// fallbackPrompt is the last-resort seed prompt when a template fails to render.
 func fallbackPrompt(data PromptData) string {
 	if data.Title == "" {
 		return "Let's work on issue #" + strconv.Itoa(data.Issue) + "."

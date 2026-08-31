@@ -176,7 +176,6 @@ func NewModel(repo string, limit int, noCache bool) *Model {
 	return m
 }
 
-// applyFetch loads a fetch result into the model and rebuilds the derived views.
 func (m *Model) applyFetch(res FetchResult) {
 	m.login = res.Login
 	m.board = res.Board
@@ -280,7 +279,6 @@ func (m *Model) mostRecentProject(issue int) int {
 	return best
 }
 
-// orgProjectURL builds the browser URL for an org project board by its number.
 func (m *Model) orgProjectURL(number int) string {
 	org := "fleetdm"
 	if i := strings.IndexByte(m.repo, '/'); i > 0 {
@@ -392,7 +390,6 @@ func (m Model) branchFolder(w WorkItem) string {
 	return ""
 }
 
-// workForPR returns the work item whose linked PR has the given number.
 func (m *Model) workForPR(prNum int) (WorkItem, bool) {
 	for _, w := range m.work {
 		if w.PR != nil && w.PR.Number == prNum {
@@ -418,7 +415,6 @@ func (m *Model) currentWork() (WorkItem, bool) {
 	return WorkItem{}, false
 }
 
-// fetchDoneMsg carries the result of a background fetch.
 type fetchDoneMsg struct {
 	res FetchResult
 	err error
@@ -453,7 +449,6 @@ type startWorkDoneMsg struct {
 	err       error
 }
 
-// statusWriteMsg carries the result of a standalone status transition.
 type statusWriteMsg struct {
 	issue     int
 	statusSet string
@@ -571,7 +566,6 @@ func (m *Model) replaceProjectView(msg projectRefreshedMsg) {
 	}
 }
 
-// projectPickerReadyMsg carries the org's projects for the in-dashboard P picker.
 type projectPickerReadyMsg struct {
 	projects []ghapi.OrgProject
 	err      error
@@ -793,7 +787,6 @@ type branchScanMsg struct {
 	pruned bool
 }
 
-// branchDeleteDoneMsg carries the outcome of a branch-deletion batch.
 type branchDeleteDoneMsg struct {
 	deleted int
 	failed  int
@@ -826,7 +819,6 @@ func deleteBranchesCmd(plan []BranchRow) tea.Cmd {
 	}
 }
 
-// openURLCmd opens a work item in the browser. Read-only.
 func openURLCmd(url string) tea.Cmd {
 	return func() tea.Msg {
 		if url == "" {

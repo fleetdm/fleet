@@ -36,11 +36,11 @@ func TestFuzzyScore(t *testing.T) {
 
 func TestProjectHandle(t *testing.T) {
 	cases := map[string]string{
-		"🍎 #g-apple-at-work": "g-apple-at-work",
+		"🍎 #g-apple-at-work":    "g-apple-at-work",
 		"❤️‍🩹 #g-auto-patching": "g-auto-patching",
-		"🚀 Rocket":            "Rocket",
-		"Plain Title":         "Plain Title",
-		"#no-emoji":           "no-emoji",
+		"🚀 Rocket":              "Rocket",
+		"Plain Title":           "Plain Title",
+		"#no-emoji":             "no-emoji",
 	}
 	for in, want := range cases {
 		if got := projectHandle(in); got != want {

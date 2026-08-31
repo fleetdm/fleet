@@ -156,7 +156,6 @@ func resolveProject(entry, owner string, orgProjects []ghapi.OrgProject) (num in
 	return 0, entry, ""
 }
 
-// containsFold reports whether s contains target (case-insensitive).
 func containsFold(s []string, target string) bool {
 	for _, v := range s {
 		if strings.EqualFold(v, target) {

@@ -200,7 +200,6 @@ func linkedMergedPRs(repo string, board Board, branchByIssue map[int]string) map
 	return out
 }
 
-// repoOwner returns the owner segment of an "owner/name" repo string.
 func repoOwner(repo string) string {
 	if i := strings.IndexByte(repo, '/'); i > 0 {
 		return repo[:i]

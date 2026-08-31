@@ -12,14 +12,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// reportsCmd is the parent for read-only reporting commands that summarize
-// trends across the fleetdm/fleet repository.
 var reportsCmd = &cobra.Command{
 	Use:   "reports",
 	Short: "Read-only reports summarizing trends across the repository",
 }
 
-// reportIssue is a GitHub issue as returned by `gh issue list` for reporting.
 type reportIssue struct {
 	Number    int       `json:"number"`
 	Title     string    `json:"title"`
@@ -160,7 +157,6 @@ func fetchPriorityIssues(priority, sinceStr string, limit int) ([]reportIssue, e
 	return issues, nil
 }
 
-// buildPriorityReport buckets issues by week and by product-group-per-month.
 func buildPriorityReport(priority string, issues []reportIssue) priorityReport {
 	r := priorityReport{
 		Priority:     priority,
@@ -214,7 +210,6 @@ func monthBuckets(since, until time.Time) []string {
 	return out
 }
 
-// sortedGroups returns product groups ordered by total count (desc), then name.
 func sortedGroups(totals map[string]int) []string {
 	groups := make([]string, 0, len(totals))
 	for g := range totals {
@@ -309,7 +304,6 @@ func topGroupInBoundaryMonth(r priorityReport, months []string, first bool) (str
 	return "", "", false
 }
 
-// scaledBar renders a proportional bar of up to width characters.
 func scaledBar(count, max, width int) string {
 	if count <= 0 || max <= 0 {
 		return ""

@@ -459,7 +459,6 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "p":
-		// Pin/unpin the selected work item to/from focus.
 		if w, ok := m.currentWork(); ok {
 			on := m.focus.Toggle(w.Number)
 			_ = m.focus.Save()
@@ -478,7 +477,6 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, projectPickerCmd(m.repo)
 
 	case "v":
-		// Mark the selected work item's issue In review.
 		if w, ok := m.currentWork(); ok {
 			if w.Project == 0 {
 				m.notice = fmt.Sprintf("no project board known for #%d", w.Number)
@@ -490,7 +488,6 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "a":
-		// Mark the selected work item's issue Awaiting QA (e.g. PR merged elsewhere).
 		if w, ok := m.currentWork(); ok {
 			if w.Project == 0 {
 				m.notice = fmt.Sprintf("no project board known for #%d", w.Number)
@@ -683,7 +680,6 @@ func (m *Model) handleConfirmBranchDeleteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 	return m, nil
 }
 
-// currentBranch returns the highlighted branch row in the cleanup view.
 func (m *Model) currentBranch() (BranchRow, bool) {
 	if m.branchCursor >= 0 && m.branchCursor < len(m.branchRows) {
 		return m.branchRows[m.branchCursor], true
@@ -706,7 +702,6 @@ func (m *Model) branchesToDelete(match func(BranchRow) bool) []BranchRow {
 	return out
 }
 
-// countBranchRepos counts the distinct clones touched by a deletion plan.
 func countBranchRepos(plan []BranchRow) int {
 	seen := map[string]bool{}
 	for _, r := range plan {
@@ -715,7 +710,6 @@ func countBranchRepos(plan []BranchRow) int {
 	return len(seen)
 }
 
-// snoozeOptions maps the picker keys to durations.
 var snoozeOptions = []struct {
 	key   string
 	label string

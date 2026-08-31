@@ -198,7 +198,6 @@ func GetCurrentLogin() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// parsePullRequests unmarshals gh pr list JSON output.
 func parsePullRequests(jsonData []byte) ([]PullRequest, error) {
 	var prs []PullRequest
 	if err := json.Unmarshal(jsonData, &prs); err != nil {
@@ -207,7 +206,6 @@ func parsePullRequests(jsonData []byte) ([]PullRequest, error) {
 	return prs, nil
 }
 
-// listPullRequests runs gh pr list with the given search qualifiers and field set.
 func listPullRequests(repo, search, fields string, limit int) ([]PullRequest, error) {
 	if repo == "" {
 		repo = DefaultRepo

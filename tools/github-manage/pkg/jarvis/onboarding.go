@@ -65,7 +65,6 @@ type onboardModel struct {
 	width     int
 }
 
-// newOnboardModel builds the picker over the given open projects.
 func newOnboardModel(owner string, projects []ghapi.OrgProject) *onboardModel {
 	ti := textinput.New()
 	ti.Placeholder = "type to fuzzy-search projects…"
@@ -106,7 +105,6 @@ func (m *onboardModel) seedSelection(current []string) {
 	}
 }
 
-// recompute refilters and reranks the project list against the current query.
 func (m *onboardModel) recompute() {
 	type scored struct {
 		idx, score int
@@ -146,7 +144,6 @@ func (m *onboardModel) recompute() {
 	m.clampScroll()
 }
 
-// clampScroll keeps the cursor within the visible window.
 func (m *onboardModel) clampScroll() {
 	if m.cursor < m.top {
 		m.top = m.cursor
@@ -431,7 +428,6 @@ func reportProjectAccessFailure(owner string) error {
 	return errors.New("GitHub project access required (see instructions above)")
 }
 
-// ghLoggedIn reports whether the gh CLI is authenticated to at least one host.
 func ghLoggedIn() bool {
 	_, err := ghapi.RunGH("auth", "status")
 	return err == nil

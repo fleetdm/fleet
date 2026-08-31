@@ -75,13 +75,11 @@ func (s *LinkStore) Reload() error {
 	return nil
 }
 
-// Get returns the link for an issue, if any.
 func (s *LinkStore) Get(issue int) (Link, bool) {
 	l, ok := s.Links[strconv.Itoa(issue)]
 	return l, ok
 }
 
-// Set records (or replaces) the link for an issue.
 func (s *LinkStore) Set(issue int, l Link) {
 	if s.Links == nil {
 		s.Links = map[string]Link{}

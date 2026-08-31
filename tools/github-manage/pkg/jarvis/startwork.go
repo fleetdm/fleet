@@ -46,7 +46,6 @@ func defaultBase(clonePath string) string {
 	return "origin/main"
 }
 
-// runGit runs a git command in clonePath and returns combined output.
 func runGit(clonePath string, args ...string) (string, error) {
 	full := append([]string{"-C", clonePath}, args...)
 	out, err := exec.Command("git", full...).CombinedOutput()

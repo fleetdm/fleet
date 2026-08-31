@@ -103,7 +103,6 @@ func cloneMatchesRepo(dir, target string) bool {
 	return false
 }
 
-// gitRemoteRepo returns the "owner/name" of a clone's named remote.
 func gitRemoteRepo(dir, remote string) (string, bool) {
 	out, err := exec.Command("git", "-C", dir, "remote", "get-url", remote).Output()
 	if err != nil {
@@ -142,7 +141,6 @@ func LocalBranchFolders(baseDirs []string, repo string) map[string]string {
 	return out
 }
 
-// gitLocalBranches lists the local branch names in a clone.
 func gitLocalBranches(dir string) []string {
 	out, err := exec.Command("git", "-C", dir, "for-each-ref", "--format=%(refname:short)", "refs/heads/").Output()
 	if err != nil {

@@ -246,7 +246,6 @@ func GetAllIssueProjectStatuses(issueNumber int) (map[int]ProjectStatus, error) 
 		return nil, err
 	}
 
-	// Build a map of project number -> status value.
 	found := make(map[int]ProjectStatus)
 	for _, node := range resp.Data.Repository.Issue.ProjectItems.Nodes {
 		pid := node.Project.Number

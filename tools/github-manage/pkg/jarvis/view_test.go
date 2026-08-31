@@ -30,11 +30,11 @@ func TestPRStatusLabel(t *testing.T) {
 		t.Error("nil PR should be empty")
 	}
 	cases := map[*ghapi.PullRequest]string{
-		{State: "MERGED"}: "merged",
-		{State: "CLOSED"}: "closed",
+		{State: "MERGED"}:                           "merged",
+		{State: "CLOSED"}:                           "closed",
 		{State: "OPEN", IsDraft: true}:              "draft",
 		{State: "OPEN", ReviewDecision: "APPROVED"}: "approved",
-		{State: "OPEN"}: "open",
+		{State: "OPEN"}:                             "open",
 		// A draft that also happens to be approved still reads as draft (not mergeable yet).
 		{State: "OPEN", IsDraft: true, ReviewDecision: "APPROVED"}: "draft",
 	}

@@ -79,7 +79,6 @@ func (m Model) renderFocus() string {
 	return b.String()
 }
 
-// focusCard renders one work item as a multi-line card.
 func (m Model) focusCard(w WorkItem, selected bool) string {
 	marker := "  "
 	if selected {
@@ -91,7 +90,6 @@ func (m Model) focusCard(w WorkItem, selected bool) string {
 	}
 	head := fmt.Sprintf("%s#%-6d %s", marker, w.Number, truncateTitle(w.Title)) + statusChip
 
-	// PR / session line.
 	var detail string
 	switch {
 	case w.PR != nil:
@@ -108,7 +106,6 @@ func (m Model) focusCard(w WorkItem, selected bool) string {
 		detail += dimStyle.Render("  [" + w.Branch + "]")
 	}
 
-	// Next-action line.
 	next := ""
 	if w.Next != ActNone {
 		next = "     " + reasonStyle.Render("▸ next: "+w.Next.Label()) + dimStyle.Render(" ("+w.Next.Key()+")")
@@ -161,7 +158,6 @@ func (m Model) renderBoard() string {
 	const lookaheadItems = 2
 	revealLine := 0
 	itemIdx := 0
-	// No primary projects configured — nudge the user to the picker.
 	if len(m.config.PrimaryProjects) == 0 {
 		lines = append(lines, m.bucketHeader(BucketPrimary, 0))
 		lines = append(lines, dimStyle.Render("  use P to select projects to focus on"))
@@ -254,7 +250,6 @@ func (m Model) itemLine(it Item, selected bool, hiddenLabel string, bk Bucket) s
 	if it.HasSession {
 		marker = " 💬"
 	}
-	// Issue-centric annotation: project status + linked PR, from the work overlay.
 	statusText, prText, focused := m.issueAnnotation(it)
 	focusMark := ""
 	if focused {
@@ -446,7 +441,6 @@ func (m Model) renderBranches() string {
 		return b.String()
 	}
 
-	// Build the flat line list, grouped by repo folder, tracking the cursor line.
 	var lines []string
 	cursorLine := 0
 	lastRepo := ""
@@ -531,7 +525,6 @@ func branchStateStyle(s BranchState) lipgloss.Style {
 	}
 }
 
-// branchFooter renders the branch-cleanup key hints, or the delete confirmation.
 func (m Model) branchFooter() string {
 	if m.mode == modeConfirmBranchDelete {
 		return errStyle.Render(m.branchPlanMsg+" ") + "[y] yes  " + dimStyle.Render("· any other key cancels")
@@ -639,8 +632,6 @@ func (m Model) startWorkFooter() string {
 	return b.String()
 }
 
-// newCloneFooter renders the new-working-dir prompt: the fleet- prefix, the name
-// input, and where the clone will land.
 func (m Model) newCloneFooter() string {
 	var b strings.Builder
 	b.WriteString(titleBarStyle.Render(fmt.Sprintf("New working dir · start #%d on %s", m.startIssue, m.startBranch)))
@@ -654,7 +645,6 @@ func (m Model) newCloneFooter() string {
 	return b.String()
 }
 
-// truncateTitle caps a title at 35 characters, rendering "<first 32>..." when longer.
 func truncateTitle(s string) string {
 	r := []rune(s)
 	if len(r) <= 35 {

@@ -681,8 +681,6 @@ func (m *model) executeWorkflow() tea.Cmd {
 			return a < b
 		})
 
-		// Generate markdown content: one section per milestone, each carrying the
-		// same Features/Bugs-by-assignee breakdown as before.
 		var builder strings.Builder
 		for _, ms := range milestoneOrder {
 			builder.WriteString(fmt.Sprintf("# %s\n\n", ms))

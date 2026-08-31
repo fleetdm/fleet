@@ -137,7 +137,6 @@ func gitRefExists(dir, ref string) bool {
 	return exec.Command("git", "-C", dir, "show-ref", "--verify", "--quiet", ref).Run() == nil
 }
 
-// gitAheadCount returns how many commits <branch> is ahead of origin/<branch>.
 func gitAheadCount(dir, branch string) int {
 	out, err := exec.Command("git", "-C", dir, "rev-list", "--count", "origin/"+branch+".."+branch).Output()
 	if err != nil {
