@@ -232,47 +232,87 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
-  // VPP auto-update badge — separate from the install-icon family. Renders
-  // alongside the install icon (both can be present on the same row).
-  it("shows a refresh badge with window tooltip when autoUpdateEnabled is true", async () => {
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(
-      <SoftwareNameCell
-        {...defaultProps}
-        autoUpdateEnabled
-        autoUpdateWindowStart="02:00"
-        autoUpdateWindowEnd="04:00"
-      />
-    );
-    // No install icon on this VPP-only row, but the auto-update badge renders.
-    const icons = screen.getAllByTestId("refresh-icon");
-    expect(icons).toHaveLength(1);
-    await userEvent.hover(icons[0]);
-    expect(
-      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
-    ).toBeInTheDocument();
-  });
-
-  it("does not render the auto-update badge when autoUpdateEnabled is false", () => {
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(<SoftwareNameCell {...defaultProps} autoUpdateEnabled={false} />);
-    expect(screen.queryByTestId("refresh-icon")).toBeNull();
-  });
-
-  it("renders both the install icon and the auto-update badge when both apply", async () => {
+  // VPP auto-update folds into the automatic icon family: same visual as
+  // policy-triggered auto-install, with an added tooltip line for the window.
+  it("shows the refresh icon with a window tooltip when autoUpdateEnabled is true (no policies, no self-service)", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
         {...defaultProps}
         hasInstaller
-        automaticInstallPoliciesCount={1}
         autoUpdateEnabled
         autoUpdateWindowStart="02:00"
         autoUpdateWindowEnd="04:00"
       />
     );
-    // Auto-install refresh + auto-update refresh — two separate icons.
-    const icons = screen.getAllByTestId("refresh-icon");
-    expect(icons).toHaveLength(2);
+    const icon = screen.getByTestId("refresh-icon");
+    await userEvent.hover(icon);
+    expect(
+      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows the composite automatic-self-service icon with a double-barrel tooltip when self-service + auto-update", async () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        hasInstaller
+        isSelfService
+        autoUpdateEnabled
+        autoUpdateWindowStart="02:00"
+        autoUpdateWindowEnd="04:00"
+      />
+    );
+    const icon = screen.getByTestId("automatic-self-service-icon");
+    await userEvent.hover(icon);
+    expect(
+      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/End users can install/i)
+    ).toBeInTheDocument();
+  });
+
+  it("stacks all three tooltip lines when policies + self-service + auto-update all apply", async () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        hasInstaller
+        isSelfService
+        automaticInstallPoliciesCount={2}
+        autoUpdateEnabled
+        autoUpdateWindowStart="02:00"
+        autoUpdateWindowEnd="04:00"
+      />
+    );
+    const icon = screen.getByTestId("automatic-self-service-icon");
+    await userEvent.hover(icon);
+    expect(
+      await screen.findByText(/2 policies trigger install\./i)
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Auto updates between 02:00 and 04:00\./i)
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/End users can install/i)
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the self-service icon when autoUpdateEnabled is false (unchanged path)", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        hasInstaller
+        isSelfService
+        autoUpdateEnabled={false}
+      />
+    );
+    // No refresh, no composite — just the user icon.
+    expect(screen.getByTestId("user-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("refresh-icon")).toBeNull();
+    expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
   });
 });
