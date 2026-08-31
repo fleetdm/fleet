@@ -1,0 +1,10 @@
+{
+  "name": "Beeper",
+  "unique_identifier": "com.automattic.beeper.desktop",
+  "token": "beeper",
+  "installer_format": "zip",
+  "slug": "beeper/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

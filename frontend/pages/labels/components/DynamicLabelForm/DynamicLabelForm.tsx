@@ -5,7 +5,8 @@ import { Ace } from "ace-builds";
 import { validateQuery } from "components/forms/validators/validate_query";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+
+import { LabelPlatform } from "interfaces/label";
 
 import LabelForm from "../LabelForm";
 import { ILabelFormData } from "../LabelForm/LabelForm";
@@ -17,14 +18,14 @@ export interface IDynamicLabelFormData {
   name: string;
   description: string;
   query: string;
-  platform: string;
+  platform: LabelPlatform;
 }
 
 interface IDynamicLabelFormProps {
   defaultName?: string;
   defaultDescription?: string;
   defaultQuery?: string;
-  defaultPlatform?: string;
+  defaultPlatform?: LabelPlatform;
   showOpenSidebarButton?: boolean;
   isEditing?: boolean;
   onOpenSidebar?: () => void;
@@ -84,9 +85,13 @@ const DynamicLabelForm = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onOpenSidebar}>
+      <Button
+        variant="subdued"
+        onClick={onOpenSidebar}
+        icon="info"
+        iconPosition="right"
+      >
         Schema
-        <Icon name="info" size="small" />
       </Button>
     );
   };
@@ -109,7 +114,7 @@ const DynamicLabelForm = ({
     });
   };
 
-  const onChangePlatform = (value: string) => {
+  const onChangePlatform = (value: LabelPlatform) => {
     setPlatform(value);
   };
 

@@ -1,0 +1,10 @@
+{
+  "name": "LunaSea",
+  "unique_identifier": "app.lunasea.lunasea",
+  "token": "lunasea",
+  "installer_format": "zip",
+  "slug": "lunasea/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

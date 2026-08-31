@@ -16,7 +16,6 @@ Fleet Desktop uses a random UUID to authenticate to the Fleet server. While it's
 ## Show your end users a call to action in Fleet Desktop for failing policies
 **Available in Fleet Free & Fleet Premium**
 
-![Show your end users a call to action in Fleet desktop for failing policies.](../website/assets/images/articles/fleet-4.18.0-1-800x500@2x.gif)
 The main goal of Fleet Desktop is to empower end users to take charge of managing the security of their enrolled device. If a device is failing a policy check, Fleet Desktop will now show end users useful information for resolving the issue and make it easy to check if they've fixed it. 
 
 ## More new features, improvements, and bug fixes
@@ -61,8 +60,8 @@ In 4.18.0, we also:
 Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.18.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Kathy Satterlee">
-<meta name="authorGitHubUsername" value="ksatter">
+<meta name="authorFullName" value="Ryn Satterlee">
+<meta name="authorGitHubUsername" value="rynsatterlee">
 <meta name="publishedOn" value="2022-08-03">
 <meta name="articleTitle" value="Fleet 4.18.0 | Better security and user messaging in Fleet Desktop">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.18.0-cover-1600x900@2x.jpg">

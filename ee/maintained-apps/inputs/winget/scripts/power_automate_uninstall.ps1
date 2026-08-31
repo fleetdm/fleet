@@ -1,54 +1,49 @@
-$displayNameLike = "Power Automate for desktop*"
-$publisherLike = "Microsoft Corporation*"
-
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
-
 $ExpectedExitCodes = @(0, 1641, 3010, 1223)
 
-$entry = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
-  }
-  if ($items) { $entry = $items | Select-Object -First 1; break }
+# Power Automate for desktop is a WiX Burn bundle installed by the
+# Setup.Microsoft.PowerAutomate.exe bootstrapper. The visible ARP entry is the inner
+# MSI, whose UninstallString is "MsiExec.exe /I{GUID}" -- that is install/repair, not
+# an uninstall, and the bootstrapper's -Uninstall/-Silent switches are not valid for
+# MsiExec.exe. The documented silent uninstall runs the bootstrapper itself:
+#   Setup.Microsoft.PowerAutomate.exe -Silent -Uninstall
+# https://learn.microsoft.com/power-automate/desktop-flows/install-silently
+
+# Stop running PAD processes so the uninstall isn't blocked.
+Stop-Process -Name "PAD.Console.Host" -Force -ErrorAction SilentlyContinue
+
+$setupExe = $null
+
+# 1) The Burn bundle's ARP entry records the cached bootstrapper in BundleCachePath.
+$arpPaths = @(
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)
+foreach ($p in $arpPaths) {
+  $bundle = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+    $_.DisplayName -like 'Power Automate for desktop*' -and $_.BundleCachePath
+  } | Select-Object -First 1
+  if ($bundle) { $setupExe = $bundle.BundleCachePath; break }
 }
 
-if (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstallString)) {
-  Write-Host "Uninstall entry not found"
+# 2) Fall back to searching the Burn package cache for the bootstrapper.
+if (-not $setupExe -or -not (Test-Path $setupExe)) {
+  $cache = Join-Path $env:ProgramData 'Package Cache'
+  $found = Get-ChildItem -Path $cache -Recurse -Filter 'Setup.Microsoft.PowerAutomate.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($found) { $setupExe = $found.FullName }
+}
+
+if (-not $setupExe -or -not (Test-Path $setupExe)) {
+  Write-Host "Power Automate bootstrapper not found; nothing to uninstall."
   Exit 0
 }
 
-Stop-Process -Name "PAD.Console.Host" -Force -ErrorAction SilentlyContinue
-
-$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
-
-$exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()
-} else {
-    Throw "Could not parse uninstall string: $uninstallCommand"
-}
-
-if ($existingArgs -notmatch '(?i)-Uninstall') { $existingArgs = ("$existingArgs -Uninstall").Trim() }
-if ($existingArgs -notmatch '(?i)-Silent') { $existingArgs = ("$existingArgs -Silent").Trim() }
-
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $existingArgs"
+Write-Host "Uninstall command: $setupExe"
+Write-Host "Uninstall args: -Silent -Uninstall"
 
 try {
     $processOptions = @{
-        FilePath = $exePath
-        ArgumentList = $existingArgs
+        FilePath = $setupExe
+        ArgumentList = @("-Silent", "-Uninstall")
         NoNewWindow = $true
         PassThru = $true
         Wait = $true

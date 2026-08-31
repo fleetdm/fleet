@@ -5,7 +5,6 @@ import { useQuery } from "react-query";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
 import configAPI from "services/entities/config";
 
@@ -24,6 +23,7 @@ import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { notify } from "components/ToastNotification";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
 const baseClass = "change-management";
@@ -57,7 +57,6 @@ const validate = (formData: IChangeManagementFormData) => {
 
 const ChangeManagement = () => {
   const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<IChangeManagementFormData>({
     // dummy values, will be populated with fresh config API response
@@ -151,10 +150,10 @@ const ChangeManagement = () => {
 
       setConfig(updatedConfig);
 
-      renderFlash("success", "Successfully updated settings");
+      notify.success("Successfully updated settings");
     } catch (e) {
       const message = getErrorReason(e);
-      renderFlash("error", message || "Failed to update settings");
+      notify.error(message || "Failed to update settings", { response: e });
     } finally {
       setIsUpdating(false);
     }

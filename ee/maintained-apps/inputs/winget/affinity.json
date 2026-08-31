@@ -1,0 +1,12 @@
+{
+  "name": "Affinity",
+  "slug": "affinity/windows",
+  "package_identifier": "Canva.Affinity",
+  "unique_identifier": "Affinity",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/affinity_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/affinity_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"]
+}

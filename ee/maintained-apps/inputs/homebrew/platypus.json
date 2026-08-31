@@ -1,0 +1,10 @@
+{
+  "name": "Platypus",
+  "unique_identifier": "org.sveinbjorn.Platypus",
+  "token": "platypus",
+  "installer_format": "zip",
+  "slug": "platypus/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

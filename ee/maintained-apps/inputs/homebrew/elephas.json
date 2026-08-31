@@ -1,0 +1,10 @@
+{
+  "name": "Elephas",
+  "unique_identifier": "com.kamban.elephas",
+  "token": "elephas",
+  "installer_format": "dmg",
+  "slug": "elephas/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

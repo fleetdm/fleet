@@ -1,0 +1,14 @@
+{
+  "name": "Delinea Connection Manager",
+  "slug": "delinea-connection-manager/windows",
+  "package_identifier": "Delinea.DelineaConnectionManager",
+  "unique_identifier": "Delinea Connection Manager",
+  "program_publisher": "Delinea Inc..",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/delinea-connection-manager_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/delinea-connection-manager_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

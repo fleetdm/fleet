@@ -1,0 +1,10 @@
+{
+  "name": "Jump Desktop",
+  "unique_identifier": "com.p5sys.jump.mac.viewer.web",
+  "token": "jump-desktop",
+  "installer_format": "zip",
+  "slug": "jump-desktop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

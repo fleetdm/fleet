@@ -15,7 +15,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -24,7 +24,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.23.0
+  OSQUERY_VERSION: 5.23.1
 
 # Least-privilege default; each build job grants id-token/attestations at the job level.
 permissions:
@@ -59,7 +59,7 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "extracted/osquery.app/Contents/MacOS/*"
 
@@ -69,7 +69,7 @@ jobs:
           tar -czf ../osqueryd.app.tar.gz ./*
 
       - name: Upload osqueryd.app.tar.gz
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: osqueryd.app.tar.gz
           path: osqueryd.app.tar.gz
@@ -101,12 +101,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "opt/osquery/bin/osqueryd"
 
       - name: Upload osqueryd for linux
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: osqueryd
           path: opt/osquery/bin/osqueryd
@@ -142,12 +142,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: "opt/osquery/bin/osqueryd"
 
       - name: Upload osqueryd for linux-arm64
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: osqueryd-arm64
           path: opt/osquery/bin/osqueryd
@@ -181,12 +181,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: C:\temp\osquery\osqueryd\osqueryd.exe
 
       - name: Upload osqueryd for Windows
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: osqueryd.exe
           path: C:\temp\osquery\osqueryd\osqueryd.exe
@@ -224,12 +224,12 @@ jobs:
 
       - name: Attest binary
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: osqueryd.exe
 
       - name: Upload osqueryd for Windows
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: osqueryd-arm64.exe
           path: osqueryd.exe

@@ -1,0 +1,10 @@
+{
+  "name": "Marta File Manager",
+  "unique_identifier": "org.yanex.marta",
+  "token": "marta",
+  "installer_format": "dmg",
+  "slug": "marta/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

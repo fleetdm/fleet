@@ -64,7 +64,6 @@ const SelectReportModal = ({
     ],
     ({ queryKey }) => queryAPI.loadAll(queryKey[0]),
     {
-      refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
@@ -173,7 +172,7 @@ const SelectReportModal = ({
             canCreateReport ? (
               <>
                 <Button variant="link" onClick={onRunCustomReport}>
-                  Create a report
+                  Add a report
                 </Button>{" "}
                 to run.
               </>

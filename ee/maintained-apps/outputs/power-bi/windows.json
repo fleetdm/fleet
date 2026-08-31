@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.154.1260.0",
+      "version": "2.157.879.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Power BI Desktop (x64)' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Power BI Desktop (x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.154.1260.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Power BI Desktop (x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.157.879.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'power bi.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/8/8/0/880BCA75-79DD-466A-927D-1ABF1F5454B0/PBIDesktopSetup-2026-05_x64.exe",
+      "installer_url": "https://download.microsoft.com/download/8/8/0/880BCA75-79DD-466A-927D-1ABF1F5454B0/PBIDesktopSetup-2026-08_x64.exe",
       "install_script_ref": "cc478c11",
       "uninstall_script_ref": "abc3b459",
-      "sha256": "8ac9965a8c845326e58fe44df9a6fcc8462da21262e09b829d926a3a76c87422",
+      "sha256": "68968f4689eb45d904b289004b711f88edd0f85e18638312fef12c8f33c6e595",
       "default_categories": [
         "Productivity"
       ]

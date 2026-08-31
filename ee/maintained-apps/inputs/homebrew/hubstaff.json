@@ -1,0 +1,10 @@
+{
+  "name": "Hubstaff",
+  "unique_identifier": "com.netsoft.Hubstaff",
+  "token": "hubstaff",
+  "installer_format": "dmg",
+  "slug": "hubstaff/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

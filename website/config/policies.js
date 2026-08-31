@@ -13,7 +13,7 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
-  'microsoft-proxy/*': 'is-cloud-customer',
+  'microsoft-proxy/*': true,
   // Bypass the `is-logged-in` policy for:
 
   'entrance/*': true,
@@ -71,7 +71,7 @@ module.exports.policies = {
   'deliver-application-submission': true,
   'landing-pages/*': true,
   'deliver-gitops-workshop-request': true,
-  'view-gitops-workshop': true,
+  'view-workshops': true,
   'view-deployment': true,
   'view-linux-management': true,
   'view-infrastructure-as-code': true,
@@ -80,5 +80,9 @@ module.exports.policies = {
   'view-partners': true,
   'deliver-webinar-access-request': true,
   'view-download': true,
-  'view-visibility-and-reporting': true,
+  'view-endpoint-governance': true,
+  'view-security-and-control': true,
+  'view-ai-in-it': true,
+  'view-capex-savings': true,
+  'view-configuration-generator': true,
 };

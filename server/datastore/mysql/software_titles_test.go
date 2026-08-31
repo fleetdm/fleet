@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,13 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
 		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
+		{"ListSoftwareTitlesSearchByBundleAndDisplayName", testListSoftwareTitlesSearchByBundleAndDisplayName},
+		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
+		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
+		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
+		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
+		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
+		{"MarkFleetMaintainedAppVersionCurrent", testMarkFleetMaintainedAppVersionCurrent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -889,6 +897,112 @@ func titleByName(titles []fleet.SoftwareTitleListResult, name string) fleet.Soft
 		}
 	}
 	return fleet.SoftwareTitleListResult{}
+}
+
+func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Multi", "multi@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "multi-pkg-team"})
+	require.NoError(t, err)
+
+	mk := func(storage string, filename string) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Multi App",
+			Source:           "apps",
+			BundleIdentifier: "com.example.multi",
+			Platform:         "darwin",
+			Extension:        "pkg",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			Filename:         filename,
+			StorageID:        storage,
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team.ID,
+		}
+	}
+
+	// two active packages on one title (same version, different content)
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-a", "a.pkg"))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mk("multi-b", "b.pkg"))
+	require.NoError(t, err)
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	// the team has only this title, so it must appear exactly once (not duplicated by the two
+	// active packages) on both the optimized path (no filters) and the filtered path
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "Multi App", titles[0].Name)
+
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, ListOptions: fleet.ListOptions{MatchQuery: "Multi App"}}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, "Multi App", titles[0].Name)
+
+	// the installer count reflects both packages
+	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, 2, title.SoftwareInstallersCount)
+}
+
+// Regression guard for the per-installer policy dispatch loop in
+// ListSoftwareTitles: a policy pinned to one specific package on a
+// multi-package title must only surface on that package's
+// AutomaticInstallPolicies, not on every package (title-level aggregate).
+func testListSoftwareTitlesPolicyDispatchPerInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Dispatch", "dispatch@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "policy-dispatch-team"})
+	require.NoError(t, err)
+
+	mk := func(storage, filename string) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Dispatch App",
+			Source:           "apps",
+			BundleIdentifier: "com.example.dispatch",
+			Platform:         "darwin",
+			Extension:        "pkg",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			Filename:         filename,
+			StorageID:        storage,
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team.ID,
+		}
+	}
+
+	installer1ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("dispatch-a", "a.pkg"))
+	require.NoError(t, err)
+	installer2ID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, mk("dispatch-b", "b.pkg"))
+	require.NoError(t, err)
+
+	// Pin a policy to installer 1 only. Installer 2 must NOT see it.
+	pol, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:  "dispatch-policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	pol.SoftwareInstallerID = new(installer1ID)
+	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Len(t, titles[0].Packages, 2)
+
+	// packages[] is ordered by installer_id ASC — package[0] is installer 1
+	// (pinned), package[1] is installer 2 (not pinned).
+	require.Equal(t, installer1ID, titles[0].Packages[0].InstallerID)
+	require.Len(t, titles[0].Packages[0].AutomaticInstallPolicies, 1, "installer 1 should carry the pinned policy")
+	assert.Equal(t, pol.ID, titles[0].Packages[0].AutomaticInstallPolicies[0].ID)
+
+	require.Equal(t, installer2ID, titles[0].Packages[1].InstallerID)
+	assert.Empty(t, titles[0].Packages[1].AutomaticInstallPolicies, "installer 2 should NOT carry any policies (regression: aggregate title-level list)")
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
@@ -1862,6 +1976,77 @@ func testListSoftwareTitlesSortByDisplayName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "zzz-script-only.pkg", sortedDesc[2].Name, "AAA Script (zzz-script-only.pkg) should sort last in DESC")
 }
 
+func testListSoftwareTitlesSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Search Test Team"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "searchhost1", "", "searchhost1key", "searchhost1uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+
+	// display_name and bundle_identifier deliberately share no substring with name.
+	sw := []fleet.Software{
+		{Name: "acme-secure-client", Version: "1.0", Source: "apps", BundleIdentifier: "com.zeta.vpn.service"},
+		{Name: "other-app", Version: "1.0", Source: "apps", BundleIdentifier: "com.other.app"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+
+	var targetID uint
+	for _, tt := range titles {
+		if tt.Name == "acme-secure-client" {
+			targetID = tt.ID
+			break
+		}
+	}
+	require.NotZero(t, targetID)
+
+	// Set a custom team-scoped display name that shares no substring with name or bundle_identifier.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, targetID, "Cisco Secure Client")
+	})
+
+	search := func(q string) []fleet.SoftwareTitleListResult {
+		out, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "name", MatchQuery: q},
+			TeamID:      &team.ID,
+		}, adminFilter)
+		require.NoError(t, err)
+		return out
+	}
+
+	// Match by name.
+	got := search("acme")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// Match by bundle_identifier (substring not in name or display_name).
+	got = search("zeta")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// Match by custom display_name (substring not in name or bundle_identifier).
+	got = search("Cisco")
+	require.Len(t, got, 1)
+	assert.Equal(t, "acme-secure-client", got[0].Name)
+
+	// No false positives.
+	got = search("nomatch-xyz")
+	require.Empty(t, got)
+}
+
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
 	// Uncomment the next line to regenerate the fixture
 	// generateSelectSoftwareTitlesSQLFixture(t)
@@ -2235,6 +2420,153 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
 }
 
+// testSoftwareTitleNameForHostFilter verifies SoftwareTitleNameForHostFilter's
+// live-join lookup and its team/tmFilter scoping.
+func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	testSw := fleet.Software{Name: "UniqueDSTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.dstitleapp"}
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{testSw})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host1, false))
+	require.Len(t, host1.Software, 1)
+	require.NotNil(t, host1.Software[0].TitleID)
+	titleID := *host1.Software[0].TitleID
+
+	// Scoped to team1 only: can't see team2 or "no team" hosts.
+	team1ScopedUser := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team1Filter := fleet.TeamFilter{User: team1ScopedUser, IncludeObserver: true}
+
+	globalAdminUser := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalAdminFilter := fleet.TeamFilter{User: globalAdminUser, IncludeObserver: true}
+
+	// No SyncHostsSoftwareTitles call: this must find titles via a live
+	// join, not the aggregate table sync populates.
+
+	// In-scope team: found immediately, pre-sync.
+	name, displayName, err := ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, testSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// A team's display_name override takes precedence over the title name.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &team1.ID, titleID, "Team1 Custom Name")
+	})
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID, team1Filter)
+	require.NoError(t, err)
+	assert.Empty(t, name)
+	assert.Equal(t, "Team1 Custom Name", displayName)
+
+	// Out-of-scope team: NotFound, no data disclosed.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team2.ID, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Nonexistent title ID: NotFound.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID+999999, &team1.ID, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// "No team" (team_id=0).
+	noTeamHost := test.NewHost(t, ds, "no-team-host", "", "no-team-hostkey", "no-team-hostuuid", time.Now())
+	noTeamSw := fleet.Software{Name: "UniqueNoTeamTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.noteamtitleapp"}
+	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{noTeamSw})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, noTeamHost, false))
+	require.Len(t, noTeamHost.Software, 1)
+	require.NotNil(t, noTeamHost.Software[0].TitleID)
+	noTeamTitleID := *noTeamHost.Software[0].TitleID
+
+	zero := uint(0)
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, &zero, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, noTeamSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// nil teamID: scoped to every team the caller can access, and ignores
+	// team1's display_name override (set above) since no single team is in scope.
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, nil, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, testSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// ...but not "no team", which this caller can't see.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, nil, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// A global admin can see "no team" too.
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, nil, globalAdminFilter)
+	require.NoError(t, err)
+	assert.Equal(t, noTeamSw.Name, name)
+	assert.Empty(t, displayName)
+}
+
+// A nil fleet means "every fleet the caller can see". A title reachable only
+// through an installer in another fleet has to stay NotFound, or the response
+// tells the caller that software they can't reach exists.
+func testSoftwareTitleByIDNoFleetScopedToVisibleFleets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	visible, err := ds.NewTeam(ctx, &fleet.Team{Name: "visible fleet"})
+	require.NoError(t, err)
+	hidden, err := ds.NewTeam(ctx, &fleet.Team{Name: "hidden fleet"})
+	require.NoError(t, err)
+
+	author := test.NewUser(t, ds, "Author", "author@example.com", true)
+
+	newInstallerTitle := func(name, filename, bundleID string, teamID *uint) uint {
+		_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            name,
+			Source:           "apps",
+			InstallScript:    "echo",
+			Filename:         filename,
+			BundleIdentifier: bundleID,
+			TeamID:           teamID,
+			UserID:           author.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+
+	// Neither title has hosts, so the installer join is the only thing that can
+	// make the row exist.
+	hiddenTitleID := newInstallerTitle("hidden app", "hidden.pkg", "com.example.hidden", &hidden.ID)
+	visibleTitleID := newInstallerTitle("visible app", "visible.pkg", "com.example.visible", &visible.ID)
+
+	scopedFilter := fleet.TeamFilter{
+		User:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: visible.ID}, Role: fleet.RoleObserver}}},
+		IncludeObserver: true,
+	}
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	_, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, nil, scopedFilter)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Same answer when they name their own fleet, so the two can't be compared.
+	_, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, &visible.ID, scopedFilter)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Their own fleet's installer still resolves without naming a fleet.
+	title, err := ds.SoftwareTitleByID(ctx, visibleTitleID, nil, scopedFilter)
+	require.NoError(t, err)
+	require.Equal(t, visibleTitleID, title.ID)
+
+	// Global roles still match every fleet.
+	title, err = ds.SoftwareTitleByID(ctx, hiddenTitleID, nil, adminFilter)
+	require.NoError(t, err)
+	require.Equal(t, hiddenTitleID, title.ID)
+}
+
 func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2353,11 +2685,11 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
 				nil,
 				nil,
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2375,11 +2707,11 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 5,
 			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
@@ -2396,11 +2728,11 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 6,
 			wantNames: []string{"foo", "in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2418,8 +2750,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 2,
 			wantNames: []string{"in-house2", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 			},
 		},
 		{
@@ -2436,7 +2768,7 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 1,
 			wantNames: []string{"foo"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "foo.pkg", SelfService: ptr.Bool(false), PackageURL: ptr.String(""), InstallDuringSetup: ptr.Bool(false), Platform: string(fleet.MacOSPlatform)},
+				{Name: "foo.pkg", SelfService: new(false), PackageURL: new(""), InstallDuringSetup: new(false), Platform: string(fleet.MacOSPlatform)},
 			},
 		},
 		{
@@ -2453,8 +2785,8 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 2,
 			wantNames: []string{"in-house1", "in-house2"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
 			},
 		},
 		{
@@ -2471,10 +2803,10 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			wantCount: 5,
 			wantNames: []string{"in-house1", "in-house1", "in-house2", "in-house2", "vpp1"},
 			wantInstallers: []*fleet.SoftwarePackageOrApp{
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house1.ipa", SelfService: ptr.Bool(false), Platform: string(fleet.IPadOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IOSPlatform)},
-				{Name: "in-house2.ipa", SelfService: ptr.Bool(true), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house1.ipa", SelfService: new(false), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IOSPlatform)},
+				{Name: "in-house2.ipa", SelfService: new(true), InstallDuringSetup: new(false), Platform: string(fleet.IPadOSPlatform)},
 				{AppStoreID: "adam_vpp_app_1", Platform: string(fleet.IPadOSPlatform), SelfService: ptr.Bool(false), InstallDuringSetup: ptr.Bool(false)},
 			},
 		},
@@ -2638,7 +2970,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing start time")
+	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
@@ -2649,7 +2981,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Error parsing end time")
+	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
 
 	// Attempt to enable auto-update with less than an hour between start and end time.
 	startTime = "12:00"
@@ -2782,4 +3114,143 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, schedules, 1)
 	require.Equal(t, title3ID, schedules[0].TitleID)
+}
+
+func testGetFleetMaintainedVersionsOrder(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// maxCachedFMAVersions caps the cache at two per team and title.
+	cases := []struct {
+		name string
+		// real versions from ee/maintained-apps/outputs, in the order they were published
+		published []string
+		// what the datastore must return, most recently downloaded first
+		wantNewestFirst []string
+	}{
+		{
+			// A version-string sort used to put 76 above 109 here.
+			name:            "chrome four part build numbers",
+			published:       []string{"151.0.7922.76", "151.0.7922.109"},
+			wantNewestFirst: []string{"151.0.7922.109", "151.0.7922.76"},
+		},
+		{
+			// iMazing really did publish 3.3.1.0 after 3.5.5.0. Fails if a version sort comes back.
+			name:            "app published a lower version than before",
+			published:       []string{"3.5.5.0", "3.3.1.0"},
+			wantNewestFirst: []string{"3.3.1.0", "3.5.5.0"},
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+				Name:             fmt.Sprintf("Maintained%d", i),
+				Slug:             fmt.Sprintf("maintained%d", i),
+				Platform:         "darwin",
+				UniqueIdentifier: fmt.Sprintf("fleet.maintained%d", i),
+			})
+			require.NoError(t, err)
+
+			tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+			require.NoError(t, err)
+			activeInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				Title:                fmt.Sprintf("testpkg%d", i),
+				Source:               "apps",
+				Platform:             "darwin",
+				InstallScript:        "echo install",
+				UninstallScript:      "echo uninstall",
+				InstallerFile:        tfr,
+				StorageID:            fmt.Sprintf("storage-%d-0", i),
+				Filename:             fmt.Sprintf("test-%d-0.pkg", i),
+				Version:              c.published[0],
+				UserID:               user.ID,
+				ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+				FleetMaintainedAppID: new(app.ID),
+			})
+			require.NoError(t, err)
+
+			// Cache the rest of the versions the way the auto-update cron does.
+			for j, version := range c.published[1:] {
+				_, err := ds.InsertFleetMaintainedAppVersion(ctx, activeInstallerID, &fleet.UploadSoftwareInstallerPayload{
+					Version:         version,
+					StorageID:       fmt.Sprintf("storage-%d-%d", i, j+1),
+					Filename:        fmt.Sprintf("test-%d-%d.pkg", i, j+1),
+					Extension:       "pkg",
+					InstallScript:   "echo install",
+					UninstallScript: "echo uninstall",
+				})
+				require.NoError(t, err)
+			}
+
+			fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+			require.NoError(t, err)
+			require.Equal(t, c.wantNewestFirst, versionStrings(fmaVersions))
+		})
+	}
+}
+
+func versionStrings(versions []fleet.FleetMaintainedVersion) []string {
+	got := make([]string, 0, len(versions))
+	for _, version := range versions {
+		got = append(got, version.Version)
+	}
+	return got
+}
+
+func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Marked", Slug: "marked", Platform: "darwin", UniqueIdentifier: "fleet.marked",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+	olderID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "Marked", Source: "apps", Platform: "darwin",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+		InstallerFile: tfr, StorageID: "marked-storage-1", Filename: "marked-1.pkg", Version: "1.0",
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(app.ID),
+	})
+	require.NoError(t, err)
+	newerID, err := ds.InsertFleetMaintainedAppVersion(ctx, olderID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "1.1", StorageID: "marked-storage-2", Filename: "marked-2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+	})
+	require.NoError(t, err)
+
+	uploadedAt := func(installerID uint) time.Time {
+		var at time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &at, `SELECT uploaded_at FROM software_installers WHERE id = ?`, installerID)
+		})
+		return at
+	}
+
+	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
+	require.True(t, uploadedAt(olderID).After(uploadedAt(newerID)))
+
+	versions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
+
+	// Rows tied on the microsecond are ordered by id, so the lower-id row still has to be
+	// markable or it could never become current.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_installers SET uploaded_at = '2026-01-01 00:00:00.123456' WHERE id IN (?, ?)`,
+			olderID, newerID)
+		return err
+	})
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.1", "1.0"}, versionStrings(versions), "the higher id wins a tie")
+
+	require.NoError(t, ds.MarkFleetMaintainedAppVersionCurrent(ctx, olderID))
+	versions, err = ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0", "1.1"}, versionStrings(versions))
 }

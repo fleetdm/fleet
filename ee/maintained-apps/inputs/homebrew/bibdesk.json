@@ -1,0 +1,10 @@
+{
+  "name": "BibDesk",
+  "unique_identifier": "edu.ucsd.cs.mmccrack.bibdesk",
+  "token": "bibdesk",
+  "installer_format": "dmg",
+  "slug": "bibdesk/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

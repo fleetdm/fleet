@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 // Certificate template name validation constants
@@ -141,6 +142,12 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 	savedTemplate, err := svc.ds.CreateCertificateTemplate(ctx, certTemplate)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating certificate template")
+	}
+
+	// Track which variables this template uses so SCIM can trigger resends when values change.
+	certVars := extractCertTemplateFleetVars(subjectName, subjectAlternativeName)
+	if err := svc.ds.SetCertificateTemplateVariables(ctx, savedTemplate.ID, certVars); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting certificate template variables")
 	}
 
 	// Create pending certificate template records for all enrolled Android hosts in the team
@@ -327,13 +334,17 @@ func getCertificateTemplateEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
-	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead); err != nil {
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get certificate template")
+	}
+
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(id), "get certificate template")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionRead, notFoundErr); err != nil {
 		return nil, err
 	}
 
@@ -359,13 +370,18 @@ func deleteCertificateTemplateEndpoint(ctx context.Context, request interface{},
 }
 
 func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTemplateID uint) error {
-	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting certificate template")
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{}, fleet.ActionList); err != nil {
+		return err
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err, "authorizing user for certificate template deletion")
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get certificate template for delete")
+	}
+
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("CertificateTemplate").WithID(certificateTemplateID), "get certificate template for delete")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
+		return err
 	}
 
 	if err := svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID); err != nil {
@@ -540,7 +556,8 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		return err
 	}
 
-	// Create pending certificate template records for all enrolled Android hosts in each team.
+	// Create pending certificate template records for all enrolled Android hosts in each team,
+	// and track which variables each template uses for SCIM-triggered resends.
 	for _, cert := range certificates {
 		// Get the template ID by querying for it (BatchUpsert doesn't return IDs)
 		tmpl, err := svc.ds.GetCertificateTemplateByTeamIDAndName(ctx, cert.TeamID, cert.Name)
@@ -550,6 +567,10 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		// Safe to call even for existing templates (it will be a no-op for hosts that already have records)
 		if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, tmpl.ID, cert.TeamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+		}
+		certVars := extractCertTemplateFleetVars(cert.SubjectName, cert.SubjectAlternativeName)
+		if err := svc.ds.SetCertificateTemplateVariables(ctx, tmpl.ID, certVars); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting certificate template variables")
 		}
 	}
 
@@ -570,7 +591,8 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
 		}
 	}
@@ -653,7 +675,8 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
 			TeamID:   tmID,
 			TeamName: tmName,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
 	}
 

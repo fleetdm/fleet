@@ -8,6 +8,7 @@ import {
   isPackageType,
   isWindowsPackageType,
   isFleetMaintainedPackageType,
+  isScriptOnlyPackageType,
   PackageType,
 } from "interfaces/package_type";
 
@@ -18,8 +19,11 @@ import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
+  // .ps1 is a script-only package type, not a "windows package type", but it's
+  // still PowerShell.
+  const isPowerShell = isWindowsPackageType(pkgType) || pkgType === "ps1";
   return `Currently, ${
-    isWindowsPackageType(pkgType) ? "PowerS" : "s"
+    isPowerShell ? "PowerS" : "s"
   }hell scripts are supported.`;
 };
 
@@ -28,6 +32,7 @@ const PKG_TYPE_TO_ID_TEXT = {
   deb: "package name",
   rpm: "package name",
   msi: "product code",
+  msix: "product code or package family name",
   exe: "software name",
   zip: "software name",
   sh: "package name",
@@ -49,6 +54,10 @@ const getInstallScriptTooltip = (pkgType: PackageType) => {
 };
 
 const getInstallHelpText = (pkgType: PackageType) => {
+  if (isScriptOnlyPackageType(pkgType)) {
+    return "The uploaded script's contents are used as the install script. To change it, upload a new file.";
+  }
+
   if (pkgType === "exe") {
     return (
       <>
@@ -110,6 +119,12 @@ const getUninstallScriptTooltip = (pkgType: PackageType) => {
 };
 
 const getUninstallHelpText = (pkgType: PackageType) => {
+  // Script-only packages have no installer metadata, so there's no $PACKAGE_ID
+  // to populate; the uninstall script runs as-is.
+  if (isScriptOnlyPackageType(pkgType)) {
+    return getSupportedScriptTypeText(pkgType);
+  }
+
   // Check for Windows zip files first (before isFleetMaintainedPackageType check)
   if (pkgType === "zip" && isWindowsPackageType(pkgType)) {
     return (
@@ -205,6 +220,7 @@ interface IPackageAdvancedOptionsProps {
   /** Currently for editing FMA only, users cannot edit */
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const PackageAdvancedOptions = ({
@@ -222,6 +238,7 @@ const PackageAdvancedOptions = ({
   onChangeUninstallScript,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
+  patchWhenClosed = false,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const name = selectedPackage?.name || "";
@@ -239,6 +256,7 @@ const PackageAdvancedOptions = ({
         showSchemaButton={showSchemaButton}
         installScriptTooltip={getInstallScriptTooltip(ext)}
         installScriptHelpText={getInstallHelpText(ext)}
+        installScriptReadOnly={isScriptOnlyPackageType(ext)}
         postInstallScriptHelpText={getPostInstallHelpText(ext)}
         uninstallScriptTooltip={getUninstallScriptTooltip(ext)}
         uninstallScriptHelpText={getUninstallHelpText(ext)}
@@ -254,6 +272,7 @@ const PackageAdvancedOptions = ({
         onChangeUninstallScript={onChangeUninstallScript}
         gitopsCompatible={gitopsCompatible}
         gitOpsModeEnabled={gitOpsModeEnabled}
+        patchWhenClosed={patchWhenClosed}
       />
     );
   };
@@ -275,10 +294,7 @@ const PackageAdvancedOptions = ({
           requiresAdvancedOptions ? (
             <>Install and uninstall scripts are required for .{ext} packages.</>
           ) : (
-            <>
-              Choose a file to modify <br />
-              advanced options.
-            </>
+            <>Choose a file to modify advanced options.</>
           )
         }
       />

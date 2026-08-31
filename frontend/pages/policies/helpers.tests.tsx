@@ -35,6 +35,61 @@ describe("generateSoftwareOptionHelpText", () => {
     expect(generateSoftwareOptionHelpText(title)).toBe("macOS (.pkg) • 1.2.3");
   });
 
+  it("shows the pluralized version count when a custom title has multiple packages", () => {
+    // The outer "Select software" dropdown swaps the version string for a
+    // count on multi-package titles — the per-package picker below the
+    // outer dropdown carries the actual version.
+    const title = createMockSoftwareTitle({
+      source: "apps",
+      app_store_app: null,
+      software_package: createMockSoftwarePackage({
+        name: "TestPackage-1.2.3.pkg",
+        version: "1.2.3",
+      }),
+      packages: [
+        createMockSoftwarePackage({
+          installer_id: 1,
+          name: "TestPackage-1.2.3.pkg",
+          version: "1.2.3",
+        }),
+        createMockSoftwarePackage({
+          installer_id: 2,
+          name: "TestPackage-2.0.0.pkg",
+          version: "2.0.0",
+        }),
+        createMockSoftwarePackage({
+          installer_id: 3,
+          name: "TestPackage-3.0.0.pkg",
+          version: "3.0.0",
+        }),
+      ],
+    });
+
+    expect(generateSoftwareOptionHelpText(title)).toBe(
+      "macOS (.pkg) • 3 versions"
+    );
+  });
+
+  it("keeps the single-version treatment when a title has exactly one package", () => {
+    const title = createMockSoftwareTitle({
+      source: "apps",
+      app_store_app: null,
+      software_package: createMockSoftwarePackage({
+        name: "TestPackage-1.2.3.pkg",
+        version: "1.2.3",
+      }),
+      packages: [
+        createMockSoftwarePackage({
+          installer_id: 1,
+          name: "TestPackage-1.2.3.pkg",
+          version: "1.2.3",
+        }),
+      ],
+    });
+
+    expect(generateSoftwareOptionHelpText(title)).toBe("macOS (.pkg) • 1.2.3");
+  });
+
   it("labels App Store (VPP) apps and uses the app_store_app version", () => {
     const title = createMockSoftwareTitle({
       source: "apps",

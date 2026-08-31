@@ -1,0 +1,11 @@
+{
+  "name": "LibreOffice",
+  "slug": "libreoffice/windows",
+  "package_identifier": "TheDocumentFoundation.LibreOffice",
+  "unique_identifier": "LibreOffice",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "fuzzy_match_name": true,
+  "default_categories": ["Productivity"]
+}

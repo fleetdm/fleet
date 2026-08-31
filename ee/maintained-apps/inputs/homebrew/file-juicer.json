@@ -1,0 +1,10 @@
+{
+  "name": "File Juicer",
+  "unique_identifier": "com.echoone.FileJuicer",
+  "token": "file-juicer",
+  "installer_format": "zip",
+  "slug": "file-juicer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

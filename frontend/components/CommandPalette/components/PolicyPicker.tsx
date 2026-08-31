@@ -10,12 +10,13 @@ import {
   IPolicyStats,
 } from "interfaces/policy";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 import getFleetSuffix from "./pickerCopy";
+import HighlightedLabel from "./HighlightedLabel";
 
 const baseClass = "command-palette";
 
@@ -104,15 +105,19 @@ const PolicyPicker = ({
             className={`${baseClass}__item`}
           >
             <div className={`${baseClass}__item-left`}>
-              <span className={`${baseClass}__item-label`}>{policy.name}</span>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={policy.name} query={debouncedQuery} />
+              </span>
               {showCriticalBadge && <CriticalPolicyBadge />}
               {showPatchBadge && (
-                <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>
+                <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
+                  Patch
+                </Tag>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This policy runs on all hosts.">
+                <Tag tooltip="This policy runs on all hosts." size="small">
                   Inherited
-                </PillBadge>
+                </Tag>
               )}
             </div>
           </Command.Item>

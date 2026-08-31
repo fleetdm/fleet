@@ -1,0 +1,10 @@
+{
+  "name": "qView",
+  "unique_identifier": "com.interversehq.qView",
+  "token": "qview",
+  "installer_format": "dmg",
+  "slug": "qview/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

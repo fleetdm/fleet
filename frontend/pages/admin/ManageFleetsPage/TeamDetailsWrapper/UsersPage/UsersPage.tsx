@@ -2,11 +2,11 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
 import { INewTeamUsersFormData, ITeam } from "interfaces/team";
-import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
+import { IUpdateUserFormData, IUser } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
@@ -19,6 +19,7 @@ import Spinner from "components/Spinner";
 import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
 import AddUserModal from "pages/admin/ManageUsersPage/components/AddUserModal";
 import EditUserModal from "../../../ManageUsersPage/components/EditUserModal";
 import {
@@ -40,7 +41,6 @@ const baseClass = "team-users";
 const noUsersClass = "no-team-users";
 
 const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
     AppContext
   );
@@ -70,8 +70,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
+  const [addUserErrors, setAddUserErrors] = useState<IFormErrors>({});
+  const [editUserErrors, setEditUserErrors] = useState<IFormErrors>({});
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -144,18 +144,13 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     teamsAPI
       .removeUsers(teamIdForApi, removedUsers)
       .then(() => {
-        renderFlash(
-          "success",
-          `Successfully removed ${userEditing?.name || "user"}`
-        );
+        notify.success(`Successfully removed ${userEditing?.name || "user"}`);
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
           window.location.href = PATHS.ROOT;
         }
       })
-      .catch(() =>
-        renderFlash("error", "Unable to remove users. Please try again.")
-      )
+      .catch(() => notify.error("Unable to remove users. Please try again."))
       .finally(() => {
         setIsUpdatingUsers(false);
         toggleRemoveUserModal();
@@ -165,7 +160,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     userEditing?.id,
     userEditing?.name,
     teamIdForApi,
-    renderFlash,
     currentUser,
     toggleRemoveUserModal,
     refetchUsers,
@@ -177,16 +171,13 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         .addUsers(currentTeamDetails?.id, newUsers)
         .then(() => {
           const count = newUsers.users.length;
-          renderFlash(
-            "success",
+          notify.success(
             `${count} ${count === 1 ? "user" : "users"} successfully added to ${
               currentTeamDetails?.name
             }.`
           );
         })
-        .catch(() =>
-          renderFlash("error", "Could not add users. Please try again.")
-        )
+        .catch(() => notify.error("Could not add users. Please try again."))
         .finally(() => {
           toggleAddUserModal();
           refetchUsers();
@@ -195,7 +186,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     [
       currentTeamDetails?.id,
       currentTeamDetails?.name,
-      renderFlash,
       toggleAddUserModal,
       refetchUsers,
     ]
@@ -218,31 +208,22 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           const senderAddressMessage = config?.smtp_settings?.sender_address
             ? ` from ${config?.smtp_settings?.sender_address}`
             : "";
-          renderFlash(
-            "success",
+          notify.success(
             `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           refetchUsers();
           toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (
-            userErrors.data.errors?.[0].reason.includes(
-              "a user with this account already exists"
-            )
-          ) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("Invite") &&
-            userErrors.data.errors?.[0].reason.includes("already exists")
-          ) {
-            setAddUserErrors({
-              email: "A user with this email address has already been invited",
-            });
+          const fieldErrors = userManagementHelpers.getUserFieldErrors(
+            userErrors
+          );
+          if (fieldErrors) {
+            setAddUserErrors(fieldErrors);
           } else {
-            renderFlash("error", "Could not invite user. Please try again.");
+            notify.error("Could not invite user. Please try again.", {
+              response: userErrors,
+            });
           }
         })
         .finally(() => {
@@ -257,29 +238,20 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       usersAPI
         .createUserWithoutInvitation(requestData)
         .then(() => {
-          renderFlash("success", `Successfully created ${requestData.name}.`);
+          notify.success(`Successfully created ${requestData.name}.`);
           refetchUsers();
           toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors?.[0].reason.includes("Duplicate")) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("already invited")
-          ) {
-            setAddUserErrors({
-              email: "A user with this email address has already been invited",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setAddUserErrors({
-              password: "Password is over the character limit.",
-            });
+          const fieldErrors = userManagementHelpers.getUserFieldErrors(
+            userErrors
+          );
+          if (fieldErrors) {
+            setAddUserErrors(fieldErrors);
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
+            notify.error("Could not create user. Please try again.", {
+              response: userErrors,
+            });
           }
         })
         .finally(() => {
@@ -303,10 +275,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         usersAPI
           .update(userEditing.id, updatedAttrs)
           .then(() => {
-            renderFlash(
-              "success",
-              `Successfully edited ${userName || "user"}.`
-            );
+            notify.success(`Successfully edited ${userName || "user"}.`);
 
             if (
               currentUser &&
@@ -327,14 +296,15 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             toggleEditUserModal();
           })
           .catch((userErrors: { data: IApiError }) => {
-            if (userErrors.data.errors[0].reason.includes("already exists")) {
-              setEditUserErrors({
-                email: "A user with this email address already exists",
-              });
+            const fieldErrors = userManagementHelpers.getUserFieldErrors(
+              userErrors
+            );
+            if (fieldErrors) {
+              setEditUserErrors(fieldErrors);
             } else {
-              renderFlash(
-                "error",
-                `Could not edit ${userName || "user"}. Please try again.`
+              notify.error(
+                `Could not edit ${userName || "user"}. Please try again.`,
+                { response: userErrors }
               );
             }
           })
@@ -342,14 +312,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             setIsUpdatingUsers(false);
           });
     },
-    [
-      userEditing,
-      renderFlash,
-      currentUser,
-      toggleEditUserModal,
-      teamIdForApi,
-      refetchUsers,
-    ]
+    [userEditing, currentUser, toggleEditUserModal, teamIdForApi, refetchUsers]
   );
 
   const onActionSelection = useCallback(
@@ -376,8 +339,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   }, [teamUsers?.length, searchString]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(onActionSelection),
-    [onActionSelection]
+    () => generateColumnConfigs(onActionSelection, currentUser),
+    [onActionSelection, currentUser]
   );
 
   if (!isRouteOk) {
@@ -414,9 +377,11 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           defaultSortHeader="name"
           defaultSortDirection="asc"
           actionButton={{
-            name: isGlobalAdmin ? "add user" : "create user",
-            buttonText: isGlobalAdmin ? "Add users" : "Create user",
-            variant: "default",
+            name: "add user",
+            buttonText: isGlobalAdmin ? "Add users" : "Add user",
+            variant: "secondary",
+            iconSvg: "plus",
+            iconPosition: "left",
             onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}

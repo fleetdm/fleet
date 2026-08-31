@@ -1,0 +1,10 @@
+{
+  "name": "App Fair",
+  "unique_identifier": "app.App-Fair",
+  "token": "app-fair",
+  "installer_format": "zip",
+  "slug": "app-fair/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

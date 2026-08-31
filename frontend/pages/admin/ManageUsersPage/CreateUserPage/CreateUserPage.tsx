@@ -4,18 +4,19 @@ import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IFormErrors } from "hooks/useFormValidation";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
+import { notify } from "components/ToastNotification";
 import UserForm from "../components/UserForm";
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
+import { getUserFieldErrors } from "../helpers/userManagementHelpers";
 
 const baseClass = "create-user-page";
 
@@ -25,9 +26,8 @@ interface ICreateUserPageProps {
 
 const CreateUserPage = ({ router }: ICreateUserPageProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -50,73 +50,51 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
       delete requestData.currentUserId;
       delete requestData.newUserType;
       delete requestData.password;
-      invitesAPI
+      return invitesAPI
         .create(requestData)
         .then(() => {
-          renderFlash("success", `${formData.name} has been invited!`);
+          notify.success(`${formData.name} has been invited!`);
           router.push(PATHS.ADMIN_USERS);
         })
         .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("already exists")) {
-            setFormErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setFormErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setFormErrors({
-              password: "Password is over the character limit.",
-            });
+          const fieldErrors = getUserFieldErrors(userErrors);
+          if (fieldErrors) {
+            setFormErrors(fieldErrors);
           } else {
-            renderFlash("error", "Could not create user. Please try again.");
-          }
-        })
-        .finally(() => {
-          setIsSubmitting(false);
-        });
-    } else {
-      const requestData = {
-        ...formData,
-      };
-      delete requestData.currentUserId;
-      delete requestData.newUserType;
-      usersAPI
-        .createUserWithoutInvitation(requestData)
-        .then(() => {
-          renderFlash("success", `${requestData.name} has been created!`);
-          router.push(PATHS.ADMIN_USERS);
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-            setFormErrors({
-              email: "A user with this email address already exists",
+            notify.error("Could not create user. Please try again.", {
+              response: userErrors,
             });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setFormErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setFormErrors({
-              password: "Password is over the character limit.",
-            });
-          } else {
-            renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
           setIsSubmitting(false);
         });
     }
+
+    const requestData = {
+      ...formData,
+    };
+    delete requestData.currentUserId;
+    delete requestData.newUserType;
+    return usersAPI
+      .createUserWithoutInvitation(requestData)
+      .then(() => {
+        notify.success(`${requestData.name} has been created!`);
+        router.push(PATHS.ADMIN_USERS);
+      })
+      .catch((userErrors: { data: IApiError }) => {
+        const fieldErrors = getUserFieldErrors(userErrors);
+        if (fieldErrors) {
+          setFormErrors(fieldErrors);
+        } else {
+          notify.error("Could not create user. Please try again.", {
+            response: userErrors,
+          });
+        }
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   return (
@@ -135,7 +113,7 @@ const CreateUserPage = ({ router }: ICreateUserPageProps) => {
           sesConfigured={config?.email?.backend === "ses" || false}
           canUseSso={config?.sso_settings?.enable_sso || false}
           currentUserId={currentUser?.id}
-          ancestorErrors={formErrors}
+          serverErrors={formErrors}
           isUpdatingUsers={isSubmitting}
         />
       </>

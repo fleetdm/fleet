@@ -1,0 +1,1 @@
+* Fixed Android MDM commands returning 500 instead of the actual error code from the Google Android Enterprise API.

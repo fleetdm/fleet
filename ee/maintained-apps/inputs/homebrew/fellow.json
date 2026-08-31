@@ -1,0 +1,10 @@
+{
+  "name": "Fellow",
+  "unique_identifier": "com.electron.fellow",
+  "token": "fellow",
+  "installer_format": "dmg",
+  "slug": "fellow/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

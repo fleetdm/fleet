@@ -204,6 +204,84 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Empty(t, lockResp.UnlockPIN)
 }
 
+// TestLockMacOSWithOrphanedLockRef reproduces #45931: a macOS host has a pending
+// DeviceLock whose queued command gets deactivated (nano_enrollment_queue.active
+// = 0) while its lock_ref remains — e.g. a SCEP-renewal re-checkin clears the
+// command queue without a full re-enrollment. A subsequent lock must enqueue a
+// fresh, deliverable command instead of silently reusing the orphaned ref.
+func (s *integrationMDMTestSuite) TestLockMacOSWithOrphanedLockRef() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	readLockRef := func() string {
+		var lockRef string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &lockRef,
+				`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+		})
+		return lockRef
+	}
+
+	// lock the host: enqueues a DeviceLock command and records lock_ref.
+	var lockResp fleet.LockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
+	require.Len(t, lockResp.UnlockPIN, 6)
+
+	firstLockRef := readLockRef()
+	require.NotEmpty(t, firstLockRef)
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
+
+	// deactivate the queued lock command without touching host_mdm_actions,
+	// leaving lock_ref pointing at a command that will never be delivered.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`,
+			host.UUID, firstLockRef)
+		return err
+	})
+
+	// the orphaned lock_ref no longer counts as pending: the host reads back as
+	// unlocked with no pending action.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Empty(t, *getHostResp.Host.MDM.PendingAction)
+
+	// locking again must enqueue a brand-new, deliverable DeviceLock command
+	// rather than silently reusing the orphaned ref.
+	lockResp = fleet.LockHostResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
+	require.Len(t, lockResp.UnlockPIN, 6)
+	require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
+
+	secondLockRef := readLockRef()
+	require.NotEmpty(t, secondLockRef)
+	require.NotEqual(t, firstLockRef, secondLockRef, "lock_ref should be replaced, not reused")
+
+	// the device receives the new DeviceLock command (the bug was that nothing
+	// was delivered), and acknowledging it locks the host.
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "DeviceLock", cmd.Command.RequestType)
+	require.Equal(t, secondLockRef, cmd.CommandUUID)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Empty(t, *getHostResp.Host.MDM.PendingAction)
+}
+
 func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -464,6 +542,315 @@ func (s *integrationMDMTestSuite) TestWipeLinuxCancelsUpcomingActivities() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
 		nil, http.StatusOK, &listResp)
 	require.Empty(t, listResp.Activities)
+}
+
+func (s *integrationMDMTestSuite) TestCancelHostMDMCommandMacOS() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	otherHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	winHost := createOrbitEnrolledHost(t, "windows", "win-cancel", s.ds)
+
+	readLockRef := func() string {
+		var lockRef string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &lockRef,
+				`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+		})
+		return lockRef
+	}
+	requireHostState := func(deviceStatus, pendingAction string) {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+		require.Equal(t, deviceStatus, *getHostResp.Host.MDM.DeviceStatus)
+		require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+		require.Equal(t, pendingAction, *getHostResp.Host.MDM.PendingAction)
+	}
+
+	// lock the host; the command is pending, the device hasn't checked in
+	var lockResp fleet.LockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
+	require.Len(t, lockResp.UnlockPIN, 6)
+	lockCmdUUID := readLockRef()
+	require.NotEmpty(t, lockCmdUUID)
+	requireHostState("unlocked", "lock")
+
+	// unknown command and unknown host are not found
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, uuid.NewString()), nil, http.StatusNotFound)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID+1000, lockCmdUUID), nil, http.StatusNotFound)
+	// a command sent to another host is not found for this one
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", otherHost.ID, lockCmdUUID), nil, http.StatusNotFound)
+	// non-Apple hosts are rejected outright
+	res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", winHost.ID, lockCmdUUID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Only Apple MDM commands can be canceled.")
+
+	// cancel the pending lock
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, lockCmdUUID), nil, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledMDMCommand{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_type": "DeviceLock"}`, host.ID, host.DisplayName()), 0)
+	requireHostState("unlocked", "")
+
+	// the device never receives the canceled command
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// canceling again is a not-found
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, lockCmdUUID), nil, http.StatusNotFound)
+
+	// a fresh lock can be issued
+	lockResp = fleet.LockHostResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
+	require.Len(t, lockResp.UnlockPIN, 6)
+	notNowCmdUUID := readLockRef()
+	require.NotEqual(t, lockCmdUUID, notNowCmdUUID)
+
+	// the device defers the command with NotNow; it stays pending and cancelable
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, notNowCmdUUID, cmd.CommandUUID)
+	_, err = mdmClient.NotNow(cmd.CommandUUID)
+	require.NoError(t, err)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, notNowCmdUUID), nil, http.StatusNoContent)
+	requireHostState("unlocked", "")
+
+	// the canceled command is not re-served on the next check-in
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// race: the device fetches the lock command, then the cancel lands, then
+	// the device acknowledges anyway — the host must end up locked with the
+	// original PIN retrievable (self-heal)
+	lockResp = fleet.LockHostResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
+	racePIN := lockResp.UnlockPIN
+	raceCmdUUID := readLockRef()
+
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, raceCmdUUID, cmd.CommandUUID)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, raceCmdUUID), nil, http.StatusNoContent)
+	cancelActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledMDMCommand{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_type": "DeviceLock"}`, host.ID, host.DisplayName()), 0)
+	requireHostState("unlocked", "")
+
+	_, err = mdmClient.Acknowledge(raceCmdUUID)
+	require.NoError(t, err)
+	requireHostState("locked", "")
+
+	var unlockResp fleet.UnlockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusOK, &unlockResp)
+	require.Equal(t, racePIN, unlockResp.UnlockPIN)
+
+	// the cancel activity honestly remains, and canceling the executed command
+	// now reports that it already ran
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledMDMCommand{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_type": "DeviceLock"}`, host.ID, host.DisplayName()), cancelActID)
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, raceCmdUUID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "The command has already run on the host.")
+
+	// unlock the host (backdate + Idle, like the normal unlock flow)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, mysql.MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	requireHostState("unlocked", "")
+
+	// wipe, cancel the wipe, then wipe again and let it run
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	var wipeCmdUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &wipeCmdUUID,
+			`SELECT wipe_ref FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+	})
+	requireHostState("unlocked", "wipe")
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, wipeCmdUUID), nil, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledMDMCommand{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_type": "EraseDevice"}`, host.ID, host.DisplayName()), 0)
+	requireHostState("unlocked", "")
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireHostState("wiped", "")
+
+	// a pending command of a non-cancelable type is rejected
+	rawCmdUUID := uuid.NewString()
+	rawCmd := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>ShutDownDevice</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, rawCmdUUID)
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(rawCmd)),
+		HostUUIDs: []string{otherHost.UUID},
+	}, http.StatusOK, &runResp)
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", otherHost.ID, rawCmdUUID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Only lock, wipe, and clear passcode commands can be canceled.")
+}
+
+func (s *integrationMDMTestSuite) TestCancelHostMDMCommandIOS() {
+	t := s.T()
+
+	devices := []godep.Device{
+		{SerialNumber: mdmtest.RandSerialNumber(), Model: "iPhone 16 Pro", OS: "ios", DeviceFamily: "iPhone", OpType: "added"},
+	}
+
+	s.enableABM(t.Name())
+	abmTok, err := s.ds.GetABMTokenByOrgName(t.Context(), t.Name())
+	require.NoError(t, err)
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			assert.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			assert.NoError(t, err)
+		case "/server/devices":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+			assert.NoError(t, err)
+		case "/devices/sync":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			assert.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			var prof profileAssignmentReq
+			assert.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			assert.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	s.setSkipWorkerJobs(t)
+	s.awaitTriggerProfileSchedule(t)
+
+	host, mdmClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", devices[0].SerialNumber)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	// empty the command queue
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// emulate DEP enrollment so the host can be locked
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*host}, abmTok.ID, nil))
+
+	readLockRef := func() string {
+		var lockRef string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &lockRef,
+				`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, host.ID)
+		})
+		return lockRef
+	}
+	requireHostState := func(deviceStatus, pendingAction string) {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+		require.Equal(t, deviceStatus, *getHostResp.Host.MDM.DeviceStatus)
+		require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+		require.Equal(t, pendingAction, *getHostResp.Host.MDM.PendingAction)
+	}
+
+	// lock the host (iOS lock is EnableLostMode) and cancel it before delivery
+	var lockResp fleet.LockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
+	lostModeCmdUUID := readLockRef()
+	require.NotEmpty(t, lostModeCmdUUID)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, lostModeCmdUUID), nil, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledMDMCommand{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_type": "EnableLostMode"}`, host.ID, host.DisplayName()), 0)
+	requireHostState("unlocked", "")
+
+	// the device never receives it
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// race: re-lock, the device fetches the command, the cancel lands, and the
+	// device acknowledges anyway — lost mode really engaged, so the host must
+	// report locked once the DeviceLocation follow-up completes
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
+	raceCmdUUID := readLockRef()
+	require.NotEqual(t, lostModeCmdUUID, raceCmdUUID)
+
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, raceCmdUUID, cmd.CommandUUID)
+	require.Equal(t, "EnableLostMode", cmd.Command.RequestType)
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", host.ID, raceCmdUUID), nil, http.StatusNoContent)
+	requireHostState("unlocked", "")
+
+	_, err = mdmClient.Acknowledge(raceCmdUUID)
+	require.NoError(t, err)
+	// the lost-mode ack triggers the DeviceLocation follow-up as usual
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "DeviceLocation", cmd.Command.RequestType)
+	_, err = mdmClient.AcknowledgeDeviceLocation(mdmClient.UUID, cmd.CommandUUID, 42.42, 26.26)
+	require.NoError(t, err)
+	requireHostState("locked", "")
+
+	// the admin can disable lost mode to recover the device
+	var unlockResp fleet.UnlockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusOK, &unlockResp)
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "DisableLostMode", cmd.Command.RequestType)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireHostState("unlocked", "")
 }
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {

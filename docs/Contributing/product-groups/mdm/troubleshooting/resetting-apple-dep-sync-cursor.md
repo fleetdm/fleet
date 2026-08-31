@@ -23,8 +23,8 @@ This is fine to do even in larger deployments.
 
 ```sql
 UPDATE nano_dep_names
-SET    syncer_cursor = NULL
-WHERE  name = '<your-abm-token-name>';
+SET    syncer_cursor = NULL,
+syncer_cursor_at = NULL;
 ```
 
 Storage backend: [`server/mdm/nanodep/storage/mysql`](https://github.com/fleetdm/fleet/tree/main/server/mdm/nanodep/storage/mysql).

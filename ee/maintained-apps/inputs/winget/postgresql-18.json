@@ -1,0 +1,12 @@
+{
+  "name": "PostgreSQL 18",
+  "slug": "postgresql-18/windows",
+  "package_identifier": "PostgreSQL.PostgreSQL.18",
+  "unique_identifier": "PostgreSQL 18",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/postgresql-18_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/postgresql-18_uninstall.ps1"
+}

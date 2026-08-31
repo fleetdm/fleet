@@ -1,0 +1,10 @@
+{
+  "name": "KeyClu",
+  "unique_identifier": "com.0804Team.KeyClu",
+  "token": "keyclu",
+  "installer_format": "zip",
+  "slug": "keyclu/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

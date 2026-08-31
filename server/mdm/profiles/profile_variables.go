@@ -6,8 +6,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -29,12 +31,20 @@ Once more is needed it should be placed here, and the main replacement logic can
 under server/service folder. Inside the `preprocessProfileContents` under the `fleetVarLoop` loop.
 */
 
+// KnownCANames returns the configured CA names for logging. Names extracted
+// from profile contents must not be logged: after variable substitution the
+// contents can embed secrets (e.g. certificate passwords), so a malformed
+// variable name derived from them could leak secret fragments into logs.
+func KnownCANames[T any](cas map[string]T) string {
+	return strings.Join(slices.Sorted(maps.Keys(cas)), ",")
+}
+
 func ReplaceCustomSCEPChallengeVariable(ctx context.Context, logger *slog.Logger, fleetVariable string, customSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profileContents string) (contents string, replacedVariable bool, err error) {
 	caName := strings.TrimPrefix(fleetVariable, string(fleet.FleetVarCustomSCEPChallengePrefix))
 	ca, ok := customSCEPCAs[caName]
 	if !ok {
 		logger.ErrorContext(ctx, "Custom SCEP CA not found. This error should never happen since we validated/populated CAs earlier",
-			"ca_name", caName)
+			"known_cas", KnownCANames(customSCEPCAs))
 		return "", false, nil
 	}
 	contents, err = ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPChallengePrefix), ca.Name, profileContents, ca.Challenge)
@@ -52,7 +62,7 @@ func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger *slog.Logger,
 	ca, ok := customSCEPCAs[caName]
 	if !ok {
 		logger.ErrorContext(ctx, "Custom SCEP CA not found. This error should never happen since we validated/populated CAs earlier",
-			"ca_name", caName)
+			"known_cas", KnownCANames(customSCEPCAs))
 		return "", nil, false, nil
 	}
 	// Generate a new SCEP challenge for the profile
@@ -83,16 +93,31 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	hostIDForUUIDCache map[string]uint,
 	onError func(errMsg string) error,
 ) (replacedContents string, replacedVariable bool, err error) {
-	user, ok, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
+	value, rx, ok, err := ResolveHostEndUserIDPValue(ctx, ds, fleetVar, hostUUID, hostIDForUUIDCache, onError)
 	if err != nil {
 		return "", false, err
 	}
 	if !ok {
 		return "", false, nil
 	}
+	replacedContents = ReplaceFleetVariableInXML(rx, profileContents, value)
+	return replacedContents, true, nil
+}
 
-	var rx *regexp.Regexp
-	var value string
+// ResolveHostEndUserIDPValue resolves the raw string value for the given IDP fleet variable and host.
+func ResolveHostEndUserIDPValue(ctx context.Context, ds fleet.Datastore,
+	fleetVar string, hostUUID string,
+	hostIDForUUIDCache map[string]uint,
+	onError func(errMsg string) error,
+) (value string, rx *regexp.Regexp, ok bool, err error) {
+	user, userOK, err := getHostEndUserIDPUser(ctx, ds, hostUUID, fleetVar, hostIDForUUIDCache, onError)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if !userOK {
+		return "", nil, false, nil
+	}
+
 	switch fleetVar {
 	case string(fleet.FleetVarHostEndUserIDPUsername):
 		rx = fleet.FleetVarHostEndUserIDPUsernameRegexp
@@ -109,10 +134,10 @@ func ReplaceHostEndUserIDPVariables(ctx context.Context, ds fleet.Datastore,
 	case string(fleet.FleetVarHostEndUserIDPFullname):
 		rx = fleet.FleetVarHostEndUserIDPFullnameRegexp
 		value = strings.TrimSpace(user.IdpFullName)
+	default:
+		return "", nil, false, nil
 	}
-	replacedContents = ReplaceFleetVariableInXML(rx, profileContents, value)
-
-	return replacedContents, true, nil
+	return value, rx, true, nil
 }
 
 func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore,

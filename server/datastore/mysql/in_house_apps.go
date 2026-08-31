@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -360,6 +361,21 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 
 func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Bail early when the app is selected for setup experience, before the
+		// cleanup below cancels pending installs in transactions of its own. A
+		// plain read keeps the row unlocked during that cascade; the guarded
+		// DELETE below still catches a concurrent selection.
+		var installDuringSetup bool
+		switch err := sqlx.GetContext(ctx, tx, &installDuringSetup,
+			`SELECT install_during_setup FROM in_house_apps WHERE id = ?`, id); {
+		case errors.Is(err, sql.ErrNoRows):
+			return notFound("InHouseApp").WithID(id)
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "check if in-house app is installed during setup")
+		case installDuringSetup:
+			return errDeleteInstallerInstalledDuringSetup
+		}
+
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
@@ -371,9 +387,23 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "delete software title display name")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, id)
+		res, err := tx.ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ? AND install_during_setup = 0`, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// either selected for setup experience or deleted concurrently
+			// between the check above and here
+			var installDuringSetup bool
+			switch err := sqlx.GetContext(ctx, tx, &installDuringSetup,
+				`SELECT install_during_setup FROM in_house_apps WHERE id = ?`, id); {
+			case errors.Is(err, sql.ErrNoRows):
+				return notFound("InHouseApp").WithID(id)
+			case err != nil:
+				return ctxerr.Wrap(ctx, err, "check why in-house app was not deleted")
+			default:
+				return errDeleteInstallerInstalledDuringSetup
+			}
 		}
 		return nil
 	})
@@ -415,28 +445,26 @@ func (ds *Datastore) GetSummaryHostInHouseAppInstalls(ctx context.Context, teamI
 	var dest fleet.VPPAppStatusSummary // Using the vpp struct since it is more appropriate for ipa
 	stmt := `
 WITH
--- select most recent upcoming activities for each host
+-- select most recent upcoming activity per host (per activity type)
 upcoming AS (
-	SELECT
-		ua.host_id,
-		:software_status_pending AS status
-	FROM
-		upcoming_activities ua
-		JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN in_house_app_upcoming_activities ihaua2
-				ON ua2.id = ihaua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			ihaua.in_house_app_id = ihaua2.in_house_app_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.activity_type = 'in_house_app_install'
-		AND ua2.id IS NULL
-		AND ihaua.in_house_app_id = :in_house_app_id
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	SELECT host_id, status FROM (
+		SELECT
+			ua.host_id,
+			:software_status_pending AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ua.host_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+			JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
+			JOIN hosts h ON ua.host_id = h.id
+		WHERE
+			ua.activity_type = 'in_house_app_install'
+			AND ihaua.in_house_app_id = :in_house_app_id
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	) ranked
+	WHERE rn = 1
 ),
 
 -- select most recent past activities for each host
@@ -591,8 +619,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert in house app install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -1021,9 +1053,10 @@ INSERT INTO in_house_apps (
 	platform,
 	bundle_identifier,
 	self_service,
-	url
+	url,
+	install_during_setup
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, false)
 )
 ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
@@ -1032,7 +1065,8 @@ ON DUPLICATE KEY UPDATE
   platform = VALUES(platform),
   bundle_identifier = VALUES(bundle_identifier),
   self_service = VALUES(self_service),
-  url = VALUES(url)
+  url = VALUES(url),
+  install_during_setup = COALESCE(?, install_during_setup)
 `
 
 	const loadInHouseInstallerID = `
@@ -1378,6 +1412,8 @@ WHERE
 				installer.BundleIdentifier,
 				installer.SelfService,
 				installer.URL,
+				installer.InstallDuringSetup,
+				installer.InstallDuringSetup,
 			}
 			upsertQuery := insertNewOrEditedInstaller
 			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
@@ -1537,7 +1573,8 @@ WHERE
 	if err != nil {
 		return err
 	}
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return err
 }
 
 func (ds *Datastore) runInHouseUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
@@ -1650,28 +1687,6 @@ WHERE
 	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier, platform)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("check %s exists", swType))
-	}
-	return exists == 1, nil
-}
-
-func (ds *Datastore) checkInstallerExistsByName(ctx context.Context, q sqlx.QueryerContext, teamID *uint, name, source, platform string) (bool, error) {
-	const stmt = `
-SELECT 1
-FROM
-	software_titles st
-	INNER JOIN software_installers ON st.id = software_installers.title_id
-		AND software_installers.global_or_team_id = ?
-WHERE
-	st.name = ?
-	AND st.source = ?
-	AND st.extension_for = ''
-	AND software_installers.platform = ?
-`
-
-	var exists int
-	err := sqlx.GetContext(ctx, q, &exists, stmt, ptr.ValOrZero(teamID), name, source, platform)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, ctxerr.Wrap(ctx, err, "check installer exists by name")
 	}
 	return exists == 1, nil
 }
@@ -1823,4 +1838,63 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "updateInHouseAppConfiguration")
 	}
 	return nil
+}
+
+func (ds *Datastore) CreateInHouseAppInstallToken(
+	ctx context.Context,
+	ex sqlx.ExtContext,
+	token string,
+	softwareTitleID, teamID, hostID uint,
+) error {
+	const stmt = `
+INSERT INTO in_house_app_install_tokens
+	(token, software_title_id, team_id, host_id, expires_at)
+VALUES
+	(?, ?, ?, ?, ?)
+`
+	expiresAt := time.Now().UTC().Add(fleet.InHouseAppInstallTokenTTL)
+	if _, err := ex.ExecContext(ctx, stmt, token, softwareTitleID, teamID, hostID, expiresAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert in-house app install token")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetInHouseAppInstallTokenMetadata(
+	ctx context.Context,
+	token string,
+) (*fleet.InHouseAppInstallTokenMetadata, error) {
+	const stmt = `
+SELECT token, software_title_id, team_id, host_id, expires_at
+FROM in_house_app_install_tokens
+WHERE token = ? AND expires_at > NOW(6)
+`
+	// Read from primary: tokens are minted in the activation tx and may be
+	// looked up before replicas have caught up.
+	var meta fleet.InHouseAppInstallTokenMetadata
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &meta, stmt, token); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppInstallToken"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app install token metadata")
+	}
+	return &meta, nil
+}
+
+func (ds *Datastore) DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error) {
+	const stmt = `DELETE FROM in_house_app_install_tokens WHERE expires_at < NOW(6) LIMIT 1000`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "delete expired in-house app install tokens")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "delete expired in-house app install tokens rows affected")
+		}
+		total += n
+		if n < 1000 {
+			return total, nil
+		}
+	}
 }

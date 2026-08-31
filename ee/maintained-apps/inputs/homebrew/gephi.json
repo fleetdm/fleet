@@ -1,0 +1,10 @@
+{
+  "name": "Gephi",
+  "unique_identifier": "org.gephi",
+  "token": "gephi",
+  "installer_format": "dmg",
+  "slug": "gephi/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

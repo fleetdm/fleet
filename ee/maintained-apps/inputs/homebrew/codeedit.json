@@ -1,0 +1,10 @@
+{
+  "name": "CodeEdit",
+  "unique_identifier": "app.codeedit.CodeEdit",
+  "token": "codeedit",
+  "installer_format": "dmg",
+  "slug": "codeedit/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

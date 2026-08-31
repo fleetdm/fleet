@@ -329,13 +329,32 @@
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync macOS local user accounts via Okta, AD, or any IdP. 
-  documentationUrl: https://fleetdm.com/guides/setup-experience#end-user-authentication
+  documentationUrl: https://fleetdm.com/guides/setup-experience#require-idp-authentication
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Device management]
   usualDepartment: IT
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
+#
+#  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔   ╔═╗╔═╗╔═╗╔═╗╦ ╦╔═╗╦═╗╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
+#  ╠═╣║  ║  ║ ║║ ║║║║ ║   ║  ╠╦╝║╣ ╠═╣ ║ ║║ ║║║║ & ╠═╝╠═╣╚═╗╚═╗║║║║ ║╠╦╝ ║║  ╚═╗╚╦╝║║║║  
+#  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝╩╚═╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝   ╩  ╩ ╩╚═╝╚═╝╚╩╝╚═╝╩╚══╩╝  ╚═╝ ╩ ╝╚╝╚═╝
+- industryName: Account creation & password sync
+  description: Automatically create macOS local accounts and sync passwords with any IdP that supports OAuth ROPG (e.g. Okta), so end users have one password for their Mac and third-party tools.
+  documentationUrl: https://fleetdm.com/docs/deploying-apple-account-provisioning-with-fleet
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  isExperimental: yes
+  waysToUse:
+    - description: Create macOS local accounts during zero-touch setup using IdP credentials.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/45524
+    - description: Sync macOS local account passwords with IdP credentials from any IdP that supports OAuth ROPG.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/45524
 #
 #  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
 #  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
@@ -542,7 +561,7 @@
 - industryName: Conditional access
   friendlyName: Device health
   description: Automatically block access to corporate resources when a device falls out of compliance with Fleet policies, using Okta or Microsoft Entra ID conditional access (zero trust). This keep corporate data out of the hands of compromised or misconfigured devices (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
+  documentationUrl: https://fleetdm.com/guides/conditional-access
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
   screenshotSrc:
   tier: Premium
@@ -971,8 +990,8 @@
 #  ╦═╗╔═╗╔═╗╔═╗╦═╗╔╦╗╦╔╗╔╔═╗  
 #  ╠╦╝║╣ ╠═╝║ ║╠╦╝ ║ ║║║║║ ╦   
 #  ╩╚═╚═╝╩  ╚═╝╩╚═ ╩ ╩╝╚╝╚═╝                                                                                                                                                                                                               
-- industryName: Reporting
-  description: Generate reports based on searchable device attributes
+- industryName: Report on groups of devices
+  description: Create a report scoped to a specific fleet, instead of your whole deployment.
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Device management]

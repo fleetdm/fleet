@@ -17,7 +17,15 @@ linters:
     - setboolcheck
     - depguard
     - apiparamcheck
+    - staticcheck
   settings:
+    staticcheck:
+      # Only enable SA1019 (deprecated function/method/field usage) here. It is disabled in the full
+      # lint (.golangci.yml) because existing code has many deprecated usages, but we want to catch new
+      # ones. All other staticcheck rules are owned by the full lint to avoid duplicate findings.
+      checks:
+        - "-all"
+        - "SA1019"
     gosec:
       # Only enable rules that are too noisy on existing code but valuable for new code.
       # Existing violations were audited during the v2.7.1 -> v2.11.3 upgrade and found

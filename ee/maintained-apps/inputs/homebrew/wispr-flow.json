@@ -1,0 +1,10 @@
+{
+  "name": "Wispr Flow",
+  "unique_identifier": "com.electron.wispr-flow",
+  "token": "wispr-flow",
+  "installer_format": "dmg",
+  "slug": "wispr-flow/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Autopsy",
+  "slug": "autopsy/windows",
+  "package_identifier": "SleuthKit.Autopsy",
+  "unique_identifier": "Autopsy",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Security"]
+}

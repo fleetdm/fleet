@@ -12,10 +12,12 @@ should be discussed within the team and documented before merged.
 - [Utilities](#utilities)
 - [Components](#components)
 - [Forms](#forms)
+- [Tier modes](#tier-modes)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
 - [Page routing](#page-routing)
+- [Command palette](#command-palette)
 - [Styles](#styles)
 - [Icons and images](#icons-and-images)
 - [Testing](#testing)
@@ -125,8 +127,7 @@ interface ISoftwareCountResponse {
 // *FormData instead, even for programmatic request bodies (e.g.
 // IDeleteQueriesFormData). One consistent suffix is easier to follow than
 // asking each dev to judge "is this form-driven enough?"
-// *PreviewPayload is fine for outgoing webhook shapes (matches the
-// "Preview payload" UI terminology).
+// *PreviewPayload is fine for outgoing webhook shapes.
 ```
 
 ## Utilities
@@ -146,6 +147,77 @@ export default {
 }
 ```
 
+### Software titles
+
+Software titles have two fields that look like a name:
+
+- `name` — the raw title from the installer/package metadata (e.g. `Microsoft.CompanyPortal`)
+- `display_name` — an optional custom name set per fleet by an admin
+
+Render the label from the resolved display name, but pass the **raw** `name` to
+`<SoftwareIcon>` — the icon matcher only knows raw, well-known names.
+
+#### Display name
+
+**Never render `name` directly in the UI.** Always route software names through
+`getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
+It prefers `display_name`, normalizes known awkward titles (e.g.
+`microsoft.companyportal` → `Company Portal`), and falls back to a sensible
+default. This applies everywhere a software title is shown: table rows, dropdown
+options, modal text, activity feed entries, automation summaries, etc.
+
+```tsx
+// good
+label: getDisplayedSoftwareName(title.name, title.display_name),
+
+// bad — misses display_name and the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.name,
+
+// also bad — misses the WELL_KNOWN_SOFTWARE_TITLES normalization
+label: title.display_name || title.name,
+```
+
+The same rule applies to any object shape that carries both fields
+(`ISoftwareTitle`, `ISoftwarePackage`, `IAppStoreApp`, `IHostSoftware`,
+`IPolicySoftwareToInstall`, etc.). The `ISoftwareTitle.name` JSDoc states the
+expectation: "All software names displayed by UI is ran through
+getDisplayedSoftwareName."
+
+#### Icons
+
+`<SoftwareIcon name={...}>` uses the `name` prop for **fallback icon matching**
+via `getMatchedSoftwareIcon({ name, source })` when `icon_url` is null. That
+matcher only knows the raw, well-known names (`notion`, `microsoft.companyportal`,
+etc.). If you pass it a resolved display name like `getDisplayedSoftwareName(...)`
+or `display_name || name`, an admin who renames the title to anything not in the
+match table will lose the icon to a generic fallback. Fleet-maintained apps are
+the highest-risk surface because they have no `icon_url` — they depend
+entirely on name matching. See #47123.
+
+When you have both fields, pass the raw `name` to the icon and the resolved
+name to the label:
+
+```tsx
+// good — icon matches against raw name, label shows resolved display name
+const displayName = getDisplayedSoftwareName(title.name, title.display_name);
+<>
+  <SoftwareIcon name={title.name} source={title.source} url={title.icon_url} />
+  {displayName}
+</>
+
+// bad — admin renames break the icon match for FMAs and other matched titles
+<SoftwareIcon name={displayName} ... />
+```
+
+When the data has been flattened into a single `name` field upstream (e.g. for a
+row object or table-cell renderer), carry the raw name alongside it as a
+separate field (`iconName`, `rawName`, etc.) and feed THAT to `<SoftwareIcon>`.
+See `frontend/pages/policies/ManagePoliciesPage/helpers.tsx`'s
+`ISoftwareAutomationData.iconName` for the established pattern.
+
+`SoftwareNameCell` already does this internally — when you can use it, prefer
+it over hand-rolling icon + label rendering.
+
 ## Components
 
 ### React functional components
@@ -155,11 +227,31 @@ as this allows us to use hooks to better share common logic between components.
 
 ### Passing props into components
 
-We tend to use explicit assignment of prop values, instead of object spread syntax:
+We strongly prefer explicit assignment of prop values over object spread syntax. In almost all cases, list every prop by name:
 
 ```tsx
-<ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
+<ExampleComponent prop1={prop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
+
+Spreading is hard to review (the reader can't see what's being passed), brittle under refactors (adding a key to the source bag silently changes the target), and on native DOM elements it's a real security footgun — anything in the bag (including `dangerouslySetInnerHTML`, `href`, `src`, event handlers) gets applied.
+
+#### Accepted exceptions
+
+Spread is acceptable in these cases:
+
+- **react-select 5 custom subcomponents** — the library contract requires forwarding the full internal props bag (`innerRef`, `innerProps`, `selectProps`, …) to `components.X`. The bag is library-generated, not user input.
+- **react-table v7 prop getters** (`getCellProps()`, `getRowProps()`, `getHeaderProps()`, `getToggleAllRowsSelectedProps()`) — the prop-getter pattern *is* the library's API. Cell data is rendered through `cell.render("Cell")`, never as attributes.
+- **react-markdown renderer overrides** (e.g. `code: ({...props}) => <code {...props}>`) — the bag is library-controlled HAST metadata, not raw markdown. Do not enable the `rehype-raw` plugin: it lets raw HTML from the markdown source pass through to the bag, and the spread would forward it straight to the DOM — author-controlled HTML rendering verbatim is an XSS sink.
+- **Typed SVG icon components** (`SVGProps<SVGSVGElement>` flowing into `<svg>`, as in `pages/SoftwarePage/components/icons/*`) — the `SVGProps` type constrains callers to valid SVG attributes. Do *not* widen the prop type to `any` or `Record<string, unknown>`; that removes the guard that makes this safe.
+- **Test helpers, factories, and Storybook stories** — non-production code. The bag is built locally in the same file by code that owns its shape.
+
+#### Not safe — never spread
+
+Never spread props (especially anything derived from API responses, URLs, markdown source, MDM payloads, host facts, software metadata, or other external data) onto:
+
+`<a>`, `<img>`, `<iframe>`, `<object>`, `<embed>`, `<source>`, `<link>`, `<script>`, `<form>`, `<video>`, `<audio>`.
+
+For those elements, pick out `href` / `src` / etc. explicitly and validate the value (scheme allowlist, no `javascript:` URIs, etc.) before passing it.
 
 ### Naming handlers
 
@@ -226,84 +318,257 @@ export default PackComposerPage;
 When building a React-controlled form:
 - Use the native HTML `form` element to wrap the form.
 - Use a `Button` component with `type="submit"` for its submit button.
-- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
-React.FormEvent<HTMLFormElement>` argument and, critically:
-  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
-handler's logic.
-  - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
-- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
-- Disable the form's submit button when the form is in an invalid state. Redundancy with the submit handler returning `null` is good.
+- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and, critically:
+  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom handler's logic.
+  - runs `validate` against the full form, sets errors on every invalid field, and returns without submitting when any errors are present.
+- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`).
+- Disable the submit button only while a submission is in flight, or when the whole form is disabled by GitOps mode. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
 
 ### Data validation
 
+The rules below describe the target behavior. Not every existing form complies yet — they're migrated one at a time, without a wrapper or shim. New forms should follow these rules on day one.
+
 #### How to validate
 
-Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
-new and possibly former form data) and whose output is an object of formFieldName:errorMessage
-key-value pairs (`Record<string,string>`) e.g.
+Forms use a pure `validate` function whose input is the current form data and whose output is a `Record<string, string>` of `fieldName → errorMessage` pairs. Only invalid fields appear in the output.
 
 ```tsx
-const validate = (newFormData: IFormData) => {
-  const errors = {};
-  ...
+const validate = (formData: IFormData): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  const email = formData.email.trim();
+  if (!email) {
+    errors.email = "Enter your email";
+  } else if (!isValidEmail(email)) {
+    errors.email = "Enter a valid email";
+  }
   return errors;
+};
+```
+
+The output of `validate` is used by the calling handler to update a `formErrors` state that feeds each `InputField`'s `error` prop.
+
+The `useFormValidation` hook in `frontend/hooks/useFormValidation.ts` implements every rule below — dirty tracking, clear-on-focus, blur-validates-one-field, submit-as-checkpoint, server errors, trimming, in-flight state. Pass it `initialFormData` and a `validate` function and wire the handlers it returns; don't hand-roll the state management. `UserForm` and `ApiUserForm` (`frontend/pages/admin/ManageUsersPage/components/`) are the reference migrations. The hook deliberately exposes no `isValid` — see [Submit button state](#submit-button-state).
+
+#### When errors appear
+
+A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
+
+- Never show a field's error before the field is dirty.
+- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
+- On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
+- On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
+
+#### When errors clear
+
+- On focus of a field that has an error (via click, tab, or programmatic focus), clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
+- Re-validate on blur, not on keystroke.
+- Typing in one field never clears errors on other fields. Clearing is per-field.
+- When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
+
+#### Error priority
+
+- Presence errors take priority over format errors. If a field is both empty and format-invalid, show the presence error.
+- Show one error per field at a time. Never stack multiple errors on the same field.
+- Server-set errors follow the same "one at a time" rule.
+
+#### Submit button state
+
+- The submit button is enabled by default. Empty required fields, currently-invalid values, unchanged Edit forms, and prior server errors do not disable it.
+- The only reasons to disable the submit button are an in-flight submission (see [In-flight and submission lifecycle](#in-flight-and-submission-lifecycle)) or the entire form being disabled by GitOps mode. GitOps-managed pages disable the form's fields and submit button together — users cannot save through the UI at all.
+- If the user clicks submit with invalid data, the submit handler shows all inline client-side errors and returns without calling the API. The button itself stays enabled so the click can surface the errors.
+- Do not gate on form-level `isDirty` ("form has changes"). A no-op re-save is allowed.
+
+#### Server-side errors
+
+- Field-specific server errors (e.g. "email already taken") render inline on the field via the same `error` prop as client-side errors, AND fire a toast with the error message. Submit stays enabled. The toast is intentional even when the inline error is visible — forms can be long enough that the errored field is scrolled off-screen after submission.
+- Cross-field or global server errors (e.g. `formatErrorResponse` `.base`) surface as a toast only. No inline surface.
+- When the user focuses a field that has a server-set error, clear it immediately — same rule as client-side.
+- Multiple field errors returned by the server: iterate the error map and set all inline. Each field-specific error still gets its own toast per the rule above.
+
+#### Conditional / dependent validation
+
+- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field after the mismatch error is set does not re-run the cross-field check; the error stays until the confirmation field is edited or re-blurred.
+- Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
+- When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
+- Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
+
+#### Optional and disabled fields
+
+- Empty optional fields never show an error.
+- An optional field that has a value with a format constraint (e.g. an optional email field) validates the format on blur and shows an inline error on invalid. (Submit-button disable follows the general rule at [Submit button state](#submit-button-state) — the button stays enabled.)
+- Disabled fields skip validation entirely. A disabled field is never in an error state, regardless of its value.
+
+#### Input hygiene
+
+- Trim leading and trailing whitespace client-side before submitting. Send the trimmed value to the API.
+- Whitespace-only content in a required field counts as empty.
+- Cap free-text `maxLength` to the backend column length via `inputOptions={{ maxLength: N }}` on `InputField`. The native input silently truncates paste. See [Forms](../../.claude/rules/fleet-frontend.md#forms) in the top-level rules.
+- If the max length is unusual (e.g. a 48-character password), show an inline error on the field instead of relying on silent truncation.
+
+#### In-flight and submission lifecycle
+
+- During submission, the submit button shows a spinner AND is disabled. Do not change the button's color/variant.
+- Form fields are disabled while a submission is in flight — the user cannot edit during the request.
+- The submit handler must guard against a second submission while one is in flight. Do not rely solely on the button being disabled.
+- The Cancel button remains enabled during submission and closes the modal immediately. It does not abort the in-flight request; the request completes in the background. We don't require abort because most call sites use plain Promises (not `useMutation`), and we don't want a confirmation dialog on Cancel — it adds friction to the common case for a rare one.
+- Because Cancel doesn't abort, the submission must be resilient to the modal being closed before the request resolves. Guard post-success side effects (toast, navigation, cache invalidation) so they don't fire against an unmounted component or a screen the user has already left. Failures on a closed modal are dropped silently — no toast, no re-open.
+- On success, close the modal and call `notify.success` before `router.push` / `router.replace`. This is a code-call order, not a visual order — `notify.success` defers toast creation by a tick, so calling it first lets the toast land on the destination page instead of getting wiped by its own navigation. See [Notifications](../../.claude/rules/fleet-frontend.md#notifications).
+- On failure, fields become editable again, the submit button re-enables immediately, and server errors surface per [Server-side errors](#server-side-errors).
+- Closing a modal with unsaved changes silently discards them. No confirmation dialog. (Exceptions like the SQL editor stay exceptions.)
+
+#### Visual affordances
+
+- There is no visual indicator for required fields. No asterisk, no `(required)` suffix. Users discover requirements through post-interaction errors.
+- On error, `FormField` renders the error text in the label slot, replacing the label text and applying the `--error` modifier (red).
+- Help text below the input is independent of error state. Do not duplicate error messages into help text.
+- The input border is red while an error is showing and returns to the default (black) when the error clears. There is no green "valid" transition.
+- No inline error icon. Text only.
+
+<!-- Design may iterate on error placement (e.g. moving the error text out of the label slot). Document any change here first. -->
+
+#### Error message copy register
+
+Every validation error follows a single grammar pattern: **verb + object + constraint (if any)**.
+
+- **Verb**: the action that fixes the error. `Enter`, `Choose`, `Select`, `Upload`.
+- **Object**: the thing being fixed. `your email`, `a valid URL`, `a password`.
+- **Constraint**: only when the rule isn't obvious. `with at least 8 characters`, `between 1 and 100`.
+
+Examples:
+- `Enter your email` — empty field
+- `Enter a valid email` — bad format
+- `Enter a password with at least 8 characters` — rule violation
+- `Choose an end date after the start date` — logical conflict
+- `Upload a file smaller than 5 MB` — limit
+
+Rules:
+- Second-person imperative, implied subject. Never `You must...` or `The user should...`.
+- Present tense, active voice. Not `must be completed`, not `was not provided`.
+- Article discipline: `your` for the user's own data (`your email`, `your name`); `a` for a value the user is constructing (`a valid URL`, `a password`).
+- One sentence per error. If it needs a second sentence, the constraint probably belongs in help text below the field, not in the error.
+- **No terminal periods on field errors.** They render in the label slot, and labels don't end with periods. (System/transport errors in toasts — see below — are the one place periods appear.)
+- See [Terminology](../../.claude/rules/fleet-frontend.md#terminology) for `fleet` vs `team` and other renaming rules.
+
+System/transport errors (server failures, timeouts, network errors — things the user can't fix by editing a field) render as toasts, not inline, and use a different register: **what happened + what to do**. Example: `Couldn't save your changes. Try again in a few minutes.` This is the one place periods appear (two sentences). Field-specific server errors — e.g. `"email already taken"` per [Server-side errors](#server-side-errors) — stay in the verb + object register.
+
+## Tier modes
+
+The UI changes shape in two licensing-related modes. Both can be active at the same time on a Premium Primo tenant, so most gates need to consider them independently:
+
+- **Fleet Free** — the free tier. Many features are hidden, paywalled with `<PremiumFeatureMessage />`, or restricted. Flag: `!isPremiumTier` (the context value is `true` for Premium / Enterprise, `false` for Free, so the Free check is the negation).
+- **Primo mode** — a single-fleet Premium installation for partner deployments. The fleet switcher is hidden, fleet creation is disabled, and empty-state copy collapses. Flag: `isPrimoMode` (derived from `config.partnerships.enable_primo`).
+
+Both flags can be true simultaneously (a Premium Primo tenant), and `isPrimoMode` is computed locally per-component, not in `AppContext` — see Gotchas. `frontend/components/CommandPalette/` is the canonical reference for handling both flags in tandem.
+
+### Fleet Free
+
+#### How to check
+
+```tsx
+const { isPremiumTier } = useContext(AppContext);
+if (!isPremiumTier) {
+  // Fleet Free behavior
 }
 ```
 
-The output of `validate` should be used by the calling handler to set a `formErrors`
-state.
+`isPremiumTier` is derived from `config.license.tier === "premium"` in `utilities/permissions/permissions.ts` and set once during `AppContext` initialization — `true` for Premium / Enterprise, `false` for Free. **The Free check is the negation, `!isPremiumTier`.** Tests inject the value via the `app` context override.
 
-#### When to validate
+#### Patterns
 
-Form fields should *set only new errors* on blur and on save, and *set or remove* errors on change. This provides
-an "optimistic" user experience. The user is only told they have an error once they navigate
-away from a field or hit enter, actions which imply they are finished editing the field, while they are informed they have fixed
-an error as soon as possible, that is, as soon as they make the fixing change. e.g.
+**Early-return paywall** — for full-page premium features. Use `<PremiumFeatureMessage />` (`components/PremiumFeatureMessage/`); don't roll your own:
 
 ```tsx
-const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-  const newFormData = { ...formData, [name]: value };
-  setFormData(newFormData);
-  const newErrs = validateFormData(newFormData);
-  // only set errors that are updates of existing errors
-  // new errors are only set onBlur
-  const errsToSet: Record<string, string> = {};
-  Object.keys(formErrors).forEach((k) => {
-    // @ts-ignore
-    if (newErrs[k]) {
-      // @ts-ignore
-      errsToSet[k] = newErrs[k];
-    }
-  });
-  setFormErrors(errsToSet);
-};
-
+if (!isPremiumTier) {
+  return <PremiumFeatureMessage />;
+}
+// render the feature
 ```
 
-,
+**Conditional list inclusion** via array spread — for items in palettes, menus, tables, etc.:
 
 ```tsx
-const onInputBlur = () => {
-  setFormErrors(validateFormData(formData));
-};
+...(isPremiumTier
+  ? [{ id: "add-fleet-maintained-app", label: "Add Fleet-maintained app", ... }]
+  : [])
 ```
 
-, and
+For other patterns (conditional props on sub-components, React Query `enabled` to defer premium-only fetches, hidden table columns), see `frontend/components/CommandPalette/` and `pages/hosts/details/cards/Software/` as the canonical catalogs.
+
+### Primo mode
+
+Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet experience. It hides fleet creation, defaults to the "Unassigned" fleet context, and simplifies empty states. It can be active at the same time as Fleet Free *or* Premium, and at the same time as GitOps mode — these all affect different things.
+
+#### How to check
 
 ```tsx
-const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-  evt.preventDefault();
-  // return null if there are errors
-  const errs = validateFormData(formData);
-  if (Object.keys(errs).length > 0) {
-    setFormErrors(errs);
-    return;
-  }
-
-  ...
-  // continue with submit logic if no errors
-
+const { config } = useContext(AppContext);
+const isPrimoMode = config?.partnerships?.enable_primo || false;
 ```
+
+There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disabled tooltips.
+
+#### What it affects
+
+- **"Create fleet" button**: disabled on ManageFleetsPage
+- **Fleet switcher**: hidden (both the page `FleetsDropdown` header and the command palette fleet picker)
+- **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
+- **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
+- **User form**: fleets dropdown disabled
+- **Software automations**: accessible from "Unassigned" (normally only from "All fleets")
+
+#### Pattern: disable with tooltip
+
+The shared `Button` component doesn't accept a tooltip prop — use one of these patterns instead.
+
+**`TableContainer` action buttons** accept `disabledTooltipContent` directly on the
+`actionButton` config (see `ManageFleetsPage.tsx`):
+
+```tsx
+const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
+
+<TableContainer
+  // ...
+  actionButton={{
+    name: "create fleet",
+    buttonText: "Create fleet",
+    onClick: toggleCreateFleetModal,
+    disabledTooltipContent: disabledTooltip,
+  }}
+/>;
+```
+
+**Standalone controls** (a `Button`, `Radio`, etc.) should be wrapped in
+`TooltipWrapper` and disabled explicitly:
+
+```tsx
+<TooltipWrapper tipContent={PRIMO_TOOLTIP} disableTooltip={!isPrimoMode} showArrow>
+  <Button disabled={isPrimoMode} onClick={onCreate}>
+    Create fleet
+  </Button>
+</TooltipWrapper>
+```
+
+`RevealButton` is the exception — it accepts `disabledTooltipContent` directly.
+
+### Testing both modes
+
+Mock the flag in the test context (`isPremiumTier: false` for Free; `config: createMockConfig({ partnerships: { enable_primo: true } })` for Primo) and assert presence / absence. The established structure (from `CommandPalette/helpers.tests.ts`) is a top-level `describe` block per mode. Add at least one assertion per gate the feature touches.
+
+### Gotchas
+
+1. **`isPrimoMode` is not in AppContext.** Every component derives it from `config?.partnerships?.enable_primo`. If your refactor moves code out of a component that already had `config` in scope, you'll lose the Primo gate silently.
+2. **Both flags can be true.** A Premium Primo tenant. Gates that test only one (e.g., `if (!isPremiumTier) hide` or `if (isPrimoMode) hide`) are usually incomplete.
+3. **Dual-gated UI is common.** Table columns, picker columns, and entity selectors often gate on `isPremiumTier && !isPrimoMode` — premium-only AND multi-fleet-only. If your feature falls in either bucket, the dual gate is probably the right shape.
+4. **`useTeamIdParam` defaults change in Primo.** "Unassigned" instead of "All fleets" for the global default. If your code reads `currentTeamId === -1` to mean "all fleets selected," that path won't fire in Primo.
+
+### How tier modes differ from GitOps mode
+
+| | Fleet Free | Primo mode | GitOps mode |
+|---|---|---|---|
+| Purpose | Free vs Premium feature gating | Single-fleet UI for partners | Repository-driven config management |
+| Config | `license.tier !== "premium"` (i.e., `!isPremiumTier`) | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
+| Main effect | Paywall (`<PremiumFeatureMessage />`) | Disables fleet creation, defaults to "Unassigned" | Disables manual editing |
+| Component | Conditional checks + paywall | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
 
 ## React hooks
 
@@ -334,6 +599,27 @@ const PageOrComponent = (props) => {
 
 > NOTE: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).
 
+### Custom hooks
+
+Along with the hooks supplied by React such as `useEffect()` and `useState()`, you may create custom hooks as needed. A custom hook is a shared helper function that uses React state internally, for example to extract certain properties from a context or update a value when state changes.  A good example of a widely-used custom hook is `useTeamIdParam`, which returns information about the currently selected fleet and ensures (via its use of `useEffect()`) that the caller will get up-to-date values whenever a different fleet is selected.
+
+Custom hook names should be camel-cased and use the `use` prefix, and should live in the `frontend/hooks` directory.
+
+Current custom hooks include:
+
+- [`useBlockNavigation`](../hooks/useBlockNavigation.ts) — Attaches a `beforeunload` handler while its `block` argument is true, prompting the user before tab close / hard navigation.
+- [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
+- [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
+- [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.
+- [`useGitOpsMode`](../hooks/useGitOpsMode.ts) — Reports whether GitOps mode is enabled (optionally per-entity, honoring exceptions) and returns the repo URL.
+- [`useIsMobileWidth`](../hooks/useIsMobileWidth.tsx) — Tracks whether the viewport is below the 768px mobile breakpoint via `matchMedia`.
+- [`usePlatformCompatibility`](../hooks/usePlatformCompatibility.tsx) — Debounced check of a SQL string for queryable-platform compatibility, with getter and renderer.
+- [`usePlatformSelector`](../hooks/usePlatformSelector.tsx) — Manages platform-checkbox state (darwin/windows/linux/chrome) and renders the platform selector UI.
+- [`useQueryTargets`](../hooks/useQueryTargets.ts) — `react-query` wrapper that fetches and groups target hosts/labels/teams for a query.
+- [`useSoftwareInstallerMeta`](../hooks/useSoftwareInstallerMeta.ts) — Derives normalized metadata (installer type, FMA/VPP/Android flags, permissions, GitOps state) from a software title.
+- [`useTeamIdParam`](../hooks/useTeamIdParam.ts) — Reads/writes the `fleet_id` URL param, resolving the current fleet and handling param strip/replace rules on fleet change.
+- [`useToggleSidePanel`](../hooks/useToggleSidePanel.ts) — Simple open/closed state with toggle and explicit setter for a side panel.
+
 ## React context
 
 [React context](https://reactjs.org/docs/context.html) is a way to share values across the
@@ -344,7 +630,6 @@ initialized. View currently working contexts in the [context directory](../conte
 
 ```typescript
 // Consuming a context — destructure what you need from useContext
-const { renderFlash } = useContext(NotificationContext);
 const { currentUser, isPremiumTier } = useContext(AppContext);
 ```
 
@@ -353,7 +638,6 @@ const { currentUser, isPremiumTier } = useContext(AppContext);
 | Context | Purpose | Use this when |
 |---|---|---|
 | `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
-| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
 | `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
 | `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
 | `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
@@ -384,7 +668,7 @@ const PageOrComponent = (props) => {
       // do something
     } catch(error) {
       console.error(error);
-      // maybe trigger renderFlash
+      // maybe trigger notify.error
     }
   };
 
@@ -464,7 +748,7 @@ try {
   await softwareAPI.install()
   // successful messgae
 } catch (e) {
-  renderFlash("error", getErrorMessage(e))
+  notify.error(getErrorMessage(e))
 }
 
 /* in helpers.tsx */
@@ -507,6 +791,174 @@ const PageOrComponent = ({
   );
 };
 ```
+
+## Command palette
+
+The command palette is the keyboard surface for navigation and global actions. Power users discover features through it, so a missing entry is easy for them to overlook — but only the right kinds of features belong here.
+
+Source: `frontend/components/CommandPalette/`. Items are defined per group under `groups/`.
+
+### What belongs (and what doesn't)
+
+**Belongs in the palette:**
+
+- Navigation to any destination in the app — either its own top-level palette entry or nested under a parent entry via `subItems`
+- Global create actions where no entity is pre-selected ("Add report" opens a blank form)
+- Singleton config actions where the entity is implicit ("Edit Apple MDM" — there's only one Apple MDM config)
+- Picker actions that open an in-palette search for the user to choose an entity (e.g., "View host")
+
+**Doesn't belong:**
+
+- Per-entity edit / delete operations (editing a specific label, deleting a specific host) — those live on the entity's row or detail page where the entity is already in scope
+- Bulk-select operations that depend on an existing selection on a page
+- One-off UI affordances (toggles, expanders) tied to a specific view
+
+The dividing line: if the action requires the user to first pick a specific row, it stays on that row. If the action is global, a singleton, or starts a picker, it goes in the palette.
+
+### When to add a palette entry
+
+| Adding... | Goes in |
+|---|---|
+| A new top-level page (routed under a top nav item) | `groups/pages.ts` |
+| A new global create action (modal / form / blank create page) | `groups/commands.ts` |
+| A new picker action (like "View host") | `groups/commands.ts` with `opensPickerPage: true`, plus a picker in `frontend/components/CommandPalette/components/` |
+| A new MDM platform or connector (turn-on / singleton-edit) | `groups/mdm.ts` |
+| A new automation hook | `groups/automations.ts` |
+| A new settings page or admin route | `groups/settings.ts` |
+| A new control / policy / script feature | `groups/controls.ts` |
+| A new software action or view | `groups/software.ts` |
+
+Nested destinations under an existing palette entry live in that entry's `subItems` array, not as top-level entries. The user reaches the sub-item by expanding the parent (chevron) or when their search promotes the sub-item into Best match.
+
+These three "sub-" terms each mean exactly one thing in this codebase — keep them distinct:
+
+- **Sub-item** — an `ICommandSubItem` in a parent palette entry's `subItems` array
+- **Picker page** — the secondary screen opened when an entry has `opensPickerPage: true` (View host, View report, Switch fleet)
+- **Sub-route** — an app route nested under another (e.g., `/settings/integrations` under `/settings`)
+
+### Required and optional fields
+
+```ts
+interface ICommandItem {
+  id: string;                // unique kebab-case
+  label: string;             // sentence case, verb first ("Add report")
+  group: typeof GROUPS[number]; // one of `GROUPS` in helpers.ts
+  path?: string;             // navigation target (use withTeamId() if team-scoped)
+  onAction?: () => void;     // alternative to path for custom side effects
+  keywords?: string[];       // synonyms + aliases — see below
+  teamName?: string;         // chip shown when the action switches the user's fleet context
+  subItems?: ICommandSubItem[];
+  opensPickerPage?: boolean;    // shows the chevron-right; required for picker actions
+}
+```
+
+### Label conventions
+
+- Sentence case: "Add report", not "Add Report".
+- Verb first for actions: "Add", "Edit", "Delete", "Run", "View", "Manage", "Turn on" / "Turn off".
+- No trailing punctuation.
+- Match the destination page's own primary-button text where possible.
+- Use **fleet** / **report** (current product terminology), not **team** / **query**. Existing items haven't been mass-renamed; this applies to *new* items only.
+
+### Keyword authoring
+
+Best match scoring is **label-first by tier.** `scoreMatch()` in `helpers.ts` ranks a single text (label or keyword) against the query and returns one of these tier values:
+
+| Tier | Label score | Keyword score |
+|---|---|---|
+| exact | 100 | 50 |
+| prefix | 90 | 40 |
+| word-prefix | 80 | 30 |
+| substring | 70 | — (label-only) |
+
+Any label hit outranks any keyword hit — even the weakest label tier (substring, 70) beats the strongest keyword tier (exact, 50). That's what shapes how keywords should be written: they only matter when the query doesn't hit the label at all. Duplicating label words in keywords just adds a redundant, lower-scoring path.
+
+A few additional behaviors worth knowing — see `computeBestMatch()` and `scoreItemForBestMatch()` in `helpers.ts` for the full mechanics:
+
+- **Noise floor.** 2-character queries only consider label-exact + label-prefix (no word-prefix, no substring, no keywords). 3+ characters unlocks the full ladder. See `BEST_MATCH_MIN_QUERY` / `BEST_MATCH_FULL_LADDER_MIN`.
+- **Multi-token search.** A query like "settings org" is also scored as two tokens; each must find a positive match (against label or keywords), and the item takes the *minimum per-token score*. This lets order-independent searches like "settings org" → "Organization settings" promote without a phrase match.
+- **Word splits.** Word boundaries split on whitespace AND hyphens, so "API-only user" yields `["api", "only", "user"]` — a query for `only` word-prefix-matches.
+- **Substring is label-only.** Keyword substrings don't score (too noisy with short tokens); keywords cap at word-prefix.
+
+**Do:**
+
+- Add single distinct words a user might type that aren't already in the label
+- Add the standard verb synonyms for every action label:
+  - `add` → `create`, `new`
+  - `edit` → `update`, `change`, `modify`
+  - `delete` → `remove`
+  - `view` → `open`, `show`
+  - `run` → `execute`
+  - `turn on` → `activate`, `set up`, `configure`
+- Add acronyms and alternate names users actually type: `idp`, `ca`, `cve`, `fma`, `abm`, `vpp`, `mdm`, `dep`, `ade`
+- Add platform aliases where relevant:
+  - Apple → `iphone`, `ipad`, `macbook`
+  - Windows → `pc`, `win10`, `win11`
+  - Android → `phone`, `tablet`
+- Include legacy product terms during rename windows (e.g., `queries`, `query` on Reports until the term fully drains)
+
+**Don't:**
+
+- Repeat words from the label. `Add user` already scores "add" or "user" via the label tiers (exact / prefix / word-prefix / substring, 70–100). Adding them as keywords would only score lower (30–50), never changing the ranking.
+- Use multi-word keyword phrases when a single word works. A keyword like `create` matches as keyword-exact / -prefix / -word-prefix at the token level. A multi-word keyword like `create user` only matches when the whole phrase appears as one token in the query — multi-token splitting won't reach into it.
+- Pile in low-signal substrings ("the", "some", generic verbs).
+
+### Permission gating
+
+Mirror the destination page's gate exactly. If the page rejects technicians, gate the palette item on `!isTechnician`. If the destination renders `<PremiumFeatureMessage />` on free tier, gate the palette item on `isPremiumTier`. The palette must not route users to a screen they can't use.
+
+Reuse existing flags from `ICommandPaletteContext` (`frontend/components/CommandPalette/helpers.ts`) — that interface is the source of truth for the full list. The flags fall into a few buckets:
+
+- **Role-based write gates:** `canWrite`, `canAccessSettings`, `canAccessControls`, `canRunLiveReport`, `canAddSoftware`, `canEditCustomVariable`, `canManagePolicyAutomations`, `canManageSoftwareAutomations`, `canManageReportAutomations`, `isTechnician`
+- **Tier / mode:** `isPremiumTier`, `isPrimoMode`, `isDarkMode`
+- **Feature configured:** `isMacMdmEnabledAndConfigured`, `isWindowsMdmEnabledAndConfigured`, `isAndroidMdmEnabledAndConfigured`, `isVppEnabled`
+- **Context shape:** `hasTeamSelected`, `currentTeam`, `availableTeams`, `config`, `search`
+
+Add a new flag to `ICommandPaletteContext` + `CommandPalette.tsx` only when no existing one models the destination's check. When you add one, mirror the destination page's predicate exactly — several existing flags (`canManageReportAutomations`, `canEditCustomVariable`, `canAddSoftware`) document the narrower role checks they encode; follow that pattern.
+
+### Team context (`teamName`)
+
+Set `teamName` when invoking the action will switch the user's current fleet context. The palette renders it as a chip on the right so the user sees the upcoming switch before they click.
+
+Each group builder receives an `IDerivedContext` (computed once by `deriveContext()` in `groups/derivations.ts`) as its second argument. Destructure the chip helper you need from it rather than hardcoding fleet names:
+
+```ts
+const buildExampleItems = (ctx, derived) => {
+  const { switchesFromUnassigned, switchesFromAllFleets } = derived;
+  // ...
+};
+```
+
+The three chip helpers:
+
+- `switchesFromUnassigned` — destination requires a specific fleet, action invokable from Unassigned
+- `switchesFromAllFleets` — destination requires a specific fleet, action invokable from All fleets
+- `defaultDestination` — destination always lands on the default (e.g., "All fleets")
+
+Each returns `undefined` when no switch will actually happen, so you can pass it straight to `teamName` without guarding.
+
+### Search-only items
+
+Some entries are gated on the search string itself (e.g., the "Packs" page only appears when searching for `packs`). Use the `search` field from `ICommandPaletteContext` and a regex test:
+
+```ts
+.../packs|create new pack/.test(search.toLowerCase())
+  ? [/* the item */]
+  : []
+```
+
+Use this pattern sparingly — it bypasses the normal Best match ranking and should be reserved for legacy / deprecated features users only reach by name.
+
+### Tests
+
+Extend `frontend/components/CommandPalette/helpers.tests.ts` when adding a meaningful item:
+
+- New page / command: assert it appears for the right roles, hides for the wrong ones
+- Premium-only: assert it's absent in the `Fleet Free (isPremiumTier: false)` describe block
+- Primo mode hidden: add to the `Primo Mode (isPrimoMode: true)` block
+- New `teamName` chip: assert it renders / doesn't render against the relevant fleet contexts
+
+The scoring helpers (`scoreMatch`, `scoreItemForBestMatch`, `computeBestMatch`, `highlightMatches`) and tier constants (`SCORE_LABEL_*`, `SCORE_KEYWORD_*`) have their own describe blocks in `helpers.tests.ts` — you don't need to re-test the framework when adding an item. If your new item exposes a specific ranking case worth pinning (e.g., a multi-token query that should promote it over a similarly-named item), add a small `computeBestMatch` test alongside.
 
 ## Styles
 
@@ -558,8 +1010,8 @@ The icon should now be available to use with the `Icon` component from the given
 
 ### File size
 
-The recommend line limit per page/component is 500 lines. This is only a recommendation.
-Larger files are to be split into multiple files if possible.
+The recommended line limit per page/component is 500 lines. This is only a recommendation.
+Larger files are to be split into multiple files if possible, especially components which could be split into subcomponents.
 
 ## Testing
 
@@ -569,10 +1021,114 @@ data being passed to it.
 
 At a bare minimum, critical bugs released involving the UI will have automated testing discussed at the critical bug post-mortem with a frontend engineer and an engineering manager. We make every effort to add an automated test to either the unit, integration, or E2E layer to prevent the critical bug from resurfacing.
 
+Frontend coverage is reported to Codecov (`frontend` flag) on every PR — informational, not gating. See `codecov.yml` at the repo root for flag paths and carry-forward rules. Coverage report is the source of truth for both backend and frontend across a PR.
+
+### Choosing a render helper
+
+Both live in [`frontend/test/test-utils.tsx`](../test/test-utils.tsx).
+
+- `renderWithSetup(component)` — simple prop-driven components with no context or API dependency. Returns `{ user, ...renderResult }` where `user` is a `userEvent` instance.
+- `createCustomRenderer({ context, withBackendMock })` — components that read `AppContext` / `PolicyContext` / `QueryContext`, or fetch data via React Query. Pass `withBackendMock: true` to wrap in a `QueryClientProvider` with retries disabled. Pass `context: { app: { currentUser: ... } }` to seed context.
+
+### Queries and interactions
+
+- Prefer semantic queries: `getByRole`, `getByLabelText`, `getByText`. Reach for `getByTestId` only when nothing semantic exists.
+- Drive interactions with `userEvent` (from `renderWithSetup`'s returned `user`), never `fireEvent` — `userEvent` more closely models real browser events (focus, keydown sequences, etc.).
+
+### Fixtures and API mocks
+
+- Use entity fixtures from [`frontend/__mocks__/`](../__mocks__/) — e.g. `createMockHost`, `createMockUser`, `createMockConfig`. Don't hand-roll minimal `{ id: 1, ... }` shapes inline; they drift from the real interface.
+- Default MSW handlers live in [`frontend/test/default-handlers.ts`](../test/default-handlers.ts). Custom handlers live under [`frontend/test/handlers/`](../test/handlers/) and are applied per-test with `mockServer.use(customHandler)`.
+
+### What to assert
+
+- User-visible behavior for each meaningful prop branch — empty / loading / error states, disabled variants, `isPremiumTier` on/off, permission gating.
+- Forms: submit stays enabled while invalid and its click surfaces every inline error without calling the API (see [Submit button state](#submit-button-state)), exact error copy (matches the field-error [copy rules](#data-validation)), submit handler called with the expected payload.
+- Split `it(...)` blocks by behavior — one giant "renders and works" hides which assertion failed.
+- Don't assert on React Query internals (query cache state, `isFetching`, `refetch` counts). Assert on the rendered UI once data resolves.
+
 ## Security considerations
 
-We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When absolutely necessary to
-use this prop, we make sure to sanitize any user-defined input to it with `DOMPurify.sanitize`
+### Sanitization for `dangerouslySetInnerHTML`
+
+We make every effort to avoid using the `dangerouslySetInnerHTML` prop. When the
+prop is necessary, sanitize any user-defined input with one of the approved
+helpers below.
+
+- `DOMPurify.sanitize(html, options)` — for rendering arbitrary HTML. Configure
+  allowed tags and attributes explicitly at the call site, for example
+  `{ ADD_ATTR: ["target"] }`.
+- [`syntaxHighlight(value)`](../utilities/helpers.tsx) — for rendering JSON or
+  code previews. The function HTML-escapes `&`, `<`, and `>` in the
+  JSON-stringified output before wrapping tokens in `<span class="…">`, so the
+  only markup it emits is a span with a fixed set of class names: `key`,
+  `string`, `number`, `boolean`, `null`. Pass a value to JSON-serialize (object,
+  array, or primitive), not a pre-built string of user content. The function
+  calls `JSON.stringify` on its input before highlighting, so a pre-built
+  string defeats the purpose of using it. See `ExampleWebhookUrlPayloadModal`
+  or `HostStatusWebhookPreviewModal` for representative call sites.
+- [`ClickableUrls`](../components/ClickableUrls/ClickableUrls.tsx) — for
+  rendering user-provided text that may contain URLs as clickable links. It
+  replaces URL-looking substrings with anchors (`target="_blank"` and
+  `rel="noreferrer"`), then sanitizes the resulting HTML with
+  `DOMPurify.sanitize` (assumes the input is text, not pre-built HTML) before
+  rendering. Use it instead of constructing anchor HTML by hand when the source
+  is user-provided text.
+
+### Other frontend security considerations
+
+Beyond the sanitization rules above, the following considerations apply across
+the frontend.
+
+Today:
+
+- URL handling: treat any user-controlled value used in `href`, `window.open`,
+  or `router.push`/`router.replace` as untrusted. Route to a known internal path
+  and pass user data as URL params rather than building a full URL from a user
+  value.
+- Logging: `no-console` is disabled to support local debugging, but clean up
+  `console.log` statements before merging. Do not log access tokens, session
+  identifiers, or full response bodies that may contain user PII.
+- Dependency review: when a pull request adds an entry to `package.json`,
+  confirm the package is well-maintained, that the name is not a typosquat of a
+  more popular package, and that the version pinned is consistent with the
+  surrounding ecosystem.
+
+Candidates for future work:
+
+- Add an ESLint rule or `CODEOWNERS` gate on new uses of
+  `dangerouslySetInnerHTML` so a reviewer must consciously opt into each new
+  occurrence.
+- Inventory existing uses of `dangerouslySetInnerHTML` and migrate any that can
+  render through React directly.
+- Reduce direct `localStorage` writes for values with a security implication.
+  Prefer in-memory state for short-lived sensitive values.
+
+### Frontend pitfalls in AI-assisted code
+
+Fleet engineers are expected to use AI coding tools as part of their daily
+workflow (see [AI tooling](https://fleetdm.com/handbook/engineering#ai-tooling)
+and [AI usage guidelines](https://fleetdm.com/handbook/company/communications#ai-usage-guidelines)).
+You own the code you submit, AI-assisted or otherwise. The handbook covers the
+general principle; this section lists frontend pitfalls that AI tools produce
+often enough to warrant a deliberate check on every diff:
+
+- `dangerouslySetInnerHTML` introduced for user-controlled content without an in-diff
+  sanitizer. If the prop is added and the same change does not also pass the
+  input through `DOMPurify.sanitize`, `syntaxHighlight`, or `ClickableUrls`,
+  request a sanitizer before approving.
+- Dynamic code execution: `eval`, `new Function`, and `setTimeout` or
+  `setInterval` invoked with string arguments have no legitimate place in
+  product code.
+- New runtime dependencies. Flag any added entry in `package.json` for the
+  dependency-review pass above, even when the surrounding change appears
+  unrelated.
+- Permissive URL construction in anchors, `window.open` calls, or router pushes
+  that interpolate user-controlled values without going through the approved
+  helpers above.
+
+See [`.claude/rules/fleet-frontend.md`](../../.claude/rules/fleet-frontend.md)
+for the LLM-targeted summary of these rules.
 
 ## Other
 
@@ -590,20 +1146,17 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, set the local
 config with the response of your update call to make sure it has the latest.
 
-### Rendering flash messages
+### Toast notifications
 
-Flash messages by default will be hidden when the user performs any navigation that changes the URL,
-in addition to the timeout set for success messages. The `renderFlash` method from notification
-context accepts an optional third `options` argument which contains an optional
-`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
+Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from
+`components/ToastNotification`. Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
+Visible toasts are dismissed automatically on URL change.
 
-If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
-calling `renderFlash`. If the push comes after the `renderFlash` call,
-the flash message may register the `push` and immediately hide itself.
+**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page.
 
 ```tsx
-// first push
+// first notify
+notify.success("Package successfully added.");
+// then push
 router.push(newPath);
-// then flash
-renderFlash("error", "Something went wrong");
 ```

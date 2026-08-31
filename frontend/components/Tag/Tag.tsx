@@ -2,39 +2,106 @@ import React from "react";
 import classnames from "classnames";
 
 import Icon from "components/Icon";
-import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "tag";
 
-interface ITagProps {
-  icon: IconNames;
-  text: string;
+interface ITagBaseProps {
+  children: React.ReactNode;
+  /** Default: "large" (28px). Per design, use "small" (24px) sparingly. */
+  size?: "large" | "small";
   className?: string;
-  onClick?: () => void;
+  /** Wraps the tag in a tooltip that shows this content on hover */
+  tooltip?: JSX.Element | string;
 }
 
-const Tag = ({ icon, text, className, onClick }: ITagProps) => {
-  const classNames = classnames(
-    baseClass,
-    className,
-    onClick && `${baseClass}__clickable-tag`
-  );
+interface IStaticTagProps extends ITagBaseProps {
+  type?: "static";
+  onClick?: never;
+  onDismiss?: never;
+  dismissLabel?: never;
+  /** Static tags are non-interactive — disabled doesn't apply. */
+  disabled?: never;
+}
 
-  const content = (
-    <>
-      <Icon name={icon} size="small" color="ui-fleet-black-75" />
-      <span className={`${baseClass}__text`}>{text}</span>
-    </>
-  );
+interface IClickableTagProps extends ITagBaseProps {
+  type: "clickable";
+  onClick: () => void;
+  onDismiss?: never;
+  dismissLabel?: never;
+  disabled?: boolean;
+}
 
-  return onClick ? (
-    // use a button element so that the tag can be focused and clicked
-    // with the keyboard
-    <button className={classNames} onClick={onClick}>
+interface IDismissibleTagProps extends ITagBaseProps {
+  type: "dismissible";
+  onClick?: never;
+  onDismiss: () => void;
+  /** Accessible name for the dismiss button (screen readers only, no native tooltip). Defaults to "Dismiss". */
+  dismissLabel?: string;
+  /** Dismissible tags are always interactive — no production caller disables them. */
+  disabled?: never;
+}
+
+type ITagProps = IStaticTagProps | IClickableTagProps | IDismissibleTagProps;
+
+const Tag = (props: ITagProps) => {
+  const { children, className, tooltip } = props;
+
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}--clickable`]: props.type === "clickable",
+    [`${baseClass}--dismissible`]: props.type === "dismissible",
+    [`${baseClass}--small`]: props.size === "small",
+  });
+
+  let content: JSX.Element;
+
+  if (props.type === "clickable") {
+    content = (
+      <button
+        type="button"
+        className={classNames}
+        disabled={props.disabled}
+        onClick={props.onClick}
+      >
+        {children}
+      </button>
+    );
+  } else if (props.type === "dismissible") {
+    const dismissLabel = props.dismissLabel ?? "Dismiss";
+
+    content = (
+      <span className={classNames}>
+        <span className={`${baseClass}__label`}>{children}</span>
+        <button
+          type="button"
+          className={`${baseClass}__dismiss`}
+          onClick={props.onDismiss}
+          aria-label={dismissLabel}
+        >
+          <Icon name="close" color="core-fleet-black" size="small" />
+        </button>
+      </span>
+    );
+  } else {
+    content = <span className={classNames}>{children}</span>;
+  }
+
+  if (!tooltip) {
+    return content;
+  }
+
+  return (
+    <TooltipWrapper
+      tipContent={tooltip}
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={12}
+      delayShow={300}
+      fixedPositionStrategy
+    >
       {content}
-    </button>
-  ) : (
-    <div className={classNames}>{content}</div>
+    </TooltipWrapper>
   );
 };
 

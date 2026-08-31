@@ -8,11 +8,16 @@ import classnames from "classnames";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import {
+  CommaSeparatedPlatformString,
+  isQueryablePlatform,
+} from "interfaces/platform";
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import PATHS from "router/paths";
 
@@ -21,7 +26,7 @@ import sortUtils from "utilities/sort";
 import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -56,9 +61,20 @@ interface ICellProps {
   };
 }
 
+interface IPlatformCellProps {
+  cell: {
+    value: CommaSeparatedPlatformString;
+  };
+  row: {
+    original: IPolicyStats;
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPlatformCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -69,11 +85,11 @@ interface IDataColumn {
 
 const AUTOMATION_ICON_RENDERERS: Record<
   IAutomationData["type"],
-  (args: { name: string; iconUrl?: string }) => JSX.Element
+  (args: { name: string; iconName?: string; iconUrl?: string }) => JSX.Element
 > = {
-  software: ({ name, iconUrl }) => (
+  software: ({ name, iconName, iconUrl }) => (
     <span className="automations__software-icon">
-      <SoftwareIcon name={name} url={iconUrl} size="small" />
+      <SoftwareIcon name={iconName ?? name} url={iconUrl} size="small" />
     </span>
   ),
   script: ({ name }) => (
@@ -81,6 +97,9 @@ const AUTOMATION_ICON_RENDERERS: Record<
       name={name.endsWith(".sh") ? "file-sh" : "file-ps1"}
       className="scale-40-24"
     />
+  ),
+  profile: () => (
+    <Graphic name="file-configuration-profile" className="scale-40-24" />
   ),
   calendar: () => <Graphic name="calendar" />,
   conditional_access: () => <Graphic name="lock" />,
@@ -142,10 +161,12 @@ const AutomationsCell = ({
 
   const handleEdit = () => onOpenManageAutomationsModal?.(policy);
 
-  const renderAutomationIcon = ({ type, name, iconUrl }: IAutomationData) => {
-    return AUTOMATION_ICON_RENDERERS[type]({
-      name,
-      iconUrl: iconUrl ?? undefined,
+  const renderAutomationIcon = (automation: IAutomationData) => {
+    return AUTOMATION_ICON_RENDERERS[automation.type]({
+      name: automation.name,
+      iconName:
+        automation.type === "software" ? automation.iconName : undefined,
+      iconUrl: automation.iconUrl ?? undefined,
     });
   };
 
@@ -178,6 +199,7 @@ const AutomationsCell = ({
         fixedPositionStrategy
         tipOffset={8}
         tipContent={automations.map(({ name }) => name).join(", ")}
+        showArrow
       >
         {automations.length} automations
       </TooltipWrapper>
@@ -274,14 +296,14 @@ const generateTableHeaders = (
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
                 {type === "patch" && (
-                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>
+                  <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
                     Patch
-                  </PillBadge>
+                  </Tag>
                 )}
                 {viewingTeamPolicies && team_id === null && (
-                  <PillBadge tipContent="This policy runs on all hosts.">
+                  <Tag tooltip="This policy runs on all hosts." size="small">
                     Inherited
-                  </PillBadge>
+                  </Tag>
                 )}
               </>
             }
@@ -296,6 +318,19 @@ const generateTableHeaders = (
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Targeted platforms",
+      Header: "Targeted platforms",
+      disableSortBy: true,
+      accessor: "platform",
+      Cell: (cellProps: IPlatformCellProps): JSX.Element => {
+        const platforms = cellProps.cell.value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(isQueryablePlatform);
+        return <PlatformCell platforms={platforms} />;
+      },
     },
     {
       title: "Automations",

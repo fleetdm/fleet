@@ -1,0 +1,10 @@
+{
+  "name": "Retrobatch",
+  "unique_identifier": "com.flyingmeat.Retrobatch",
+  "token": "retrobatch",
+  "installer_format": "zip",
+  "slug": "retrobatch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useQuery } from "react-query";
 import { format, parseISO } from "date-fns";
+import { isEqual } from "lodash";
 import { SingleValue } from "react-select-5";
 
 import chartsAPI, {
@@ -17,7 +18,7 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
+import { severityFilters } from "components/SeverityFilter";
 
 import {
   IDataSet,
@@ -25,11 +26,24 @@ import {
   DATASET_CONFIG_KEY,
   DATASET_LABEL,
   HistoricalDataConfigKey,
+  ALL_CVE_SOFTWARE_CATEGORY_VALUES,
+  IVulnExposureFilterDefaults,
 } from "interfaces/charts";
 
 import { AppContext } from "context/app";
 
-import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
+import ChartFilterModal, {
+  IChartFilterState,
+  ChartFilterTab,
+} from "./ChartFilterModal";
+import {
+  buildInitialChartFilters,
+  hasActiveHostFilters,
+  hasActiveSoftwareFilters,
+  hostFilterLines,
+  severitySelection,
+  softwareFilterLines,
+} from "./helpers";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
 import DataCollectionDisabledState from "./DataCollectionDisabledState";
@@ -40,31 +54,69 @@ const baseClass = "chart-card";
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
 
-const hasActiveFilters = (filters: IChartFilterState): boolean => {
-  const hasHostFilter =
-    filters.hostFilterMode !== "none" && filters.selectedHosts.length > 0;
+// A single consolidated tooltip summarizing every active filter, grouped into
+// "Hosts" and "Software" sections. Each section is omitted when it has no
+// active filters; software filters only apply to the cve dataset.
+const filterTooltip = (
+  filters: IChartFilterState,
+  isCVE: boolean
+): JSX.Element => {
+  const hostLines = hostFilterLines(filters);
+  const softwareLines = isCVE ? softwareFilterLines(filters) : [];
+  const renderSection = (header: string, lines: string[]) =>
+    lines.length > 0 ? (
+      <div className={`${baseClass}__tooltip-section`}>
+        <div className={`${baseClass}__tooltip-section-header`}>{header}</div>
+        {lines.map((line) => (
+          <div key={line} className={`${baseClass}__tooltip-section-line`}>
+            {line}
+          </div>
+        ))}
+      </div>
+    ) : null;
   return (
-    filters.labelIDs.length > 0 || filters.platforms.length > 0 || hasHostFilter
+    <>
+      {renderSection("Hosts", hostLines)}
+      {renderSection("Software", softwareLines)}
+    </>
   );
 };
 
 interface IChartCardProps {
   currentTeamId?: number;
   historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
+  // GitOps-managed default filter state for the current scope (org or fleet).
+  // Seeds the chart's filter controls on load; UI edits are not persisted.
+  filterDefaults?: IVulnExposureFilterDefaults;
 }
 
 const ChartCard = ({
   currentTeamId,
   historicalDataEnabled,
+  filterDefaults,
 }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [chartFilters, setChartFilters] = useState<IChartFilterState>({
-    labelIDs: [],
-    platforms: [],
-    hostFilterMode: "none",
-    selectedHosts: [],
-  });
+  const [initialTab, setInitialTab] = useState<ChartFilterTab>("hosts");
+  const [showAdvancedOnOpen, setShowAdvancedOnOpen] = useState(false);
+  // The chart's baseline. Nothing in it was chosen by the user, so the
+  // "Filtered" pill keys on differing from it rather than on filters being set.
+  const initialChartFilters = useMemo(
+    () => buildInitialChartFilters(filterDefaults),
+    [filterDefaults]
+  );
+  const [chartFilters, setChartFilters] = useState<IChartFilterState>(
+    initialChartFilters
+  );
+
+  const openFilterModal = (
+    tab: ChartFilterTab = "hosts",
+    showAdvanced = false
+  ) => {
+    setInitialTab(tab);
+    setShowAdvancedOnOpen(showAdvanced);
+    setShowFilterModal(true);
+  };
 
   const { isPremiumTier } = useContext(AppContext);
 
@@ -79,7 +131,10 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          Currently, only macOS, Windows, Linux, and ChromeOS are supported.
+          iOS/iPadOS hosts are online anytime they have power and an internet
+          connection (including locked). macOS, Windows, and Linux hosts can be
+          online when locked (lid closed), but less frequently than when the lid
+          is open. Android hosts are never online when locked.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -98,23 +153,11 @@ const ChartCard = ({
       defaultChartType: "checkerboard",
       description: (
         <>
-          The number of hosts with critical vulnerabilities detected in browsers
-          and{" "}
-          <CustomLink
-            newTab
-            text="other common software "
-            variant="tooltip-link"
-            url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
-          />
+          The number of hosts with at least one vulnerability matching the
+          chart&apos;s filters.
           <br />
           <br />
-          Want more control? Comprehensive vulnerability filtering is{" "}
-          <CustomLink
-            newTab
-            text="coming soon "
-            variant="tooltip-link"
-            url="https://github.com/fleetdm/fleet/issues/44746"
-          />
+          Severity is filtered to critical by default.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -131,16 +174,24 @@ const ChartCard = ({
 
   // Labels and selected hosts are team-scoped, so clear filters when the
   // active fleet changes to avoid submitting stale IDs under the new scope.
+  // Re-seed from the persisted defaults when the scope changes (fleet switch)
+  // or once the config/fleet data finishes loading. This also discards any
+  // ephemeral UI edits, matching the "UI edits are not saved" behavior.
   useEffect(() => {
-    setChartFilters({
-      labelIDs: [],
-      platforms: [],
-      hostFilterMode: "none",
-      selectedHosts: [],
-    });
-  }, [currentTeamId]);
+    setChartFilters(initialChartFilters);
+  }, [currentTeamId, initialChartFilters]);
 
   const currentDataset = getDataset(selectedMetric);
+
+  const isCVE = currentDataset.name === "cve";
+  const hostFiltersActive = hasActiveHostFilters(chartFilters);
+  const softwareFiltersActive = isCVE && hasActiveSoftwareFilters(chartFilters);
+  // A seeded default is how the chart always looks, so flagging it as
+  // "Filtered" on load would say nothing. Once shown, the tooltip lists
+  // everything narrowing the data, defaults included.
+  const filtersEdited = !isEqual(chartFilters, initialChartFilters);
+  const anyFiltersActive =
+    filtersEdited && (hostFiltersActive || softwareFiltersActive);
 
   const datasetConfigKey = DATASET_CONFIG_KEY[currentDataset.name];
   // If a dataset has no config-key mapping (future addition), treat it as
@@ -151,6 +202,25 @@ const ChartCard = ({
       : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
   const queryParams: IChartApiParams = useMemo(() => {
+    // Only narrow categories when not all are selected; EPSS only narrows when
+    // min > 0 or max < 100. The Software tab enters EPSS as 0–100 %, but the
+    // API takes 0.0–1.0, so divide before sending.
+    const narrowsCategories =
+      isCVE &&
+      chartFilters.softwareFilters.length !==
+        ALL_CVE_SOFTWARE_CATEGORY_VALUES.length;
+    const epssMinActive =
+      isCVE && chartFilters.epssMin !== "" && Number(chartFilters.epssMin) > 0;
+    const epssMaxActive =
+      isCVE &&
+      chartFilters.epssMax !== "" &&
+      Number(chartFilters.epssMax) < 100;
+
+    // filterEmptyParams drops undefined/""/null, so a legitimate 0 survives.
+    const severityBounds = isCVE
+      ? severityFilters(severitySelection(chartFilters))
+      : {};
+
     return {
       // Add an extra day to ensure we get the full # of calendar days
       // represented in the chart, regardless of timezone.
@@ -173,8 +243,20 @@ const ChartCard = ({
         chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
+      software_filters: narrowsCategories
+        ? chartFilters.softwareFilters.join(",")
+        : undefined,
+      has_known_exploit: isCVE && chartFilters.knownExploit ? true : undefined,
+      epss_min: epssMinActive ? Number(chartFilters.epssMin) / 100 : undefined,
+      epss_max: epssMaxActive ? Number(chartFilters.epssMax) / 100 : undefined,
+      severity_min: severityBounds.min,
+      severity_max: severityBounds.max,
+      exclude_vulnerabilities:
+        isCVE && chartFilters.excludeCVEs.length
+          ? chartFilters.excludeCVEs.join(",")
+          : undefined,
     };
-  }, [chartFilters, currentTeamId]);
+  }, [chartFilters, currentTeamId, isCVE]);
 
   const { data: chartData, isLoading, error } = useQuery<
     IChartResponse,
@@ -218,7 +300,7 @@ const ChartCard = ({
       );
     }
     if (isLoading) {
-      return <Spinner includeContainer={false} verticalPadding="small" />;
+      return <Spinner verticalPadding="small" />;
     }
     if (error) {
       return <DataError />;
@@ -280,17 +362,36 @@ const ChartCard = ({
               <Icon name="info-outline" />
             </TooltipWrapper>
           )}
-          {hasActiveFilters(chartFilters) && (
-            <span className={`${baseClass}__filtered-badge`}>Filtered</span>
+          {anyFiltersActive && (
+            <TooltipWrapper
+              tipContent={filterTooltip(chartFilters, isCVE)}
+              position="top"
+              underline={false}
+              showArrow
+              tipOffset={8}
+            >
+              <button
+                type="button"
+                className={`${baseClass}__filter-pill`}
+                onClick={() =>
+                  openFilterModal(
+                    hostFiltersActive ? "hosts" : "software",
+                    true
+                  )
+                }
+              >
+                Filtered
+              </button>
+            </TooltipWrapper>
           )}
         </div>
         <div className={`${baseClass}__header-right`}>
           <Button
             type="button"
-            variant="inverse"
-            className={`${baseClass}__settings-btn`}
+            variant="subdued"
+            size="small"
             ariaLabel="Configure chart filters"
-            onClick={() => setShowFilterModal(true)}
+            onClick={() => openFilterModal()}
           >
             <Icon name="settings" />
           </Button>
@@ -301,6 +402,9 @@ const ChartCard = ({
         <ChartFilterModal
           filters={chartFilters}
           currentTeamId={currentTeamId}
+          metric={selectedMetric}
+          initialTab={initialTab}
+          initialShowAdvanced={showAdvancedOnOpen}
           onApply={(newFilters) => {
             setChartFilters(newFilters);
             setShowFilterModal(false);

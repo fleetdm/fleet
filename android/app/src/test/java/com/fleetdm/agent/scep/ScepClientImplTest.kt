@@ -1,5 +1,6 @@
 package com.fleetdm.agent.scep
 
+import com.fleetdm.agent.REDACTED
 import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
 import org.bouncycastle.asn1.DERIA5String
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
@@ -44,6 +45,20 @@ class ScepClientImplTest {
             fail("Expected ScepNetworkException to be thrown")
         } catch (e: ScepNetworkException) {
             assertTrue(e.message?.contains("Invalid SCEP URL") == true)
+        }
+    }
+
+    @Test
+    fun `enroll with malformed URL does not leak the challenge in the error`() = runTest {
+        val template = TestCertificateTemplateFactory.create()
+        val malformedUrl = "htp:/[invalid/mdm/scep/proxy/host-uuid,g7,NDES,s3cr3t-challenge"
+
+        try {
+            scepClient.enroll(template, malformedUrl)
+            fail("Expected ScepNetworkException to be thrown")
+        } catch (e: ScepNetworkException) {
+            assertFalse(e.message?.contains("s3cr3t-challenge") == true)
+            assertTrue(e.message?.contains("host-uuid,g7,NDES,$REDACTED") == true)
         }
     }
 

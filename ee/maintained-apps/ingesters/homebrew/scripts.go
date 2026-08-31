@@ -3,6 +3,7 @@ package homebrew
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -44,11 +45,22 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				if appItem.String == "" {
 					continue
 				}
-				appPath := appItem.String
+				// appPath is cask-controlled and interpolated inside double-quoted
+				// strings alongside "$APPDIR"/"$TMPDIR"; escape it so a payload like
+				// $(...) can't reach the root-privileged mv/cp/rm below.
+				appPath := shellDoubleQuoteEscape(appItem.String)
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
-	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
+	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
-				sb.Copy(appPath, "$APPDIR")
+				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/%[1]s"
+	if [ -d "$TMPDIR/%[1]s.bkp" ]; then
+		sudo mv "$TMPDIR/%[1]s.bkp" "$APPDIR/%[1]s"
+	fi
+	exit 1
+fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation
 			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
@@ -112,15 +124,17 @@ func uninstallScriptForApp(cask *brewCask) string {
 					}
 				}
 			}
-			// Remove all collected app paths
+			// Remove all collected app paths. appPath is cask-controlled and lands
+			// inside a double-quoted `sudo rm -rf` argument, so escape it to stop
+			// $(...)/backtick command substitution.
 			for _, appPath := range appPathsToRemove {
-				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, appPath))
+				sb.RemoveFile(fmt.Sprintf(`"$APPDIR/%s"`, shellDoubleQuoteEscape(appPath)))
 			}
 		case len(artifact.Binary) > 0:
 			if len(artifact.Binary) == 2 {
 				target := artifact.Binary[1].Other.Target
 				if !strings.Contains(target, "$HOMEBREW_PREFIX") {
-					sb.RemoveFile(fmt.Sprintf(`'%s'`, target))
+					sb.RemoveFile(shellSingleQuote(target))
 				}
 			}
 		case len(artifact.Uninstall) > 0:
@@ -166,6 +180,8 @@ const (
 // higher priority
 func uninstallArtifactOrder(artifact *brewUninstall) int {
 	switch {
+	case len(artifact.EarlyScript.String)+len(artifact.EarlyScript.Other) > 0:
+		return PriorityEarlyScript
 	case len(artifact.LaunchCtl.String)+len(artifact.LaunchCtl.Other) > 0:
 		return PriorityLaunchctl
 	case len(artifact.Quit.String)+len(artifact.Quit.Other) > 0:
@@ -197,57 +213,102 @@ func sortUninstall(artifacts []*brewUninstall) {
 	})
 }
 
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
-	process := func(target optjson.StringOr[[]string], f func(path string)) {
-		if target.IsOther {
-			for _, path := range target.Other {
-				f(path)
-			}
-		} else if len(target.String) > 0 {
-			f(target.String)
-		}
+// shellSingleQuote wraps s in single quotes for safe use as a single shell
+// token, escaping any embedded single quote by closing the quote, emitting an
+// escaped quote, and reopening (the standard POSIX idiom). Cask-supplied paths
+// can contain apostrophes (e.g. "Cycling '74"), which would otherwise
+// prematurely close the quote and produce a syntax error.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// dqEscaper backslash-escapes the only four characters that keep a special
+// meaning inside a double-quoted shell string: backslash, dollar, backtick, and
+// double quote. strings.Replacer makes a single pass and never rescans the
+// replacement text it inserts, so the escapes it introduces are not themselves
+// re-escaped (regardless of pair order).
+var dqEscaper = strings.NewReplacer(
+	`\`, `\\`,
+	`$`, `\$`,
+	"`", "\\`",
+	`"`, `\"`,
+)
+
+// shellDoubleQuoteEscape escapes s for safe interpolation inside an existing
+// double-quoted shell string. Cask metadata is attacker-influenced (it flows
+// verbatim from formulae.brew.sh into root-privileged generated scripts), so a
+// value like `$(...)` or a backtick must not be treated as command
+// substitution. Unlike shellSingleQuote this preserves a surrounding "$VAR"
+// (e.g. "$APPDIR"/"$TMPDIR") that legitimately needs to expand, and it leaves
+// values without shell metacharacters — the common case — byte-for-byte
+// unchanged, so the generated scripts (and their downstream comparisons in the
+// auto-update path) don't churn.
+func shellDoubleQuoteEscape(s string) string {
+	return dqEscaper.Replace(s)
+}
+
+// escapeCaskPath escapes a cask-supplied path for use inside a double-quoted
+// shell string while preserving a leading "$APPDIR" — the one cask variable the
+// generated scripts define and legitimately expand at runtime (every real
+// binary-artifact source is "$APPDIR/Foo.app/..."). Everything after the prefix
+// is data and gets escaped; paths without metacharacters come back unchanged.
+func escapeCaskPath(s string) string {
+	if s == "$APPDIR" {
+		return s
 	}
-
-	addUserVar := func() {
-		sb.AddVariable("LOGGED_IN_USER", `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	if rest, ok := strings.CutPrefix(s, "$APPDIR/"); ok {
+		return "$APPDIR/" + shellDoubleQuoteEscape(rest)
 	}
+	return shellDoubleQuoteEscape(s)
+}
 
-	process(u.LaunchCtl, func(lc string) {
-		sb.AddFunction("remove_launchctl_service", removeLaunchctlServiceFunc)
-		sb.Writef("remove_launchctl_service '%s'", lc)
-	})
+var inertBareword = regexp.MustCompile(`^[A-Za-z0-9_./+][A-Za-z0-9_./+-]*$`)
 
-	process(u.Quit, func(appName string) {
-		sb.AddFunction("quit_application", quitApplicationFunc)
-		sb.Writef("quit_application '%s'", appName)
-		if appName == "com.docker.docker" {
-			sb.Writef("quit_application 'com.electron.dockerdesktop'")
-		}
-	})
-
-	// per the spec, signals can't have a different format. In the homebrew
-	// source code an error is raised when the format is different.
-	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
-		addUserVar()
-		sb.AddFunction("send_signal", sendSignalFunc)
-		sb.Writef(`send_signal '%s' '%s' "$LOGGED_IN_USER"`, u.Signal.Other[0], u.Signal.Other[1])
+// inertShellWord reports whether s is safe to emit as a single unquoted shell
+// word: an optional "$APPDIR" prefix followed only by filename-safe bytes, with
+// no leading dash that a command would parse as an option. Inert values keep
+// the generator's historical unquoted form: the auto-update job treats any byte
+// difference between a stored script and the manifest script as an admin
+// customization and pins the stored script (which names the old installer
+// file), so format churn would break auto-updates for every affected app.
+func inertShellWord(s string) bool {
+	if s == "$APPDIR" {
+		return true
 	}
+	if rest, ok := strings.CutPrefix(s, "$APPDIR/"); ok {
+		return inertBareword.MatchString(rest)
+	}
+	return inertBareword.MatchString(s)
+}
 
-	if u.Script.IsOther {
+// heredocInert reports whether s is pure data in an unquoted << EOF heredoc
+// body: nothing the shell expands there ($, backtick, backslash) and no line
+// equal to the delimiter, which would terminate the heredoc early and run the
+// remainder as commands.
+func heredocInert(s string) bool {
+	if strings.ContainsAny(s, "$`\\") {
+		return false
+	}
+	return !slices.Contains(strings.Split(s, "\n"), "EOF")
+}
+
+// processScript writes a cask "script"/"early_script" uninstall directive. Both
+// take the same shape, so they share this; the caller decides the order.
+func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, addUserVar func()) {
+	if script.IsOther {
 		// for supported FMAs, this is a map with "executable" as the script path,
 		// optional "args" array, optional "sudo" boolean, and optional "must_succeed" boolean
-		addUserVar()
-		executable, ok := u.Script.Other["executable"].(string)
+		executable, ok := script.Other["executable"].(string)
 		if !ok {
 			panic("executable not found or not a string in script")
 		}
 
 		// Build the command with arguments if present
 		var cmdParts []string
-		cmdParts = append(cmdParts, fmt.Sprintf("'%s'", executable))
+		cmdParts = append(cmdParts, shellSingleQuote(executable))
 
 		// Handle args if present
-		if argsVal, hasArgs := u.Script.Other["args"]; hasArgs {
+		if argsVal, hasArgs := script.Other["args"]; hasArgs {
 			args, ok := argsVal.([]interface{})
 			if !ok {
 				panic("args must be an array in script")
@@ -257,15 +318,25 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 				if !ok {
 					panic("all args must be strings")
 				}
-				cmdParts = append(cmdParts, fmt.Sprintf("'%s'", argStr))
+				cmdParts = append(cmdParts, shellSingleQuote(argStr))
 			}
 		}
+
+		// Paths under the Caskroom only exist where Homebrew installed the app, so
+		// the directive can't do anything on a Fleet-managed host (same reason the
+		// binary artifact skips them).
+		if strings.Contains(executable, "$HOMEBREW_PREFIX") ||
+			slices.ContainsFunc(cmdParts, func(p string) bool { return strings.Contains(p, "$HOMEBREW_PREFIX") }) {
+			return
+		}
+
+		addUserVar()
 
 		cmd := strings.Join(cmdParts, " ")
 
 		// Handle must_succeed - if false, we can ignore errors
 		mustSucceed := true
-		if mustSucceedVal, hasMustSucceed := u.Script.Other["must_succeed"]; hasMustSucceed {
+		if mustSucceedVal, hasMustSucceed := script.Other["must_succeed"]; hasMustSucceed {
 			if ms, ok := mustSucceedVal.(bool); ok {
 				mustSucceed = ms
 			}
@@ -273,7 +344,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 		// Handle sudo - check if sudo is required (defaults to false if not specified)
 		needsSudo := false
-		if sudoVal, hasSudo := u.Script.Other["sudo"]; hasSudo {
+		if sudoVal, hasSudo := script.Other["sudo"]; hasSudo {
 			if sudo, ok := sudoVal.(bool); ok && sudo {
 				needsSudo = true
 			}
@@ -293,31 +364,79 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s) || true`, cmd)
 			}
 		}
-	} else if len(u.Script.String) > 0 {
+	} else if len(script.String) > 0 {
+		if strings.Contains(script.String, "$HOMEBREW_PREFIX") {
+			return
+		}
 		addUserVar()
-		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)
+		// Quote via shellSingleQuote rather than a bare '%s': the cask-controlled
+		// value could otherwise close the quote with an embedded apostrophe and
+		// inject commands.
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" %s)`, shellSingleQuote(script.String))
 	}
+}
+
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
+	process := func(target optjson.StringOr[[]string], f func(path string)) {
+		if target.IsOther {
+			for _, path := range target.Other {
+				f(path)
+			}
+		} else if len(target.String) > 0 {
+			f(target.String)
+		}
+	}
+
+	addUserVar := func() {
+		sb.AddVariable("LOGGED_IN_USER", `$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	}
+
+	process(u.LaunchCtl, func(lc string) {
+		sb.AddFunction("remove_launchctl_service", removeLaunchctlServiceFunc)
+		sb.Writef("remove_launchctl_service %s", shellSingleQuote(lc))
+	})
+
+	process(u.Quit, func(appName string) {
+		sb.AddFunction("quit_application", quitApplicationFunc)
+		sb.Writef("quit_application %s", shellSingleQuote(appName))
+		if appName == "com.docker.docker" {
+			sb.Writef("quit_application 'com.electron.dockerdesktop'")
+		}
+	})
+
+	// per the spec, signals can't have a different format. In the homebrew
+	// source code an error is raised when the format is different.
+	if u.Signal.IsOther && len(u.Signal.Other) == 2 {
+		addUserVar()
+		sb.AddFunction("send_signal", sendSignalFunc)
+		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
+	}
+
+	// brew runs early_script ahead of every other directive; keep that order so
+	// the commands that make removal possible run before anything is removed.
+	processScript(u.EarlyScript, sb, addUserVar)
+	processScript(u.Script, sb, addUserVar)
 
 	process(u.PkgUtil, func(pkgID string) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
 		sb.AddFunction("remove_pkg_files", removePkgFiles)
 		sb.AddFunction("forget_pkg", forgetPkgFunc)
-		sb.Writef("remove_pkg_files '%s'", pkgID)
-		sb.Writef("forget_pkg '%s'", pkgID)
+		sb.Writef("remove_pkg_files %s", shellSingleQuote(pkgID))
+		sb.Writef("forget_pkg %s", shellSingleQuote(pkgID))
 	})
 
 	process(u.Delete, func(path string) {
-		sb.RemoveFile(fmt.Sprintf("'%s'", path))
+		sb.RemoveFile(shellSingleQuote(path))
 	})
 
 	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir '%s'", dir)
+		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
-		sb.Writef("trash $LOGGED_IN_USER '%s'", path)
+		sb.Writef("trash $LOGGED_IN_USER %s", shellSingleQuote(path))
 	})
 }
 
@@ -380,12 +499,6 @@ hdiutil detach "$MOUNT_POINT" || true`)
 	}
 }
 
-// Copy writes a command to copy a file from the temporary directory to a
-// destination.
-func (s *scriptBuilder) Copy(file, dest string) {
-	s.Writef(`sudo cp -R "$TMPDIR/%s" "%s"`, file, dest)
-}
-
 // RemoveFile writes a command to remove a file or directory with sudo
 // privileges.
 func (s *scriptBuilder) RemoveFile(file string) {
@@ -400,8 +513,11 @@ func (s *scriptBuilder) RemoveFile(file string) {
 //
 // Returns an error if generating the XML for choices fails.
 func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error {
+	// pkg is cask-controlled and interpolated inside a double-quoted "$TMPDIR/..."
+	// argument; escape it so command substitution can't survive.
+	pkg = shellDoubleQuoteEscape(pkg)
 	if len(choices) == 0 {
-		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target /`, pkg)
+		s.Writef(`sudo installer -pkg "$TMPDIR/%s" -target / || exit $?`, pkg)
 		return nil
 	}
 
@@ -410,27 +526,53 @@ func (s *scriptBuilder) InstallPkg(pkg string, choices ...[]brewPkgConfig) error
 		return err
 	}
 
-	s.Writef(`
+	// The choice XML embeds cask-controlled strings (choiceIdentifier /
+	// choiceAttribute). An unquoted heredoc shell-expands $/backtick/backslash in
+	// its body, and a body line equal to the delimiter ends it early, running the
+	// remainder as commands. Keep the historical heredoc when the XML is inert on
+	// all those counts — every real cask today, so stored scripts don't churn (see
+	// inertShellWord) — and otherwise write the XML as a single-quoted printf
+	// literal, which the shell can't interpret.
+	if xml := string(choiceXML); heredocInert(xml) {
+		s.Writef(`
 CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
 
 cat << EOF > "$CHOICE_XML"
 %s
 EOF
 
-sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
-`, choiceXML, pkg)
+sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
+`, xml, pkg)
+	} else {
+		s.Writef(`
+CHOICE_XML=$(mktemp /tmp/choice_xml_XXX)
+
+printf '%%s\n' %s > "$CHOICE_XML"
+
+sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
+`, shellSingleQuote(xml), pkg)
+	}
 
 	return nil
 }
 
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
+	// source/target are cask-controlled: the ln arguments, though double-quoted,
+	// allowed $(...) command substitution, and the mkdir argument was unquoted.
+	// Inert paths keep the historical unquoted mkdir form so stored scripts don't
+	// churn (see inertShellWord); `--` stops a leading dash in a hostile path from
+	// being parsed as an option.
 	pathname := filepath.Dir(target)
 	if _, ok := s.pathsCreated[pathname]; !ok {
-		s.Writef("mkdir -p %s", pathname)
+		if inertShellWord(pathname) {
+			s.Writef("mkdir -p %s", pathname)
+		} else {
+			s.Writef(`mkdir -p -- "%s"`, escapeCaskPath(pathname))
+		}
 		s.pathsCreated[pathname] = struct{}{}
 	}
-	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
+	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, escapeCaskPath(source), escapeCaskPath(target))
 }
 
 // String generates the final script as a string.
@@ -493,38 +635,63 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 
   echo "Removing launchctl service ${service}"
 
-  for should_sudo in "${booleans[@]}"; do
-    plist_status=$(launchctl list "${service}" 2>/dev/null)
-
-    if [[ $plist_status == \{* ]]; then
-      if [[ $should_sudo == "true" ]]; then
-        sudo launchctl remove "${service}"
-      else
-        launchctl remove "${service}"
-      fi
-      sleep 1
+  # A wildcard label can't be used with launchctl or as a plist name, so expand
+  # it to the labels of currently loaded services that match the pattern.
+  local services=("$service")
+  if [[ "$service" == *"*"* ]]; then
+    local regex
+    # Escape regex metacharacters, turn '*' into '.*', and anchor the pattern so
+    # it matches a full label rather than a substring.
+    regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+    regex="^${regex}$"
+    services=()
+    local id
+    # Match every loaded job by label regardless of PID; launchctl list reports
+    # loaded-but-not-running jobs with a "-" in the PID column.
+    while read -r _ _ id; do
+      [[ "$id" =~ $regex ]] && services+=("$id")
+    done < <(launchctl list 2>/dev/null | tail -n +2)
+    if [[ ${#services[@]} -eq 0 ]]; then
+      echo "No loaded launchctl service matches ${service}"
+      return
     fi
+  fi
 
-    paths=(
-      "/Library/LaunchAgents/${service}.plist"
-      "/Library/LaunchDaemons/${service}.plist"
-    )
+  local service_label
+  for service_label in "${services[@]}"; do
+    for should_sudo in "${booleans[@]}"; do
+      plist_status=$(launchctl list "${service_label}" 2>/dev/null)
 
-    # if not using sudo, prepend the home directory to the paths
-    if [[ $should_sudo == "false" ]]; then
-      for i in "${!paths[@]}"; do
-        paths[i]="${HOME}${paths[i]}"
-      done
-    fi
-
-    for path in "${paths[@]}"; do
-      if [[ -e "$path" ]]; then
+      if [[ $plist_status == \{* ]]; then
         if [[ $should_sudo == "true" ]]; then
-          sudo rm -f -- "$path"
+          sudo launchctl remove "${service_label}"
         else
-          rm -f -- "$path"
+          launchctl remove "${service_label}"
         fi
+        sleep 1
       fi
+
+      paths=(
+        "/Library/LaunchAgents/${service_label}.plist"
+        "/Library/LaunchDaemons/${service_label}.plist"
+      )
+
+      # if not using sudo, prepend the home directory to the paths
+      if [[ $should_sudo == "false" ]]; then
+        for i in "${!paths[@]}"; do
+          paths[i]="${HOME}${paths[i]}"
+        done
+      fi
+
+      for path in "${paths[@]}"; do
+        if [[ -e "$path" ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo rm -f -- "$path"
+          else
+            rm -f -- "$path"
+          fi
+        fi
+      done
     done
   done
 }`

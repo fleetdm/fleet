@@ -1,0 +1,10 @@
+{
+  "name": "Rocket",
+  "unique_identifier": "net.matthewpalmer.Rocket",
+  "token": "rocket",
+  "installer_format": "dmg",
+  "slug": "rocket/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -2,6 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
+import TableLayoutContext from "components/TableContainer/TableLayoutContext";
 import ActionsDropdown from "./ActionsDropdown";
 
 const DROPDOWN_OPTIONS = [
@@ -29,6 +30,28 @@ describe("Actions dropdown", () => {
     expect(screen.queryAllByText(/edit/i)[1]).toBeInTheDocument(); // Aria shows Edit twice since it's focused
     expect(screen.queryByText(/show query/i)).toBeInTheDocument();
     expect(screen.queryByText(/delete/i)).toBeInTheDocument();
+  });
+
+  it("opens the icon-trigger menu with Enter (single toggle)", async () => {
+    const { user } = renderWithSetup(
+      <ActionsDropdown
+        options={DROPDOWN_OPTIONS}
+        placeholder={PLACEHOLDER}
+        onChange={ON_CHANGE}
+        triggerIcon="settings"
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: PLACEHOLDER });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    trigger.focus();
+    // Button fires onClick from its Enter-keydown handler AND the native
+    // click; a double toggle would leave the menu closed.
+    await user.keyboard("{Enter}");
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByText(/show query/i)).toBeInTheDocument();
   });
 
   it("renders dropdown as disabled when disabled prop is true", () => {
@@ -72,6 +95,28 @@ describe("Actions dropdown", () => {
     const deleteOption = screen.getByText("Delete");
 
     expect(deleteOption).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("portals menu and fires onChange on option click when insideTable", async () => {
+    const mockOnChange = jest.fn();
+    const { user } = renderWithSetup(
+      <TableLayoutContext.Provider value={{ insideTable: true }}>
+        <ActionsDropdown
+          options={DROPDOWN_OPTIONS}
+          placeholder={PLACEHOLDER}
+          onChange={mockOnChange}
+        />
+      </TableLayoutContext.Provider>
+    );
+
+    await user.click(screen.getByText("Actions"));
+    // Menu portals to a sibling of body, not inside the wrapper div.
+    expect(
+      document.querySelector(".actions-dropdown-select__menu-portal")
+    ).not.toBeNull();
+    await user.click(screen.getByText("Edit"));
+
+    expect(mockOnChange).toHaveBeenCalledWith("edit-query");
   });
 
   it("closes the dropdown when clicking outside", async () => {

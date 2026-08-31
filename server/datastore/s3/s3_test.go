@@ -136,6 +136,41 @@ func TestSoftwareInstallerStoreGCSIAMAuthUsesBearerToken(t *testing.T) {
 	}
 }
 
+func TestSoftwareInstallerStoreGCSFlagFromPrefixedEndpoint(t *testing.T) {
+	// Top-level EndpointURL deliberately empty: the documented GCS config
+	// sets only the per-prefix endpoint, and gcs must still resolve true.
+	store, err := NewSoftwareInstallerStore(config.S3Config{
+		SoftwareInstallersBucket:      "bucket",
+		SoftwareInstallersPrefix:      "prefix",
+		SoftwareInstallersRegion:      "us-east-1",
+		SoftwareInstallersEndpointURL: "https://storage.googleapis.com",
+	})
+	require.NoError(t, err)
+	require.True(t, store.gcs)
+}
+
+func TestSoftwareInstallerStoreGCSFlagFalseForNonGCSEndpoint(t *testing.T) {
+	store, err := NewSoftwareInstallerStore(config.S3Config{
+		SoftwareInstallersBucket:      "bucket",
+		SoftwareInstallersPrefix:      "prefix",
+		SoftwareInstallersRegion:      "us-east-1",
+		SoftwareInstallersEndpointURL: "https://s3.example.com",
+	})
+	require.NoError(t, err)
+	require.False(t, store.gcs)
+}
+
+func TestCarveStoreGCSFlagFromPrefixedEndpoint(t *testing.T) {
+	store, err := NewCarveStore(config.S3Config{
+		CarvesBucket:      "carves-bucket",
+		CarvesPrefix:      "carves-prefix",
+		CarvesRegion:      "us-east-1",
+		CarvesEndpointURL: "https://storage.googleapis.com",
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, store.gcs)
+}
+
 func TestCarveStoreGCSIAMAuthUsesBearerToken(t *testing.T) {
 	type requestInfo struct {
 		AuthHeader string
@@ -180,7 +215,7 @@ func TestCarveStoreGCSIAMAuthUsesBearerToken(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, err = store.listS3Carves(context.Background(), "", 10)
+	_, err = store.carveObjectExists(context.Background(), "carves-prefix/some-key")
 	require.NoError(t, err)
 
 	select {

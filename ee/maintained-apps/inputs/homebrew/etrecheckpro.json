@@ -1,0 +1,10 @@
+{
+  "name": "EtreCheck",
+  "unique_identifier": "com.etresoft.EtreCheck4",
+  "token": "etrecheckpro",
+  "installer_format": "zip",
+  "slug": "etrecheckpro/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

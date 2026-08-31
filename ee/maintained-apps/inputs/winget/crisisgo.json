@@ -1,0 +1,11 @@
+{
+  "name": "CrisisGo",
+  "slug": "crisisgo/windows",
+  "package_identifier": "CrisisGo.CrisisGo",
+  "unique_identifier": "CrisisGo",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/crisisgo_install.ps1",
+  "default_categories": ["Communication"]
+}

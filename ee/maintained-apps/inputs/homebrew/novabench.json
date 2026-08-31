@@ -1,0 +1,10 @@
+{
+  "name": "Novabench",
+  "unique_identifier": "com.novabench.client",
+  "token": "novabench",
+  "installer_format": "dmg",
+  "slug": "novabench/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "i1Profiler",
+  "unique_identifier": "com.x-rite.i1Profiler",
+  "token": "i1profiler",
+  "installer_format": "zip",
+  "slug": "i1profiler/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "frozen": true
+}

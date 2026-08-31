@@ -1,0 +1,10 @@
+{
+  "name": "massCode",
+  "unique_identifier": "io.masscode.app",
+  "token": "masscode",
+  "installer_format": "dmg",
+  "slug": "masscode/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

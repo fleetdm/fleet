@@ -20,8 +20,6 @@ func NewBootstrapPackageStore(config config.S3Config) (*BootstrapPackageStore, e
 			s3store:    s3store,
 			pathPrefix: bootstrapPackagePrefix,
 			fileLabel:  "bootstrap package",
-
-			gcs: isGCS(config.EndpointURL),
 		},
 	}, nil
 }

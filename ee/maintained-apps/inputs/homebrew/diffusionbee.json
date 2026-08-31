@@ -1,0 +1,10 @@
+{
+  "name": "Diffusion Bee",
+  "unique_identifier": "com.diffusionbee.diffusionbee",
+  "token": "diffusionbee",
+  "installer_format": "dmg",
+  "slug": "diffusionbee/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

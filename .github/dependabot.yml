@@ -76,7 +76,7 @@ updates:
 
 # Maintain dependencies for fleet-mcp Go module
   - package-ecosystem: "gomod"
-    directory: "/tools/fleet-mcp"
+    directory: "/cmd/fleet-mcp"
     schedule:
       interval: "daily"
     # Disable version updates

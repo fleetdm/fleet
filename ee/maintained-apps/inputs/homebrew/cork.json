@@ -1,0 +1,10 @@
+{
+  "name": "Cork",
+  "unique_identifier": "com.davidbures.cork",
+  "token": "cork",
+  "installer_format": "zip",
+  "slug": "cork/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

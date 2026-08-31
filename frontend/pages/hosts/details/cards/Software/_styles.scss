@@ -1,4 +1,4 @@
-.host-software-card {
+.host-software-section {
   @include vertical-page-tab-panel-layout;
 
   .table-container {
@@ -17,16 +17,6 @@
 
   .table-container__search {
     width: 100%;
-  }
-
-  .table-container__data-table-block {
-    .data-table-block {
-      .data-table {
-        &__wrapper {
-          overflow-x: auto;
-        }
-      }
-    }
   }
 
   .host-software-table {

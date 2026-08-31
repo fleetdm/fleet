@@ -1,0 +1,10 @@
+{
+  "name": "Rectangle Pro",
+  "unique_identifier": "com.knollsoft.Hookshot",
+  "token": "rectangle-pro",
+  "installer_format": "dmg",
+  "slug": "rectangle-pro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

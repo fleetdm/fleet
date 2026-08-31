@@ -50,6 +50,7 @@ interface IDataTableProps {
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle?: string;
+  totalCount?: number;
   defaultPageSize: number;
   defaultPageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
@@ -109,6 +110,7 @@ const DataTable = ({
   isAllPagesSelected,
   toggleAllPagesSelected,
   resultsTitle = "results",
+  totalCount,
   defaultPageSize,
   defaultPageIndex,
   defaultSelectedRows = {},
@@ -265,6 +267,11 @@ const DataTable = ({
             b: { values: Record<string, unknown[]> },
             id: string
           ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
+          version: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.versionAsc(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -452,8 +459,10 @@ const DataTable = ({
     return (
       <p>
         <span>
-          {selectedCount}
-          {isAllPagesSelected && "+"}
+          {isAllPagesSelected && totalCount !== undefined
+            ? totalCount
+            : selectedCount}
+          {isAllPagesSelected && totalCount === undefined && "+"}
         </span>{" "}
         selected
       </p>
@@ -551,20 +560,11 @@ const DataTable = ({
             </div>
             {toggleAllPagesSelected && renderAreAllSelected()}
             {shouldRenderToggleAllPages && (
-              <Button
-                onClick={onToggleAllPagesClick}
-                variant="inverse"
-                className="light-text"
-                size="small"
-              >
+              <Button onClick={onToggleAllPagesClick} variant="link">
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button
-              onClick={onClearSelectionClick}
-              variant="inverse"
-              size="small"
-            >
+            <Button onClick={onClearSelectionClick} variant="link">
               Clear selection
             </Button>
           </div>
@@ -592,7 +592,11 @@ const DataTable = ({
           <Spinner />
         </div>
       )}
-      <div className="data-table data-table__wrapper">
+      <div
+        className={classnames("data-table", "data-table__wrapper", {
+          "data-table__wrapper--no-rows": !rows.length,
+        })}
+      >
         <table className={tableStyles}>
           {!suppressHeaderActions &&
             Object.keys(selectedRowIds).length !== 0 &&

@@ -30,6 +30,7 @@ module.exports = {
       let testimonialOrderForThisPage = [
         'Erik Gomez',
         'Nick Fohs',
+        'Adam Pippert',
         'Dan Grzelak',
         'matt carr',
         'Justin LaBo',

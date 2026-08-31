@@ -14,12 +14,16 @@ import {
 import softwareAPI, {
   ISoftwareTitlesResponse,
 } from "services/entities/software";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import {
+  getAutomaticInstallPoliciesCount,
+  getDisplayedSoftwareName,
+} from "pages/SoftwarePage/helpers";
 import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
 
 import getFleetSuffix from "./pickerCopy";
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
+import HighlightedLabel from "./HighlightedLabel";
 
 const baseClass = "command-palette";
 
@@ -117,7 +121,7 @@ const SoftwarePicker = ({
   return (
     <Command.Group className={`${baseClass}__group`}>
       {titles.map((title) => {
-        const label = title.display_name || title.name;
+        const label = getDisplayedSoftwareName(title.name, title.display_name);
         const typeLabel = formatSoftwareType(title);
         const installerProps = getInstallerProps(title);
         return (
@@ -128,7 +132,9 @@ const SoftwarePicker = ({
             className={`${baseClass}__item`}
           >
             <div className={`${baseClass}__item-left`}>
-              <span className={`${baseClass}__item-label`}>{label}</span>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={label} query={debouncedQuery} />
+              </span>
               {installerProps && <InstallIconWithTooltip {...installerProps} />}
             </div>
             {typeLabel && (

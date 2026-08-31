@@ -9,21 +9,18 @@ import React, {
 import { size } from "lodash";
 import classNames from "classnames";
 import { useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import {
-  getCustomTargetOptions,
-  LabelScope,
-} from "components/TargetLabelSelector/labelScopes";
-
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { IConfig } from "interfaces/config";
-import { ILabelSummary } from "interfaces/label";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { ITeamConfig } from "interfaces/team";
 import useDeepEffect from "hooks/useDeepEffect";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import configAPI from "services/entities/config";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -34,12 +31,14 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { TargetLabelSelector } from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "pages/policies/components/PolicyAutomationsFields";
+import { usePolicyLabelTargets } from "pages/policies/hooks";
+import { POLICY_TARGET_EMPTY_STATE_DESCRIPTION } from "pages/policies/constants";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -57,7 +56,6 @@ export interface ISaveNewPolicyModalProps {
   isFetchingAutofillResolution: boolean;
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
-  labels: ILabelSummary[];
   /** True when the new policy targets "All fleets" (global); only the
    *  webhook/ticket row is shown in the automations table. */
   isGlobalPolicy: boolean;
@@ -71,6 +69,7 @@ export interface ISaveNewPolicyModalProps {
   globalConfig: IConfig | undefined;
   /** Display name of the fleet the new policy belongs to. */
   fleetName: string;
+  router: InjectedRouter;
 }
 
 const validatePolicyName = (name: string) => {
@@ -97,12 +96,12 @@ const SaveNewPolicyModal = ({
   isFetchingAutofillResolution,
   onClickAutofillDescription,
   onClickAutofillResolution,
-  labels,
   isGlobalPolicy,
   policyTeamId,
   automationsConfig,
   globalConfig,
   fleetName,
+  router,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier, setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
@@ -123,15 +122,12 @@ const SaveNewPolicyModal = ({
     backendValidators
   );
 
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
-    "labelsIncludeAny"
-  );
-  const [selectedLabels, setSelectedLabels] = useState({});
-  const customTargetOptions = useMemo(
-    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
-    [isPremiumTier]
-  );
+  const {
+    selectorProps,
+    selectedTargetType,
+    hasCustomLabels,
+    getLabelsPayload,
+  } = usePolicyLabelTargets();
 
   const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
@@ -148,28 +144,12 @@ const SaveNewPolicyModal = ({
     [policyTeamId]
   );
 
-  const onSelectLabel = ({
-    name: labelName,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    setSelectedLabels({
-      ...selectedLabels,
-      [labelName]: value,
-    });
-  };
-
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
   const disableSave =
     !platformSelector.isAnyPlatformSelected ||
     disableForm ||
-    (selectedTargetType === "Custom" &&
-      !Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      }));
+    (selectedTargetType === "Custom" && !hasCustomLabels);
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -217,18 +197,7 @@ const SaveNewPolicyModal = ({
       critical: lastEditedQueryCritical,
     };
     if (isPremiumTier) {
-      const customLabelNames =
-        selectedTargetType === "Custom"
-          ? Object.entries(selectedLabels)
-              .filter(([, selected]) => selected)
-              .map(([labelName]) => labelName)
-          : [];
-      payload.labels_include_any =
-        selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
-      payload.labels_include_all =
-        selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
-      payload.labels_exclude_any =
-        selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
+      Object.assign(payload, getLabelsPayload());
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -314,7 +283,7 @@ const SaveNewPolicyModal = ({
         >
           <div className="autofill-tooltip-wrapper">
             <Button
-              variant="inverse"
+              variant="subdued"
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"
@@ -374,6 +343,7 @@ const SaveNewPolicyModal = ({
           label="Name"
           autofocus
           disabled={disableForm}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"
@@ -398,18 +368,10 @@ const SaveNewPolicyModal = ({
         {platformSelector.render()}
         {isPremiumTier && (
           <TargetLabelSelector
-            selectedTargetType={selectedTargetType}
-            selectedCustomTarget={selectedCustomTarget}
-            customTargetOptions={customTargetOptions}
-            onSelectCustomTarget={(val) =>
-              setSelectedCustomTarget(val as LabelScope)
-            }
-            selectedLabels={selectedLabels}
+            {...selectorProps}
             className={`${baseClass}__target`}
-            onSelectTargetType={setSelectedTargetType}
-            onSelectLabel={onSelectLabel}
-            labels={labels || []}
-            suppressTitle
+            emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
+            onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
             disableOptions={disableForm}
           />
         )}
@@ -424,16 +386,18 @@ const SaveNewPolicyModal = ({
               automationsConfig={automationsConfig}
               globalConfig={globalConfig}
               fleetName={fleetName}
+              selectedPlatforms={platformSelector.getSelectedPlatforms()}
             />
           </div>
         ) : (
           <div className={`${baseClass}__add-automations`}>
             <Button
-              variant="text-icon"
+              variant="secondary"
               type="button"
               onClick={() => setShowAutomations(true)}
+              icon="plus"
             >
-              <Icon name="plus" /> Add automations
+              Add automations
             </Button>
           </div>
         )}
@@ -492,7 +456,7 @@ const SaveNewPolicyModal = ({
             className={`${baseClass}__button--modal-cancel`}
             type="button"
             onClick={() => setIsSaveNewPolicyModalOpen(false)}
-            variant="inverse"
+            variant="secondary"
           >
             Cancel
           </Button>

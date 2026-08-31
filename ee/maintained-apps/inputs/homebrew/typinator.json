@@ -1,0 +1,10 @@
+{
+  "name": "Typinator",
+  "unique_identifier": "com.macility.typinator2",
+  "token": "typinator",
+  "installer_format": "dmg",
+  "slug": "typinator/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

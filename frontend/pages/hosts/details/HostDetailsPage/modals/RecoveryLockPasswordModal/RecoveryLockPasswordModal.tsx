@@ -1,18 +1,17 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { getErrorReason } from "interfaces/errors";
 import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -33,7 +32,6 @@ const RecoveryLockPasswordModal = ({
   canRotatePassword,
   onCancel,
 }: IRecoveryLockPasswordModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isRotating, setIsRotating] = useState(false);
 
   const {
@@ -59,8 +57,7 @@ const RecoveryLockPasswordModal = ({
     setIsRotating(true);
     try {
       await hostAPI.rotateRecoveryLockPassword(hostId);
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate Recovery Lock password."
       );
       onCancel();
@@ -69,7 +66,7 @@ const RecoveryLockPasswordModal = ({
         ? "Recovery lock password rotation is already in progress for this host."
         : "Couldn't send request to rotate Recovery Lock password. Please try again.";
 
-      renderFlash("error", msg);
+      notify.error(msg, { response: e });
     }
     setIsRotating(false);
   };
@@ -81,12 +78,12 @@ const RecoveryLockPasswordModal = ({
 
     return (
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={onRotatePassword}
         disabled={isRotating}
         className={`${baseClass}__rotate-button`}
+        icon="refresh"
       >
-        <Icon name="refresh" />
         {isRotating ? "Rotating..." : "Rotate password"}
       </Button>
     );

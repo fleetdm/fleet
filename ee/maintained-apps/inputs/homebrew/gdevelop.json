@@ -1,0 +1,10 @@
+{
+  "name": "GDevelop",
+  "unique_identifier": "com.gdevelop-app.ide",
+  "token": "gdevelop",
+  "installer_format": "dmg",
+  "slug": "gdevelop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

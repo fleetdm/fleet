@@ -67,6 +67,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"org_settings.mdm.apple_business[].macos_team", "org_settings.mdm.apple_business[].macos_fleet"},
 	{"org_settings.mdm.apple_business[].ios_team", "org_settings.mdm.apple_business[].ios_fleet"},
 	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
+	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
 
 	// Nested keys in org_settings.mdm.volume_purchasing_program[]
 	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
@@ -95,6 +96,18 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"team_ids_by_name", "fleet_ids_by_name"},
 	{"team_ids", "fleet_ids"},
 	{"team_name", "fleet_name"},
+}
+
+// DeprecatedGitOpsKeyScopes confines a leaf rename to the objects it belongs to, keyed by the leaf name buildAliasRules
+// indexes on. ApplyDeprecatedKeyMappings doesn't need this (it matches full paths), but the serialization rules derived
+// from the leaf names do: without a scope, a name that is deprecated in one object gets rewritten in every other object
+// that happens to use it.
+//
+// Keep in sync with the `renamescope` struct tags, which do the same job for the API request/response layer.
+var DeprecatedGitOpsKeyScopes = map[string][]string{
+	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
+	// windows_settings.
+	"enable_managed_local_account": {"macos_setup", "setup_experience"},
 }
 
 // ApplyDeprecatedKeyMappings walks the YAML data map and migrates deprecated keys to their new names.

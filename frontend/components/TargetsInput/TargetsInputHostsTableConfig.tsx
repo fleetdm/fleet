@@ -10,7 +10,6 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
 import StatusIndicator from "components/StatusIndicator";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
@@ -28,10 +27,10 @@ export const generateTableHeaders = (
           Cell: (cellProps: ITableStringCellProps) => (
             <Button
               onClick={() => handleRowRemove(cellProps.row)}
-              variant="icon"
-            >
-              <Icon name="close-filled" />
-            </Button>
+              variant="subdued"
+              icon="close-filled"
+              ariaLabel="Remove"
+            />
           ),
           disableHidden: true,
         },

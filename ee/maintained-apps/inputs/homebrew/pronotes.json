@@ -1,0 +1,10 @@
+{
+  "name": "ProNotes",
+  "unique_identifier": "com.dexterleng.ProNotes",
+  "token": "pronotes",
+  "installer_format": "zip",
+  "slug": "pronotes/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

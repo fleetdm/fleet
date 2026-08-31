@@ -33,14 +33,22 @@ export default {
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
+    `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
+  POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_USER_APNS_PING: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/apns_ping`;
+  },
   DEVICE_SOFTWARE: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_ALL: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install_all`,
   DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
     return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
   },
@@ -55,6 +63,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/uninstall/${scriptExecutionId}/results`,
   DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
+  DEVICE_SELF_SERVICE_CATEGORIES: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/self_service_categories`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -87,6 +97,10 @@ export default {
   HOSTS_REPORT: `/${API_VERSION}/fleet/hosts/report`,
   HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
+  HOST_CUSTOM_HOST_VITAL: (hostId: number, vitalId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/custom_host_vitals/${vitalId}`,
+  HOST_CANCEL_MDM_COMMAND: (hostId: number, commandUUID: string) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/commands/${commandUUID}`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
@@ -96,6 +110,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
+  HOST_RESEND_NAME_TEMPLATE: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/name_template/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
@@ -109,6 +125,7 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping/idp`,
   HOST_DEP_ASSIGNMENT: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/dep_assignment`,
+  HOST_APNS_PING: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/apns_ping`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
@@ -117,6 +134,11 @@ export default {
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABELS_SUMMARY: `/${API_VERSION}/fleet/labels/summary`,
+
+  // self-service categories
+  SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  SELF_SERVICE_CATEGORY: (id: number) =>
+    `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
@@ -135,6 +157,8 @@ export default {
    */
 
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  MDM_MICROSOFT_GRAPH_CREDENTIALS: `/${API_VERSION}/fleet/microsoft_graph_credentials`,
 
   MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
   MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
@@ -170,9 +194,14 @@ export default {
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
+  // Apple DDM asset endpoints
+  MDM_ASSETS: `/${API_VERSION}/fleet/assets`,
+  MDM_ASSET: (uuid: string) => `/${API_VERSION}/fleet/assets/${uuid}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+  HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (
     token: string,
@@ -347,6 +376,9 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
-  // custom variables endpoints
-  VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // global variables endpoints
+  GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // custom host vitals endpoints
+  CUSTOM_HOST_VITALS: `/${API_VERSION}/fleet/custom_host_vitals`,
+  RELEASE_AB_HOSTS: `/${API_VERSION}/fleet/hosts/release_ab`,
 };

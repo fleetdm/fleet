@@ -488,7 +488,7 @@ export const getSoftwareSubheader = ({
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
-    if (hostMdmEnrollmentStatus === "On (personal)") {
+    if (hostMdmEnrollmentStatus === "On (manual - personal)") {
       return isMyDevicePage
         ? "Software installed on your work profile (Managed Apple Account)."
         : "Software installed on work profile (Managed Apple Account).";

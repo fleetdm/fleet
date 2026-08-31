@@ -40,6 +40,7 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
+/server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
 /orbit/ @fleetdm/go
 
@@ -56,26 +57,26 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
-/charts/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
-/terraform/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
+/infrastructure/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
+/charts/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
+/terraform/ @rfairburn @rynsatterlee @georgekarrv @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                                   @rachaelshaw @eashaw
-/docs/solutions                                         @ddribeiro
-/docs/Configuration                                     @rachaelshaw @eashaw
+/docs                                                   @rachaelshaw
+/docs/solutions                                         @AdamBaali # « @AdamBaali added as interim co-owner while @ddribeiro is OOO
+/docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
-/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
-/docs/REST\ API/rest-api.md                             @rachaelshaw @eashaw # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw @eashaw
+/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @getvictor @lucasmrod
+/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
+/docs/Contributing/reference                            @rachaelshaw
 /docs/Get\ started/why-fleet.md                         @mike-j-thomas
-/render.yaml                                            @edwardsb
+/render.yaml                                            @rfairburn
 /it-and-security                                        @allenhouchins
-/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
+/articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn # « Infra: active notification of changes to IP Allowlists
 /openspec                                               @lukeheath
 /website/package-lock.json                              @eashaw
 
@@ -86,14 +87,14 @@ go.mod @fleetdm/go
 ################################################################################################
 
 # MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
+/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
+/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
+/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery @sharon-fdm @getvictor
 
 # Orchestration
-/docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
-/docs/Contributing/product-groups/orchestration         @sharon-fdm @sgress454
-/docs/Contributing/research/orchestration               @sharon-fdm @sgress454
+/docs/Contributing/architecture/orchestration           @sharon-fdm @lucasmrod
+/docs/Contributing/product-groups/orchestration         @sharon-fdm @lucasmrod
+/docs/Contributing/research/orchestration               @sharon-fdm @lucasmrod
 
 # Software
 /docs/Contributing/architecture/software                @georgekarrv @cdcme
@@ -101,10 +102,13 @@ go.mod @fleetdm/go
 /docs/Contributing/research/software                    @georgekarrv @cdcme
 
 # Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor @mostlikelee
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor @mostlikelee
-/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/architecture/security-compliance     @sharon-fdm @juan-fdz-hawa
+/docs/Contributing/product-groups/security-compliance   @sharon-fdm @juan-fdz-hawa
+/docs/Contributing/research/security-compliance         @sharon-fdm @juan-fdz-hawa
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
+
+# Website
+/website/api/models                                     @eashaw
 
 ##############################################################################################
 # 🌐 Repo automation and change control settings
@@ -142,6 +146,11 @@ go.mod @fleetdm/go
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
+# 🚀 GitHub workflows
+##############################################################################################
+/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
+
+##############################################################################################
 # 🌐 GitHub workflows
 ##############################################################################################
 /.github/workflows/markdown-link-check-config.json @eashaw
@@ -152,8 +161,9 @@ go.mod @fleetdm/go
 /.github/workflows/deploy-fleet-website.yml @eashaw
 
 ##############################################################################################
-# 🚀 GitHub workflows
+# 🤖 Claude Code configuration (agents, skills, rules, settings).
 ##############################################################################################
-/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
+/.claude/ @JordanMontgomery @cdcme @lucasmrod @getvictor @lukeheath @georgekarrv @sharon-fdm
+
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

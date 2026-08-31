@@ -1,0 +1,10 @@
+{
+  "name": "SecureSafe",
+  "unique_identifier": "com.dswiss.securesafe.sync",
+  "token": "securesafe",
+  "installer_format": "pkg",
+  "slug": "securesafe/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

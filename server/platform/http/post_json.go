@@ -17,6 +17,7 @@ import (
 type errWithStatus struct {
 	err        string
 	statusCode int
+	body       string
 }
 
 // Error implements the error interface.
@@ -27,6 +28,12 @@ func (e *errWithStatus) Error() string {
 // StatusCode implements the StatusCoder interface for returning custom status codes.
 func (e *errWithStatus) StatusCode() int {
 	return e.statusCode
+}
+
+// Body returns the response body of the failed request, so callers
+// can surface what the remote server returned.
+func (e *errWithStatus) Body() string {
+	return e.body
 }
 
 // PostJSONWithTimeout marshals v as JSON and POSTs it to the given URL with a 30-second timeout.
@@ -51,17 +58,14 @@ func PostJSONWithTimeout(ctx context.Context, url string, v any, logger *slog.Lo
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 513))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		bodyStr := string(body)
-		if len(bodyStr) > 512 {
-			bodyStr = bodyStr[:512]
-		}
 		logger.DebugContext(ctx, "non-success response from POST",
 			"url", MaskSecretURLParams(url),
 			"status_code", resp.StatusCode,
 			"body", bodyStr,
 		)
-		return &errWithStatus{err: fmt.Sprintf("error posting to %s", MaskSecretURLParams(url)), statusCode: resp.StatusCode}
+		return &errWithStatus{err: fmt.Sprintf("error posting to %s", MaskSecretURLParams(url)), statusCode: resp.StatusCode, body: bodyStr}
 	}
 
 	return nil

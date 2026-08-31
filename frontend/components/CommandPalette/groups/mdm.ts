@@ -61,14 +61,14 @@ const buildMdmItems = (
               "macbook",
             ],
           },
-          // ABM and VPP pages are Premium-only.
+          // AB and VPP pages are Premium-only.
           ...(isPremiumTier
             ? [
                 {
                   id: isAbmConfigured ? "edit-abm" : "add-abm",
                   label: isAbmConfigured
-                    ? "Edit Apple Business Manager (ABM)"
-                    : "Add Apple Business Manager (ABM)",
+                    ? "Edit Apple Business (AB)"
+                    : "Add Apple Business (AB)",
                   group: "MDM" as const,
                   path: paths.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER,
                   keywords: [
@@ -151,6 +151,27 @@ const buildMdmItems = (
             ],
           },
         ]),
+    // Microsoft Graph credential — premium only, since the page paywalls on Free. Not gated on Windows MDM: the
+    // Autopilot sync only reads the tenant's registry, so it is useful before Windows MDM is turned on.
+    ...(isPremiumTier
+      ? [
+          {
+            id: "edit-microsoft-graph",
+            label: "Edit Microsoft Graph",
+            group: "MDM" as const,
+            path: paths.ADMIN_INTEGRATIONS_MICROSOFT_GRAPH,
+            keywords: [
+              "entra",
+              "azure ad",
+              "autopilot",
+              "pending hosts",
+              "client secret",
+              "app registration",
+              "tenant",
+            ],
+          },
+        ]
+      : []),
     // Android MDM — turn on or edit
     ...(!isAndroidMdmEnabledAndConfigured
       ? [

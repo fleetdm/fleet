@@ -81,7 +81,7 @@ describe("Software library table", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
-    expect(screen.getByText("Self-service only")).toBeInTheDocument();
+    expect(screen.getByText("Self service only")).toBeInTheDocument();
   });
 
   it("Renders the empty search state and self-service toggle when self-service filter is applied", () => {
@@ -116,7 +116,43 @@ describe("Software library table", () => {
     expect(
       screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
-    expect(screen.getByText("Self-service only")).toBeInTheDocument();
+    expect(screen.getByText("Self service only")).toBeInTheDocument();
+  });
+
+  it("Navigates to the categories page when the Categories button is clicked", async () => {
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <SoftwareLibraryTable
+        router={router}
+        isSoftwareEnabled
+        data={createMockSoftwareTitlesResponse({
+          counts_updated_at: null,
+          software_titles: [],
+        })}
+        query=""
+        perPage={50}
+        orderDirection="asc"
+        orderKey="hosts_count"
+        selfServiceOnly={false}
+        currentPage={0}
+        teamId={4}
+        isLoading={false}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Categories/ }));
+    expect(router.push).toHaveBeenCalledWith(
+      "/software/library/categories?fleet_id=4"
+    );
   });
 
   it("Renders the empty state without Add software button for observers", () => {

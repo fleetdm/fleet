@@ -40,9 +40,26 @@ describe("EditIconModal", () => {
     expect(screen.getByText("Choose file")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
     expect(screen.getByText("Fleet")).toBeInTheDocument();
-    expect(screen.getByText("Self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self service")).toBeInTheDocument();
     const save = screen.getByRole("button", { name: "Save" });
     expect(save).toBeInTheDocument();
+  });
+
+  it("hides the preview tabs and Self-service view for Android apps", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    const ANDROID_PROPS = {
+      ...MOCK_PROPS,
+      previewInfo: {
+        ...MOCK_PROPS.previewInfo,
+        source: "android_apps",
+      },
+    };
+    render(<EditIconModal {...ANDROID_PROPS} />);
+
+    expect(screen.getByText("Preview")).toBeInTheDocument();
+    expect(screen.queryByText("Fleet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Self-service")).not.toBeInTheDocument();
+    expect(screen.getByText("Version")).toBeInTheDocument();
   });
 
   it("shows the correct software name and preview info in Fleet card", () => {
@@ -118,6 +135,9 @@ describe("EditIconModal", () => {
 
       expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
         data: { displayName: "New Name" }, // whitespace was trimmed
+        // Multi-package titles require installer_id on every PATCH; the modal
+        // targets `software_package` (mirror of `packages[0]`).
+        installerId: softwarePackage.installer_id,
         softwareId: 123,
         teamId: 456,
       });
@@ -151,9 +171,38 @@ describe("EditIconModal", () => {
 
       expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
         data: { displayName: "" },
+        installerId: softwarePackage.installer_id,
         softwareId: 123,
         teamId: 456,
       });
+    });
+
+    it("forwards the software package's installer_id on display-name save (#49239)", async () => {
+      // Regression guard for the multi-package Edit-appearance flow: the
+      // backend rejects display-name PATCHes without installer_id on titles
+      // with multiple packages, so the modal must always send the id of the
+      // package it's targeting (software_package == packages[0]).
+      const editSoftwarePackageSpy = jest
+        .spyOn(softwareAPI, "editSoftwarePackage")
+        .mockResolvedValue({});
+
+      const MULTI_PACKAGE_PROPS = {
+        ...MOCK_PROPS,
+        software: createMockSoftwarePackage({ installer_id: 42 }),
+      };
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(<EditIconModal {...MULTI_PACKAGE_PROPS} />);
+
+      const displayNameInput = screen.getByLabelText("Display name");
+      await user.type(displayNameInput, "Custom label");
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      await user.click(saveButton);
+
+      expect(editSoftwarePackageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ installerId: 42 })
+      );
     });
 
     it("handles name update error properly", async () => {

@@ -1,0 +1,8 @@
+// Storybook canvas padding override. The default `sb-main-padded` class adds
+// ~1rem of padding around stories, which makes our list/accordion previews
+// sit flush against the canvas chrome and misrepresents how they look inside
+// the real page. 90px gives them and other components breathing room similar
+// to the production SoftwareTitleDetailsPage layout.
+.sb-main-padded.sb-show-main {
+  padding: 90px;
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Rive",
+  "unique_identifier": "app.rive.editor",
+  "token": "rive",
+  "installer_format": "dmg",
+  "slug": "rive/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,1 +1,10 @@
-{}
+{
+  "overrides": [
+    {
+      "files": "**/*.md",
+      "options": {
+        "proseWrap": "preserve"
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Electrum",
+  "unique_identifier": "org.org.pythonmac.unspecified.Electrum",
+  "token": "electrum",
+  "installer_format": "dmg",
+  "slug": "electrum/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

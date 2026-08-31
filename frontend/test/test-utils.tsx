@@ -12,10 +12,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import { AppContext, IAppContext, initialState } from "context/app";
-import {
-  INotificationContext,
-  NotificationContext,
-} from "context/notification";
 import { IPolicyContext, PolicyContext } from "context/policy";
 import { IQueryContext, QueryContext } from "context/query";
 import { IRouterLocation } from "interfaces/routing";
@@ -54,7 +50,6 @@ interface IContextOptions {
   // DeepPartial allows inclusion of only fields needed for testing, even if such a partial type
   // is not acceptable in actual application code
   app?: DeepPartial<IAppContext>;
-  notification?: Partial<INotificationContext>;
   policy?: Partial<IPolicyContext>;
   query?: Partial<IQueryContext>;
 }
@@ -66,7 +61,6 @@ interface ICustomRenderOptions {
 
 const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
-  notification: NotificationContext,
   policy: PolicyContext,
   query: QueryContext,
 };
@@ -74,7 +68,7 @@ const CONTEXT_PROVIDER_MAP = {
 type ContextProviderKeys = keyof typeof CONTEXT_PROVIDER_MAP;
 interface IWrapperComponentProps {
   client?: QueryClient;
-  value?: Partial<IAppContext> | Partial<INotificationContext>;
+  value?: Partial<IAppContext>;
 }
 
 const createWrapperComponent = (
@@ -239,6 +233,29 @@ export const getFutureDate = (days: number) => {
   targetDate.setDate(targetDate.getDate() + days);
   return targetDate.toISOString();
 };
+
+// Fleet's Modal renders no dialog role, so testing-library's byRole query cannot reach it. Scope by the shared modal
+// container class instead. Tests open one modal at a time, so a single match is the whole contract.
+const MODAL_CONTAINER_SELECTOR = ".modal__modal_container";
+
+/**
+ * Waits for a modal to open and returns its container, for scoping queries with `within`.
+ */
+export const getOpenModal = (): Promise<HTMLElement> =>
+  waitFor(() => {
+    const modal = document.querySelector<HTMLElement>(MODAL_CONTAINER_SELECTOR);
+    if (!modal) {
+      throw new Error("Modal not yet rendered");
+    }
+    return modal;
+  });
+
+/**
+ * Returns the open modal's container, or null when none is open. Use to assert a modal has closed — going through this
+ * rather than querying the class directly keeps such assertions from passing vacuously if the container class changes.
+ */
+export const queryOpenModal = (): HTMLElement | null =>
+  document.querySelector(MODAL_CONTAINER_SELECTOR);
 
 export const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {

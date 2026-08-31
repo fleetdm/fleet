@@ -19,6 +19,7 @@ cancel_host_activity := "cancel_host_activity"
 transfer_host := "transfer_host"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
+write_members := "write_members"
 
 # User specific actions
 write_role := "write_role"
@@ -53,6 +54,28 @@ team_role(subject, team_id) = role {
 	role := subject_team.role
 }
 
+# team_role_or_none is like team_role but returns "" (instead of undefined) when
+# the subject has no explicit role for the team. This allows expressing "for all
+# teams" checks that must also reject teams the subject has no role in.
+team_role_or_none(subject, team_id) = role {
+	role := team_role(subject, team_id)
+} else = "" {
+	true
+}
+
+# no_team_targets is true when a targeted query selects no teams. Clients send
+# this either as null (field omitted) or as an empty list, and both mean the
+# same thing: there are no team targets to check the subject's roles against.
+# Rules that instead validate a selection by counting matched teams must also
+# require count(...) > 0, since an empty list satisfies that count vacuously.
+no_team_targets(obj) {
+	is_null(obj.host_targets.teams)
+}
+
+no_team_targets(obj) {
+	count(obj.host_targets.teams) == 0
+}
+
 ##
 # Global config
 ##
@@ -79,10 +102,10 @@ allow {
   action == write
 }
 
-# Global admin, gitops, maintainer, technician, observer_plus and observer can read Okta IdP assets.
+# Global admin, gitops, maintainer, and technician can read Okta IdP assets.
 allow {
   object.type == "conditional_access_idp_assets"
-  subject.global_role == [admin, gitops, maintainer, technician, observer_plus, observer][_]
+  subject.global_role == [admin, gitops, maintainer, technician][_]
   action == read
 }
 
@@ -129,6 +152,22 @@ allow {
   action == write
 }
 
+# Global admins can manage team membership.
+allow {
+  object.type == "team"
+  object.id != 0
+  subject.global_role == admin
+  action == write_members
+}
+
+# Team admins can manage membership of their teams.
+allow {
+  object.type == "team"
+  object.id != 0
+  team_role(subject, object.id) == admin
+  action == write_members
+}
+
 ##
 # Users
 #
@@ -158,11 +197,25 @@ allow {
   action == read
 }
 
-# Team admins can perform all operations on the team users (except changing their password).
+# Team admins can perform all operations on the team users (except changing their
+# password), but only if they are an admin of EVERY team the object user belongs
+# to. Otherwise a team admin could grant a user access to (or modify a user in) a
+# team they don't administer, including teams they have no role in at all.
 allow {
   object.type == "user"
-  team_role(subject, object.teams[_].id) == admin
   action == [read, write, write_role][_]
+  # The object user must belong to at least one team.
+  object.teams[_]
+  # The subject must not be a non-admin of any of the object user's teams, i.e.
+  # the subject is a team admin of all of the object user's teams.
+  not subject_not_admin_of_some_object_team
+}
+
+# subject_not_admin_of_some_object_team is true if there is at least one team of
+# the object user for which the subject is not a team admin (this includes teams
+# in which the subject has no role at all).
+subject_not_admin_of_some_object_team {
+  team_role_or_none(subject, object.teams[_].id) != admin
 }
 
 ##
@@ -523,6 +576,8 @@ allow {
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] }
+  # Reject the vacuous empty-list match; see no_team_targets.
+  count(object.host_targets.teams) > 0
   count(ok_teams) == count(object.host_targets.teams)
 }
 
@@ -538,6 +593,8 @@ allow {
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] }
+  # Reject the vacuous empty-list match; see no_team_targets.
+  count(object.host_targets.teams) > 0
   count(ok_teams) == count(object.host_targets.teams)
 }
 
@@ -554,7 +611,7 @@ allow {
   team_role(subject, subject.teams[_].id) == [admin, maintainer, technician, observer_plus][_]
 
   # and there are no team targets
-  is_null(object.host_targets.teams)
+  no_team_targets(object)
 }
 
 # Team admin, maintainer, technician, and observer_plus running a non-observers_can_run query that belongs to their team when no target teams are specified.
@@ -567,7 +624,7 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus][_]
 
   # there are no team targets
-  is_null(object.host_targets.teams)
+  no_team_targets(object)
 }
 
 # Team admin, maintainer, technician, and observer_plus can run a new query.
@@ -598,6 +655,8 @@ allow {
   not is_null(object.team_id)
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; tmid == object.team_id }
+  # Reject the vacuous empty-list match; see no_team_targets.
+  count(object.host_targets.teams) > 0
   count(ok_teams) == count(object.host_targets.teams)
 }
 
@@ -609,7 +668,7 @@ allow {
   action = run
 
   not is_null(object.team_id)
-  is_null(object.host_targets.teams)
+  no_team_targets(object)
 }
 
 # Team admin, maintainer, technician, observer_plus and observer running a global observers_can_run query must have the targets
@@ -624,6 +683,8 @@ allow {
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus, observer][_] }
+  # Reject the vacuous empty-list match; see no_team_targets.
+  count(object.host_targets.teams) > 0
   count(ok_teams) == count(object.host_targets.teams)
 }
 
@@ -639,6 +700,8 @@ allow {
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] } | { tmid | tmid := object.host_targets.teams[_]; tmid == object.team_id; team_role(subject, tmid) == observer }
+  # Reject the vacuous empty-list match; see no_team_targets.
+  count(object.host_targets.teams) > 0
   count(ok_teams) == count(object.host_targets.teams)
 }
 
@@ -655,7 +718,7 @@ allow {
   team_role(subject, subject.teams[_].id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   # and there are no team targets
-  is_null(object.host_targets.teams)
+  no_team_targets(object)
 }
 
 # Team admin, maintainer, technician, observer_plus and observer running an observers_can_run query that belongs to their team and there are no target teams.
@@ -668,7 +731,7 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   # there are no team targets
-  is_null(object.host_targets.teams)
+  no_team_targets(object)
 }
 
 ##
@@ -927,11 +990,59 @@ allow {
 # Apple MDM
 ##
 
+# Global admins, maintainers, and gitops can write DDM assets.
+allow {
+  object.type == "ddm_asset"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Global admins, maintainers, technicians, and gitops can read DDM assets.
+allow {
+  object.type == "ddm_asset"
+  subject.global_role == [admin, maintainer, technician, gitops][_]
+  action == read
+}
+
+# Team admins, maintainers and gitops can write DDM assets on their team.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "ddm_asset"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, technicians and gitops can read DDM assets on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "ddm_asset"
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  action == read
+}
+
 # Global admins can read, write, and list MDM apple information.
 allow {
   object.type == "mdm_apple"
   subject.global_role == admin
   action == [read, write, list][_]
+}
+
+# Global admins can write/modify AB release devices
+allow {
+  object.type == "mdm_ab_release"
+  subject.global_role == admin
+  action == write
+}
+
+# Team admins can write/modify AB release devices on their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_ab_release"
+  object.team_id != 0
+  team_role(subject, object.team_id) == admin
+  action == write
 }
 
 # Global admins can read and write Apple MDM enrollments.
@@ -1104,10 +1215,20 @@ allow {
   action == write
 }
 
-# Any logged in user can read the manual enrollment profile data.
+# The manual enrollment profile embeds the SCEP challenge, so it is restricted
+# to the same roles as enroll secrets.
+
+# Global admins and maintainers can read the manual enrollment profile data.
 allow {
 	object.type == "mdm_apple_manual_enrollment_profile"
-	not is_null(subject)
+	subject.global_role == [admin, maintainer][_]
+	action == read
+}
+
+# Team admins and maintainers can read the manual enrollment profile data.
+allow {
+	object.type == "mdm_apple_manual_enrollment_profile"
+	team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
 	action == read
 }
 
@@ -1236,6 +1357,51 @@ allow {
 }
 
 ##
+# Custom host vitals
+##
+
+# Global admins, maintainers, and gitops can write custom host vital definitions.
+allow {
+  object.type == "custom_vital"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Any global user can read custom host vital definitions.
+allow {
+  object.type == "custom_vital"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Any team user can read custom host vital definitions for hosts in its team.
+allow {
+  object.type == "custom_vital"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+##
+# Host custom host vital values (per-host)
+##
+
+# Global admins and maintainers can set a host's custom host vital value (not
+# gitops — setting a host value is not a fleetctl gitops operation).
+allow {
+  object.type == "host_custom_vital"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins and maintainers can set the value for hosts in their team.
+allow {
+  object.type == "host_custom_vital"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+##
 # Android
 ##
 # Global admins can connect enterprise.
@@ -1248,10 +1414,10 @@ allow {
 ##
 # SCIM (System for Cross-domain Identity Management)
 ##
-# Global admins and maintainers can access SCIM.
+# Only global admins can access SCIM.
 allow {
   object.type == "scim_user"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == admin
   action == [read, write][_]
 }
 
@@ -1315,6 +1481,54 @@ allow {
   object.type == "certificate_template"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
+}
+
+# Global admins, maintainers and gitops can list certificate templates.
+allow {
+  object.type == "certificate_template"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == list
+}
+
+# Team admins, maintainers and gitops can list certificate templates.
+allow {
+  object.type == "certificate_template"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == list
+}
+
+##
+# Software categories (used as self-service categories in the UI)
+##
+
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories.
+allow {
+  object.type == "software_category"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories on their fleet.
+allow {
+  object.type == "software_category"
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write self-service categories.
+allow {
+  object.type == "software_category"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can write self-service categories on their fleet.
+allow {
+  object.type == "software_category"
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
 }
 
 ##

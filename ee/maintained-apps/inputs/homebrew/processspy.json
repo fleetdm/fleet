@@ -1,0 +1,10 @@
+{
+  "name": "ProcessSpy",
+  "unique_identifier": "com.itone.ProcessSpy",
+  "token": "processspy",
+  "installer_format": "dmg",
+  "slug": "processspy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -5,23 +5,50 @@ locals {
 
   # Tracing configuration - either OTEL or Elastic APM
   otel_environment_variables = var.enable_otel ? {
-    OTEL_SERVICE_NAME             = terraform.workspace
+    OTEL_SERVICE_NAME             = "fleet"
+    OTEL_RESOURCE_ATTRIBUTES      = "deployment.environment.name=${terraform.workspace},deployment.environment=${terraform.workspace}"
     OTEL_EXPORTER_OTLP_ENDPOINT   = "http://${data.terraform_remote_state.signoz[0].outputs.otel_collector_endpoint}"
     FLEET_LOGGING_TRACING_ENABLED = "true"
     FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
   } : {}
 
   elastic_apm_environment_variables = var.enable_otel ? {} : {
-    ELASTIC_APM_SERVER_URL                              = "https://loadtest.fleetdm.com:8200"
-    ELASTIC_APM_SERVICE_NAME                            = "fleet"
-    ELASTIC_APM_ENVIRONMENT                             = "${terraform.workspace}"
-    ELASTIC_APM_TRANSACTION_SAMPLE_RATE                 = "0.004"
-    ELASTIC_APM_SERVICE_VERSION                         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
-    FLEET_LOGGING_TRACING_ENABLED                       = "true"
-    FLEET_LOGGING_TRACING_TYPE                          = "elasticapm"
-    FLEET_DEV_MDM_APPLE_DISABLE_PUSH                    = "1"
-    FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY = "1"
+    ELASTIC_APM_SERVER_URL              = "https://loadtest.fleetdm.com:8200"
+    ELASTIC_APM_SERVICE_NAME            = "fleet"
+    ELASTIC_APM_ENVIRONMENT             = "${terraform.workspace}"
+    ELASTIC_APM_TRANSACTION_SAMPLE_RATE = "0.004"
+    ELASTIC_APM_SERVICE_VERSION         = "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+    FLEET_LOGGING_TRACING_ENABLED       = "true"
+    FLEET_LOGGING_TRACING_TYPE          = "elasticapm"
   }
+
+  # Single label under loadtest.fleetdm.com so the *.loadtest.fleetdm.com
+  # wildcard cert would cover it if the mock ever moves to the HTTPS listener.
+  # A nested name would not: wildcards match exactly one label.
+  apple_apns_mock_hostname = "${local.customer}-apns-mock.loadtest.fleetdm.com"
+  apple_apns_mock_port     = 8378
+
+  # MDM behaviours we always want in a loadtest. These were previously buried
+  # in the Elastic APM branch above, which meant they silently vanished
+  # whenever enable_otel was true.
+  mdm_apple_environment_variables = merge(
+    {
+      # Skip verification of Apple certificates for OTA enrollments.
+      FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY = "1"
+    },
+    # Push traffic must never reach real Apple infrastructure, which would
+    # rate-limit us for pushing to thousands of fake device UUIDs. Either it
+    # goes to the mock, or it goes nowhere.
+    #
+    # These two are mutually exclusive: DISABLE_PUSH short-circuits
+    # initAppleMDMPushService to a nopPusher before the push URL is ever read,
+    # so setting both would silently make the mock unreachable.
+    var.enable_apple_mdm ? {
+      FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL = "http://${local.apple_apns_mock_hostname}"
+      } : {
+      FLEET_DEV_MDM_APPLE_DISABLE_PUSH = "1"
+    }
+  )
 
   extra_environment_variables = merge(
     {
@@ -29,33 +56,39 @@ locals {
       CLOUDWATCH_REGION    = "us-east-2"
       # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
 
-      FLEET_VULNERABILITIES_DATABASES_PATH           = "/home/fleet"
-      FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING     = "false"
-      FLEET_LOGGING_JSON                             = "true"
-      FLEET_LOGGING_DEBUG                            = "true"
-      FLEET_OSQUERY_STATUS_LOG_PLUGIN                = "filesystem"
-      FLEET_FILESYSTEM_STATUS_LOG_FILE               = "/dev/null"
-      FLEET_OSQUERY_RESULT_LOG_PLUGIN                = "filesystem"
-      FLEET_FILESYSTEM_RESULT_LOG_FILE               = "/dev/null"
-      FLEET_MYSQL_MAX_OPEN_CONNS                     = "10"
-      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS        = "10"
-      FLEET_MYSQL_CONN_MAX_LIFETIME                  = "14400"
-      FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "14400"
+      FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
+      FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
+      FLEET_LOGGING_JSON                         = "true"
+      FLEET_LOGGING_DEBUG                        = "true"
+      FLEET_OSQUERY_STATUS_LOG_PLUGIN            = "filesystem"
+      FLEET_FILESYSTEM_STATUS_LOG_FILE           = "/dev/null"
+      FLEET_OSQUERY_RESULT_LOG_PLUGIN            = "filesystem"
+      FLEET_FILESYSTEM_RESULT_LOG_FILE           = "/dev/null"
+      FLEET_MYSQL_MAX_OPEN_CONNS                 = tostring(var.mysql_max_open_conns)
+      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = tostring(var.mysql_max_open_conns)
+      # 30 min: recycle connections often enough that pooled reader connections re-spread across replicas after a
+      # replica reboot/failover, and proactively drop bad idles.
+      FLEET_MYSQL_CONN_MAX_LIFETIME                  = "1800"
+      FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "1800"
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
       FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
       FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
       FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
       FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
       FLEET_SERVER_GZIP_RESPONSES                    = "true"
-
+      FLEET_DEV_ANDROID_PROXY_ENDPOINT               = "http://${resource.aws_lb.internal.dns_name}/"
 
       # Load TLS Certificate for RDS Authentication
       FLEET_MYSQL_TLS_CA                  = local.cert_path
       FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
       FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+
+      # Skip backfilling S3 config with dev values for load testing
+      FLEET_DEV_SKIP_S3_CONFIG = "1"
     },
     local.otel_environment_variables,
-    local.elastic_apm_environment_variables
+    local.elastic_apm_environment_variables,
+    local.mdm_apple_environment_variables
   )
   extra_secrets = {
     FLEET_LICENSE_KEY = data.aws_secretsmanager_secret.license.arn

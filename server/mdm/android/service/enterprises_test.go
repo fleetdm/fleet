@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -219,6 +220,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
 		return 0, nil
 	}
+	ds.Store.GetAndroidDeviceLastTeamIDFunc = func(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
+		return nil, false, nil
+	}
 	ds.Store.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
 		return nil
 	}
@@ -227,6 +231,24 @@ func InitCommonDSMocks() *AndroidMockDS {
 	}
 	ds.Store.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 		return nil, &notFoundError{}
+	}
+	ds.Store.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		return nil
+	}
+	ds.Store.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
+	ds.Store.GetAndroidPubSubDedupStateFunc = func(ctx context.Context, hostID uint) (string, *time.Time, error) {
+		return "", nil, nil
+	}
+	ds.Store.SetAndroidPubSubDedupStateFunc = func(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
+		return nil
+	}
+	ds.Store.SetAndroidHostEnrolledFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.Store.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
+		return nil, nil, nil
 	}
 	return &ds
 }

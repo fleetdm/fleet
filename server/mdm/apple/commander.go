@@ -460,7 +460,72 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
 }
 
-func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+var byodDeviceInformationQueryKeys = []string{
+	"DeviceName",
+	"DeviceCapacity",
+	"AvailableDeviceCapacity",
+	"OSVersion",
+	"SupplementalOSVersionExtra",
+	"WiFiMAC",
+	"ProductName",
+	"IsMDMLostModeEnabled",
+	"TimeZone",
+}
+
+// deviceInformationQueryKeys are the Apple query keys requested in a
+// DeviceInformation command's <Queries> array for non-personal
+// (company-owned) hosts, in request order.
+var deviceInformationQueryKeys = []string{
+	"DeviceName",
+	"DeviceCapacity",
+	"AvailableDeviceCapacity",
+	"OSVersion",
+	"SupplementalOSVersionExtra",
+	"WiFiMAC",
+	"ProductName",
+	"IsMDMLostModeEnabled",
+	"TimeZone",
+	"AccessibilitySettings",
+	"AppAnalyticsEnabled",
+	"AwaitingConfiguration",
+	"BatteryLevel",
+	"BluetoothMAC",
+	"CellularTechnology",
+	"DataRoamingEnabled",
+	"DevicePropertiesAttestation",
+	"DiagnosticSubmissionEnabled",
+	"EASDeviceIdentifier",
+	"IsCloudBackupEnabled",
+	"IsDeviceLocatorServiceEnabled",
+	"IsDoNotDisturbInEffect",
+	"IsNetworkTethered",
+	"iTunesStoreAccountHash",
+	"iTunesStoreAccountIsActive",
+	"LastCloudBackupDate",
+	"MDMOptions",
+	"ModelNumber",
+	"ModemFirmwareVersion",
+	"OrganizationInfo",
+	"PersonalHotspotEnabled",
+	"PushToken",
+	"ServiceSubscriptions",
+	"SupplementalBuildVersion",
+	"UDID",
+}
+
+func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs []string, cmdUUID string, isPersonalEnrollment bool) error {
+	keys := deviceInformationQueryKeys
+	if isPersonalEnrollment {
+		keys = byodDeviceInformationQueryKeys
+	}
+
+	var queries strings.Builder
+	for _, key := range keys {
+		queries.WriteString("            <string>")
+		queries.WriteString(key)
+		queries.WriteString("</string>\n")
+	}
+
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -469,25 +534,78 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
     <dict>
         <key>Queries</key>
         <array>
-            <string>DeviceName</string>
-            <string>DeviceCapacity</string>
-            <string>AvailableDeviceCapacity</string>
-            <string>OSVersion</string>
-            <string>SupplementalOSVersionExtra</string>
-            <string>WiFiMAC</string>
-            <string>ProductName</string>
-			<string>IsMDMLostModeEnabled</string>
-			<string>TimeZone</string>
-        </array>
+%s        </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>
     </dict>
     <key>CommandUUID</key>
     <string>%s</string>
 </dict>
-</plist>`, cmdUUID)
+</plist>`, queries.String(), cmdUUID)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+// deviceNameSettingCommand builds the raw Settings/DeviceName command used to
+// rename a device.
+func deviceNameSettingCommand(deviceName, cmdUUID string) (string, error) {
+	escaped, err := mobileconfig.XMLEscapeString(deviceName)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>Settings</string>
+		<key>Settings</key>
+		<array>
+			<dict>
+				<key>Item</key>
+				<string>DeviceName</string>
+				<key>DeviceName</key>
+				<string>%s</string>
+			</dict>
+		</array>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, escaped, cmdUUID), nil
+}
+
+// DeviceNameSetting sends the Settings command with a DeviceName item to rename the device.
+// Requires supervision on iOS/iPadOS.
+func (svc *MDMAppleCommander) DeviceNameSetting(ctx context.Context, hostUUID, cmdUUID, deviceName string) error {
+	raw, err := deviceNameSettingCommand(deviceName, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping device name for XML")
+	}
+	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
+}
+
+// DeviceNameSettingWithoutNotifications is like DeviceNameSetting but only
+// enqueues the command; it does not send an APNs push. The caller must invoke
+// SendNotifications afterwards. This lets a bulk sender enqueue one command per
+// host and then wake every device with a single batched push instead of one
+// APNs request per host.
+func (svc *MDMAppleCommander) DeviceNameSettingWithoutNotifications(ctx context.Context, hostUUID, cmdUUID, deviceName string) error {
+	raw, err := deviceNameSettingCommand(deviceName, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping device name for XML")
+	}
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+	if _, err := svc.storage.EnqueueCommand(ctx, []string{hostUUID},
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone}); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceName")
+	}
+	return nil
 }
 
 func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, hostUUIDs []string, cmdUUID string, managedOnly bool) error {

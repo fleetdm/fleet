@@ -3,6 +3,7 @@
   "slug": "textexpander/windows",
   "package_identifier": "TextExpander.TextExpander",
   "unique_identifier": "TextExpander",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/textexpander_uninstall.ps1",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

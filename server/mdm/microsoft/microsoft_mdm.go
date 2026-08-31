@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"regexp"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/smallstep/pkcs7"
 )
@@ -18,12 +19,6 @@ const (
 	// See the section 3.1 on the MS-MDE2 specification for more details:
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/2681fd76-1997-4557-8963-cf656ab8d887
 	MDE2DiscoveryPath = MDMPath + "/discovery"
-
-	// AuthPath is the HTTP endpoint path that delivers the Security Token Servicefunctionality.
-	// The MS-MDE2 protocol is agnostic to the token format and value returned by this endpoint.
-	// See the section 3.2 on the MS-MDE2 specification for more details:
-	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a
-	MDE2AuthPath = MDMPath + "/auth"
 
 	// MDE2PolicyPath is the HTTP endpoint path that delivers the X.509 Certificate Enrollment Policy (MS-XCEP) functionality.
 	// This is the endpoint that process the GetPolicies and GetPoliciesResponse messages
@@ -104,4 +99,31 @@ var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2
 // IsValidUPN checks if the provided user ID is a valid UPN
 func IsValidUPN(userID string) bool {
 	return upnRegex.MatchString(userID)
+}
+
+// WindowsUserContextStateFromDevice reports what Fleet knows about the enrollment's MDM user context, which decides whether its
+// user-scoped profiles are held or delivered.
+func WindowsUserContextStateFromDevice(device *fleet.MDMWindowsEnrolledDevice) fleet.WindowsUserContextState {
+	if device == nil {
+		return fleet.WindowsUserContextUnknown
+	}
+	return WindowsUserContextStateFor(device.MDMEnrollUserID, device.LastLoginStatus)
+}
+
+// WindowsUserContextStateFor is WindowsUserContextStateFromDevice over the two fields it actually needs.
+func WindowsUserContextStateFor(enrollUserID string, lastLoginStatus *fleet.WindowsMDMLoginStatus) fleet.WindowsUserContextState {
+	if lastLoginStatus != nil && *lastLoginStatus == fleet.WindowsMDMLoginStatusUser {
+		// The device reported a usable user context.
+		return fleet.WindowsUserContextPresent
+	}
+	if IsValidUPN(enrollUserID) {
+		// A user-bound enrollment holds until its enrolled user signs in: "others", "none", and never-observed alike.
+		return fleet.WindowsUserContextCanArrive
+	}
+	if lastLoginStatus != nil {
+		// A device-bound enrollment that positively reported no usable user context.
+		return fleet.WindowsUserContextCanArrive
+	}
+	// A device-bound enrollment that has never reported a login status.
+	return fleet.WindowsUserContextUnknown
 }

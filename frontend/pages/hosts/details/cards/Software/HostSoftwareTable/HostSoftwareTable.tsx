@@ -24,7 +24,6 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -132,11 +131,14 @@ const HostSoftwareTable = ({
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
         fleet_id: teamId,
+        ...(macosApplicationsFilter !== undefined && {
+          macos_applications: macosApplicationsFilter,
+        }),
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;
     },
-    [vulnFilters]
+    [vulnFilters, teamId, macosApplicationsFilter]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -201,11 +203,11 @@ const HostSoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button
-          variant="inverse"
+          variant="secondary"
           onClick={onAddFiltersClick}
           disabled={isTrulyEmpty}
+          icon="filter"
         >
-          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>
@@ -214,9 +216,7 @@ const HostSoftwareTable = ({
 
   // The /Applications filter is only relevant for macOS hosts.
   const showApplicationsFilter =
-    !isMyDevicePage &&
-    isMacOS(platform) &&
-    macosApplicationsFilter !== undefined;
+    isMacOS(platform) && macosApplicationsFilter !== undefined;
 
   const applicationsFilterOptions: CustomOptionType[] = [
     { label: "Full inventory", value: "false" },

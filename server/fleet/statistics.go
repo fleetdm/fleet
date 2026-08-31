@@ -30,6 +30,7 @@ type StatisticsPayload struct {
 	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
 	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
+	MDMAndroidEnabled              bool   `json:"mdmAndroidEnabled"`
 	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
 	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
 	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
@@ -58,6 +59,9 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].domain
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
+	// GoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
+	// configured (integrations.google_workspace[0] has a domain and service account).
+	GoogleWorkspaceConfigured bool `json:"googleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
 	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
@@ -79,6 +83,14 @@ type StatisticsPayload struct {
 	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
+
+	// FleetDesktopSSOEnabled is true when SSO is required in front of Fleet Desktop (fleet_desktop.sso_enabled).
+	FleetDesktopSSOEnabled bool `json:"fleetDesktopSSOEnabled"`
+
+	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
+	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
 }
 
 type HostsCountByOrbitVersion struct {

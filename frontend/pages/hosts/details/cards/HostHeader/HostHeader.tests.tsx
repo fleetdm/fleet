@@ -2,6 +2,8 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { renderWithSetup } from "test/test-utils";
+import { internationalTimeFormat } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import HostHeader from "./HostHeader";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
@@ -43,7 +45,7 @@ describe("HostHeader", () => {
     expect(screen.getByText("My device")).toBeInTheDocument();
     expect(screen.getByText(/unavailable/i)).toBeInTheDocument();
   });
-  it("does not render refetch button for Android", () => {
+  it("renders a disabled refetch button for Android", () => {
     render(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
@@ -53,7 +55,23 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus={null}
       />
     );
-    expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /refetch/i })).toBeDisabled();
+  });
+
+  it("shows a tooltip on the disabled refetch button explaining why Android hosts can't be refetched", async () => {
+    const { user } = renderWithSetup(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
+      />
+    );
+
+    await user.hover(screen.getByText("Refetch"));
+
+    expect(await screen.findByText(/there's no manual/i)).toBeInTheDocument();
   });
 
   it("disables refetch button when host is offline", () => {
@@ -228,5 +246,78 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText("Clear passcode pending")).toBeInTheDocument();
+  });
+
+  describe("last MDM check-in", () => {
+    const LAST_CHECK_IN = "2024-04-27T11:00:00Z";
+
+    it("shows the last fetched and last MDM check-in times in a tooltip when the host has checked in", async () => {
+      const { user } = renderWithSetup(
+        <HostHeader
+          summaryData={{
+            ...defaultSummaryData,
+            last_mdm_checked_in_at: LAST_CHECK_IN,
+          }}
+          showRefetchSpinner={false}
+          onRefetchHost={jest.fn()}
+          renderActionsDropdown={renderActionDropdown}
+          hostMdmEnrollmentStatus="On (manual)"
+        />
+      );
+
+      await user.hover(screen.getByText(/Last fetched/i));
+
+      expect(await screen.findByText("Last MDM check-in:")).toBeInTheDocument();
+      expect(
+        screen.getByText(internationalTimeFormat(new Date(LAST_CHECK_IN)))
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          internationalTimeFormat(
+            new Date(defaultSummaryData.detail_updated_at)
+          )
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("does not show the check-in tooltip when the host has never checked in", async () => {
+      // normalizeEmptyValues turns an empty check-in timestamp into "---"
+      const { user } = renderWithSetup(
+        <HostHeader
+          summaryData={{
+            ...defaultSummaryData,
+            last_mdm_checked_in_at: DEFAULT_EMPTY_CELL_VALUE,
+          }}
+          showRefetchSpinner={false}
+          onRefetchHost={jest.fn()}
+          renderActionsDropdown={renderActionDropdown}
+          hostMdmEnrollmentStatus="On (manual)"
+        />
+      );
+
+      await user.hover(screen.getByText(/Last fetched/i));
+
+      expect(screen.queryByText("Last MDM check-in:")).not.toBeInTheDocument();
+    });
+
+    it("renders last fetched without a check-in tooltip when the platform reports no check-in field at all", async () => {
+      // lodash `pick` drops the key entirely for platforms whose API response
+      // omits it, so the header gets `undefined` rather than "---".
+      const { user } = renderWithSetup(
+        <HostHeader
+          summaryData={defaultSummaryData}
+          showRefetchSpinner={false}
+          onRefetchHost={jest.fn()}
+          renderActionsDropdown={renderActionDropdown}
+          hostMdmEnrollmentStatus={null}
+        />
+      );
+
+      expect(screen.getByText(/Last fetched/i)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/Last fetched/i));
+
+      expect(screen.queryByText("Last MDM check-in:")).not.toBeInTheDocument();
+    });
   });
 });

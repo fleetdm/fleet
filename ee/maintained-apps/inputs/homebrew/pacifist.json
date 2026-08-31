@@ -1,0 +1,10 @@
+{
+  "name": "Pacifist",
+  "unique_identifier": "com.charlessoft.pacifist",
+  "token": "pacifist",
+  "installer_format": "dmg",
+  "slug": "pacifist/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

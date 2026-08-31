@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -8,16 +8,15 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
+import { notify } from "components/ToastNotification";
 
 import logoAPI from "services/entities/logo";
-import { NotificationContext } from "context/notification";
 import {
   ORG_LOGO_ACCEPT,
   validateOrgLogoFile,
@@ -86,13 +85,13 @@ const LogoCard = ({
             tipOffset={4}
             renderChildren={(disableChildren) => (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onEdit}
                 disabled={disableChildren}
                 title="Replace logo"
-              >
-                <Icon name="pencil" color="core-fleet-green" />
-              </Button>
+                icon="pencil"
+                ariaLabel="Replace logo"
+              />
             )}
           />
           <GitOpsModeTooltipWrapper
@@ -100,13 +99,13 @@ const LogoCard = ({
             tipOffset={4}
             renderChildren={(disableChildren) => (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onDelete}
                 disabled={disableChildren || !hasCustomLogo}
                 title="Remove logo"
-              >
-                <Icon name="trash" color="core-fleet-green" />
-              </Button>
+                icon="trash"
+                ariaLabel="Remove logo"
+              />
             )}
           />
         </div>
@@ -132,7 +131,6 @@ const Info = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
@@ -233,7 +231,7 @@ const Info = ({
     if (!file) return;
     const result = await validateOrgLogoFile(file);
     if (!result.valid) {
-      renderFlash("error", result.error || "Invalid logo file.");
+      notify.error(result.error || "Invalid logo file.");
       return;
     }
     setLogoFile(mode === "light" ? setLightLogo : setDarkLogo, file);
@@ -275,10 +273,9 @@ const Info = ({
         };
         orgInfoOk = await handleSubmit(formDataToSubmit);
       } catch (e) {
-        renderFlash(
-          "error",
-          "Couldn't save organization info. Please try again."
-        );
+        notify.error("Couldn't save organization info. Please try again.", {
+          response: e,
+        });
         return;
       }
       if (!orgInfoOk) return;
@@ -340,10 +337,7 @@ const Info = ({
 
       if (failedModes.length > 0) {
         const label = failedModes.map((m) => `${m} mode`).join(" and ");
-        renderFlash(
-          "error",
-          `Couldn't update the ${label} logo. Please try again.`
-        );
+        notify.error(`Couldn't update the ${label} logo. Please try again.`);
       }
     } finally {
       setIsSaving(false);
@@ -405,9 +399,7 @@ const Info = ({
               tipContent={
                 <>
                   URL is used in &quot;Reach out to IT&quot; links shown to the
-                  end
-                  <br />
-                  user (e.g. self-service and during MDM migration).
+                  end user (e.g. self service and during MDM migration).
                 </>
               }
             >

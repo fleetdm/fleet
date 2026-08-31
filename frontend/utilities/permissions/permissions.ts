@@ -25,17 +25,24 @@ export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
   return Boolean(config.mdm.android_enabled_and_configured);
 };
 
-export const isGlobalAdmin = (user: IUser): boolean => {
-  return user.global_role === "admin";
-};
-
-export const isGlobalMaintainer = (user: IUser): boolean => {
-  return user.global_role === "maintainer";
-};
-
-export const isGlobalObserver = (user: IUser): boolean => {
+export const isEndUserIdPConfigured = (config: IConfig): boolean => {
+  const idp = config.mdm.end_user_authentication;
   return (
-    user.global_role === "observer" || user.global_role === "observer_plus"
+    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
+  );
+};
+
+export const isGlobalAdmin = (user: IUser | null): boolean => {
+  return user?.global_role === "admin";
+};
+
+export const isGlobalMaintainer = (user: IUser | null): boolean => {
+  return user?.global_role === "maintainer";
+};
+
+export const isGlobalObserver = (user: IUser | null): boolean => {
+  return (
+    user?.global_role === "observer" || user?.global_role === "observer_plus"
   );
 };
 
@@ -66,6 +73,32 @@ export const isTeamAdmin = (
 ): boolean => {
   const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "admin";
+};
+
+// isAdminForAllUserTeams returns true if `user` is allowed to manage `otherUser`
+// based on team membership: a global admin can manage anyone, otherwise `user`
+// must be a team admin of EVERY team `otherUser` belongs to (and `otherUser`
+// must belong to at least one team and have no global role). This mirrors the
+// backend authorization rule that prevents a team admin from editing users who
+// also belong to fleets the admin doesn't manage.
+export const isAdminForAllUserTeams = (
+  user: IUser | null,
+  otherUser: IUser
+): boolean => {
+  if (!user) {
+    return false;
+  }
+  if (isGlobalAdmin(user)) {
+    return true;
+  }
+  // Only a global admin can manage a user that has a global role.
+  if (otherUser.global_role) {
+    return false;
+  }
+  if (otherUser.teams.length === 0) {
+    return false;
+  }
+  return otherUser.teams.every((team) => isTeamAdmin(user, team.id));
 };
 
 const isTeamMaintainerOrTeamAdmin = (
@@ -109,8 +142,8 @@ export const isAnyTeamTechnician = (user: IUser): boolean => {
   return false;
 };
 
-export const isGlobalTechnician = (user: IUser): boolean => {
-  return user.global_role === "technician";
+export const isGlobalTechnician = (user: IUser | null): boolean => {
+  return user?.global_role === "technician";
 };
 
 const isAnyTeamAdmin = (user: IUser): boolean => {
@@ -166,6 +199,57 @@ const isNoAccess = (user: IUser): boolean => {
   return user.global_role === null && user.teams.length === 0;
 };
 
+// Mirrors backend WRITE on `SoftwareInstaller` (rego: admin | maintainer |
+// gitops). The UI doesn't surface gitops users — admin/maintainer is the full
+// set. Use to gate edit/delete affordances on software rows.
+export const canWriteSoftware = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  if (!user) return false;
+  return (
+    isGlobalAdmin(user) ||
+    isGlobalMaintainer(user) ||
+    isTeamAdmin(user, teamId) ||
+    isTeamMaintainer(user, teamId)
+  );
+};
+
+// Mirrors backend READ on `installable_entity` (rego: admin | maintainer |
+// technician | gitops). Use to gate the installer-download affordance — the
+// backend rejects observers with 403, so the button shouldn't be surfaced to
+// them.
+export const canDownloadSoftwareInstaller = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  if (!user) return false;
+  return (
+    isGlobalAdmin(user) ||
+    isGlobalMaintainer(user) ||
+    isGlobalTechnician(user) ||
+    isTeamAdmin(user, teamId) ||
+    isTeamMaintainer(user, teamId) ||
+    isTeamTechnician(user, teamId)
+  );
+};
+
+const isGlobalOrTeamObserverOrAbove = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  return (
+    isGlobalObserver(user) ||
+    isGlobalTechnician(user) ||
+    isGlobalMaintainer(user) ||
+    isGlobalAdmin(user) ||
+    isTeamObserver(user, teamId) ||
+    isTeamTechnician(user, teamId) ||
+    isTeamMaintainer(user, teamId) ||
+    isTeamAdmin(user, teamId)
+  );
+};
+
 export default {
   isSandboxMode,
   isFreeTier,
@@ -173,6 +257,7 @@ export default {
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
   isAndroidMdmEnabledAndConfigured,
+  isEndUserIdPConfigured,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,
@@ -185,6 +270,7 @@ export default {
   isAnyTeamMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,
+  isAdminForAllUserTeams,
   isAnyTeamAdmin,
   isTeamTechnician,
   isAnyTeamTechnician,
@@ -192,4 +278,7 @@ export default {
   isOnlyObserver,
   isObserverPlus,
   isNoAccess,
+  canWriteSoftware,
+  canDownloadSoftwareInstaller,
+  isGlobalOrTeamObserverOrAbove,
 };

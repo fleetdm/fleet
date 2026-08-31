@@ -1,0 +1,10 @@
+{
+  "name": "Upscayl",
+  "unique_identifier": "org.upscayl.Upscayl",
+  "token": "upscayl",
+  "installer_format": "dmg",
+  "slug": "upscayl/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

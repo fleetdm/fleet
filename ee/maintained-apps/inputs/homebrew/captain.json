@@ -1,0 +1,10 @@
+{
+  "name": "Captain",
+  "unique_identifier": "com.electron.captain",
+  "token": "captain",
+  "installer_format": "dmg",
+  "slug": "captain/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

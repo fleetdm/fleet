@@ -4,17 +4,17 @@ packages:
     hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
     setup_experience: true
     install_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-install
+      path: ../lib/some-team/scripts/my-software-package-darwin-install.sh
     labels_include_any:
       - Label A
       - Label B
     post_install_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
+      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall.sh
     pre_install_query:
       path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
     self_service: true
     uninstall_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
+      path: ../lib/some-team/scripts/my-software-package-darwin-uninstall.sh
     url: https://example.com/download/my-software.pkg
 fleet_maintained_apps:
   - categories:
@@ -25,7 +25,7 @@ fleet_maintained_apps:
       - Label A
       - Label B
     post_install_script:
-      path: ../lib/some-team/scripts/my-fma-darwin-postinstall
+      path: ../lib/some-team/scripts/my-fma-darwin-postinstall.sh
     pre_install_query:
       path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
     self_service: true
@@ -34,8 +34,10 @@ fleet_maintained_apps:
       - Label A
       - Label B
     self_service: true
+    version: "10.0"
   - slug: fma3/windows
     self_service: true
+    version: ^123
 app_store_apps:
   - app_store_id: "1234567890"
     labels_exclude_any:

@@ -9,10 +9,11 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
+import teamPoliciesAPI from "services/entities/team_policies";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
+import { notify } from "components/ToastNotification";
 import SidePanelPage from "components/SidePanelPage";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
@@ -22,8 +23,8 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
+import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
@@ -56,9 +57,8 @@ const FleetAppSummary = ({
       <TooltipWrapper
         tipContent={
           <>
-            To preview the version select <b>Show details</b>
-            <br />
-            and download {name} using the URL.
+            To preview the version, select <strong>Show details</strong> and
+            download {name} using the URL.
           </>
         }
       >
@@ -92,8 +92,8 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="inverse" onClick={onClickShowAppDetails}>
-          <Icon name="info" /> Show details
+        <Button variant="subdued" onClick={onClickShowAppDetails} icon="info">
+          Show details
         </Button>
       </div>
     </Card>
@@ -131,7 +131,6 @@ const FleetMaintainedAppDetailsPage = ({
     router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
   }
 
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
 
   const handlePageError = useErrorHandler();
@@ -178,14 +177,10 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    try {
-      const {
-        software_title_id: softwareFmaTitleId,
-      } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
-        ...formData,
-        appId,
-      });
-
+    // Refresh the software caches and land on the new title's details. Shared
+    // by the success path and the partial-success path (title added, but the
+    // patch policy failed) so the two can't drift apart.
+    const refreshAndGoToTitle = (titleId: number) => {
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
@@ -195,18 +190,41 @@ const FleetMaintainedAppDetailsPage = ({
       queryClient.invalidateQueries({
         queryKey: [{ scope: "fleet-maintained-apps" }],
       });
-
       router.push(
         getPathWithQueryParams(
-          PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
-          {
-            fleet_id: teamId,
-          }
+          PATHS.SOFTWARE_TITLE_DETAILS(titleId.toString()),
+          { fleet_id: teamId }
         )
       );
+    };
 
-      renderFlash(
-        "success",
+    let softwareFmaTitleId: number | undefined;
+    try {
+      const response = await softwareAPI.addFleetMaintainedApp(
+        parseInt(teamId, 10),
+        {
+          ...formData,
+          appId,
+        }
+      );
+      const addedSoftwareTitleId = response.software_title_id;
+      softwareFmaTitleId = addedSoftwareTitleId;
+
+      if (formData.patch) {
+        await teamPoliciesAPI.create({
+          team_id: parseInt(teamId, 10),
+          type: "patch",
+          patch_software_title_id: addedSoftwareTitleId,
+          ...(formData.patchOption !== "manual" && {
+            software_title_id: addedSoftwareTitleId,
+          }),
+          ...getPatchPolicyFlags(formData.patchOption),
+        });
+      }
+
+      refreshAndGoToTitle(addedSoftwareTitleId);
+
+      notify.success(
         <>
           <b>{fleetApp?.name}</b> successfully added.
         </>
@@ -214,7 +232,15 @@ const FleetMaintainedAppDetailsPage = ({
     } catch (error) {
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
-      renderFlash("error", getErrorMessage(ae));
+      if (softwareFmaTitleId) {
+        refreshAndGoToTitle(softwareFmaTitleId);
+        notify.error(
+          "Software was added, but the deployment settings couldn't be saved. Try again from Actions > Deploy.",
+          { response: error }
+        );
+      } else {
+        notify.error(getErrorMessage(ae), { response: error });
+      }
     }
 
     setShowAddFleetAppSoftwareModal(false);
@@ -242,7 +268,7 @@ const FleetMaintainedAppDetailsPage = ({
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{fleetApp.name}</h1>
-          <PageDescription content="Add software to your library. You can add it to self-service later." />
+          <PageDescription content="Add software to your library." />
           <div className={`${baseClass}__page-content`}>
             <FleetAppSummary
               name={fleetApp.name}

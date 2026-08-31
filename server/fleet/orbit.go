@@ -55,6 +55,11 @@ type OrbitConfigNotifications struct {
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 
+	// CreateWindowsManagedLocalAccount tells fleetd on Windows to create the hidden managed local admin account and escrow its password.
+	// Set for any Windows MDM host whose fleet has the setting enabled, not only during OOBE, for hosts whose fleetd advertises
+	// CapabilityWindowsManagedLocalAccount, and until the host has escrowed a password for its current enrollment.
+	CreateWindowsManagedLocalAccount bool `json:"create_windows_managed_local_account,omitempty"`
+
 	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk
 	// encryption data for Linux platforms where disk encryption is supported,
 	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey
@@ -74,6 +79,17 @@ type OrbitConfig struct {
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
 	// nil = no opinion (orbit keeps its current level); true/false sets it.
 	DebugLogging *bool `json:"debug_logging,omitempty"`
+	// WebSocketTransport, when set with Enabled=true, directs fleetd to open a
+	// persistent WebSocket to the server as a check-in notification channel
+	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
+	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+}
+
+// OrbitWebSocketTransportConfig is the WebSocket transport directive delivered
+// via the orbit config. A struct rather than a bare bool so future hints
+// (ping interval, backoff tuning) can ride along without breaking old agents.
+type OrbitWebSocketTransportConfig struct {
+	Enabled bool `json:"enabled"`
 }
 
 type OrbitConfigReceiver interface {

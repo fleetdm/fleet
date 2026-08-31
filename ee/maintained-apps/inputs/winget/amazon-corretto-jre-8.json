@@ -1,0 +1,10 @@
+{
+  "name": "Amazon Corretto JRE 8",
+  "slug": "amazon-corretto-jre-8/windows",
+  "package_identifier": "Amazon.Corretto.8.JRE",
+  "unique_identifier": "Amazon Corretto JRE 8 (x64)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

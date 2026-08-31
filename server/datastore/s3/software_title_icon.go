@@ -19,8 +19,6 @@ func NewSoftwareTitleIconStore(config config.S3Config) (*SoftwareTitleIconStore,
 			s3store:    s3store,
 			pathPrefix: "software-title-icons",
 			fileLabel:  "software title icon",
-
-			gcs: isGCS(config.EndpointURL),
 		},
 	}, nil
 }

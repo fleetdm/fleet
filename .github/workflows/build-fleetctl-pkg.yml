@@ -212,14 +212,14 @@ jobs:
 
       - name: Upload package artifact (test mode only)
         if: steps.extract_version.outputs.is_test_mode == 'true'
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fleetctl-test-package
           path: dist/fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
           retention-days: 7
 
       - name: Attest package
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0.0
         with:
           subject-path: dist/fleetctl_v${{ steps.extract_version.outputs.version }}_mac.pkg
           push-to-registry: false

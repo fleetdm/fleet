@@ -1,0 +1,10 @@
+{
+  "name": "Jiggler",
+  "unique_identifier": "com.stick.app.jiggler",
+  "token": "jiggler",
+  "installer_format": "dmg",
+  "slug": "jiggler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

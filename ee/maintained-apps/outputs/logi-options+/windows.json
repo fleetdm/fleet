@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.3.879545",
+      "version": "2.6.944893",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech' AND version_compare(version, '2.3.879545') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech' AND version_compare(version, '2.6.944893') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'logi options+.exe');"
       },
       "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.exe",
       "install_script_ref": "ca441859",
       "uninstall_script_ref": "f957f3f8",
-      "sha256": "65d4401902c70ae3dbfd3380ee15bac49d3c323a44999d4d9e62ca6452e9a135",
+      "sha256": "edd4f0b81ba321414ddd7690d795215abe5150f548d62ac7e4d1b4e72c160f34",
       "default_categories": [
         "Productivity"
       ]

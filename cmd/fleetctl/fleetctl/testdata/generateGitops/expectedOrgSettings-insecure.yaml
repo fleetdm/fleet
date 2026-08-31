@@ -52,6 +52,7 @@ features:
     vulnerabilities: true
 fleet_desktop:
   alternative_browser_host: musica.alternativa
+  sso_enabled: false
   transparency_url: https://fleetdm.com/transparency
 host_expiry_settings:
   host_expiry_enabled: false
@@ -62,6 +63,11 @@ integrations:
     - api_key_json:
         owl: hoot
       domain: fleetdm.com
+  google_workspace:
+    - api_key_json:
+        owl: hoot
+      domain: fleetdm.com
+      impersonated_user_email: admin@fleetdm.com
   jira:
     - api_token: some-jira-api-token
       enable_failing_policies: false
@@ -78,7 +84,8 @@ integrations:
       url: https://some-zendesk-url.com
 mdm:
   apple_business:
-    - ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    - byod_fleet: "📱🔐 Personal mobile devices"
+      ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       ipados_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       macos_fleet: "\U0001F4BB Workstations"
       organization_name: Fleet Device Management Inc.
@@ -97,6 +104,8 @@ mdm:
         - "\U0001F4BB\U0001F423 Workstations (canary)"
         - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
         - "\U0001F4F1\U0001F510 Personal mobile devices"
+  windows_automatic_enrollment:
+    default_fleet: "\U0001F4BB Workstations"
 org_info:
   contact_url: https://fleetdm.com/company/contact
   org_logo_url_dark_mode: http://some-org-logo-url.com

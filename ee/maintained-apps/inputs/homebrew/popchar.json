@@ -1,0 +1,10 @@
+{
+  "name": "PopChar X",
+  "unique_identifier": "com.macility.popchar3",
+  "token": "popchar",
+  "installer_format": "dmg",
+  "slug": "popchar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

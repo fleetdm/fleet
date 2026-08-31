@@ -2,8 +2,10 @@ package microsoft_mdm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -21,6 +23,16 @@ func PreprocessWindowsProfileContentsForDeployment(deps ProfilePreprocessDepende
 	return preprocessWindowsProfileContents(deps, params, profileContents)
 }
 
+// windowsSCEPChallengeRegexp matches challenges made up entirely of characters valid in an ASN.1 PrintableString: letters,
+// digits, space, and ' ( ) + , - . / : = ?. Windows encodes the SCEP challenge password as a PrintableString, so a challenge with
+// any other character (most commonly "_") makes enrollment fail on-device with "The string contains a non-printable character."
+// The space is allowed anywhere, including leading and trailing, and was verified to enroll fine on Windows 11.
+var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`)
+
+// scepChallengeInvalidCharsDetail is the host profile failure detail shown on the Host details page when a custom SCEP proxy
+// challenge contains characters Windows can't encode as a PrintableString.
+const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The "%s" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
+
 // MicrosoftProfileProcessingError is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
 // It should not break the entire deployment flow, but rather be handled gracefully at the profile level, setting it to failed and detail = Error()
 type MicrosoftProfileProcessingError struct {
@@ -28,6 +40,16 @@ type MicrosoftProfileProcessingError struct {
 }
 
 func (e *MicrosoftProfileProcessingError) Error() string {
+	return e.message
+}
+
+// MicrosoftProfileTransientError indicates that preprocessing (substituting this host's Fleet variables into the
+// profile) could not complete for a reason that clears on its own.
+type MicrosoftProfileTransientError struct {
+	message string
+}
+
+func (e *MicrosoftProfileTransientError) Error() string {
 	return e.message
 }
 
@@ -42,6 +64,10 @@ type ProfilePreprocessDependencies struct {
 	NDESConfig                 *fleet.NDESSCEPProxyCA
 	GetNDESSCEPChallenge       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
 	NDESChallengeErrorToDetail func(err error) string
+	// NDESChallengeErrorIsTerminal reports whether a challenge-fetch failure needs someone to act before Fleet could
+	// succeed. Required whenever the profile can carry an NDES challenge. Injected rather than called directly to keep
+	// the ee SCEP package out of this one's imports.
+	NDESChallengeErrorIsTerminal func(err error) bool
 }
 
 type ProfilePreprocessParams struct {
@@ -78,9 +104,10 @@ type ProfilePreprocessParams struct {
 // implementation and to the interface if it's required for both verification and deployment. For new dependencies that
 // vary profile-to-profile, add them to ProfilePreprocessParams.
 func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) (string, error) {
-	// Check if Fleet variables are present
+	// Check if Fleet variables or custom host vitals are present.
 	fleetVars := variables.Find(profileContents)
-	if len(fleetVars) == 0 {
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(profileContents)) > 0
+	if len(fleetVars) == 0 && !hasHostVitals {
 		// No variables to replace, return original content
 		return profileContents, nil
 	}
@@ -133,6 +160,11 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			if err != nil {
 				return profileContents, err
 			}
+			if ca := deps.CustomSCEPCAs[caName]; ca != nil && !windowsSCEPChallengeRegexp.MatchString(ca.Challenge) {
+				return profileContents, &MicrosoftProfileProcessingError{
+					message: fmt.Sprintf(scepChallengeInvalidCharsDetail, caName),
+				}
+			}
 			replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(deps.Context, deps.Logger, fleetVar, deps.CustomSCEPCAs, result)
 			if err != nil {
 				return profileContents, ctxerr.Wrap(deps.Context, err, "replacing custom SCEP challenge variable")
@@ -169,6 +201,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID)
 			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *deps.NDESConfig)
 			if err != nil {
+				if !deps.NDESChallengeErrorIsTerminal(err) {
+					return profileContents, &MicrosoftProfileTransientError{message: deps.NDESChallengeErrorToDetail(err)}
+				}
 				return profileContents, &MicrosoftProfileProcessingError{message: deps.NDESChallengeErrorToDetail(err)}
 			}
 			payload := &fleet.MDMManagedCertificate{
@@ -184,6 +219,27 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 			result = profiles.ReplaceNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID, result)
 		}
+	}
+
+	// Expand per-host custom host vitals. On a missing/empty value the datastore
+	// returns a MissingCustomHostVitalValueError, which we surface as a
+	// MicrosoftProfileProcessingError so the caller marks the profile failed with
+	// this detail rather than shipping a blank substitution.
+	if hasHostVitals {
+		hostLite, _, err := profiles.HydrateHost(deps.Context, deps.DataStore, fleet.Host{UUID: params.HostUUID}, func(hostCount int) error {
+			return &MicrosoftProfileProcessingError{message: fmt.Sprintf("Found %d hosts with UUID %s. Custom host vital substitution requires exactly one host.", hostCount, params.HostUUID)}
+		})
+		if err != nil {
+			return profileContents, err
+		}
+		expanded, err := deps.DataStore.ExpandCustomHostVitals(deps.Context, hostLite.ID, result)
+		if err != nil {
+			if missing, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
+				return profileContents, &MicrosoftProfileProcessingError{message: missing.Error()}
+			}
+			return profileContents, err
+		}
+		result = expanded
 	}
 
 	return result, nil

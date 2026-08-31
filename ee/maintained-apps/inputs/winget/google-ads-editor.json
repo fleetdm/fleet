@@ -1,0 +1,13 @@
+{
+  "name": "Google Ads Editor",
+  "slug": "google-ads-editor/windows",
+  "package_identifier": "Google.AdsEditor",
+  "unique_identifier": "Google Ads Editor",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/google-ads-editor_install.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

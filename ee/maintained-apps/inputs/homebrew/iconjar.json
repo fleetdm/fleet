@@ -1,0 +1,10 @@
+{
+  "name": "IconJar",
+  "unique_identifier": "com.iconjar.iconjar",
+  "token": "iconjar",
+  "installer_format": "zip",
+  "slug": "iconjar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

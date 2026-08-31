@@ -1,0 +1,10 @@
+{
+  "name": "OmniFocus",
+  "unique_identifier": "com.omnigroup.OmniFocus4",
+  "token": "omnifocus",
+  "installer_format": "dmg",
+  "slug": "omnifocus/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

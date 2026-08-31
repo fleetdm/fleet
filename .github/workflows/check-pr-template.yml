@@ -1,0 +1,88 @@
+name: Check PR template
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    paths:
+      - "frontend/**"
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/check-pr-template.yml"
+permissions:
+  pull-requests: read
+jobs:
+  check-template:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify PR body contains the PR template
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Exempt the automated release author
+          if [ "$AUTHOR" = "fleet-release" ]; then
+            echo "Author is fleet-release; skipping PR template check."
+            exit 0
+          fi
+
+          # Exempt PRs whose changed files are ALL under exempt paths
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          if [ -n "$files" ] && ! grep -qvE '^(ee/maintained-apps/|it-and-security/)' <<< "$files"; then
+            echo "All changed files are under exempt paths; skipping PR template check."
+            exit 0
+          fi
+
+          marker="QA'd all new/changed functionality manually"
+          if ! grep -qF "$marker" <<< "$BODY"; then
+            echo "::error::PR description is missing the PR template. Please fill in .github/pull_request_template.md (expected line: \"$marker\")."
+            exit 1
+          fi
+          echo "PR template present."
+
+  # Separate job so a missing screenshot reads as its own signal rather than
+  # "you didn't paste the template."
+  check-frontend-screenshot:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify PR body shows user-visible frontend changes
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Only nudge when the PR touches files that change what a user sees.
+          # Tests, stories, and mocks don't render, so they don't count.
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          visual=$(grep -E '^frontend/.*\.(tsx|jsx|scss|css)$' <<< "$files" \
+            | grep -vE '\.(tests|stories)\.(tsx|jsx)$' \
+            | grep -vE '^frontend/(__mocks__|services/mock_service)/' || true)
+          if [ -z "$visual" ]; then
+            echo "No user-visible frontend files changed; skipping screenshot check."
+            exit 0
+          fi
+
+          echo "User-visible frontend files changed:"
+          sed 's/^/  /' <<< "$visual"
+
+          # Accept a ticked checkbox, an actual attachment, or an explicit N/A.
+          if grep -qiE '^[[:space:]]*-[[:space:]]*\[[[:space:]]*x[[:space:]]*\].*(screenshot|screen recording)' <<< "$BODY"; then
+            echo "Screenshot checklist item is checked."
+            exit 0
+          fi
+          if grep -qE '(user-attachments/|!\[[^]]*\]\(|<img |<video )' <<< "$BODY"; then
+            echo "PR body contains an image or video."
+            exit 0
+          fi
+          if grep -qiE '(screenshot|screen recording).*\bn/a\b' <<< "$BODY"; then
+            echo "Screenshot checklist item is marked N/A."
+            exit 0
+          fi
+
+          echo "::error::This PR changes user-visible frontend files. Add a screenshot or screen recording and check the Frontend box in the description. If the change isn't user-visible, say so instead, for example: 'Screenshot: N/A, refactor only'."
+          exit 1

@@ -4,7 +4,6 @@ import classnames from "classnames";
 import Editor from "components/Editor";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "advanced-options-fields";
 
@@ -12,6 +11,8 @@ interface IAdvancedOptionsFieldsProps {
   showSchemaButton: boolean;
   installScriptTooltip?: string;
   installScriptHelpText: ReactNode;
+  /** Script-only packages show install script read-only — the file is the install script. */
+  installScriptReadOnly?: boolean;
   postInstallScriptHelpText: ReactNode;
   uninstallScriptTooltip?: string;
   uninstallScriptHelpText: ReactNode;
@@ -28,12 +29,14 @@ interface IAdvancedOptionsFieldsProps {
   onChangeUninstallScript: (value?: string) => void;
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const AdvancedOptionsFields = ({
   showSchemaButton,
   installScriptTooltip,
   installScriptHelpText,
+  installScriptReadOnly = false,
   postInstallScriptHelpText,
   uninstallScriptTooltip,
   uninstallScriptHelpText,
@@ -50,6 +53,7 @@ const AdvancedOptionsFields = ({
   onChangeUninstallScript,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
+  patchWhenClosed = false,
 }: IAdvancedOptionsFieldsProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -61,9 +65,13 @@ const AdvancedOptionsFields = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onClickShowSchema}>
+      <Button
+        variant="subdued"
+        onClick={onClickShowSchema}
+        icon="info"
+        iconPosition="right"
+      >
         Schema
-        <Icon name="info" size="small" />
       </Button>
     );
   };
@@ -81,8 +89,20 @@ const AdvancedOptionsFields = ({
         maxLines={10}
         onChange={onChangePreInstallQuery}
         labelActionComponent={renderLabelComponent()}
-        helpText="Software will be installed only if the query returns results."
-        readOnly={disableFields}
+        helpText={
+          <>
+            Software will be installed only if the query returns results.
+            {patchWhenClosed && (
+              <>
+                {" "}
+                Pre-install query won&apos;t run when install is triggered via
+                self-service, manually on the host, or during the setup
+                experience.
+              </>
+            )}
+          </>
+        }
+        readOnly={disableFields || patchWhenClosed}
       />
       <Editor
         wrapEnabled
@@ -93,7 +113,7 @@ const AdvancedOptionsFields = ({
         helpText={installScriptHelpText}
         label="Install script"
         labelTooltip={installScriptTooltip}
-        readOnly={disableFields}
+        readOnly={disableFields || installScriptReadOnly}
       />
       <Editor
         label="Post-install script"

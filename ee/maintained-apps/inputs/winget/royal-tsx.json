@@ -1,0 +1,10 @@
+{
+  "name": "Royal TSX",
+  "slug": "royal-tsx/windows",
+  "package_identifier": "RoyalApps.RoyalTS.7",
+  "unique_identifier": "Royal TS V7",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

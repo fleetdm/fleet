@@ -5,16 +5,29 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { IInvite } from "interfaces/invite";
-import { IUser, UserRole } from "interfaces/user";
+import { IUser, UserRole, UserStatus } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { generateRole, generateTeam, greyCell } from "utilities/helpers";
+import {
+  generateRole,
+  generateRoleGroups,
+  generateTeam,
+  generateTeamNames,
+  greyCell,
+  ROLE_VARIOUS,
+  ROLE_GLOBAL,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 const renderApiUserIndicator = () => {
-  return <PillBadge tipContent="This user only has API access.">API</PillBadge>;
+  return (
+    <Tag tooltip="This user only has API access." size="small">
+      API
+    </Tag>
+  );
 };
 
 interface IHeaderProps {
@@ -58,6 +71,8 @@ export interface IUserTableData {
   status: string;
   email: string;
   teams: string;
+  teamNames: string[];
+  roleGroups: { role: string; names: string[] }[];
   role: UserRole;
   actions: IDropdownOption[];
   /** Prefixed ID used as a unique react-table row key (e.g. "user-3", "invite-1") */
@@ -67,6 +82,29 @@ export interface IUserTableData {
   type: string;
   api_only: boolean;
 }
+
+// The inactivity window is enforced server-side (see UserInactiveAfter in
+// server/fleet/users.go); these tooltips just describe it.
+const USER_INACTIVE_TOOLTIP = "Hasn't logged in for 30+ days";
+const API_ONLY_INACTIVE_TOOLTIP = "No API activity for 30+ days";
+
+const USER_STATUS_DISPLAY_TEXT: Record<UserStatus, string> = {
+  active: "Active",
+  inactive: "Inactive",
+  no_access: "No access",
+};
+
+/** The user's status is computed server-side ("active" | "inactive" |
+ * "no_access") and only mapped to display text here. */
+const generateUserStatus = (user: IUser): string =>
+  USER_STATUS_DISPLAY_TEXT[user.status ?? "active"];
+
+// Invites come from a separate endpoint and have no server-computed status,
+// so their status stays derived client-side.
+const generateInviteStatus = (invite: IInvite): string =>
+  invite.global_role === null && invite.teams.length === 0
+    ? "No access"
+    : "Invite pending";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -132,6 +170,26 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
+        if (cellProps.cell.value === ROLE_VARIOUS) {
+          const { roleGroups } = cellProps.row.original;
+          return (
+            <TooltipWrapper
+              tipContent={roleGroups.map(({ role, names }) => (
+                <span key={role}>
+                  <b>{role}:</b> {names.join(", ")}
+                  <br />
+                </span>
+              ))}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              <TextCell value={ROLE_VARIOUS} grey italic />
+            </TooltipWrapper>
+          );
+        }
         return (
           <TextCell
             value={cellProps.cell.value}
@@ -151,7 +209,18 @@ const generateTableHeaders = (
       ),
       accessor: "status",
       Cell: (cellProps: ICellProps) => (
-        <StatusIndicator value={cellProps.cell.value} />
+        <StatusIndicator
+          value={cellProps.cell.value}
+          tooltip={
+            cellProps.cell.value === "Inactive"
+              ? {
+                  tooltipText: cellProps.row.original.api_only
+                    ? API_ONLY_INACTIVE_TOOLTIP
+                    : USER_INACTIVE_TOOLTIP,
+                }
+              : undefined
+          }
+        />
       ),
     },
     {
@@ -187,7 +256,7 @@ const generateTableHeaders = (
           }
           placeholder="Actions"
           menuAlign="right"
-          variant="small-button"
+          variant="secondary"
         />
       ),
     },
@@ -200,22 +269,35 @@ const generateTableHeaders = (
       Header: "Fleets",
       accessor: "teams",
       disableSortBy: true,
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const { teamNames } = cellProps.row.original;
+        if (teamNames.length > 1) {
+          return (
+            <TooltipWrapper
+              tipContent={tooltipTextWithLineBreaks(teamNames)}
+              underline={false}
+              showArrow
+              position="top"
+              tipOffset={10}
+              fixedPositionStrategy
+            >
+              <TextCell value={cellProps.cell.value} grey italic />
+            </TooltipWrapper>
+          );
+        }
+        const isGrey = greyCell(cellProps.cell.value);
+        return (
+          <TextCell
+            value={cellProps.cell.value}
+            grey={isGrey}
+            italic={isGrey && cellProps.cell.value !== ROLE_GLOBAL}
+          />
+        );
+      },
     });
   }
 
   return tableHeaders;
-};
-
-const generateStatus = (type: string, data: IUser | IInvite): string => {
-  const { teams, global_role } = data;
-  if (global_role === null && teams.length === 0) {
-    return "No access";
-  }
-
-  return type === "invite" ? "Invite pending" : "Active";
 };
 
 const generateActionDropdownOptions = (
@@ -283,9 +365,11 @@ const enhanceUserData = (
   return users.map((user) => {
     return {
       name: user.name || DEFAULT_EMPTY_CELL_VALUE,
-      status: generateStatus("user", user),
+      status: generateUserStatus(user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
+      teamNames: generateTeamNames(user.teams),
+      roleGroups: generateRoleGroups(user.teams),
       role: generateRole(user.teams, user.global_role),
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
@@ -305,9 +389,11 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
   return invites.map((invite) => {
     return {
       name: invite.name || DEFAULT_EMPTY_CELL_VALUE,
-      status: generateStatus("invite", invite),
+      status: generateInviteStatus(invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
+      teamNames: generateTeamNames(invite.teams),
+      roleGroups: generateRoleGroups(invite.teams),
       role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(
         false,

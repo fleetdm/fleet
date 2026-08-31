@@ -50,6 +50,14 @@ module.exports = {
     }
     // Sort articles in descending order by publish date.
     articles = _.sortByOrder(articles, 'meta.publishedOn', 'DESC');
+    // If an article was updated three days after it's publishedOn timestamp, we'll show a timestamp of when the markdown file was last changed.
+    for(let article of articles) {
+      article.showUpdatedTimestamp = false;
+      let publishedAt = new Date(article.meta.publishedOn).getTime();
+      if(publishedAt + (1000 * 60 * 60 * 24 * 3) <= article.lastModifiedAt) {
+        article.showUpdatedTimestamp = true;
+      }
+    }
 
     let pageTitleForMeta = 'Fleet blog';
     let pageDescriptionForMeta = 'Read the latest articles written by Fleet.';
@@ -60,11 +68,6 @@ module.exports = {
 
     // Set a pageTitleForMeta, pageDescriptionForMeta, and currentSection variable based on the article category.
     switch(category) {
-      case 'success-stories':
-        pageTitleForMeta = 'Success stories';
-        pageDescriptionForMeta = 'Read about how others are using Fleet and osquery.';
-        currentSection = 'platform';
-        break;
       case 'deploy':
         pageTitleForMeta = 'Deployment guides';
         pageDescriptionForMeta = 'Learn how to deploy Fleet on a variety of production environments.';
@@ -107,6 +110,14 @@ module.exports = {
       case 'webinars':
         pageTitleForMeta = 'Webinars';
         pageDescriptionForMeta = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
+        break;
+      case 'newsletters':
+        pageTitleForMeta = 'Newsletters';
+        pageDescriptionForMeta = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        pageTitleForMeta = 'Industry news';
+        pageDescriptionForMeta = 'Device management and security news, and what it means for the devices you manage.';
         break;
     }
 

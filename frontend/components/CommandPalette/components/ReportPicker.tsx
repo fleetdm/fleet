@@ -5,12 +5,13 @@ import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import Icon from "components/Icon";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 import getFleetSuffix from "./pickerCopy";
+import HighlightedLabel from "./HighlightedLabel";
 
 const baseClass = "command-palette";
 
@@ -94,7 +95,9 @@ const ReportPicker = ({
             className={`${baseClass}__item`}
           >
             <div className={`${baseClass}__item-left`}>
-              <span className={`${baseClass}__item-label`}>{report.name}</span>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={report.name} query={debouncedQuery} />
+              </span>
               {showObserverIcon && (
                 <TooltipWrapper
                   tipContent="Observers can run this report."
@@ -107,9 +110,9 @@ const ReportPicker = ({
                 </TooltipWrapper>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This report runs on all hosts.">
+                <Tag tooltip="This report runs on all hosts." size="small">
                   Inherited
-                </PillBadge>
+                </Tag>
               )}
             </div>
           </Command.Item>

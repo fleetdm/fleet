@@ -1,0 +1,25 @@
+.add-cert-authority-card {
+  height: px-to-rem(160);
+  &__content-wrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-medium;
+    justify-content: center;
+  }
+  &__text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+    text-align: center;
+    b {
+      font-size: $small;
+    }
+    p {
+      margin: 0;
+      max-width: px-to-rem(450);
+    }
+  }
+}

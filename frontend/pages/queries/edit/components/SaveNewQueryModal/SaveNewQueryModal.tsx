@@ -18,6 +18,7 @@ import {
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 
 import { CommaSeparatedPlatformString } from "interfaces/platform";
@@ -38,7 +39,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import RevealButton from "components/buttons/RevealButton";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import labelsAPI, {
   getCustomLabels,
   ILabelsSummaryResponse,
@@ -47,6 +48,7 @@ import labelsAPI, {
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
+
 export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
@@ -238,6 +240,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"
@@ -279,8 +282,8 @@ const SaveNewQueryModal = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Automations and reporting will be paused <br />
-                      for this report until an interval is set.
+                      Automations and reporting will be paused for this report
+                      until an interval is set.
                     </>
                   }
                   position="right"
@@ -314,7 +317,7 @@ const SaveNewQueryModal = ({
         />
         {platformSelector.render()}
         {isPremiumTier && (
-          <TargetLabelSelector
+          <DropdownTargetLabelSelector
             selectedTargetType={selectedTargetType}
             selectedCustomTarget={selectedCustomTarget}
             customTargetOptions={customTargetOptions}
@@ -377,7 +380,7 @@ const SaveNewQueryModal = ({
           >
             Save
           </Button>
-          <Button onClick={toggleSaveNewQueryModal} variant="inverse">
+          <Button onClick={toggleSaveNewQueryModal} variant="secondary">
             Cancel
           </Button>
         </div>

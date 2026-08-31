@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -11,8 +12,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,6 +24,11 @@ import (
 )
 
 var ErrInvalidScheme = errors.New("address must start with https:// for remote connections")
+
+// defaultStallCheckInterval is the floor for how often the download stall
+// watchdog polls for progress. The watchdog ticks at max(StallTimeout/4, floor),
+// so it only takes effect for sub-4s timeouts (i.e. tests).
+const defaultStallCheckInterval = time.Second
 
 // HTTPClient interface allows the HTTP methods to be mocked.
 type HTTPClient interface {
@@ -105,9 +114,15 @@ func (bc *BaseClient) ParseResponse(verb, path string, response *http.Response, 
 	return nil
 }
 
-func (bc *BaseClient) URL(path, rawQuery string) *url.URL {
+func (bc *BaseClient) URL(reqPath, rawQuery string) *url.URL {
 	u := *bc.BaseURL
-	u.Path = bc.URLPrefix + path
+	// Preserve any subpath from the base URL (e.g. when Fleet is deployed at
+	// https://host/subpath). A subpath can arrive via either BaseURL.Path
+	// (Orbit and Fleet Desktop, which parse a single --fleet-url) or URLPrefix
+	// (fleetctl, which has a separate --url-prefix config). These two sources
+	// are mutually exclusive by configuration convention; setting both
+	// concatenates them.
+	u.Path = path.Join(bc.BaseURL.Path, bc.URLPrefix, reqPath)
 	u.RawQuery = rawQuery
 	return &u
 }
@@ -197,6 +212,7 @@ func NewBaseClient(
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}
+
 	client := &BaseClient{
 		BaseURL:            baseURL,
 		HTTP:               httpClient,
@@ -219,6 +235,14 @@ type FileResponse struct {
 	DestFilePath  string
 	SkipMediaType bool
 	ProgressFunc  func(n int)
+	// StallTimeout, if > 0, aborts the download when no bytes are read for this
+	// duration. Any read resets the clock, so a slow-but-progressing transfer is
+	// never aborted; only a silently stalled connection (e.g. a network filter
+	// dropping packets) is. Zero disables the watchdog.
+	StallTimeout time.Duration
+	// stallCheckInterval overrides the stall watchdog's poll floor. Zero uses
+	// defaultStallCheckInterval; tests set it small to exercise the watchdog fast.
+	stallCheckInterval time.Duration
 }
 
 func (f *FileResponse) Handle(resp *http.Response) error {
@@ -249,16 +273,71 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 	defer destFile.Close()
 
+	var bytesRead atomic.Int64
+
 	var respBodyReader io.Reader = resp.Body
-	if f.ProgressFunc != nil {
+	if f.ProgressFunc != nil || f.StallTimeout > 0 {
 		respBodyReader = &progressReader{
-			Reader:       respBodyReader,
-			progressFunc: f.ProgressFunc,
+			Reader: respBodyReader,
+			progressFunc: func(n int) {
+				if n > 0 {
+					bytesRead.Add(int64(n))
+				}
+				if f.ProgressFunc != nil {
+					f.ProgressFunc(n)
+				}
+			},
 		}
 	}
 
+	// Stall watchdog: if no bytes are read for StallTimeout, close the body to
+	// unblock the io.Copy below. We surface the result as a DeadlineExceeded so
+	// callers treat it as transient/retryable (installer.isNetworkOrTransientError).
+	var stalled atomic.Bool
+	stopWatchdog := make(chan struct{})
+	if f.StallTimeout > 0 {
+		checkInterval := f.stallCheckInterval
+		if checkInterval <= 0 {
+			checkInterval = defaultStallCheckInterval
+		}
+		go func() {
+			ticker := time.NewTicker(max(f.StallTimeout/4, checkInterval))
+			defer ticker.Stop()
+			lastSeen := bytesRead.Load()
+			var stalledAt time.Time
+			for {
+				select {
+				case <-stopWatchdog:
+					return
+				case <-ticker.C:
+					current := bytesRead.Load()
+					if current == lastSeen {
+						if stalledAt.IsZero() {
+							stalledAt = time.Now()
+						}
+						if time.Since(stalledAt) >= f.StallTimeout {
+							stalled.Store(true)
+							resp.Body.Close()
+							return
+						}
+					} else {
+						lastSeen = current
+						stalledAt = time.Time{}
+					}
+				}
+			}
+		}()
+	}
+
 	_, err = io.Copy(destFile, respBodyReader)
+	// Once io.Copy returns, stop the watchdog goroutine so it doesn't leak.
+	if f.StallTimeout > 0 {
+		close(stopWatchdog)
+	}
 	if err != nil {
+		if stalled.Load() {
+			return fmt.Errorf("download stalled: no data received for %s: %w", f.StallTimeout, context.DeadlineExceeded)
+		}
 		return fmt.Errorf("copying from http stream to file: %w", err)
 	}
 

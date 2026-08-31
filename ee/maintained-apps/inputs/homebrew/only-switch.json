@@ -1,0 +1,10 @@
+{
+  "name": "OnlySwitch",
+  "unique_identifier": "jacklandrin.OnlySwitch",
+  "token": "only-switch",
+  "installer_format": "dmg",
+  "slug": "only-switch/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

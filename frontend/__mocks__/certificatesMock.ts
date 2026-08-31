@@ -1,9 +1,11 @@
 import {
   ICertificateAuthorityPartial,
+  ICertificatesNDES,
   IHostCertificate,
 } from "interfaces/certificates";
 import { ICertificate } from "services/entities/certificates";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
   id: 1,
@@ -59,6 +61,22 @@ const DEFAULT_CERT_AUTHORITY_PARTIAL_MOCK: ICertificateAuthorityPartial = {
   type: "digicert",
 };
 
+const DEFAULT_NDES_CERT_AUTHORITY_MOCK: ICertificatesNDES = {
+  id: 1,
+  type: "ndes_scep_proxy",
+  url: "https://ndes.example.com/certsrv/mscep/mscep.dll",
+  admin_url: "https://ndes.example.com/certsrv/mscep_admin/",
+  username: "ndes-username",
+  // the API returns the password masked
+  password: UNCHANGED_PASSWORD_API_RESPONSE,
+};
+
+export const createMockNDESCertAuthority = (
+  overrides?: Partial<ICertificatesNDES>
+): ICertificatesNDES => {
+  return { ...DEFAULT_NDES_CERT_AUTHORITY_MOCK, ...overrides };
+};
+
 export const createMockCertificateAuthorityPartial = (
   overrides?: Partial<ICertificateAuthorityPartial>
 ): ICertificateAuthorityPartial => {
@@ -68,6 +86,7 @@ export const createMockCertificateAuthorityPartial = (
 const DEFAULT_ANDROID_CERT_MOCK: ICertificate = {
   id: 1,
   name: "Test Android Certificate",
+  subject_name: "CN=test@example.com, O=Test Inc.",
   certificate_authority_id: 1,
   certificate_authority_name: "Test CA",
   created_at: "2021-08-19T02:02:17Z",

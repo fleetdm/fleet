@@ -22,8 +22,10 @@ interface SelfServiceTilesProps {
   onClickInstallAction: (
     softwareId: number,
     isSoftwarePackage?: boolean
-  ) => void;
+  ) => Promise<boolean> | void;
   isEmptySearch?: boolean;
+  /** Category filter produced no results; takes precedence under isEmptySearch */
+  isEmptyCategory?: boolean;
   isFetching?: boolean;
 }
 
@@ -32,6 +34,7 @@ const SelfServiceTiles = ({
   contactUrl,
   onClickInstallAction,
   isEmptySearch,
+  isEmptyCategory,
   isFetching,
 }: SelfServiceTilesProps) => {
   if (isFetching) {
@@ -51,6 +54,10 @@ const SelfServiceTiles = ({
         }
       />
     );
+  }
+
+  if (isEmptyCategory) {
+    return <EmptyState variant="list" header="No items in this category" />;
   }
 
   return (

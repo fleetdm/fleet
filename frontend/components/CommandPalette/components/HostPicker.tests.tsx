@@ -149,5 +149,22 @@ describe("HostPicker", () => {
       expect(await findByText("Rachel's MacBook")).toBeInTheDocument();
       expect(queryByText("Engineering")).not.toBeInTheDocument();
     });
+
+    it("highlights the matched substring of the host name", async () => {
+      mockedHosts.loadHosts.mockResolvedValue(hosts);
+
+      const { findByText, container } = renderPicker(
+        <HostPicker search="Rachel" onSelect={jest.fn()} />
+      );
+      // Wait for the row to render. With "Rachel" matched, the label
+      // text is split across <mark> + plain segments, so we look for the
+      // mark by its class instead of getByText("Rachel's MacBook").
+      await findByText(/MacBook/);
+      const mark = container.querySelector(
+        "mark.command-palette__item-label-match"
+      );
+      expect(mark).toBeInTheDocument();
+      expect(mark?.textContent).toBe("Rachel");
+    });
   });
 });

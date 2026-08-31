@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -196,30 +197,27 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 	stmt := `
 WITH
 
--- select most recent upcoming activities for each host
+-- select most recent upcoming activity per host (per activity type)
 upcoming AS (
-	SELECT
-		ua.host_id,
-		:software_status_pending AS status
-	FROM
-		upcoming_activities ua
-		JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN vpp_app_upcoming_activities vaua2
-				ON ua2.id = vaua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			vaua.adam_id = vaua2.adam_id AND
-			vaua.platform = vaua2.platform AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.activity_type = 'vpp_app_install'
-		AND ua2.id IS NULL
-		AND vaua.adam_id = :adam_id
-		AND vaua.platform = :platform
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	SELECT host_id, status FROM (
+		SELECT
+			ua.host_id,
+			:software_status_pending AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ua.host_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			JOIN hosts h ON ua.host_id = h.id
+		WHERE
+			ua.activity_type = 'vpp_app_install'
+			AND vaua.adam_id = :adam_id
+			AND vaua.platform = :platform
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	) ranked
+	WHERE rn = 1
 ),
 
 -- select most recent past activities for each host
@@ -1215,8 +1213,12 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
 		}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity")
+		// deferred activations are picked up by the fleet-initiated release
+		// cron within its per-minute budget
+		if !opts.DeferActivation {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 		return nil
 	})
@@ -1295,6 +1297,39 @@ func (ds *Datastore) MapAdamIDsRecentlyVerifiedInstalls(ctx context.Context, hos
 			AND verification_at >= NOW() - INTERVAL ? SECOND`,
 		hostID, seconds); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list host recently verified VPP installs")
+	}
+	adamIDs = make(map[string]struct{}, len(adamIDsList))
+	for _, id := range adamIDsList {
+		adamIDs[id] = struct{}{}
+	}
+	return adamIDs, nil
+}
+
+func (ds *Datastore) MapAdamIDsQueuedInstalls(ctx context.Context, hostID uint) (adamIDs map[string]struct{}, err error) {
+	var adamIDsList []string
+	// Reads the queue rather than host_vpp_software_installs, whose rows are created at activation,
+	// so an install waiting behind a stalled head has no row there. Cancellation deletes the
+	// upcoming_activities row, so there is no canceled column to filter on.
+	//
+	// Reads the primary because the row it must see may have been written seconds earlier on this
+	// same path. That narrows the window rather than closing it, since callers check and insert outside a
+	// single transaction, and nothing constrains (host_id, adam_id), so two concurrent check-ins for
+	// one host can still each queue an install.
+	//
+	// A queued row also keeps reporting here until something drains it. Deleting an APNs certificate
+	// leaves unactivated rows behind, since that cleanup joins host_vpp_software_installs and they
+	// have no row there, and they suppress this app until the queue advances past them.
+	// Keyed on adam_id alone, deliberately, even though an app row is (adam_id, platform).
+	// InstallApplication identifies the app by iTunesStoreID and nothing else, so two queued rows
+	// sharing an adam_id send the device two identical commands however their platforms differ.
+	// Matching on platform as well would let that pair through.
+	if err := sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &adamIDsList,
+		`SELECT DISTINCT vaua.adam_id
+		FROM upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		WHERE ua.host_id = ? AND ua.activity_type = 'vpp_app_install'`,
+		hostID); err != nil && err != sql.ErrNoRows {
+		return nil, ctxerr.Wrap(ctx, err, "list host queued VPP installs")
 	}
 	adamIDs = make(map[string]struct{}, len(adamIDsList))
 	for _, id := range adamIDsList {
@@ -2729,6 +2764,12 @@ func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Contex
 		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("softwareType %s not supported", softwareType))
 	}
 
+	// The activities returned to the caller are derived solely from failedCmds, which
+	// is scoped to still-pending installs (verification_failed_at IS NULL AND
+	// verification_at IS NULL AND canceled = 0). This makes the function idempotent for
+	// the Android DELETED path: a duplicate Pub/Sub DELETED delivery finds those rows
+	// already marked failed, so the SELECT returns an empty set and no duplicate
+	// failed-install activities are emitted.
 	const loadFailedCmdsStmt = `
 SELECT
 	command_uuid
@@ -2855,16 +2896,16 @@ FROM (
 			COUNT(*) AS count_installer_labels,
 			COUNT(lm.label_id) AS count_host_labels,
 			SUM(
+				-- only dynamic labels (membership type 0) need to wait for the host to report label
+				-- results; manual and host vitals membership is populated by the server, so it is
+				-- known as soon as the label exists.
 				CASE WHEN lbl.created_at IS NOT NULL
-					AND lbl.label_membership_type = 0
-					AND(
-						SELECT
-							label_updated_at FROM hosts
-						WHERE
-							id = ?) >= lbl.created_at THEN
-					1
-				WHEN lbl.created_at IS NOT NULL
-					AND lbl.label_membership_type = 1 THEN
+					AND(lbl.label_membership_type <> 0
+						OR(
+							SELECT
+								label_updated_at FROM hosts
+							WHERE
+								id = ?) >= lbl.created_at) THEN
 					1
 				ELSE
 					0
@@ -3110,25 +3151,35 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 		return nil
 	}
 
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
 	const getHostUUIDStmt = `
 SELECT
 	h.uuid,
 	h.platform,
 	h.team_id,
 	h.hardware_serial,
-	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
+	COALESCE((
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
+		LIMIT 1
+	), 0) AS is_user_enrollment
 FROM
 	hosts h
-	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
 	h.id = ?
 `
 	var hostData struct {
-		UUID                 string `db:"uuid"`
-		Platform             string `db:"platform"`
-		TeamID               *uint  `db:"team_id"`
-		HardwareSerial       string `db:"hardware_serial"`
-		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
+		UUID             string `db:"uuid"`
+		Platform         string `db:"platform"`
+		TeamID           *uint  `db:"team_id"`
+		HardwareSerial   string `db:"hardware_serial"`
+		IsUserEnrollment bool   `db:"is_user_enrollment"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host info for vpp install")
@@ -3219,7 +3270,7 @@ WHERE
 			HostPlatform:     hostData.Platform,
 			ITunesStoreID:    p.AdamID,
 			Configuration:    cfg,
-			IsUserEnrollment: hostData.IsPersonalEnrollment,
+			IsUserEnrollment: hostData.IsUserEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)

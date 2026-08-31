@@ -1,16 +1,11 @@
 import React from "react";
 
-import PATHS from "router/paths";
-
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import TooltipWrapper from "components/TooltipWrapper";
 import Radio from "components/forms/fields/Radio";
-import SettingsSection from "pages/admin/components/SettingsSection";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
+import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
+import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
 import { IUsersFormData } from "../../UsersForm";
 
 const baseClass = "local-account-section";
@@ -39,47 +34,19 @@ const LocalAccountSection = ({
   const forcedByLocalAccountType =
     localAccountType !== EndUserLocalAccountType.ADMIN;
   return (
-    <SettingsSection
-      title="Local accounts"
-      subTitle={
-        <span>
-          Currently supported for macOS hosts. End users get the default role
-          for all other platforms.{" "}
-          <CustomLink
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/end-user-accounts`}
-            text="Learn more"
-            newTab
-          />
-        </span>
-      }
-      className={baseClass}
-    >
-      <TooltipWrapper
-        tipContent={
-          !isMacMdmEnabledAndConfigured ? (
-            <span>
-              To enable, first turn on{" "}
-              <CustomLink
-                url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
-                text="Apple MDM"
-                variant="tooltip-link"
-              />
-              .
-            </span>
-          ) : undefined
-        }
-        disableTooltip={isMacMdmEnabledAndConfigured}
-        underline={false}
-        position="left"
-        showArrow
+    <div className={baseClass}>
+      <TurnOnMdmTooltipWrapper
+        platform="apple"
+        isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
       >
         <GitOpsModeTooltipWrapper
           position="left"
           tipOffset={8}
+          isInputField
           renderChildren={(gitopsEnabled) => {
             return (
               <div className={`${baseClass}__field-group`}>
-                <h3 className={`${baseClass}__sub-header`}>End user</h3>
+                <h3 className={`${baseClass}__sub-header`}>End user account</h3>
                 <fieldset className="form-field">
                   <Radio
                     name="localAccountType"
@@ -97,13 +64,7 @@ const LocalAccountSection = ({
                     name="localAccountType"
                     id="localAccountTypeStandard"
                     label="Standard"
-                    helpText={
-                      <span>
-                        End user can install apps and change their own settings,
-                        but can&apos;t add other users or change other
-                        users&apos; settings.
-                      </span>
-                    }
+                    helpText="End user can install apps and change their own settings only."
                     value={EndUserLocalAccountType.STANDARD}
                     checked={
                       localAccountType === EndUserLocalAccountType.STANDARD
@@ -117,7 +78,7 @@ const LocalAccountSection = ({
                     name="localAccountType"
                     id="localAccountTypeNone"
                     label="Skip (no account)"
-                    helpText="No user account will be created during Setup Assistant and authentication must be handled by an IdP or other workflow."
+                    helpText="No user account will be created and authentication must be handled by an IdP or other workflow."
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
                     value={EndUserLocalAccountType.NONE}
                     checked={localAccountType === EndUserLocalAccountType.NONE}
@@ -127,9 +88,8 @@ const LocalAccountSection = ({
                   />
                 </fieldset>
 
-                <h3 className={`${baseClass}__sub-header`}>Managed</h3>
-                <Checkbox
-                  className={`${baseClass}__managed-local-account`}
+                <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
+                <ManagedAccountCheckbox
                   disabled={
                     gitopsEnabled ||
                     !isMacMdmEnabledAndConfigured ||
@@ -144,32 +104,13 @@ const LocalAccountSection = ({
                   }
                   value={effectiveEnableManagedLocalAccount(formData)}
                   onChange={onEnableManagedLocalAccountChange}
-                  helpText={
-                    <span>
-                      Fleet creates a user (_fleetadmin) and unique password for
-                      each macOS host, accessible in <b>Host details</b> &gt;{" "}
-                      <b>Show managed account</b>.
-                    </span>
-                  }
-                >
-                  <TooltipWrapper
-                    tipContent={
-                      <>
-                        Creates a hidden managed local admin account for
-                        <br />
-                        remote troubleshooting on macOS hosts.
-                      </>
-                    }
-                  >
-                    Create hidden admin
-                  </TooltipWrapper>
-                </Checkbox>
+                />
               </div>
             );
           }}
         />
-      </TooltipWrapper>
-    </SettingsSection>
+      </TurnOnMdmTooltipWrapper>
+    </div>
   );
 };
 

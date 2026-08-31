@@ -433,7 +433,9 @@ var (
 		},
 		{
 			matches: func(s *fleet.Software) bool {
-				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+				return citrixName.MatchString(s.Name) || s.Name == "Citrix Workspace.app" ||
+					(s.Source == "programs" && s.Vendor == "Citrix Systems, Inc." &&
+						strings.HasPrefix(s.Name, "Citrix Workspace"))
 			},
 			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				parts := strings.Split(s.Version, ".")
@@ -862,8 +864,11 @@ func TranslateSoftwareToCPE(
 	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
-			// Also exclude iOS and iPadOS apps until we enable vulnerabilities support for them.
-			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps"),
+			// Also exclude iOS and iPadOS apps until we enable vulnerabilities support for them,
+			// and Adobe plugins, for which no vulnerability data source exists: CVEs for Adobe
+			// CEP/UXP extensions are only ever filed against the host Adobe application, so any
+			// match here would be a false positive pinned to the wrong version.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins"),
 		},
 	)
 	if err != nil {

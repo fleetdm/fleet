@@ -57,8 +57,11 @@ interface IHostSWLibraryTableHeaders {
     details?: ISWUninstallDetailsParentState
   ) => void;
   onSetSelectedVPPInstallDetails: (s: IVPPHostSoftware) => void;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
-  onClickUninstallAction: (softwareId: number) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
+  onClickUninstallAction: (softwareId: number) => Promise<boolean> | void;
   isHostOnline: boolean;
   hostName: string;
 }
@@ -208,7 +211,13 @@ export const generateHostSWLibraryTableHeaders = ({
       },
     },
     {
-      Header: "Actions",
+      Header: "",
+      // Deliberately not "actions" — that class name collides with a
+      // shared, unrelated `td.actions__cell` rule in DataTable/_styles.scss
+      // (text-align: right; max-width: 99px) built for a small "..." dropdown
+      // pattern elsewhere in the app, which squished these Install/Uninstall
+      // buttons and right-aligned them.
+      id: "installer-actions",
       accessor: (originalRow) => originalRow.ui_status,
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {

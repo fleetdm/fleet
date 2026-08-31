@@ -286,7 +286,7 @@ How-to guides, step-by-step walkthroughs, and reference material for IT admins a
 | 🐧 Linux | [Deploy Fleet on Ubuntu](https://fleetdm.com/guides/deploy-fleet-on-ubuntu-with-elastic) | A guide to deploy Fleet and Elastic on Ubuntu. | Josh Brower | 2024-06-12 |
 | ☁️ AWS | [Using the Fleet Terraform module with an existing VPC](https://fleetdm.com/guides/fleet-terraform-byo-vpc-module) | How to integrate the Fleet Terraform module into an existing VPC for a custom AWS deployment. | Robert Fairburn | 2023-09-01 |
 | ☁️ GovCloud | [Deploy Fleet on Cloud.gov](https://fleetdm.com/guides/deploy-fleet-on-cloudgov) | Information for deploying Fleet on Cloud.gov. | John Jediny | 2022-09-08 |
-| ☁️ VPS | [Deploy Fleet on Hetzner Cloud](https://fleetdm.com/guides/deploy-fleet-on-hetzner-cloud) | Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. | Kathy Satterlee | 2022-06-27 |
+| ☁️ VPS | [Deploy Fleet on Hetzner Cloud](https://fleetdm.com/guides/deploy-fleet-on-hetzner-cloud) | Learn how to deploy Fleet on Hetzner Cloud using cloud-init and Docker. | Ryn Satterlee | 2022-06-27 |
 | ☁️ AWS | [Deploy Fleet on AWS ECS](https://fleetdm.com/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS. | Ben Edwards | 2021-10-06 |
 | 🐳 Container | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes. | Mike Arpaia | 2017-11-18 |
 | 🐧 Linux | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia | 2017-09-22 |
@@ -319,7 +319,7 @@ Add hosts to Fleet - corporate-owned and personal (BYOD) devices.
 | [Enroll hosts](https://fleetdm.com/guides/enroll-hosts) | Learn how to enroll hosts to Fleet. | Noah Talerman | 2024-08-08 |
 | [Config-less fleetd agent deployment](https://fleetdm.com/guides/config-less-fleetd-agent-deployment) | Deploy the Fleet agent without a configuration file using environment variables or flags. | Noah Talerman | 2024-01-31 |
 | [Enrolling a DigitalOcean Droplet on a Fleet instance](https://fleetdm.com/guides/enrolling-a-digital-ocean-droplet-on-a-fleet-instance) | How to enroll a DigitalOcean Droplet as a managed host in a Fleet instance. | Kelvin Omereshone | 2022-05-26 |
-| [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling Linux devices into a Fleet instance. | Kathy Satterlee | 2022-03-19 |
+| [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling Linux devices into a Fleet instance. | Ryn Satterlee | 2022-03-19 |
 | [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling Windows devices into a Fleet instance. | Kelvin Omereshone | 2022-02-03 |
 | [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) | Step-by-step guide to installing osquery and enrolling macOS devices into a Fleet instance. | Kelvin Omereshone | 2022-01-13 |
 | [How to uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) | Steps to cleanly uninstall the Fleet agent (fleetd) from a managed device. | Eric Shaw | 2021-09-08 |
@@ -362,7 +362,7 @@ Day-to-day workflows for managing Fleet resources - software, profiles, policies
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
-| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) | Learn how to manage bootstrap packages across teams using Fleet's GitOps workflow and API endpoints. | Kitzy | 2026-01-12 |
+| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-bootstrap-package-with-gitops) | Learn how to manage bootstrap packages across teams using Fleet's GitOps workflow and API endpoints. | Kitzy | 2026-01-12 |
 | [Manage software in GitOps mode](https://fleetdm.com/guides/gitops-mode-software) | Learn how to use Fleet's YAML to manage software in GitOps mode. | Noah Talerman | 2025-04-30 |
 | [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) | Learn how to enforce custom settings on macOS and Windows hosts using Fleet's configuration profiles. | Noah Talerman | 2024-07-27 |
 | [Sysadmin diaries: exporting policies](https://fleetdm.com/guides/sysadmin-diaries-exporting-policies) | Extracting existing policies to enable GitOps. | JD Strong | 2024-06-28 |

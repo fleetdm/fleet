@@ -22,15 +22,17 @@ org_settings:
       idp_name: Okta
       metadata_url: "$DOGFOOD_OKTA_METADATA_URL_END_USERS"
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
-    apple_business_manager:
+    apple_business:
       - organization_name: Fleet Device Management Inc.
         macos_fleet: "💻 Workstations"
         ios_fleet: "📱🏢 Employee-issued mobile devices"
         ipados_fleet: "📱🏢 Employee-issued mobile devices"
+        byod_fleet: "📱🔐 Personal mobile devices"
       - organization_name: Mactivate LLC
         macos_fleet: "🧪 Testing & QA"
         ios_fleet: "🧪 Testing & QA"
         ipados_fleet: "🧪 Testing & QA"
+        byod_fleet: "🧪 Testing & QA"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
         fleets:
@@ -40,8 +42,8 @@ org_settings:
           - "🧪 Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C09861YJUJ2
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Fleet
   secrets:
     - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
@@ -97,6 +99,8 @@ controls:
   windows_enabled_and_configured: true
   windows_entra_tenant_ids:
     - $DOGFOOD_ENTRA_TENANT_ID
+  windows_entra_client_ids:
+    - $DOGFOOD_ENTRA_CLIENT_ID
   windows_migration_enabled: true
 labels:
   - path: ./lib/all/labels/arm-based-windows-hosts.yml
@@ -110,8 +114,8 @@ labels:
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/macos-screen-lock-exclusions.yml
   - path: ./lib/all/labels/windows-screen-lock-exclusions.yml
-  - path: ./lib/all/labels/team-g-mdm.yml
-  - path: ./lib/all/labels/team-g-software.yml
+  - path: ./lib/all/labels/team-g-apple-at-work.yml
+  - path: ./lib/all/labels/team-g-auto-patching.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-desktop-installed.yml
@@ -119,4 +123,7 @@ labels:
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
   - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml
+  - path: ./lib/all/labels/macs-excluded-from-external-storage-restrictions.yml
+  - path: ./lib/all/labels/windows-excluded-from-external-storage-restrictions.yml
+  - path: ./lib/all/labels/linux-excluded-from-external-storage-restrictions.yml
   - path: ./lib/all/labels/hosts-with-npm-package-inventory.yml

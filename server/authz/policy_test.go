@@ -10,7 +10,6 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,6 +32,7 @@ const (
 	transferHost       = fleet.ActionTransferHost
 	create             = fleet.ActionCreate
 	readSecrets        = fleet.ActionReadSecrets
+	writeMembers       = fleet.ActionWriteMembers
 )
 
 var auth *Authorizer
@@ -199,6 +199,37 @@ func TestAuthorizeUser(t *testing.T) {
 		ID:    102,
 		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
 	}
+	// A team admin of both team 1 and team 2.
+	twoTeamsAdmin := &fleet.User{
+		ID: 103,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin},
+		},
+	}
+	// An admin of team 1 but only an observer of team 2.
+	team1AdminTeam2Observer := &fleet.User{
+		ID: 105,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+		},
+	}
+	// A user (object) that belongs to both team 1 and team 2.
+	teamUserTeam1AndTeam2 := &fleet.User{
+		ID: 104,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+		},
+	}
+	// A new user (object) being created in both team 1 and team 2.
+	newUserTeam1AndTeam2 := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin},
+		},
+	}
 
 	runTestCases(t, []authTestCase{
 		{user: nil, object: user, action: read, allow: false},
@@ -302,6 +333,31 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: teamAdmin, object: teamAdmin, action: write, allow: true},
 		{user: teamAdmin, object: teamAdmin, action: writeRole, allow: true},
 		{user: teamAdmin, object: teamAdmin, action: changePwd, allow: true},
+
+		// A team admin of only team 1 cannot read/write/create a user that belongs to
+		// a team they don't administer (regression test for the privilege escalation
+		// where a team admin could create/modify users in other teams).
+		{user: teamAdmin, object: teamUserTeam1AndTeam2, action: read, allow: false},
+		{user: teamAdmin, object: teamUserTeam1AndTeam2, action: write, allow: false},
+		{user: teamAdmin, object: teamUserTeam1AndTeam2, action: writeRole, allow: false},
+		{user: teamAdmin, object: newUserTeam1AndTeam2, action: write, allow: false},
+
+		// A team admin of both team 1 and team 2 can read/write/create a user that
+		// belongs to those teams.
+		{user: twoTeamsAdmin, object: teamUserTeam1AndTeam2, action: read, allow: true},
+		{user: twoTeamsAdmin, object: teamUserTeam1AndTeam2, action: write, allow: true},
+		{user: twoTeamsAdmin, object: teamUserTeam1AndTeam2, action: writeRole, allow: true},
+		{user: twoTeamsAdmin, object: newUserTeam1AndTeam2, action: write, allow: true},
+		// And a user that only belongs to one of the teams they administer.
+		{user: twoTeamsAdmin, object: newTeamUser, action: write, allow: true},
+
+		// An admin of team 1 that is only an observer of team 2 cannot read/write a
+		// user that belongs to both teams (being an admin of one of the user's teams
+		// is not enough; admin is required on all of them).
+		{user: team1AdminTeam2Observer, object: teamUserTeam1AndTeam2, action: read, allow: false},
+		{user: team1AdminTeam2Observer, object: teamUserTeam1AndTeam2, action: write, allow: false},
+		{user: team1AdminTeam2Observer, object: teamUserTeam1AndTeam2, action: writeRole, allow: false},
+		{user: team1AdminTeam2Observer, object: newUserTeam1AndTeam2, action: write, allow: false},
 	})
 }
 
@@ -367,7 +423,7 @@ func TestAuthorizeEnrollSecret(t *testing.T) {
 		},
 	}
 	globalSecret := &fleet.EnrollSecret{TeamID: nil}
-	teamSecret := &fleet.EnrollSecret{TeamID: ptr.Uint(1)}
+	teamSecret := &fleet.EnrollSecret{TeamID: new(uint(1))}
 	runTestCases(t, []authTestCase{
 		// No access
 		{user: nil, object: globalSecret, action: read, allow: false},
@@ -529,6 +585,49 @@ func TestAuthorizeTeam(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam1, object: team1, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team2, action: read, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team2, action: write, allow: false},
+
+		// write_members action
+		{user: nil, object: team1, action: writeMembers, allow: false},
+		{user: nil, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserNoRoles, object: team1, action: writeMembers, allow: false},
+		{user: test.UserNoRoles, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserAdmin, object: team1, action: writeMembers, allow: true},
+		{user: test.UserAdmin, object: team2, action: writeMembers, allow: true},
+
+		{user: test.UserMaintainer, object: team1, action: writeMembers, allow: false},
+		{user: test.UserMaintainer, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserObserver, object: team1, action: writeMembers, allow: false},
+		{user: test.UserObserver, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserObserverPlus, object: team1, action: writeMembers, allow: false},
+		{user: test.UserObserverPlus, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTechnician, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTechnician, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserGitOps, object: team1, action: writeMembers, allow: false},
+		{user: test.UserGitOps, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: team1, action: writeMembers, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team2, action: writeMembers, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: team1, action: writeMembers, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2, action: writeMembers, allow: false},
 	})
 }
 
@@ -543,7 +642,7 @@ func TestAuthorizeLabel(t *testing.T) {
 		return fleet.Label{TeamID: &user.Teams[0].ID}
 	}
 	differentTeamLabel := func(_ *fleet.User) fleet.Label {
-		return fleet.Label{TeamID: ptr.Uint(999)}
+		return fleet.Label{TeamID: new(uint(999))}
 	}
 
 	runTestCases(t, []authTestCase{
@@ -645,8 +744,8 @@ func TestAuthorizeSoftwareInventory(t *testing.T) {
 	t.Parallel()
 
 	softwareInventory := &fleet.AuthzSoftwareInventory{}
-	team1SoftwareInventory := &fleet.AuthzSoftwareInventory{TeamID: ptr.Uint(1)}
-	team2SoftwareInventory := &fleet.AuthzSoftwareInventory{TeamID: ptr.Uint(2)}
+	team1SoftwareInventory := &fleet.AuthzSoftwareInventory{TeamID: new(uint(1))}
+	team2SoftwareInventory := &fleet.AuthzSoftwareInventory{TeamID: new(uint(2))}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: softwareInventory, action: read, allow: false},
 		{user: test.UserNoRoles, object: softwareInventory, action: read, allow: false},
@@ -668,8 +767,8 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 	t.Parallel()
 
 	noTeamInstaller := &fleet.SoftwareInstaller{}
-	team1Installer := &fleet.SoftwareInstaller{TeamID: ptr.Uint(1)}
-	team2Installer := &fleet.SoftwareInstaller{TeamID: ptr.Uint(2)}
+	team1Installer := &fleet.SoftwareInstaller{TeamID: new(uint(1))}
+	team2Installer := &fleet.SoftwareInstaller{TeamID: new(uint(2))}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: noTeamInstaller, action: read, allow: false},
 		{user: nil, object: noTeamInstaller, action: write, allow: false},
@@ -799,8 +898,8 @@ func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
 	t.Parallel()
 
 	noTeamInstallResult := &fleet.HostSoftwareInstallerResultAuthz{}
-	team1InstallResult := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: ptr.Uint(1)}
-	team2InstallResult := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: ptr.Uint(2)}
+	team1InstallResult := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: new(uint(1))}
+	team2InstallResult := &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: new(uint(2))}
 	runTestCases(t, []authTestCase{
 		// Write permissions
 		{user: nil, object: noTeamInstallResult, action: write, allow: false},
@@ -952,8 +1051,8 @@ func TestAuthorizeHost(t *testing.T) {
 		},
 	}
 	host := &fleet.Host{}
-	hostTeam1 := &fleet.Host{TeamID: ptr.Uint(1)}
-	hostTeam2 := &fleet.Host{TeamID: ptr.Uint(2)}
+	hostTeam1 := &fleet.Host{TeamID: new(uint(1))}
+	hostTeam2 := &fleet.Host{TeamID: new(uint(2))}
 	runTestCases(t, []authTestCase{
 		// No access
 		{user: nil, object: host, action: read, allow: false},
@@ -1367,12 +1466,23 @@ func TestAuthorizeQuery(t *testing.T) {
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{1, 2, 3}},
 		Query:       globalQuery,
 	}
+	// An explicitly empty team list means the same thing as omitting it: no
+	// teams were selected. It must therefore behave exactly like the "no
+	// targets" fixtures above, rather than passing the target check vacuously.
+	globalQueryEmptyTeamTargets := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       globalQuery,
+	}
 
 	globalObserverQuery := &fleet.Query{
 		ObserverCanRun: true,
 	}
 	globalObserverQueryEmptyTargets := &fleet.TargetedQuery{
 		Query: globalObserverQuery,
+	}
+	globalObserverQueryEmptyTeamTargets := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       globalObserverQuery,
 	}
 	globalObserverQueryTargetedToTeam1 := &fleet.TargetedQuery{
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
@@ -1393,27 +1503,35 @@ func TestAuthorizeQuery(t *testing.T) {
 
 	teamAdminQuery := &fleet.Query{
 		ID:             1,
-		AuthorID:       ptr.Uint(teamAdmin.ID),
+		AuthorID:       new(teamAdmin.ID),
 		ObserverCanRun: false,
-		TeamID:         ptr.Uint(1),
+		TeamID:         new(uint(1)),
 	}
 	teamMaintQuery := &fleet.Query{
 		ID:             2,
-		AuthorID:       ptr.Uint(teamMaintainer.ID),
+		AuthorID:       new(teamMaintainer.ID),
 		ObserverCanRun: false,
-		TeamID:         ptr.Uint(1),
+		TeamID:         new(uint(1)),
 	}
-	globalAdminQuery := &fleet.Query{ID: 3, AuthorID: ptr.Uint(test.UserAdmin.ID), ObserverCanRun: false}
-	globalGitOpsQuery := &fleet.Query{ID: 4, AuthorID: ptr.Uint(test.UserGitOps.ID), ObserverCanRun: false}
+
+	// Team-scoped, non-observers-can-run report with an explicitly empty team
+	// selection. Running it is gated on holding a qualifying role on the
+	// report's own team, whether the selection is empty or omitted.
+	teamMaintQueryEmptyTeamTargets := &fleet.TargetedQuery{
+		HostTargets: fleet.HostTargets{TeamIDs: []uint{}},
+		Query:       teamMaintQuery,
+	}
+	globalAdminQuery := &fleet.Query{ID: 3, AuthorID: new(test.UserAdmin.ID), ObserverCanRun: false}
+	globalGitOpsQuery := &fleet.Query{ID: 4, AuthorID: new(test.UserGitOps.ID), ObserverCanRun: false}
 	teamGitOpsQuery := &fleet.Query{
-		ID: 5, AuthorID: ptr.Uint(teamGitOps.ID),
+		ID: 5, AuthorID: new(teamGitOps.ID),
 		ObserverCanRun: false,
-		TeamID:         ptr.Uint(1),
+		TeamID:         new(uint(1)),
 	}
 	observerQueryOnTeam3 := &fleet.Query{
 		ID:             6,
 		ObserverCanRun: true,
-		TeamID:         ptr.Uint(3),
+		TeamID:         new(uint(3)),
 	}
 	observerQueryOnTeam3TargetedToTeam3 := &fleet.TargetedQuery{
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{3}},
@@ -1430,7 +1548,7 @@ func TestAuthorizeQuery(t *testing.T) {
 	observerQueryOnTeam1 := &fleet.Query{
 		ID:             7,
 		ObserverCanRun: true,
-		TeamID:         ptr.Uint(1),
+		TeamID:         new(uint(1)),
 	}
 	observerQueryOnTeam1TargetedToTeam1 := &fleet.TargetedQuery{
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{1}},
@@ -1447,7 +1565,7 @@ func TestAuthorizeQuery(t *testing.T) {
 	observerQueryOnTeam2 := &fleet.Query{
 		ID:             8,
 		ObserverCanRun: true,
-		TeamID:         ptr.Uint(2),
+		TeamID:         new(uint(2)),
 	}
 	observerQueryOnTeam2TargetedToTeam2 := &fleet.TargetedQuery{
 		HostTargets: fleet.HostTargets{TeamIDs: []uint{2}},
@@ -1482,6 +1600,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserNoRoles, object: globalQuery, action: write, allow: false},
 				{user: test.UserNoRoles, object: teamAdminQuery, action: write, allow: false},
 				{user: test.UserNoRoles, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalQueryEmptyTeamTargets, action: run, allow: false},
+				{user: test.UserNoRoles, object: globalObserverQueryEmptyTeamTargets, action: run, allow: false},
 				{user: test.UserNoRoles, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: test.UserNoRoles, object: globalQuery, action: runNew, allow: false},
 				{user: test.UserNoRoles, object: globalObserverQuery, action: read, allow: false},
@@ -1498,11 +1618,13 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserObserver, object: globalQuery, action: write, allow: false},
 				{user: test.UserObserver, object: teamAdminQuery, action: write, allow: false},
 				{user: test.UserObserver, object: globalQueryNoTargets, action: run, allow: false},
+				{user: test.UserObserver, object: globalQueryEmptyTeamTargets, action: run, allow: false}, // same as no targets
 				{user: test.UserObserver, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: test.UserObserver, object: globalQuery, action: runNew, allow: false},
 				{user: test.UserObserver, object: globalObserverQuery, action: read, allow: true},
 				{user: test.UserObserver, object: globalObserverQuery, action: write, allow: false},
 				{user: test.UserObserver, object: globalObserverQueryEmptyTargets, action: run, allow: true},            // can run observer query
+				{user: test.UserObserver, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},        // same as no targets
 				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
 				{user: test.UserObserver, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
 				{user: test.UserObserver, object: globalObserverQuery, action: runNew, allow: false},
@@ -1591,6 +1713,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: test.UserAdmin, object: teamMaintQuery, action: write, allow: true},
 				{user: test.UserAdmin, object: globalAdminQuery, action: write, allow: true},
 				{user: test.UserAdmin, object: globalQueryNoTargets, action: run, allow: true},
+				{user: test.UserAdmin, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: test.UserAdmin, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: test.UserAdmin, object: globalQueryTargetedToTeam1, action: run, allow: true},
 				{user: test.UserAdmin, object: globalQuery, action: runNew, allow: true},
 				{user: test.UserAdmin, object: globalObserverQuery, action: read, allow: true},
@@ -1626,6 +1750,11 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team observer can read and run observer_can_run only",
 			testCases: []authTestCase{
 				{user: teamObserver, object: globalQuery, action: read, allow: true},
+				// An empty team selection behaves the same as omitting it: it grants no
+				// extra reach, so it still requires a role that may run a global query.
+				{user: teamObserver, object: globalQueryEmptyTeamTargets, action: run, allow: false},
+				{user: teamObserver, object: teamMaintQueryEmptyTeamTargets, action: run, allow: false},
+				{user: teamObserver, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamObserver, object: globalQuery, action: write, allow: false},
 				{user: teamObserver, object: teamAdminQuery, action: write, allow: false},
 				{user: teamObserver, object: globalQueryNoTargets, action: run, allow: false},
@@ -1652,6 +1781,8 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team observer+ can read all queries, not write them, and can run any query",
 			testCases: []authTestCase{
 				{user: teamObserverPlus, object: globalQuery, action: read, allow: true},
+				{user: teamObserverPlus, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamObserverPlus, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamObserverPlus, object: globalQuery, action: write, allow: false},
 				{user: teamObserverPlus, object: teamAdminQuery, action: write, allow: false},
 				{user: teamObserverPlus, object: globalQueryNoTargets, action: run, allow: true},
@@ -1680,6 +1811,8 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamTechnician, object: globalQuery, action: write, allow: false},
 				{user: teamTechnician, object: teamAdminQuery, action: write, allow: false},
 				{user: teamTechnician, object: globalQueryNoTargets, action: run, allow: true},
+				{user: teamTechnician, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamTechnician, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamTechnician, object: globalQueryTargetedToTeam1, action: run, allow: true},
 				{user: teamTechnician, object: globalQuery, action: runNew, allow: true},
 				{user: teamTechnician, object: globalObserverQuery, action: read, allow: true},
@@ -1702,6 +1835,9 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team maintainer can read/write/run queries filtered on their team(s)",
 			testCases: []authTestCase{
 				{user: teamMaintainer, object: globalQuery, action: read, allow: true},
+				{user: teamMaintainer, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamMaintainer, object: teamMaintQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamMaintainer, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamMaintainer, object: globalQuery, action: write, allow: false}, // query belongs to global domain.
 				{user: teamMaintainer, object: teamMaintQuery, action: write, allow: true},
 				{user: teamMaintainer, object: teamAdminQuery, action: write, allow: true},
@@ -1730,6 +1866,9 @@ func TestAuthorizeQuery(t *testing.T) {
 			name: "Team admin can read/write their own queries/run queries filtered on their team(s)",
 			testCases: []authTestCase{
 				{user: teamAdmin, object: globalQuery, action: read, allow: true},
+				{user: teamAdmin, object: globalQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamAdmin, object: teamMaintQueryEmptyTeamTargets, action: run, allow: true},
+				{user: teamAdmin, object: globalObserverQueryEmptyTeamTargets, action: run, allow: true},
 				{user: teamAdmin, object: globalQuery, action: write, allow: false}, // query belongs to global domain.
 				{user: teamAdmin, object: teamAdminQuery, action: write, allow: true},
 				{user: teamAdmin, object: teamMaintQuery, action: write, allow: true},
@@ -1764,9 +1903,12 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamGitOps, object: teamGitOpsQuery, action: write, allow: true},
 				{user: teamGitOps, object: globalGitOpsQuery, action: write, allow: false}, // cannot write a global query
 				{user: teamGitOps, object: globalQueryNoTargets, action: run, allow: false},
+				{user: teamGitOps, object: globalQueryEmptyTeamTargets, action: run, allow: false},
+				{user: teamGitOps, object: teamMaintQueryEmptyTeamTargets, action: run, allow: false},
 				{user: teamGitOps, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: teamGitOps, object: globalQuery, action: runNew, allow: false},
 				{user: teamGitOps, object: globalObserverQueryEmptyTargets, action: run, allow: false},
+				{user: teamGitOps, object: globalObserverQueryEmptyTeamTargets, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false},
 				{user: teamGitOps, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},
@@ -1995,12 +2137,12 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 
 	team1Policy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
-			TeamID: ptr.Uint(1),
+			TeamID: new(uint(1)),
 		},
 	}
 	team2Policy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
-			TeamID: ptr.Uint(2),
+			TeamID: new(uint(2)),
 		},
 	}
 	runTestCases(t, []authTestCase{
@@ -2071,7 +2213,7 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 
 	globalProfile := &fleet.MDMConfigProfileAuthz{}
 	team1Profile := &fleet.MDMConfigProfileAuthz{
-		TeamID: ptr.Uint(1),
+		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalProfile, action: write, allow: false},
@@ -2171,12 +2313,117 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 	})
 }
 
+func TestAuthorizeDDMAssets(t *testing.T) {
+	t.Parallel()
+
+	globalAsset := &fleet.DDMAssetAuthz{}
+	team1Asset := &fleet.DDMAssetAuthz{
+		TeamID: new(uint(1)),
+	}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: globalAsset, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalAsset, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1Asset, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserAdmin, object: globalAsset, action: write, allow: true},
+		{user: test.UserAdmin, object: globalAsset, action: read, allow: true},
+		{user: test.UserAdmin, object: team1Asset, action: write, allow: true},
+		{user: test.UserAdmin, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserMaintainer, object: globalAsset, action: write, allow: true},
+		{user: test.UserMaintainer, object: globalAsset, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1Asset, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserObserver, object: globalAsset, action: write, allow: false},
+		{user: test.UserObserver, object: globalAsset, action: read, allow: false},
+		{user: test.UserObserver, object: team1Asset, action: write, allow: false},
+		{user: test.UserObserver, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserObserverPlus, object: globalAsset, action: write, allow: false},
+		{user: test.UserObserverPlus, object: globalAsset, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team1Asset, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTechnician, object: globalAsset, action: write, allow: false},
+		{user: test.UserTechnician, object: globalAsset, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Asset, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserGitOps, object: globalAsset, action: write, allow: true},
+		{user: test.UserGitOps, object: globalAsset, action: read, allow: true},
+		{user: test.UserGitOps, object: team1Asset, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Asset, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1Asset, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamMaintainerTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Asset, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamGitOpsTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Asset, action: read, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	t.Parallel()
 
 	globalSettings := &fleet.MDMAppleSettingsPayload{}
 	team1Settings := &fleet.MDMAppleSettingsPayload{
-		TeamID: ptr.Uint(1),
+		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalSettings, action: write, allow: false},
@@ -2271,12 +2518,48 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	})
 }
 
+func TestAuthorizeABReleaseDevice(t *testing.T) {
+	t.Parallel()
+
+	// team_id 0 represents "No team" hosts; only global admins may release those.
+	noTeam := &fleet.ABReleaseDeviceAuthz{TeamID: new(uint(0))}
+	team1 := &fleet.ABReleaseDeviceAuthz{TeamID: new(uint(1))}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: noTeam, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1, action: write, allow: false},
+
+		// Only admins may release; maintainers, gitops, observers cannot.
+		{user: test.UserAdmin, object: noTeam, action: write, allow: true},
+		{user: test.UserAdmin, object: team1, action: write, allow: true},
+		// Releasing is a write-only action, no reads.
+		{user: test.UserAdmin, object: team1, action: read, allow: false},
+
+		{user: test.UserMaintainer, object: noTeam, action: write, allow: false},
+		{user: test.UserMaintainer, object: team1, action: write, allow: false},
+
+		{user: test.UserObserver, object: team1, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1, action: write, allow: false},
+		{user: test.UserGitOps, object: noTeam, action: write, allow: false},
+		{user: test.UserGitOps, object: team1, action: write, allow: false},
+		{user: test.UserTechnician, object: team1, action: write, allow: false},
+
+		// Team admins may release only their own team's hosts, never "No team".
+		{user: test.UserTeamAdminTeam1, object: team1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: team1, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1, action: write, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 	t.Parallel()
 
 	globalSettings := &fleet.MDMAppleSetupAssistant{}
 	team1Settings := &fleet.MDMAppleSetupAssistant{
-		TeamID: ptr.Uint(1),
+		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalSettings, action: write, allow: false},
@@ -2368,6 +2651,30 @@ func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: read, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: read, allow: false},
+	})
+}
+
+func TestAuthorizeMDMAppleManualEnrollmentProfile(t *testing.T) {
+	t.Parallel()
+
+	profile := &fleet.MDMAppleManualEnrollmentProfile{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: profile, action: read, allow: false},
+		{user: test.UserNoRoles, object: profile, action: read, allow: false},
+
+		{user: test.UserAdmin, object: profile, action: read, allow: true},
+		{user: test.UserMaintainer, object: profile, action: read, allow: true},
+		{user: test.UserObserver, object: profile, action: read, allow: false},
+		{user: test.UserObserverPlus, object: profile, action: read, allow: false},
+		{user: test.UserTechnician, object: profile, action: read, allow: false},
+		{user: test.UserGitOps, object: profile, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: profile, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: profile, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: profile, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: profile, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: profile, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: profile, action: read, allow: false},
 	})
 }
 
@@ -2553,7 +2860,7 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 
 	globalCommand := &fleet.MDMCommandAuthz{}
 	team1Command := &fleet.MDMCommandAuthz{
-		TeamID: ptr.Uint(1),
+		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalCommand, action: write, allow: false},
@@ -2657,9 +2964,9 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 	t.Parallel()
 
 	globalScript := &fleet.HostScriptResult{}
-	globalSavedScript := &fleet.HostScriptResult{ScriptID: ptr.Uint(1)}
-	team1Script := &fleet.HostScriptResult{TeamID: ptr.Uint(1)}
-	team1SavedScript := &fleet.HostScriptResult{TeamID: ptr.Uint(1), ScriptID: ptr.Uint(1)}
+	globalSavedScript := &fleet.HostScriptResult{ScriptID: new(uint(1))}
+	team1Script := &fleet.HostScriptResult{TeamID: new(uint(1))}
+	team1SavedScript := &fleet.HostScriptResult{TeamID: new(uint(1)), ScriptID: new(uint(1))}
 
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalScript, action: write, allow: false},
@@ -2840,7 +3147,7 @@ func TestAuthorizeScript(t *testing.T) {
 
 	globalScript := &fleet.Script{}
 	team1Script := &fleet.Script{
-		TeamID: ptr.Uint(1),
+		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalScript, action: write, allow: false},
@@ -2943,7 +3250,7 @@ func TestAuthorizeScript(t *testing.T) {
 func TestJSONToInterfaceUser(t *testing.T) {
 	t.Parallel()
 
-	subject, err := jsonToInterface(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
+	subject, err := jsonToInterface(&fleet.User{GlobalRole: new(fleet.RoleAdmin)})
 	require.NoError(t, err)
 	{
 		subject := subject.(map[string]interface{})
@@ -2972,7 +3279,7 @@ func TestJSONToInterfaceUser(t *testing.T) {
 func TestHostHealth(t *testing.T) {
 	t.Parallel()
 
-	hostHealth := &fleet.HostHealth{TeamID: ptr.Uint(1)}
+	hostHealth := &fleet.HostHealth{TeamID: new(uint(1))}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: hostHealth, action: read, allow: false},
 		{user: test.UserGitOps, object: hostHealth, action: read, allow: false},
@@ -3151,6 +3458,49 @@ func TestAuthorizeSecretVariables(t *testing.T) {
 	})
 }
 
+func TestAuthorizeCustomHostVitals(t *testing.T) {
+	t.Parallel()
+
+	customHostVital := &fleet.CustomHostVital{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: customHostVital, action: read, allow: false},
+
+		{user: test.UserNoRoles, object: customHostVital, action: read, allow: false},
+
+		// Global admins, maintainers, and gitops can read/write.
+		{user: test.UserAdmin, object: customHostVital, action: read, allow: true},
+		{user: test.UserAdmin, object: customHostVital, action: write, allow: true},
+		{user: test.UserMaintainer, object: customHostVital, action: read, allow: true},
+		{user: test.UserMaintainer, object: customHostVital, action: write, allow: true},
+		{user: test.UserGitOps, object: customHostVital, action: read, allow: true},
+		{user: test.UserGitOps, object: customHostVital, action: write, allow: true},
+
+		// Global observers and observer_plus can read but cannot write.
+		{user: test.UserObserver, object: customHostVital, action: read, allow: true},
+		{user: test.UserObserver, object: customHostVital, action: write, allow: false},
+		{user: test.UserObserverPlus, object: customHostVital, action: read, allow: true},
+		{user: test.UserObserverPlus, object: customHostVital, action: write, allow: false},
+
+		// Global technicians can read but cannot write.
+		{user: test.UserTechnician, object: customHostVital, action: read, allow: true},
+		{user: test.UserTechnician, object: customHostVital, action: write, allow: false},
+
+		// Team users can read but cannot write.
+		{user: test.UserTeamAdminTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: write, allow: false},
+	})
+}
+
 func TestAuthorizeAPIEndpoint(t *testing.T) {
 	t.Parallel()
 
@@ -3176,5 +3526,132 @@ func TestAuthorizeAPIEndpoint(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam1, object: endpoint, action: read, allow: false},
 		{user: test.UserTeamAdminTeam1, object: endpoint, action: read, allow: true},
 		{user: test.UserTeamAdminTeam2, object: endpoint, action: read, allow: true},
+	})
+}
+
+func TestAuthorizeSoftwareCategory(t *testing.T) {
+	t.Parallel()
+
+	unassigned := &fleet.SoftwareCategory{TeamID: 0}
+	fleet1 := &fleet.SoftwareCategory{TeamID: 1}
+	fleet2 := &fleet.SoftwareCategory{TeamID: 2}
+
+	runTestCases(t, []authTestCase{
+		// Anonymous and role-less users are denied.
+		{user: nil, object: fleet1, action: read, allow: false},
+		{user: nil, object: fleet1, action: write, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: read, allow: false},
+
+		// Global roles: fleet_id is irrelevant, behavior is uniform across fleets.
+		{user: test.UserAdmin, object: fleet1, action: read, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: read, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: read, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: write, allow: true},
+		{user: test.UserObserver, object: fleet1, action: read, allow: true},
+		{user: test.UserObserver, object: fleet1, action: write, allow: false},
+		{user: test.UserObserverPlus, object: fleet1, action: read, allow: true},
+		{user: test.UserTechnician, object: fleet1, action: read, allow: true},
+
+		// Unassigned (fleet_id=0): global roles still apply, team roles do not.
+		{user: test.UserAdmin, object: unassigned, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: unassigned, action: write, allow: false},
+
+		// Team admin (team1): full access on own fleet, denied on other.
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: write, allow: false},
+
+		// Team maintainer (team1): read+write on own fleet, denied elsewhere.
+		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: write, allow: false},
+
+		// Team gitops (team1): read+write on own fleet, denied elsewhere.
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: write, allow: false},
+
+		// Team read-only roles (observer/observer_plus/technician): read own fleet, not other.
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: read, allow: true},
+	})
+}
+
+func TestAuthorizeCertificateTemplate(t *testing.T) {
+	t.Parallel()
+
+	noTeam := &fleet.CertificateTemplate{TeamID: 0}
+	fleet1 := &fleet.CertificateTemplate{TeamID: 1}
+	fleet2 := &fleet.CertificateTemplate{TeamID: 2}
+
+	runTestCases(t, []authTestCase{
+		// Anonymous and role-less users are denied.
+		{user: nil, object: fleet1, action: read, allow: false},
+		{user: nil, object: fleet1, action: write, allow: false},
+		{user: nil, object: fleet1, action: list, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: read, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: write, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: list, allow: false},
+
+		// Global admin, maintainer and gitops: full access on any fleet.
+		{user: test.UserAdmin, object: noTeam, action: read, allow: true},
+		{user: test.UserAdmin, object: noTeam, action: write, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: read, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: write, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: list, allow: true},
+		{user: test.UserMaintainer, object: noTeam, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: list, allow: true},
+		{user: test.UserGitOps, object: noTeam, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: list, allow: true},
+
+		// Global read-only roles have no access to certificate templates at all.
+		{user: test.UserObserver, object: fleet1, action: read, allow: false},
+		{user: test.UserObserver, object: fleet1, action: write, allow: false},
+		{user: test.UserObserver, object: fleet1, action: list, allow: false},
+		{user: test.UserObserverPlus, object: fleet1, action: read, allow: false},
+		{user: test.UserObserverPlus, object: fleet1, action: list, allow: false},
+		{user: test.UserTechnician, object: fleet1, action: read, allow: false},
+		{user: test.UserTechnician, object: fleet1, action: list, allow: false},
+
+		// Team roles never reach "No team" (fleet_id=0) templates.
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: noTeam, action: write, allow: false},
+
+		// Team admin, maintainer and gitops: full access on own fleet, denied on other.
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: write, allow: false},
+
+		// "list" is deliberately team-agnostic: it only establishes that the
+		// caller manages certificate templates on some fleet, so that a lookup
+		// can run before the team-scoped check on the loaded template. It must
+		// hold for every role allowed to read or write above, including for a
+		// fleet the caller has no access to.
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: list, allow: true},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: list, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: list, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: list, allow: true},
+
+		// Team read-only roles have no access, including "list".
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: list, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet1, action: list, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: list, allow: false},
 	})
 }

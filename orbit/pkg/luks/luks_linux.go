@@ -33,13 +33,21 @@ const (
 	retryEntryDialogText = "Passphrase incorrect. Please try again."
 	infoTitle            = "Disk encryption"
 	infoFailedText       = "Failed to escrow key. Please try again later."
-	infoSuccessText      = "Disk encryption key created! Now, return to your browser window and follow the instructions to verify."
+	infoSuccessText      = "Disk encryption key escrowed to Fleet. Close this window, navigate to your Fleet My Device page, and select Refetch to clear the yellow banner."
 	timeoutMessage       = "Please visit Fleet Desktop > My device and click Create key"
 	maxKeySlots          = 8
-	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
+
+// luksDevice abstracts the subset of the go-blockdevice LUKS operations that
+// the escrow flow needs. *luksdevice.LUKS satisfies it; tests substitute a
+// fake so the prompt/validate logic can be exercised without cryptsetup or a
+// real LUKS volume.
+type luksDevice interface {
+	CheckKey(ctx context.Context, devname string, key *encryption.Key) (bool, error)
+	AddKey(ctx context.Context, devname string, key, newKey *encryption.Key) error
+}
 
 func isInstalled(toolName string) bool {
 	path, err := exec.LookPath(toolName)
@@ -49,6 +57,21 @@ func isInstalled(toolName string) bool {
 	return path != ""
 }
 
+// ensureNotifier sets lr.notifier to the first available desktop dialog tool
+// (zenity, then kdialog). If neither is installed the notifier stays nil and
+// callers must treat notifications as best-effort.
+func (lr *LuksRunner) ensureNotifier() {
+	if lr.notifier != nil {
+		return
+	}
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	}
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
@@ -56,16 +79,39 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	// Pick a notifier up front so both escrow paths can surface user-facing
+	// warnings. The passphrase path treats "no dialog tool" as fatal (it needs
+	// to prompt for a passphrase); the snapd/recovery-key path treats it as
+	// best-effort (silent success is fine, the failure notification just
+	// degrades to a log line).
+	lr.ensureNotifier()
+
+	// cryptsetup is a prerequisite for both the snapd detection path (which
+	// reads LUKS2 metadata via luksDump) and the passphrase escrow path (which
+	// adds a key slot), so check it up front before doing any detection.
 	if !isInstalled("cryptsetup") {
 		return errors.New("cryptsetup is not installed")
 	}
 
-	switch {
-	case isInstalled("zenity"):
-		lr.notifier = zenity.New()
-	case isInstalled("kdialog"):
-		lr.notifier = kdialog.New()
-	default:
+	// snapd-managed TPM-backed FDE (e.g. Ubuntu 26) escrows a recovery key
+	// silently and needs no desktop dialog. Detect it first and take that path
+	// when present. Errors during detection are fatal here: a metadata read
+	// failure could mean the host IS snapd-managed but we cannot confirm, and
+	// silently falling through to the passphrase escrow path would show a
+	// misleading prompt for a passphrase the user doesn't have.
+	log.Info().Msg("disk encryption escrow requested; determining escrow path")
+	snapd := newSnapdFDE()
+	isSnapd, err := snapd.Detect(ctx)
+	if err != nil {
+		return fmt.Errorf("detecting snapd-managed FDE: %w", err)
+	}
+	if isSnapd {
+		log.Info().Msg("host uses snapd-managed TPM-backed FDE; escrowing recovery key via the snapd socket")
+		return lr.runRecoveryKeyEscrow(ctx, snapd)
+	}
+	log.Info().Msg("host is not snapd-managed FDE; using the passphrase escrow path")
+
+	if lr.notifier == nil {
 		return errors.New("No supported dialog tool found")
 	}
 
@@ -134,39 +180,14 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	// AESXTSPlain64Cipher is the default cipher used by ubuntu/kubuntu/fedora
 	device := luksdevice.New(luksdevice.AESXTSPlain64Cipher)
 
-	// Prompt user for existing LUKS passphrase
-	passphrase, err := lr.entryPrompt(entryDialogTitle, entryDialogText)
+	// Prompt the user for their existing LUKS passphrase and validate it. A nil
+	// passphrase with no error means the dialog was canceled or timed out.
+	passphrase, err := lr.promptAndValidatePassphrase(ctx, device, devicePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
+		return nil, nil, err
 	}
-
 	if len(passphrase) == 0 {
-		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
 		return nil, nil, nil
-	}
-
-	// Validate the passphrase
-	for {
-		log.Debug().Msg("Validating disk passphrase")
-		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
-		}
-
-		if valid {
-			break
-		}
-
-		passphrase, err = lr.entryPrompt(entryDialogTitle, retryEntryDialogText)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
-		}
-
-		if len(passphrase) == 0 {
-			log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
-			return nil, nil, nil
-		}
-
 	}
 
 	log.Debug().Msg("Generating random disk encryption passphrase")
@@ -182,32 +203,89 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	}
 	log.Debug().Msgf("Found available keyslot: %d", keySlot)
 
-	userKey := encryption.NewKey(userKeySlot, passphrase)
-	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
-
-	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
-		return nil, nil, fmt.Errorf("Failed to add key: %w", err)
-	}
-
-	log.Debug().Msg("Validating newly inserted key")
-	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
-	}
-
-	if !valid {
-		return nil, nil, errors.New("Failed to validate escrow passphrase")
+	if err := lr.addEscrowKey(ctx, device, devicePath, passphrase, escrowPassphrase, keySlot); err != nil {
+		return nil, nil, err
 	}
 
 	return escrowPassphrase, &keySlot, nil
 }
 
-func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.LUKS, devicePath string, passphrase []byte, keyslot uint) (bool, error) {
+// promptAndValidatePassphrase asks the end user for their existing LUKS
+// passphrase and validates it, re-prompting with retry copy until a valid
+// passphrase is entered. It returns a nil passphrase with no error when the
+// user cancels or the dialog times out (empty entry).
+//
+// Validation is performed against any key slot (encryption.AnyKeyslot) rather
+// than assuming slot 0 — a user's passphrase can legitimately live in a higher
+// slot, and pinning the check to slot 0 made correct passphrases look invalid
+// (issue #46227).
+func (lr *LuksRunner) promptAndValidatePassphrase(ctx context.Context, device luksDevice, devicePath string) ([]byte, error) {
+	passphrase, err := lr.entryPrompt(entryDialogTitle, entryDialogText)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
+	}
+
+	if len(passphrase) == 0 {
+		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
+		return nil, nil
+	}
+
+	for {
+		log.Debug().Msg("Validating disk passphrase")
+		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, encryption.AnyKeyslot)
+		if err != nil {
+			return nil, fmt.Errorf("Failed validating passphrase: %w", err)
+		}
+
+		if valid {
+			return passphrase, nil
+		}
+
+		passphrase, err = lr.entryPrompt(entryDialogTitle, retryEntryDialogText)
+		if err != nil {
+			return nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
+		}
+
+		if len(passphrase) == 0 {
+			log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
+			return nil, nil
+		}
+	}
+}
+
+// addEscrowKey adds escrowPassphrase to keySlot using the user's existing
+// passphrase to unlock the volume, then verifies the new key is usable.
+//
+// The existing key is created with encryption.AnyKeyslot so cryptsetup finds
+// whichever slot the user's passphrase actually lives in — it is not
+// necessarily slot 0.
+func (lr *LuksRunner) addEscrowKey(ctx context.Context, device luksDevice, devicePath string, passphrase, escrowPassphrase []byte, keySlot uint) error {
+	userKey := encryption.NewKey(encryption.AnyKeyslot, passphrase)
+	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
+
+	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
+		return fmt.Errorf("Failed to add key: %w", err)
+	}
+
+	log.Debug().Msg("Validating newly inserted key")
+	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, int(keySlot)) // #nosec G115
+	if err != nil {
+		return fmt.Errorf("Error while validating escrow passphrase: %w", err)
+	}
+
+	if !valid {
+		return errors.New("Failed to validate escrow passphrase")
+	}
+
+	return nil
+}
+
+func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device luksDevice, devicePath string, passphrase []byte, keyslot int) (bool, error) {
 	if len(passphrase) == 0 {
 		return false, nil
 	}
 
-	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(int(keyslot), passphrase)) // #nosec G115
+	valid, err := device.CheckKey(ctx, devicePath, encryption.NewKey(keyslot, passphrase))
 	if err != nil {
 		return false, fmt.Errorf("Error validating passphrase: %w", err)
 	}
@@ -381,6 +459,51 @@ func removeKeySlot(ctx context.Context, devicePath string, keySlot uint) error {
 	}
 
 	return nil
+}
+
+// snapdFDE is the production SnapdFDE implementation. It manages TPM-backed FDE
+// recovery keys exclusively through the snapd REST API socket, which is
+// guaranteed present wherever snapd-managed FDE is in use and requires no
+// network or snap store access. Detection is pure LUKS2 metadata inspection.
+type snapdFDE struct {
+	socket *snapdSocketFDE
+}
+
+func newSnapdFDE() SnapdFDE {
+	return &snapdFDE{socket: newSnapdSocketFDE()}
+}
+
+func (s *snapdFDE) Detect(ctx context.Context) (bool, error) {
+	// Decide purely from the LUKS2 metadata whether the volume is managed by
+	// snapd's secboot stack; plain or systemd-cryptenroll volumes are handled by
+	// the legacy passphrase path.
+	devicePath, err := lvm.FindRootDisk()
+	if err != nil {
+		// No LUKS root partition found; nothing for us to manage.
+		log.Debug().Err(err).Msg("no LUKS root disk found while detecting snapd FDE")
+		return false, nil
+	}
+	log.Debug().Str("device", devicePath).Msg("inspecting LUKS root disk for snapd-managed FDE")
+
+	dump, err := GetLuksDump(ctx, devicePath)
+	if err != nil {
+		return false, fmt.Errorf("inspecting LUKS metadata: %w", err)
+	}
+
+	tokenTypes := make([]string, 0, len(dump.Tokens))
+	for _, tok := range dump.Tokens {
+		tokenTypes = append(tokenTypes, tok.Type)
+	}
+	managed := IsSnapdManaged(dump)
+	log.Debug().Str("device", devicePath).Strs("luks_tokens", tokenTypes).
+		Int("keyslots", len(dump.Keyslots)).Bool("snapd_managed", managed).
+		Msg("inspected LUKS2 metadata for snapd-managed FDE")
+
+	return managed, nil
+}
+
+func (s *snapdFDE) EnsureFleetRecoveryKey(ctx context.Context) (string, error) {
+	return s.socket.ensureFleetRecoveryKey(ctx)
 }
 
 // isCryptsetupVersionLessThan2_4 checks if the installed cryptsetup version is less than 2.4.0

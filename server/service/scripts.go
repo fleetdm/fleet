@@ -128,9 +128,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	}
 
 	if request.ScriptContents != "" {
-		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{request.ScriptContents}); err != nil {
+		if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{request.ScriptContents}); err != nil {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.NewInvalidArgumentError("script", err.Error())
+		}
+		if err := fleet.ValidateFleetVariablesInScript(request.ScriptContents, license.IsPremium(ctx)); err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, err
 		}
 	}
 
@@ -410,8 +414,12 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		ScriptContents: file.Dos2UnixNewlines(string(b)),
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{script.ScriptContents}); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+		return nil, err
 	}
 
 	if err := script.ValidateNewScript(); err != nil {
@@ -613,8 +621,12 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 
 	scriptContents := file.Dos2UnixNewlines(string(b))
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{scriptContents}); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{scriptContents}); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	if err := fleet.ValidateFleetVariablesInScript(scriptContents, license.IsPremium(ctx)); err != nil {
+		return nil, err
 	}
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
@@ -752,6 +764,21 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
 		}
 
+		// unlike the embedded secrets validation below, this is a static check,
+		// so it runs before the post-loop dryRun return to surface errors on
+		// gitops dry runs (like the rest of this loop, it is skipped when a dry
+		// run targets a team that doesn't exist yet)
+		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+			// re-key validation errors on the indexed field, matching the rest
+			// of this loop, so callers can tell which script failed
+			var argErr *fleet.InvalidArgumentError
+			if errors.As(err, &argErr) && len(argErr.Invalid()) > 0 {
+				return nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), argErr.Invalid()[0]["reason"]))
+			}
+			return nil, ctxerr.Wrap(ctx, err, "validate fleet variables in script")
+		}
+
 		if byName[script.Name] {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
@@ -766,7 +793,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, nil
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, scriptContents); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -1105,6 +1132,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	// Use the authorize script by ID to handle authz
 	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
 	if err != nil {
+		return "", err
+	}
+
+	// Authorize the actual execution with the script's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: script.TeamID}, fleet.ActionWrite); err != nil {
 		return "", err
 	}
 

@@ -85,6 +85,21 @@ const buildSoftwareItems = (
               "self-service",
               "library",
             ],
+            subItems: [
+              {
+                id: "software-library-categories",
+                label: "Self-service categories",
+                path: withTeamId(paths.SOFTWARE_LIBRARY_CATEGORIES),
+                keywords: [
+                  "custom categories",
+                  "self service categories",
+                  "self-service category",
+                  "groups",
+                  "grouping",
+                  "install all",
+                ],
+              },
+            ],
           },
         ]
       : []),

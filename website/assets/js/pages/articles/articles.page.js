@@ -18,10 +18,6 @@ parasails.registerPage('articles', {
     // Using the category to  articles,
     switch(this.category) {
       // If a specific category was provided, we'll set the articleCategory and categoryDescription.
-      case 'success-stories':
-        this.articleCategory = 'Success stories';
-        this.categoryDescription = 'Read about how others are using Fleet and osquery.';
-        break;
       case 'securing':
         this.articleCategory = 'Security';
         this.categoryDescription = 'Learn more about how we secure Fleet.';
@@ -57,6 +53,14 @@ parasails.registerPage('articles', {
       case 'webinars':
         this.articleCategory = 'Webinars';
         this.categoryDescription = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
+        break;
+      case 'newsletters':
+        this.articleCategory = 'Newsletters';
+        this.categoryDescription = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        this.articleCategory = 'Industry news';
+        this.categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
         break;
       case 'articles':
         this.articleCategory = 'Blog';

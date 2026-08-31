@@ -1,0 +1,10 @@
+{
+  "name": "MacPilot",
+  "unique_identifier": "com.koingosw.MacPilot",
+  "token": "macpilot",
+  "installer_format": "dmg",
+  "slug": "macpilot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

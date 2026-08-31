@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -40,8 +41,8 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 		return "", ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return "", &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return "", fleet.ErrMissingLicense
 	}
 
 	// Load current integration, if any.
@@ -116,8 +117,8 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 		return false, "", ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return false, "", &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return false, "", fleet.ErrMissingLicense
 	}
 
 	// Load current integration.
@@ -182,8 +183,8 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		return ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
 	}
 
 	// Load current integration.
@@ -231,7 +232,7 @@ func (svc *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.C
 		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
 		return nil, nil
 	}
 

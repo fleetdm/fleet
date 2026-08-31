@@ -1,0 +1,10 @@
+{
+  "name": "BatFi",
+  "unique_identifier": "software.micropixels.BatFi",
+  "token": "batfi",
+  "installer_format": "zip",
+  "slug": "batfi/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

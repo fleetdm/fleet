@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -1393,14 +1395,21 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	listPastResp = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
 	require.GreaterOrEqual(t, len(listPastResp.Activities), 2)
+	// mdm_unenrolled is emitted last in the unenroll flow, so it heads the (descending) feed.
 	require.Equal(t, fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), listPastResp.Activities[0].Type)
-	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
-	require.Contains(t, string(*listPastResp.Activities[1].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
-	require.Contains(t, string(*listPastResp.Activities[1].Details), `"status": "failed_install"`)
-	if len(listPastResp.Activities) > 2 {
-		// the third activity should not be the cancellation of the second app
-		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[2].Type)
+	// Only the first VPP app was activated, so exactly one installed_app_store_app cancellation
+	// should appear (the second app was never activated). Filter by type, since the feed also
+	// includes the host's mdm_enrolled activity.
+	appStoreType := fleet.ActivityInstalledAppStoreApp{}.ActivityName()
+	var appStoreActs []*fleet.Activity
+	for _, act := range listPastResp.Activities {
+		if act.Type == appStoreType {
+			appStoreActs = append(appStoreActs, act)
+		}
 	}
+	require.Len(t, appStoreActs, 1)
+	require.Contains(t, string(*appStoreActs[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+	require.Contains(t, string(*appStoreActs[0].Details), `"status": "failed_install"`)
 
 	// listing the host's software available for install shows the cancelled app as failed
 	getHostSw = getHostSoftwareResponse{}
@@ -1465,7 +1474,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		Title:    "DummyApp",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an installer available for the Team 1 fleet.")
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an Apple App Store (VPP) on the Team 1 fleet.")
 
 	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
 	vppApp2 := &fleet.VPPApp{
@@ -1654,9 +1663,11 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
-			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", s.server.URL, titleID, 0)
-			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+			expectedManifestURL := regexp.MustCompile(fmt.Sprintf(
+				`%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/[a-f0-9-]{36}`,
+				regexp.QuoteMeta(s.server.URL), titleID,
+			))
+			assert.Regexp(t, expectedManifestURL, string(cmd.Raw))
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
@@ -1811,7 +1822,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{SelfService: ptr.Bool(true), TitleID: titleID, TeamID: nil},
 		http.StatusOK, "")
 	activityData = fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_display_name": "", "software_icon_url": null, "fleet_name": null, "team_name": null,
-		"fleet_id": null, "team_id": null, "self_service": true, "software_title_id": %d}`, titleID)
+		"fleet_id": null, "team_id": null, "self_service": true, "software_title_id": %d, "pinned_version": null}`, titleID)
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// self-install request is accepted
@@ -1839,9 +1850,11 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
-			// Points at the expected manifest URL
-			expectedManifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", s.server.URL, titleID, 0)
-			assert.Contains(t, string(cmd.Raw), expectedManifestURL)
+			expectedManifestURL := regexp.MustCompile(fmt.Sprintf(
+				`%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/[a-f0-9-]{36}`,
+				regexp.QuoteMeta(s.server.URL), titleID,
+			))
+			assert.Regexp(t, expectedManifestURL, string(cmd.Raw))
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
@@ -1884,10 +1897,18 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 0)
 
-	// host has the past activity for the installed app
+	// host has the past activity for the installed app (the feed also includes the host's
+	// mdm_enrolled activity, so filter by type).
 	var listPastResp listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", iosHost.ID), nil, http.StatusOK, &listPastResp)
-	require.Len(t, listPastResp.Activities, 1)
+	installedSoftwareType := fleet.ActivityTypeInstalledSoftware{}.ActivityName()
+	installedCount := 0
+	for _, act := range listPastResp.Activities {
+		if act.Type == installedSoftwareType {
+			installedCount++
+		}
+	}
+	require.Equal(t, 1, installedCount)
 
 	// update the app to have a label condition
 	clr := fleet.CreateLabelResponse{}
@@ -1936,12 +1957,60 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
 		res.Body.Close()
 		return buf
 	}
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
-		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	// Mint directly; the activation path is exercised in end-to-end tests.
+	token := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return s.ds.CreateInHouseAppInstallToken(context.Background(), q, token, titleID, *teamID, 1)
+	})
+	res := s.DoRawNoAuth("GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s", titleID, token),
+		nil, http.StatusOK)
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)
-	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app?fleet_id=%d", titleID, *teamID))
+	require.Contains(t, string(manifest), fmt.Sprintf("/%d/in_house_app/%s", titleID, token))
+}
+
+func (s *integrationMDMTestSuite) TestGetInHouseAppManifestInvalidToken() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	var titleResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &titleResp, "team_id", "0")
+	require.Len(t, titleResp.SoftwareTitles, 1)
+	titleID := titleResp.SoftwareTitles[0].ID
+
+	cases := []struct {
+		name string
+		path string
+		want int
+	}{
+		{
+			name: "tokenless path",
+			path: fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest", titleID),
+			want: http.StatusNotFound,
+		},
+		{
+			name: "malformed token",
+			path: fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/not-a-uuid", titleID),
+			want: http.StatusNotFound,
+		},
+		{
+			name: "unknown token",
+			path: fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s", titleID, uuid.NewString()),
+			want: http.StatusForbidden,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s.DoRawNoAuth("GET", c.path, nil, c.want)
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
@@ -2071,7 +2140,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
 		Filename: "ipa_test.ipa",
 		TeamID:   &team2.ID,
-	}, http.StatusConflict, "already has an installer available for the IPA Conflict Team 2 fleet.")
+	}, http.StatusConflict, "already has an Apple App Store (VPP) on the IPA Conflict Team 2 fleet.")
 
 	// Test Case 3: Verify "No team" works correctly
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
@@ -2537,6 +2606,103 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		})
 		// No new activity.
 		s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), "", lastActivityID)
+
+		reportedSoftware := []fleet.Software{
+			{
+				Name:             "App 1",
+				BundleIdentifier: "app-1",
+				Version:          "2.0.0",
+				Installed:        true,
+			},
+		}
+		// Age the recorded installs so only the pending and queued filters can stop another install.
+		ageInstalls := func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`UPDATE host_vpp_software_installs SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`,
+					host.ID)
+				return err
+			})
+		}
+		countQueuedInstalls := func() int {
+			var count int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, db, &count, `
+					SELECT COUNT(*)
+					FROM upcoming_activities ua
+					JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+					WHERE ua.host_id = ? AND vaua.adam_id = '1'`, host.ID)
+			})
+			return count
+		}
+
+		// An activity stuck at the head of the queue stops installs behind it from activating, which is
+		// when their host_vpp_software_installs row is written, so every filter but the queued one goes
+		// blind. A stalled in-house app install is the head an iOS host can actually reach that no VPP
+		// filter covers, since scripts and package installs never reach these devices and a stuck VPP
+		// install would be caught by the pending-verification filter instead.
+		blockerExecID := uuid.NewString()
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			res, err := db.ExecContext(ctx, `
+				INSERT INTO in_house_apps (global_or_team_id, filename, platform, storage_id, version)
+				VALUES (?, ?, 'ios', ?, '1.0.0')`, team.ID, "blocker-"+blockerExecID+".ipa", blockerExecID)
+			if err != nil {
+				return err
+			}
+			inHouseAppID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			res, err = db.ExecContext(ctx, `
+				INSERT INTO upcoming_activities (host_id, activity_type, execution_id, payload, activated_at)
+				VALUES (?, 'in_house_app_install', ?, '{}', NOW(6))`, host.ID, blockerExecID)
+			if err != nil {
+				return err
+			}
+			blockerID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			_, err = db.ExecContext(ctx, `
+				INSERT INTO in_house_app_upcoming_activities (upcoming_activity_id, in_house_app_id)
+				VALUES (?, ?)`, blockerID, inHouseAppID)
+			return err
+		})
+
+		for range 4 {
+			ageInstalls()
+			triggerRefetch()
+			handleRefetch(reportedSoftware)
+			require.Equal(t, 1, countQueuedInstalls(), "a queue that is not draining must not accumulate duplicate installs")
+		}
+
+		// Without this, a filter that never released would pass the assertion above too.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`DELETE FROM upcoming_activities WHERE host_id = ? AND activity_type IN ('in_house_app_install', 'vpp_app_install')`,
+				host.ID)
+			return err
+		})
+		require.Zero(t, countQueuedInstalls())
+
+		ageInstalls()
+		triggerRefetch()
+		handleRefetch(reportedSoftware)
+		require.Equal(t, 1, countQueuedInstalls())
+
+		// That last install activated and will never be acknowledged. Teardown deletes the host, which
+		// clears upcoming_activities through hostRefs, but hostRefs deliberately excludes the nano
+		// tables, so the undelivered command outlives the host unless it goes too.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			if _, err := db.ExecContext(ctx,
+				`DELETE FROM upcoming_activities WHERE host_id = ?`, host.ID); err != nil {
+				return err
+			}
+			_, err := db.ExecContext(ctx,
+				`DELETE FROM nano_enrollment_queue WHERE id = ?`, host.UUID)
+			return err
+		})
+		require.Zero(t, countQueuedInstalls())
 	}
 
 	// Create a team and a VPP token on it.

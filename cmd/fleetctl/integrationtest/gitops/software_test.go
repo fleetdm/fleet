@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -35,7 +36,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 	}{
 		{"testdata/gitops/team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
 		{"testdata/gitops/team_software_installer_install_script_secret.yml", "environment variable \"FLEET_SECRET_NAME\" not set"},
-		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
+		{"testdata/gitops/team_software_installer_unsupported.yml", "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1."},
 		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 513MiB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
 		{"testdata/gitops/team_software_installer_subdir.yml", ""},
@@ -147,8 +148,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 				return nil, nil
 			}
-			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-				return []uint{}, nil
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
 			}
 
 			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
@@ -181,11 +182,11 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		if len(installers) != 0 && installers[0].PreInstallQuery != "select IT_WORKS" {
-			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+			return nil, fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
-		return nil
+		return nil, nil
 	}
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
@@ -199,8 +200,8 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
@@ -221,9 +222,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 func TestGitOpsTeamSoftwareInstallersEmptyPackagesDryRun(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
 		t.Errorf("BatchSetSoftwareInstallers must not be called for dry-run with empty packages")
-		return nil
+		return nil, nil
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		t.Errorf("GetTeamsWithInstallerByHash must not be called for dry-run with empty packages")
@@ -387,8 +388,8 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 				return nil
 			}
-			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-				return []uint{}, nil
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
 			}
 			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 				return nil
@@ -427,7 +428,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		wantErr    string
 	}{
 		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are reachable from your Fleet server."},
-		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1."},
+		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1."},
 		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 513MiB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
 		{"testdata/gitops/no_team_software_installer_subdir.yml", ""},
@@ -530,8 +531,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 				return nil, nil
 			}
-			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-				return []uint{}, nil
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
 			}
 			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 				return nil
@@ -660,8 +661,8 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-				return []uint{}, nil
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
 			}
 
 			found := make(map[string]uint)
@@ -770,8 +771,8 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 		}
 		return token, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 		return nil
@@ -861,8 +862,8 @@ func TestGitOpsExistingTeamVPPAppsWithMissingTeam(t *testing.T) {
 		}
 		return token, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 		return nil
@@ -996,7 +997,7 @@ func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
 		}
 		return tok, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
@@ -1271,6 +1272,39 @@ software:
 			},
 		},
 		{
+			name: "all fleets is supported",
+			cfgs: []string{
+				global(`
+                        volume_purchasing_program:
+                          - location: Fleet Device Management Inc.
+                            teams:
+                              - "All fleets"`),
+				workstations,
+				iosTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"All fleets",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
 			name: "not provided teams defaults to no team",
 			cfgs: []string{
 				global(`
@@ -1460,8 +1494,8 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 					CountryCode: "us",
 				}, nil
 			}
-			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-				return []uint{}, nil
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
 			}
 			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
@@ -1534,8 +1568,8 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 				capturedInstallers = append(capturedInstallers, installers...)
 				return nil
 			}
-			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-				return nil
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				return nil, nil
 			}
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
@@ -1543,8 +1577,8 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 				return nil, nil
 			}
-			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-				return []uint{}, nil
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
 			}
 			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
@@ -1574,4 +1608,73 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitOpsSoftwareDownloadProgress(t *testing.T) {
+	testing_utils.StartSoftwareInstallerServer(t)
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1s")
+	t.Cleanup(func() { dev_mode.ClearOverride("FLEET_DEV_BATCH_RETRY_INTERVAL") })
+
+	file := "../../fleetctl/testdata/gitops/team_software_installer_valid.yml"
+
+	// The batch needs these to get as far as downloading; the harness doesn't set them.
+	setupSoftwareMocks := func(t *testing.T) map[string]**fleet.Team {
+		ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+		ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+		}
+		ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+			return nil, nil
+		}
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return map[string]uint{}, nil
+		}
+		return savedTeams
+	}
+
+	t.Run("a package Fleet downloads reports its progress", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", file})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
+		require.Contains(t, out.String(), "[+] downloading software package - ruby.deb ...\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a dry run for an existing fleet reports the same progress", func(t *testing.T) {
+		// A dry run for a fleet that doesn't exist yet never starts a batch, so there is
+		// nothing to download and nothing to report.
+		savedTeams := setupSoftwareMocks(t)
+		team := &fleet.Team{ID: 1, Name: teamName}
+		savedTeams[teamName] = &team
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--dry-run", "-f", file})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] downloading software package - ruby.deb ...\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.Contains(t, out.String(), "[+] would've applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a script package stays out of the progress, since nothing is downloaded for it", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_script_package.yml"})
+		require.NoError(t, err)
+		// The counts prove the script package was in the batch, not just missing from it.
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.NotContains(t, out.String(), "install_ruby.sh")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
+	})
+
+	t.Run("a package Fleet can't download reports the failure", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_installer_not_found.yml"})
+		require.Error(t, err)
+		require.Contains(t, out.String(), "Error: could not download software package notfound.deb\n")
+		require.NotContains(t, out.String(), "[+] downloaded software package - notfound.deb")
+	})
 }

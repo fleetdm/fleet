@@ -1,0 +1,10 @@
+{
+  "name": "Anytype",
+  "unique_identifier": "com.anytype.anytype",
+  "token": "anytype",
+  "installer_format": "dmg",
+  "slug": "anytype/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -1,4 +1,4 @@
-- name: macOS - Santa extension installed
+- name: Santa extension installed
   query: SELECT 1 WHERE EXISTS (SELECT * FROM file_lines WHERE path = "/var/osquery/extensions.load" AND line = "/var/fleet/extensions/santa.ext");
   critical: false
   description: This policy ensures the custom extension for santa is installed.

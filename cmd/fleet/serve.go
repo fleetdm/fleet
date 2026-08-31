@@ -34,7 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/chart"
@@ -49,9 +50,7 @@ import (
 	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -64,19 +63,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
-	"github.com/fleetdm/fleet/v4/server/logging"
-	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -89,10 +86,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -155,6 +152,21 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// networkBlockingModeFor decides the outbound network-blocking mode for
+// integration HTTP requests. BypassNetworkBlocking is an infra-level escape
+// hatch, only settable via server startup config, never a runtime admin
+// operation.
+func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerConfig) fleethttp.NetworkBlockingMode {
+	switch {
+	case devModeEnabled, serverConfig.BypassNetworkBlocking:
+		return fleethttp.BlockingBypassAll
+	case serverConfig.AllowPrivateNetworkIntegrations:
+		return fleethttp.BlockingPrivateAllowed
+	default:
+		return fleethttp.BlockingFull
+	}
+}
+
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
 	config := configManager.LoadConfig()
@@ -162,6 +174,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
 	}
+
+	// Set network blocking mode for outbound integration requests.
+	fleethttp.SetNetworkBlockingMode(networkBlockingModeFor(dev_mode.IsEnabled, config.Server))
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
 	if err != nil {
@@ -207,13 +222,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		platform_logging.DisableTopic(topic)
 	}
 
-	if dev_mode.IsEnabled {
+	if dev_mode.IsEnabled && useS3DevConfig() {
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
 	config.Osquery.Validate(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
+
+	config.WebSocket.Validate(initFatal)
 
 	config.Server.NormalizeURLPrefix()
 	config.Server.ValidateURLPrefix(initFatal)
@@ -249,6 +266,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
+	platform_http.EndpointRequestSizeOverrides = config.Server.EndpointRequestSizeOverrides
 
 	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
 	if mds == nil {
@@ -277,123 +295,25 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	var redisPool fleet.RedisPool
 	var redisWrapperDS *mysqlredis.Datastore
-	redisPool, ds, redisWrapperDS = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
+	var configETagStore fleet.ConfigETagStore
+	redisPool, ds, redisWrapperDS, configETagStore = initRedis(cmd.Context(), config, license, ds, logger, initFatal)
 	if redisPool == nil {
 		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
 		return
 	}
 
-	resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
+	resultStore := pubsub.NewRedisQueryResults(
+		redisPool, config.Redis.DuplicateResults,
 		logger.With("component", "query-results"),
 	)
-	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
+	liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration,
+		config.Redis.LiveQuerySmallTargetThreshold)
 	ssoSessionStore := sso.NewSessionStore(redisPool)
 
-	// Set common configuration for all logging.
-	loggingConfig := logging.Config{
-		Filesystem: logging.FilesystemConfig{
-			EnableLogRotation:    config.Filesystem.EnableLogRotation,
-			EnableLogCompression: config.Filesystem.EnableLogCompression,
-			MaxSize:              config.Filesystem.MaxSize,
-			MaxAge:               config.Filesystem.MaxAge,
-			MaxBackups:           config.Filesystem.MaxBackups,
-		},
-		Webhook: logging.WebhookConfig{},
-		Firehose: logging.FirehoseConfig{
-			Region:           config.Firehose.Region,
-			EndpointURL:      config.Firehose.EndpointURL,
-			AccessKeyID:      config.Firehose.AccessKeyID,
-			SecretAccessKey:  config.Firehose.SecretAccessKey,
-			StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
-			StsExternalID:    config.Firehose.StsExternalID,
-		},
-		Kinesis: logging.KinesisConfig{
-			Region:           config.Kinesis.Region,
-			EndpointURL:      config.Kinesis.EndpointURL,
-			AccessKeyID:      config.Kinesis.AccessKeyID,
-			SecretAccessKey:  config.Kinesis.SecretAccessKey,
-			StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
-			StsExternalID:    config.Kinesis.StsExternalID,
-		},
-		Lambda: logging.LambdaConfig{
-			Region:           config.Lambda.Region,
-			AccessKeyID:      config.Lambda.AccessKeyID,
-			SecretAccessKey:  config.Lambda.SecretAccessKey,
-			StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
-			StsExternalID:    config.Lambda.StsExternalID,
-		},
-		PubSub: logging.PubSubConfig{
-			Project: config.PubSub.Project,
-		},
-		KafkaREST: logging.KafkaRESTConfig{
-			ProxyHost:        config.KafkaREST.ProxyHost,
-			ContentTypeValue: config.KafkaREST.ContentTypeValue,
-			Timeout:          config.KafkaREST.Timeout,
-		},
-		Nats: logging.NatsConfig{
-			Server:            config.Nats.Server,
-			CredFile:          config.Nats.CredFile,
-			NKeyFile:          config.Nats.NKeyFile,
-			TLSClientCertFile: config.Nats.TLSClientCrtFile,
-			TLSClientKeyFile:  config.Nats.TLSClientKeyFile,
-			CACertFile:        config.Nats.CACrtFile,
-			Compression:       config.Nats.Compression,
-			JetStream:         config.Nats.JetStream,
-			Timeout:           config.Nats.Timeout,
-		},
-	}
-
-	// Set specific configuration to osqueryd status logs.
-	loggingConfig.Plugin = config.Osquery.StatusLogPlugin
-	loggingConfig.Filesystem.LogFile = config.Filesystem.StatusLogFile
-	loggingConfig.Webhook.URL = config.Webhook.StatusURL
-	loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
-	loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
-	loggingConfig.Lambda.Function = config.Lambda.StatusFunction
-	loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
-	loggingConfig.PubSub.AddAttributes = false // only used by result logs
-	loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
-	loggingConfig.Nats.Subject = config.Nats.StatusSubject
-
-	osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger)
-	if err != nil {
-		initFatal(err, "initializing osqueryd status logging")
-	}
-
-	// Set specific configuration to osqueryd result logs.
-	loggingConfig.Plugin = config.Osquery.ResultLogPlugin
-	loggingConfig.Filesystem.LogFile = config.Filesystem.ResultLogFile
-	loggingConfig.Webhook.URL = config.Webhook.ResultURL
-	loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
-	loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
-	loggingConfig.Lambda.Function = config.Lambda.ResultFunction
-	loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
-	loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
-	loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
-	loggingConfig.Nats.Subject = config.Nats.ResultSubject
-
-	osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger)
-	if err != nil {
-		initFatal(err, "initializing osqueryd result logging")
-	}
-
-	var auditLogger fleet.JSONLogger
-	if license.IsPremium() && config.Activity.EnableAuditLog {
-		// Set specific configuration to audit logs.
-		loggingConfig.Plugin = config.Activity.AuditLogPlugin
-		loggingConfig.Filesystem.LogFile = config.Filesystem.AuditLogFile
-		loggingConfig.Firehose.StreamName = config.Firehose.AuditStream
-		loggingConfig.Kinesis.StreamName = config.Kinesis.AuditStream
-		loggingConfig.Lambda.Function = config.Lambda.AuditFunction
-		loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
-		loggingConfig.PubSub.AddAttributes = false // only used by result logs
-		loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
-		loggingConfig.Nats.Subject = config.Nats.AuditSubject
-
-		auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger)
-		if err != nil {
-			initFatal(err, "initializing audit logging")
-		}
+	osquerydStatusLogger, osquerydResultLogger, auditLogger := initOsqueryLogging(cmd.Context(), config, license, logger, initFatal)
+	if osquerydStatusLogger == nil || osquerydResultLogger == nil {
+		initFatal(errors.New("osquery loggers were nil after initialization"), "initializing osqueryd logging")
+		return
 	}
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
@@ -415,17 +335,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		defer sentry.Flush(2 * time.Second)
 	}
 
-	var geoIP fleet.GeoIP
-	geoIP = &fleet.NoOpGeoIP{}
-	if config.GeoIP.DatabasePath != "" {
-		maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
-		if err != nil {
-			logger.ErrorContext(cmd.Context(), "failed to initialize maxmind geoip, check database path", "database_path",
-				config.GeoIP.DatabasePath, "error", err)
-		} else {
-			geoIP = maxmind
-		}
-	}
+	geoIP := initGeoIP(cmd.Context(), config, logger)
 
 	if config.MDM.EnableCustomOSUpdatesAndFileVault && !license.IsPremium() {
 		config.MDM.EnableCustomOSUpdatesAndFileVault = false
@@ -435,6 +345,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if config.MDM.EnableCustomFileVault && !license.IsPremium() {
 		config.MDM.EnableCustomFileVault = false
 		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
+	}
+
+	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
+		config.MDM.EnableCustomDiskEncryption = false
+		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
+	}
+
+	apple_mdm.SetMachineInfoVerification(config.MDM.AppleMachineInfoVerify)
+	if !apple_mdm.MachineInfoVerificationEnabled() {
+		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+
+			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
@@ -511,18 +432,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "saving app config")
 	}
 
-	// setup mail service
-	if appCfg.SMTPSettings != nil && appCfg.SMTPSettings.SMTPEnabled {
-		// if SMTP is already enabled then default the backend to empty string, which fill force load the SMTP implementation
-		if config.Email.EmailBackend != "" {
-			config.Email.EmailBackend = ""
-			logger.WarnContext(cmd.Context(), "SMTP is already enabled, first disable SMTP to utilize a different email backend")
-		}
-	}
-	mailService, err := mail.NewService(config)
-	if err != nil {
-		logger.ErrorContext(cmd.Context(), "failed to configure mailing service", "err", err)
-	}
+	mailService := initMailService(cmd.Context(), config, appCfg, logger)
 
 	cronSchedules := fleet.NewCronSchedules()
 
@@ -540,23 +450,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	})
 
-	var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
-	if config.MicrosoftCompliancePartner.IsSet() {
-		var err error
-		conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
-			config.MicrosoftCompliancePartner.ProxyURI,
-			config.MicrosoftCompliancePartner.ProxyAPIKey,
-			func() (string, error) {
-				appCfg, err := ds.AppConfig(ctx)
-				if err != nil {
-					return "", fmt.Errorf("failed to load appconfig: %w", err)
-				}
-				return appCfg.ServerSettings.ServerURL, nil
-			},
-		)
-		if err != nil {
-			initFatal(err, "new microsoft compliance proxy")
-		}
+	// The Microsoft Compliance Partner proxy is available to all Fleet Premium
+	// instances (including self-hosted). The feature itself is gated on the
+	// license tier at the service layer.
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new microsoft compliance proxy")
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
@@ -567,6 +475,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Declare svc early so the closure below can capture it.
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
+	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
 		logger,
@@ -583,7 +493,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing android service")
 	}
 
-	orgLogoStore := initOrgLogoStore(ctx, config.S3, logger)
+	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
 	svc, err = service.NewService(
 		ctx,
@@ -613,6 +523,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
+		redis_install_attempts.New(redisPool),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -634,6 +545,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			}
 			// Extract the CloudFront URL signer before creating the S3 stores.
 			config.S3.ValidateCloudFrontURL(initFatal)
+			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
 			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
 				// Strip newlines from private key
 				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
@@ -680,7 +592,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			} else {
 				softwareInstallStore = store
 				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for production use", "directory",
+					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
 					installerDir)
 			}
 
@@ -717,10 +629,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareTitleIconStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
+			redis_install_attempts.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
+			msgraph.NewClient,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -732,6 +647,40 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
+
+	// OSQUERY CONFIG ETAG SHORT CIRCUIT Injecting the store is the ONE
+	// thing that enables it — without this call the service field stays nil
+	// and every config request takes the full-build path. initRedis only
+	// constructs the store (and the etag_invalidate hooks) when
+	// effectiveRedisConfigETags is true and the startup generation bump
+	// succeeded; with the feature gated off, no config ETag Redis code runs
+	// at all. See fleet.OsqueryService.GetClientConfigWithETag for the full
+	// contract.
+	if !config.Osquery.ConfigETags {
+		// The protocol-level escape hatch: the service ignores agents' etag
+		// fields entirely.
+		logger.InfoContext(ctx, "osquery conditional config requests DISABLED by escape hatch; every config response is the full config with no etag",
+			"component", "config-etag", "flag", "osquery.config_etags")
+		if config.Osquery.RedisConfigETags {
+			logger.WarnContext(ctx, "osquery.redis_config_etags cannot be enabled while osquery.config_etags is false; the Redis short circuit is forced off and no config etag Redis I/O will occur",
+				"component", "config-etag")
+		}
+	}
+	if svc != nil && effectiveRedisConfigETags(config) && configETagStore != nil {
+		svc.SetConfigETagStore(configETagStore)
+		logger.InfoContext(ctx, "osquery config ETag short circuit ENABLED: matching config check-ins are answered 'unchanged' from Redis without building the config",
+			"component", "config-etag", "flag", "osquery.redis_config_etags")
+	} else {
+		// Neutral message: this branch is reached when either flag gates the
+		// feature off, but also when the store was not constructed (Redis
+		// init failure or failed startup generation bump) or svc is nil —
+		// the fields say which.
+		logger.InfoContext(ctx, "osquery config ETag short circuit disabled; all config requests take the full-build path",
+			"component", "config-etag",
+			"flag_enabled", config.Osquery.RedisConfigETags,
+			"feature_enabled", config.Osquery.ConfigETags,
+			"store_configured", configETagStore != nil)
+	}
 
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 	activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)
@@ -747,44 +696,40 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Bootstrap chart bounded context
 	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
 
-	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register chart_data_collection schedule")
-		}
-	} else {
-		logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")
+	// Bootstrap the agent WebSocket notification transport (ADR-0011): the
+	// per-instance hub of agent connections, the Redis pub/sub subscription
+	// that fans live query wake-ups out to all instances, and the per-instance
+	// interval check job.
+	var agentWSHub *agentws.Hub
+	if config.WebSocket.TransportEnabled {
+		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
+			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
+		agentWSHub.InstanceID = instanceID
+		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// Delay live query wake-ups by the live query store's in-memory cache
+		// TTL so a notified read can't be served from a cache snapshot
+		// predating the campaign (see pubsub.DelayedAgentNotifier).
+		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
+			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
+			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+		})
+		// Each instance checks only the connections it holds, so this is a
+		// plain per-instance goroutine, not a locked cron job.
+		go (&agentws.IntervalChecker{
+			Hub:       agentWSHub,
+			Svc:       svc,
+			Interval:  config.WebSocket.CheckInterval,
+			BatchSize: config.WebSocket.CheckBatchSize,
+			Logger:    logger.With("component", "agentws-interval-checker"),
+		}).Run(ctx)
+		// Keep WebSocket-connected hosts "online": the transport removes the
+		// 10s distributed/read poll that used to keep seen_time fresh. 30s
+		// stays inside the smallest online window Fleet computes (min interval
+		// + 60s buffer); uses the same batched last-seen path as polling auth.
+		go agentws.RecordSeenLoop(ctx, agentWSHub, task, 30*time.Second,
+			logger.With("component", "agentws-seen"))
 	}
-
-	// Perform a cleanup of cron_stats outside of the cronSchedules because the
-	// schedule package uses cron_stats entries to decide whether a schedule will
-	// run or not (see https://github.com/fleetdm/fleet/issues/9486).
-	go func() {
-		cleanupCronStats := func() {
-			logger.DebugContext(ctx, "cleaning up cron_stats")
-			// Datastore.CleanupCronStats should be safe to run by multiple fleet
-			// instances at the same time and it should not be an expensive operation.
-			if err := ds.CleanupCronStats(ctx); err != nil {
-				logger.InfoContext(ctx, "failed to clean up cron_stats", "err", err)
-			}
-		}
-
-		cleanupCronStats()
-
-		cleanUpCronStatsTick := time.NewTicker(1 * time.Hour)
-		defer cleanUpCronStatsTick.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-cleanUpCronStatsTick.C:
-				cleanupCronStats()
-			}
-		}
-	}()
 
 	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
 	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
@@ -793,294 +738,32 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		go tracing.StartSettingsPoller(ctx, traceSampler, ds, logger)
 	}
 
-	if softwareInstallStore != nil {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return cronUninstallSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
-			},
-		); err != nil {
-			initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUninstallSoftwareMigration))
-		}
-
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return cronUpgradeCodeSoftwareMigration(ctx, instanceID, ds, softwareInstallStore, logger)
-			},
-		); err != nil {
-			initFatal(err, fmt.Sprintf("failed to register %s", fleet.CronUpgradeCodeSoftwareMigration))
-		}
-	}
-
-	if config.Server.FrequentCleanupsEnabled {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				return newFrequentCleanupsSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register frequent_cleanups schedule")
-		}
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, carveStore, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
-			)
-		},
-	); err != nil {
-		initFatal(err, "failed to register cleanups_then_aggregations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newQueryResultsCleanupSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register query_results_cleanup schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newUpcomingActivitiesSchedule(ctx, instanceID, ds, logger)
-		},
-	); err != nil {
-		initFatal(err, "failed to register upcoming_activities_maintenance schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newUsageStatisticsSchedule(ctx, instanceID, ds, config, logger)
-	}); err != nil {
-		initFatal(err, "failed to register stats schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(
-		func() (fleet.CronSchedule, error) {
-			return newBatchActivitiesSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-		initFatal(err, "failed to register batch activities schedule")
-	}
-
-	vulnerabilityScheduleDisabled := false
-	if config.Vulnerabilities.DisableSchedule {
-		vulnerabilityScheduleDisabled = true
-		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.disable_schedule")
-	}
-	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
-		logger.InfoContext(ctx, "vulnerabilities schedule disabled via vulnerabilities.current_instance_checks")
-		vulnerabilityScheduleDisabled = true
-	}
-	if !vulnerabilityScheduleDisabled {
-		// vuln processing by default is run by internal cron mechanism
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
-		}); err != nil {
-			initFatal(err, "failed to register vulnerabilities schedule")
-		}
-	} else {
-		// Register a remote trigger proxy so triggering still works
-		// when the vulnerability schedule runs on a separate server.
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
-		}); err != nil {
-			initFatal(err, "failed to register remote vulnerability trigger")
-		}
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
-	}); err != nil {
-		initFatal(err, "failed to register automations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
-	}); err != nil {
-		initFatal(err, "failed to register worker integrations schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_worker schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger)
-	}); err != nil {
-		initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newMDMAppleServiceDiscoverySchedule(ctx, instanceID, ds, depStorage, logger, config.Server.URLPrefix)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_service_discovery schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAppleMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-			redis_key_value.New(redisPool),
-			logger,
-			config.MDM.CertificateProfilesLimit,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_apple_profile_manager schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newWindowsMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_windows_profile_manager schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAndroidMDMProfileManagerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-			config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
-			config.MDM.AndroidAgent,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_profile_manager schedule")
-	}
-
-	// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newAndroidMDMDeviceReconcilerSchedule(
-			ctx,
-			instanceID,
-			ds,
-			logger,
-			config.License.Key,
-			svc.NewActivity,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register mdm_android_device_reconciler schedule")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register enable_android_app_reports_on_default_policy cron")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return cronMigrateToPerHostPolicy(ctx, instanceID, ds, logger, androidSvc)
-	}); err != nil {
-		initFatal(err, "failed to register migrate_to_per_host_policy cron")
-	}
-
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newMDMAPNsPusher(
-			ctx,
-			instanceID,
-			ds,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
-			logger,
-		)
-	}); err != nil {
-		initFatal(err, "failed to register APNs pusher schedule")
-	}
-
-	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newIPhoneIPadRefetcher(ctx, instanceID, 10*time.Minute, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_refetcher schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
-		}); err != nil {
-			initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
-		}); err != nil {
-			initFatal(err, "failed to register maintained apps schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger, apple_apps.Configure(ctx, ds, config.License.Key, config.MDM.AppleConnectJWT))
-		}); err != nil {
-			initFatal(err, "failed to register refresh vpp app versions schedule")
-		}
-
-		// One-shot backfill for VPP token and app country codes that
-		// predate the country_code column. Fire-and-forget is safe because
-		// the work is idempotent and ctx cancels on shutdown.
-		go vpp.BackfillLegacyCountries(ctx, ds, logger)
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register recovery lock password schedule")
-		}
-
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newManagedLocalAccountRotationSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
-		}); err != nil {
-			initFatal(err, "failed to register managed local account rotation schedule")
-		}
-	}
-
-	if license.IsPremium() && config.Activity.EnableAuditLog {
-		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-			return newActivitiesStreamingSchedule(ctx, instanceID, activitySvc, ds, logger, auditLogger)
-		}); err != nil {
-			initFatal(err, "failed to register activities streaming schedule")
-		}
-	}
-
-	if license.IsPremium() {
-		if err := cronSchedules.StartCronSchedule(
-			func() (fleet.CronSchedule, error) {
-				if config.Calendar.Periodicity > 0 {
-					config.Calendar.SetAlwaysReloadEvent(true)
-				} else {
-					config.Calendar.Periodicity = 5 * time.Minute
-				}
-				return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
-			},
-		); err != nil {
-			initFatal(err, "failed to register calendar schedule")
-		}
-	}
-
-	// Start the service that calculates and updates host vitals label membership.
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newHostVitalsLabelMembershipSchedule(ctx, instanceID, ds, logger)
-	}); err != nil {
-		initFatal(err, "failed to register host vitals label membership schedule")
-	}
-
-	// Start the service that marks activities as completed.
-	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)
-	}); err != nil {
-		initFatal(err, "failed to register batch activity completion checker schedule")
-	}
-
-	logger.InfoContext(ctx, fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
+	startCronSchedules(ctx, cronSchedulesDeps{
+		instanceID:             instanceID,
+		config:                 &config,
+		license:                license,
+		logger:                 logger,
+		cronSchedules:          cronSchedules,
+		ds:                     ds,
+		svc:                    svc,
+		carveStore:             carveStore,
+		enrollHostLimiter:      redisWrapperDS,
+		liveQueryStore:         liveQueryStore,
+		failingPolicySet:       failingPolicySet,
+		redisPool:              redisPool,
+		commander:              apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+		depStorage:             depStorage,
+		softwareInstallStore:   softwareInstallStore,
+		bootstrapPackageStore:  bootstrapPackageStore,
+		softwareTitleIconStore: softwareTitleIconStore,
+		androidSvc:             androidSvc,
+		activitySvc:            activitySvc,
+		acmeSvc:                acmeSvc,
+		chartSvc:               chartSvc,
+		auditLogger:            auditLogger,
+		distributedLock:        distributedLock,
+		initFatal:              initFatal,
+	})
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, logger.With("cron", "async_task"))
@@ -1145,12 +828,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if config.MDM.SSORateLimitPerMinute > 0 {
 			extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
 		}
+		if config.Auth.SSORateLimitPerMinute > 0 {
+			extra = append(extra, service.WithSsoRateLimit(throttled.PerMin(config.Auth.SSORateLimitPerMinute)))
+		}
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
+		if agentWSHub != nil {
+			extra = append(extra, service.WithAgentWSHub(agentWSHub))
+		}
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Validate(apiHandler); err != nil {
+		// SCIM endpoints are served by a prefix-mounted handler (see
+		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
+		// their routes to the validator explicitly.
+		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
@@ -1253,6 +945,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
+			config.Activity.FleetInitiatedReleasePerMinute > 0,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
@@ -1296,6 +989,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			commander,
 			appCfg.ServerSettings.ServerURL,
 			config,
+			svc,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}
@@ -1362,107 +1056,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
-			// when running a script synchronously, we wait a while for a script
-			// execution result, so the write timeout (to write the response)
-			// must be extended.
-			rc := http.NewResponseController(rw)
-			// add an additional 30 seconds to prevent race conditions where the
-			// request is terminated early.
-			if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for script sync run",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
-			(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
-				"/fleet/software/titles/")) ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet_maintained_apps")) ||
-			(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||
-			(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
-			var zeroTime time.Time
-			rc := http.NewResponseController(rw)
-			// For large software installers and bootstrap packages, the server time needs time to read the full
-			// request body so we use the zero value to remove the deadline and override the
-			// default read timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetReadDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-			// For large software installers, the server time needs time to store the
-			// installer to S3 (or the configured storage location) and write the response
-			// body so we use the zero value to remove the deadline and override the
-			// default write timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetWriteDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-
-			// We need to add the context value here because we need the installer max size when doing request
-			// parsing, which happens somewhere where we're only passed the request (and not the service object)
-			req.Body = http.MaxBytesReader(rw, req.Body, config.Server.MaxInstallerSizeBytes)
-			req = req.WithContext(installersize.NewContext(req.Context(), config.Server.MaxInstallerSizeBytes))
-		}
-
-		if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
-			// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for android enterpriset setup",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
-			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
-			// For customers using large profiles and/or large numbers of profiles, the
-			// server needs time to completely read the request body and also to process
-			// all the side effects of a potentially large number of profiles being changed
-			// across a large number of hosts, so set the timeouts a bit higher than default
-			rc := http.NewResponseController(rw)
-			if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint write timeout for MDM profiles batch endpoint",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-			if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
-		}
-
-		apiHandler.ServeHTTP(rw, req)
-	})
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.
@@ -1473,7 +1067,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
-		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+		fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds, agentWSHub),
 	}
 	rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1549,6 +1143,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		select {
 		case <-sig:
 		case <-dbFatalCh:
+		// cmd.Context() is context.Background() in production (the root command
+		// is run via Execute, not ExecuteContext), so this case never fires
+		// there. Tests run the command with a cancelable context to trigger a
+		// graceful shutdown without sending an OS signal.
+		case <-cmd.Context().Done():
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -1571,6 +1170,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				if err := loggerProvider.Shutdown(ctx); err != nil {
 					logger.ErrorContext(ctx, "failed to shutdown OTEL logger provider", "err", err)
 				}
+			}
+			// srv.Shutdown ignores hijacked connections; close the agent
+			// WebSockets so agents start reconnecting right away.
+			if agentWSHub != nil {
+				agentWSHub.Shutdown()
 			}
 			return srv.Shutdown(ctx)
 		}()
@@ -1609,17 +1213,19 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
 	chartSvc.RegisterDataset(&chart.CVEDataset{})
 	// Create auth middleware for chart bounded context
+	// Makes sure that api_only users are subject to endpoint
+	// restrictions on chart routes.
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	chartRoutes := chartRoutesFn(chartAuthMiddleware)
 	return chartSvc, chartRoutes
 }
 
 // initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
-// - S3 in cloud
-// - local filesystem on-prem (rooted at FLEET_ORG_LOGO_STORE_DIR, falling back to os.TempDir()).
-func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *slog.Logger) fleet.OrgLogoStore {
+//   - S3 when a software installers bucket is configured (shared bucket, distinct prefix)
+//   - otherwise a database-backed store, so custom org logos work without object storage or a writable filesystem.
+func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
 	if s3Config.SoftwareInstallersBucket != "" {
 		store, err := s3.NewOrgLogoStore(s3Config)
 		if err != nil {
@@ -1628,18 +1234,8 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 		logger.InfoContext(ctx, "using S3 org logo store", "bucket", s3Config.SoftwareInstallersBucket)
 		return store
 	}
-	logoDir := os.Getenv("FLEET_ORG_LOGO_STORE_DIR")
-	if logoDir == "" {
-		logoDir = os.TempDir()
-	}
-	store, err := filesystem.NewOrgLogoStore(logoDir)
-	if err != nil {
-		initFatal(err, "initializing filesystem org logo store")
-	}
-	logger.InfoContext(ctx,
-		"using local filesystem org logo store, this is not suitable for production use",
-		"directory", logoDir)
-	return store
+	logger.InfoContext(ctx, "using database org logo store")
+	return ds.NewOrgLogoStore()
 }
 
 func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
@@ -1711,7 +1307,7 @@ func printFleetv4732FixNeededMessage() {
 func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
 	if devLicense {
 		// This license key is valid for development only
-		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzgyNzc3NjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCwgSW5jLiBEZXZlbG9wZXIiLCJkZXZpY2VzIjoxMDAwLCJub3RlIjoiQ3JlYXRlZCB3aXRoIEZsZWV0IExpY2Vuc2Uga2V5IGRpc3BlbnNlciIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzY3MjAzODg2fQ.X9O3CXJOzIfgkzlXgL45iBaSvAbZyQn4UjcvH_gEXJGIQw0xMW4r3tJBSEuUqQXoaQnADVR1Oocfp6j_hMZX0A"
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzk4NTk3MDU1LCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMDAsIm5vdGUiOiJmb3IgZGV2ZWxvcG1lbnQgb25seSIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzgyODI5MDU1fQ.SCwrVBV3fIb7JSS5tOLx0EmlyS6m20h34C9WOW1RqlLf009gEldWk2eO3ma8caW5_te4aEbjcvTBDeIkvM7NIA"
 	} else if devExpiredLicense {
 		// An expired license key
 		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -1757,12 +1353,14 @@ func getTLSConfig(profile string) *tls.Config {
 	switch profile {
 	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1774,12 +1372,14 @@ func getTLSConfig(profile string) *tls.Config {
 		)
 	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
-		cfg.CurvePreferences = append(cfg.CurvePreferences,
+		cfg.CurvePreferences = append(
+			cfg.CurvePreferences,
 			tls.X25519,
 			tls.CurveP256,
 			tls.CurveP384,
 		)
-		cfg.CipherSuites = append(cfg.CipherSuites,
+		cfg.CipherSuites = append(
+			cfg.CipherSuites,
 			tls.TLS_AES_128_GCM_SHA256,
 			tls.TLS_AES_256_GCM_SHA384,
 			tls.TLS_CHACHA20_POLY1305_SHA256,
@@ -1884,6 +1484,12 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
+// useS3DevConfig determines usage of local S3 test buckets for software and carve storage.
+// By default, they are allowed unless explicitly disabled by setting FLEET_DEV_SKIP_S3_CONFIG to "1".
+func useS3DevConfig() bool {
+	return dev_mode.Env("FLEET_DEV_SKIP_S3_CONFIG") != "1"
+}
+
 func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
@@ -1891,7 +1497,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := softwareInstallerStore.CreateTestBucket(ctx, config.S3.SoftwareInstallersBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test software installer bucket",
+		logger.InfoContext(
+			ctx, "failed to create test software installer bucket",
 			"err", err,
 			"name", config.S3.SoftwareInstallersBucket,
 		)
@@ -1902,7 +1509,8 @@ func createTestBuckets(ctx context.Context, config *configpkg.FleetConfig, logge
 	}
 	if err := carveStore.CreateTestBucket(ctx, config.S3.CarvesBucket); err != nil {
 		// Don't panic, allow devs to run Fleet without S3 dependency.
-		logger.InfoContext(ctx, "failed to create test carve bucket",
+		logger.InfoContext(
+			ctx, "failed to create test carve bucket",
 			"err", err,
 			"name", config.S3.CarvesBucket,
 		)

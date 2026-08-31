@@ -14,7 +14,9 @@ Fleetd is a bundle of agents provided by Fleet to gather information about your 
 - **Fleetd Chrome extension:** enrolls ChromeOS devices in Fleet. [Docs](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ## Fleet Desktop
-Fleet Desktop is a menu bar icon that gives end users visibility into the security and status of their machine. [Docs](https://fleetdm.com/docs/using-fleet/fleet-desktop).
+Fleet Desktop is a menu bar icon that's automatically deployed as part of fleetd. Fleet Desktop gives end users visibility into the security and status of their machine. [Docs](https://fleetdm.com/docs/using-fleet/fleet-desktop).
+
+For macOS, you can optionally deploy the Fleet Desktop app. [Learn more](https://fleetdm.com/guides/fleet-desktop). 
 
 ## Host
 A host is a computer, server, or other endpoint. Fleet gathers information from Fleet's agent (fleetd) installed on each of your hosts. [Docs](https://fleetdm.com/docs/using-fleet/adding-hosts).

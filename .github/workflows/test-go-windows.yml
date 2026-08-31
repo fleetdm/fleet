@@ -23,7 +23,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -60,6 +60,7 @@ jobs:
             "./orbit/pkg/bitlocker/..."
             "./orbit/pkg/keystore/..."
             "./orbit/pkg/platform/..."
+            "./orbit/pkg/table/ai_tools/..."
             "./orbit/pkg/table/bitlocker_key_protectors/..."
             "./orbit/pkg/table/cis_audit/..."
             "./orbit/pkg/table/windowsupdatetable/..."
@@ -74,7 +75,7 @@ jobs:
 
       - name: Upload test logs
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-go-test-logs
           path: ${{ runner.temp }}\gotest.log
