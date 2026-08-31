@@ -1407,7 +1407,7 @@ When `true` (default), the `Authorization: NodeKey` header is ignored entirely a
 
 When `false`, the `Authorization: NodeKey` header is required and the body's `node_key` field is not consulted. The HTTP-level pre-auth middleware rejects requests with absent or invalid headers BEFORE the request body is read. On `/api/osquery/carve/block` the same pre-auth additionally enforces that the carve's `host_id` matches the authenticated host.
 
-- Default value: `true`
+- Default value: `false`
 - Environment variable: `FLEET_OSQUERY_ALLOW_BODY_AUTH_FALLBACK`
 - Config file format:
   ```yaml
@@ -1423,7 +1423,7 @@ When enabled, an agent that sends an `"etag"` field in its config request body r
 
 Setting this to `false` is the escape hatch that disables the feature entirely: the request's etag field is ignored, every response is the full config with no `"etag"` key — byte-identical to the behavior before this feature existed for every agent — and no ETag store I/O happens. This is broader than `osquery_redis_config_etags` below, which only disables the Redis short circuit while leaving conditional requests active.
 
-- Default value: `true`
+- Default value: `false`
 - Environment variable: `FLEET_OSQUERY_CONFIG_ETAGS`
 - Config file format:
   ```yaml
