@@ -452,11 +452,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		}
 
 		enqueueCmdCases := []struct {
-			desc              string
-			user              *fleet.User
-			uuids             []string
-			wantEnqueued      []string // UUIDs expected to be enqueued and get an activity
-			shoudFailWithAuth bool
+			desc               string
+			user               *fleet.User
+			uuids              []string
+			wantEnqueued       []string // UUIDs expected to be enqueued and get an activity
+			shouldFailWithAuth bool
 		}{
 			{"no role", test.UserNoRoles, []string{"host1", "host2", "host3", "host4"}, nil, true},
 			{"maintainer can run", test.UserMaintainer, []string{"host1", "host2", "host3", "host4"}, []string{"host1", "host2", "host3", "host4"}, false},
@@ -477,11 +477,9 @@ func TestAppleMDMAuthorization(t *testing.T) {
 				enqueuedIDs, activityHostUUIDs = nil, nil
 				ctx = test.UserContext(ctx, c.user)
 				_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
-				checkAuthErr(t, err, c.shoudFailWithAuth)
-				if !c.shoudFailWithAuth {
-					require.ElementsMatch(t, c.wantEnqueued, enqueuedIDs)
-					require.ElementsMatch(t, c.wantEnqueued, activityHostUUIDs)
-				}
+				checkAuthErr(t, err, c.shouldFailWithAuth)
+				require.ElementsMatch(t, c.wantEnqueued, enqueuedIDs)
+				require.ElementsMatch(t, c.wantEnqueued, activityHostUUIDs)
 			})
 		}
 
@@ -550,10 +548,10 @@ func TestAppleMDMAuthorization(t *testing.T) {
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
 		cmdResultsCases := []struct {
-			desc              string
-			user              *fleet.User
-			cmdUUID           string
-			shoudFailWithAuth bool
+			desc               string
+			user               *fleet.User
+			cmdUUID            string
+			shouldFailWithAuth bool
 		}{
 			{"no role", test.UserNoRoles, "uuidTm1", true},
 			{"maintainer can view", test.UserMaintainer, "uuidTm1", false},
@@ -593,11 +591,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
 				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
-				checkAuthErr(t, err, c.shoudFailWithAuth)
+				checkAuthErr(t, err, c.shouldFailWithAuth)
 
 				// TODO(sarah): move test to shared file
 				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "")
-				checkAuthErr(t, err, c.shoudFailWithAuth)
+				checkAuthErr(t, err, c.shouldFailWithAuth)
 			})
 		}
 	})
