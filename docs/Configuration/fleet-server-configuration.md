@@ -1407,7 +1407,7 @@ When `true` (default), the `Authorization: NodeKey` header is ignored entirely a
 
 When `false`, the `Authorization: NodeKey` header is required and the body's `node_key` field is not consulted. The HTTP-level pre-auth middleware rejects requests with absent or invalid headers BEFORE the request body is read. On `/api/osquery/carve/block` the same pre-auth additionally enforces that the carve's `host_id` matches the authenticated host.
 
-- Default value: `false`
+- Default value: `true`
 - Environment variable: `FLEET_OSQUERY_ALLOW_BODY_AUTH_FALLBACK`
 - Config file format:
   ```yaml
@@ -1441,7 +1441,7 @@ The short circuit is automatically bypassed — falling back to a normal full co
 
 When disabled, every config request takes the full-build path, identical to the behavior before this feature existed — use this to A/B test the feature or to rule it out when debugging config delivery.
 
-- Default value: `true`
+- Default value: `false`
 - Environment variable: `FLEET_OSQUERY_REDIS_CONFIG_ETAGS`
 - Config file format:
   ```yaml
