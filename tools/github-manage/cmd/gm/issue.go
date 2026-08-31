@@ -17,7 +17,7 @@ var issuesCmd = &cobra.Command{
 			fmt.Printf("Error getting search flag: %v\n", err)
 			return
 		}
-		tui.RunTUI(tui.IssuesCommand, 0, 0, search)
+		tui.RunTUI(tui.IssuesCommand, 0, 0, search, false, "")
 	},
 }
 

@@ -3265,6 +3265,7 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 		Value: new("Engineering"),
 	})
 	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
 
 	newIDPLabel := func(name string, teamID *uint) *fleet.Label {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{
@@ -3272,7 +3273,7 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 			TeamID:              teamID,
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+			HostVitalsCriteria:  &raw,
 		})
 		require.NoError(t, err)
 		return lbl
@@ -3355,6 +3356,7 @@ func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Da
 		CustomHostVitalID: &vitalA.ID,
 	})
 	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
 
 	newCHVLabel := func(name string, teamID *uint) *fleet.Label {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{
@@ -3362,7 +3364,7 @@ func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Da
 			TeamID:              teamID,
 			LabelType:           fleet.LabelTypeRegular,
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+			HostVitalsCriteria:  &raw,
 		})
 		require.NoError(t, err)
 		return lbl

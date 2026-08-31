@@ -4685,7 +4685,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "A team"})
 	require.NoError(t, err)
-	teamID := new(team.ID)
+	teamID := &team.ID
 	teamHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -6827,7 +6827,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 			CVSSScore:        new(float64(7.5)),
 			EPSSProbability:  new(float64(0.5)),
 			CISAKnownExploit: new(true),
-			Published:        new(mockTime),
+			Published:        &mockTime,
 			Description:      "Test CVE 2021-1234",
 		},
 		{
@@ -35322,7 +35322,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "fma_scope_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma_scope.pkg",
 		Title:                t.Name() + " App",
 		Version:              "1.0",

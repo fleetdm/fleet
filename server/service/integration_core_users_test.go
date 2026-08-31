@@ -387,7 +387,7 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	params := fleet.UserPayload{
 		Name:       new("Gonna B Deleted"),
 		Email:      new("goingto@delete.com"),
-		Password:   new(userRawPwd),
+		Password:   &userRawPwd,
 		GlobalRole: new(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
@@ -734,7 +734,7 @@ func (s *integrationTestSuite) TestInvites() {
 		Name:        new("Full Name"),
 		Password:    new(test.GoodPassword),
 		Email:       new(inv.Email),
-		InviteToken: new(deletedInviteToken),
+		InviteToken: &deletedInviteToken,
 	}, http.StatusNotFound, &createFromInviteResp)
 }
 
@@ -771,7 +771,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Name:        new(""),
 				Password:    &test.GoodPassword,
 				Email:       new("a@b.c"),
-				InviteToken: new(invite.Token),
+				InviteToken: &invite.Token,
 			},
 			http.StatusUnprocessableEntity,
 		},
@@ -781,7 +781,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Name:        new("Name"),
 				Password:    &test.GoodPassword,
 				Email:       new(""),
-				InviteToken: new(invite.Token),
+				InviteToken: &invite.Token,
 			},
 			http.StatusUnprocessableEntity,
 		},
@@ -791,7 +791,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Name:        new("Name"),
 				Password:    new(""),
 				Email:       new("a@b.c"),
-				InviteToken: new(invite.Token),
+				InviteToken: &invite.Token,
 			},
 			http.StatusUnprocessableEntity,
 		},
@@ -821,7 +821,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Name:        new("Name"),
 				Password:    new("password"), // no number or symbol
 				Email:       new("a@b.c"),
-				InviteToken: new(invite.Token),
+				InviteToken: &invite.Token,
 			},
 			http.StatusUnprocessableEntity,
 		},
@@ -831,7 +831,7 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Name:         new("Name"),
 				Password:     &test.GoodPassword,
 				Email:        new("a@b.c"),
-				InviteToken:  new(invite.Token),
+				InviteToken:  &invite.Token,
 				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 			},
 			http.StatusUnprocessableEntity,
@@ -880,7 +880,7 @@ func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
 			Name:        new("Attacker"),
 			Email:       new(email),
 			Password:    &test.GoodPassword,
-			InviteToken: new(invite.Token),
+			InviteToken: &invite.Token,
 		}, http.StatusUnprocessableEntity, &resp)
 
 		// no user should have been created
@@ -900,7 +900,7 @@ func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
 			Email:       new(email),
 			Password:    new(""),
 			SSOInvite:   new(true),
-			InviteToken: new(invite.Token),
+			InviteToken: &invite.Token,
 		}, http.StatusUnprocessableEntity, &resp)
 
 		_, err := s.ds.UserByEmail(ctx, email)
@@ -917,7 +917,7 @@ func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
 			Name:        new("SSO User"),
 			Email:       new(email),
 			SSOInvite:   new(true),
-			InviteToken: new(invite.Token),
+			InviteToken: &invite.Token,
 		}, http.StatusOK, &resp)
 		require.NotNil(t, resp.User)
 		require.True(t, resp.User.SSOEnabled)
@@ -935,7 +935,7 @@ func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
 			Name:        new("No Password"),
 			Email:       new(email),
 			SSOInvite:   new(true),
-			InviteToken: new(invite.Token),
+			InviteToken: &invite.Token,
 		}, http.StatusUnprocessableEntity, &resp)
 
 		_, err := s.ds.UserByEmail(ctx, email)
@@ -955,7 +955,7 @@ func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
 			Email:       new(email),
 			Password:    new("weak"), // too short, no number or symbol
 			SSOInvite:   new(true),
-			InviteToken: new(invite.Token),
+			InviteToken: &invite.Token,
 		}, http.StatusUnprocessableEntity, &resp)
 
 		_, err := s.ds.UserByEmail(ctx, email)
@@ -1415,12 +1415,12 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// as the user: set new password without providing current one
 	newRawPwd := test.GoodPassword2
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: new(newRawPwd),
+		NewPassword: &newRawPwd,
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as the user: set new password with an invalid current password
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: new(newRawPwd),
+		NewPassword: &newRawPwd,
 		Password:    new("nosuchpwd"),
 	}, http.StatusForbidden, &modResp)
 
@@ -1440,7 +1440,7 @@ func (s *integrationTestSuite) TestModifyUser() {
 	// any other user that is not admin cannot change another user's password)
 	newRawPwd = userRawPwd + "3"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
-		NewPassword: new(newRawPwd),
+		NewPassword: &newRawPwd,
 		Password:    new(testUsers["user2"].PlaintextPassword),
 	}, http.StatusForbidden, &modResp)
 
@@ -1451,7 +1451,7 @@ func (s *integrationTestSuite) TestModifyUser() {
 	modResp = modifyUserResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
 		SSOEnabled:  new(false),
-		NewPassword: new(newRawPwd),
+		NewPassword: &newRawPwd,
 		Email:       new("moduser3@example.com"),
 		Name:        new("moduser3"),
 	}, http.StatusOK, &modResp)

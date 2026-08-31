@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.2.290.1948",
+      "version": "1.2.291.1949",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Grammarly for Windows' AND publisher = 'Grammarly Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Grammarly for Windows' AND publisher = 'Grammarly Inc.' AND version_compare(version, '1.2.290.1948') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Grammarly for Windows' AND publisher = 'Grammarly Inc.' AND version_compare(version, '1.2.291.1949') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'grammarly desktop.exe');"
       },
-      "installer_url": "https://download-windows.grammarly.com/versions/1.2.290.1948/GrammarlyInstaller.exe",
+      "installer_url": "https://download-windows.grammarly.com/versions/1.2.291.1949/GrammarlyInstaller.exe",
       "install_script_ref": "d8c4db10",
       "uninstall_script_ref": "4314e220",
-      "sha256": "34143a1e7af8f49a5e1e2e525413cf184e172551cf1e2ae3849d66f206f3f3f9",
+      "sha256": "b2dc32aceefb8bf3f78f0b586021c2f0615db0466d648ee0fbd46d0702d1bc80",
       "default_categories": [
         "Productivity"
       ]

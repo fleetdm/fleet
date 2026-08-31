@@ -37,8 +37,9 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
-var addHostMDMCommandsBatchSize = 10000
+// hostMDMCommandsBatchSize bounds the rows per statement when inserting or deleting host MDM
+// commands. This is a var so that it can be modified in tests.
+var hostMDMCommandsBatchSize = 10000
 
 func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var uuid string
@@ -7008,37 +7009,42 @@ WHERE
 }
 
 func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
+	if len(commands) == 0 {
+		return nil
+	}
+
 	const baseStmt = `
 		INSERT INTO host_mdm_commands (host_id, command_type)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		command_type = VALUES(command_type)`
 
-	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
-		start := i
-		end := i + hostIssuesInsertBatchSize
-		if end > len(commands) {
-			end = len(commands)
-		}
-		totalToProcess := end - start
-		const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?),", totalToProcess), ",",
-		)
-		stmt := fmt.Sprintf(baseStmt, values)
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerInsert)
-		for j := start; j < end; j++ {
-			item := commands[j]
-			args = append(
-				args, item.HostID, item.CommandType,
+	// All batches commit together: callers track commands before enqueueing
+	// them, so a partially applied insert would leave rows for commands that
+	// were never sent.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for i := 0; i < len(commands); i += hostMDMCommandsBatchSize {
+			start := i
+			end := min(i+hostMDMCommandsBatchSize, len(commands))
+			totalToProcess := end - start
+			const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
+			values := strings.TrimSuffix(
+				strings.Repeat("(?,?),", totalToProcess), ",",
 			)
+			stmt := fmt.Sprintf(baseStmt, values)
+			args := make([]any, 0, totalToProcess*numberOfArgsPerInsert)
+			for j := start; j < end; j++ {
+				item := commands[j]
+				args = append(
+					args, item.HostID, item.CommandType,
+				)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
+			}
 		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert into host_mdm_commands")
-		}
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
@@ -7057,6 +7063,27 @@ func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.Hos
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
 	}
 	return nil
+}
+
+func (ds *Datastore) RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+	// Batched so the IN list stays under MySQL's 65,535 placeholder limit.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return common_mysql.BatchProcessSimple(hostIDs, hostMDMCommandsBatchSize, func(batch []uint) error {
+			stmt, args, err := sqlx.In(`
+				DELETE FROM host_mdm_commands
+				WHERE host_id IN (?) AND command_type = ?`, batch, commandType)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete from host_mdm_commands")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "batch delete from host_mdm_commands")
+			}
+			return nil
+		})
+	})
 }
 
 func (ds *Datastore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error {
