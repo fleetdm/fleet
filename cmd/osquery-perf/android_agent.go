@@ -49,13 +49,30 @@ type androidAgent struct {
 	orbitNodeKey         string // obtained from orbit enrollment, used for certificate API auth
 
 	// Hardware details
-	brand    string
-	model    string
-	hardware string
+	brand        string
+	model        string
+	hardware     string
+	manufacturer string
 
 	// Software
-	androidVersion     string
-	androidBuildNumber string
+	androidVersion      string
+	androidBuildNumber  string
+	apiLevel            int64
+	securityPatchLevel  string
+	deviceKernelVersion string
+	bootloaderVersion   string
+	systemUpdateStatus  string
+
+	// Device settings, security posture and SIM cards. Fleet stores these as host
+	// vitals, and they describe the device rather than the moment, so they are
+	// generated once and reported identically by every message.
+	adbEnabled        bool
+	deviceSecure      bool
+	verifyAppsEnabled bool
+	encryptionStatus  string
+	securityPosture   string
+	postureDetails    []*androidmanagement.PostureDetail
+	telephonyInfos    []*androidmanagement.TelephonyInfo
 
 	// Memory
 	totalRAM             int64
@@ -137,6 +154,175 @@ var androidApps = []struct {
 	{"LastPass", "com.lastpass.lpandroid", "5.21.0.13562"},
 }
 
+// androidManufacturers maps a brand to the Build.MANUFACTURER value real devices
+// of that brand report, which is not always the brand itself.
+var androidManufacturers = map[string]string{
+	"Google":   "Google",
+	"Samsung":  "samsung",
+	"OnePlus":  "OnePlus",
+	"Motorola": "motorola",
+	"Nokia":    "HMD Global",
+}
+
+// androidAPILevels maps the Android release to its SDK level, which AMAPI reports
+// alongside the version.
+var androidAPILevels = map[string]int64{
+	"13": 33,
+	"14": 34,
+	"15": 35,
+}
+
+// androidKernelBases maps the Android release to the Linux kernel line it ships on.
+var androidKernelBases = map[string]string{
+	"13": "5.15",
+	"14": "6.1",
+	"15": "6.6",
+}
+
+// androidSecurityPatchLevels is a small fixed set rather than a freely generated
+// date because Fleet folds the security patch level into hosts.os_version: a
+// distinct value per device would inflate the os_versions aggregation to one row
+// per host, which no real fleet looks like.
+var androidSecurityPatchLevels = []string{"2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01"}
+
+var androidCarriers = []string{"Verizon", "AT&T", "T-Mobile", "Vodafone", "Rogers", "Orange", "Telefonica"}
+
+// generateDeviceVitals produces the device-describing vitals AMAPI reports for a
+// single device: settings, software versions, security posture and SIM cards. The
+// distributions are weighted so a simulated fleet is mostly healthy with a
+// realistic minority of devices that are out of date, insecure or compromised —
+// the aggregate shape matters more than any one device.
+func (a *androidAgent) generateDeviceVitals() {
+	a.manufacturer = androidManufacturers[a.brand]
+	a.apiLevel = androidAPILevels[a.androidVersion]
+	a.securityPatchLevel = androidSecurityPatchLevels[rand.IntN(len(androidSecurityPatchLevels))] // #nosec G404 -- load testing only
+	// e.g. "6.6.42-android15-11-gb1c0ffee1234", the format Android kernels report.
+	a.deviceKernelVersion = fmt.Sprintf("%s.%d-android%s-%d-g%s",
+		androidKernelBases[a.androidVersion], rand.IntN(100), a.androidVersion, 1+rand.IntN(30), randomHexString(12)) // #nosec G404 -- load testing only
+	a.bootloaderVersion = fmt.Sprintf("%s-%s.0-%d", a.hardware, a.androidVersion, 10000000+rand.IntN(9000000)) // #nosec G404 -- load testing only
+
+	// Almost every managed device is encrypted; ACTIVE_PER_USER is what modern
+	// file-based encryption reports, ACTIVE what older full-disk encryption does.
+	a.encryptionStatus = "ACTIVE_PER_USER"
+	if rand.Float64() < 0.1 { // #nosec G404 -- load testing only
+		a.encryptionStatus = "ACTIVE"
+	}
+	a.adbEnabled = rand.Float64() < 0.05       // #nosec G404 -- load testing only
+	a.deviceSecure = rand.Float64() < 0.95     // #nosec G404 -- load testing only
+	a.verifyAppsEnabled = rand.Float64() < 0.9 // #nosec G404 -- load testing only
+	a.systemUpdateStatus = weightedChoice([]weightedValue{
+		{"UP_TO_DATE", 0.7},
+		{"SECURITY_UPDATE_AVAILABLE", 0.15},
+		{"OS_UPDATE_AVAILABLE", 0.1},
+		{"UNKNOWN_UPDATE_AVAILABLE", 0.05},
+	})
+
+	a.securityPosture = weightedChoice([]weightedValue{
+		{"SECURE", 0.85},
+		{"AT_RISK", 0.1},
+		{"POTENTIALLY_COMPROMISED", 0.05},
+	})
+	// AMAPI only attaches posture details to a device that is not secure.
+	switch a.securityPosture {
+	case "AT_RISK":
+		risk := "UNKNOWN_OS"
+		advice := "This device is running an unrecognized version of Android. Update it to a certified build."
+		if rand.Float64() < 0.5 { // #nosec G404 -- load testing only
+			risk = "HARDWARE_BACKED_EVALUATION_FAILED"
+			advice = "This device does not support hardware-backed integrity checks. Replace it with a device that does."
+		}
+		a.postureDetails = []*androidmanagement.PostureDetail{{
+			SecurityRisk: risk,
+			Advice:       []*androidmanagement.UserFacingMessage{{DefaultMessage: advice}},
+		}}
+	case "POTENTIALLY_COMPROMISED":
+		a.postureDetails = []*androidmanagement.PostureDetail{{
+			SecurityRisk: "COMPROMISED_OS",
+			Advice: []*androidmanagement.UserFacingMessage{
+				{DefaultMessage: "This device is running a modified version of Android. Factory reset it."},
+			},
+		}}
+	}
+
+	a.telephonyInfos = generateTelephonyInfos()
+}
+
+// generateTelephonyInfos builds the SIM cards a device reports. Most devices have
+// one, and a dual-SIM device pairs its physical SIM with an eSIM. Only eSIMs
+// report an activation state and config mode; a physical SIM reports the
+// *_UNSPECIFIED sentinels, which Fleet stores as no value at all.
+func generateTelephonyInfos() []*androidmanagement.TelephonyInfo {
+	simCount := 1
+	if rand.Float64() < 0.3 { // #nosec G404 -- load testing only
+		simCount = 2
+	}
+
+	infos := make([]*androidmanagement.TelephonyInfo, 0, simCount)
+	for i := 0; i < simCount; i++ {
+		// The first SIM is usually physical; a second one is always an eSIM.
+		eSIM := i > 0 || rand.Float64() < 0.4 // #nosec G404 -- load testing only
+		info := &androidmanagement.TelephonyInfo{
+			PhoneNumber:     "+1" + randomDigits(10),
+			CarrierName:     androidCarriers[rand.IntN(len(androidCarriers))], // #nosec G404 -- load testing only
+			IccId:           "89" + randomDigits(17),
+			ActivationState: "ACTIVATION_STATE_UNSPECIFIED",
+			ConfigMode:      "CONFIG_MODE_UNSPECIFIED",
+		}
+		if eSIM {
+			info.ActivationState = "ACTIVATED"
+			if rand.Float64() < 0.05 { // #nosec G404 -- load testing only
+				info.ActivationState = "NOT_ACTIVATED"
+			}
+			info.ConfigMode = "ADMIN_CONFIGURED"
+			if rand.Float64() < 0.3 { // #nosec G404 -- load testing only
+				info.ConfigMode = "USER_CONFIGURED"
+			}
+		}
+		infos = append(infos, info)
+	}
+	return infos
+}
+
+// weightedValue is one option of weightedChoice, with the fraction of devices
+// that should get it.
+type weightedValue struct {
+	value  string
+	weight float64
+}
+
+// weightedChoice picks one value according to its weight. The weights are
+// expected to sum to 1; the last value absorbs any rounding shortfall.
+func weightedChoice(values []weightedValue) string {
+	roll := rand.Float64() // #nosec G404 -- load testing only
+	var cumulative float64
+	for _, v := range values {
+		cumulative += v.weight
+		if roll < cumulative {
+			return v.value
+		}
+	}
+	return values[len(values)-1].value
+}
+
+func randomDigits(n int) string {
+	sb := strings.Builder{}
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		sb.WriteByte(byte('0' + rand.IntN(10))) // #nosec G404 -- load testing only
+	}
+	return sb.String()
+}
+
+func randomHexString(n int) string {
+	const hexVals = "0123456789abcdef"
+	sb := strings.Builder{}
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		sb.WriteByte(hexVals[rand.IntN(len(hexVals))]) // #nosec G404 -- load testing only
+	}
+	return sb.String()
+}
+
 // newAndroidAgent creates a new Android device simulator.
 func newAndroidAgent(
 	agentIndex int,
@@ -190,7 +376,7 @@ func newAndroidAgent(
 	totalRAM := ramOptions[rand.IntN(len(ramOptions))] * 1024 * 1024 * 1024             // #nosec G404 -- load testing only
 	totalStorage := storageOptions[rand.IntN(len(storageOptions))] * 1024 * 1024 * 1024 // #nosec G404 -- load testing only
 
-	return &androidAgent{
+	agent := &androidAgent{
 		agentIndex:           agentIndex,
 		serverAddress:        serverAddress,
 		enrollSecret:         enrollSecret,
@@ -212,6 +398,10 @@ func newAndroidAgent(
 		statusReportInterval: statusReportInterval,
 		nonComplianceProb:    nonComplianceProb,
 	}
+	// Depends on the brand, hardware and Android version picked above.
+	agent.generateDeviceVitals()
+
+	return agent
 }
 
 // runLoop is the main loop for the Android agent.
@@ -491,11 +681,16 @@ func (a *androidAgent) lastKnownState(err error) (*proxyDeviceState, bool, error
 	return &stale, true, nil
 }
 
-// sendEnrollment sends an ENROLLMENT PubSub message to Fleet.
-func (a *androidAgent) sendEnrollment() error {
-	device := androidmanagement.Device{
+// deviceInfo builds the parts of the AMAPI device payload that describe the
+// device itself, which every message about it carries. Enrollment and status
+// reports must agree here: Fleet writes host vitals from both, so a section
+// present in one and absent from the other would make a host's vitals appear or
+// disappear as the messages arrive.
+func (a *androidAgent) deviceInfo() androidmanagement.Device {
+	return androidmanagement.Device{
 		Name:                a.deviceName,
 		Ownership:           "COMPANY_OWNED",
+		ApiLevel:            a.apiLevel,
 		EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, a.enrollSecret),
 		HardwareInfo: &androidmanagement.HardwareInfo{
 			EnterpriseSpecificId: a.enterpriseSpecificID,
@@ -503,52 +698,61 @@ func (a *androidAgent) sendEnrollment() error {
 			Brand:                a.brand,
 			Model:                a.model,
 			Hardware:             a.hardware,
+			Manufacturer:         a.manufacturer,
 		},
 		SoftwareInfo: &androidmanagement.SoftwareInfo{
-			AndroidVersion:     a.androidVersion,
-			AndroidBuildNumber: a.androidBuildNumber,
+			AndroidVersion:      a.androidVersion,
+			AndroidBuildNumber:  a.androidBuildNumber,
+			SecurityPatchLevel:  a.securityPatchLevel,
+			DeviceKernelVersion: a.deviceKernelVersion,
+			BootloaderVersion:   a.bootloaderVersion,
+			SystemUpdateInfo: &androidmanagement.SystemUpdateInfo{
+				UpdateStatus: a.systemUpdateStatus,
+			},
 		},
 		MemoryInfo: &androidmanagement.MemoryInfo{
 			TotalRam:             a.totalRAM,
 			TotalInternalStorage: a.totalInternalStorage,
 		},
 		MemoryEvents: a.generateMemoryEvents(),
+		DeviceSettings: &androidmanagement.DeviceSettings{
+			AdbEnabled:        a.adbEnabled,
+			IsDeviceSecure:    a.deviceSecure,
+			VerifyAppsEnabled: a.verifyAppsEnabled,
+			EncryptionStatus:  a.encryptionStatus,
+			// Sent unconditionally so a device reporting every setting as false
+			// still arrives as a populated deviceSettings rather than an absent
+			// one, which Fleet reads as "the policy doesn't collect this".
+			ForceSendFields: []string{"AdbEnabled", "IsDeviceSecure", "VerifyAppsEnabled"},
+		},
+		SecurityPosture: &androidmanagement.SecurityPosture{
+			DevicePosture:  a.securityPosture,
+			PostureDetails: a.postureDetails,
+		},
+		// AMAPI only reports telephonyInfos for a fully managed device, which
+		// every simulated device is (COMPANY_OWNED above).
+		NetworkInfo: &androidmanagement.NetworkInfo{
+			TelephonyInfos: a.telephonyInfos,
+		},
 	}
+}
 
-	return a.sendPubSubMessage(android.PubSubEnrollment, device)
+// sendEnrollment sends an ENROLLMENT PubSub message to Fleet.
+func (a *androidAgent) sendEnrollment() error {
+	return a.sendPubSubMessage(android.PubSubEnrollment, a.deviceInfo())
 }
 
 // sendStatusReport sends a STATUS_REPORT PubSub message to Fleet.
 func (a *androidAgent) sendStatusReport(state *proxyDeviceState) error {
 	now := time.Now().UTC()
 
-	device := androidmanagement.Device{
-		Name:         a.deviceName,
-		Ownership:    "COMPANY_OWNED",
-		AppliedState: "ACTIVE",
-		HardwareInfo: &androidmanagement.HardwareInfo{
-			EnterpriseSpecificId: a.enterpriseSpecificID,
-			SerialNumber:         a.serialNumber,
-			Brand:                a.brand,
-			Model:                a.model,
-			Hardware:             a.hardware,
-		},
-		SoftwareInfo: &androidmanagement.SoftwareInfo{
-			AndroidVersion:     a.androidVersion,
-			AndroidBuildNumber: a.androidBuildNumber,
-		},
-		MemoryInfo: &androidmanagement.MemoryInfo{
-			TotalRam:             a.totalRAM,
-			TotalInternalStorage: a.totalInternalStorage,
-		},
-		MemoryEvents:         a.generateMemoryEvents(),
-		ApplicationReports:   a.installedApps,
-		AppliedPolicyVersion: state.PolicyVersion,
-		AppliedPolicyName:    state.PolicyName,
-		LastPolicySyncTime:   now.Format(time.RFC3339),
-		LastStatusReportTime: now.Format(time.RFC3339),
-		EnrollmentTokenData:  fmt.Sprintf(`{"EnrollSecret": "%s"}`, a.enrollSecret),
-	}
+	device := a.deviceInfo()
+	device.AppliedState = "ACTIVE"
+	device.ApplicationReports = a.installedApps
+	device.AppliedPolicyVersion = state.PolicyVersion
+	device.AppliedPolicyName = state.PolicyName
+	device.LastPolicySyncTime = now.Format(time.RFC3339)
+	device.LastStatusReportTime = now.Format(time.RFC3339)
 
 	// Optionally add non-compliance details
 	nonCompliant := rand.Float64() < a.nonComplianceProb // #nosec G404 -- load testing only

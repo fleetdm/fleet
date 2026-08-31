@@ -1,15 +1,21 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 // fakeProxy is a stand-in for the android-amapi-mock coordination API.
@@ -359,4 +365,357 @@ func TestPollProxyStateClassifiesFailures(t *testing.T) {
 	require.NotErrorIs(t, err, errProxyDeviceUnknown, "only a 404 means the registration was lost")
 	require.NotErrorIs(t, err, errProxyDeviceDeleted, "only a 410 means the device was deleted")
 	assert.Contains(t, err.Error(), "429", "error should carry the status code")
+}
+
+// fakeFleet stands in for Fleet's PubSub push endpoint, capturing and decoding the
+// AMAPI device payloads the agent sends.
+type fakeFleet struct {
+	mu       sync.Mutex
+	messages []capturedMessage
+}
+
+type capturedMessage struct {
+	notificationType string
+	// raw is the decoded payload before unmarshalling, so a test can assert on
+	// what is actually on the wire and not just on what unmarshals back.
+	raw    []byte
+	device androidmanagement.Device
+}
+
+func (f *fakeFleet) server(t *testing.T) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/fleet/android_enterprise/pubsub", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Message android.PubSubMessage `json:"message"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		raw, err := base64.StdEncoding.DecodeString(body.Message.Data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		var device androidmanagement.Device
+		if err := json.Unmarshal(raw, &device); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		f.mu.Lock()
+		f.messages = append(f.messages, capturedMessage{
+			notificationType: body.Message.Attributes["notificationType"],
+			raw:              raw,
+			device:           device,
+		})
+		f.mu.Unlock()
+	})
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func (f *fakeFleet) captured() []capturedMessage {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]capturedMessage(nil), f.messages...)
+}
+
+// newVitalsTestAgent builds a fully generated agent pointed at fleetAddress, using
+// the real constructor so the generated vitals are the ones a load test would send.
+func newVitalsTestAgent(fleetAddress string) *androidAgent {
+	return newAndroidAgent(1, fleetAddress, "secret", "token", "http://proxy.invalid", "LC01", time.Minute, 5, 0, nil)
+}
+
+// Valid AMAPI enum members for each vitals field, as documented on
+// enterprises.devices. A value outside these sets would be stored verbatim by
+// Fleet and show up as garbage in the host vitals.
+var (
+	validEncryptionStatuses = []string{"UNSUPPORTED", "INACTIVE", "ACTIVATING", "ACTIVE", "ACTIVE_DEFAULT_KEY", "ACTIVE_PER_USER"}
+	validUpdateStatuses     = []string{"UP_TO_DATE", "UNKNOWN_UPDATE_AVAILABLE", "SECURITY_UPDATE_AVAILABLE", "OS_UPDATE_AVAILABLE"}
+	validPostures           = []string{"SECURE", "AT_RISK", "POTENTIALLY_COMPROMISED"}
+	validSecurityRisks      = []string{"UNKNOWN_OS", "COMPROMISED_OS", "HARDWARE_BACKED_EVALUATION_FAILED"}
+	validActivationStates   = []string{"ACTIVATION_STATE_UNSPECIFIED", "ACTIVATED", "NOT_ACTIVATED"}
+	validConfigModes        = []string{"CONFIG_MODE_UNSPECIFIED", "ADMIN_CONFIGURED", "USER_CONFIGURED"}
+)
+
+// assertVitalsReported checks that a device payload carries every section Fleet
+// reads host vitals from. A missing section is not an error Fleet can report — it
+// silently stores NULL — so the load test has to assert it here.
+func assertVitalsReported(t *testing.T, agent *androidAgent, device androidmanagement.Device) {
+	t.Helper()
+
+	assert.Equal(t, agent.apiLevel, device.ApiLevel, "api_level")
+	assert.Positive(t, device.ApiLevel, "an unreported api level stores as NULL")
+
+	require.NotNil(t, device.HardwareInfo, "manufacturer lives on hardwareInfo")
+	assert.Equal(t, agent.manufacturer, device.HardwareInfo.Manufacturer)
+	assert.NotEmpty(t, device.HardwareInfo.Manufacturer)
+
+	require.NotNil(t, device.SoftwareInfo, "kernel, bootloader and patch level live on softwareInfo")
+	assert.Equal(t, agent.securityPatchLevel, device.SoftwareInfo.SecurityPatchLevel)
+	assert.Equal(t, agent.deviceKernelVersion, device.SoftwareInfo.DeviceKernelVersion)
+	assert.Equal(t, agent.bootloaderVersion, device.SoftwareInfo.BootloaderVersion)
+	assert.NotEmpty(t, device.SoftwareInfo.SecurityPatchLevel)
+	assert.NotEmpty(t, device.SoftwareInfo.DeviceKernelVersion)
+	assert.NotEmpty(t, device.SoftwareInfo.BootloaderVersion)
+	require.NotNil(t, device.SoftwareInfo.SystemUpdateInfo, "system_update_status")
+	assert.Contains(t, validUpdateStatuses, device.SoftwareInfo.SystemUpdateInfo.UpdateStatus)
+
+	require.NotNil(t, device.DeviceSettings, "adb, passcode, Play Protect and encryption")
+	assert.Equal(t, agent.adbEnabled, device.DeviceSettings.AdbEnabled)
+	assert.Equal(t, agent.deviceSecure, device.DeviceSettings.IsDeviceSecure)
+	assert.Equal(t, agent.verifyAppsEnabled, device.DeviceSettings.VerifyAppsEnabled)
+	assert.Contains(t, validEncryptionStatuses, device.DeviceSettings.EncryptionStatus)
+
+	require.NotNil(t, device.SecurityPosture, "security_posture")
+	assert.Contains(t, validPostures, device.SecurityPosture.DevicePosture)
+
+	require.NotNil(t, device.NetworkInfo, "telephony_infos")
+	require.NotEmpty(t, device.NetworkInfo.TelephonyInfos)
+	assert.Equal(t, "COMPANY_OWNED", device.Ownership, "Fleet drops telephony info for a personally owned device")
+}
+
+// TestStatusReportIncludesHostVitals is the load-test counterpart of Fleet's
+// androidDeviceVitals extraction: a status report that omits any of these sections
+// leaves the host vitals columns NULL, so a load test would never exercise them.
+func TestStatusReportIncludesHostVitals(t *testing.T) {
+	fleetPubSub := &fakeFleet{}
+	srv := fleetPubSub.server(t)
+	agent := newVitalsTestAgent(srv.URL)
+
+	state := testState()
+	require.NoError(t, agent.sendStatusReport(&state))
+
+	messages := fleetPubSub.captured()
+	require.Len(t, messages, 1)
+	assert.Equal(t, string(android.PubSubStatusReport), messages[0].notificationType)
+
+	device := messages[0].device
+	assertVitalsReported(t, agent, device)
+
+	// The status-report-only fields must survive the shared payload refactor.
+	assert.Equal(t, "ACTIVE", device.AppliedState)
+	assert.Equal(t, state.PolicyVersion, device.AppliedPolicyVersion)
+	assert.Equal(t, state.PolicyName, device.AppliedPolicyName)
+	assert.NotEmpty(t, device.LastStatusReportTime)
+	assert.NotEmpty(t, device.LastPolicySyncTime)
+	assert.Len(t, device.ApplicationReports, 5)
+	assert.Contains(t, device.EnrollmentTokenData, "secret")
+}
+
+// TestEnrollmentIncludesHostVitals covers the other write path: Fleet also stores
+// vitals when it first creates the host from an ENROLLMENT message, and the two
+// payloads must agree or a host's vitals would change on its first status report.
+func TestEnrollmentIncludesHostVitals(t *testing.T) {
+	fleetPubSub := &fakeFleet{}
+	srv := fleetPubSub.server(t)
+	agent := newVitalsTestAgent(srv.URL)
+
+	require.NoError(t, agent.sendEnrollment())
+	state := testState()
+	require.NoError(t, agent.sendStatusReport(&state))
+
+	messages := fleetPubSub.captured()
+	require.Len(t, messages, 2)
+	assert.Equal(t, string(android.PubSubEnrollment), messages[0].notificationType)
+
+	enrolled, reported := messages[0].device, messages[1].device
+	assertVitalsReported(t, agent, enrolled)
+	assert.Contains(t, enrolled.EnrollmentTokenData, "secret", "the enroll secret is how Fleet finds the team")
+
+	assert.Equal(t, enrolled.ApiLevel, reported.ApiLevel)
+	assert.Equal(t, enrolled.HardwareInfo, reported.HardwareInfo)
+	assert.Equal(t, enrolled.SoftwareInfo, reported.SoftwareInfo)
+	assert.Equal(t, enrolled.DeviceSettings, reported.DeviceSettings)
+	assert.Equal(t, enrolled.SecurityPosture, reported.SecurityPosture)
+	assert.Equal(t, enrolled.NetworkInfo, reported.NetworkInfo)
+}
+
+// TestDeviceSettingsBooleansAlwaysOnTheWire guards the ForceSendFields on
+// DeviceSettings. Without them Go's omitempty drops every false boolean, so a
+// device with ADB off, no passcode and Play Protect off would send
+// "deviceSettings":{} — which unmarshals the same way for Fleet, but no longer
+// resembles what AMAPI actually pushes.
+func TestDeviceSettingsBooleansAlwaysOnTheWire(t *testing.T) {
+	fleetPubSub := &fakeFleet{}
+	srv := fleetPubSub.server(t)
+	agent := newVitalsTestAgent(srv.URL)
+	agent.adbEnabled = false
+	agent.deviceSecure = false
+	agent.verifyAppsEnabled = false
+
+	require.NoError(t, agent.sendEnrollment())
+
+	messages := fleetPubSub.captured()
+	require.Len(t, messages, 1)
+	payload := string(messages[0].raw)
+	assert.Contains(t, payload, `"adbEnabled":false`)
+	assert.Contains(t, payload, `"isDeviceSecure":false`)
+	assert.Contains(t, payload, `"verifyAppsEnabled":false`)
+
+	// And Fleet still reads them back as the false values they are.
+	require.NotNil(t, messages[0].device.DeviceSettings)
+	assert.False(t, messages[0].device.DeviceSettings.AdbEnabled)
+	assert.False(t, messages[0].device.DeviceSettings.IsDeviceSecure)
+	assert.False(t, messages[0].device.DeviceSettings.VerifyAppsEnabled)
+}
+
+// TestGenerateDeviceVitalsAcrossFleet checks the generated values across many
+// devices: each one has to be internally consistent, and the fleet as a whole has
+// to cover the branches Fleet's extraction treats differently — a secure device
+// vs. one with posture details, and an eSIM vs. a physical SIM whose
+// *_UNSPECIFIED enums Fleet blanks out.
+func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
+	const deviceCount = 400
+
+	var (
+		postures       = map[string]int{}
+		updateStatuses = map[string]int{}
+		activations    = map[string]int{}
+		configModes    = map[string]int{}
+		dualSIM        int
+		adbEnabled     int
+		insecure       int
+	)
+
+	for i := 0; i < deviceCount; i++ {
+		agent := newVitalsTestAgent("http://fleet.invalid")
+
+		assert.Equal(t, androidManufacturers[agent.brand], agent.manufacturer)
+		assert.NotEmpty(t, agent.manufacturer, "brand %q has no manufacturer mapping", agent.brand)
+		assert.Equal(t, androidAPILevels[agent.androidVersion], agent.apiLevel)
+		assert.Positive(t, agent.apiLevel, "Android %q has no API level mapping", agent.androidVersion)
+
+		assert.Contains(t, androidSecurityPatchLevels, agent.securityPatchLevel)
+		assert.Contains(t, agent.deviceKernelVersion, "-android"+agent.androidVersion+"-",
+			"the kernel must name the Android release it ships on")
+		assert.True(t, strings.HasPrefix(agent.deviceKernelVersion, androidKernelBases[agent.androidVersion]+"."),
+			"kernel %q does not start with the %q line", agent.deviceKernelVersion, androidKernelBases[agent.androidVersion])
+		assert.Contains(t, agent.bootloaderVersion, agent.hardware)
+
+		assert.Contains(t, validEncryptionStatuses, agent.encryptionStatus)
+		assert.Contains(t, validUpdateStatuses, agent.systemUpdateStatus)
+		assert.Contains(t, validPostures, agent.securityPosture)
+
+		// AMAPI only attaches posture details to a device that is not secure.
+		if agent.securityPosture == "SECURE" {
+			assert.Empty(t, agent.postureDetails, "a secure device reports no posture details")
+		} else {
+			require.NotEmpty(t, agent.postureDetails, "posture %q must explain itself", agent.securityPosture)
+			for _, detail := range agent.postureDetails {
+				require.NotNil(t, detail)
+				assert.Contains(t, validSecurityRisks, detail.SecurityRisk)
+				require.NotEmpty(t, detail.Advice)
+				for _, advice := range detail.Advice {
+					require.NotNil(t, advice)
+					assert.NotEmpty(t, advice.DefaultMessage, "Fleet only keeps the default message")
+				}
+			}
+		}
+
+		require.NotEmpty(t, agent.telephonyInfos)
+		require.LessOrEqual(t, len(agent.telephonyInfos), 2, "no simulated device has more than two SIMs")
+		for _, sim := range agent.telephonyInfos {
+			require.NotNil(t, sim)
+			assert.Regexp(t, `^\+1[0-9]{10}$`, sim.PhoneNumber)
+			assert.Regexp(t, `^89[0-9]{17}$`, sim.IccId, "an ICCID is 19 digits starting with 89")
+			assert.Contains(t, androidCarriers, sim.CarrierName)
+			assert.Contains(t, validActivationStates, sim.ActivationState)
+			assert.Contains(t, validConfigModes, sim.ConfigMode)
+			// A physical SIM reports neither eSIM enum, and an eSIM reports both.
+			if sim.ActivationState == "ACTIVATION_STATE_UNSPECIFIED" {
+				assert.Equal(t, "CONFIG_MODE_UNSPECIFIED", sim.ConfigMode, "a physical SIM has no config mode")
+			} else {
+				assert.NotEqual(t, "CONFIG_MODE_UNSPECIFIED", sim.ConfigMode, "an eSIM reports a config mode")
+			}
+			// Every value is stored in a varchar(255) column.
+			assert.LessOrEqual(t, len(sim.PhoneNumber), fleet.MDMAndroidDeviceVitalMaxLength)
+			assert.LessOrEqual(t, len(sim.CarrierName), fleet.MDMAndroidDeviceVitalMaxLength)
+			assert.LessOrEqual(t, len(sim.IccId), fleet.MDMAndroidDeviceVitalMaxLength)
+
+			activations[sim.ActivationState]++
+			configModes[sim.ConfigMode]++
+		}
+
+		// Nothing generated may exceed the vitals columns' width.
+		for name, value := range map[string]string{
+			"manufacturer":     agent.manufacturer,
+			"patch level":      agent.securityPatchLevel,
+			"kernel version":   agent.deviceKernelVersion,
+			"bootloader":       agent.bootloaderVersion,
+			"encryption":       agent.encryptionStatus,
+			"update status":    agent.systemUpdateStatus,
+			"security posture": agent.securityPosture,
+		} {
+			assert.LessOrEqual(t, len(value), fleet.MDMAndroidDeviceVitalMaxLength, "%s is too long for its column", name)
+		}
+
+		postures[agent.securityPosture]++
+		updateStatuses[agent.systemUpdateStatus]++
+		if len(agent.telephonyInfos) == 2 {
+			dualSIM++
+		}
+		if agent.adbEnabled {
+			adbEnabled++
+		}
+		if !agent.deviceSecure {
+			insecure++
+		}
+	}
+
+	// The point of the weighting is a fleet that is mostly healthy but not
+	// uniformly so; a fleet with only one value in any of these gives the vitals
+	// UI and API nothing to distinguish.
+	assert.Greater(t, postures["SECURE"], postures["AT_RISK"], "most devices should be secure")
+	assert.Positive(t, postures["AT_RISK"])
+	assert.Positive(t, postures["POTENTIALLY_COMPROMISED"])
+	assert.Greater(t, updateStatuses["UP_TO_DATE"], updateStatuses["OS_UPDATE_AVAILABLE"])
+	assert.Positive(t, updateStatuses["SECURITY_UPDATE_AVAILABLE"])
+	assert.Positive(t, updateStatuses["OS_UPDATE_AVAILABLE"])
+	assert.Positive(t, dualSIM, "some devices should be dual-SIM")
+	assert.Less(t, dualSIM, deviceCount, "not every device should be dual-SIM")
+	assert.Positive(t, adbEnabled, "a few devices should have ADB on")
+	assert.Less(t, adbEnabled, deviceCount/2, "ADB on should stay rare")
+	assert.Positive(t, insecure, "a few devices should have no passcode")
+
+	// Both SIM kinds must appear, since Fleet stores their enums differently.
+	assert.Positive(t, activations["ACTIVATION_STATE_UNSPECIFIED"], "physical SIMs")
+	assert.Positive(t, activations["ACTIVATED"], "activated eSIMs")
+	assert.Positive(t, configModes["ADMIN_CONFIGURED"])
+	assert.Positive(t, configModes["USER_CONFIGURED"])
+}
+
+// TestWeightedChoice covers the picker the vitals distributions rely on.
+func TestWeightedChoice(t *testing.T) {
+	t.Run("a certain value is always picked", func(t *testing.T) {
+		for range 20 {
+			assert.Equal(t, "only", weightedChoice([]weightedValue{{"only", 1}}))
+		}
+	})
+
+	t.Run("a zero-weight value is never picked", func(t *testing.T) {
+		for range 100 {
+			assert.Equal(t, "always", weightedChoice([]weightedValue{{"never", 0}, {"always", 1}}))
+		}
+	})
+
+	// rand.Float64 can return a value the cumulative weights don't reach when they
+	// sum to slightly under 1; that must still yield a real value, not "".
+	t.Run("a short weight sum falls back to the last value", func(t *testing.T) {
+		for range 100 {
+			got := weightedChoice([]weightedValue{{"first", 0.1}, {"last", 0.1}})
+			assert.Contains(t, []string{"first", "last"}, got)
+		}
+	})
+
+	t.Run("every value is reachable", func(t *testing.T) {
+		seen := map[string]bool{}
+		for range 1000 {
+			seen[weightedChoice([]weightedValue{{"a", 0.4}, {"b", 0.4}, {"c", 0.2}})] = true
+		}
+		assert.Equal(t, map[string]bool{"a": true, "b": true, "c": true}, seen)
+	})
 }
