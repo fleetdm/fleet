@@ -396,13 +396,6 @@ export interface IHost {
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
   last_mdm_checked_in_at: string | null;
-  /**
-   * last_mdm_enrollment_type is the MDM enrollment channel reported by the device,
-   * e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
-   * User Enrollment both report enrollment_status "On (manual - personal)", so
-   * this is what distinguishes them. Null for hosts with no Apple MDM enrollment.
-   * Only populated for GET /hosts/:id.
-   */
   last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
