@@ -337,11 +337,11 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("RetryRecoveryLock", func(t *testing.T) {
-		host, _ := setupHost(t, "retry-host", "1.2.3.13", "rrkey", "rruuid")
+		host, setCmdUUID := setupHost(t, "retry-host", "1.2.3.13", "rrkey", "rruuid")
 
 		// A transient failure clears the status so the cron picks the host up again,
 		// and bumps the retry counter that bounds how often that can happen.
-		err := ds.RetryRecoveryLock(ctx, host.UUID)
+		err := ds.RetryRecoveryLock(ctx, host.UUID, setCmdUUID)
 		require.NoError(t, err)
 
 		var result struct {
@@ -355,7 +355,7 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		assert.Equal(t, 1, result.Retry)
 
 		// Retries accumulate across attempts.
-		require.NoError(t, ds.RetryRecoveryLock(ctx, host.UUID))
+		require.NoError(t, ds.RetryRecoveryLock(ctx, host.UUID, setCmdUUID))
 		err = ds.writer(ctx).GetContext(ctx, &result, `
 			SELECT status, retry FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
 		require.NoError(t, err)
@@ -376,8 +376,15 @@ func hostNeedsRecoveryLockAction(hosts map[string]bool, hostUUID string) bool {
 func markRecoveryLockVerified(t *testing.T, ds *Datastore, hostUUID string) {
 	t.Helper()
 	ctx := t.Context()
+	// Both transitions are guarded on the command UUID the row is actually waiting on, so
+	// read it rather than inventing one.
+	pending, err := ds.GetPendingRecoveryLock(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, pending, "host has no recovery lock row to verify")
+	require.NotNil(t, pending.PendingSetCommandUUID, "host has no in-flight set command to verify")
+
 	verifyCmdUUID := uuid.NewString()
-	require.NoError(t, ds.SetRecoveryLockVerifying(ctx, hostUUID, uuid.NewString(), verifyCmdUUID))
+	require.NoError(t, ds.SetRecoveryLockVerifying(ctx, hostUUID, *pending.PendingSetCommandUUID, verifyCmdUUID))
 	require.NoError(t, ds.SetRecoveryLockVerified(ctx, hostUUID, verifyCmdUUID))
 }
 
@@ -988,13 +995,14 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		team.Config.MDM.EnableRecoveryLockPassword = false
 		_, err = ds.SaveTeam(ctx, team)
 		require.NoError(t, err)
-		claimed, err := ds.ClaimHostsForRecoveryLockClear(ctx, uuid.NewString())
+		clearCmdUUID := uuid.NewString()
+		claimed, err := ds.ClaimHostsForRecoveryLockClear(ctx, clearCmdUUID)
 		require.NoError(t, err)
 		require.Contains(t, claimed, host.UUID)
 
 		// The clear command is acknowledged, then verified with an empty password.
 		verifyCmdUUID := uuid.NewString()
-		err = ds.SetRecoveryLockVerifying(ctx, host.UUID, uuid.NewString(), verifyCmdUUID)
+		err = ds.SetRecoveryLockVerifying(ctx, host.UUID, clearCmdUUID, verifyCmdUUID)
 		require.NoError(t, err)
 		err = ds.DeleteHostRecoveryLockPassword(ctx, host.UUID, verifyCmdUUID)
 		require.NoError(t, err)
@@ -1160,12 +1168,10 @@ func testGetHostRecoveryLockPasswordStatus(t *testing.T, ds *Datastore) {
 	t.Run("returns verifying status", func(t *testing.T) {
 		host := test.NewHost(t, ds, "verifying-rlp-host", "1.2.6.5", "verifyingrlpkey", "verifyingrlpuuid", time.Now())
 		pw := apple_mdm.GenerateRecoveryLockPassword()
-		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		setCmdUUID := "set-cmd-uuid"
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw, PendingSetCommandUUID: setCmdUUID}})
 		require.NoError(t, err)
-		// Set status to verifying directly via SQL (since there's no SetRecoveryLockVerifying method)
-		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_recovery_key_passwords SET status = ? WHERE host_uuid = ?`,
-			fleet.MDMDeliveryVerifying, host.UUID)
-		require.NoError(t, err)
+		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, setCmdUUID, "pending-verify-cmd-uuid"))
 
 		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
 		require.NoError(t, err)

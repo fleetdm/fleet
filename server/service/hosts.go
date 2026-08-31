@@ -4731,6 +4731,7 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	// Early exit rotation and view activity if the password is not verified. Also clears it out to enforce the API contract.
 	if password.Status == nil || *password.Status != fleet.MDMDeliveryVerified {
 		password.Password = nil
+		password.AutoRotateAt = nil
 		return password, nil
 	}
 

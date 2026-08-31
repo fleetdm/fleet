@@ -445,7 +445,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, 0)
 
 		var retryCalled bool
-		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID string) error {
+		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID, cmdUUID string) error {
 			retryCalled = true
 			assert.Equal(t, hostUUID, hUUID)
 			return nil
@@ -474,7 +474,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			capturedError = errorMsg
 			return nil
 		}
-		ds.RetryRecoveryLockFunc = func(_ context.Context, _ string) error {
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _, _ string) error {
 			t.Fatal("RetryRecoveryLock should not be called for command format errors")
 			return nil
 		}
@@ -522,7 +522,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 			capturedError = errorMsg
 			return nil
 		}
-		ds.RetryRecoveryLockFunc = func(_ context.Context, _ string) error {
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _, _ string) error {
 			t.Fatal("RetryRecoveryLock should not be called for clear operations")
 			return nil
 		}
@@ -692,7 +692,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			capturedError = errorMsg
 			return nil
 		}
-		ds.RetryRecoveryLockFunc = func(_ context.Context, _ string) error {
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _, _ string) error {
 			t.Fatal("RetryRecoveryLock should not be called when the password is not set")
 			return nil
 		}
@@ -712,7 +712,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
 
 		var retryCalled bool
-		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID string) error {
+		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID, cmdUUID string) error {
 			retryCalled = true
 			assert.Equal(t, hostUUID, hUUID)
 			return nil

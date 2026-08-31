@@ -139,11 +139,11 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[str
 	// - Are NOT personally-owned (BYOD) enrollments. Personal enrollments have the
 	//   DeviceLock/DeviceErase access rights stripped (see AppleEnrollmentAccessRights),
 	//   so SetRecoveryLock is rejected by the device. Skip them instead of enforcing.
-	// - Have no recovery lock password record OR have a password with NULL status (command not yet enqueued)
+	// - Have no recovery lock password record OR have a password/pending_password with NULL status (command not yet enqueued)
 	// Note: hosts with status pending, verified, or failed are NOT included
 	// Note: hosts with operation_type='remove' are handled by RestoreRecoveryLockForReenabledHosts
 	const stmt = `
-		SELECT h.uuid, rkp.encrypted_password IS NOT NULL as has_password
+		SELECT h.uuid, (rkp.encrypted_password IS NOT NULL OR rkp.pending_encrypted_password IS NOT NULL) as has_password
 		FROM hosts h
 		JOIN nano_enrollments ne ON ne.device_id = h.uuid
 		JOIN host_mdm hm ON hm.host_id = h.id
@@ -206,7 +206,10 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 		CROSS JOIN app_config_json ac
 		SET rkp.operation_type = '%s',
 		    rkp.status = '%s',
-		    rkp.error_message = NULL
+		    rkp.error_message = NULL,
+			rkp.retry = 0,
+			rkp.pending_set_command_uuid = NULL,
+			rkp.pending_verify_command_uuid = NULL
 		WHERE rkp.deleted = 0
 		  AND rkp.operation_type = '%s'
 		  AND (rkp.status = '%s' OR rkp.status IS NULL)
@@ -650,24 +653,26 @@ func (ds *Datastore) GetPendingRecoveryLock(ctx context.Context, hostUUID string
 	return &pending, nil
 }
 
-func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostUUID, commandUUID, pendingVerifyCommandUUID string) error {
+func (ds *Datastore) SetRecoveryLockVerifying(ctx context.Context, hostUUID, setCommandUUID, pendingVerifyCommandUUID string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_recovery_key_passwords
 		SET status = ?, set_command_uuid = ?, pending_verify_command_uuid = ?,
 		pending_set_command_uuid = NULL
 		WHERE host_uuid = ?
+		  AND pending_set_command_uuid = ?
 		  AND deleted = 0
-	`, fleet.MDMDeliveryVerifying, commandUUID, pendingVerifyCommandUUID, hostUUID)
+`, fleet.MDMDeliveryVerifying, setCommandUUID, pendingVerifyCommandUUID, hostUUID, setCommandUUID)
 	return ctxerr.Wrap(ctx, err, "set recovery lock verifying")
 }
 
-func (ds *Datastore) RetryRecoveryLock(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) RetryRecoveryLock(ctx context.Context, hostUUID, commandUUID string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_recovery_key_passwords
 		SET retry = retry + 1,
 		status = NULL
 		WHERE host_uuid = ?
+			AND (pending_set_command_uuid = ? OR pending_verify_command_uuid = ?)
 		  	AND deleted = 0
-	`, hostUUID)
+	`, hostUUID, commandUUID, commandUUID)
 	return ctxerr.Wrap(ctx, err, "retry recovery lock")
 }

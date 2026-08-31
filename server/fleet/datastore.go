@@ -1841,7 +1841,7 @@ type Datastore interface {
 	// Matches on hostUUID and either pending_verify_command_uuid = commandUUID OR pending_set_command_uuid = commandUUID
 	SetRecoveryLockFailed(ctx context.Context, hostUUID, commandUUID, errorMsg string) error
 	// Retry from either SET or VERIFY. We do not retry on CLEAR failures.
-	RetryRecoveryLock(ctx context.Context, hostUUID string) error
+	RetryRecoveryLock(ctx context.Context, hostUUID, commandUUID string) error
 
 	// ClearRecoveryLockPendingStatus resets the recovery lock status to NULL for hosts
 	// that failed to have their SetRecoveryLock commands enqueued. This allows them to
