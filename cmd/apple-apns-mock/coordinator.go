@@ -265,17 +265,11 @@ func (c *coordinator) dispatch(ctx context.Context, msg pushMsg) {
 		}
 	}
 
-	switch c.reg.deliver(msg.Token, p) {
-	case delivered:
-		c.reg.deliveredLive.Add(1)
-	case bufferFull:
-		c.reg.coalesced.Add(1)
-	case notHeld:
+	if c.reg.deliver(msg.Token, p) == notHeld && !inline {
 		// The stream closed between holds and deliver. An inline push is
 		// deliver-or-discard, so only a claimed one goes back.
-		if !inline {
-			_ = c.requeue(ctx, msg.Token, p)
-		}
+		time.Sleep(5 * time.Millisecond)
+		_ = c.requeue(ctx, msg.Token, p)
 	}
 }
 
@@ -449,7 +443,6 @@ func (c *coordinator) resyncBatch(tokens []string) int {
 			continue
 		}
 		if c.reg.deliver(token, p) == delivered {
-			c.reg.deliveredLive.Add(1)
 			recovered++
 		}
 	}
