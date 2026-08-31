@@ -1220,7 +1220,7 @@ func TestLoggingConfigValidate(t *testing.T) {
 	})
 }
 
-func TestOsqueryPackConfigCacheDefault(t *testing.T) {
+func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
 	var cmd cobra.Command
 	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
 	man := NewManager(&cmd)
@@ -1229,10 +1229,10 @@ func TestOsqueryPackConfigCacheDefault(t *testing.T) {
 
 	testutils.SaveEnv(t)
 	os.Clearenv()
-	require.False(t, man.LoadConfig().Osquery.PackConfigCache)
+	require.False(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
 
-	t.Setenv("FLEET_OSQUERY_PACK_CONFIG_CACHE", "true")
-	require.True(t, man.LoadConfig().Osquery.PackConfigCache)
+	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
+	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
 }
 
 func TestOsqueryConfigValidate(t *testing.T) {

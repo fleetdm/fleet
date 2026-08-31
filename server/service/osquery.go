@@ -535,7 +535,7 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 // getPackConfig returns the marshaled pack config JSON for the host. It uses
 // a cache for hosts without legacy packs and without label-scoped queries,
 // keyed by (teamID, queryReportsDisabled). The cache is nil when
-// osquery.pack_config_cache is disabled, which makes every call build from
+// osquery.config_in_memory_cache is disabled, which makes every call build
 // the database.
 //
 // bypassTeamPackCache When true, the team-keyed packConfigCache is

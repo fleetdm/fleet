@@ -101,7 +101,7 @@ func setupPackConfigCacheTest(t *testing.T, cfgs ...config.FleetConfig) (
 
 func TestPackConfigCacheDisabledByFlag(t *testing.T) {
 	cfg := config.TestConfig()
-	cfg.Osquery.PackConfigCache = false
+	cfg.Osquery.ConfigInMemoryCache = false
 	svc, _, callCounter := setupPackConfigCacheTest(t, cfg)
 
 	require.Nil(t, svc.packConfigCache, "cache must not be constructed when the flag is off")
