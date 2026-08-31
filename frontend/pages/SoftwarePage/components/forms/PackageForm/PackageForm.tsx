@@ -282,7 +282,7 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          notify.error("Couldn't add software.", {
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
             response: {
               data: {
                 message: e instanceof Error ? e.message : String(e),
@@ -296,7 +296,7 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          notify.error("Couldn't add software.", {
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
             response: {
               data: {
                 message: e instanceof Error ? e.message : String(e),
