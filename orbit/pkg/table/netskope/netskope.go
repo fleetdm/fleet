@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -86,9 +87,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return []map[string]string{row}, nil
 	}
 
-	for col, val := range parsed {
-		row[col] = val
-	}
+	maps.Copy(row, parsed)
 
 	return []map[string]string{row}, nil
 }
@@ -133,8 +132,7 @@ func defaultRunNsdiag(ctx context.Context, installPath string) (map[string]strin
 // nsdiagError prefers the message nsdiag wrote to stderr, which explains a
 // permission or licensing failure far better than the bare exit status.
 func nsdiagError(err error) error {
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		if msg := strings.TrimSpace(string(exitErr.Stderr)); msg != "" {
 			return fmt.Errorf("%w: %s", err, msg)
 		}
