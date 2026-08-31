@@ -10438,7 +10438,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	findEnrolledActivity := func(hostID uint) *fleet.ActivityTypeMDMEnrolled {
 		var listResp listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "200")
+			"order_key", "id", "order_direction", "desc", "per_page", "200")
 		for _, act := range listResp.Activities {
 			if act.Type != (fleet.ActivityTypeMDMEnrolled{}).ActivityName() || act.Details == nil {
 				continue

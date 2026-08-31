@@ -815,7 +815,7 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 func (ts *withServer) countActivitiesOfType(name string) int {
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10000")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10000")
 
 	var count int
 	for _, act := range listActivities.Activities {
