@@ -23,7 +23,7 @@ Three of this release's highlights close gaps in Windows device management: a lo
 
 _Available in Fleet Premium_
 
-IT admins can now create managed local admin accounts on Windows hosts. Turn on **Create hidden admin** for Windows under **Controls > Setup experience > Users**, or set [`windows_settings.managed_local_account_settings` in GitOps](TODO: https://fleetdm.slack.com/archives/C0AQY8D7FM4/p1787780988221729?thread_ts=1787775061.407319&cid=C0AQY8D7FM4). Fleet creates the account, hides it from the sign-in screen, and generates a unique, escrowed password for each host. All roles in Fleet can retrieve the password from **Host details > Actions > Show managed account** when IT needs a break-glass account for troubleshooting.
+IT admins can now create managed local admin accounts on Windows hosts. Turn on **Create hidden admin** for Windows under **Controls > Setup experience > Users**, or set `windows_settings.enable_managed_local_account` in GitOps. Fleet creates the account, hides it from the sign-in screen, and generates a unique, escrowed password for each host. All roles in Fleet can retrieve the password from **Host details > Actions > Show managed account** when IT needs a break-glass account for troubleshooting.
 
 On macOS, managed accounts are created only at enrollment time, and only for hosts that automatically enroll via Apple Business Manager. On Windows, they're created on every host with MDM turned on, including hosts that enrolled earlier.
 
@@ -31,7 +31,7 @@ GitHub issue: [#43488](https://github.com/fleetdm/fleet/issues/43488)
 
 ### Default fleet for Windows Autopilot-enrolled hosts
 
-IT admins can now choose a default fleet for hosts that enroll through [Windows Autopilot](). New Autopilot-enrolled Windows hosts land in that fleet automatically, instead of sitting in "Unassigned" until an admin transfers them by hand. Only global admins can set the default, and it's available in [GitOps as `mdm.windows_enrollment.default_fleet`](TODO: https://fleetdm.slack.com/archives/C0AQY8D7FM4/p1787783001510159?thread_ts=1787775061.407319&cid=C0AQY8D7FM4).
+IT admins can now choose a default fleet for hosts that enroll through [Windows Autopilot](). New Autopilot-enrolled Windows hosts land in that fleet automatically, instead of sitting in "Unassigned" until an admin transfers them by hand. Only global admins can set the default, and it's available in GitOps as `mdm.windows_automatic_enrollment.default_fleet`.
 
 GitHub issue: [#41787](https://github.com/fleetdm/fleet/issues/41787)
 
