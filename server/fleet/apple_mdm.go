@@ -52,7 +52,7 @@ type MDMAppleCommandIssuer interface {
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUID []string, cmdUUID string) error
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
@@ -1761,6 +1761,7 @@ const (
 	EnableLostModeCmdName       = "EnableLostMode"
 	DisableLostModeCmdName      = "DisableLostMode"
 	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	VerifyRecoveryLockCmdName   = "VerifyRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
@@ -1809,15 +1810,25 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password     string
+	Password     *string
+	Status       *MDMDeliveryStatus
 	UpdatedAt    time.Time
 	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
 type HostRecoveryLockPasswordPayload struct {
-	HostUUID string
-	Password string
+	HostUUID              string
+	Password              string
+	PendingSetCommandUUID string
+}
+
+type HostRecoveryLockPending struct {
+	HasCurrentPassword       bool             `db:"has_current_password"` // Whether or not encrypted_password contains a value
+	PendingSetCommandUUID    *string          `db:"pending_set_command_uuid"`
+	PendingVerifyCommandUUID *string          `db:"pending_verify_command_uuid"`
+	OperationType            MDMOperationType `db:"operation_type"`
+	Retries                  int              `db:"retry"`
 }
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.

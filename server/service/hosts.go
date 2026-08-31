@@ -4662,7 +4662,7 @@ type getHostRecoveryLockPasswordRequest struct {
 }
 
 type recoveryLockPasswordPayload struct {
-	Password     string     `json:"password"`
+	Password     *string    `json:"password"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
 }
@@ -4726,6 +4726,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	password, err := svc.ds.GetHostRecoveryLockPassword(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
+	}
+
+	// Early exit rotation and view activity if the password is not verified. Also clears it out to enforce the API contract.
+	if password.Status == nil || *password.Status != fleet.MDMDeliveryVerified {
+		password.Password = nil
+		return password, nil
 	}
 
 	// Create activity first. If this fails, we return an error before scheduling

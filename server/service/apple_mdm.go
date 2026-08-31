@@ -5728,6 +5728,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
 		}
+	case fleet.VerifyRecoveryLockCmdName:
+		res := NewRecoveryLockResult(cmdResult)
+		if err := svc.runCommandHandlers(r.Context, fleet.VerifyRecoveryLockCmdName, res); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "VerifyRecoveryLock: calling handlers")
+		}
 
 	case fleet.AccountConfigurationCmdName:
 		// Look up managed local account by command_uuid to distinguish from SSO-only AccountConfiguration
@@ -8959,24 +8964,25 @@ type recoveryLockResult struct {
 	cmdResult *mdm.CommandResults
 }
 
-func (r *recoveryLockResult) Raw() []byte      { return r.cmdResult.Raw }
-func (r *recoveryLockResult) UUID() string     { return r.cmdResult.CommandUUID }
-func (r *recoveryLockResult) HostUUID() string { return r.cmdResult.UDID } // SetRecoveryLock is device-only, UDID is always present
+func (r *recoveryLockResult) Raw() []byte                  { return r.cmdResult.Raw }
+func (r *recoveryLockResult) UUID() string                 { return r.cmdResult.CommandUUID }
+func (r *recoveryLockResult) HostUUID() string             { return r.cmdResult.UDID } // SetRecoveryLock is device-only, UDID is always present
+func (r *recoveryLockResult) CmdStatus() string            { return r.cmdResult.Status }
+func (r *recoveryLockResult) ErrorChain() []mdm.ErrorChain { return r.cmdResult.ErrorChain }
 
 // NewRecoveryLockResult wraps an mdm.CommandResults to implement fleet.MDMCommandResults
 func NewRecoveryLockResult(cmdResult *mdm.CommandResults) fleet.MDMCommandResults {
 	return &recoveryLockResult{cmdResult: cmdResult}
 }
 
+const maxRecoveryLockRetries = 2 // total 3 retries
+
 // NewSetRecoveryLockResultsHandler processes SetRecoveryLock command results.
-// It handles SET (install), CLEAR (remove), and ROTATE operations:
-// - SET: When acknowledged, marks the recovery lock as verified. On error, marks as failed.
-// - CLEAR: When acknowledged, deletes the recovery lock password record. On error, marks as failed.
-// - ROTATE: When acknowledged, moves pending password to active. On error, marks rotation as failed.
+// It mainly enqueues the verify step, or attempt retry if non terminal failure.
 func NewSetRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
-	newActivityFn fleet.NewActivityFunc,
+	commander *apple_mdm.MDMAppleCommander,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
 		// Get the underlying result to access status and error chain
@@ -8986,160 +8992,210 @@ func NewSetRecoveryLockResultsHandler(
 		}
 
 		hostUUID := results.HostUUID()
-		status := rlResult.cmdResult.Status
 
-		// Check if this is a rotation (has pending password)
-		hasPendingRotation, err := ds.HasPendingRecoveryLockRotation(ctx, hostUUID)
+		pendingRecoveryLock, err := ds.GetPendingRecoveryLock(ctx, hostUUID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: check pending rotation")
+			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get pending recovery lock")
 		}
-
-		if hasPendingRotation {
-			// This is a rotation result
-			logger.DebugContext(ctx, "SetRecoveryLock rotation result received",
-				"host_uuid", hostUUID,
-				"command_uuid", results.UUID(),
-				"status", status,
-			)
-
-			switch status {
-			case fleet.MDMAppleStatusAcknowledged:
-				// Rotation succeeded - move pending password to active
-				if err := ds.CompleteRecoveryLockRotation(ctx, hostUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: complete rotation")
-				}
-
-				logger.InfoContext(ctx, "RotateRecoveryLock acknowledged, password rotated",
-					"host_uuid", hostUUID,
-				)
-
-			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
-				errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
-				if errorMsg == "" {
-					errorMsg = "RotateRecoveryLock command failed"
-				}
-				if err := ds.FailRecoveryLockRotation(ctx, hostUUID, errorMsg); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: fail rotation")
-				}
-				logger.WarnContext(ctx, "RotateRecoveryLock command failed",
-					"host_uuid", hostUUID,
-					"error", errorMsg,
-				)
-			}
-
+		if pendingRecoveryLock == nil {
+			// no-op the result if there is no pending recovery lock
 			return nil
 		}
-
-		// Get the operation type to determine if this was a SET or CLEAR operation
-		opType, err := ds.GetRecoveryLockOperationType(ctx, hostUUID)
-		if err != nil {
-			// If the record doesn't exist, it may have been deleted already - nothing to do
-			if fleet.IsNotFound(err) {
-				logger.DebugContext(ctx, "SetRecoveryLock result received but no password record exists",
-					"host_uuid", hostUUID,
-					"status", status,
-				)
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: get operation type")
+		if pendingRecoveryLock.PendingSetCommandUUID == nil || *pendingRecoveryLock.PendingSetCommandUUID != results.UUID() {
+			// no-op the result if the pending set command UUID doesn't match the current result
+			return nil
 		}
 
 		logger.DebugContext(ctx, "SetRecoveryLock command result received",
 			"host_uuid", hostUUID,
 			"command_uuid", results.UUID(),
-			"status", status,
-			"operation_type", opType,
+			"status", rlResult.CmdStatus(),
+			"operation_type", pendingRecoveryLock.OperationType,
 		)
 
-		switch status {
+		switch rlResult.CmdStatus() {
 		case fleet.MDMAppleStatusAcknowledged:
-			if opType == fleet.MDMOperationTypeRemove {
-				// CLEAR succeeded - delete the password record
-				if err := ds.DeleteHostRecoveryLockPassword(ctx, hostUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: delete recovery lock password")
-				}
-				logger.InfoContext(ctx, "ClearRecoveryLock acknowledged, password record deleted",
-					"host_uuid", hostUUID,
-				)
-			} else {
-				// SET succeeded - mark as verified
-				if err := ds.SetRecoveryLockVerified(ctx, hostUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verified")
-				}
+			// PROMOTE TO VERIFYING and issue VerifyRecoveryLock with empty password
+			pendingVerifyCmdUUID := uuid.NewString()
+			logger.InfoContext(ctx, "acknowledged recovery lock, promoting to verifying",
+				"host_uuid", hostUUID,
+				"command_uuid", results.UUID(),
+				"verify_command_uuid", pendingVerifyCmdUUID,
+			)
+			if err := ds.SetRecoveryLockVerifying(ctx, hostUUID, results.UUID(), pendingVerifyCmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock verifying")
+			}
 
-				// Get host info for activity logging - don't fail the operation if this fails
-				var hostID uint
-				var displayName string
-				host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
-				if err != nil {
-					logger.WarnContext(ctx, "SetRecoveryLock handler: failed to get host for activity logging",
-						"host_uuid", hostUUID,
-						"err", err,
-					)
-				} else {
-					hostID = host.ID
-					displayName = host.Hostname
-
-					// Log the activity only if we could identify the host (fleet-initiated via WasFromAutomation)
-					if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
-						HostID:          hostID,
-						HostDisplayName: displayName,
-					}); err != nil {
-						logger.WarnContext(ctx, "SetRecoveryLock handler: failed to create activity",
+			if pendingRecoveryLock.OperationType == fleet.MDMOperationTypeRemove {
+				if err := commander.VerifyClearRecoveryLock(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+					if apnsErr, ok := errors.AsType[*apple_mdm.APNSDeliveryError](err); ok {
+						// Do not fail on APNS push failures.
+						logger.WarnContext(ctx, "VerifyClearRecoveryLock command enqueued but APNs push failed",
 							"host_uuid", hostUUID,
-							"err", err,
+							"command_uuid", pendingVerifyCmdUUID,
+							"error", apnsErr,
 						)
+						return nil
 					}
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: verify clear recovery lock")
 				}
-
-				logger.InfoContext(ctx, "SetRecoveryLock acknowledged, marked verified",
-					"host_uuid", hostUUID,
-					"host_id", hostID,
-				)
+			} else {
+				if err := commander.VerifyRecoveryLock(ctx, hostUUID, pendingVerifyCmdUUID); err != nil {
+					if apnsErr, ok := errors.AsType[*apple_mdm.APNSDeliveryError](err); ok {
+						// Do not fail on APNS push failures.
+						logger.WarnContext(ctx, "VerifyRecoveryLock command enqueued but APNs push failed",
+							"host_uuid", hostUUID,
+							"command_uuid", pendingVerifyCmdUUID,
+							"error", apnsErr,
+						)
+						return nil
+					}
+					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: verify recovery lock")
+				}
 			}
 
 		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
 			errorMsg := apple_mdm.FmtErrorChain(rlResult.cmdResult.ErrorChain)
 			if errorMsg == "" {
-				if opType == fleet.MDMOperationTypeRemove {
+				// If no specific error message is available, provide a generic one based on the operation type
+				if pendingRecoveryLock.OperationType == fleet.MDMOperationTypeRemove {
 					errorMsg = "ClearRecoveryLock command failed"
 				} else {
 					errorMsg = "SetRecoveryLock command failed"
 				}
 			}
 
-			if opType == fleet.MDMOperationTypeRemove {
-				// CLEAR operation failed
-				// Command format errors are terminal - command is malformed and won't succeed on retry.
-				// Password mismatch errors are also terminal - requires admin intervention.
-				if rlResult.cmdResult.Status == fleet.MDMAppleStatusCommandFormatError ||
-					apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) {
-					if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
-						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
-					}
-					logger.WarnContext(ctx, "ClearRecoveryLock failed with terminal error",
-						"host_uuid", hostUUID,
-						"error", errorMsg,
-					)
-				} else {
-					// Transient error - reset to install/verified for retry on next cron cycle
-					if err := ds.ResetRecoveryLockForRetry(ctx, hostUUID); err != nil {
-						return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
-					}
-					logger.InfoContext(ctx, "ClearRecoveryLock failed with transient error, will retry",
-						"host_uuid", hostUUID,
-						"error", errorMsg,
-					)
-				}
-			} else {
-				// SET operation failed - mark as failed
-				if err := ds.SetRecoveryLockFailed(ctx, hostUUID, errorMsg); err != nil {
+			// Failed Clear operations aren't retried
+			// Command format errors are terminal - command is malformed and won't succeed on retry.
+			// Password mismatch errors are also terminal - requires admin intervention.
+			// Retries exhausted - treat as terminal error.
+			if pendingRecoveryLock.OperationType == fleet.MDMOperationTypeRemove ||
+				rlResult.CmdStatus() == fleet.MDMAppleStatusCommandFormatError ||
+				apple_mdm.IsRecoveryLockPasswordMismatchError(rlResult.cmdResult.ErrorChain) ||
+				pendingRecoveryLock.Retries >= maxRecoveryLockRetries {
+				if err := ds.SetRecoveryLockFailed(ctx, hostUUID, results.UUID(), errorMsg); err != nil {
 					return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: set recovery lock failed")
 				}
-				logger.WarnContext(ctx, "SetRecoveryLock command failed",
+				logger.WarnContext(ctx, "RecoveryLock failed with terminal error",
 					"host_uuid", hostUUID,
 					"error", errorMsg,
 				)
+				return nil
+			}
+			// Transient error - reset to install/verified for retry on next cron cycle
+			if err := ds.RetryRecoveryLock(ctx, hostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock handler: reset recovery lock for retry")
+			}
+			logger.InfoContext(ctx, "RecoveryLock failed with transient error, will retry",
+				"host_uuid", hostUUID,
+				"error", errorMsg,
+			)
+		}
+
+		return nil
+	}
+}
+
+func NewVerifyRecoveryLockResultsHandler(
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) fleet.MDMCommandResultsHandler {
+	return func(ctx context.Context, results fleet.MDMCommandResults) error {
+		logger.DebugContext(ctx, "VerifyRecoveryLock results received",
+			"host_uuid", results.HostUUID(),
+			"command_uuid", results.UUID(),
+		)
+
+		rlResult, ok := results.(*recoveryLockResult)
+		if !ok {
+			return ctxerr.New(ctx, "VerifyRecoveryLock handler: unexpected results type")
+		}
+
+		pending, err := ds.GetPendingRecoveryLock(ctx, results.HostUUID())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: get pending recovery lock failed")
+		}
+
+		if pending == nil || pending.PendingVerifyCommandUUID == nil || *pending.PendingVerifyCommandUUID != results.UUID() {
+			logger.DebugContext(ctx, "VerifyRecoveryLock handler: no pending recovery lock or command UUID mismatch",
+				"host_uuid", results.HostUUID(),
+				"command_uuid", results.UUID(),
+			)
+			return nil
+		}
+
+		switch rlResult.CmdStatus() {
+		case fleet.MDMAppleStatusAcknowledged:
+			if pending.OperationType == fleet.MDMOperationTypeInstall {
+				// verified the last set password, mark as verified and promote
+				if err := ds.SetRecoveryLockVerified(ctx, results.HostUUID(), results.UUID()); err != nil {
+					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock verified failed")
+				}
+			} else {
+				if err := ds.DeleteHostRecoveryLockPassword(ctx, results.HostUUID(), results.UUID()); err != nil {
+					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: delete host recovery lock password failed")
+				}
+			}
+		case fleet.MDMAppleStatusCommandFormatError, fleet.MDMAppleStatusError:
+			shouldRetry := pending.Retries < maxRecoveryLockRetries
+			appleErr := apple_mdm.FmtErrorChain(rlResult.ErrorChain())
+
+			// Do not retry on:
+			// - Clear operation
+			// - Command format error
+			// - Recovery lock password not set
+			// - Retries exhausted
+			if pending.OperationType == fleet.MDMOperationTypeRemove ||
+				rlResult.CmdStatus() == fleet.MDMAppleStatusCommandFormatError ||
+				apple_mdm.IsRecoveryLockPasswordNotSetError(rlResult.ErrorChain()) ||
+				!shouldRetry {
+
+				// Terminal errors or retries exhausted - no point in retrying
+				if err := ds.SetRecoveryLockFailed(ctx, results.HostUUID(), results.UUID(), appleErr); err != nil {
+					return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: set recovery lock failed")
+				}
+
+				logger.WarnContext(ctx, "VerifyRecoveryLock command failed",
+					"host_uuid", results.HostUUID(),
+					"error", appleErr,
+					"retries", pending.Retries,
+				)
+				return nil
+			}
+
+			// retryable error
+			logger.InfoContext(ctx, "VerifyRecoveryLock command retryable error",
+				"host_uuid", results.HostUUID(),
+				"error", appleErr,
+			)
+			if err := ds.RetryRecoveryLock(ctx, results.HostUUID()); err != nil {
+				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: retry recovery lock failed")
+			}
+			return nil
+		}
+
+		// Log a set activity if this was an install operation and the host did not have a current password therefore it wasn't rotated
+		// rotation activity logs happen at rotation enqueuement
+		if !pending.HasCurrentPassword && pending.OperationType == fleet.MDMOperationTypeInstall {
+
+			host, err := ds.HostLiteByIdentifier(ctx, results.HostUUID())
+			if err != nil || host == nil {
+				logger.WarnContext(ctx, "VerifyRecoveryLock handler: failed to get host for activity logging",
+					"host_uuid", results.HostUUID(),
+					"err", err,
+				)
+			} else {
+				// Log the activity only if we could identify the host (fleet-initiated via WasFromAutomation)
+				if err := newActivityFn(ctx, nil, fleet.ActivityTypeSetHostRecoveryLockPassword{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+				}); err != nil {
+					logger.WarnContext(ctx, "VerifyRecoveryLock handler: failed to create activity",
+						"host_uuid", results.HostUUID(),
+						"err", err,
+					)
+				}
 			}
 		}
 

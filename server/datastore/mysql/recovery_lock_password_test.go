@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,6 +51,7 @@ func TestRecoveryLockPassword(t *testing.T) {
 	for _, c := range cases {
 		t.Helper()
 		t.Run(c.name, func(t *testing.T) {
+			t.Helper()
 			defer TruncateTables(t, ds)
 
 			c.fn(t, ds)
@@ -64,14 +66,33 @@ func testRecoveryLockPasswordSetAndGet(t *testing.T, ds *Datastore) {
 	// Generate and set password
 	password := apple_mdm.GenerateRecoveryLockPassword()
 
-	err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password}})
+	cmdUUID := uuid.NewString()
+	err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: password, PendingSetCommandUUID: cmdUUID}})
 	require.NoError(t, err)
 
-	// Get password and verify it matches
-	result, err := ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	// Get the pending_password and verify it matches
+	var lockResult struct {
+		EncryptedPassword        []byte    `db:"encrypted_password"`
+		PendingEncryptedPassword []byte    `db:"pending_encrypted_password"`
+		UpdatedAt                time.Time `db:"updated_at"`
+		PendingSetCommandUUID    string    `db:"pending_set_command_uuid"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &lockResult, `
+			SELECT encrypted_password, pending_encrypted_password, updated_at,
+			pending_set_command_uuid
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ? AND deleted = 0
+		`, host.UUID)
+	})
 	require.NoError(t, err)
-	assert.Equal(t, password, result.Password)
-	assert.False(t, result.UpdatedAt.IsZero())
+	require.Nil(t, lockResult.EncryptedPassword)
+	require.NotNil(t, lockResult.PendingEncryptedPassword)
+	decrypted, err := decrypt(lockResult.PendingEncryptedPassword, ds.serverPrivateKey)
+	require.NoError(t, err)
+	assert.Equal(t, password, string(decrypted))
+	assert.False(t, lockResult.UpdatedAt.IsZero())
+	assert.Equal(t, cmdUUID, lockResult.PendingSetCommandUUID)
 }
 
 func testRecoveryLockPasswordBulkSet(t *testing.T, ds *Datastore) {
@@ -177,11 +198,12 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Helper to create a host with a recovery lock password (status is set to 'pending' atomically)
-	setupHost := func(t *testing.T, name, ip, key, uuid string) *fleet.Host {
+	setupHost := func(t *testing.T, name, ip, key, hostUUID string) *fleet.Host {
 		t.Helper()
-		host := test.NewHost(t, ds, name, ip, key, uuid, time.Now())
+		host := test.NewHost(t, ds, name, ip, key, hostUUID, time.Now())
 		pw := apple_mdm.GenerateRecoveryLockPassword()
-		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		cmdUUID := uuid.NewString()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw, PendingSetCommandUUID: cmdUUID}})
 		require.NoError(t, err)
 		return host
 	}
@@ -242,9 +264,16 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Verify status is now NULL
-		err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
+		var checkResult struct {
+			Status                   sql.NullString `db:"status"`
+			PendingSetCommandUUID    sql.NullString `db:"pending_set_command_uuid"`
+			PendingEncryptedPassword sql.NullString `db:"pending_encrypted_password"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &checkResult, "SELECT status, pending_set_command_uuid, pending_encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ?", host.UUID)
 		require.NoError(t, err)
-		assert.False(t, status.Valid, "status should be NULL after clearing")
+		assert.False(t, checkResult.Status.Valid, "status should be NULL after clearing")
+		assert.False(t, checkResult.PendingSetCommandUUID.Valid, "pending_set_command_uuid should be NULL after clearing")
+		assert.False(t, checkResult.PendingEncryptedPassword.Valid, "pending_encrypted_password should be NULL after clearing")
 	})
 
 	t.Run("ClearRecoveryLockPendingStatus only clears pending", func(t *testing.T) {
