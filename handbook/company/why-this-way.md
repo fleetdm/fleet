@@ -211,9 +211,9 @@ Every department organizes their work into [team-based kanban boards](https://gi
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 
-## Why route taskings through the team's manager?
+## Why route cross-functional taskings through the team's manager?
 
-At Fleet, when you ask a team member for something (attendance at an event, a piece of content, anything) you loop in that team's e-group manager at the time you make the request. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
+At Fleet, taskings that span departments (an OKR, an event, a piece of content, anything that needs another team's involvement) go to that team's manager first, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
 
 
 ## Why agile?
