@@ -7,6 +7,7 @@ import (
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"database/sql"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -22,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -2592,16 +2594,166 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, newSyncML, stored.SyncML)
 
-	// mismatched name is rejected -- Windows profiles have no separate identifier
-	// field, so name is the only identity a profile has. This is the only layer
-	// this can be tested at: the service layer never exposes a way for a client
-	// to submit a different name on an edit.
-	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+	// a rename is applied in place: same row, new name, and uploaded_at moves
+	// because the admin uploaded a differently named file.
+	// Backdate uploaded_at rather than comparing against "now": the column is
+	// written with CURRENT_TIMESTAMP(), which is second-granular, so a rename in
+	// the same second as the previous write would otherwise look unchanged.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_windows_configuration_profiles SET uploaded_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE profile_uuid = ?`,
+			initial.ProfileUUID)
+		return err
+	})
+	beforeRename, err := ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	// identical content, so only the rename can move uploaded_at
+	renamed, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		ProfileUUID: initial.ProfileUUID,
 		Name:        "A Different Name",
 		SyncML:      newSyncML,
 	}, nil)
-	require.ErrorContains(t, err, "must match the existing profile's name")
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, renamed.ProfileUUID)
+	require.Equal(t, "A Different Name", renamed.Name)
+	require.True(t, renamed.UploadedAt.After(beforeRename.UploadedAt))
+
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "A Different Name", stored.Name)
+
+	// the old name is free again, so a new profile can claim it
+	reclaimed, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Update Test Profile",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// renaming onto a name another profile in the team already holds is rejected
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "Update Test Profile",
+		SyncML:      newSyncML,
+	}, nil)
+	require.Error(t, err)
+	_, isExists := errors.AsType[endpointer.ExistsErrorInterface](err)
+	require.True(t, isExists, "expected an exists error, got %v", err)
+
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, reclaimed.ProfileUUID))
+
+	// renaming onto a name held by ANOTHER PLATFORM's profile is rejected too:
+	// that collision has no index behind it, so it's the NOT EXISTS guard in the
+	// UPDATE that catches it, not a duplicate-key error.
+	appleProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("cross-platform-name", "com.example.cross", 0), nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "cross-platform-name",
+		SyncML:      newSyncML,
+	}, nil)
+	require.Error(t, err)
+	_, isExists = errors.AsType[endpointer.ExistsErrorInterface](err)
+	require.True(t, isExists, "expected an exists error, got %v", err)
+
+	// the blocked rename left the profile alone
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "A Different Name", stored.Name)
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, appleProf.ProfileUUID))
+
+	// A rename does NOT write the per-host rows: reads resolve the name from the
+	// live profile, so the denormalized copy is allowed to go stale while the
+	// profile exists. Renaming with identical content enqueues nothing, so if the
+	// rename wrote those rows this host would be touched.
+	hostUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, command_uuid, checksum)
+			 VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`,
+			hostUUID, initial.ProfileUUID, "A Different Name", uuid.NewString(), newSyncML)
+		return err
+	})
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "Renamed Again",
+		SyncML:      newSyncML, // identical content, so nothing is enqueued for the host
+	}, nil)
+	require.NoError(t, err)
+	var hostProfileName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &hostProfileName,
+			`SELECT profile_name FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+			hostUUID, initial.ProfileUUID)
+	})
+	require.Equal(t, "A Different Name", hostProfileName, "the rename must not write per-host rows")
+
+	// but the host's profile list still reports the current name, resolved from the
+	// live profile row rather than the stale copy above
+	hostProfs, err := ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, 1)
+	require.Equal(t, "Renamed Again", hostProfs[0].Name)
+
+	// once the profile is deleted the live name is gone, so the copy has to have been
+	// snapshotted on the way out or the host would show the pre-rename name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm_windows_profiles SET operation_type = ?, status = NULL WHERE profile_uuid = ?`,
+			fleet.MDMOperationTypeRemove, initial.ProfileUUID)
+		return err
+	})
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, initial.ProfileUUID))
+	hostProfs, err = ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfs, 1)
+	require.Equal(t, "Renamed Again", hostProfs[0].Name, "deleted profile must keep its post-rename name")
+
+	// recreate so the assertions below keep reading as before
+	initial, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Renamed Again",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// A rename that only changes case must still be snapshotted on delete. The
+	// name column is utf8mb4_unicode_ci, so the snapshot's "has it drifted" check
+	// has to compare as BINARY or MySQL calls these two names equal and skips it.
+	caseHostUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, command_uuid, checksum)
+			 VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`,
+			caseHostUUID, initial.ProfileUUID, "Renamed Again", uuid.NewString(), newSyncML)
+		return err
+	})
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "RENAMED AGAIN",
+		SyncML:      newSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, initial.ProfileUUID))
+	var caseStoredName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &caseStoredName,
+			`SELECT profile_name FROM host_mdm_windows_profiles WHERE host_uuid = ?`, caseHostUUID)
+	})
+	require.Equal(t, "RENAMED AGAIN", caseStoredName, "a case-only rename must still be snapshotted")
+
+	// recreate again for the remaining assertions
+	initial, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Renamed Again",
+		SyncML: newSyncML,
+	}, nil)
+	require.NoError(t, err)
+
+	// put the name back so the assertions below keep reading as before
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		SyncML:      newSyncML,
+	}, nil)
+	require.NoError(t, err)
 
 	// updating a nonexistent profile returns a not-found error
 	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
