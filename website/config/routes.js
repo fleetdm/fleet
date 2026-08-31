@@ -221,6 +221,38 @@ module.exports.routes = {
     }
   },// handles /announcements/foo
 
+  'GET /newsletters': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /newsletters/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /newsletters/foo
+
+  'GET /industry-news': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /industry-news/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /industry-news/foo
+
   'GET /podcasts': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action

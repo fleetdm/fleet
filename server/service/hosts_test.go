@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +35,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -3618,6 +3622,132 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, observer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+}
+
+func refetchCommandTypeFromUUID(commandUUID string) string {
+	for _, prefix := range []string{
+		fleet.RefetchAppsCommandUUIDPrefix,
+		fleet.RefetchCertsCommandUUIDPrefix,
+		fleet.RefetchDeviceCommandUUIDPrefix,
+	} {
+		if strings.HasPrefix(commandUUID, prefix) {
+			return prefix
+		}
+	}
+	return commandUUID
+}
+
+func TestRefetchHostIOSTracksBeforeEnqueue(t *testing.T) {
+	host := &fleet.Host{ID: 7, Platform: "ios", UUID: "ios-host-uuid"}
+
+	type testEnv struct {
+		ds         *mock.Store
+		mdmStorage *mdmmock.MDMAppleStore
+		svc        fleet.Service
+		ctx        context.Context
+		events     []string
+	}
+
+	setup := func(t *testing.T, pusher nanomdm_push.Pusher) *testEnv {
+		env := &testEnv{
+			ds:         new(mock.Store),
+			mdmStorage: &mdmmock.MDMAppleStore{},
+		}
+		env.svc, env.ctx = newTestService(t, env.ds, nil, nil, &TestServerOpts{
+			MDMStorage: env.mdmStorage,
+			MDMPusher:  pusher,
+		})
+
+		env.ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+		env.ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+			return nil
+		}
+		env.ds.GetHostMDMCommandsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostMDMCommand, error) {
+			return nil, nil
+		}
+		env.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		env.ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		env.ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{InstalledFromDep: true}, nil
+		}
+		env.ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+			return nil, &notFoundError{}
+		}
+		env.ds.GetHostLockWipeStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+			return &fleet.HostLockWipeStatus{}, nil
+		}
+		env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
+			for _, cmd := range commands {
+				require.Equal(t, host.ID, cmd.HostID)
+				env.events = append(env.events, "add:"+cmd.CommandType)
+			}
+			return nil
+		}
+		env.ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
+			require.Equal(t, host.ID, command.HostID)
+			env.events = append(env.events, "remove:"+command.CommandType)
+			return nil
+		}
+		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			env.events = append(env.events, "enqueue:"+refetchCommandTypeFromUUID(cmd.CommandUUID))
+			return nil, nil
+		}
+
+		return env
+	}
+
+	t.Run("tracking rows are written before each enqueue", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{})
+
+		require.NoError(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"add:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"add:" + fleet.RefetchDeviceCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchDeviceCommandUUIDPrefix,
+		}, env.events)
+	})
+
+	t.Run("enqueue failure untracks only the failed command type", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{})
+		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			commandType := refetchCommandTypeFromUUID(cmd.CommandUUID)
+			if commandType == fleet.RefetchCertsCommandUUIDPrefix {
+				return nil, errors.New("db down")
+			}
+			env.events = append(env.events, "enqueue:"+commandType)
+			return nil, nil
+		}
+
+		require.Error(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"add:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"remove:" + fleet.RefetchCertsCommandUUIDPrefix,
+		}, env.events)
+	})
+
+	t.Run("push failure keeps the tracking row", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{failUUIDs: map[string]bool{host.UUID: true}})
+
+		// the first command's push fails, so RefetchHost returns an error, but
+		// the command is durably enqueued and its tracking row must stay
+		require.Error(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.False(t, env.ds.RemoveHostMDMCommandFuncInvoked)
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+		}, env.events)
+	})
 }
 
 func TestEmptyTeamOSVersions(t *testing.T) {

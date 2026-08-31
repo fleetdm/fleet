@@ -4100,10 +4100,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	// Windows
 	//
 
-	// content-only edit; the uploaded filename is ignored, the profile keeps
-	// its name
+	// an edit keeping the same file name leaves the name alone
 	winContent2 := syncMLForTest("./TestUpdateProfileEdited")
-	res = patchProfile(winUUID, "some-other-filename.xml", winContent2, nil, http.StatusOK)
+	res = patchProfile(winUUID, "update-win-profile.xml", winContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
 	require.Equal(t, winContent2, downloadProfile(winUUID))
@@ -4111,7 +4110,27 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	require.Equal(t, "update-win-profile", prof.Name)
 	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
 
-	// labels-only edit
+	// a differently named file renames the profile in place: same UUID, and the
+	// activity reports the new name
+	winContent3 := syncMLForTest("./TestUpdateProfileRenamed")
+	res = patchProfile(winUUID, "update-win-profile-renamed.xml", winContent3, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	prof = getProfile(winUUID)
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
+
+	// renaming onto a name another profile in the fleet holds is rejected, and
+	// leaves the profile untouched
+	winOtherUUID := createProfile("update-win-other.xml", syncMLForTest("./TestUpdateOther"), fleet.MDMWindowsProfileUUIDPrefix)
+	require.NotEmpty(t, winOtherUUID)
+	res = patchProfile(winUUID, "update-win-other.xml", winContent3, nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), "already exists")
+	require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+
+	// labels-only edit; no file, so the name is left alone
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
@@ -4123,8 +4142,9 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 		{LabelID: lblA.ID, LabelName: lblA.Name},
 		{LabelID: lblB.ID, LabelName: lblB.Name},
 	}, prof.LabelsIncludeAll)
-	require.Equal(t, winContent2, downloadProfile(winUUID))
-	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
+	require.Equal(t, "update-win-profile-renamed", prof.Name)
+	require.Equal(t, winContent3, downloadProfile(winUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile-renamed", "")
 
 	//
 	// Apple DDM declaration

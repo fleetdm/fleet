@@ -2110,6 +2110,9 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profileUUID}); err != nil {
 			return err
 		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
 		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
 			return err
 		}
@@ -2241,6 +2244,29 @@ func (ds *Datastore) retainWindowsProfilePriorContentDB(ctx context.Context, tx 
 	return nil
 }
 
+// snapshotWindowsProfileNamesForDeletionDB copies each profile's live name onto its host
+// rows before the profile row is deleted: those rows outlive it, and their denormalized
+// profile_name is what reads fall back to once the live name is gone. Casts to BINARY
+// because the column's collation is case-insensitive, so a plain != would skip a rename
+// that only changed case.
+func snapshotWindowsProfileNamesForDeletionDB(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+	stmt, args, err := sqlx.In(`
+		UPDATE host_mdm_windows_profiles hmwp
+		JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
+		SET hmwp.profile_name = mwcp.name
+		WHERE hmwp.profile_uuid IN (?) AND hmwp.profile_name != CAST(mwcp.name AS BINARY)`, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN for profile name snapshot")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "snapshotting windows profile names before deletion")
+	}
+	return nil
+}
+
 // GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
 // Reader-backed; callers that cannot tolerate a replica-lag miss (the reconcile pass consumes each modify-install once) wrap the
 // context with ctxdb.RequirePrimary.
@@ -2289,6 +2315,9 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Retain the profile's content for the cron to build <Delete> commands from, before the definition row is deleted (#46993).
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
+			return err
+		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, []string{profile.ProfileUUID}); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profile.ProfileUUID); err != nil {
@@ -3101,16 +3130,15 @@ INSERT INTO
 }
 
 // UpdateMDMWindowsConfigProfile updates an existing profile's contents (if
-// cp.SyncML is non-empty) and/or label targeting in place. cp.Name must
-// match the existing profile's -- name is a Windows profile's only
-// identity, so it never changes on this path.
+// cp.SyncML is non-empty), name and/or label targeting in place. The profile is
+// keyed by cp.ProfileUUID, so a rename keeps the same row.
 func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	var teamID uint
 	if cp.TeamID != nil {
 		teamID = *cp.TeamID
 	}
 
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name   string `db:"name"`
 			SyncML []byte `db:"syncml"`
@@ -3123,14 +3151,9 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			}
 			return ctxerr.Wrap(ctx, err, "get existing windows config profile")
 		}
-		if existing.Name != cp.Name {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "The new profile's name must match the existing profile's name.",
-			})
-		}
-
 		if len(cp.SyncML) > 0 {
 			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
+			nameChanged := existing.Name != cp.Name
 
 			// Retain the outgoing version before overwriting it so the
 			// profile-manager cron can build <Delete> commands for LocURIs the
@@ -3142,15 +3165,60 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				}
 			}
 
-			// uploaded_at is preserved when the content didn't change, matching
-			// the upsert's IF(syncml = VALUES(syncml), ...) convention -- a
-			// no-op edit must not read as a fresh upload.
-			stmt := `UPDATE mdm_windows_configuration_profiles SET syncml = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at) WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.SyncML, contentChanged, cp.ProfileUUID, cp.Name)
+			// A rename is a fresh upload even when the bytes are identical, so
+			// uploaded_at survives only a true no-op (as in the batch path).
+			const setClause = `UPDATE mdm_windows_configuration_profiles
+SET syncml = ?, name = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
+WHERE profile_uuid = ?`
+
+			// A name is unique per team across all four profile tables and no index
+			// spans them, so a cross-platform clash is checked here. In the statement
+			// rather than a preceding SELECT so check and write are atomic, as
+			// NewMDMWindowsConfigProfile does on insert.
+			stmt := setClause
+			args := []any{cp.SyncML, cp.Name, contentChanged || nameChanged, cp.ProfileUUID}
+			if nameChanged {
+				stmt += `
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
+				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+			}
+
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
+				switch {
+				case IsDuplicate(err):
+					// Another Windows profile in the team already holds the name.
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				default:
+					return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
+				}
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					// Nothing matched. Either the NOT EXISTS guard blocked the
+					// rename, or another transaction deleted the profile after
+					// this one read it: the SELECT at the top of this transaction
+					// is a non-locking read, so it doesn't hold the row.
+					var stillExists bool
+					if err := sqlx.GetContext(ctx, tx, &stillExists,
+						`SELECT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?)`,
+						cp.ProfileUUID); err != nil {
+						return ctxerr.Wrap(ctx, err, "checking windows config profile after blocked update")
+					}
+					if stillExists {
+						return ctxerr.Wrap(ctx, &existsError{
+							ResourceType: "MDMWindowsConfigProfile.Name",
+							Identifier:   cp.Name,
+							TeamID:       cp.TeamID,
+						})
+					}
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 
@@ -3433,6 +3501,9 @@ ON DUPLICATE KEY UPDATE
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, deletedProfileUUIDs); err != nil {
 			return false, nil, ctxerr.Wrap(ctx, err, "retain deleted profiles for async removal")
 		}
+		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, deletedProfileUUIDs); err != nil {
+			return false, nil, err
+		}
 	}
 
 	// Step 3: Delete the config profile rows.
@@ -3515,20 +3586,27 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-	profile_uuid,
-	profile_name AS name,
+	hmwp.profile_uuid,
+	-- the live profile is the source of truth for the name; hmwp.profile_name is a
+	-- denormalized copy that only answers once the profile row is gone (deleted
+	-- profiles keep their host rows so the removal can still be tracked).
+	COALESCE(mwcp.name, hmwp.profile_name) AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	command_uuid
+	COALESCE(hmwp.status, '%s') AS status,
+	COALESCE(hmwp.operation_type, '') AS operation_type,
+	COALESCE(hmwp.detail, '') AS detail,
+	hmwp.command_uuid
 FROM
-	host_mdm_windows_profiles
+	host_mdm_windows_profiles hmwp
+	LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
 WHERE
-host_uuid = ? AND profile_name NOT IN(?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+-- the Fleet-reserved filter reads the stored copy, not the resolved name: reserved
+-- profiles are Fleet-managed and can't be renamed, so the two always agree, and the
+-- stored copy keeps working once a reserved profile has been deleted.
+hmwp.host_uuid = ? AND hmwp.profile_name NOT IN(?) AND NOT (hmwp.operation_type = '%s' AND COALESCE(hmwp.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,

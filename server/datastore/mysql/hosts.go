@@ -1006,6 +1006,11 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 const hostMDMSelect = `,
 	JSON_OBJECT(
 		'enrollment_status', hmdm.enrollment_status,
+		'is_personal_enrollment',
+		CASE
+			WHEN hmdm.is_personal_enrollment = 1 THEN CAST(TRUE AS JSON)
+			ELSE CAST(FALSE AS JSON)
+		END,
 		'dep_profile_error',
 		CASE
 			WHEN hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `') THEN CAST(TRUE AS JSON)

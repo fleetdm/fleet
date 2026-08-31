@@ -93,6 +93,7 @@ func TestHosts(t *testing.T) {
 		{"ListMDM", testHostsListMDM},
 		{"ListMDMAndroid", testHostsListMDMAndroid},
 		{"SelectHostMDM", testHostMDMSelect},
+		{"SelectHostMDMIsPersonalEnrollment", testHostMDMSelectIsPersonalEnrollment},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
@@ -2184,6 +2185,71 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 		MDMNameFilter:             ptr.String(fleet.WellKnownMDMFleet),
 	}, 3)
 	require.Len(t, hosts, 3, "Should have 2 Android + 1 darwin personal hosts with Fleet MDM")
+}
+
+// is_personal_enrollment rides along in the hostMDMSelect JSON object, so it has to hold
+// up across every query built on that fragment, including for hosts that have no host_mdm
+// row at all. It is deliberately not cleared when a host unenrolls: BYOD devices report no
+// serial number, so the UI identifies them by enrollment ID even after enrollment ends.
+func testHostMDMSelectIsPersonalEnrollment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	const mdmServerURL = "https://mdm.example.com"
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("personal-enrollment-osquery-id"),
+		NodeKey:         new("personal-enrollment-node-key"),
+		UUID:            "personal-enrollment-uuid",
+		Hostname:        "personal-enrollment-hostname",
+	})
+	require.NoError(t, err)
+
+	// assertIsPersonal checks every read path that embeds hostMDMSelect.
+	assertIsPersonal := func(t *testing.T, want bool) {
+		t.Helper()
+
+		byID, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		assert.Equal(t, want, byID.MDM.IsPersonalEnrollment, "ds.Host")
+
+		byIdentifier, err := ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, want, byIdentifier.MDM.IsPersonalEnrollment, "ds.HostByIdentifier")
+
+		listed, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, listed, 1)
+		assert.Equal(t, want, listed[0].MDM.IsPersonalEnrollment, "ds.ListHosts")
+	}
+
+	// A host that has never been MDM-enrolled has no host_mdm row, so the column reads
+	// NULL and must surface as false rather than blowing up the JSON unmarshal.
+	t.Run("never MDM enrolled", func(t *testing.T) {
+		assertIsPersonal(t, false)
+	})
+
+	t.Run("personal enrollment", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, mdmServerURL, false, fleet.WellKnownMDMFleet, "", true))
+		assertIsPersonal(t, true)
+	})
+
+	t.Run("stays set after unenrollment", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, false, mdmServerURL, false, fleet.WellKnownMDMFleet, "", true))
+
+		byID, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, byID.MDM.EnrollmentStatus)
+		require.Equal(t, fleet.MDMEnrollmentStatusOff, *byID.MDM.EnrollmentStatus)
+		assertIsPersonal(t, true)
+	})
+
+	t.Run("company owned re-enrollment clears it", func(t *testing.T) {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, mdmServerURL, false, fleet.WellKnownMDMFleet, "", false))
+		assertIsPersonal(t, false)
+	})
 }
 
 func testHostMDMSelect(t *testing.T, ds *Datastore) {

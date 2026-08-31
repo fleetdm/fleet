@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5' AND version_compare(bundle_short_version, '5.6.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.macpaw.CleanMyMac5');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macpaw.CleanMyMac5' AND a.bundle_executable != '');"
       },
       "installer_url": "https://updates.cleanmymac.com/com.macpaw.cleanmymac5/releases/CleanMyMac5_50600.0.2608201300.zip",
       "install_script_ref": "1f8e229d",

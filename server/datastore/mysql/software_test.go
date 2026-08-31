@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"maps"
 	"math/rand"
+	"reflect"
 	std_slices "slices"
 	"sort"
 	"strconv"
@@ -561,6 +562,74 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	}
 }
 
+// TestCanUseOptimizedListQueryOrderKeys pins which requests take the covering-index
+// path, including the spacing the ordering helper tolerates.
+func TestCanUseOptimizedListQueryOrderKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		orderKey       string
+		withHostCounts bool
+		want           bool
+	}{
+		{"", false, true},                 // default ordering, unchanged
+		{"  ", false, true},               // trims to empty, so still the default
+		{"hosts_count", true, true},       // counts requested and returned
+		{" hosts_count ", true, true},     // same request, just spaced
+		{"hosts_count", false, false},     // counts not returned, so not sortable
+		{" hosts_count ", false, false},   // spacing must not get around that
+		{"name", true, false},             // not the covering index column
+		{"hosts_count,name", true, false}, // multi-column defeats the index
+		{" hosts_count , name ", true, false},
+	} {
+		name := fmt.Sprintf("%q/counts=%v", tc.orderKey, tc.withHostCounts)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := canUseOptimizedListQuery(fleet.SoftwareListOptions{
+				ListOptions:    fleet.ListOptions{OrderKey: tc.orderKey},
+				WithHostCounts: tc.withHostCounts,
+			})
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestAppendOrderByToSelectRequiresAllowlist(t *testing.T) {
+	t.Parallel()
+
+	_, err := appendOrderByToSelect(dialect.From("software"), fleet.ListOptions{OrderKey: "name"}, nil)
+	require.Error(t, err, "a missing allowlist must reject every order key")
+}
+
+// TestSoftwareOrderKeysCoverListedColumns fails when a column is added to the
+// software list without deciding whether it is sortable, so the decision is
+// made deliberately rather than by omission.
+func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
+	// Returned by the list, but not selected by its query, so not sortable.
+	notSelected := map[string]struct{}{
+		"last_opened_at": {},
+	}
+
+	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
+	typ := reflect.TypeFor[fleet.Software]()
+	for field := range typ.Fields() {
+		column := field.Tag.Get("db")
+		if column == "" {
+			continue
+		}
+		_, allowed := sortable[column]
+		_, skipped := notSelected[column]
+
+		if field.Tag.Get("json") == "-" {
+			assert.False(t, allowed, "%s is not returned by the list, so sorting on it would expose it", column)
+			continue
+		}
+		assert.True(t, allowed || skipped,
+			"%s is returned by the list: add it to softwareAllowedOrderKeys, or to notSelected here if the query doesn't select it",
+			column)
+	}
+}
+
 func testSoftwareList(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -1037,8 +1106,71 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			}
 
 			_, _, err := ds.ListSoftware(context.Background(), opts)
-			require.Error(t, err, "SQL injection payload should result in column error: %s", payload)
-			require.Contains(t, err.Error(), "Unknown column", "Expected column error for payload: %s", payload)
+			require.Error(t, err, "SQL injection payload should be rejected: %s", payload)
+			// Rejected before reaching the query.
+			require.Contains(t, err.Error(), "invalid order_key", "Expected order key rejection for payload: %s", payload)
+		}
+	})
+
+	t.Run("order key must be a supported sort key", func(t *testing.T) {
+		// Real columns the response doesn't return: sortable only if unguarded.
+		for _, key := range []string{"s.id", "s.title_id", "s.application_id", "vendor_old", "checksum"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "order key %q should be rejected", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Supported keys, including a multi-column key, keep working.
+		// hosts_count alone goes to the separate query, so pair it with a second
+		// key to stay on this path.
+		for _, key := range []string{"name", "generated_cpe", "cvss_score", "name,version", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: key},
+				IncludeCVEScores: true,
+				WithHostCounts:   true,
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
+		}
+
+		// CVE columns are only selected when scores are included.
+		for _, key := range []string{"cvss_score", "cve_published", "epss_probability", "cisa_known_exploit"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "order key %q should be rejected without CVE scores", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Same for hosts_count, again paired to stay on this path.
+		for _, key := range []string{"hosts_count", "hosts_count,name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err, "%q should be rejected without host counts", key)
+			require.Contains(t, err.Error(), "invalid order_key", "order key %q", key)
+		}
+
+		// Not naming an order key still uses the default ordering.
+		_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{})
+		require.NoError(t, err)
+
+		// Whitespace and empty segments around a key are tolerated.
+
+		for _, key := range []string{" name , version ", "name,", ",name"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
+		}
+
+		// ...and keys that don't depend on them work either way.
+		for _, key := range []string{"name", "generated_cpe"} {
+			_, _, err := ds.ListSoftware(context.Background(), fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.NoError(t, err, "order key %q should be accepted", key)
 		}
 	})
 
@@ -12480,6 +12612,7 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 		})
 	}
 }
+
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -12641,7 +12774,7 @@ func testListHostSoftwareFMAReplacedInstallerOutOfScope(t *testing.T, ds *Datast
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "storage_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "spotify.pkg",
 		Title:                "Spotify",
 		Version:              "1.0",
@@ -12781,7 +12914,7 @@ func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testi
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "old_storage",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma.pkg",
 		Title:                "FMA App",
 		Version:              "1.0",
@@ -12878,7 +13011,7 @@ func testInstalledInstallersSqlPicksActiveInstaller(t *testing.T, ds *Datastore)
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "iisql_storage_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "iisql.pkg",
 		Title:                "IISql App",
 		Version:              "1.0",
@@ -12967,7 +13100,7 @@ func testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller(t *testing.
 		UninstallScript:      "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "uninst_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma_uninst.pkg",
 		Title:                "FMA Uninst App",
 		Version:              "1.0",
@@ -13085,7 +13218,7 @@ func testListHostSoftwareStmtAvailableSkipsInactiveInstaller(t *testing.T, ds *D
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "stmtavail_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "stmtavail.pkg",
 		Title:                "StmtAvail App",
 		Version:              "1.0",

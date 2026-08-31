@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.airtame.airtame-application' AND version_compare(bundle_short_version, '4.15.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.airtame.airtame-application');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.airtame.airtame-application' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads-cdn.airtame.com/app/latest/mac/Airtame-4.15.0.dmg",
       "install_script_ref": "4e4b470a",

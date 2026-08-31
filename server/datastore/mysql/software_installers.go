@@ -1061,33 +1061,40 @@ FROM software_installers WHERE id = ?`,
 	return installerID, nil
 }
 
-// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
-// code of any cached installer (active or inactive) with the given storage_id.
-// A content hash uniquely identifies the bytes, so the metadata is the same
-// regardless of which row is currently active — the auto-update cron uses this to
-// recover uninstall-script substitution values on the byte-dedup path without
-// re-downloading. Returns empty values (no error) when nothing matches.
-func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error) {
+// GetSoftwareInstallerMetadataByStorageID describes any cached installer (active
+// or inactive) with the given storage_id. A content hash uniquely identifies the
+// bytes, so the metadata is the same regardless of which row is currently active —
+// the auto-update cron uses this to recover what it would otherwise have taken off
+// the downloaded file, on the byte-dedup path. Returns a zero value (no error)
+// when nothing matches.
+func (ds *Datastore) GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
 	var row struct {
 		PackageIDs  string `db:"package_ids"`
 		UpgradeCode string `db:"upgrade_code"`
+		Filename    string `db:"filename"`
+		Extension   string `db:"extension"`
 	}
 	// Prefer a row that actually carries package IDs (the MSI/EXE row).
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &row, `
-		SELECT package_ids, upgrade_code FROM software_installers
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		SELECT package_ids, upgrade_code, filename, extension FROM software_installers
 		WHERE storage_id = ?
 		ORDER BY (package_ids = '') ASC, id ASC
 		LIMIT 1`, storageID)
 	switch {
 	case err == nil:
-		if row.PackageIDs != "" {
-			packageIDs = strings.Split(row.PackageIDs, ",")
+		cached := fleet.CachedInstallerMetadata{
+			UpgradeCode: row.UpgradeCode,
+			Filename:    row.Filename,
+			Extension:   row.Extension,
 		}
-		return packageIDs, row.UpgradeCode, nil
+		if row.PackageIDs != "" {
+			cached.PackageIDs = strings.Split(row.PackageIDs, ",")
+		}
+		return cached, nil
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, "", nil
+		return fleet.CachedInstallerMetadata{}, nil
 	default:
-		return nil, "", ctxerr.Wrap(ctx, err, "get software installer metadata by storage id")
+		return fleet.CachedInstallerMetadata{}, ctxerr.Wrap(ctx, err, "get software installer metadata by storage id")
 	}
 }
 
@@ -4110,6 +4117,43 @@ func (ds *Datastore) UpdateInstallerUpgradeCode(ctx context.Context, id uint, up
 		return ctxerr.Wrap(ctx, err, "update software installer upgrade code")
 	}
 	return nil
+}
+
+func (ds *Datastore) UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error {
+	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, installScript)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
+	}
+	uninstallScriptID, err := ds.getOrGenerateScriptContentsID(ctx, uninstallScript)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get or generate uninstall script contents ID")
+	}
+
+	// Pinned by version, so a row that moved to another one is left alone, and a
+	// script replaced since the caller read the row keeps what the admin wrote.
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE
+	software_installers
+SET
+	install_script_content_id = IF(install_script_edited, install_script_content_id, ?),
+	uninstall_script_content_id = IF(uninstall_script_edited, uninstall_script_content_id, ?),
+	patch_query = ?,
+	app_open_query = ?
+WHERE
+	id = ? AND version = ?
+`, installScriptID, uninstallScriptID, patchQuery, appOpenQuery, installerID, version)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update installer scripts and queries")
+	}
+	matched, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "rows affected updating installer scripts and queries")
+	}
+	if matched == 0 {
+		return nil
+	}
+
+	return ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false)
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,

@@ -211,6 +211,28 @@ func TestWritePathInvalidation(t *testing.T) {
 			}
 		})
 
+		t.Run("DeleteTeam invalidates every host in the batch", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ids := []uint{20, 21, 22}
+			ds.HostIDsByTeamIDFunc = func(_ context.Context, _ uint) ([]uint, error) {
+				return ids, nil
+			}
+			ds.DeleteTeamFunc = func(_ context.Context, _ uint) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-flush-a", "nk-flush-b", "nk-flush-c"}
+			for i, nk := range nks {
+				primeCachedHost(t, d, ids[i], nk)
+			}
+
+			require.NoError(t, d.DeleteTeam(ctx, 99))
+			require.True(t, ds.DeleteTeamFuncInvoked)
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
 		t.Run("NewHost clears stale negative cache for new node_key", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			nk := "nk-new-with-neg"
