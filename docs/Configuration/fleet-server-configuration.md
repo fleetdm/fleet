@@ -1399,6 +1399,22 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
     max_distributed_write_body_size: 10MiB
   ```
 
+### osquery_pack_config_cache
+
+Caches the osquery pack (scheduled report) config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
+
+When enabled, the cache holds one config per fleet (team) for one minute, which reduces database reads on config check-ins. It's used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+
+When disabled, every check-in builds its pack config from the database.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_PACK_CONFIG_CACHE`
+- Config file format:
+  ```yaml
+  osquery:
+    pack_config_cache: true
+  ```
+
 ### osquery_allow_body_auth_fallback
 
 Selects how osquery requests are authenticated.
