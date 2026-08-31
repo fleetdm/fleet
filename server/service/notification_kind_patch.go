@@ -276,8 +276,10 @@ func (k *patchNotificationKind) OnAction(ctx context.Context, notification *noti
 // finishes the notification so neither the reminder nor the deadline install
 // fires for it again.
 //
-// The installs bypass the app-open check: the end user asked for the update,
-// and skipping because the app is open would leave the toast looking broken.
+// The installs keep the policy that asked for the patch, so they show up in its
+// Automation runs, but skip the app-open check that policy would otherwise put
+// on them: the end user asked for this update, so not installing because the app
+// is open would leave the toast looking broken.
 func (k *patchNotificationKind) updateNow(ctx context.Context, notification *notifications_api.EndUserNotification) error {
 	// Only a notification that is still live has anything left to queue. One the
 	// end user already acted on queued its installs the first time around, and
@@ -300,9 +302,8 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		}
 		if _, err := k.ds.InsertSoftwareInstallRequest(ctx, notification.HostID, *app.SoftwareInstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService:      false,
 				PolicyID:         app.PolicyID,
-				SkipAppOpenCheck: true,
+				IgnoreAppOpenQuery: true,
 			},
 		); err != nil {
 			return ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",

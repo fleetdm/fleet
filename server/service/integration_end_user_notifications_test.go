@@ -629,16 +629,15 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status)
 
 		type queuedInstall struct {
-			SoftwareInstallerID uint `db:"software_installer_id"`
-			PolicyID            uint `db:"policy_id"`
-			SkipAppOpenCheck    bool `db:"skip_app_open_check"`
+			ExecutionID         string `db:"execution_id"`
+			SoftwareInstallerID uint   `db:"software_installer_id"`
+			PolicyID            *uint  `db:"policy_id"`
 		}
 		queuedInstalls := func() []queuedInstall {
 			var installs []queuedInstall
 			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				return sqlx.SelectContext(ctx, q, &installs, `
-					SELECT siua.software_installer_id, siua.policy_id,
-						COALESCE(ua.payload->'$.skip_app_open_check', 0) AS skip_app_open_check
+					SELECT ua.execution_id, siua.software_installer_id, siua.policy_id
 					FROM upcoming_activities ua
 						JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
 					WHERE ua.host_id = ? ORDER BY siua.software_installer_id`, host.ID)
@@ -650,24 +649,33 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Len(t, installs, 2)
 		for i, install := range installs {
 			require.Equal(t, apps[i].installerID, install.SoftwareInstallerID)
-			require.Equal(t, apps[i].policyID, install.PolicyID)
-			require.True(t, install.SkipAppOpenCheck,
-				"the end user asked for this, so it must not skip because the app is open")
+			require.NotNil(t, install.PolicyID, "the install keeps its policy so it shows in Automation runs")
+			require.Equal(t, apps[i].policyID, *install.PolicyID)
 		}
 
 		// The install fleetd is handed carries no pre-install condition, so it runs
-		// with the app open rather than reporting a skip.
-		var firstExecutionID string
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &firstExecutionID, `
-				SELECT ua.execution_id FROM upcoming_activities ua
-					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
-				WHERE ua.host_id = ? ORDER BY siua.software_installer_id LIMIT 1`, host.ID)
-		})
-		details, err := s.ds.GetSoftwareInstallDetails(ctx, firstExecutionID)
+		// with the app open rather than reporting a skip. Read it once while it is
+		// still queued and again once activated, since those are two different
+		// halves of GetSoftwareInstallDetails and fleetd is served by the second.
+		queued, err := s.ds.GetSoftwareInstallDetails(ctx, installs[0].ExecutionID)
 		require.NoError(t, err)
-		require.True(t, details.NotifyBeforePatching)
-		require.Empty(t, details.PreInstallCondition)
+		require.True(t, queued.NotifyBeforePatching)
+		require.Empty(t, queued.PreInstallCondition)
+
+		// The installs wait behind the notification's own script, so close the
+		// window the way the end user would and let the first one activate.
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+		var activatedCount int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &activatedCount,
+				`SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ?`, installs[0].ExecutionID)
+		})
+		require.Equal(t, 1, activatedCount, "the install should be activated, so the other half of the query serves it")
+
+		activated, err := s.ds.GetSoftwareInstallDetails(ctx, installs[0].ExecutionID)
+		require.NoError(t, err)
+		require.True(t, activated.NotifyBeforePatching)
+		require.Empty(t, activated.PreInstallCondition)
 
 		// A second press queues nothing: the first one already did the work.
 		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
