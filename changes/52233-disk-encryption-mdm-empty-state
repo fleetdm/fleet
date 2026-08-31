@@ -1,0 +1,1 @@
+- On the disk encryption settings page, replaced the disabled checkboxes and tooltip with an empty state, and a "Learn more" link, when a platform's MDM isn't turned on.
