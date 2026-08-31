@@ -6,7 +6,7 @@ import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
-import { getErrorReason, hasStatusKey } from "interfaces/errors";
+import { hasStatusKey } from "interfaces/errors";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   isAutomaticDeviceEnrollment,
@@ -61,9 +61,10 @@ const UnenrollMdmModal = ({
       // would send the user in a loop. It also means this page was working from
       // stale data, so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
-        notify.error(getErrorReason(unenrollMdmError), {
-          response: unenrollMdmError,
-        });
+        notify.error(
+          "Couldn't turn off MDM. MDM is already off for this host.",
+          { response: unenrollMdmError }
+        );
         onSuccess();
         onClose();
       } else {
