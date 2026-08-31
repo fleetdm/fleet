@@ -111,14 +111,34 @@ type TeamPayloadMDM struct {
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
 
-	// WindowsSettings exposes only the managed local account surface on the team PATCH endpoint;
+	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
+	MacOSSettings *TeamPayloadMacOSSettings `json:"macos_settings" renameto:"apple_settings"`
+	// WindowsSettings exposes only the managed local account and disk encryption surfaces
+	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+	LinuxSettings   *TeamPayloadLinuxSettings   `json:"linux_settings"`
+}
+
+// TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields
+// settable via the team PATCH endpoint.
+type TeamPayloadMacOSSettings struct {
+	EnableDiskEncryption          optjson.Bool `json:"enable_disk_encryption"`
+	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 }
 
 // TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
 type TeamPayloadWindowsSettings struct {
-	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
+	// RequireBitLockerPIN is the canonical home of the deprecated top-level
+	// windows_require_bitlocker_pin key.
+	RequireBitLockerPIN  optjson.Bool `json:"require_bitlocker_pin"`
+	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+}
+
+// TeamPayloadLinuxSettings is the subset of linux_settings fields settable via the team PATCH endpoint.
+type TeamPayloadLinuxSettings struct {
+	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -474,7 +494,8 @@ func (t *TeamMDM) Clone() (Cloner, error) {
 // every serialization (API responses, teams.config storage) recomputes it as
 // the AND of the four per-platform disk encryption settings, and unset
 // per-platform settings become explicit booleans (fanned out from the flat
-// value when none was ever set).
+// value when none was ever set). The other unset optjson toggles below default
+// to false the same way, so no serialization path emits null for them.
 func (t TeamMDM) MarshalJSON() ([]byte, error) {
 	t.EnableDiskEncryption = normalizeDiskEncryptionFields(
 		t.EnableDiskEncryption,
@@ -483,6 +504,16 @@ func (t TeamMDM) MarshalJSON() ([]byte, error) {
 		&t.WindowsSettings.EnableDiskEncryption,
 		&t.LinuxSettings.EnableEscrowDiskEncryptionKey,
 	)
+	// keep the deprecated windows_require_bitlocker_pin key in sync with its
+	// canonical windows_settings.require_bitlocker_pin home
+	if t.WindowsSettings.RequireBitLockerPIN.Valid {
+		t.RequireBitLockerPIN = t.WindowsSettings.RequireBitLockerPIN.Value
+	} else {
+		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
+	}
+	if !t.WindowsSettings.EnableManagedLocalAccount.Valid {
+		t.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
 	// the alias type has no methods, so marshaling it avoids infinite recursion
 	type alias TeamMDM
 	return json.Marshal(alias(t))
@@ -509,7 +540,31 @@ func (t *TeamMDM) UnmarshalJSON(b []byte) error {
 			*f = optjson.SetBool(t.EnableDiskEncryption)
 		}
 	}
+	// the BitLocker PIN's canonical home inherits the deprecated top-level key
+	// the same way when absent from the document
+	if !t.WindowsSettings.RequireBitLockerPIN.Set {
+		t.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(t.RequireBitLockerPIN)
+	}
 	return nil
+}
+
+// DiskEncryptionConfig returns the team's effective per-platform disk
+// encryption settings.
+func (t *TeamMDM) DiskEncryptionConfig() DiskEncryptionConfig {
+	if t == nil {
+		return DiskEncryptionConfig{}
+	}
+	pinRequired := t.RequireBitLockerPIN
+	if t.WindowsSettings.RequireBitLockerPIN.Valid {
+		pinRequired = t.WindowsSettings.RequireBitLockerPIN.Value
+	}
+	return DiskEncryptionConfig{
+		MacOSEnabled:         t.MacOSSettings.EnableDiskEncryption.Value,
+		MacOSEscrowEnabled:   t.MacOSSettings.EnableEscrowDiskEncryptionKey.Value,
+		WindowsEnabled:       t.WindowsSettings.EnableDiskEncryption.Value,
+		BitLockerPINRequired: pinRequired,
+		LinuxEscrowEnabled:   t.LinuxSettings.EnableEscrowDiskEncryptionKey.Value,
+	}
 }
 
 // Copy returns a deep copy of the TeamMDM.

@@ -3545,3 +3545,29 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		})
 	}
 }
+
+// TestESPReleaseIncludesSkipUserStatusPage verifies that the ESP release
+// commands set SkipUserStatusPage=true so that subsequent user logins on an
+// already-enrolled device skip the Account setup ESP phase (#51380).
+func TestESPReleaseIncludesSkipUserStatusPage(t *testing.T) {
+	const provID = "test-provider"
+	cmds := buildESPReleaseCommands(provID)
+
+	var found bool
+	for _, cmd := range cmds {
+		uri := cmd.GetTargetURI()
+		if strings.Contains(uri, "SkipUserStatusPage") {
+			found = true
+			assert.Contains(t, uri, "/Device/",
+				"SkipUserStatusPage must be at Device scope, not User scope")
+			require.NotNil(t, cmd.Items, "SkipUserStatusPage command must have Items")
+			require.NotEmpty(t, cmd.Items, "SkipUserStatusPage command must have at least one Item")
+			require.NotNil(t, cmd.Items[0].Data, "SkipUserStatusPage Item must have Data")
+			assert.Equal(t, "true", cmd.Items[0].Data.Content,
+				"SkipUserStatusPage must be set to true in release commands")
+		}
+	}
+	assert.True(t, found,
+		"release commands must include SkipUserStatusPage=true; without it, a second user "+
+			"signing in to an already-enrolled device hits a fresh Account setup ESP that hangs (#51380)")
+}

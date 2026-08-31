@@ -221,6 +221,38 @@ module.exports.routes = {
     }
   },// handles /announcements/foo
 
+  'GET /newsletters': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /newsletters/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /newsletters/foo
+
+  'GET /industry-news': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
+  'GET /industry-news/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },// handles /industry-news/foo
+
   'GET /podcasts': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -652,6 +684,10 @@ module.exports.routes = {
     }
   },
 
+  'GET /configuration-generator': {
+    action: 'view-configuration-generator'
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -1079,7 +1115,7 @@ module.exports.routes = {
   'GET /software-catalog/imazing': '/software-catalog/imazing-darwin',
   'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-darwin',
   'GET /software-catalog/insomnia': '/software-catalog/insomnia-darwin',
-  'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-ce-darwin',
+  'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/intellij-idea': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/little-snitch': '/software-catalog/little-snitch-darwin',
   'GET /software-catalog/intune-company-portal': '/software-catalog/intune-company-portal-darwin',
@@ -1316,6 +1352,7 @@ module.exports.routes = {
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
+  'GET /learn-more-about/android-zero-touch-portal': 'https://enterprise.google.com/android/zero-touch/customers',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',

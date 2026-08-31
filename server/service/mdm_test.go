@@ -1293,7 +1293,12 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
 	}
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-		return fleet.DiskEncryptionConfig{Enabled: true}, nil
+		return fleet.DiskEncryptionConfig{
+			MacOSEnabled:       true,
+			MacOSEscrowEnabled: true,
+			WindowsEnabled:     true,
+			LinuxEscrowEnabled: true,
+		}, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
@@ -2028,12 +2033,12 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		return nil, errors.New("simulated declaration lookup error")
 	}
 
-	err := svc.UpdateMDMConfigProfile(ctx, declUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")
 	require.True(t, ds.GetMDMAppleDeclarationFuncInvoked)
 
 	// an unrecognized profile UUID prefix still falls through to "not supported".
-	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+	err = svc.UpdateMDMConfigProfile(ctx, "unrecognized-"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "updating this profile type is not yet supported")
 
@@ -2049,7 +2054,7 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 			{"explicitly emptied", nil},
 		} {
 			t.Run(prefix+" "+tc.name, func(t *testing.T) {
-				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation))
+				err := svc.UpdateMDMConfigProfile(ctx, prefix+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.SetSlice(tc.activation))
 				require.Error(t, err)
 				assert.ErrorContains(t, err, ActivationUnsupportedProfileErrorMsg)
 			})
@@ -3935,6 +3940,10 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 			MDM: fleet.MDM{
 				EnabledAndConfigured: false,
 				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 			},
 		}, nil
 	}
@@ -3946,8 +3955,6 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	newActivityCalls := 0
 	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
-		act := fleet.ActivityTypeEnabledMacosDiskEncryption{}
-		require.Equal(t, act.ActivityName(), activity.ActivityName())
 		newActivityCalls++
 		return nil
 	}
@@ -3961,48 +3968,53 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		if *teamID == 1 {
-			return fleet.DiskEncryptionConfig{Enabled: true}, nil
+			return fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil
 		}
 
-		return fleet.DiskEncryptionConfig{Enabled: false}, nil
+		return fleet.DiskEncryptionConfig{}, nil
 	}
 
-	deleteCalls := uint(0)
-	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
-		if deleteCalls == 0 {
-			// No Team
-			require.Nil(t, teamID)
-		} else {
-			require.NotNil(t, teamID)
-			require.Equal(t, deleteCalls, *teamID)
+	// the reconciler reads each fleet's macOS settings back before writing
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		tm := &fleet.TeamMDM{}
+		if teamID == 1 {
+			tm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+			tm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 		}
+		return tm, nil
+	}
 
+	// the profile is upserted rather than deleted and re-inserted, so the
+	// profile_uuid survives and hosts are only pushed to when the bytes differ
+	deleteCalls := 0
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
 		deleteCalls++
 		return nil
 	}
 
-	newProfileCalls := uint(0)
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-		require.Nil(t, usesFleetVars) // Filevault does not use fleet vars
+	upsertCalls := uint(0)
+	ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
 		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, p.Identifier)
-		if newProfileCalls == 0 {
+		if upsertCalls == 0 {
 			// No Team
 			require.Nil(t, p.TeamID)
 		} else {
 			require.NotNil(t, p.TeamID)
-			require.Equal(t, newProfileCalls, *p.TeamID)
+			require.Equal(t, upsertCalls, *p.TeamID)
 		}
-		newProfileCalls++
-		return nil, nil
+		upsertCalls++
+		return nil
 	}
 
 	err = svc.UploadMDMAppleAPNSCert(ctx, bytes.NewReader(apnsCert))
 	require.NoError(t, err)
 
-	require.EqualValues(t, 2, newProfileCalls)
-	require.EqualValues(t, 2, deleteCalls)
-	require.EqualValues(t, 2, newActivityCalls) // Only enabled Disk encryption activities, we don't want to log disable right before enabling.
+	// no-team and team 1 have macOS disk encryption on; team 2 does not
+	require.EqualValues(t, 2, upsertCalls)
+	require.Equal(t, 0, deleteCalls, "the profile is replaced in place, never deleted first")
+	// no activities: the settings didn't change, the FileVault profile is
+	// (re)created as a side effect of turning on Apple MDM
+	require.Equal(t, 0, newActivityCalls)
 }
 
 func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
@@ -4325,7 +4337,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 
 		assert.Empty(t, updated.RawJSON)
@@ -4358,7 +4370,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
@@ -4388,7 +4400,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
@@ -4417,7 +4429,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
@@ -4439,7 +4451,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		invalidContent := []byte(`{"notARealAndroidPolicyField": true}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", invalidContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "Invalid JSON payload")
 	})
@@ -4456,7 +4468,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label1"}, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, `label "label1" cannot appear in both include and exclude lists`)
 	})
@@ -4473,7 +4485,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "managed by Fleet")
 	})
@@ -4485,7 +4497,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, wantErr
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, "g"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, wantErr)
 	})
@@ -4502,7 +4514,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
 
@@ -4511,7 +4523,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 			return &p, nil
 		}
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 	})
 
@@ -4532,14 +4544,14 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"name": "$FLEET_VAR_HOST_UUID"}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Contains(t, capturedVars, fleet.FleetVarHostUUID)
 
 		// labels-only edit passes no variables -- the datastore leaves the
 		// existing associations untouched when no content is provided
 		capturedVars = []fleet.FleetVarName{fleet.FleetVarName("sentinel")}
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.NoError(t, err)
 		assert.Empty(t, capturedVars)
 	})
@@ -4560,10 +4572,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		}
 
 		newContent := []byte(`{"screenCaptureDisabled": false}`)
-		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", newContent, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
-		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{})
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -4616,10 +4628,10 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 				// profile content and labels are deliberately nil/empty here --
 				// this isolates the authz checks from content/label validation.
-				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailGlobal)
 
-				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 				checkShouldFail(t, err, tt.shouldFailTeam)
 			})
 		}
@@ -5359,4 +5371,151 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
 	})
+}
+
+func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {
+	// enabling only the BitLocker PIN doesn't enable key escrow, so it must
+	// not require the server private key
+	ds := new(mock.Store)
+	// construct the concrete Service directly to reach the unexported method;
+	// it performs no authorization or license checks of its own
+	svc := &Service{ds: ds} // no server private key configured
+	svc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			// the PIN is a Windows disk encryption setting, so its change is
+			// recorded as a windows settings edit
+			require.Equal(t, fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(), activity.ActivityName())
+			edited, ok := activity.(fleet.ActivityTypeEditedDiskEncryptionSettings)
+			require.True(t, ok)
+			require.Equal(t, "windows", edited.Platform)
+			return nil
+		},
+	})
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				WindowsEnabledAndConfigured: true,
+				WindowsSettings: fleet.WindowsSettings{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			},
+		}, nil
+	}
+	var savedConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		savedConfig = info
+		return nil
+	}
+
+	err := svc.updateAppConfigMDMDiskEncryption(ctx, fleet.DiskEncryptionSettingsChanges{}, new(true))
+	require.NoError(t, err)
+	require.NotNil(t, savedConfig)
+	require.True(t, savedConfig.MDM.RequireBitLockerPIN.Value)
+}
+
+func TestResolvePerPlatformDiskEncryptionPayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload fleet.MDMDiskEncryptionSettingsPayload
+		want    fleet.DiskEncryptionSettingsChanges
+		wantErr bool
+	}{
+		{
+			name:    "empty payload changes nothing",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{},
+			want:    fleet.DiskEncryptionSettingsChanges{},
+		},
+		{
+			name:    "flat toggle fans out to all four",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), MacOSEscrow: new(true), WindowsEnable: new(true), LinuxEscrow: new(true),
+			},
+		},
+		{
+			name: "per-platform values pass through",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				MacOSSettings:   &fleet.MacOSDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+				WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(false)},
+			},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), WindowsEnable: new(false),
+			},
+		},
+		{
+			name: "flat agreeing with per-platform fans out",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				EnableDiskEncryption: new(true),
+				WindowsSettings:      &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+			},
+			want: fleet.DiskEncryptionSettingsChanges{
+				MacOSEnable: new(true), MacOSEscrow: new(true), WindowsEnable: new(true), LinuxEscrow: new(true),
+			},
+		},
+		{
+			name: "flat conflicting with per-platform errors",
+			payload: fleet.MDMDiskEncryptionSettingsPayload{
+				EnableDiskEncryption: new(true),
+				LinuxSettings:        &fleet.LinuxDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(false)},
+			},
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.payload.ResolvePerPlatform()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestResolveBitLockerPINPayload(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payload fleet.MDMDiskEncryptionSettingsPayload
+		want    *bool
+		wantErr bool
+	}{
+		{"neither provided", fleet.MDMDiskEncryptionSettingsPayload{}, nil, false},
+		{"deprecated only", fleet.MDMDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)}, new(true), false},
+		{
+			"canonical only",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+			},
+			new(true), false,
+		},
+		{
+			"both agreeing",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				RequireBitLockerPIN: new(false),
+				WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(false)},
+			},
+			new(false), false,
+		},
+		{
+			"both disagreeing conflicts",
+			fleet.MDMDiskEncryptionSettingsPayload{
+				RequireBitLockerPIN: new(true),
+				WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(false)},
+			},
+			nil, true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.payload.ResolveBitLockerPIN()
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }

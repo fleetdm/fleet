@@ -32,12 +32,20 @@ if (process.env.NODE_ENV === "production") {
     }),
     new MiniCssExtractPlugin({
       filename: "bundle-[contenthash].css",
+      // Async chunks need this too, or their CSS is emitted unhashed — which
+      // the Go asset handler then serves with no-cache (see hashedAssetRe in
+      // server/service/frontend.go). Keeping the bundle- prefix also keeps
+      // these covered by the assets/bundle*.* gitignore rule.
+      chunkFilename: "bundle-[contenthash].css",
     }),
   ]);
 } else {
   // development
   plugins = plugins.concat([
-    new MiniCssExtractPlugin({ filename: "bundle.css" }),
+    new MiniCssExtractPlugin({
+      filename: "bundle.css",
+      chunkFilename: "bundle-[name].css",
+    }),
   ]);
 }
 
@@ -64,7 +72,26 @@ const config = {
     noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       {
+        // Fleet-maintained app icons: always emitted as separate files, never
+        // inlined as data URLs. There are thousands of them and a page renders at
+        // most a screenful, so inlining any of them would put bytes in the
+        // bundle that almost no page load needs.
+        test: /\.png$/,
+        include: path.join(
+          repo,
+          "frontend/pages/SoftwarePage/components/icons/png"
+        ),
+        type: "asset/resource",
+        generator: {
+          filename: "icons/[name]@[hash][ext]",
+        },
+      },
+      {
         test: /\.(pdf|png|gif|ico|jpg|svg|eot|otf|woff|woff2|ttf|mp4|webm)$/,
+        exclude: path.join(
+          repo,
+          "frontend/pages/SoftwarePage/components/icons/png"
+        ),
         type: "asset",
         generator: {
           filename: "[name]@[hash][ext]",
@@ -152,6 +179,10 @@ const config = {
 
 if (process.env.NODE_ENV === "production") {
   config.output.filename = "[name]-[contenthash].js";
+  // Route chunks need a content hash too, so the Go asset handler serves them
+  // with a long-lived immutable Cache-Control (see hashedAssetRe in
+  // server/service/frontend.go).
+  config.output.chunkFilename = "[name]-[contenthash].js";
 }
 
 module.exports = config;

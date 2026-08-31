@@ -4,6 +4,7 @@ kind: config
 spec:
   fleet_desktop:
     alternative_browser_host: ""
+    sso_enabled: false
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
@@ -48,7 +49,7 @@ spec:
     enable_disk_encryption: false
     name_template: null
     enable_recovery_lock_password: false
-    windows_require_bitlocker_pin: null
+    windows_require_bitlocker_pin: false
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     apple_require_hardware_attestation: false
@@ -111,13 +112,13 @@ spec:
       require_all_software_windows: false
       macos_script:
       software:
-    windows_enrollment: null
+    windows_automatic_enrollment: null
     windows_settings:
+      require_bitlocker_pin: false
       custom_settings: null
       enable_disk_encryption: false
       configuration_profiles: null
-      managed_local_account_settings:
-        enabled: false
+      enable_managed_local_account: false
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:

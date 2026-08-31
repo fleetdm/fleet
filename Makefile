@@ -251,6 +251,7 @@ fleetctl-dev: fleetctl
 	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
+	yarn lint:icons
 
 .help-short--lint-go:
 	@echo "Run the Go linters"

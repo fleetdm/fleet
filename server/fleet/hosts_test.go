@@ -476,6 +476,8 @@ func TestMDMNameFromServerURL(t *testing.T) {
 		// AirWatch/awmdm.com infrastructure, so jumpcloud.awmdm.com must resolve to
 		// JumpCloud rather than VMware Workspace ONE.
 		{"jumpcloud on awmdm infrastructure", "https://jumpcloud.awmdm.com", WellKnownMDMJumpCloud},
+		{"zentral cloud", "https://mdm.example.zentral.io/public/mdm/connect/", WellKnownMDMZentral},
+		{"zentral self-hosted", "https://zentral.company.com/public/mdm/connect/", WellKnownMDMZentral},
 	}
 
 	for _, tc := range testCases {
@@ -544,6 +546,23 @@ func TestIsPlaceholderHardwareSerial(t *testing.T) {
 	}
 }
 
+// The frontend keys the host page's Enrollment ID row off this exact field name, so pin
+// the wire format: MDMHostData is scanned from a JSON_OBJECT built in SQL, which makes a
+// silent rename easy to miss.
+func TestMDMHostDataIsPersonalEnrollmentJSON(t *testing.T) {
+	for _, want := range []bool{true, false} {
+		b, err := json.Marshal(MDMHostData{IsPersonalEnrollment: want})
+		require.NoError(t, err)
+		require.Contains(t, string(b), fmt.Sprintf(`"is_personal_enrollment":%t`, want))
+	}
+
+	// It is also the key the datastore's JSON_OBJECT emits, so round-tripping through
+	// Scan has to land on the same field.
+	var data MDMHostData
+	require.NoError(t, data.Scan([]byte(`{"is_personal_enrollment": true}`)))
+	require.True(t, data.IsPersonalEnrollment)
+}
+
 func TestHostMDMHostNameSettingJSON(t *testing.T) {
 	// Omitted entirely when there is no enforcement (host_name is a nil pointer
 	// with omitempty), matching the recovery-lock treatment for ineligible hosts.
@@ -557,4 +576,132 @@ func TestHostMDMHostNameSettingJSON(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, string(b), `"host_name":{"status":"failed","detail":"boom"}`)
+}
+
+func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
+	const fvIdent = "com.fleetdm.fleet.mdm.filevault"
+
+	bothOn := DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}
+	enforceOnly := DiskEncryptionConfig{MacOSEnabled: true}
+	escrowOnly := DiskEncryptionConfig{MacOSEscrowEnabled: true}
+	offOff := DiskEncryptionConfig{}
+
+	type want struct {
+		status DiskEncryptionStatus // "" means no status
+		action ActionRequiredState  // "" means no action
+	}
+	fvProf := func(op MDMOperationType, status *MDMDeliveryStatus) *HostMDMAppleProfile {
+		return &HostMDMAppleProfile{HostUUID: "abc", Identifier: fvIdent, OperationType: op, Status: status}
+	}
+	w := func(s DiskEncryptionStatus, a ActionRequiredState) want { return want{s, a} }
+
+	// key signals: "none" (no key row), "undecryptable", "unknown" (row, not yet checked), "decryptable"
+	keySignals := map[string]*int{"none": new(-1), "undecryptable": new(0), "unknown": nil, "decryptable": new(1)}
+	// disk signals: "unknown" (not reported), "unencrypted", "encrypted"
+	diskSignals := map[string]*bool{"unknown": nil, "unencrypted": new(false), "encrypted": new(true)}
+
+	keyBasedVerifying := map[string]want{
+		"none": w(DiskEncryptionActionRequired, ActionRequiredRotateKey), "undecryptable": w(DiskEncryptionActionRequired, ActionRequiredRotateKey),
+		"unknown": w(DiskEncryptionVerifying, ""), "decryptable": w(DiskEncryptionVerifying, ""),
+	}
+	keyBasedVerified := map[string]want{
+		"none": w(DiskEncryptionActionRequired, ActionRequiredRotateKey), "undecryptable": w(DiskEncryptionActionRequired, ActionRequiredRotateKey),
+		"unknown": w(DiskEncryptionVerifying, ""), "decryptable": w(DiskEncryptionVerified, ""),
+	}
+	diskBasedVerifying := map[string]want{
+		"unknown": w(DiskEncryptionVerifying, ""), "unencrypted": w(DiskEncryptionActionRequired, ActionRequiredLogOut), "encrypted": w(DiskEncryptionVerifying, ""),
+	}
+	diskBasedVerified := map[string]want{
+		"unknown": w(DiskEncryptionVerifying, ""), "unencrypted": w(DiskEncryptionActionRequired, ActionRequiredLogOut), "encrypted": w(DiskEncryptionVerified, ""),
+	}
+
+	fixedCases := []struct {
+		name string
+		prof *HostMDMAppleProfile
+		want want
+	}{
+		{"no profile", nil, want{}},
+		{"pending install", fvProf(MDMOperationTypeInstall, &MDMDeliveryPending), w(DiskEncryptionEnforcing, "")},
+		{"null status install", fvProf(MDMOperationTypeInstall, nil), w(DiskEncryptionEnforcing, "")},
+		{"failed install", fvProf(MDMOperationTypeInstall, &MDMDeliveryFailed), w(DiskEncryptionFailed, "")},
+		{"pending remove", fvProf(MDMOperationTypeRemove, &MDMDeliveryPending), w(DiskEncryptionRemovingEnforcement, "")},
+		{"failed remove", fvProf(MDMOperationTypeRemove, &MDMDeliveryFailed), w(DiskEncryptionFailed, "")},
+		{"removed", fvProf(MDMOperationTypeRemove, &MDMDeliveryVerifying), want{}},
+	}
+
+	check := func(t *testing.T, cfg DiskEncryptionConfig, prof *HostMDMAppleProfile, rawDecryptable *int, disk *bool, exp want) {
+		var d MDMHostData
+		raw := "null"
+		if rawDecryptable != nil {
+			raw = fmt.Sprintf("%d", *rawDecryptable)
+		}
+		require.NoError(t, d.Scan(fmt.Appendf(nil, `{"raw_decryptable": %s}`, raw)))
+		var profs []HostMDMAppleProfile
+		if prof != nil {
+			profs = []HostMDMAppleProfile{*prof}
+		}
+		d.PopulateOSSettingsAndMacOSSettings(profs, fvIdent, cfg, disk)
+
+		require.NotNil(t, d.MacOSSettings)
+		require.NotNil(t, d.OSSettings)
+		if exp.status == "" {
+			require.Nil(t, d.MacOSSettings.DiskEncryption)
+			require.Nil(t, d.OSSettings.DiskEncryption.Status)
+		} else {
+			require.NotNil(t, d.MacOSSettings.DiskEncryption)
+			require.Equal(t, exp.status, *d.MacOSSettings.DiskEncryption)
+			require.NotNil(t, d.OSSettings.DiskEncryption.Status)
+			require.Equal(t, exp.status, *d.OSSettings.DiskEncryption.Status)
+		}
+		if exp.action == "" {
+			require.Nil(t, d.MacOSSettings.ActionRequired)
+		} else {
+			require.NotNil(t, d.MacOSSettings.ActionRequired)
+			require.Equal(t, exp.action, *d.MacOSSettings.ActionRequired)
+		}
+	}
+
+	for _, combo := range []struct {
+		name     string
+		cfg      DiskEncryptionConfig
+		keyBased bool
+	}{
+		{"enforce on, escrow on", bothOn, true},
+		{"enforce off, escrow on", escrowOnly, true},
+		{"enforce off, escrow off", offOff, true},
+		{"enforce on, escrow off", enforceOnly, false},
+	} {
+		t.Run(combo.name, func(t *testing.T) {
+			for _, c := range fixedCases {
+				for keyName, key := range keySignals {
+					for diskName, disk := range diskSignals {
+						t.Run(fmt.Sprintf("%s/key=%s/disk=%s", c.name, keyName, diskName), func(t *testing.T) {
+							check(t, combo.cfg, c.prof, key, disk, c.want)
+						})
+					}
+				}
+			}
+
+			for _, delivered := range []struct {
+				status                      MDMDeliveryStatus
+				keyBasedWant, diskBasedWant map[string]want
+			}{
+				{MDMDeliveryVerifying, keyBasedVerifying, diskBasedVerifying},
+				{MDMDeliveryVerified, keyBasedVerified, diskBasedVerified},
+			} {
+				for keyName, key := range keySignals {
+					for diskName, disk := range diskSignals {
+						exp := delivered.keyBasedWant[keyName]
+						if !combo.keyBased {
+							exp = delivered.diskBasedWant[diskName]
+						}
+						t.Run(fmt.Sprintf("%s install/key=%s/disk=%s", delivered.status, keyName, diskName), func(t *testing.T) {
+							status := delivered.status
+							check(t, combo.cfg, fvProf(MDMOperationTypeInstall, &status), key, disk, exp)
+						})
+					}
+				}
+			}
+		})
+	}
 }

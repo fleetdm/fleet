@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.2",
+      "version": "8.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hegenberg.KeyboardCleanTool';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hegenberg.KeyboardCleanTool' AND version_compare(bundle_short_version, '8.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.hegenberg.KeyboardCleanTool');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hegenberg.KeyboardCleanTool' AND version_compare(bundle_short_version, '8.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hegenberg.KeyboardCleanTool' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://folivora.ai/releases/KeyboardCleanTool-8.2.zip",
+      "installer_url": "https://folivora.ai/releases/KeyboardCleanTool-8.3.zip",
       "install_script_ref": "5082bf17",
       "uninstall_script_ref": "4fb4840e",
-      "sha256": "c85b7342bce59cc3f76a3689aa92405f1b672f93f697c0775a178a8b255b6191",
+      "sha256": "13e2a061220626392b253ab41500871ac9bda1b92598d7a3077b483960256c93",
       "default_categories": [
         "Productivity"
       ]

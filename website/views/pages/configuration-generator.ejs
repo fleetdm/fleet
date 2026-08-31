@@ -1,0 +1,56 @@
+<div id="configuration-generator" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-headline">
+        <h1>Configuration robot 🤖</h1>
+        <p>Generate OS settings in DDM, CSP, and .mobileconfig format.</p>
+      </div>
+      <div v-if="!hasGeneratedProfile">
+        <div purpose="modal-form">
+        <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
+          <div class="d-flex flex-row align-items-center mb-3">
+            <img style="height: 24px;" alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">
+            <p class="mb-0 ml-2"><strong>What would you like to happen?</strong></p>
+          </div>
+          <div class="form-group">
+            <label for="profile-type">
+              Format
+            </label>
+            <select class="form-control" style="color: #515774;" purpose="profile-type-selector" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
+              <option value="ddm">DDM (macOS)</option>
+              <option value="mobileconfig">.mobileconfig (macOS)</option>
+              <option value="csp">CSP (Windows)</option>
+            </select>
+            <div class="invalid-feedback" v-if="formErrors.profileType" focus-first>Select the type of profile that you want to generate.</div>
+          </div>
+          <div class="form-group">
+            <label for="profile">Instructions</label>
+            <textarea class="form-control" type="textarea" id="profile" placeholder="Make sure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
+            <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
+          </div>
+          <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4">Generate</ajax-button>
+        </ajax-form>
+      </div>
+      </div>
+      <div v-show="hasGeneratedProfile">
+        <div class="d-flex flex-column-reverse mb-4">
+          <div purpose="profile-editor">
+            <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
+            <div purpose="generate-button" @click="clickEditGeneratedOutput()" v-if="!hideEditButton"><i class="p-3 fa fa-pencil"></i></div>
+
+          </div>
+          <div purpose="enforced-settings" class="mb-3">
+            <p><strong>Settings enforced:</strong></p>
+            <div v-for="item in parsedItemsInProfile">
+              <p>{{item.name}}: {{item.value}}</p>
+            </div>
+            <p v-if="deliveryNotes"><strong>Deployment note:</strong> {{deliveryNotes}}</p>
+          </div>
+        </div>
+        <p><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

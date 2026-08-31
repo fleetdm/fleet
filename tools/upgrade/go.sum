@@ -352,8 +352,8 @@ github.com/goreleaser/nfpm/v2 v2.47.0/go.mod h1:EhVWY2GwWB0Zf7FDDVqpDDCtvIzeqcUs
 github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
 github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
 github.com/gorilla/websocket v1.4.2/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/gorilla/websocket v1.5.1 h1:gmztn0JnHVt9JZquRuzLw3g4wouNVzKL15iLr/zn/QY=
-github.com/gorilla/websocket v1.5.1/go.mod h1:x3kM2JMyaluk02fnUJpQuwD2dCS5NDG2ZHL0uE0tcaY=
+github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
+github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda h1:5ikpG9mYCMFiZX0nkxoV6aU2IpCHPdws3gCNgdZeEV0=
 github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda/go.mod h1:MyndkAZd5rUMdNogn35MWXBX1UiBigrU8eTj8DoAC2c=
 github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5 h1:saaSiB25B1wgaxrshQhurfPKUGJ4It3OxNJUy0rdOjU=
@@ -424,8 +424,8 @@ github.com/micromdm/micromdm v1.9.0 h1:FAsIKOpnGcq21UQCrHCUxZwSW4NwBLGOoUtzbURxd
 github.com/micromdm/micromdm v1.9.0/go.mod h1:YsAtsEvfEIwpjYTUPpWkJXSfH0hhp9mMHW1BgIZgRt8=
 github.com/micromdm/nanolib v0.2.0 h1:g5GHQuUpS82WIAB15LyenjF/0/WSUNJMe5XZfCJSXq4=
 github.com/micromdm/nanolib v0.2.0/go.mod h1:FwBKCvvphgYvbdUZ+qw5kay7NHJcg6zPi8W7kXNajmE=
-github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87 h1:U9A+0ZED3cPxb5ufiTzyn2kyo6UFoR5bMggCR0Q/DOg=
-github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87/go.mod h1:flkfm0od6GzyXBqI28h5sgEyi3iPO28W2t1Zm9LpwWs=
+github.com/micromdm/plist v0.3.0 h1:a7G9K92jBnY4k202TqlTropTXrYTLJEGV9Ks5AN0LpU=
+github.com/micromdm/plist v0.3.0/go.mod h1:flkfm0od6GzyXBqI28h5sgEyi3iPO28W2t1Zm9LpwWs=
 github.com/miekg/dns v1.1.57 h1:Jzi7ApEIzwEPLHWRcafCN9LZSBbqQpxjt/wpgvg7wcM=
 github.com/miekg/dns v1.1.57/go.mod h1:uqRjCRUuEAA6qsOiJvDd+CFo/vW+y5WR6SNmHE55hZk=
 github.com/minio/highwayhash v1.0.4-0.20251030100505-070ab1a87a76 h1:KGuD/pM2JpL9FAYvBrnBBeENKZNh6eNtjqytV6TYjnk=
