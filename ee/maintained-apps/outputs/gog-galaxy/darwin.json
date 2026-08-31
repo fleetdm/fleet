@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gog.galaxy.cef.renderer';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gog.galaxy.cef.renderer' AND version_compare(bundle_short_version, '2.1.8.32') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.gog.galaxy.cef.renderer');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.gog.galaxy.cef.renderer' AND a.bundle_executable != '');"
       },
       "installer_url": "https://gog-cdn-fastly.gog.com/open/galaxy/client/galaxy_client_2.1.8.32.pkg",
       "install_script_ref": "89b9a1b7",
