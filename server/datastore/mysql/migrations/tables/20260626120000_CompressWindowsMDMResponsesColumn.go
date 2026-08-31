@@ -60,11 +60,9 @@ func Up_20260626120000(tx *sql.Tx) error {
 // failed lookup must not read as "not nullable" and silently skip the NOT NULL step.
 func columnIsNullable(tx *sql.Tx, table, column string) (bool, error) {
 	var isNullable string
-	err := withRetryOnNeedReprepare(func() error {
-		return tx.QueryRow(`
+	err := tx.QueryRow(`
 SELECT IS_NULLABLE FROM information_schema.columns
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column).Scan(&isNullable)
-	})
 	return isNullable == "YES", err
 }
 
@@ -81,12 +79,10 @@ func backfillWindowsMDMResponsesGz(tx *sql.Tx, increment incrementCountFn) error
 			ID          uint64 `db:"id"`
 			RawResponse []byte `db:"raw_response"`
 		}
-		if err := withRetryOnNeedReprepare(func() error {
-			return txx.Select(&batch,
-				`SELECT id, raw_response FROM windows_mdm_responses
-				 WHERE id > ? AND raw_response_gz IS NULL
-				 ORDER BY id LIMIT ?`, lastID, batchSize)
-		}); err != nil {
+		if err := txx.Select(&batch,
+			`SELECT id, raw_response FROM windows_mdm_responses
+			 WHERE id > ? AND raw_response_gz IS NULL
+			 ORDER BY id LIMIT ?`, lastID, batchSize); err != nil {
 			return fmt.Errorf("selecting batch starting after id %d: %w", lastID, err)
 		}
 		if len(batch) == 0 {
@@ -102,10 +98,7 @@ func backfillWindowsMDMResponsesGz(tx *sql.Tx, increment incrementCountFn) error
 			if err := gw.Close(); err != nil {
 				return fmt.Errorf("closing gzip writer for response id %d: %w", row.ID, err)
 			}
-			if err := withRetryOnNeedReprepare(func() error {
-				_, err := txx.Exec(`UPDATE windows_mdm_responses SET raw_response_gz = ? WHERE id = ?`, buf.Bytes(), row.ID)
-				return err
-			}); err != nil {
+			if _, err := txx.Exec(`UPDATE windows_mdm_responses SET raw_response_gz = ? WHERE id = ?`, buf.Bytes(), row.ID); err != nil {
 				return fmt.Errorf("storing compressed response id %d: %w", row.ID, err)
 			}
 			increment()

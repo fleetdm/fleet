@@ -7,14 +7,11 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
-	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -41,41 +38,6 @@ func basicMigrationStepWithArgs(statement string, args []any, errorMessage strin
 		_, err := tx.Exec(statement, args...)
 		return errors.Wrap(err, errorMessage)
 	}
-}
-
-var reprepareWarnOnce sync.Once
-
-// withRetryOnNeedReprepare retries fn on MySQL 1615, which a concurrent DDL,
-// FLUSH TABLES, or table-cache eviction can trigger between PREPARE and EXECUTE.
-// Not deadlocks: those roll back the transaction, so a statement retry can't help.
-func withRetryOnNeedReprepare(fn func() error) error {
-	// re-preparing is what clears a 1615, so the first attempts don't wait; the
-	// delayed ones only matter if something is invalidating in sustained bursts
-	const (
-		immediateAttempts = 5
-		delayedAttempts   = 3
-		retryDelay        = 50 * time.Millisecond
-	)
-
-	var err error
-	for attempt := range immediateAttempts + delayedAttempts {
-		if attempt >= immediateAttempts {
-			reprepareWarnOnce.Do(func() {
-				_, _ = fmt.Fprint(outputTo, "    MySQL is invalidating prepared statements (error 1615); retrying, this may slow the migration\n")
-			})
-			time.Sleep(retryDelay)
-		}
-		if err = fn(); err == nil {
-			return nil
-		}
-
-		// nilaway can't see that errors.As assigns mysqlErr, so the nil check stays
-		var mysqlErr *mysql.MySQLError
-		if !errors.As(err, &mysqlErr) || mysqlErr == nil || mysqlErr.Number != mysqlerr.ER_NEED_REPREPARE {
-			return err
-		}
-	}
-	return err
 }
 
 type (
@@ -191,10 +153,8 @@ func columnsExists(tx *sql.Tx, table string, columns ...string) bool {
 	}
 
 	var count int
-	// a 1615 here would report the column as absent and take the wrong branch
-	err := withRetryOnNeedReprepare(func() error {
-		return tx.QueryRow(
-			fmt.Sprintf(`
+	err := tx.QueryRow(
+		fmt.Sprintf(`
 SELECT
     count(*)
 FROM
@@ -204,8 +164,7 @@ WHERE
     AND TABLE_NAME = ?
     AND COLUMN_NAME IN (%s)
 `, inColumns), args...,
-		).Scan(&count)
-	})
+	).Scan(&count)
 	if err != nil {
 		return false
 	}

@@ -19,18 +19,13 @@
 package tables
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/VividCortex/mysqlerr"
-	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -187,98 +182,4 @@ WHERE
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)
-}
-
-func TestWithRetryOnNeedReprepare(t *testing.T) {
-	// the delayed-phase case trips the warning, which would otherwise land on
-	// stderr and consume the package-level sync.Once
-	originalOutputTo := outputTo
-	outputTo = io.Discard
-	reprepareWarnOnce = sync.Once{}
-	t.Cleanup(func() {
-		outputTo = originalOutputTo
-		reprepareWarnOnce = sync.Once{}
-	})
-
-	needReprepare := &mysql.MySQLError{Number: mysqlerr.ER_NEED_REPREPARE, Message: "Prepared statement needs to be re-prepared"}
-	duplicate := &mysql.MySQLError{Number: mysqlerr.ER_DUP_ENTRY, Message: "Duplicate entry"}
-
-	for _, tc := range []struct {
-		name      string
-		errs      []error // one entry per call, nil means success
-		wantCalls int
-		wantErr   error
-	}{
-		{"succeeds on the first attempt", []error{nil}, 1, nil},
-		{"retries a single 1615", []error{needReprepare, nil}, 2, nil},
-		{"retries a wrapped 1615", []error{fmt.Errorf("storing response: %w", needReprepare), nil}, 2, nil},
-		{"exhausts the immediate attempts, then the delayed ones", []error{
-			needReprepare, needReprepare, needReprepare, needReprepare, needReprepare,
-			needReprepare, needReprepare, needReprepare,
-		}, 8, needReprepare},
-		{"does not retry another mysql error", []error{duplicate}, 1, duplicate},
-		{"does not retry a non-mysql error", []error{io.ErrUnexpectedEOF}, 1, io.ErrUnexpectedEOF},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			var calls int
-			err := withRetryOnNeedReprepare(func() error {
-				calls++
-				require.LessOrEqual(t, calls, len(tc.errs), "called more times than the case provides errors for")
-				return tc.errs[calls-1]
-			})
-			require.Equal(t, tc.wantCalls, calls)
-			if tc.wantErr == nil {
-				require.NoError(t, err)
-				return
-			}
-			require.ErrorIs(t, err, tc.wantErr)
-		})
-	}
-}
-
-func TestWithRetryOnNeedReprepareDelayedPhase(t *testing.T) {
-	needReprepare := &mysql.MySQLError{Number: mysqlerr.ER_NEED_REPREPARE}
-
-	t.Run("the immediate attempts do not sleep", func(t *testing.T) {
-		var calls int
-		start := time.Now()
-		err := withRetryOnNeedReprepare(func() error {
-			calls++
-			if calls < 5 {
-				return needReprepare
-			}
-			return nil
-		})
-		require.NoError(t, err)
-		require.Equal(t, 5, calls)
-		// a lost immediate attempt costs 50ms, so this still catches a partial
-		// regression while tolerating a loaded CI runner
-		require.Less(t, time.Since(start), 100*time.Millisecond, "recovering within the immediate attempts must not wait")
-	})
-
-	t.Run("warns once when a statement reaches the delayed attempts", func(t *testing.T) {
-		var buf bytes.Buffer
-		originalOutputTo := outputTo
-		outputTo = &buf
-		reprepareWarnOnce = sync.Once{}
-		t.Cleanup(func() {
-			outputTo = originalOutputTo
-			reprepareWarnOnce = sync.Once{}
-		})
-
-		for range 2 {
-			var calls int
-			err := withRetryOnNeedReprepare(func() error {
-				calls++
-				if calls <= 5 {
-					return needReprepare
-				}
-				return nil
-			})
-			require.NoError(t, err)
-			require.Equal(t, 6, calls)
-		}
-
-		require.Equal(t, 1, strings.Count(buf.String(), "error 1615"), "the warning must be logged once per upgrade, not per statement")
-	})
 }
