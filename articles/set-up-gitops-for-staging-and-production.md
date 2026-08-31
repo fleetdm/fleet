@@ -100,8 +100,8 @@ This setting exists at both the repository and organization level, and the organ
 - [GitHub docs: about forks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks)
 
 <meta name="articleTitle" value="Set up Fleet GitOps for staging and production">
-<meta name="authorFullName" value="TODO: fill in before publishing">
-<meta name="authorGitHubUsername" value="TODO: fill in before publishing">
+<meta name="authorFullName" value="Kitzy">
+<meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="TODO: fill in before publishing">
+<meta name="publishedOn" value="2026-08-31">
 <meta name="description" value="How to structure your Fleet GitOps repo and secrets to safely test changes in staging before they reach production.">
