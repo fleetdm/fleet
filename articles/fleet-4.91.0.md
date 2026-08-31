@@ -31,7 +31,7 @@ GitHub issue: [#43488](https://github.com/fleetdm/fleet/issues/43488)
 
 ### Default fleet for Windows Autopilot-enrolled hosts
 
-IT admins can now choose a default fleet for hosts that enroll through [Windows Autopilot](). New Autopilot-enrolled Windows hosts land in that fleet automatically, instead of sitting in "Unassigned" until an admin transfers them by hand. Only global admins can set the default, and it's available in GitOps as `mdm.windows_automatic_enrollment.default_fleet`.
+IT admins can now choose a default fleet for hosts that enroll through [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). New Autopilot-enrolled Windows hosts land in that fleet automatically, instead of sitting in "Unassigned" until an admin transfers them by hand. Only global admins can set the default, and it's available in GitOps as `mdm.windows_automatic_enrollment.default_fleet`.
 
 GitHub issue: [#41787](https://github.com/fleetdm/fleet/issues/41787)
 
