@@ -364,6 +364,16 @@ jobs:
         with:
           name: fleet-osquery.pkg
 
+      - name: Set Cloudflare DNS
+        run: |
+          # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+          # by Cloudflare — their resolver sees the new record immediately.
+          for svc in $(networksetup -listallnetworkservices | tail -n +2); do
+            sudo networksetup -setdnsservers "$svc" 1.1.1.1 2>/dev/null || true
+          done
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder || true
+
       - name: Wait until fleet address is reachable and fleet responds
         run: |
           until curl -v -fail ${{ needs.gen.outputs.address }}/version;
@@ -452,6 +462,15 @@ jobs:
         with:
           name: fleet-osquery_amd64.deb
 
+      - name: Set Cloudflare DNS
+        run: |
+          # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+          # by Cloudflare. Apply to all non-loopback interfaces in case traffic routes
+          # through one other than eth0.
+          for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+            sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+          done
+
       - name: Wait until fleet address is reachable and fleet responds
         run: |
           until curl -v -fail ${{ needs.gen.outputs.address }}/version;
@@ -528,6 +547,16 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.msi
+
+      - name: Set Cloudflare DNS
+        shell: powershell
+        run: |
+          # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+          # by Cloudflare — their resolver sees the new record immediately.
+          # -ErrorAction SilentlyContinue skips adapters (e.g. Hyper-V virtual/internal)
+          # that have no associated DNS client address object.
+          Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" -ErrorAction SilentlyContinue }
+          Clear-DnsClientCache
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
