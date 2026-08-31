@@ -78,8 +78,6 @@ func (s *Service) RenderNotificationForHost(ctx context.Context, hostID uint, no
 	return s.render(ctx, notification)
 }
 
-// render is not found rather than an error when the kind is gone, because a
-// notification nothing can describe is nothing the end user can be shown.
 func (s *Service) render(ctx context.Context, notification *api.EndUserNotification) (*api.NotificationView, error) {
 	kind, kindRegistered := s.kinds[notification.Kind]
 	if !kindRegistered {
@@ -106,13 +104,6 @@ func (s *Service) NotificationUUIDForExecution(ctx context.Context, executionID 
 func (s *Service) DelayNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error {
 	if err := s.ds.DelayEndUserNotification(ctx, notificationUUID, nextAttemptAt, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
-	}
-	return nil
-}
-
-func (s *Service) MarkNotificationActed(ctx context.Context, notificationUUID string) error {
-	if err := s.ds.SetEndUserNotificationActed(ctx, notificationUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "mark end user notification acted")
 	}
 	return nil
 }

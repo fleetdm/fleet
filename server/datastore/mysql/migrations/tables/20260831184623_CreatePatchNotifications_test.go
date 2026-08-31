@@ -28,13 +28,14 @@ func TestUp_20260831184623(t *testing.T) {
 	applyNext(t, db)
 
 	execNoErr(t, db, `INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, "notification-1")
+	titleID := execNoErrLastID(t, db,
+		`INSERT INTO software_titles (name, source) VALUES ('Notified App', 'apps')`)
 	execNoErr(t, db,
-		`INSERT INTO patch_notification_apps (notification_uuid, policy_id, software_title_id, software_installer_id)
-			VALUES (?, ?, ?, ?)`,
-		"notification-1", policyID, 42, 7,
+		`INSERT INTO patch_notification_apps (notification_uuid, policy_id, software_title_id)
+			VALUES (?, ?, ?)`,
+		"notification-1", policyID, titleID,
 	)
 
-	// install_at and reminder_sent_at start empty; the countdown sub-issue writes them.
 	var installAt, reminderSentAt *string
 	require.NoError(t, db.QueryRow(
 		`SELECT install_at, reminder_sent_at FROM patch_notifications WHERE notification_uuid = ?`,
@@ -42,21 +43,24 @@ func TestUp_20260831184623(t *testing.T) {
 	assert.Nil(t, installAt)
 	assert.Nil(t, reminderSentAt)
 
-	// (notification_uuid, software_title_id) is the dedup key, so a repeat of the same app is rejected.
 	_, err := db.Exec(
 		`INSERT INTO patch_notification_apps (notification_uuid, software_title_id) VALUES (?, ?)`,
-		"notification-1", 42)
+		"notification-1", titleID)
 	require.Error(t, err)
 
-	// Deleting the policy leaves the app row behind so the notification still lists the app.
 	execNoErr(t, db, `DELETE FROM policies WHERE id = ?`, policyID)
 	var policyIDAfter *uint
 	require.NoError(t, db.QueryRow(
 		`SELECT policy_id FROM patch_notification_apps WHERE notification_uuid = ? AND software_title_id = ?`,
-		"notification-1", 42).Scan(&policyIDAfter))
+		"notification-1", titleID).Scan(&policyIDAfter))
 	assert.Nil(t, policyIDAfter)
 
-	// Both tables hang off the notification.
+	execNoErr(t, db, `DELETE FROM software_titles WHERE id = ?`, titleID)
+	var appCount int
+	require.NoError(t, db.GetContext(context.Background(), &appCount,
+		`SELECT COUNT(*) FROM patch_notification_apps WHERE notification_uuid = ?`, "notification-1"))
+	assert.Zero(t, appCount)
+
 	execNoErr(t, db, `DELETE FROM notifications_end_user WHERE uuid = ?`, "notification-1")
 
 	var count int

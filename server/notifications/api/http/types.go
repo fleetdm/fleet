@@ -16,8 +16,6 @@ func (r *GetNotificationRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
-// GetNotificationResponse is the view itself, not a wrapper around it: the
-// page inside the toast window draws the body as it arrives.
 type GetNotificationResponse struct {
 	*api.NotificationView
 	Err error `json:"error,omitempty"`
@@ -36,9 +34,6 @@ func (r *NotificationActionRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
-// NotificationActionResponse answers with the view as it stands after the
-// action, so picking "Update now" redraws the list as installing without a
-// second request.
 type NotificationActionResponse struct {
 	*api.NotificationView
 	Err error `json:"error,omitempty"`

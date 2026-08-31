@@ -3466,8 +3466,6 @@ func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Da
 	require.NoError(t, err)
 	require.NotNil(t, secondPolicy)
 
-	// newNotification seeds a notification covering one app per policy, and the
-	// activity saying how showing it went.
 	newNotification := func(t *testing.T, status string, policyIDs []uint) string {
 		notificationUUID := uuid.NewString()
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -3481,10 +3479,19 @@ func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Da
 				`INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, notificationUUID); err != nil {
 				return err
 			}
-			for i, policyID := range policyIDs {
+			for _, policyID := range policyIDs {
+				res, err := q.ExecContext(ctx,
+					`INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, uuid.NewString())
+				if err != nil {
+					return err
+				}
+				titleID, err := res.LastInsertId()
+				if err != nil {
+					return err
+				}
 				if _, err := q.ExecContext(ctx, `
 					INSERT INTO patch_notification_apps (notification_uuid, policy_id, software_title_id)
-					VALUES (?, ?, ?)`, notificationUUID, policyID, 900+i); err != nil {
+					VALUES (?, ?, ?)`, notificationUUID, policyID, titleID); err != nil {
 					return err
 				}
 			}

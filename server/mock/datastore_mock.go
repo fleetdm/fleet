@@ -538,9 +538,13 @@ type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID st
 
 type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, bool, error)
 
-type PatchNotificationCoversAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
-type UnsentPatchNotificationForHostFunc func(ctx context.Context, hostID uint) (string, error)
+type PatchNotificationAwaitingDispatchForHostFunc func(ctx context.Context, hostID uint) (string, error)
+
+type PatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) (bool, error)
+
+type SetPatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) error
 
 type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
 
@@ -3118,11 +3122,17 @@ type DataStore struct {
 	GetDetailsForUninstallFromExecutionIDFunc        GetDetailsForUninstallFromExecutionIDFunc
 	GetDetailsForUninstallFromExecutionIDFuncInvoked bool
 
-	PatchNotificationCoversAppFunc        PatchNotificationCoversAppFunc
-	PatchNotificationCoversAppFuncInvoked bool
+	PatchNotificationExistsForAppFunc        PatchNotificationExistsForAppFunc
+	PatchNotificationExistsForAppFuncInvoked bool
 
-	UnsentPatchNotificationForHostFunc        UnsentPatchNotificationForHostFunc
-	UnsentPatchNotificationForHostFuncInvoked bool
+	PatchNotificationAwaitingDispatchForHostFunc        PatchNotificationAwaitingDispatchForHostFunc
+	PatchNotificationAwaitingDispatchForHostFuncInvoked bool
+
+	PatchNotificationInstallsQueuedFunc        PatchNotificationInstallsQueuedFunc
+	PatchNotificationInstallsQueuedFuncInvoked bool
+
+	SetPatchNotificationInstallsQueuedFunc        SetPatchNotificationInstallsQueuedFunc
+	SetPatchNotificationInstallsQueuedFuncInvoked bool
 
 	NewPatchNotificationFunc        NewPatchNotificationFunc
 	NewPatchNotificationFuncInvoked bool
@@ -7632,18 +7642,32 @@ func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, e
 	return s.GetDetailsForUninstallFromExecutionIDFunc(ctx, executionID)
 }
 
-func (s *DataStore) PatchNotificationCoversApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
+func (s *DataStore) PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
 	s.mu.Lock()
-	s.PatchNotificationCoversAppFuncInvoked = true
+	s.PatchNotificationExistsForAppFuncInvoked = true
 	s.mu.Unlock()
-	return s.PatchNotificationCoversAppFunc(ctx, hostID, softwareTitleID)
+	return s.PatchNotificationExistsForAppFunc(ctx, hostID, softwareTitleID)
 }
 
-func (s *DataStore) UnsentPatchNotificationForHost(ctx context.Context, hostID uint) (string, error) {
+func (s *DataStore) PatchNotificationAwaitingDispatchForHost(ctx context.Context, hostID uint) (string, error) {
 	s.mu.Lock()
-	s.UnsentPatchNotificationForHostFuncInvoked = true
+	s.PatchNotificationAwaitingDispatchForHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnsentPatchNotificationForHostFunc(ctx, hostID)
+	return s.PatchNotificationAwaitingDispatchForHostFunc(ctx, hostID)
+}
+
+func (s *DataStore) PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
+	s.mu.Lock()
+	s.PatchNotificationInstallsQueuedFuncInvoked = true
+	s.mu.Unlock()
+	return s.PatchNotificationInstallsQueuedFunc(ctx, notificationUUID)
+}
+
+func (s *DataStore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error {
+	s.mu.Lock()
+	s.SetPatchNotificationInstallsQueuedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetPatchNotificationInstallsQueuedFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) NewPatchNotification(ctx context.Context, notificationUUID string) error {

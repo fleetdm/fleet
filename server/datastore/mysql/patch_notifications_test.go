@@ -21,8 +21,8 @@ func TestPatchNotifications(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"CoveredApps", testPatchNotificationCoveredApps},
-		{"UnsentForHost", testUnsentPatchNotificationForHost},
+		{"ExistsForApp", testPatchNotificationExistsForApp},
+		{"UnsentForHost", testPatchNotificationAwaitingDispatchForHost},
 		{"AddAndListApps", testPatchNotificationAddAndListApps},
 	}
 	for _, c := range cases {
@@ -33,9 +33,6 @@ func TestPatchNotifications(t *testing.T) {
 	}
 }
 
-// newPatchNotification inserts a patch notification for a host in the given
-// delivery status, straight into the tables. Fleet has no endpoint for creating
-// one: it is always the server that decides an end user needs telling.
 func newPatchNotification(t *testing.T, ds *Datastore, hostID uint, status string, attemptCount uint) string {
 	t.Helper()
 	notificationUUID := uuid.NewString()
@@ -53,66 +50,71 @@ func newPatchNotification(t *testing.T, ds *Datastore, hostID uint, status strin
 	return notificationUUID
 }
 
-func testPatchNotificationCoveredApps(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	host := test.NewHost(t, ds, "covered-host", "", "covered-key", "covered-uuid", time.Now())
+func newTestSoftwareTitle(t *testing.T, ds *Datastore, name string) uint {
+	t.Helper()
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(context.Background(),
+			`INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, name); err != nil {
+			return err
+		}
+		return sqlx.GetContext(context.Background(), q, &titleID,
+			`SELECT id FROM software_titles WHERE name = ? AND source = 'apps'`, name)
+	})
+	return titleID
+}
 
-	// Each status gets its own app so one pass can tell which ones still count.
-	// A notification that failed, expired, or was acted on no longer speaks for
-	// its app, so the app needs telling about again.
-	stillCovers := map[string]bool{
+func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "exists-host", "", "exists-key", "exists-uuid", time.Now())
+
+	stillCounts := map[string]bool{
 		notifications_api.EndUserNotificationPending:    true,
 		notifications_api.EndUserNotificationDispatched: true,
 		notifications_api.EndUserNotificationFailed:     false,
 		notifications_api.EndUserNotificationExpired:    false,
-		notifications_api.EndUserNotificationActed:      false,
 	}
 
-	var titleID uint = 100
-	for status, wantCovered := range stillCovers {
-		titleID++
+	for status, wantExists := range stillCounts {
+		titleID := newTestSoftwareTitle(t, ds, "app-"+status)
 		notificationUUID := newPatchNotification(t, ds, host.ID, status, 0)
 		require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID,
 			fleet.PatchNotificationApp{SoftwareTitleID: titleID}))
 
-		covered, err := ds.PatchNotificationCoversApp(ctx, host.ID, titleID)
+		exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, titleID)
 		require.NoError(t, err)
-		assert.Equal(t, wantCovered, covered, "status %s", status)
+		assert.Equal(t, wantExists, exists, "status %s", status)
 
-		// Another host's notification doesn't cover this host's apps.
 		otherHost := test.NewHost(t, ds, "other-host-"+status, "", "key-"+status, "uuid-"+status, time.Now())
-		covered, err = ds.PatchNotificationCoversApp(ctx, otherHost.ID, titleID)
+		exists, err = ds.PatchNotificationExistsForApp(ctx, otherHost.ID, titleID)
 		require.NoError(t, err)
-		assert.False(t, covered)
+		assert.False(t, exists)
 	}
 
-	// An app no notification lists at all.
-	covered, err := ds.PatchNotificationCoversApp(ctx, host.ID, 999)
+	exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "unlisted"))
 	require.NoError(t, err)
-	assert.False(t, covered)
+	assert.False(t, exists)
 }
 
-func testUnsentPatchNotificationForHost(t *testing.T, ds *Datastore) {
+func testPatchNotificationAwaitingDispatchForHost(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "unsent-host", "", "unsent-key", "unsent-uuid", time.Now())
 
-	notificationUUID, err := ds.UnsentPatchNotificationForHost(ctx, host.ID)
+	notificationUUID, err := ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
 	require.NoError(t, err)
 	assert.Empty(t, notificationUUID)
 
 	pendingUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 0)
-	notificationUUID, err = ds.UnsentPatchNotificationForHost(ctx, host.ID)
+	notificationUUID, err = ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
 	require.NoError(t, err)
 	assert.Equal(t, pendingUUID, notificationUUID)
 
-	// A notification that went out and came back pending is on a schedule the end
-	// user has already seen, so a new app doesn't belong on it.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`UPDATE notifications_end_user SET attempt_count = 1 WHERE uuid = ?`, pendingUUID)
 		return err
 	})
-	notificationUUID, err = ds.UnsentPatchNotificationForHost(ctx, host.ID)
+	notificationUUID, err = ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
 	require.NoError(t, err)
 	assert.Empty(t, notificationUUID)
 }
@@ -154,7 +156,6 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, app))
 
-	// A skip that races another for the same app adds nothing rather than failing.
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, app))
 
 	apps, err := ds.ListPatchNotificationApps(ctx, notificationUUID)
@@ -166,11 +167,9 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, apps[0].SoftwareInstallerID)
 	assert.Equal(t, installerID, *apps[0].SoftwareInstallerID)
 	assert.Equal(t, "Notified App", apps[0].Name)
-	// Falls back to the title name until an admin sets one for the fleet.
 	assert.Equal(t, "Notified App", apps[0].DisplayName)
 	assert.False(t, apps[0].HasIcon)
 
-	// The name the end user sees is the one set for their host's fleet.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)`,

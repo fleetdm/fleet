@@ -1979,22 +1979,12 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 	},
 	{
 		activityType: "notified_end_user_before_patching",
-		// One notification covers several apps and so several policies, and has to
-		// appear in the Automation runs table of each of them. The join is what
-		// spreads it across them; reading policy_ids out of the details JSON would
-		// mean scanning every activity's JSON instead of an index lookup.
 		joins: `
             INNER JOIN patch_notification_apps pna
                 ON  pna.notification_uuid = ap.details->>'$.patch_notification_uuid'
                 AND pna.policy_id         = ?`,
-		// The activity records its own outcome in details.status, which is
-		// 'success' or 'failed'. 'failed' is the sole failure and anything else is
-		// a success, so the two conditions are null-safe complements that exactly
-		// partition what statusCols reports.
 		errorCond:   "ap.details->>'$.status' = 'failed'",
 		successCond: "NOT (ap.details->>'$.status' <=> 'failed')",
-		// The output is the notification script's, which the details modal fetches
-		// by script_execution_id for the exit code it needs anyway.
 		statusCols: statusOutputCols{
 			status: "IF(ap.details->>'$.status' = 'failed', 'error', 'success')",
 			output: "NULL",

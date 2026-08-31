@@ -19,9 +19,6 @@ var NoopRecordOutcomeFunc RecordOutcomeFunc = func(_ context.Context, _ string, 
 	return nil
 }
 
-// NoopCreateNotificationFunc hands back the notification it was given, with a
-// UUID if it didn't have one, so tests that don't care about notifications
-// don't have to set anything up.
 var NoopCreateNotificationFunc CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
 	created := *notification
 	if created.UUID == "" {
@@ -39,7 +36,7 @@ type MockNotificationsService struct {
 	NotificationUUIDForExecutionFunc        NotificationUUIDForExecutionFunc
 	NotificationUUIDForExecutionFuncInvoked bool
 
-	CreateNotificationFunc        CreateNotificationFunc // defaults to NoopCreateNotificationFunc if nil
+	CreateNotificationFunc        CreateNotificationFunc
 	CreateNotificationFuncInvoked bool
 
 	mu sync.Mutex

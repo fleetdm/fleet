@@ -8,10 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/notifications/internal/types"
 )
 
-// ApplyAction runs what the end user picked and answers with the view as it
-// stands after, so the page can redraw without a second request. Core keeps
-// verify and delay; every other action ID is one the kind declared in Render,
-// so the kind is the only thing that knows what it means.
 func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID string, action api.EndUserNotificationAction) (*api.NotificationView, error) {
 	notification, err := s.notificationForHost(ctx, hostID, notificationUUID)
 	if err != nil {
@@ -47,7 +43,6 @@ func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID
 		}
 	}
 
-	// reload so the view reflects what the action just changed
 	updated, err := s.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reload end user notification after action")

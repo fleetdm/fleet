@@ -1258,12 +1258,6 @@ func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint,
 	return a.HostID, a.CommandUUID
 }
 
-// ActivityTypeNotifiedEndUserBeforePatching covers both the 1 hour notification
-// and the 5 minute reminder, and both the shown and the failed outcome, with
-// Status telling them apart. TimeBefore is in seconds. There is no reason
-// field: the UI reads the notification script's run by ScriptExecutionID and
-// picks its wording from the exit code. A notification Fleet held back without
-// running a script has no ScriptExecutionID.
 type ActivityTypeNotifiedEndUserBeforePatching struct {
 	HostID                uint       `json:"host_id"`
 	HostDisplayName       string     `json:"host_display_name"`

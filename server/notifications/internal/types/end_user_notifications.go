@@ -23,7 +23,6 @@ type Datastore interface {
 	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
 	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
-	SetEndUserNotificationActed(ctx context.Context, notificationUUID string) error
 }
 
 type NotFoundError struct {

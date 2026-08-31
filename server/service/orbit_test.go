@@ -1253,8 +1253,6 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		return nil
 	}
 
-	// The notifications bounded context is mocked here too, but the patch tables it
-	// hangs off are real, so the mock has to write the row they point at.
 	opts.NotificationsMock.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
 		created := *notification
 		created.UUID = uuid.NewString()
@@ -1373,7 +1371,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               installUUID,
-			PreInstallConditionOutput: new(""), // app open
+			PreInstallConditionOutput: new(""),
 		}
 		hctx := hostctx.NewContext(ctx, host)
 		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
@@ -1398,7 +1396,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		result := &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               installUUID,
-			PreInstallConditionOutput: new(""), // app open
+			PreInstallConditionOutput: new(""),
 		}
 		hctx := hostctx.NewContext(ctx, host)
 		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
@@ -1423,14 +1421,13 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.Equal(t, fleet.SoftwareInstallerAppOpenNotifyCopy, *res.PreInstallQueryOutput)
 	})
 
-	// patchNotificationsForHost returns the host's patch notification UUIDs, oldest first.
 	patchNotificationsForHost := func(t *testing.T, hostID uint) []string {
 		var uuids []string
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &uuids, `
-				SELECT eun.uuid FROM notifications_end_user eun
-					JOIN patch_notifications pn ON pn.notification_uuid = eun.uuid
-				WHERE eun.host_id = ? ORDER BY eun.id`, hostID)
+				SELECT neu.uuid FROM notifications_end_user neu
+					JOIN patch_notifications pn ON pn.notification_uuid = neu.uuid
+				WHERE neu.host_id = ? ORDER BY neu.id`, hostID)
 		})
 		return uuids
 	}
@@ -1445,7 +1442,6 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		return titleIDs
 	}
 
-	// newInstaller adds a second app to the team so a host can skip two different ones.
 	newInstaller := func(t *testing.T, title string) (uint, uint) {
 		payload := *installerPayload
 		payload.Title = title
@@ -1482,7 +1478,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               installUUID,
-			PreInstallConditionOutput: new(""), // app open
+			PreInstallConditionOutput: new(""),
 		}))
 	}
 
@@ -1509,7 +1505,6 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		notificationUUIDs := patchNotificationsForHost(t, host.ID)
 		require.Len(t, notificationUUIDs, 1)
 
-		// The policy re-fires on every refetch, so the same skip arrives again.
 		reportAppOpenSkip(t, host, insertPendingInstall(t, host, policyID))
 		require.Equal(t, notificationUUIDs, patchNotificationsForHost(t, host.ID))
 	})
@@ -1522,8 +1517,6 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		notificationUUIDs := patchNotificationsForHost(t, host.ID)
 		require.Len(t, notificationUUIDs, 1)
 
-		// Stand in for the dispatch pass: the first toast is on screen now, so it
-		// can't take a new app and its hour.
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				UPDATE notifications_end_user SET status = ?, attempt_count = 1, execution_id = ? WHERE uuid = ?`,

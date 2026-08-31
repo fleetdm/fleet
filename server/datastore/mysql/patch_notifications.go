@@ -11,52 +11,45 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) PatchNotificationCoversApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
-	// Pending and dispatched are the states where a notification still speaks for
-	// its apps. Once it has failed, expired, or the end user acted on it, the app
-	// needs telling about again.
+func (ds *Datastore) PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
 	const selectStmt = `
 SELECT 1
 FROM patch_notification_apps pna
-	JOIN notifications_end_user eun ON eun.uuid = pna.notification_uuid
-WHERE eun.host_id = ?
-	AND eun.status IN (?, ?)
+	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	JOIN patch_notifications pn ON pn.notification_uuid = pna.notification_uuid
+WHERE neu.host_id = ?
+	AND neu.status IN (?, ?)
+	AND pn.installs_queued_at IS NULL
 	AND pna.software_title_id = ?
 LIMIT 1
 `
 
-	var covered bool
-	// primary, not the replica: a host's skips arrive one at a time and each one
-	// has to see what the one before it wrote
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &covered, selectStmt,
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &exists, selectStmt,
 		hostID, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
 		softwareTitleID,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
-		return false, ctxerr.Wrap(ctx, err, "check patch notification covers app")
+		return false, ctxerr.Wrap(ctx, err, "check patch notification exists for app")
 	}
-	return covered, nil
+	return exists, nil
 }
 
-func (ds *Datastore) UnsentPatchNotificationForHost(ctx context.Context, hostID uint) (string, error) {
-	// attempt_count = 0 rather than just pending: a notification that went out
-	// and came back pending (retried, or the end user delayed it) is already on a
-	// schedule the end user has seen, so a new app doesn't belong on it.
+func (ds *Datastore) PatchNotificationAwaitingDispatchForHost(ctx context.Context, hostID uint) (string, error) {
 	const selectStmt = `
-SELECT eun.uuid
-FROM notifications_end_user eun
-	JOIN patch_notifications pn ON pn.notification_uuid = eun.uuid
-WHERE eun.host_id = ?
-	AND eun.status = ?
-	AND eun.attempt_count = 0
-ORDER BY eun.id DESC
+SELECT neu.uuid
+FROM notifications_end_user neu
+	JOIN patch_notifications pn ON pn.notification_uuid = neu.uuid
+WHERE neu.host_id = ?
+	AND neu.status = ?
+	AND neu.attempt_count = 0
+ORDER BY neu.id DESC
 LIMIT 1
 `
 
 	var notificationUUID string
-	// primary, not the replica: the skip before this one may have just created it
 	if err := sqlx.GetContext(ctx, ds.writer(ctx), &notificationUUID, selectStmt,
 		hostID, notifications_api.EndUserNotificationPending,
 	); err != nil {
@@ -66,6 +59,31 @@ LIMIT 1
 		return "", ctxerr.Wrap(ctx, err, "get unsent patch notification for host")
 	}
 	return notificationUUID, nil
+}
+
+func (ds *Datastore) PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
+	const selectStmt = `SELECT installs_queued_at IS NOT NULL FROM patch_notifications WHERE notification_uuid = ?`
+
+	var queued bool
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &queued, selectStmt, notificationUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check patch notification installs queued")
+	}
+	return queued, nil
+}
+
+func (ds *Datastore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error {
+	const updateStmt = `
+UPDATE patch_notifications SET installs_queued_at = NOW(6)
+WHERE notification_uuid = ? AND installs_queued_at IS NULL
+`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set patch notification installs queued")
+	}
+	return nil
 }
 
 func (ds *Datastore) NewPatchNotification(ctx context.Context, notificationUUID string) error {
@@ -78,8 +96,6 @@ func (ds *Datastore) NewPatchNotification(ctx context.Context, notificationUUID 
 }
 
 func (ds *Datastore) AddPatchNotificationApp(ctx context.Context, notificationUUID string, app fleet.PatchNotificationApp) error {
-	// INSERT IGNORE because two skips for the same app can race, and the second
-	// one has nothing to add.
 	const insertStmt = `
 INSERT IGNORE INTO patch_notification_apps
 	(notification_uuid, policy_id, software_title_id, software_installer_id)
@@ -95,8 +111,6 @@ VALUES (?, ?, ?, ?)
 }
 
 func (ds *Datastore) ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error) {
-	// The display name and the icon are both per-team, so they come through the
-	// notification's host rather than off the title.
 	const selectStmt = `
 SELECT
 	pna.policy_id,
@@ -106,8 +120,8 @@ SELECT
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
 	sti.software_title_id IS NOT NULL AS has_icon
 FROM patch_notification_apps pna
-	JOIN notifications_end_user eun ON eun.uuid = pna.notification_uuid
-	JOIN hosts h ON h.id = eun.host_id
+	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	JOIN hosts h ON h.id = neu.host_id
 	LEFT JOIN software_titles st ON st.id = pna.software_title_id
 	LEFT JOIN software_title_display_names stdn
 		ON stdn.software_title_id = pna.software_title_id AND stdn.team_id = COALESCE(h.team_id, 0)
@@ -118,9 +132,6 @@ ORDER BY display_name, pna.software_title_id
 `
 
 	var apps []fleet.PatchNotificationAppDetail
-	// primary, not the replica: a short list here means update now queues fewer
-	// installs than the end user was shown and then marks the notification done,
-	// so the apps it missed are never installed
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &apps, selectStmt, notificationUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}

@@ -1396,11 +1396,7 @@ type HostSoftwareInstallOptions struct {
 	// WithRetries indicates the install should be retried on failure (up to
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
-	WithRetries bool
-	// IgnoreAppOpenQuery leaves off the app open query the install's policy would
-	// otherwise put on it, so it installs whether or not the app is open. Set
-	// when the end user asked for the update from the notification Fleet showed
-	// them, which lets the install keep its policy.
+	WithRetries        bool
 	IgnoreAppOpenQuery bool
 }
 

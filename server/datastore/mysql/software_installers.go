@@ -148,7 +148,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	}
 
 	// A patch-when-closed or notify-before-patching policy install uses the installer's app open
-	// query as its pre-install condition, unless it was queued to ignore it.
+	// query as its pre-install condition.
 	if (result.PatchWhenClosed || result.NotifyBeforePatching) && !result.IgnoreAppOpenQuery {
 		result.PreInstallCondition = result.AppOpenQuery
 	}

@@ -2761,11 +2761,14 @@ CREATE TABLE `patch_notification_apps` (
   `policy_id` int unsigned DEFAULT NULL,
   `software_title_id` int unsigned NOT NULL,
   `software_installer_id` int unsigned DEFAULT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`notification_uuid`,`software_title_id`),
   KEY `idx_patch_notification_apps_policy` (`policy_id`),
+  KEY `idx_patch_notification_apps_software_installer` (`software_installer_id`),
+  KEY `fk_patch_notification_apps_software_title_id` (`software_title_id`),
   CONSTRAINT `fk_patch_notification_apps_notification_uuid` FOREIGN KEY (`notification_uuid`) REFERENCES `notifications_end_user` (`uuid`) ON DELETE CASCADE,
-  CONSTRAINT `fk_patch_notification_apps_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL
+  CONSTRAINT `fk_patch_notification_apps_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_patch_notification_apps_software_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_patch_notification_apps_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2774,8 +2777,7 @@ CREATE TABLE `patch_notifications` (
   `notification_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `install_at` datetime(6) DEFAULT NULL,
   `reminder_sent_at` datetime(6) DEFAULT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `installs_queued_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`notification_uuid`),
   KEY `idx_patch_notifications_install_at` (`install_at`),
   CONSTRAINT `fk_patch_notifications_notification_uuid` FOREIGN KEY (`notification_uuid`) REFERENCES `notifications_end_user` (`uuid`) ON DELETE CASCADE
