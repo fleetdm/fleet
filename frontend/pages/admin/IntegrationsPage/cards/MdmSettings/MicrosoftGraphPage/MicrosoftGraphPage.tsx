@@ -285,7 +285,8 @@ const MicrosoftGraphPage = () => {
         );
       } else {
         notify.error(
-          getErrorReason(e) || "Couldn't save Microsoft Graph credential."
+          getErrorReason(e) || "Couldn't save Microsoft Graph credential.",
+          { response: e }
         );
       }
     } finally {

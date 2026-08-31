@@ -1,0 +1,1 @@
+- Populated the expandable raw-response panel on the error toasts shown when saving a Microsoft Graph credential fails and when unenrolling MDM returns "already off," so users can see the full backend response instead of just the parsed reason.

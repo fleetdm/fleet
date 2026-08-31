@@ -61,7 +61,9 @@ const UnenrollMdmModal = ({
       // would send the user in a loop. It also means this page was working from
       // stale data, so refresh it to drop the action.
       if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
-        notify.error(getErrorReason(unenrollMdmError));
+        notify.error(getErrorReason(unenrollMdmError), {
+          response: unenrollMdmError,
+        });
         onSuccess();
         onClose();
       } else {
