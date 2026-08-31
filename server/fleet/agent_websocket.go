@@ -36,6 +36,12 @@ const (
 	AgentWSReasonPolicy  = "policy"  // policy queries due per PolicyUpdateInterval
 	AgentWSReasonDetail  = "detail"  // detail (host vitals) queries due per DetailUpdateInterval
 	AgentWSReasonRefetch = "refetch" // a host refetch was requested (or critical queries are being refetched)
+
+	// AgentWSReasonHostNotFound is returned by ListHostIDsDueForDistributedRead
+	// for IDs with no hosts row (the host was deleted while its agent held a
+	// connection). It is never sent to agents: the interval check job closes
+	// such connections so the agent reconnects with its new identity.
+	AgentWSReasonHostNotFound = "host-not-found"
 )
 
 // AgentWSReasonLiveQuery is the reason for a distributed/read notification
