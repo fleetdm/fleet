@@ -4919,11 +4919,12 @@ func TestGetMDMCommandResultsTeamScoping(t *testing.T) {
 // (b) injects a Get for the same URI into the outgoing response so the device replies on the next round-trip.
 func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 	const (
-		testDeviceID      = "test-device-id"
-		testSerial        = "ABC123XYZ"
-		testHostUUID      = "host-uuid-from-osquery"
-		testHostname      = "DESKTOP-0C89RC0"
-		testHostID   uint = 99
+		testDeviceID        = "test-device-id"
+		testHardwareID      = "test-hardware-id"
+		testSerial          = "ABC123XYZ"
+		testHostUUID        = "host-uuid-from-osquery"
+		testHostname        = "DESKTOP-0C89RC0"
+		testHostID     uint = 99
 		// CmdRef value is never asserted; a constant keeps the generated SyncML deterministic.
 		resultsCmdRef = "results-cmdref"
 	)
@@ -4978,8 +4979,8 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			assert.Equal(t, []string{testHostUUID}, uuids)
 			return []*fleet.Host{{ID: testHostID, UUID: testHostUUID, HardwareSerial: testSerial, Hostname: testHostname}}, nil
 		}
-		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmDeviceID string) (bool, error) {
-			assert.Equal(t, testDeviceID, mdmDeviceID)
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmHardwareID string, _ time.Time) (bool, error) {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
 			return true, nil
 		}
 		return svcImpl, ds, opts, ctx
@@ -5031,13 +5032,13 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			return updated, nil
 		}
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
-			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMEnrollUserID: ""}, nil
+			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, MDMEnrollUserID: ""}, nil
 		}
 	}
 
 	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		reqMsg := buildReqMsg(t, "")
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
@@ -5060,7 +5061,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: testHostUUID}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: testHostUUID}
 		reqMsg := buildReqMsg(t, "")
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
@@ -5072,7 +5073,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		stubLink(t, ds, true)
 
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
@@ -5085,7 +5086,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("serial with no matching host (NotFound): Get is reinjected for retry", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// Production returns a fleet NotFound (not sql.ErrNoRows) when no Windows host matches the serial: the host
 		// hasn't enrolled in osquery yet, or the serial is ambiguous. This is the common, non-error retry path.
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
@@ -5109,7 +5110,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("serial lookup fails with an unexpected error: non-fatal, Get reinjected", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// A non-NotFound error (e.g. a real DB failure) is logged and handled, but linkage stays non-fatal: the
 		// management session must not fail and the Get must be reinjected so a later session retries.
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
@@ -5126,7 +5127,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("Results carries the URI but an empty serial: no lookup, Get reinjected", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 
 		// Whitespace-only Data trims to empty, so there is no usable serial and no host lookup should happen.
 		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults("   ")), RequestAuthStateTrusted)
@@ -5138,7 +5139,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("placeholder serial: no lookup, no mislink, Get reinjected", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// Reproduce the staggered-mislink trap: an unrelated host already carries this junk placeholder serial, so a
 		// naive lookup would return exactly one match and link THIS enrollment to the wrong host. The placeholder guard
 		// must stop the lookup from ever running; these devices link via the osquery MDMDeviceID backstop instead.
@@ -5155,7 +5156,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("SMBIOSSerialNumber Item is not the first one: still found", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		stubLink(t, ds, true)
 
 		// The serial is the second Item in the Results command, not the first. A naive Items[0]-only scan misses it.
@@ -5172,7 +5173,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 
 	t.Run("link already applied by another path: HostUUID still refreshed in-memory", func(t *testing.T) {
 		svc, ds, _, ctx := newSvc(t)
-		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
 		// updated=false simulates the row already holding host_uuid=testHostUUID (the WHERE host_uuid <> ? guard
 		// short-circuited). In-memory state must still be refreshed so no redundant Get is sent.
 		stubLink(t, ds, false)
@@ -5540,15 +5541,17 @@ func TestResolveBitLockerPINPayload(t *testing.T) {
 // activity is recorded on the management session that first links the enrollment to a host, and only once.
 func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	const (
-		testDeviceID = "test-device-id"
-		testSerial   = "ABC123XYZ"
-		testHostUUID = "host-uuid-from-osquery"
-		testHostname = "DESKTOP-0C89RC0"
-		testHostID   = uint(99)
+		testDeviceID   = "test-device-id"
+		testHardwareID = "test-hardware-id"
+		testSerial     = "ABC123XYZ"
+		testHostUUID   = "host-uuid-from-osquery"
+		testHostname   = "DESKTOP-0C89RC0"
+		testHostID     = uint(99)
 	)
 
-	// newSvc returns a service plus the captured activities recorded through it.
-	newSvc := func(t *testing.T) (*Service, *mock.Store, *[]fleet.ActivityDetails, context.Context) {
+	// newSvc returns a service plus the captured activities recorded through it. activityErr, when set by a subtest,
+	// is what the activity service returns instead of recording.
+	newSvc := func(t *testing.T) (*Service, *mock.Store, *[]fleet.ActivityDetails, *error, context.Context) {
 		t.Helper()
 		ds := new(mock.Store)
 		opts := &TestServerOpts{}
@@ -5560,7 +5563,11 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		require.NotNil(t, svcImpl)
 
 		var recorded []fleet.ActivityDetails
+		var activityErr error
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if activityErr != nil {
+				return activityErr
+			}
 			recorded = append(recorded, act)
 			return nil
 		}
@@ -5568,11 +5575,11 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 			assert.Equal(t, []string{testHostUUID}, uuids)
 			return []*fleet.Host{{ID: testHostID, UUID: testHostUUID, HardwareSerial: testSerial, Hostname: testHostname}}, nil
 		}
-		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmDeviceID string) (bool, error) {
-			assert.Equal(t, testDeviceID, mdmDeviceID)
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmHardwareID string, _ time.Time) (bool, error) {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
 			return true, nil
 		}
-		return svcImpl, ds, &recorded, ctx
+		return svcImpl, ds, &recorded, &activityErr, ctx
 	}
 
 	// azureEnrollment is a linked Azure enrollment whose activity has not been recorded yet: enroll_user_id holds a UPN
@@ -5580,6 +5587,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	azureEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
 		return &fleet.MDMWindowsEnrolledDevice{
 			MDMDeviceID:     testDeviceID,
+			MDMHardwareID:   testHardwareID,
 			HostUUID:        testHostUUID,
 			MDMEnrollUserID: "fleetie@example.com",
 			MDMNotInOOBE:    false,
@@ -5587,7 +5595,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	}
 
 	t.Run("linked enrollment without an activity yet: recorded with host id and serial", func(t *testing.T) {
-		svc, ds, recorded, ctx := newSvc(t)
+		svc, ds, recorded, _, ctx := newSvc(t)
 
 		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
 
@@ -5606,7 +5614,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	})
 
 	t.Run("enrollment that already has an activity: no claim, no activity", func(t *testing.T) {
-		svc, ds, recorded, ctx := newSvc(t)
+		svc, ds, recorded, _, ctx := newSvc(t)
 		device := azureEnrollment()
 		device.EnrolledActivityAt = new(time.Now())
 
@@ -5618,7 +5626,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	})
 
 	t.Run("still-unlinked enrollment: nothing recorded and the claim is left for later", func(t *testing.T) {
-		svc, ds, recorded, ctx := newSvc(t)
+		svc, ds, recorded, _, ctx := newSvc(t)
 		device := azureEnrollment()
 		device.HostUUID = ""
 
@@ -5628,11 +5636,33 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		assert.Empty(t, *recorded)
 	})
 
+	t.Run("activity write fails: the claim is released so a later session retries", func(t *testing.T) {
+		svc, ds, recorded, activityErr, ctx := newSvc(t)
+		var released bool
+		var claimedAt, releasedAt time.Time
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, _ string, at time.Time) (bool, error) {
+			claimedAt = at
+			return true, nil
+		}
+		ds.MDMWindowsReleaseEnrolledActivityClaimFunc = func(_ context.Context, mdmHardwareID string, at time.Time) error {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			released, releasedAt = true, at
+			return nil
+		}
+		*activityErr = errors.New("activity store unavailable")
+
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
+
+		assert.True(t, released, "a failed activity write must not leave the enrollment marked as announced")
+		assert.Equal(t, claimedAt, releasedAt, "the release must be scoped to the timestamp that was claimed")
+		assert.Empty(t, *recorded)
+	})
+
 	t.Run("another path claimed it first: no duplicate activity", func(t *testing.T) {
-		svc, ds, recorded, ctx := newSvc(t)
+		svc, ds, recorded, _, ctx := newSvc(t)
 		// The claim is the exactly-once guard: two sessions (or a session racing orbit enroll) can both reach here, but
 		// only the one whose UPDATE affects a row records the activity.
-		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, _ string) (bool, error) { return false, nil }
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, _ string, _ time.Time) (bool, error) { return false, nil }
 
 		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
 
@@ -5641,7 +5671,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	})
 
 	t.Run("host not found yet: claim untouched so a later session retries", func(t *testing.T) {
-		svc, ds, recorded, ctx := newSvc(t)
+		svc, ds, recorded, _, ctx := newSvc(t)
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
 			return nil, nil
 		}
@@ -5653,7 +5683,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	})
 
 	t.Run("host lookup fails: non-fatal, claim untouched", func(t *testing.T) {
-		svc, ds, recorded, ctx := newSvc(t)
+		svc, ds, recorded, _, ctx := newSvc(t)
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
 			return nil, errors.New("db unavailable")
 		}
@@ -5665,7 +5695,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	})
 
 	t.Run("user-driven Azure enrollment outside OOBE is not reported as automatic", func(t *testing.T) {
-		svc, _, recorded, ctx := newSvc(t)
+		svc, _, recorded, _, ctx := newSvc(t)
 		device := azureEnrollment()
 		device.MDMNotInOOBE = true
 
@@ -5677,7 +5707,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	})
 
 	t.Run("programmatic enrollment linked out of band is not reported as automatic", func(t *testing.T) {
-		svc, _, recorded, ctx := newSvc(t)
+		svc, _, recorded, _, ctx := newSvc(t)
 		// enroll_user_id holds the host UUID rather than a UPN for fleetd-driven enrollments, which is the same
 		// discriminator LinkWindowsHostMDMEnrollment uses to tell the two apart.
 		device := azureEnrollment()

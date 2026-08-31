@@ -2464,7 +2464,11 @@ type Datastore interface {
 	// enrollment, returning true for the first caller only. Azure (automatic) enrollments know neither the host nor its
 	// serial at enrollment time, so their activity is deferred to the first time the enrollment is linked to a host,
 	// and this keeps the several paths that can do that linking from each emitting one.
-	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmDeviceID string) (bool, error)
+	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
+
+	// MDMWindowsReleaseEnrolledActivityClaim releases a claim taken with the given timestamp, so an enrollment whose
+	// activity could not be recorded is retried on a later session rather than left silently unannounced.
+	MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error
 
 	// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments: nil fleet
 	// id and empty name when unset.

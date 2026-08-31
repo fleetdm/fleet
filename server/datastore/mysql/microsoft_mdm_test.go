@@ -8431,6 +8431,8 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		return d
 	}
 
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
 	t.Run("first caller wins and later callers do not", func(t *testing.T) {
 		device := newEnrollment()
 
@@ -8438,11 +8440,11 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Nil(t, loaded.EnrolledActivityAt, "a new enrollment starts unclaimed")
 
-		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
 		require.NoError(t, err)
 		require.True(t, claimed)
 
-		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now.Add(time.Second))
 		require.NoError(t, err)
 		require.False(t, claimed, "a second caller must not record a duplicate activity")
 
@@ -8451,17 +8453,58 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		require.NotNil(t, loaded.EnrolledActivityAt, "the claim is what marks the enrollment as announced")
 	})
 
-	t.Run("unknown device id claims nothing", func(t *testing.T) {
-		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, uuid.New().String())
+	t.Run("unknown hardware id claims nothing", func(t *testing.T) {
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, uuid.New().String(), now)
 		require.NoError(t, err)
 		require.False(t, claimed)
 	})
 
-	t.Run("re-enrollment is claimable again", func(t *testing.T) {
-		// A device that re-enrolls is a new enrollment and gets its own activity. The re-enroll path deletes the
-		// previous row by hardware id before inserting; the upsert clears the claim for the same reason.
+	t.Run("claims only the row for its hardware id", func(t *testing.T) {
+		// mdm_device_id is indexed but NOT unique, and several enrollments can legitimately share one (the reads in
+		// this file all take the most recent match). Keying the claim on it would silence every sibling enrollment's
+		// activity, so the claim is keyed on mdm_hardware_id, which is the table's unique key.
+		sharedDeviceID := uuid.New().String()
+		first := newEnrollment()
+		second := newEnrollment()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET mdm_device_id = ? WHERE mdm_hardware_id IN (?, ?)`,
+				sharedDeviceID, first.MDMHardwareID, second.MDMHardwareID)
+			return err
+		})
+
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, first.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		// The sibling sharing the device id must still be claimable when it links later.
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, second.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed, "a sibling enrollment sharing the device id must keep its own activity")
+	})
+
+	t.Run("release restores claimability, and only for the timestamp claimed", func(t *testing.T) {
 		device := newEnrollment()
-		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed)
+
+		// A release carrying a different timestamp belongs to some other claim and must not clear this one.
+		require.NoError(t, ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, device.MDMHardwareID, now.Add(time.Hour)))
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.False(t, claimed, "a mismatched release must leave the claim in place")
+
+		require.NoError(t, ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, device.MDMHardwareID, now))
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
+		require.NoError(t, err)
+		require.True(t, claimed, "releasing a failed activity write must let a later session retry")
+	})
+
+	t.Run("re-enrollment is claimable again", func(t *testing.T) {
+		// A device that re-enrolls is a new enrollment and gets its own activity: the re-enroll path deletes the
+		// previous row by hardware id before inserting, so the new row starts unclaimed.
+		device := newEnrollment()
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
 		require.NoError(t, err)
 		require.True(t, claimed)
 
@@ -8479,23 +8522,25 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		}
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, reEnrolled))
 
-		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, reEnrolled.MDMDeviceID)
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, reEnrolled.MDMHardwareID, now)
 		require.NoError(t, err)
 		require.True(t, claimed, "a re-enrollment must get its own mdm_enrolled activity")
 	})
 
-	t.Run("upsert over an existing row clears the claim", func(t *testing.T) {
-		// Same hardware id, so the insert takes the ON DUPLICATE KEY UPDATE branch rather than creating a new row.
+	t.Run("upsert over an existing row keeps the claim", func(t *testing.T) {
+		// Same hardware id, so the insert takes the ON DUPLICATE KEY UPDATE branch. That branch is only reachable when
+		// two enrollment requests race (a real re-enrollment deletes the row first), and clearing the claim there
+		// would let the enrollment be announced a second time.
 		device := newEnrollment()
-		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
 		require.NoError(t, err)
 		require.True(t, claimed)
 
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, device))
 
-		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMDeviceID)
+		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
 		require.NoError(t, err)
-		require.True(t, claimed)
+		require.False(t, claimed, "a racing duplicate enrollment request must not re-announce the enrollment")
 	})
 }
 

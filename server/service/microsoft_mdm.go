@@ -3327,7 +3327,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 			// The host is known, so the activity carries its id and serial from the outset. Enrollments that miss this
 			// (the lookup above failed) still get one, from maybeCreateWindowsMDMEnrolledActivity on the next session.
-			svc.createWindowsMDMEnrolledActivity(ctx, reqDeviceID, hosts[0], installedFromDEP)
+			svc.createWindowsMDMEnrolledActivity(ctx, reqHWDevID, hosts[0], installedFromDEP)
 		}
 
 	}
@@ -3386,17 +3386,18 @@ func (svc *Service) maybeCreateWindowsMDMEnrolledActivity(ctx context.Context, d
 		return
 	}
 
-	svc.createWindowsMDMEnrolledActivity(ctx, device.MDMDeviceID, hosts[0], windowsMDMEnrollmentInstalledFromDEP(device))
+	svc.createWindowsMDMEnrolledActivity(ctx, device.MDMHardwareID, hosts[0], windowsMDMEnrollmentInstalledFromDEP(device))
 }
 
 // createWindowsMDMEnrolledActivity records the mdm_enrolled activity for a Windows enrollment that is known to belong
 // to host, claiming it first so the enrollment gets exactly one such activity no matter how many paths reach here.
 // Best-effort throughout: the device is enrolled either way, and neither a failed claim nor a failed activity write is
 // worth failing the caller's request over.
-func (svc *Service) createWindowsMDMEnrolledActivity(ctx context.Context, mdmDeviceID string, host *fleet.Host, installedFromDEP bool) {
-	claimed, err := svc.ds.MDMWindowsClaimEnrolledActivity(ctx, mdmDeviceID)
+func (svc *Service) createWindowsMDMEnrolledActivity(ctx context.Context, mdmHardwareID string, host *fleet.Host, installedFromDEP bool) {
+	claimedAt := time.Now().UTC()
+	claimed, err := svc.ds.MDMWindowsClaimEnrolledActivity(ctx, mdmHardwareID, claimedAt)
 	if err != nil {
-		svc.logger.WarnContext(ctx, "claiming windows MDM enrolled activity", "err", err, "device_id", mdmDeviceID)
+		svc.logger.WarnContext(ctx, "claiming windows MDM enrolled activity", "err", err, "hardware_id", mdmHardwareID)
 		ctxerr.Handle(ctx, err)
 		return
 	}
@@ -3417,6 +3418,15 @@ func (svc *Service) createWindowsMDMEnrolledActivity(ctx context.Context, mdmDev
 		MDMPlatform:      fleet.MDMPlatformMicrosoft,
 		Platform:         "windows",
 	}); err != nil {
+		// Give the claim back so a later session retries, otherwise a transient failure here would leave the
+		// enrollment marked as announced and lose the event for good. The activity row is written last, so an error
+		// means it was not stored; an activities webhook may already have fired, and a duplicate delivery of an
+		// at-least-once webhook is the better trade against silently dropping the enrollment.
+		if relErr := svc.ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, mdmHardwareID, claimedAt); relErr != nil {
+			svc.logger.WarnContext(ctx, "releasing windows MDM enrolled activity claim after a failed write",
+				"err", relErr, "hardware_id", mdmHardwareID)
+			ctxerr.Handle(ctx, relErr)
+		}
 		// Only logging: the device is enrolled at this point and we wouldn't want to fail the request because there
 		// was a problem creating an activity feed item.
 		logging.WithExtras(logging.WithNoUser(ctx),

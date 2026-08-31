@@ -10434,11 +10434,13 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
-	// findEnrolledActivity returns the mdm_enrolled activity for a host, or nil when there is none yet.
-	findEnrolledActivity := func(hostID uint) *fleet.ActivityTypeMDMEnrolled {
+	// enrolledActivities returns every mdm_enrolled activity recorded for a host. Callers assert on the count as well
+	// as the payload: a duplicate carries an identical payload, so comparing details alone would not catch one.
+	enrolledActivities := func(hostID uint) []fleet.ActivityTypeMDMEnrolled {
 		var listResp listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp,
 			"order_key", "id", "order_direction", "desc", "per_page", "200")
+		var found []fleet.ActivityTypeMDMEnrolled
 		for _, act := range listResp.Activities {
 			if act.Type != (fleet.ActivityTypeMDMEnrolled{}).ActivityName() || act.Details == nil {
 				continue
@@ -10446,15 +10448,15 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 			var details fleet.ActivityTypeMDMEnrolled
 			require.NoError(t, json.Unmarshal(*act.Details, &details))
 			if details.HostID == hostID {
-				return &details
+				found = append(found, details)
 			}
 		}
-		return nil
+		return found
 	}
 
 	// Neither Azure enrollment has an mdm_enrolled activity yet: the WSTEP exchange carries no serial and no host UUID,
 	// so the activity waits for the enrollment to be linked to a host rather than being recorded without either.
-	require.Nil(t, findEnrolledActivity(settingsAppHost.ID))
+	require.Empty(t, enrolledActivities(settingsAppHost.ID))
 
 	// start a management session, will receive the install fleetd commands
 	checkinAndAck(settingsAppDevice, true)
@@ -10484,7 +10486,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Linking happened through osquery's direct-ingest backstop, which cannot record an activity itself, so the
 	// enrollment is still unannounced until the device's next management session.
-	require.Nil(t, findEnrolledActivity(settingsAppHost.ID))
+	require.Empty(t, enrolledActivities(settingsAppHost.ID))
 
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
@@ -10492,8 +10494,9 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// That session recorded the deferred activity, now carrying the host id and serial the Azure enrollment could not
 	// know. This host enrolled from the settings app (not in OOBE), so it is a manual enrollment.
-	settingsAppActivity := findEnrolledActivity(settingsAppHost.ID)
-	require.NotNil(t, settingsAppActivity)
+	settingsAppActs := enrolledActivities(settingsAppHost.ID)
+	require.Len(t, settingsAppActs, 1)
+	settingsAppActivity := settingsAppActs[0]
 	require.NotNil(t, settingsAppActivity.HostSerial)
 	require.Equal(t, settingsAppHost.HardwareSerial, *settingsAppActivity.HostSerial)
 	require.Equal(t, settingsAppHost.DisplayName(), settingsAppActivity.HostDisplayName)
@@ -10502,9 +10505,10 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	require.False(t, settingsAppActivity.InstalledFromDEP)
 	require.Equal(t, []uint{settingsAppHost.ID}, settingsAppActivity.HostIDs(), "the activity must land on the host's timeline")
 
-	// A further session must not record a second one.
+	// A further session must not record a second one. Assert the count, not just the payload: a duplicate would be
+	// byte-identical and would slip past a details-only comparison.
 	checkinAndAck(settingsAppDevice, false)
-	require.Equal(t, settingsAppActivity, findEnrolledActivity(settingsAppHost.ID))
+	require.Equal(t, []fleet.ActivityTypeMDMEnrolled{settingsAppActivity}, enrolledActivities(settingsAppHost.ID))
 
 	// But the autopilot device still receives commands...
 	checkinAndAck(autopilotDevice, true)
@@ -10532,8 +10536,9 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Same for the Autopilot device, except this one enrolled during OOBE, so it is an automatic enrollment.
 	checkinAndAck(autopilotDevice, false)
-	autopilotActivity := findEnrolledActivity(autopilotHost.ID)
-	require.NotNil(t, autopilotActivity)
+	autopilotActs := enrolledActivities(autopilotHost.ID)
+	require.Len(t, autopilotActs, 1)
+	autopilotActivity := autopilotActs[0]
 	require.NotNil(t, autopilotActivity.HostSerial)
 	require.Equal(t, autopilotHost.HardwareSerial, *autopilotActivity.HostSerial)
 	require.True(t, autopilotActivity.InstalledFromDEP)

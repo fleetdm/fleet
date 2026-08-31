@@ -348,7 +348,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			require.Equal(t, []string{"host-uuid-1"}, uuids)
 			return []*fleet.Host{{ID: 42, UUID: "host-uuid-1", HardwareSerial: testSerial, Hostname: "DESKTOP-1"}}, nil
 		}
-		inner.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmDeviceID string) (bool, error) {
+		inner.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
 			return true, nil
 		}
 		return svc, ds, serverOpts
