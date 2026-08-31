@@ -1307,6 +1307,11 @@ func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
+
+	if len(payload.Profile) > int(fleet.MaxProfileSize) {
+		return fleet.NewInvalidArgumentError("profile", fleet.MaxProfileSizeErrMsg)
+	}
+
 	if err := svc.profileMatcher.PreassignProfile(ctx, payload); err != nil {
 		return ctxerr.Wrap(ctx, err, "preassign profile")
 	}

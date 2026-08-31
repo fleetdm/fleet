@@ -790,7 +790,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: DELETE /mdm/apple/setup/eula/:token is now deprecated, replaced by the platform agnostic /mdm/setup/eula/:token
 	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMEULAEndpoint, deleteMDMEULARequest{})
 
-	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
+	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSizeBase64Encoded).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
 	// This section handles MDM "assets", specifically for Apple DDM.
@@ -858,9 +858,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: POST /mdm/profiles is now deprecated, replaced by the
 	// POST /configuration_profiles endpoint.
-	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
-	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
-	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).PATCH("/api/_version_/fleet/configuration_profiles/{profile_uuid}", updateMDMConfigProfileEndpoint, updateMDMConfigProfileRequest{})
+	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileRequestBodySize).POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileRequestBodySize).POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileRequestBodySize).PATCH("/api/_version_/fleet/configuration_profiles/{profile_uuid}", updateMDMConfigProfileEndpoint, updateMDMConfigProfileRequest{})
 	// Batch needs to allow being called without any MDM enabled, to support deleting profiles, but will fail later if trying to add
 	ue.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesEndpoint, batchModifyMDMConfigProfilesRequest{})
 

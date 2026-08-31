@@ -1,0 +1,2 @@
+- Increased the maximum configuration profile file size from 1 MB to 16 MB to support delivering large fonts to macOS, iOS, and iPadOS hosts via configuration profiles.
+- Limited activation file uploads for declaration profiles to 1 MB (instead of picking up the config profile limit change of 16 MB) and fixed the profile upload size limit to account for a profile and activation submitted together.

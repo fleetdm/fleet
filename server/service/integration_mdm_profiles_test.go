@@ -2436,7 +2436,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	t := s.T()
 	ctx := context.Background()
 
-	bigString := strings.Repeat("a", 1024*1024+1)
+	bigString := strings.Repeat("a", int(fleet.MaxProfileSize)+1)
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
@@ -2461,7 +2461,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	// Profile is too big
 	resp := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{[]byte(bigString)}},
 		http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "maximum configuration profile file size is 1 MB")
+	require.Contains(t, extractServerErrorText(resp.Body), "Maximum configuration profile file size is 16 MB")
 
 	// duplicate profile names
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
@@ -5270,12 +5270,12 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 
-	bigString := strings.Repeat("a", 1024*1024+1)
+	bigString := strings.Repeat("a", int(fleet.MaxProfileSize)+1)
 
 	// Profile is too big
 	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Contents: []byte(bigString)}}},
 		http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: Maximum configuration profile file size is 16 MB")
 
 	// invalid profile (bad mobileconfig)
 	resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5589,12 +5589,12 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 
-	bigString := strings.Repeat("a", 1024*1024+1)
+	bigString := strings.Repeat("a", int(fleet.MaxProfileSize)+1)
 
 	// Profile is too big
 	resp := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{{Profile: []byte(bigString)}}},
 		http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: Maximum configuration profile file size is 16 MB")
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil}, http.StatusNoContent)
