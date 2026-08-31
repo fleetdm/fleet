@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/big"
 	"math/rand/v2"
 	"net/http"
 	neturl "net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -179,13 +181,47 @@ var androidKernelBases = map[string]string{
 	"15": "6.6",
 }
 
-// androidSecurityPatchLevels is a small fixed set rather than a freely generated
-// date because Fleet folds the security patch level into hosts.os_version: a
-// distinct value per device would inflate the os_versions aggregation to one row
-// per host, which no real fleet looks like.
-var androidSecurityPatchLevels = []string{"2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01"}
+// androidSecurityPatchLevels is the set of patch levels devices report, resolved
+// once at startup. It is a handful of recent months rather than a freely
+// generated date because Fleet folds the security patch level into
+// hosts.os_version: a distinct value per device would inflate the os_versions
+// aggregation to one row per host, which no real fleet looks like. Deriving them
+// from the clock rather than hardcoding keeps a long-lived load-test harness from
+// reporting patch levels that are years stale, at the cost of the exact
+// os_versions rows differing between runs in different months.
+var androidSecurityPatchLevels = recentSecurityPatchLevels(time.Now().UTC())
 
-var androidCarriers = []string{"Verizon", "AT&T", "T-Mobile", "Vodafone", "Rogers", "Orange", "Telefonica"}
+// recentSecurityPatchLevels returns the monthly Android security bulletin dates
+// for the four months ending at now, newest last. AMAPI reports these as
+// YYYY-MM-DD, and the bulletins land on the first of the month.
+func recentSecurityPatchLevels(now time.Time) []string {
+	const months = 4
+	levels := make([]string, 0, months)
+	for i := months - 1; i >= 0; i-- {
+		levels = append(levels, now.AddDate(0, -i, 0).Format("2006-01")+"-01")
+	}
+	return levels
+}
+
+// androidCarrier is a mobile carrier a simulated SIM can report.
+type androidCarrier struct {
+	name        string
+	dialCode    string
+	nationalLen int
+}
+
+// androidCarriers pairs a carrier with the country calling code and national
+// number length its subscriber numbers use, so a generated phone number and the
+// carrier reported beside it don't contradict each other.
+var androidCarriers = []androidCarrier{
+	{"Verizon", "+1", 10},
+	{"AT&T", "+1", 10},
+	{"T-Mobile", "+1", 10},
+	{"Rogers", "+1", 10},
+	{"Vodafone", "+44", 10},
+	{"Orange", "+33", 9},
+	{"Telefonica", "+34", 9},
+}
 
 // generateDeviceVitals produces the device-describing vitals AMAPI reports for a
 // single device: settings, software versions, security posture and SIM cards. The
@@ -248,9 +284,10 @@ func (a *androidAgent) generateDeviceVitals() {
 }
 
 // generateTelephonyInfos builds the SIM cards a device reports. Most devices have
-// one, and a dual-SIM device pairs its physical SIM with an eSIM. Only eSIMs
-// report an activation state and config mode; a physical SIM reports the
-// *_UNSPECIFIED sentinels, which Fleet stores as no value at all.
+// one, which is usually physical; a second one is always an eSIM, so a dual-SIM
+// device is either physical + eSIM or two eSIMs. Only eSIMs report an activation
+// state and config mode; a physical SIM reports the *_UNSPECIFIED sentinels,
+// which Fleet stores as no value at all.
 func generateTelephonyInfos() []*androidmanagement.TelephonyInfo {
 	simCount := 1
 	if rand.Float64() < 0.3 { // #nosec G404 -- load testing only
@@ -260,10 +297,14 @@ func generateTelephonyInfos() []*androidmanagement.TelephonyInfo {
 	infos := make([]*androidmanagement.TelephonyInfo, 0, simCount)
 	for i := 0; i < simCount; i++ {
 		// The first SIM is usually physical; a second one is always an eSIM.
-		eSIM := i > 0 || rand.Float64() < 0.4 // #nosec G404 -- load testing only
+		eSIM := i > 0 || rand.Float64() < 0.4                       // #nosec G404 -- load testing only
+		carrier := androidCarriers[rand.IntN(len(androidCarriers))] // #nosec G404 -- load testing only
 		info := &androidmanagement.TelephonyInfo{
-			PhoneNumber:     "+1" + randomDigits(10),
-			CarrierName:     androidCarriers[rand.IntN(len(androidCarriers))], // #nosec G404 -- load testing only
+			PhoneNumber: carrier.dialCode + randomDigits(carrier.nationalLen),
+			CarrierName: carrier.name,
+			// 19 digits behind the 89 telecom industry identifier. The trailing
+			// digit is random rather than a real Luhn check digit; nothing in
+			// Fleet validates it.
 			IccId:           "89" + randomDigits(17),
 			ActivationState: "ACTIVATION_STATE_UNSPECIFIED",
 			ConfigMode:      "CONFIG_MODE_UNSPECIFIED",
@@ -291,17 +332,22 @@ type weightedValue struct {
 }
 
 // weightedChoice picks one value according to its weight. The weights are
-// expected to sum to 1; the last value absorbs any rounding shortfall.
+// expected to sum to 1; any rounding shortfall is absorbed by the last value
+// that can actually be picked, so a zero-weight option is never returned.
 func weightedChoice(values []weightedValue) string {
 	roll := rand.Float64() // #nosec G404 -- load testing only
 	var cumulative float64
+	fallback := values[len(values)-1].value
 	for _, v := range values {
+		if v.weight > 0 {
+			fallback = v.value
+		}
 		cumulative += v.weight
 		if roll < cumulative {
 			return v.value
 		}
 	}
-	return values[len(values)-1].value
+	return fallback
 }
 
 func randomDigits(n int) string {
@@ -340,7 +386,9 @@ func newAndroidAgent(
 	deviceID := "fake" + strings.ReplaceAll(uuid.New().String()[:28], "-", "")
 	serialNumber := fmt.Sprintf("AND%s", randomString(10))
 
-	brands := []string{"Google", "Samsung", "OnePlus", "Motorola", "Nokia"}
+	// Drawn from the vitals maps so a brand or release can only be simulated if
+	// the manufacturer / API level / kernel line it needs is defined for it.
+	brands := slices.Sorted(maps.Keys(androidManufacturers))
 	models := []string{"Pixel 8 Pro", "Pixel 7a", "Galaxy S24", "Galaxy A54", "Nord CE 3", "Edge 40", "X30"}
 	hardwareTypes := []string{"qcom", "exynos", "tensor", "dimensity"}
 
@@ -348,8 +396,7 @@ func newAndroidAgent(
 	model := models[rand.IntN(len(models))]                  // #nosec G404 -- load testing only
 	hardware := hardwareTypes[rand.IntN(len(hardwareTypes))] // #nosec G404 -- load testing only
 
-	// Android versions 13-15
-	androidVersions := []string{"13", "14", "15"}
+	androidVersions := slices.Sorted(maps.Keys(androidAPILevels))
 	androidVersion := androidVersions[rand.IntN(len(androidVersions))]                                     // #nosec G404 -- load testing only
 	buildNumber := fmt.Sprintf("TP1A.%d%02d%02d.003", 2024+rand.IntN(2), 1+rand.IntN(12), 1+rand.IntN(28)) // #nosec G404 -- load testing only
 
@@ -720,9 +767,10 @@ func (a *androidAgent) deviceInfo() androidmanagement.Device {
 			IsDeviceSecure:    a.deviceSecure,
 			VerifyAppsEnabled: a.verifyAppsEnabled,
 			EncryptionStatus:  a.encryptionStatus,
-			// Sent unconditionally so a device reporting every setting as false
-			// still arrives as a populated deviceSettings rather than an absent
-			// one, which Fleet reads as "the policy doesn't collect this".
+			// Wire fidelity only: without this, omitempty drops the false
+			// booleans and AMAPI always sends them explicitly. Fleet reads them
+			// back as false either way, since it takes the zero value of a
+			// deviceSettings that is present at all.
 			ForceSendFields: []string{"AdbEnabled", "IsDeviceSecure", "VerifyAppsEnabled"},
 		},
 		SecurityPosture: &androidmanagement.SecurityPosture{

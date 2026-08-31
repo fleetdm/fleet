@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -429,9 +431,15 @@ func newVitalsTestAgent(fleetAddress string) *androidAgent {
 	return newAndroidAgent(1, fleetAddress, "secret", "token", "http://proxy.invalid", "LC01", time.Minute, 5, 0, nil)
 }
 
-// Valid AMAPI enum members for each vitals field, as documented on
-// enterprises.devices. A value outside these sets would be stored verbatim by
-// Fleet and show up as garbage in the host vitals.
+// The AMAPI enum members a simulated device is allowed to report. These are
+// deliberately not the full documented sets: the *_UNSPECIFIED sentinels (and
+// UPDATE_STATUS_UNKNOWN) are omitted because Fleet's reportedEnum blanks them
+// out, so a device reporting one would be reporting nothing. Do not add them
+// back — the point is that a value outside these sets is either garbage Fleet
+// would store verbatim or a value it would silently drop.
+//
+// The two SIM sets keep their *_UNSPECIFIED members: a physical SIM really does
+// report them, and Fleet dropping them is the behavior being exercised.
 var (
 	validEncryptionStatuses = []string{"UNSUPPORTED", "INACTIVE", "ACTIVATING", "ACTIVE", "ACTIVE_DEFAULT_KEY", "ACTIVE_PER_USER"}
 	validUpdateStatuses     = []string{"UP_TO_DATE", "UNKNOWN_UPDATE_AVAILABLE", "SECURITY_UPDATE_AVAILABLE", "OS_UPDATE_AVAILABLE"}
@@ -592,8 +600,10 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 		assert.Contains(t, androidSecurityPatchLevels, agent.securityPatchLevel)
 		assert.Contains(t, agent.deviceKernelVersion, "-android"+agent.androidVersion+"-",
 			"the kernel must name the Android release it ships on")
-		assert.True(t, strings.HasPrefix(agent.deviceKernelVersion, androidKernelBases[agent.androidVersion]+"."),
-			"kernel %q does not start with the %q line", agent.deviceKernelVersion, androidKernelBases[agent.androidVersion])
+		kernelBase := androidKernelBases[agent.androidVersion]
+		require.NotEmpty(t, kernelBase, "Android %q has no kernel line mapping", agent.androidVersion)
+		assert.True(t, strings.HasPrefix(agent.deviceKernelVersion, kernelBase+"."),
+			"kernel %q does not start with the %q line", agent.deviceKernelVersion, kernelBase)
 		assert.Contains(t, agent.bootloaderVersion, agent.hardware)
 
 		assert.Contains(t, validEncryptionStatuses, agent.encryptionStatus)
@@ -620,9 +630,12 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 		require.LessOrEqual(t, len(agent.telephonyInfos), 2, "no simulated device has more than two SIMs")
 		for _, sim := range agent.telephonyInfos {
 			require.NotNil(t, sim)
-			assert.Regexp(t, `^\+1[0-9]{10}$`, sim.PhoneNumber)
 			assert.Regexp(t, `^89[0-9]{17}$`, sim.IccId, "an ICCID is 19 digits starting with 89")
-			assert.Contains(t, androidCarriers, sim.CarrierName)
+			carrierIdx := slices.IndexFunc(androidCarriers, func(c androidCarrier) bool { return c.name == sim.CarrierName })
+			require.GreaterOrEqual(t, carrierIdx, 0, "unknown carrier %q", sim.CarrierName)
+			carrier := androidCarriers[carrierIdx]
+			assert.Regexp(t, fmt.Sprintf(`^\%s[0-9]{%d}$`, carrier.dialCode, carrier.nationalLen), sim.PhoneNumber,
+				"the number must match the country %s operates in", carrier.name)
 			assert.Contains(t, validActivationStates, sim.ActivationState)
 			assert.Contains(t, validConfigModes, sim.ConfigMode)
 			// A physical SIM reports neither eSIM enum, and an eSIM reports both.
@@ -668,24 +681,70 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 
 	// The point of the weighting is a fleet that is mostly healthy but not
 	// uniformly so; a fleet with only one value in any of these gives the vitals
-	// UI and API nothing to distinguish.
-	assert.Greater(t, postures["SECURE"], postures["AT_RISK"], "most devices should be secure")
-	assert.Positive(t, postures["AT_RISK"])
-	assert.Positive(t, postures["POTENTIALLY_COMPROMISED"])
-	assert.Greater(t, updateStatuses["UP_TO_DATE"], updateStatuses["OS_UPDATE_AVAILABLE"])
-	assert.Positive(t, updateStatuses["SECURITY_UPDATE_AVAILABLE"])
-	assert.Positive(t, updateStatuses["OS_UPDATE_AVAILABLE"])
-	assert.Positive(t, dualSIM, "some devices should be dual-SIM")
-	assert.Less(t, dualSIM, deviceCount, "not every device should be dual-SIM")
-	assert.Positive(t, adbEnabled, "a few devices should have ADB on")
-	assert.Less(t, adbEnabled, deviceCount/2, "ADB on should stay rare")
-	assert.Positive(t, insecure, "a few devices should have no passcode")
+	// UI and API nothing to distinguish. Each band is the weight's implied
+	// binomial mean over deviceCount devices, ±5 standard deviations: loose
+	// enough that a false failure is roughly one run in a million, tight enough
+	// that changing a weight is caught rather than shrugged at.
+	for _, band := range []struct {
+		name      string
+		got       int
+		low, high int
+	}{
+		{"SECURE devices", postures["SECURE"], 304, 376},
+		{"AT_RISK devices", postures["AT_RISK"], 10, 70},
+		{"POTENTIALLY_COMPROMISED devices", postures["POTENTIALLY_COMPROMISED"], 4, 45},
+		{"UP_TO_DATE devices", updateStatuses["UP_TO_DATE"], 234, 326},
+		{"SECURITY_UPDATE_AVAILABLE devices", updateStatuses["SECURITY_UPDATE_AVAILABLE"], 24, 96},
+		{"OS_UPDATE_AVAILABLE devices", updateStatuses["OS_UPDATE_AVAILABLE"], 10, 70},
+		{"UNKNOWN_UPDATE_AVAILABLE devices", updateStatuses["UNKNOWN_UPDATE_AVAILABLE"], 4, 45},
+		{"dual-SIM devices", dualSIM, 74, 166},
+		{"devices with ADB on", adbEnabled, 4, 45},
+		{"devices without a passcode", insecure, 4, 45},
+	} {
+		assert.GreaterOrEqual(t, band.got, band.low, "%s: %d is below the expected band", band.name, band.got)
+		assert.LessOrEqual(t, band.got, band.high, "%s: %d is above the expected band", band.name, band.got)
+	}
 
 	// Both SIM kinds must appear, since Fleet stores their enums differently.
 	assert.Positive(t, activations["ACTIVATION_STATE_UNSPECIFIED"], "physical SIMs")
 	assert.Positive(t, activations["ACTIVATED"], "activated eSIMs")
 	assert.Positive(t, configModes["ADMIN_CONFIGURED"])
 	assert.Positive(t, configModes["USER_CONFIGURED"])
+}
+
+// TestVitalsMapsAgree guards the three per-release / per-brand maps against
+// drifting apart: newAndroidAgent draws its brands and Android versions from two
+// of them, and generateDeviceVitals then indexes the third. A release present in
+// one and missing from another would silently report an empty manufacturer or a
+// kernel version like ".47-android16-3-gdeadbeef".
+func TestVitalsMapsAgree(t *testing.T) {
+	require.NotEmpty(t, androidAPILevels)
+	require.NotEmpty(t, androidManufacturers)
+
+	for version := range androidAPILevels {
+		assert.Positive(t, androidAPILevels[version], "Android %q has no API level", version)
+		assert.NotEmpty(t, androidKernelBases[version], "Android %q has no kernel line", version)
+	}
+	for version := range androidKernelBases {
+		assert.Contains(t, androidAPILevels, version, "kernel line for unsimulated Android %q", version)
+	}
+	for brand, manufacturer := range androidManufacturers {
+		assert.NotEmpty(t, manufacturer, "brand %q has no manufacturer", brand)
+	}
+}
+
+// TestRecentSecurityPatchLevels checks the patch levels a device may report are
+// recent bulletin dates, not the hardcoded set that would go stale.
+func TestRecentSecurityPatchLevels(t *testing.T) {
+	got := recentSecurityPatchLevels(time.Date(2026, 3, 17, 4, 5, 6, 0, time.UTC))
+	assert.Equal(t, []string{"2025-12-01", "2026-01-01", "2026-02-01", "2026-03-01"}, got,
+		"four bulletin dates ending at the current month, newest last")
+
+	// The package-level set the agent actually draws from must be usable too.
+	require.NotEmpty(t, androidSecurityPatchLevels)
+	for _, level := range androidSecurityPatchLevels {
+		assert.Regexp(t, `^[0-9]{4}-[0-9]{2}-01$`, level)
+	}
 }
 
 // TestWeightedChoice covers the picker the vitals distributions rely on.
@@ -699,6 +758,14 @@ func TestWeightedChoice(t *testing.T) {
 	t.Run("a zero-weight value is never picked", func(t *testing.T) {
 		for range 100 {
 			assert.Equal(t, "always", weightedChoice([]weightedValue{{"never", 0}, {"always", 1}}))
+		}
+	})
+
+	// The rounding fallback must not resurrect a zero-weight value just because
+	// it happens to be last.
+	t.Run("a zero-weight value is never picked in last position", func(t *testing.T) {
+		for range 100 {
+			assert.Equal(t, "always", weightedChoice([]weightedValue{{"always", 0.9}, {"never", 0}}))
 		}
 	})
 
