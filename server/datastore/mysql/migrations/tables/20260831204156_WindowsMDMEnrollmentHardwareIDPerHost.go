@@ -10,11 +10,10 @@ func init() {
 }
 
 func Up_20260831204156(tx *sql.Tx) error {
-	// The old UNIQUE KEY on mdm_hardware_id alone assumed one HWDevID identifies one device forever. HWDevID is derived from OS state in
-	// the Windows image, so machines sharing an image lineage that was never generalized with sysprep report the same value. Under the old
-	// key, the second such machine to enroll took over the first one's enrollment row and silently stopped Fleet from managing it. Keying
-	// on (mdm_hardware_id, host_uuid) lets both hosts hold their own enrollment. Existing rows need no dedup pass: uniqueness on
-	// (mdm_hardware_id) already implies uniqueness on the pair.
+	// The old UNIQUE KEY on mdm_hardware_id alone assumed one HWDevID identifies one device forever. Two distinct machines can present the
+	// same HWDevID in practice, and under the old key the second one to enroll took over the first one's enrollment row and silently
+	// stopped Fleet from managing it. Keying on (mdm_hardware_id, host_uuid) lets both hosts hold their own enrollment. Existing rows need
+	// no dedup pass: uniqueness on (mdm_hardware_id) already implies uniqueness on the pair.
 	if indexExistsTx(tx, "mdm_windows_enrollments", "idx_type") {
 		if _, err := tx.Exec(`ALTER TABLE mdm_windows_enrollments DROP INDEX idx_type`); err != nil {
 			return fmt.Errorf("dropping idx_type from mdm_windows_enrollments: %w", err)

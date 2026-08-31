@@ -614,9 +614,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // hostUUID is the authoritative identity of the enrolling host, resolved from the orbit node key for programmatic enrollments. It is empty
 // for Entra automatic enrollments, which are linked to a host later by the serial reported on the first management session.
 //
-// Scoping the delete to the enrolling host's own row is the point. HWDevID is derived from OS state in the Windows image, so machines whose
-// images share an ancestor that was never generalized with sysprep report the same value. Deleting by hardware ID alone let the second such
-// machine to enroll take over the first one's enrollment and silently stop Fleet from managing it (issue #50612).
+// Scoping the delete to the enrolling host's own row is the point. Two distinct machines can present the same HWDevID, and deleting by
+// hardware ID alone let the second one to enroll take over the first one's enrollment and silently stop Fleet from managing it
+// (issue #50612). What makes two machines report the same HWDevID is not established; cloning a non-generalized image does not do it.
 //
 // Unlinked rows (host_uuid = ”) for the same hardware ID are also removed once the enrolling host is known. They carry no host-visible
 // state, so removing them cannot cause the silent unenrollment above, and leaving them would break the later serial-based linking, which

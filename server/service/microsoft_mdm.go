@@ -3071,8 +3071,7 @@ func (svc *Service) reportWindowsMDMHardwareIDCollision(ctx context.Context, har
 		enrollingHostUUID = "(not yet linked to a host)"
 	}
 
-	svc.logger.WarnContext(ctx, "windows host enrolled in MDM with a hardware ID already held by another host; both hosts remain enrolled. "+
-		"This usually means their Windows images share an ancestor that was cloned without running sysprep /generalize",
+	svc.logger.WarnContext(ctx, "windows host enrolled in MDM with a hardware ID already held by another host; both hosts remain enrolled",
 		"mdm_hardware_id", hardwareID,
 		"enrolling_host_uuid", enrollingHostUUID,
 		"existing_host_uuids", strings.Join(collidingHostUUIDs, ","),
