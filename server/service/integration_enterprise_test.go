@@ -260,8 +260,8 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 // local account toggle force-defaulted to disabled.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
 	return fleet.WindowsSettings{
-		CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+		CustomSettings:            optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		EnableManagedLocalAccount: optjson.SetBool(false),
 	}
 }
 
@@ -4685,7 +4685,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "A team"})
 	require.NoError(t, err)
-	teamID := new(team.ID)
+	teamID := &team.ID
 	teamHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -6827,7 +6827,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 			CVSSScore:        new(float64(7.5)),
 			EPSSProbability:  new(float64(0.5)),
 			CISAKnownExploit: new(true),
-			Published:        new(mockTime),
+			Published:        &mockTime,
 			Description:      "Test CVE 2021-1234",
 		},
 		{
@@ -29309,6 +29309,61 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
 	require.True(t, editedInstall)
 	require.False(t, editedUninstall)
+
+	// A manifest can change a script or a query without publishing a new version.
+	// There is nothing to download then, and the version can't be cached a second
+	// time, so the row that is already there is refreshed in place.
+	cachedRows := func() (count int) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND title_id = ?`, team.ID, titleID)
+		})
+		return count
+	}
+	activePatchQuery := func() (query string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &query,
+				`SELECT patch_query FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1`,
+				team.ID, titleID)
+		})
+		return query
+	}
+	rowsBefore := cachedRows()
+	installerBefore := activeInstallerID(team.ID, titleID)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+
+	warp.installScript = "#!/bin/sh\necho refreshed\n"
+	warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, "7.0.1")
+	runCron()
+
+	require.Equal(t, "7.0", activeTitle(team.ID).SoftwarePackage.Version, "no version was published")
+	require.Equal(t, rowsBefore, cachedRows(), "the version can't be cached twice")
+	require.Equal(t, installerBefore, activeInstallerID(team.ID, titleID), "refreshed in place")
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall, "the edited script is still left alone")
+	require.Equal(t, warp.installScript, gotUninstall, "the unedited script follows the manifest")
+	require.Equal(t, warp.patchQuery, activePatchQuery(), "the patch query follows the manifest too")
+
+	// The queued install would otherwise have run a script it was never queued against.
+	var canceled bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canceled, `SELECT canceled FROM host_software_installs
+			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
+	})
+	require.True(t, canceled)
+
+	// Nothing changed upstream, so a second pass leaves the scripts alone and the
+	// install queued against them keeps running.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+	runCron()
+	gotInstall, gotUninstall = activeScripts(team.ID, titleID)
+	require.Equal(t, patchedInstall, gotInstall)
+	require.Equal(t, warp.installScript, gotUninstall)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canceled, `SELECT canceled FROM host_software_installs
+			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
+	})
+	require.False(t, canceled)
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
@@ -35267,7 +35322,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListA
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "fma_scope_v1",
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 		Filename:             "fma_scope.pkg",
 		Title:                t.Name() + " App",
 		Version:              "1.0",
@@ -36722,7 +36777,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabe
 
 	label, _, err := s.ds.Label(ctx, labelResp.Label.Label.ID, fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	_, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+	_, _, err = s.ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 	require.NoError(t, err)
 
 	hostsInLabel, err := s.ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, label.ID, fleet.HostListOptions{})

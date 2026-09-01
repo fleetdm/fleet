@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1909,8 +1910,10 @@ type softwareCVE struct {
 // canUseOptimizedListQuery determines if we can use the fast path query
 // that starts FROM software_host_counts instead of software.
 func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
-	// Determine the effective order key
-	orderKey := opts.ListOptions.OrderKey
+	// Trim to match the ordering helper, so a key it accepts isn't routed to the
+	// slower path over spacing alone.
+	requested := strings.TrimSpace(opts.ListOptions.OrderKey)
+	orderKey := requested
 	if orderKey == "" {
 		orderKey = "hosts_count"
 	}
@@ -1928,9 +1931,15 @@ func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
 	// Filters (VulnerableOnly / KnownExploit / MinimumCVSS / MaximumCVSS /
 	// MatchQuery) are now supported in the inner query via EXISTS pushdown —
 	// see buildOptimizedListSoftwareSQL.
+	// The optimized path orders by hosts_count, so it can only serve a request
+	// that also returns the column. An absent key keeps the default ordering.
+	if requested != "" && !opts.WithHostCounts {
+		return false
+	}
+
 	return opts.HostID == nil &&
 		orderKey == "hosts_count" &&
-		!isMultiColumnSort(opts.ListOptions.OrderKey)
+		!isMultiColumnSort(orderKey)
 }
 
 // isMultiColumnSort checks if the order key contains multiple columns (comma-separated)
@@ -2360,7 +2369,11 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	// Pagination is a bit more complex here due to the join with software_cve table and aggregated columns from cve_meta table.
 	// Apply order by again after joining on sub query
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+	allowedOrderKeys := softwareOrderKeys(opts)
+	ds, err := appendListOptionsToSelect(ds, opts.ListOptions, allowedOrderKeys)
+	if err != nil {
+		return "", nil, err
+	}
 
 	// join on software_cve and cve_meta after apply pagination using the sub-query above
 	ds = dialect.From(ds.As("s")).
@@ -2416,7 +2429,10 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		)
 	}
 
-	ds = appendOrderByToSelect(ds, opts.ListOptions)
+	ds, err = appendOrderByToSelect(ds, opts.ListOptions, allowedOrderKeys)
+	if err != nil {
+		return "", nil, err
+	}
 
 	return ds.ToSQL()
 }
@@ -5019,6 +5035,58 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 	}
 }
 
+// softwareAllowedOrderKeys are the columns the software list may be sorted by:
+// the ones it returns, so ordering can't surface a value the response omits.
+// Columns are unqualified because the ordering is applied at two levels of the
+// query that reach them through different aliases, and must stay bare column
+// names because this path quotes them as identifiers.
+var softwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                "id",
+	"name":              "name",
+	"version":           "version",
+	"source":            "source",
+	"bundle_identifier": "bundle_identifier",
+	"extension_id":      "extension_id",
+	"extension_for":     "extension_for",
+	"release":           "release",
+	"vendor":            "vendor",
+	"arch":              "arch",
+	"application_id":    "application_id",
+	"upgrade_code":      "upgrade_code",
+	"generated_cpe":     "generated_cpe",
+}
+
+// Sortable only when host counts are requested; that is when the query selects it.
+var softwareHostCountAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"hosts_count": "hosts_count",
+}
+
+// Sortable only when vulnerability details are included, for the same reason.
+var softwareCVEAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"cve_published":      "cve_published",
+	"cvss_score":         "cvss_score",
+	"epss_probability":   "epss_probability",
+	"cisa_known_exploit": "cisa_known_exploit",
+}
+
+// softwareOrderKeys may return one of the package-level maps above, so the
+// result must not be modified.
+func softwareOrderKeys(opts fleet.SoftwareListOptions) common_mysql.OrderKeyAllowlist {
+	if !opts.IncludeCVEScores && !opts.WithHostCounts {
+		return softwareAllowedOrderKeys
+	}
+	keys := make(common_mysql.OrderKeyAllowlist,
+		len(softwareAllowedOrderKeys)+len(softwareCVEAllowedOrderKeys)+len(softwareHostCountAllowedOrderKeys))
+	maps.Copy(keys, softwareAllowedOrderKeys)
+	if opts.IncludeCVEScores {
+		maps.Copy(keys, softwareCVEAllowedOrderKeys)
+	}
+	if opts.WithHostCounts {
+		maps.Copy(keys, softwareHostCountAllowedOrderKeys)
+	}
+	return keys
+}
+
 // hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
 // "source" is included for test determinism (used as the secondary order key in tests).
 // "name" uses COALESCE(NULLIF(...)) so that a custom display name (when set) is used
@@ -5331,7 +5399,8 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	}
 
 	if icon, ok := a.iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
-		softwareTitleRecord.IconUrl = new(icon.IconUrl())
+		iconURL := icon.IconUrl()
+		softwareTitleRecord.IconUrl = &iconURL
 	}
 
 	if displayName, ok := a.displayNames[softwareTitleRecord.ID]; ok {

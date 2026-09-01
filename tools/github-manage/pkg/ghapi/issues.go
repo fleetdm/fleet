@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -70,22 +71,14 @@ func GetIssuesByMilestoneLimited(title string, limit int) ([]Issue, bool, error)
 
 // AddLabelToIssue adds a label to an issue.
 func AddLabelToIssue(issueNumber int, label string) error {
-	command := fmt.Sprintf("gh issue edit %d --add-label %s", issueNumber, label)
-	_, err := RunCommandAndReturnOutput(command)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := RunGH("issue", "edit", strconv.Itoa(issueNumber), "--add-label", label)
+	return err
 }
 
 // RemoveLabelFromIssue removes a label from an issue.
 func RemoveLabelFromIssue(issueNumber int, label string) error {
-	command := fmt.Sprintf("gh issue edit %d --remove-label %s", issueNumber, label)
-	_, err := RunCommandAndReturnOutput(command)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := RunGH("issue", "edit", strconv.Itoa(issueNumber), "--remove-label", label)
+	return err
 }
 
 // CloseIssue closes a GitHub issue.
@@ -100,7 +93,7 @@ func CloseIssue(issueNumber int) error {
 
 // SetMilestoneToIssue sets a milestone for an issue.
 func SetMilestoneToIssue(issueNumber int, milestone string) error {
-	command := fmt.Sprintf("gh issue edit %d --milestone %s", issueNumber, milestone)
+	command := fmt.Sprintf("gh issue edit %d --milestone %q", issueNumber, milestone)
 	_, err := RunCommandAndReturnOutput(command)
 	if err != nil {
 		return err

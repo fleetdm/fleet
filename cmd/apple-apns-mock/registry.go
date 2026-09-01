@@ -165,12 +165,13 @@ func (r *registry) deliver(token string, p *ping) deliverResult {
 	if e == nil || e.sub == nil {
 		return notHeld
 	}
-	select {
-	case e.sub.ch <- p:
-		return delivered
-	default:
+	if len(e.sub.ch) == cap(e.sub.ch) {
+		r.coalesced.Add(1)
 		return bufferFull
 	}
+	r.deliveredLive.Add(1)
+	e.sub.ch <- p // deliver is the only sender and holds the lock, so this cannot block
+	return delivered
 }
 
 // holds reports whether this node has a live stream for the token. Every
