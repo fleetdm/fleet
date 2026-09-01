@@ -201,7 +201,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 		}
 	}()
 
-	if err := fn(wrappedTx); err != nil {
+	if err := fn(&wrappedTx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil && rbErr != sql.ErrTxDone {
 			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())

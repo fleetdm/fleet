@@ -3313,8 +3313,8 @@ ORDER BY
 	if ds.pusher == nil || !ok {
 		return nil
 	}
-	// we wrap the APNS Push here, as activate next upcoming is called from many sites
-	// and it's racy to ping before we have comitted the transaction.
+	// we wrap the APNs Push here, as activate next upcoming is called from many sites
+	// and it's racy to ping before we have committed the transaction.
 	wrapped.AddOnCommitHook(func() {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)

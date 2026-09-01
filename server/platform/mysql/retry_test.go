@@ -246,6 +246,21 @@ func TestWithRetryTxxOnCommitHooks(t *testing.T) {
 		assert.Equal(t, 1, hookRuns, "a hook registered by the rolled back attempt ran anyway")
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("withTxx should always have WrappedExtContext", func(t *testing.T) {
+		db, mock := newDB(t)
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		err := WithRetryTxx(t.Context(), db, func(tx sqlx.ExtContext) error {
+			_, ok := tx.(WrappedExtContext)
+			require.True(t, ok, "tx is not a WrappedExtContext")
+			return nil
+		}, discard)
+
+		require.NoError(t, err)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func TestRetryableError(t *testing.T) {
