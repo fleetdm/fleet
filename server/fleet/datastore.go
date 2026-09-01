@@ -133,6 +133,16 @@ type Datastore interface {
 	// since both appear in a team host's pack config.
 	// If teamID is nil, checks only global queries.
 	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
+	// LabelScopedScheduledQueryScopes returns the report scopes that contain
+	// saved, scheduled queries (reports) scoped to labels (query_labels
+	// rows): whether the GLOBAL scope has any, and the team IDs whose scope
+	// has any. Label-scoped reports make the osquery config HOST-specific
+	// rather than team-shared (see ListScheduledQueriesForAgents' per-host
+	// label filtering), and their effective targeting drifts with label
+	// membership changes, which fire no datastore write. Used by the config
+	// ETag short circuit's cache-mode selection (see
+	// fleet.ConfigETagStore.LabelScopes).
+	LabelScopedScheduledQueryScopes(ctx context.Context) (ConfigETagLabelScopes, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
@@ -252,9 +262,15 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label with host
 	// IDs, applied in batches, then returns the updated label
 	UpdateLabelMembershipByHostIDs(ctx context.Context, label Label, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
-	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label.
+	// It returns the IDs of hosts whose membership actually changed (added or
+	// removed), computed inside the update transaction, so callers (the
+	// config ETag invalidation decorator) can invalidate exactly the affected
+	// hosts — this method runs from a 5-minute cron for every host-vitals
+	// label, so neither deployment-wide invalidation nor all-members
+	// invalidation is acceptable.
 	// based on its host vitals criteria.
-	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, []uint, error)
 
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -463,6 +479,8 @@ type Datastore interface {
 	GetHostMDMCommands(ctx context.Context, hostID uint) (commands []HostMDMCommand, err error)
 	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
+	// RemoveHostMDMCommands removes the MDM command of the given type from all the provided hosts.
+	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error
 	// RemoveHostMDMCommandByHostUUID is RemoveHostMDMCommand for callers that hold a host UUID
 	// rather than an ID, such as an MDM command results handler that returns before resolving one.
 	RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error
@@ -1317,6 +1335,15 @@ type Datastore interface {
 	// host_mdm_apple_service_subscriptions. Callers are responsible for only
 	// calling this for iOS/iPadOS hosts.
 	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
+
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
+	// LoadHostMDMAndroidDeviceVitals populates host's
+	// HostMDMAndroidDeviceVitals fields from host_mdm_android_device_vitals.
+	// Callers are responsible for only calling this for Android hosts.
+	LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -3062,11 +3089,11 @@ type Datastore interface {
 	// Used by the auto-update cron to decide whether to advance versions.
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
-	// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
-	// code of any cached installer (active or inactive) with the given storage_id.
-	// Used by the auto-update cron to recover uninstall-script substitution values
-	// on the byte-dedup path. Returns empty values (no error) when nothing matches.
-	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+	// GetSoftwareInstallerMetadataByStorageID describes any cached installer (active
+	// or inactive) with the given storage_id. Used by the auto-update cron to recover
+	// what it would otherwise have taken off the downloaded file, on the byte-dedup
+	// path. Returns a zero value (no error) when nothing matches.
+	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (CachedInstallerMetadata, error)
 
 	// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
 	// already-installed Fleet-maintained app, cloning the active installer's
@@ -3100,6 +3127,11 @@ type Datastore interface {
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team, and its storage hash.
 	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
+
+	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
+	// installer still on the given version, cancelling pending installs as an edit
+	// does. The version can't be cached as a second row, being the dedup token.
+	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,
@@ -4073,6 +4105,10 @@ type AndroidDatastore interface {
 	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
 	// AndroidResetOnReenrollment clears the stale state of a re-enrolling Android host:
 	// dynamic label membership, pending MDM commands and pending software installs.
 	// Manual, host-vitals and builtin label membership is preserved, as are the host's

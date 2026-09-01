@@ -486,6 +486,17 @@ type Host struct {
 	// null) for every other platform, or when a given field wasn't returned
 	// by a particular enrollment.
 	HostMDMAppleDeviceVitals
+
+	// HostMDMAndroidDeviceVitals holds additional Android vitals collected
+	// from AMAPI status reports and persisted to
+	// host_mdm_android_device_vitals (see HostMDMAndroidDeviceVitals and
+	// MDMAndroidDeviceVitals, same package). Embedded anonymously so its
+	// fields flatten into the top-level host JSON response. Only populated
+	// for Android hosts, via a separate query
+	// (LoadHostMDMAndroidDeviceVitals) — every field is omitted (not null)
+	// for every other platform, or when a given field wasn't reported by a
+	// particular status report.
+	HostMDMAndroidDeviceVitals
 }
 
 type HostForeignVitalGroup struct {
@@ -643,6 +654,17 @@ type MDMHostData struct {
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
 	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// IsPersonalEnrollment reports whether the last MDM enrollment Fleet recorded for the
+	// host was personal (BYOD). Unlike EnrollmentStatus it is not cleared on unenrollment,
+	// so consumers can still tell a BYOD device apart afterwards (BYOD devices never report
+	// a serial number, so the UI has nothing else to identify them by). That only holds for
+	// platforms where MDM state comes from the MDM protocol - Android and Apple mobile. On
+	// macOS and Windows the fleetd detail queries re-ingest MDM state, and
+	// directIngestMDMMac/directIngestMDMWindows pass false once the profile is gone.
+	//
+	// Deliberately not a CSV column: the hosts report is a stable user-facing format and
+	// this field is only needed by the UI.
+	IsPersonalEnrollment bool `json:"is_personal_enrollment" db:"-" csv:"-"`
 	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
 	// attempting to assign a DEP profile for the host.
 	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
@@ -1644,6 +1666,9 @@ func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	if h.IsServer {
 		return []byte("null"), nil
 	}
+	// NOTE: this is the macadmins/host MDM payload, deliberately narrower than
+	// MDMHostData (which the host endpoints return). It intentionally does not carry
+	// is_personal_enrollment; add it here only if a consumer of this endpoint needs it.
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`

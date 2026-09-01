@@ -1292,7 +1292,7 @@ module.exports.routes = {
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
-  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
+  'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations#policy-automations',
   'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/assets/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
