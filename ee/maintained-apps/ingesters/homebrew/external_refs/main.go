@@ -47,6 +47,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"pd/darwin":                     {PdVersionTransformer},
 	"smallstepagent/darwin":         {SmallstepAgentVersionTransformer},
 	"sonos/darwin":                  {SonosVersionTransformer},
+	"harmony-sase/darwin":           {HarmonySASEVersionShortener},
 	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
 }
 
