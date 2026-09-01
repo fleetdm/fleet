@@ -158,7 +158,7 @@ func TestPushHeaders(t *testing.T) {
 		defer server.Close()
 
 		prov := &Provider{baseURL: server.URL, client: http.DefaultClient, expiration: expiration}
-		resp, err := prov.Push(context.Background(), []*mdm.Push{pushInfo})
+		resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
 		require.NoError(t, err)
 		require.NoError(t, resp[token].Err)
 		return got

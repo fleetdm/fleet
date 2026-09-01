@@ -53,7 +53,7 @@ func TestAPNSReason(t *testing.T) {
 }
 
 func TestTurnOffMDMIfAPNSFailed(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	noActivity := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
 
 	apnsErr := func(err error) *APNSDeliveryError {

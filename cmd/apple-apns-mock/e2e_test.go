@@ -796,7 +796,7 @@ func TestE2ENanopushProvider(t *testing.T) {
 		pushInfo := &mdm.Push{PushMagic: "pushmagicXYZ", Topic: "com.apple.mgmt.External.test"}
 		require.NoError(t, pushInfo.SetTokenString(token))
 
-		resp, err := prov.Push(context.Background(), []*mdm.Push{pushInfo})
+		resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
 		require.NoError(t, err)
 		require.Len(t, resp, 1)
 		require.NoError(t, resp[token].Err)
@@ -814,7 +814,7 @@ func TestE2ENanopushProvider(t *testing.T) {
 		pushInfo := &mdm.Push{PushMagic: strings.Repeat("x", maxPayloadBytes), Topic: "com.apple.mgmt.External.test"}
 		require.NoError(t, pushInfo.SetTokenString(token))
 
-		resp, err := prov.Push(context.Background(), []*mdm.Push{pushInfo})
+		resp, err := prov.Push(t.Context(), []*mdm.Push{pushInfo})
 		require.NoError(t, err)
 		require.Len(t, resp, 1)
 		var jsonErr *nanopush.JSONPushError
