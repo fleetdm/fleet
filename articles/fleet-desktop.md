@@ -133,6 +133,8 @@ Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrade
 
 iOS and iPadOS hosts don't run a Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados). Fleet authenticates the request via host UUID in the URL.
 
+This UUID-based authentication only works for iOS and iPadOS hosts — macOS and Windows hosts must use a device token or certificate. It works the same way across most [device-authenticated API routes](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes), with a few exceptions that still require a device token or certificate: [reporting an agent error](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#report-an-agent-error) and [downloading the MDM manual enrollment profile](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#download-devices-mdm-manual-enrollment-profile), neither of which applies to iOS/iPadOS hosts.
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
