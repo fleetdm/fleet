@@ -19015,7 +19015,7 @@
         "type": "text"
       }
     ],
-    "examples": "Find hosts where the Netskope client is installed but is no longer enabled and connected — the silently degraded state.\n```\nSELECT install_path, client_version, client_status, tunnel_status, error\nFROM netskope\nWHERE client_installed = 1\n  AND NOT (client_status = 'enable' AND tunnel_status = 'NSTUNNEL_CONNECTED');\n```",
+    "examples": "Find hosts where the Netskope client is installed but is no longer enabled and connected — the silently degraded state. `error = ''` keeps out clients whose state could not be read, which is a separate problem from a client that reported itself as degraded.\n```\nSELECT install_path, client_version, client_status, tunnel_status\nFROM netskope\nWHERE client_installed = 1\n  AND error = ''\n  AND NOT (client_status = 'enable' AND tunnel_status = 'NSTUNNEL_CONNECTED');\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe table always returns exactly one row, so that \"not installed\", \"installed but degraded\", and \"installed but state could not be read\" stay distinguishable. Check `client_installed` and `error` before treating the remaining columns as the client's real state.\n\nThe fields `nsdiag` reports change between Netskope releases. Fields this table does not recognize are ignored rather than failing the query, and a release that renames every field is reported through the `error` column.",
     "url": "https://fleetdm.com/tables/netskope",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/netskope.yml"

@@ -98,11 +98,12 @@ columns:
     required: false
     type: text
 examples: |-
-  Find hosts where the Netskope client is installed but is no longer enabled and connected — the silently degraded state.
+  Find hosts where the Netskope client is installed but is no longer enabled and connected — the silently degraded state. `error = ''` keeps out clients whose state could not be read, which is a separate problem from a client that reported itself as degraded.
   ```
-  SELECT install_path, client_version, client_status, tunnel_status, error
+  SELECT install_path, client_version, client_status, tunnel_status
   FROM netskope
   WHERE client_installed = 1
+    AND error = ''
     AND NOT (client_status = 'enable' AND tunnel_status = 'NSTUNNEL_CONNECTED');
   ```
 notes: |-
