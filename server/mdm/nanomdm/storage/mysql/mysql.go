@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -241,9 +242,9 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 	_, err = s.db.ExecContext(
 		r.Context, `
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally, hardware_attested)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, hardware_attested)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1,
+	(?, ?, ?, ?, ?, ?, ?, 1,
 	 EXISTS(SELECT 1 FROM acme_orders WHERE issued_certificate_serial = ?))
 ON DUPLICATE KEY
 UPDATE
@@ -254,7 +255,6 @@ UPDATE
     push_magic = VALUES(push_magic),
     token_hex = VALUES(token_hex),
     enabled = 1,
-    last_seen_at = CURRENT_TIMESTAMP,
     token_update_tally = nano_enrollments.token_update_tally + 1,
 	hardware_attested = VALUES(hardware_attested);`,
 		r.ID,
@@ -266,7 +266,10 @@ UPDATE
 		msg.Token.String(),
 		certSerial,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.updateLastSeen(r)
 }
 
 func (s *MySQLStorage) RetrieveTokenUpdateTally(ctx context.Context, id string) (int, error) {
@@ -319,12 +322,74 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 	if r.ParentID != "" {
 		return errors.New("can only disable a device channel")
 	}
-	_, err := s.db.ExecContext(
+	tx, err := s.db.BeginTx(r.Context, nil)
+	if err != nil {
+		return err
+	}
+	if err := s.disable(r, tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
+		}
+		return err
+	}
+	return tx.Commit()
+}
+
+// disable flips the enrollments off and bumps their seen times in one transaction so a mid-way
+// failure can't leave a bumped seen time on a still-enabled enrollment (the enabled=1 filter in
+// the chart online-hosts query relies on the two moving together). The id capture is a plain
+// consistent read on purpose: a locking read (SELECT ... FOR UPDATE or INSERT ... SELECT) would
+// take shared/exclusive next-key locks on the enrollment rows before the UPDATE's exclusive
+// locks, inviting deadlocks with concurrent Disable/StoreTokenUpdate calls. The residual race —
+// an enrollment re-enabled between the SELECT and the UPDATE gets disabled without a seen-time
+// bump — is accepted: readers only consider seen times of enabled = 1 enrollments, so the
+// missing bump is invisible to them.
+func (s *MySQLStorage) disable(r *mdm.Request, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(r.Context, `SELECT id FROM nano_enrollments WHERE device_id = ? AND enabled = 1 ORDER BY id`, r.ID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(
 		r.Context,
-		`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0, last_seen_at = CURRENT_TIMESTAMP WHERE device_id = ? AND enabled = 1;`,
+		`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE device_id = ? AND enabled = 1;`,
 		r.ID,
-	)
+	); err != nil {
+		return err
+	}
+
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args := seenTimesUpsert(ids)
+	_, err = tx.ExecContext(r.Context, stmt, args...)
 	return err
+}
+
+// seenTimesUpsert builds a multi-row nano_seen_times upsert for the given enrollment ids. Callers
+// must pass ids in a consistent (sorted) order: concurrent flushes and Disable/StoreTokenUpdate
+// upserts can deadlock among themselves without consistent lock ordering.
+func seenTimesUpsert(ids []string) (string, []any) {
+	stmt := `INSERT INTO nano_seen_times (id, seen_time) VALUES ` +
+		strings.TrimSuffix(strings.Repeat("(?, CURRENT_TIMESTAMP),", len(ids)), ",") +
+		` ON DUPLICATE KEY UPDATE seen_time = CURRENT_TIMESTAMP`
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	return stmt, args
 }
 
 func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
@@ -335,7 +400,7 @@ func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
 
 	_, err = s.db.ExecContext(
 		r.Context,
-		`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE seen_time = CURRENT_TIMESTAMP`,
 		r.ID,
 	)
 	if err != nil {
@@ -349,18 +414,14 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 		return
 	}
 
-	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, ids)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "error building nano_enrollments.last_seen_at sql", "err", err)
-		return
-	}
-
-	err = common_mysql.WithRetryTxx(ctx, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+	// ids arrive sorted from seenSet.getAndClearLocked; see seenTimesUpsert on why order matters.
+	stmt, args := seenTimesUpsert(ids)
+	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err
 	}, s.logger)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "error batch updating nano_enrollments.last_seen_at", "err", err)
+		s.logger.ErrorContext(ctx, "error batch updating nano_seen_times", "err", err)
 	}
 }
 

@@ -1700,18 +1700,19 @@ func filterHostsByPolicy(sql string, opt fleet.HostListOptions, params []interfa
 	return sql, params
 }
 
-// hostMDMSeenTimeJoin joins on nano enrollment so that the effective last-seen
-// time can fall back to the Apple MDM protocol's last_seen_at
-// for hosts that never check in via osquery (ios/ipados).
+// hostMDMSeenTimeJoin joins on nano enrollment (for the type filter; consistent reads take no
+// locks) and its seen time so that the effective last-seen time can fall back to the Apple MDM
+// protocol's seen time for hosts that never check in via osquery (ios/ipados).
 // It uses a dedicated alias (nes) to avoid colliding with the connected-to-Fleet join (ne)
 const hostMDMSeenTimeJoin = `
-	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')`
+	LEFT JOIN nano_enrollments nes ON nes.id = h.uuid AND nes.type IN ('Device', 'User Enrollment (Device)')
+	LEFT JOIN nano_seen_times nst ON nst.id = nes.id`
 
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
-// seen_time and the MDM last_seen_at, then detail_updated_at (treating the Never sentinel as null),
+// seen_time and the MDM seen time, then detail_updated_at (treating the Never sentinel as null),
 // then created_at.
-// Requires hostMDMSeenTimeJoin (alias nes) and the host_seen_times join (alias hst) to be present.
-const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nes.last_seen_at), COALESCE(nes.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
+// Requires hostMDMSeenTimeJoin (aliases nes/nst) and the host_seen_times join (alias hst) to be present.
+const hostEffectiveLastSeenExpr = `COALESCE(GREATEST(COALESCE(hst.seen_time, nst.seen_time), COALESCE(nst.seen_time, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
 
 func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	switch opt.StatusFilter {
@@ -3933,14 +3934,14 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	// it might take longer, but it should lock only the row we need.
 	//
 	// host_seen_time entries are not available for ios/ipados/android devices, since they're updated on
-	// osquery check-in. Instead we fall back to the MDM protocol last_seen_at, then detail_updated_at,
-	// which is updated every time a full detail refetch happens. For the detail_updated_at value, we
-	// consider server.NeverTimestamp to be nullish because this value is set as the default in some scenarios,
-	// in which case we will fall back to the created_at timestamp.
-	// Additionally, COALESCE(GREATEST(COALESCE...)) with seen_time and last_seen at ensures that we get the greater
-	// value if both are set(GREATEST normally returning NULL if either operand is NULL) but still treat as NULL if
-	// neither is set. This ensures that we cover hosts that for some reason stop checking in via OSQuery but keep
-	// checking in via MDM
+	// osquery check-in. Instead we fall back to the MDM protocol seen time (nano_seen_times), then
+	// detail_updated_at, which is updated every time a full detail refetch happens. For the detail_updated_at
+	// value, we consider server.NeverTimestamp to be nullish because this value is set as the default in some
+	// scenarios, in which case we will fall back to the created_at timestamp.
+	// Additionally, COALESCE(GREATEST(COALESCE...)) with the osquery and MDM seen times ensures that we get the
+	// greater value if both are set(GREATEST normally returning NULL if either operand is NULL) but still treat
+	// as NULL if neither is set. This ensures that we cover hosts that for some reason stop checking in via
+	// OSQuery but keep checking in via MDM
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
 	// host_dep_assignments table. Windows Autopilot pending hosts need the same protection for the same reason.
@@ -3949,7 +3950,8 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
 		LEFT JOIN host_autopilot_devices had ON h.id = had.host_id
 		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
-		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
+		LEFT JOIN nano_seen_times nst ON nst.id = ne.id
+		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, nst.seen_time), COALESCE(nst.seen_time, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
 			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)
 			AND (had.host_id IS NULL OR had.deleted_at IS NOT NULL)`
 

@@ -103,7 +103,8 @@ topic      VARCHAR(255) NOT NULL,
     enabled            BOOLEAN NOT NULL DEFAULT 1,
     token_update_tally INTEGER NOT NULL DEFAULT 1,
 
-    last_seen_at TIMESTAMP NOT NULL,
+    -- Fleet: last_seen_at was moved to the nano_seen_times table (defined in Fleet's own
+    -- migrations) to avoid lock contention on this table; see fleetdm/fleet#48655.
 
     hardware_attested BOOLEAN NOT NULL DEFAULT 0,
 

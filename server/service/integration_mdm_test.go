@@ -26446,8 +26446,12 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 			return err
 		})
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1, ?)`,
-				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID, time.Now())
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1)`,
+				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?)`, host.UUID, time.Now())
 			return err
 		})
 		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "Fleet", "", false))

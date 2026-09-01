@@ -2455,9 +2455,9 @@ func nanoEnrollUserDevice(t *testing.T, ds *Datastore, host *fleet.Host) {
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -2466,8 +2466,17 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
-		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
+	require.NoError(t, err)
+
+	setNanoSeenTime(t, ds, host.UUID, time.Now().Add(-2*time.Second).Truncate(time.Second))
+}
+
+// setNanoSeenTime upserts the MDM check-in seen time for an enrollment id.
+func setNanoSeenTime(t *testing.T, ds *Datastore, enrollmentID string, seenTime time.Time) {
+	_, err := ds.writer(t.Context()).Exec(
+		`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?) ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+		enrollmentID, seenTime)
 	require.NoError(t, err)
 }
 
@@ -2477,9 +2486,9 @@ func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -2488,9 +2497,10 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
-		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
+
+	setNanoSeenTime(t, ds, host.UUID, time.Now().Add(-2*time.Second).Truncate(time.Second))
 
 	if withUser {
 		nanoEnrollUserOnly(t, ds, host)
@@ -2521,9 +2531,9 @@ VALUES
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at)
+	(id, device_id, user_id, type, topic, push_magic, token_hex)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?)`,
 		userID,
 		host.UUID,
 		userID,
@@ -2531,9 +2541,10 @@ VALUES
 		host.UUID+".topic",
 		host.UUID+".magic",
 		host.UUID,
-		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
+
+	setNanoSeenTime(t, ds, userID, time.Now().Add(-2*time.Second).Truncate(time.Second))
 }
 
 func upsertHostCPs(
@@ -11114,7 +11125,8 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	getHostLastSeenAt := func(h *fleet.Host) time.Time {
 		var lastSeenAt time.Time
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &lastSeenAt, `SELECT last_seen_at FROM nano_enrollments WHERE device_id = ?`, h.UUID)
+			return sqlx.GetContext(ctx, q, &lastSeenAt,
+				`SELECT nst.seen_time FROM nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id WHERE ne.device_id = ?`, h.UUID)
 		})
 		return lastSeenAt
 	}
@@ -11129,7 +11141,7 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
 	require.NoError(t, err)
 
-	// at this point, last_seen_at is still the original value
+	// at this point, the seen time is still the original value
 	ts1, ts2 := getHostLastSeenAt(enrolledHosts[0]), getHostLastSeenAt(enrolledHosts[1])
 
 	time.Sleep(time.Second + time.Millisecond) // ensure a distinct mysql timestamp
@@ -11216,11 +11228,11 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE type='Device' AND device_id = ?`, deviceEnrollTime, host.UUID)
+		_, err = q.ExecContext(ctx, `UPDATE nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id SET nst.seen_time=? WHERE ne.type='Device' AND ne.device_id = ?`, deviceEnrollTime, host.UUID)
 		if err != nil {
 			return err
 		}
-		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE type='User' AND device_id = ?`, userEnrollTime, host.UUID)
+		_, err = q.ExecContext(ctx, `UPDATE nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id SET nst.seen_time=? WHERE ne.type='User' AND ne.device_id = ?`, userEnrollTime, host.UUID)
 		if err != nil {
 			return err
 		}
@@ -11229,7 +11241,7 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE device_id = ?`, byodDeviceEnrollTime, byodHost.UUID)
+		_, err = q.ExecContext(ctx, `UPDATE nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id SET nst.seen_time=? WHERE ne.device_id = ?`, byodDeviceEnrollTime, byodHost.UUID)
 		if err != nil {
 			return err
 		}
