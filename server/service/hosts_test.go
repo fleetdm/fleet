@@ -771,7 +771,7 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 // radio identifier, whatever ended up stored: ingestion gates on the
 // device-reported ownership, which AMAPI may omit, so the response is gated on
 // Fleet's own enrollment record.
-func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
+func TestHostDetailsSuppressesAndroidSensitiveVitalsForBYOD(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
 	mockHostDetailsDatastore(ds)
@@ -788,14 +788,21 @@ func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
 
 	personal := fleet.MDMEnrollmentStatusPersonal
 	manual := fleet.MDMEnrollmentStatusManual
+	off := fleet.MDMEnrollmentStatusOff
 
 	cases := []struct {
 		name                 string
 		enrollmentStatus     *string
-		wantRadioIdentifiers bool
+		isPersonalEnrollment bool
+		wantSensitiveVitals  bool
 	}{
-		{"personal enrollment", &personal, false},
-		{"company owned", &manual, true},
+		{"personal enrollment", &personal, true, false},
+		{"company owned", &manual, false, true},
+		// enrollment_status is a generated column that reads "Off" once the
+		// host unenrolls, but the vitals row and the BYOD classification both
+		// outlive the enrollment, so this must stay suppressed.
+		{"unenrolled BYOD", &off, true, false},
+		{"unenrolled company owned", &off, false, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -803,7 +810,10 @@ func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
 				ID:       5,
 				Platform: "android",
 				UUID:     "android-byod-uuid",
-				MDM:      fleet.MDMHostData{EnrollmentStatus: tc.enrollmentStatus},
+				MDM: fleet.MDMHostData{
+					EnrollmentStatus:     tc.enrollmentStatus,
+					IsPersonalEnrollment: tc.isPersonalEnrollment,
+				},
 			}
 			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
 			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
@@ -811,7 +821,7 @@ func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
 			// The other vitals load either way; only the phone number and the
 			// radio identifiers are gated.
 			assert.Equal(t, "Google", *hostDetail.Manufacturer)
-			if tc.wantRadioIdentifiers {
+			if tc.wantSensitiveVitals {
 				assert.Len(t, hostDetail.TelephonyInfos, 1)
 				assert.Equal(t, "A1000031212", *hostDetail.IMEI)
 				assert.Equal(t, "A00000292788E1", *hostDetail.MEID)

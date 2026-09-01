@@ -1823,7 +1823,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		// device-reported ownership, which AMAPI may omit; Fleet's own
 		// enrollment record is the authoritative classification, so the
 		// response is gated on that.
-		if isPersonalEnrollment {
+		//
+		// EnrollmentStatus alone is not enough: it comes from a generated
+		// column that reads "Off" as soon as the host unenrolls, while the
+		// vitals row outlives the enrollment (it's only dropped when the host
+		// is deleted). IsPersonalEnrollment is deliberately kept on
+		// unenrollment, so it's what identifies a BYOD device afterwards.
+		if isPersonalEnrollment || host.MDM.IsPersonalEnrollment {
 			host.TelephonyInfos = nil
 			host.IMEI = nil
 			host.MEID = nil

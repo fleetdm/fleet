@@ -11,9 +11,9 @@ func init() {
 
 // Up_20260901174312 adds the hardware radio identifiers AMAPI reports in
 // networkInfo — imei for GSM devices, meid for CDMA ones — to
-// host_mdm_android_device_vitals (see #49791). A device reports at most one of
-// the two, and neither is reported for personally-owned devices, so both
-// default to NULL like the rest of the vitals columns.
+// host_mdm_android_device_vitals. A device reports at most one of the two, and
+// neither is reported for personally-owned devices, so both default to NULL
+// like the rest of the vitals columns.
 func Up_20260901174312(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE host_mdm_android_device_vitals

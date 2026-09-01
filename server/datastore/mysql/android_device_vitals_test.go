@@ -92,8 +92,12 @@ func testHostMDMAndroidDeviceVitalsInsertThenUpdate(t *testing.T, ds *Datastore)
 	require.Equal(t, 1, count)
 
 	// A second status report for the same host must UPDATE the existing row,
-	// not insert a second one.
+	// not insert a second one. The radio identifiers change to distinct values
+	// so that the UPDATE's two adjacent, identically-typed named parameters
+	// can't be swapped without failing.
 	vitals.Manufacturer = new("Motorola")
+	vitals.IMEI = new("B2000042323")
+	vitals.MEID = new("B00000383899F2")
 	require.NoError(t, ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.UUID, vitals))
 
 	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_android_device_vitals WHERE host_uuid = ?`, host.UUID))
@@ -102,6 +106,8 @@ func testHostMDMAndroidDeviceVitalsInsertThenUpdate(t *testing.T, ds *Datastore)
 		SELECT manufacturer, api_level, adb_enabled, imei, meid, telephony_infos
 		FROM host_mdm_android_device_vitals WHERE host_uuid = ?`, host.UUID))
 	require.Equal(t, "Motorola", *row.Manufacturer)
+	require.Equal(t, "B2000042323", *row.IMEI)
+	require.Equal(t, "B00000383899F2", *row.MEID)
 }
 
 func testHostMDMAndroidDeviceVitalsNullHandling(t *testing.T, ds *Datastore) {
