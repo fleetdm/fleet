@@ -19,6 +19,13 @@
     height: 24px;
   }
 
+  &--xsmall {
+    height: 19px;
+    padding: 0 $pad-xsmall;
+    gap: $pad-xsmall;
+    font-size: $xxx-small;
+  }
+
   &--clickable {
     background: none;
     cursor: pointer;
