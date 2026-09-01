@@ -6913,6 +6913,7 @@ Deletes the label specified by ID.
 - [Delete Apple asset declaration](#delete-apple-asset-declaration)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
+- [Trigger Linux disk encryption escrow by Fleet Desktop token](#trigger-linux-disk-encryption-escrow-by-fleet-desktop-token)
 - [Update host name template](#update-host-name-template)
 - [Resend host name template](#resend-host-name-template)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
@@ -7603,6 +7604,28 @@ The summary can optionally be filtered by fleet ID.
   "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
+
+### Trigger Linux disk encryption escrow by Fleet Desktop token
+
+_Available in Fleet Premium_
+
+Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the fleet, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that triggers escrow from the Orbit side.
+
+`POST /api/v1/fleet/device/:token/mdm/linux/trigger_escrow`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ----------------------------------- |
+| token | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/mdm/linux/trigger_escrow`
+
+##### Default response
+
+`Status: 204`
 
 ### Update host name template
 

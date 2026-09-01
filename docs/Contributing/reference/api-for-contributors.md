@@ -3400,7 +3400,6 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
 
 #### Get device's Google Chrome profiles
@@ -4042,30 +4041,6 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 ##### Example
 
 `POST /api/v1/fleet/device/abcdef012456789/migrate_mdm`
-
-##### Default response
-
-`Status: 204`
-
----
-
-### Trigger Linux disk encryption escrow
-
-_Available in Fleet Premium_
-
-Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the fleet, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that, triggers escrow from the Orbit side.
-
-`POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`POST /api/v1/fleet/device/abcdef012456789/mdm/linux/trigger_escrow`
 
 ##### Default response
 
