@@ -131,10 +131,7 @@ Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrade
 
 ### How iOS/iPadOS hosts authenticate
 
-iOS and iPadOS hosts don't run a Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados). Fleet authenticates the request one of two ways:
-
-1. Certificate (used when available): if the device presents its MDM-issued identity (SCEP) certificate over mTLS, Fleet matches the certificate's serial number to the host and confirms it belongs to the UUID in the URL.
-2. Host UUID (fallback): if no client certificate is presented, Fleet falls back to authenticating by the UUID in the URL.
+iOS and iPadOS hosts don't run a Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados). Fleet authenticates the request via host UUID in the URL.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
