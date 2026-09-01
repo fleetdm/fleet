@@ -36,6 +36,7 @@ import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import buildAndroidHostVitals from "./androidVitals";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 /** Everything buildHostVitals needs to render the pre-existing host vitals.
@@ -568,7 +569,17 @@ export const buildHostVitals = ({
         <TooltipWrapperArchLinuxRolling />
       </>
     ) : (
-      <TooltipTruncatedText value={version} />
+      <TooltipTruncatedText
+        value={version}
+        // Android reports the API level separately from the OS version string;
+        // it rides along on this row rather than getting a vital of its own.
+        tooltip={
+          isAndroidHost && vitalsData.api_level
+            ? `Android API level: ${vitalsData.api_level}`
+            : undefined
+        }
+        alwaysShowTooltip={isAndroidHost && !!vitalsData.api_level}
+      />
     );
     vitals.push({
       sortKey: "Operating system",
@@ -693,6 +704,10 @@ export const buildHostVitals = ({
         />
       ),
     });
+  }
+
+  if (isAndroidHost) {
+    vitals.push(...buildAndroidHostVitals(vitalsData, mdm));
   }
 
   customHostVitals?.forEach((vital) => {
