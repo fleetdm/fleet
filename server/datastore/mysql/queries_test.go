@@ -1850,11 +1850,13 @@ func testLabelScopedScheduledQueryScopes(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Gabriel", "gabriel@fleet.co", true)
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "etag scopes team"})
 	require.NoError(t, err)
+
 	// empty: no label-scoped scheduled queries anywhere
 	got, err := ds.LabelScopedScheduledQueryScopes(ctx)
 	require.NoError(t, err)
 	require.False(t, got.Global)
 	require.Empty(t, got.TeamIDs)
+
 	// a plain scheduled query (no labels) does not count
 	_, err = ds.NewQuery(ctx, &fleet.Query{
 		Name:     "plain scheduled",
@@ -1882,6 +1884,7 @@ func testLabelScopedScheduledQueryScopes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, got.Global)
 	require.Empty(t, got.TeamIDs)
+
 	// a TEAM label-scoped scheduled query flags only that team
 	teamScoped, err := ds.NewQuery(ctx, &fleet.Query{
 		Name:             "team label scoped scheduled",
@@ -1898,6 +1901,7 @@ func testLabelScopedScheduledQueryScopes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, got.Global)
 	require.Equal(t, []uint{team.ID}, got.TeamIDs)
+
 	// a GLOBAL label-scoped scheduled query flags the global scope too
 	globalScoped, err := ds.NewQuery(ctx, &fleet.Query{
 		Name:             "global label scoped scheduled",
@@ -1913,6 +1917,7 @@ func testLabelScopedScheduledQueryScopes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, got.Global)
 	require.Equal(t, []uint{team.ID}, got.TeamIDs)
+
 	// deleting them clears the answers (query_labels rows cascade)
 	err = ds.DeleteQuery(ctx, globalScoped.TeamID, globalScoped.Name)
 	require.NoError(t, err)
