@@ -118,21 +118,18 @@ All conversation about an unfixed vulnerability stays in the private [fleetdm/se
 
 This applies to anyone who opens a pull request in the Fleet repo. That includes engineers in the owning product group, Fleeties from other groups, members of the Customer Success team, and open source contributors.
 
-
-Review is where Fleet spends most of its engineering time. How a pull request arrives decides how quickly it lands.
-
-1. **Ask before starting something large.** Comment on the issue, or ask in the owning [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel, before writing a lot of code. The Engineering Manager (EM) knows whether the work is already underway and whether the approach fits. They can also say when the group can review it.
+1. **Ask before starting something large.** Comment on the issue, or ask in the owning [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel, before writing a lot of code. The Engineering Manager knows whether the work is already underway and whether the approach fits. They can also say when the group can review it.
 
 2. **Keep the change small.** A small pull request gets reviewed sooner than a large one. When a change has to be large, split it into pieces that each stand on their own. Explain in the description how they fit together.
 
-3. **Use a draft PR until the work is done.** Draft is a normal state, and it tells reviewers the PR isn't waiting on them yet. Take it out of draft once:
+3. **Use a draft pull request until the work is done.** Draft tells reviewers the pull request isn't waiting on them yet. Take it out of draft once:
    - The change does what the linked issue asks, and nothing more.
    - Automated tests cover the change and CI passes.
    - You have read your own diff and QA'd the change yourself.
    - The submitter checklist in the description is filled in.
    - Any user-visible change includes a screenshot or recording.
 
-4. **Hand off the pull request before time off.** A reviewer can't ask you questions while you're away. Follow [taking time off](https://fleetdm.com/handbook/company/communications#taking-time-off) to say you'll be out, move the change back to draft, or name someone who agreed to take it over.
+4. **Hand off the pull request before time off.** Follow [taking time off](https://fleetdm.com/handbook/company/communications#taking-time-off) to note that you'll be out, move the change back to draft, or name someone who has agreed to take it over.
 
 
 ### Community contributions

@@ -214,11 +214,12 @@ The goal is to keep pull requests moving. A brief async message to arrange cover
 
 ### Unfinished pull requests during time off
 
-A pull request is marked ready for review, but the author is away and the change isn't finished. Completing someone else's change is not review, and it costs the group more than the author would have spent.
+Sometimes a pull request is marked ready for review, but the author is away and the change isn't finished. When that happens:
 
-1. **Move it back to draft.** If the change isn't ready, put the pull request in draft and comment saying what's missing. This isn't a rejection, and it doesn't need the author's permission. It also stops the next reviewer from spending a pass on it.
-2. **Don't adopt it by default.** Finishing someone else's pull request is real work. Bring it to your Engineering Manager (EM), who decides whether it's worth doing now or when the author is back.
-3. **Point the author to the expectations.** Contributors from outside the product group may not know what Fleet expects. Link them to [pull request etiquette](https://fleetdm.com/handbook/engineering#pull-request-etiquette) rather than assuming they knew.
+1. **Move it back to draft.** Put the pull request in draft and comment saying what's missing. You don't need the author's permission, and it keeps the next reviewer from spending a pass on it.
+2. **Don't adopt it by default.** Bring it to your Engineering Manager, who decides whether finishing it is worth doing now or when the author is back.
+3. **Point the author to the expectations.** Contributors from outside the product group may not know what Fleet expects. Link them to [pull request etiquette](https://fleetdm.com/handbook/engineering#pull-request-etiquette).
+
 
 ### Daily standup (30 minutes)
 
