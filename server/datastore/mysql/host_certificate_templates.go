@@ -450,7 +450,7 @@ func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 		SELECT DISTINCT host_uuid
 		FROM host_certificate_templates
 		WHERE status = '%s'
-		  AND (retry_count = 0 OR retry_count >= %d OR updated_at <= NOW() - INTERVAL POW(2, retry_count - 1) * 30 SECOND)
+		  AND (retry_count = 0 OR retry_count > %d OR updated_at <= NOW() - INTERVAL CAST(POW(2, retry_count - 1) * 30 AS UNSIGNED) SECOND)
 		ORDER BY host_uuid
 		LIMIT ? OFFSET ?
 	`, fleet.CertificateTemplatePending, fleet.MaxCertificateInstallRetries)

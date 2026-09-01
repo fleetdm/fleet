@@ -1798,7 +1798,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 			nil, http.StatusOK, &struct{}{})
 		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 		require.NoError(t, err)
-		require.Equal(t, fleet.MaxCertificateInstallRetries, record.RetryCount, "resend should set retry_count to max")
+		require.Equal(t, fleet.MaxCertificateInstallRetries+1, record.RetryCount, "resend should set retry_count above max to bypass backoff")
 
 		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
 		deliverCert()
