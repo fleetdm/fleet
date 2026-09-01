@@ -3382,11 +3382,11 @@ currently pending.
 
 ---
 
-## Device-authenticated routes
+## Fleet-Desktop-token-authenticated routes
 
-Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+Fleet-Desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
-Fleet Premium can require single sign-on in front of these routes. When `fleet_desktop.sso_enabled` is `true`, the device token is no longer enough on its own. Most of these routes also need a device SSO session. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
+If you're using, Fleet Premium, you can require single sign-on (SSO) in front of these routes. When SSO is required, the device token is no longer enough on its own. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
 
 A request without a valid session for that host returns `401` with an `sso_required` marker:
 
@@ -3404,13 +3404,9 @@ A request without a valid session for that host returns `401` with an `sso_requi
 }
 ```
 
-An expired device token also returns `401`. The marker is what tells the "My device" page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
+An expired device token also returns `401`. The marker is what tells the **Fleet Desktop > My device** page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
 
-Fleet checks the session after it resolves the host. The check covers all three ways a device authenticates: the rotating token, a client certificate, and a device UUID in the URL. This includes iOS and iPadOS.
-
-Two cases stay reachable with the setting on and no session.
-
-First, the exempt routes. Fleet registers these through a separate endpointer, listed in one block in `server/service/handler.go`, so every other device route needs a session by default:
+The follow routes are always reachable without SSO:
 
 - [Get Fleet Desktop information](#get-fleet-desktop-information) and `HEAD /api/v1/fleet/device/{token}/ping`. The Fleet Desktop tray app polls both.
 - [Report an agent error](#report-an-agent-error), which fleetd posts.
@@ -3418,9 +3414,7 @@ First, the exempt routes. Fleet registers these through a separate endpointer, l
 - [Get device's transparency URL](#get-devices-transparency-url), the "About Fleet" redirect. It exposes nothing about the host.
 - [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on). This has to be reachable before a session exists.
 
-Requiring a session on the fleetd routes would mean changing fleetd. The tray app behaves the same way whether single sign-on is on or off.
-
-Second, hosts still in Setup Experience. This applies on macOS, Windows, and Linux — not just macOS. Setup Experience opens the device page in a web view while a host is completing setup, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
+The following endpoints are reachable without SSO when macOS, Windows, and Linux hosts are running through [setup experience](https://fleetdm.com/guides/setup-experience). After setup finishes, SSO is required:
 
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
