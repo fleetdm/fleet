@@ -3166,7 +3166,7 @@ func testGetFleetMaintainedVersionsOrder(t *testing.T, ds *Datastore) {
 				Version:              c.published[0],
 				UserID:               user.ID,
 				ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-				FleetMaintainedAppID: new(app.ID),
+				FleetMaintainedAppID: &app.ID,
 			})
 			require.NoError(t, err)
 
@@ -3213,7 +3213,7 @@ func testMarkFleetMaintainedAppVersionCurrent(t *testing.T, ds *Datastore) {
 		Title: "Marked", Source: "apps", Platform: "darwin",
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "marked-storage-1", Filename: "marked-1.pkg", Version: "1.0",
-		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(app.ID),
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &app.ID,
 	})
 	require.NoError(t, err)
 	newerID, err := ds.InsertFleetMaintainedAppVersion(ctx, olderID, &fleet.UploadSoftwareInstallerPayload{

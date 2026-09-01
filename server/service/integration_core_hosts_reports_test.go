@@ -1237,6 +1237,126 @@ func (s *integrationTestSuite) TestGetHostIOSVitals() {
 	}
 }
 
+// hostAndroidVitalsJSONKeys are the JSON keys of the 13 Android vitals fields
+// added to fleet.Host: they must be fully omitted (not present, not null) from
+// the host response for non-Android hosts, or for a field that's absent from
+// the host's host_mdm_android_device_vitals row.
+var hostAndroidVitalsJSONKeys = []string{
+	"adb_enabled", "passcode_protected", "play_protect_enabled", "encryption_type",
+	"manufacturer", "security_update_version", "device_kernel_version",
+	"bootloader_version", "system_update_status", "security_posture", "api_level",
+	"security_posture_details", "telephony_infos",
+}
+
+func (s *integrationTestSuite) TestGetHostAndroidVitals() {
+	t := s.T()
+	ctx := t.Context()
+
+	newHost := func(platform, uuidSuffix string) *fleet.Host {
+		name := strings.ReplaceAll(t.Name(), "/", "_") + uuidSuffix
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(name),
+			OsqueryHostID:   new(name),
+			UUID:            name,
+			Hostname:        name + ".local",
+			PrimaryIP:       "192.168.1.1",
+			PrimaryMac:      "30-65-EC-6F-C4-58",
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	fullVitals := fleet.MDMAndroidDeviceVitals{
+		AdbEnabled:            new(true),
+		PasscodeProtected:     new(true),
+		PlayProtectEnabled:    new(false),
+		EncryptionType:        new("ACTIVE"),
+		Manufacturer:          new("Google"),
+		SecurityUpdateVersion: new("2026-05-01"),
+		DeviceKernelVersion:   new("6.1.75-android14"),
+		BootloaderVersion:     new("slider-1.4-12345678"),
+		SystemUpdateStatus:    new("SECURITY_UPDATE_AVAILABLE"),
+		SecurityPosture:       new("POTENTIALLY_COMPROMISED"),
+		APILevel:              new(int64(36)),
+		SecurityPostureDetails: []fleet.MDMAndroidPostureDetail{
+			{SecurityRisk: "COMPROMISED_OS", Advice: []string{"Factory reset the device"}},
+		},
+		TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{
+			{PhoneNumber: "+15555550100", CarrierName: "Acme Mobile"},
+			{PhoneNumber: "+15555550101", CarrierName: "Acme Mobile"},
+		},
+	}
+
+	// A fully populated Android host returns all 13 fields, on both GET endpoints.
+	fullHost := newHost("android", "-full")
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, fullHost.UUID, fullVitals))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, "Google", *getHostResp.Host.Manufacturer)
+	require.Equal(t, int64(36), *getHostResp.Host.APILevel)
+	require.True(t, *getHostResp.Host.AdbEnabled)
+	require.Len(t, getHostResp.Host.SecurityPostureDetails, 1)
+	require.Len(t, getHostResp.Host.TelephonyInfos, 2)
+
+	hostJSON := s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID))
+	for _, key := range hostAndroidVitalsJSONKeys {
+		assert.Contains(t, hostJSON, key, "expected key %q in response for fully populated Android host", key)
+	}
+	// Enum values are returned as AMAPI's raw strings; mapping them to display
+	// labels is the frontend's job.
+	assert.Equal(t, "ACTIVE", hostJSON["encryption_type"])
+	assert.Equal(t, "POTENTIALLY_COMPROMISED", hostJSON["security_posture"])
+
+	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// loading path and must behave identically.
+	var getByIdentifierResp getHostResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	require.Equal(t, "Google", *getByIdentifierResp.Host.Manufacturer)
+
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	for _, key := range hostAndroidVitalsJSONKeys {
+		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated Android host", key)
+	}
+
+	// A non-Android host omits all 13 keys, even though a row exists for it.
+	// (manufacturer in particular is a plausible-sounding key to leak.)
+	macHost := newHost("darwin", "-macos")
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, macHost.UUID, fullVitals))
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID))
+	for _, key := range hostAndroidVitalsJSONKeys {
+		assert.NotContains(t, hostJSON, key, "did not expect key %q for a non-Android host", key)
+	}
+
+	// A field absent from the side table row is omitted; other populated
+	// fields are still present.
+	partialHost := newHost("android", "-partial")
+	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, partialHost.UUID, fleet.MDMAndroidDeviceVitals{
+		Manufacturer: new("Samsung"),
+		APILevel:     new(int64(34)),
+	}))
+
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", partialHost.ID))
+	assert.Contains(t, hostJSON, "manufacturer")
+	assert.Contains(t, hostJSON, "api_level")
+	assert.NotContains(t, hostJSON, "adb_enabled")
+	assert.NotContains(t, hostJSON, "security_posture_details")
+	assert.NotContains(t, hostJSON, "telephony_infos")
+
+	// An Android host with no vitals row yet (hasn't reported since this
+	// shipped) omits all 13 keys, with no error.
+	noRowHost := newHost("android", "-no-row")
+	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", noRowHost.ID))
+	for _, key := range hostAndroidVitalsJSONKeys {
+		assert.NotContains(t, hostJSON, key, "did not expect key %q for an Android host with no vitals row yet", key)
+	}
+}
+
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
@@ -2356,7 +2476,3 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, hasIncludeAllReport(hostBoth.ID), "free tier must not surface include_all queries (all labels)")
 	})
 }
-
-// TestLabelScopePremiumGate verifies that all policy label scope fields
-// (include_any, include_all, exclude_any, exclude_all) are premium-gated on
-// every entry point for the free-tier (core) server.

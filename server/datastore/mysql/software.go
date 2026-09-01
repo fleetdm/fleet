@@ -5399,7 +5399,8 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	}
 
 	if icon, ok := a.iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
-		softwareTitleRecord.IconUrl = new(icon.IconUrl())
+		iconURL := icon.IconUrl()
+		softwareTitleRecord.IconUrl = &iconURL
 	}
 
 	if displayName, ok := a.displayNames[softwareTitleRecord.ID]; ok {

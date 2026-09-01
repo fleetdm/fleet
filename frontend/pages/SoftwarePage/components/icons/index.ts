@@ -646,6 +646,7 @@ import MerlinProject from "./png/MerlinProject.png";
 import Microsoft365Copilot from "./png/Microsoft365Copilot.png";
 import MicrosoftAutoUpdate from "./png/MicrosoftAutoUpdate.png";
 import MicrosoftAzureStorageExplorer from "./png/MicrosoftAzureStorageExplorer.png";
+import MicrosoftDefender from "./png/MicrosoftDefender.png";
 import MicrosoftDotnetRuntime from "./png/MicrosoftDotnetRuntime.png";
 import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
@@ -1058,6 +1059,7 @@ import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
+import Vagrant from "./png/Vagrant.png";
 import Vanilla from "./png/Vanilla.png";
 import VcRedistX64 from "./png/VcRedistX64.png";
 import Vellum from "./png/Vellum.png";
@@ -1811,6 +1813,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
   "microsoft azure storage explorer": MicrosoftAzureStorageExplorer,
+  "microsoft defender": MicrosoftDefender,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
@@ -2234,6 +2237,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
+  vagrant: Vagrant,
   vanilla: Vanilla,
   vellum: Vellum,
   "vernier spectral analysis": VernierSpectralAnalysis,

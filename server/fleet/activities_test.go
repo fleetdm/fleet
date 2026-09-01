@@ -374,3 +374,15 @@ func TestMDMEnrolledActivityHostIDOmission(t *testing.T) {
 		assert.EqualValues(t, 42, got["host_id"])
 	})
 }
+
+func TestInstalledSoftwareHostOnly(t *testing.T) {
+	t.Run("patch-when-closed skip is host-only", func(t *testing.T) {
+		act := ActivityTypeInstalledSoftware{SkippedInstall: true}
+		assert.True(t, act.HostOnly())
+	})
+
+	t.Run("regular install is not host-only", func(t *testing.T) {
+		act := ActivityTypeInstalledSoftware{SkippedInstall: false}
+		assert.False(t, act.HostOnly())
+	})
+}

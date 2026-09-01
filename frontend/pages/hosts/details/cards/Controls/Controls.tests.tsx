@@ -100,6 +100,22 @@ describe("Controls card", () => {
     });
   });
 
+  it("shows sort indicators on the sortable Name and Status columns", () => {
+    renderControls({
+      controls: [control({ profile_uuid: "a", name: "A", status: "verified" })],
+    });
+
+    const sortArrows = (label: string) =>
+      screen
+        .getAllByRole("columnheader")
+        .find((th) => th.textContent === label)
+        ?.querySelector(".sort-arrows");
+
+    expect(sortArrows("Name")).toBeTruthy();
+    expect(sortArrows("Status")).toBeTruthy();
+    expect(sortArrows("Details")).toBeFalsy();
+  });
+
   it("sorts by status priority: failed, action required, enforcing, removing enforcement, verifying, verified", () => {
     renderControls({
       controls: [
