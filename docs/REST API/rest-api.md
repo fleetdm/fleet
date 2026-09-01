@@ -2597,6 +2597,8 @@ _Available in Fleet Premium._
 
 <br/>
 
+> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is still completing setup experience — Fleet lets the device page through so setup can finish. To require SSO during setup, use [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) instead.
+
 ##### Example request body
 
 ```json
