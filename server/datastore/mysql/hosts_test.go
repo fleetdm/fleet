@@ -10857,9 +10857,13 @@ func testHostsListHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	require.Equal(t, new(false), byID[notEncrypted.ID])
 
 	// no host_disks row yet, so encryption status is unknown and omitted
+	_, ok := byID[unknown.ID]
+	require.True(t, ok)
 	require.Nil(t, byID[unknown.ID])
 
 	// matching Host(), an unencrypted Linux host reports unknown rather than false
+	_, ok = byID[linuxNotEncrypted.ID]
+	require.True(t, ok)
 	require.Nil(t, byID[linuxNotEncrypted.ID])
 
 	h, err := ds.Host(ctx, linuxNotEncrypted.ID)
