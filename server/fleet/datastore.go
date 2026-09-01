@@ -133,9 +133,23 @@ type Datastore interface {
 	// since both appear in a team host's pack config.
 	// If teamID is nil, checks only global queries.
 	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
+	// LabelScopedScheduledQueryScopes returns the report scopes that contain
+	// saved, scheduled queries (reports) scoped to labels (query_labels
+	// rows): whether the GLOBAL scope has any, and the team IDs whose scope
+	// has any. Label-scoped reports make the osquery config HOST-specific
+	// rather than team-shared (see ListScheduledQueriesForAgents' per-host
+	// label filtering), and their effective targeting drifts with label
+	// membership changes, which fire no datastore write. Used by the config
+	// ETag short circuit's cache-mode selection (see
+	// fleet.ConfigETagStore.LabelScopes).
+	LabelScopedScheduledQueryScopes(ctx context.Context) (ConfigETagLabelScopes, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
+	// QueriesByName resolves multiple (team, name) pairs in a single lookup. The
+	// returned map is keyed by TeamScopedQueryName.Key() and contains only the
+	// pairs that exist; absent pairs are simply not in the map.
+	QueriesByName(ctx context.Context, names []TeamScopedQueryName) (map[string]*Query, error)
 	// QueriesPerHost returns the IDs of the saved queries that are scheduled for the given host,
 	// applying the same scoping ListScheduledQueriesForAgents uses to build the host's schedule.
 	// Both global and team queries are returned; teamID is the host's team, nil if it has none.
@@ -248,9 +262,15 @@ type Datastore interface {
 	// UpdateLabelMembershipByHostIDs updates the label membership for the given label with host
 	// IDs, applied in batches, then returns the updated label
 	UpdateLabelMembershipByHostIDs(ctx context.Context, label Label, hostIds []uint, teamFilter TeamFilter) (*Label, []uint, error)
-	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label
+	// UpdateLabelMembershipByHostCriteria updates the label membership for the given label.
+	// It returns the IDs of hosts whose membership actually changed (added or
+	// removed), computed inside the update transaction, so callers (the
+	// config ETag invalidation decorator) can invalidate exactly the affected
+	// hosts — this method runs from a 5-minute cron for every host-vitals
+	// label, so neither deployment-wide invalidation nor all-members
+	// invalidation is acceptable.
 	// based on its host vitals criteria.
-	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
+	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, []uint, error)
 
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
@@ -459,6 +479,8 @@ type Datastore interface {
 	GetHostMDMCommands(ctx context.Context, hostID uint) (commands []HostMDMCommand, err error)
 	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
+	// RemoveHostMDMCommands removes the MDM command of the given type from all the provided hosts.
+	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error
 	// RemoveHostMDMCommandByHostUUID is RemoveHostMDMCommand for callers that hold a host UUID
 	// rather than an ID, such as an MDM command results handler that returns before resolving one.
 	RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error
@@ -709,6 +731,8 @@ type Datastore interface {
 	TeamLitesByIDs(ctx context.Context, ids []uint) ([]*TeamLite, error)
 	// DeleteTeam deletes the Team by ID.
 	DeleteTeam(ctx context.Context, tid uint) error
+	// HostIDsByTeamID returns the IDs of all hosts in the given team.
+	HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error)
 	// TeamByName retrieves the Team by Name (including extras).
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
@@ -1312,6 +1336,15 @@ type Datastore interface {
 	// calling this for iOS/iPadOS hosts.
 	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
 
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
+	// LoadHostMDMAndroidDeviceVitals populates host's
+	// HostMDMAndroidDeviceVitals fields from host_mdm_android_device_vitals.
+	// Callers are responsible for only calling this for Android hosts.
+	LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *Host) error
+
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
@@ -1327,6 +1360,12 @@ type Datastore interface {
 	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot *uint) (bool, error)
 	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
 	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
+
+	// SetOrUpdateHostBitLockerProtectionOutcome records what the agent did about a volume that was encrypted but
+	// unprotected, and why.
+	SetOrUpdateHostBitLockerProtectionOutcome(
+		ctx context.Context, hostID uint, outcome DiskEncryptionProtectionOutcome, protectionError string,
+	) error
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
@@ -1550,6 +1589,13 @@ type Datastore interface {
 	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
 	// profile using the unique key defined by `team_id` and `identifier`
 	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
+
+	// UpsertMDMAppleFleetConfigProfile inserts or updates a Fleet-controlled
+	// configuration profile by its `team_id` and `identifier`, keeping the
+	// existing `profile_uuid` so hosts see a changed payload rather than a
+	// different profile. Re-writing identical bytes leaves the row untouched, so
+	// profile reconciliation stays a no-op.
+	UpsertMDMAppleFleetConfigProfile(ctx context.Context, p MDMAppleConfigProfile) error
 
 	// GetHostMDMAppleProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
@@ -2516,9 +2562,9 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
-	// SetMDMWindowsHostProfileFailed marks the install row for the given (hostUUID, profileUUID) Windows profile as
-	// "failed" with the provided detail.
-	SetMDMWindowsHostProfileFailed(ctx context.Context, hostUUID string, profileUUID string, detail string) error
+	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given (hostUUID,
+	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending."
+	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to
@@ -3049,11 +3095,11 @@ type Datastore interface {
 	// Used by the auto-update cron to decide whether to advance versions.
 	ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]FMAAutoUpdateCandidate, error)
 
-	// GetSoftwareInstallerMetadataByStorageID returns the package IDs and upgrade
-	// code of any cached installer (active or inactive) with the given storage_id.
-	// Used by the auto-update cron to recover uninstall-script substitution values
-	// on the byte-dedup path. Returns empty values (no error) when nothing matches.
-	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (packageIDs []string, upgradeCode string, err error)
+	// GetSoftwareInstallerMetadataByStorageID describes any cached installer (active
+	// or inactive) with the given storage_id. Used by the auto-update cron to recover
+	// what it would otherwise have taken off the downloaded file, on the byte-dedup
+	// path. Returns a zero value (no error) when nothing matches.
+	GetSoftwareInstallerMetadataByStorageID(ctx context.Context, storageID string) (CachedInstallerMetadata, error)
 
 	// InsertFleetMaintainedAppVersion caches a newly downloaded version of an
 	// already-installed Fleet-maintained app, cloning the active installer's
@@ -3087,6 +3133,11 @@ type Datastore interface {
 	// HasFMAInstallerVersion returns true if the given FMA version is already
 	// cached as a software installer for the given team, and its storage hash.
 	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
+
+	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
+	// installer still on the given version, cancelling pending installs as an edit
+	// does. The version can't be cached as a second row, being the dedup token.
+	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
 	// FMA installer version, including install/uninstall scripts, URL, SHA256,
@@ -3231,8 +3282,8 @@ type Datastore interface {
 	// no references to them from the software_title_icons table.
 	CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore SoftwareTitleIconStore, removeCreatedBefore time.Time) error
 
-	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
-	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
+	// BatchSetSoftwareInstallers sets the software installers for the given team or no team, and returns installer ids that were modified.
+	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) ([]uint, error)
 	// BatchSetInHouseAppsInstallers sets the in-house apps installers for the given team or no team.
 	BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 	GetSoftwareInstallers(ctx context.Context, tmID uint) ([]SoftwarePackageResponse, error)
@@ -3493,6 +3544,10 @@ type Datastore interface {
 	// also deactivates prior nano commands and resets the retry counter for the profile UUID and host UUID.
 	ResendHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
 
+	// ResendWindowsHostCertificateProfile marks the given Windows profile to be resent to the given host after Fleet
+	// turned a SCEP request away (an expired or rejected challenge).
+	ResendWindowsHostCertificateProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
@@ -3666,6 +3721,11 @@ type Datastore interface {
 
 	// CreateScimUser creates a new SCIM user in the database
 	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// SetScimUserFleetUserID sets the durable link from a SCIM user to its
+	// matching Fleet user. Set-once: a no-op when a link is already set, so an
+	// established link can never be re-pointed (it is only cleared by the FK
+	// when the linked Fleet user is deleted).
+	SetScimUserFleetUserID(ctx context.Context, scimUserID uint, fleetUserID uint) error
 	// ScimUserByID retrieves a SCIM user by ID
 	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
 	// ScimUserByUserName retrieves a SCIM user by username
@@ -4051,6 +4111,10 @@ type AndroidDatastore interface {
 	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
 	// AndroidResetOnReenrollment clears the stale state of a re-enrolling Android host:
 	// dynamic label membership, pending MDM commands and pending software installs.
 	// Manual, host-vitals and builtin label membership is preserved, as are the host's

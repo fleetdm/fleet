@@ -205,14 +205,12 @@
         "require_all_software_windows": false,
         "software": null
       },
-      "windows_enrollment": null,
+      "windows_automatic_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "enable_disk_encryption": false,
         "configuration_profiles": null,
-        "managed_local_account_settings": {
-          "enabled": false
-        },
+        "enable_managed_local_account": false,
         "require_bitlocker_pin": false
       },
       "linux_settings": {

@@ -34,6 +34,9 @@ export interface IControlMessageProps {
   isDiskEncryptionProfile: boolean;
   /** True on the My device page, where the end user reads the message. */
   isDeviceUser: boolean;
+  /** Fleet setting for macOS: disk encryption enforced without key escrow.
+   * Disk encryption messages drop their key phrasing. */
+  isMacOSDiskEncryptionEnforceOnly?: boolean;
   /** UUID of the profile associated with the control. Can be used with prefix checks to determine the type of profile. */
   profileUUID: string;
 }
@@ -88,20 +91,27 @@ type OperationTypeOption = Record<ProfileStatus, ProfileDisplayOption>;
 
 type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
 
-const diskEncryptionVerifiedMessage: ControlMessage = ({ hostDisplayName }) => (
+const diskEncryptionVerifiedMessage: ControlMessage = ({
+  hostDisplayName,
+  isMacOSDiskEncryptionEnforceOnly,
+}) => (
   <>
-    <b>{hostDisplayName}</b> turned disk encryption on and sent the key to
-    Fleet. Fleet verified.
+    <b>{hostDisplayName}</b> turned disk encryption on
+    {!isMacOSDiskEncryptionEnforceOnly && " and sent the key to Fleet"}. Fleet
+    verified.
   </>
 );
 
 const diskEncryptionVerifyingMessage: ControlMessage = ({
   hostDisplayName,
+  isMacOSDiskEncryptionEnforceOnly,
 }) => (
   <>
     <b>{hostDisplayName}</b> acknowledged the MDM command to turn on disk
-    encryption. Fleet is verifying with osquery and retrieving the disk
-    encryption key. This may take up to one hour.
+    encryption. Fleet is verifying with osquery
+    {!isMacOSDiskEncryptionEnforceOnly &&
+      " and retrieving the disk encryption key"}
+    . This may take up to one hour.
   </>
 );
 
@@ -262,11 +272,11 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
   action_required: {
     statusText: "Action required",
     iconName: "pending-outline",
-    // Windows-specific: the end user sets the PIN during encryption.
+    // Defensive fallback only. The server always sends a reason for this status and the details modal prefers it, so
+    // this renders only if that reason is ever missing.
     message: ({ hostDisplayName }) => (
       <>
-        Disk encryption is on, but the end user hasn&apos;t set a BitLocker PIN
-        on <b>{hostDisplayName}</b> yet.
+        Disk encryption on <b>{hostDisplayName}</b> needs attention.
       </>
     ),
   },
