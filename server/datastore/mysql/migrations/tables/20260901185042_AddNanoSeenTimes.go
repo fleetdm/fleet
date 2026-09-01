@@ -89,6 +89,6 @@ func backfillNanoSeenTimes(tx *sql.Tx, increment incrementCountFn) error {
 	}
 }
 
-func Down_20260831094331(_ *sql.Tx) error {
+func Down_20260901185042(_ *sql.Tx) error {
 	return nil
 }
