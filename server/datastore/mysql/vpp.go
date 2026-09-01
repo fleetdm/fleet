@@ -224,11 +224,11 @@ upcoming AS (
 -- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
-		hvsi.host_id,
+		ranked.host_id,
 		CASE
-			WHEN hvsi.verification_at IS NOT NULL THEN
+			WHEN ranked.verification_at IS NOT NULL THEN
 				:software_status_installed
-			WHEN hvsi.verification_failed_at IS NOT NULL THEN
+			WHEN ranked.verification_failed_at IS NOT NULL THEN
 				:software_status_failed
 			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
 				:software_status_failed
@@ -238,34 +238,42 @@ past AS (
 			ELSE
 				NULL -- either pending or not installed via VPP App
 		END AS status
-	FROM
-		host_vpp_software_installs hvsi
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN nano_command_results ncr ON
-			ncr.id = h.uuid AND
-			ncr.command_uuid = hvsi.command_uuid
-		LEFT JOIN host_vpp_software_installs hvsi2
-			ON hvsi.host_id = hvsi2.host_id AND
-				 hvsi.adam_id = hvsi2.adam_id AND
-				 hvsi.platform = hvsi2.platform AND
-				 hvsi2.removed = 0 AND
-				 hvsi2.canceled = 0 AND
-				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+	FROM (
+		SELECT
+			hvsi.host_id,
+			hvsi.command_uuid,
+			hvsi.verification_at,
+			hvsi.verification_failed_at,
+			h.uuid AS host_uuid,
+			ROW_NUMBER() OVER (
+				PARTITION BY hvsi.host_id
+				ORDER BY hvsi.created_at DESC, hvsi.id DESC
+			) AS rn
+		FROM
+			host_vpp_software_installs hvsi
+			JOIN hosts h ON hvsi.host_id = h.id
+		WHERE
+			hvsi.adam_id = :adam_id
+			AND hvsi.platform = :platform
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+			AND hvsi.removed = 0
+			AND hvsi.canceled = 0
+	) ranked
+	LEFT JOIN nano_command_results ncr ON
+		ncr.id = ranked.host_uuid AND
+		ncr.command_uuid = ranked.command_uuid
 	WHERE
-		hvsi2.id IS NULL
-		AND hvsi.adam_id = :adam_id
-		AND hvsi.platform = :platform
+		ranked.rn = 1
 		-- Allow rows with no nano_command_results — Android VPP never produces
 		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
 		-- managed-config Fleet variable on iOS/iPadOS) record only the install
 		-- row with verification_failed_at set, no MDM command. The CASE above
 		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
-		-- branches.
-		AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
-		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND hvsi.removed = 0
-		AND hvsi.canceled = 0
+		-- branches. This check runs after ranking, so a host whose most recent
+		-- row lacks a command result is dropped rather than falling back to an
+		-- older row.
+		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
 -- count each status

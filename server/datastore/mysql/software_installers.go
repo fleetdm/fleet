@@ -2411,25 +2411,28 @@ upcoming AS (
 -- select most recent past activities for each host
 past AS (
 	SELECT
-		hsi.host_id,
-		hsi.status
-	FROM
-		host_software_installs hsi
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN host_software_installs hsi2
-			ON hsi.host_id = hsi2.host_id AND
-				 hsi.software_installer_id = hsi2.software_installer_id AND
-				 hsi2.removed = 0 AND
-				 hsi2.canceled = 0 AND
-				 hsi2.host_deleted_at IS NULL AND
-				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+		ranked.host_id,
+		ranked.status
+	FROM (
+		SELECT
+			hsi.host_id,
+			hsi.status,
+			ROW_NUMBER() OVER (
+				PARTITION BY hsi.host_id
+				ORDER BY hsi.created_at DESC, hsi.id DESC
+			) AS rn
+		FROM
+			host_software_installs hsi
+		WHERE
+			hsi.software_installer_id = :installer_id
+			AND hsi.host_deleted_at IS NULL
+			AND hsi.removed = 0
+			AND hsi.canceled = 0
+	) ranked
+	JOIN hosts h ON h.id = ranked.host_id
 	WHERE
-		hsi2.id IS NULL
-		AND hsi.software_installer_id = :installer_id
-		AND hsi.host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
-		AND hsi.host_deleted_at IS NULL
-		AND hsi.removed = 0
-		AND hsi.canceled = 0
+		ranked.rn = 1
+		AND ranked.host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 )
 
 -- count each status
@@ -2525,43 +2528,54 @@ FROM (
 	// NOTE(mna): the pre-unified queue version of this query did not check for
 	// removed = 0, so I am porting the same behavior (there's even a test that
 	// fails if I add removed = 0 condition).
+	// Rank once over the app rather than looking the latest row up per host:
+	// host_vpp_software_installs has no host_id-leading index, so a correlated
+	// per-host lookup rescans the app's whole history for every candidate host.
+	// DISTINCT because ncr joins on command_uuid alone, only part of its key.
 	stmt := fmt.Sprintf(`JOIN (
-SELECT
-	hvsi.host_id
-FROM
-	host_vpp_software_installs hvsi
-	LEFT JOIN
-		nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-	LEFT JOIN host_vpp_software_installs hvsi2
-		ON hvsi.host_id = hvsi2.host_id AND
-			 hvsi.adam_id = hvsi2.adam_id AND
-			 hvsi.platform = hvsi2.platform AND
-			 hvsi2.canceled = 0 AND
-			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+SELECT DISTINCT
+	ranked.host_id
+FROM (
+	SELECT
+		hvsi.host_id,
+		hvsi.command_uuid,
+		hvsi.verification_at,
+		hvsi.verification_failed_at,
+		ROW_NUMBER() OVER (
+			PARTITION BY hvsi.host_id
+			ORDER BY hvsi.created_at DESC, hvsi.id DESC
+		) AS rn
+	FROM
+		host_vpp_software_installs hvsi
+	WHERE
+		hvsi.adam_id = :adam_id
+		AND hvsi.platform = :platform
+		AND hvsi.canceled = 0
+) ranked
+LEFT JOIN
+	nano_command_results ncr ON ncr.command_uuid = ranked.command_uuid
 WHERE
-	hvsi2.id IS NULL
-	AND hvsi.adam_id = :adam_id
-	AND hvsi.platform = :platform
-	AND hvsi.canceled = 0
+	ranked.rn = 1
 	-- Allow rows with no nano_command_results — Fleet-side pre-flight failures
 	-- (unresolvable managed-config Fleet variable) record only the install row
 	-- with verification_failed_at set, no MDM command. See same comment in
-	-- vpp.go GetSummaryHostVPPAppInstalls.
-	AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+	-- vpp.go GetSummaryHostVPPAppInstalls. Checked after ranking, so a host whose
+	-- most recent row lacks a command result is dropped rather than falling back.
+	AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
-	AND NOT EXISTS (
-		SELECT 1
+	AND ranked.host_id NOT IN (
+		SELECT
+			ua.host_id
 		FROM
 			upcoming_activities ua
 			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
 		WHERE
-			ua.host_id = hvsi.host_id
-			AND vaua.adam_id = hvsi.adam_id
-			AND vaua.platform = hvsi.platform
+			vaua.adam_id = :adam_id
+			AND vaua.platform = :platform
 			AND ua.activity_type = 'vpp_app_install'
 	)
 ) hss ON hss.host_id = h.id
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+`, vppAppHostStatusNamedQuery("ranked", "ncr", ""))
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
@@ -2602,37 +2616,47 @@ WHERE
 	}
 
 	// for non-pending statuses, we'll join through host_software_installs filtered by the status
-	statusFilter := "hsi.status = :status"
+	// Rank once over the title rather than looking the latest row up per host. A
+	// per-host lookup forces `hosts` to drive, so on a large team it runs once per
+	// host in that team and reads each one's history across every title — unbounded
+	// by this title, and unindexed, since there is no (host_id, software_title_id).
+	statusFilter := "ranked.status = :status"
 	if status == fleet.SoftwareFailed {
 		// failed is a special case, we must include both install and uninstall failures
-		statusFilter = "hsi.status IN (:installFailed, :uninstallFailed)"
+		statusFilter = "ranked.status IN (:installFailed, :uninstallFailed)"
 	}
 
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
-	hsi.host_id
-FROM
-	host_software_installs hsi
-	LEFT JOIN host_software_installs hsi2
-		ON hsi.host_id = hsi2.host_id AND
-			 hsi.software_title_id = hsi2.software_title_id AND
-			 hsi2.removed = 0 AND
-			 hsi2.canceled = 0 AND
-			 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+	ranked.host_id
+FROM (
+	SELECT
+		hsi.host_id,
+		hsi.status,
+		ROW_NUMBER() OVER (
+			PARTITION BY hsi.host_id
+			ORDER BY hsi.created_at DESC, hsi.id DESC
+		) AS rn
+	FROM
+		host_software_installs hsi
+	WHERE
+		hsi.software_title_id = :title_id
+		AND hsi.removed = 0
+		AND hsi.canceled = 0
+) ranked
 WHERE
-	hsi2.id IS NULL
-	AND hsi.software_title_id = :title_id
-	AND hsi.removed = 0
-	AND hsi.canceled = 0
+	ranked.rn = 1
+	-- Status and the queue check are applied after ranking because they take no
+	-- part in choosing the host's most recent row. Folding them in picks another row.
 	AND %s
-	AND NOT EXISTS (
-		SELECT 1
+	AND ranked.host_id NOT IN (
+		SELECT
+			ua.host_id
 		FROM
 			upcoming_activities ua
 			JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 		WHERE
-			ua.host_id = hsi.host_id
-			AND siua.software_title_id = hsi.software_title_id
+			siua.software_title_id = :title_id
 			AND ua.activity_type = 'software_install'
 	)
 ) hss ON hss.host_id = h.id
@@ -2681,42 +2705,52 @@ WHERE
 		status = fleet.SoftwareInstallFailed // TODO: When in-house supports uninstall this should become STATUS IN ('failed_install', 'failed_uninstall')
 	}
 
+	// Rank once over the app rather than looking the latest row up per host:
+	// host_in_house_software_installs has no host_id-leading index, so a correlated
+	// per-host lookup rescans the app's whole history for every candidate host.
+	// DISTINCT because ncr joins on command_uuid alone, only part of its key.
 	stmt := fmt.Sprintf(`JOIN (
-SELECT
-	hihsi.host_id
-FROM
-	host_in_house_software_installs hihsi
-	-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable managed-config
-	-- Fleet variable) survive — those never enqueue an MDM command, so no ncr
-	-- row exists. The inHouseAppHostStatusNamedQuery CASE maps
-	-- verification_failed_at IS NOT NULL to failed before any ncr.status branch
-	-- is evaluated.
-	LEFT JOIN
-		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
-	LEFT JOIN host_in_house_software_installs hihsi2
-		ON hihsi.host_id = hihsi2.host_id AND
-			 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
-			 hihsi2.canceled = 0 AND
-			 hihsi2.removed = 0 AND
-			 (hihsi.created_at < hihsi2.created_at OR (hihsi.created_at = hihsi2.created_at AND hihsi.id < hihsi2.id))
+SELECT DISTINCT
+	ranked.host_id
+FROM (
+	SELECT
+		hihsi.host_id,
+		hihsi.command_uuid,
+		hihsi.verification_at,
+		hihsi.verification_failed_at,
+		ROW_NUMBER() OVER (
+			PARTITION BY hihsi.host_id
+			ORDER BY hihsi.created_at DESC, hihsi.id DESC
+		) AS rn
+	FROM
+		host_in_house_software_installs hihsi
+	WHERE
+		hihsi.in_house_app_id = :in_house_app_id
+		AND hihsi.canceled = 0
+		AND hihsi.removed = 0
+) ranked
+-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable managed-config
+-- Fleet variable) survive — those never enqueue an MDM command, so no ncr
+-- row exists. The inHouseAppHostStatusNamedQuery CASE maps
+-- verification_failed_at IS NOT NULL to failed before any ncr.status branch
+-- is evaluated.
+LEFT JOIN
+	nano_command_results ncr ON ncr.command_uuid = ranked.command_uuid
 WHERE
-	hihsi2.id IS NULL
-	AND hihsi.in_house_app_id = :in_house_app_id
-	AND hihsi.canceled = 0
-	AND hihsi.removed = 0
+	ranked.rn = 1
 	AND (%s) = :status
-	AND NOT EXISTS (
-		SELECT 1
+	AND ranked.host_id NOT IN (
+		SELECT
+			ua.host_id
 		FROM
 			upcoming_activities ua
 			JOIN in_house_app_upcoming_activities ihua ON ua.id = ihua.upcoming_activity_id
 		WHERE
-			ua.host_id = hihsi.host_id
-			AND ihua.in_house_app_id = hihsi.in_house_app_id
+			ihua.in_house_app_id = :in_house_app_id
 			AND ua.activity_type = 'in_house_app_install'
 	)
 ) hss ON hss.host_id = h.id
-`, inHouseAppHostStatusNamedQuery("hihsi", "ncr", ""))
+`, inHouseAppHostStatusNamedQuery("ranked", "ncr", ""))
 
 	return sqlx.Named(stmt, map[string]any{
 		"status":                    status,
