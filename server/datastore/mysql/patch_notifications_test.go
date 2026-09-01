@@ -67,6 +67,10 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "exists-host", "", "exists-key", "exists-uuid", time.Now())
 
+	// a pending or dispatched notification still has its apps to install, so a
+	// second skip for one of those apps is dropped. A failed or expired
+	// notification will never install its apps, so those apps are skipped into a
+	// new notification instead.
 	stillCounts := map[string]bool{
 		notifications_api.EndUserNotificationPending:    true,
 		notifications_api.EndUserNotificationDispatched: true,
@@ -84,18 +88,21 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, wantExists, exists, "status %s", status)
 
+		// a notification is only ever for one host, so the same app on another
+		// host is not listed by this notification
 		otherHost := test.NewHost(t, ds, "other-host-"+status, "", "key-"+status, "uuid-"+status, time.Now())
 		exists, err = ds.PatchNotificationExistsForApp(ctx, otherHost.ID, titleID)
 		require.NoError(t, err)
 		assert.False(t, exists)
 	}
 
+	// an app that no notification lists
 	exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "unlisted"))
 	require.NoError(t, err)
 	assert.False(t, exists)
 
-	// installs already queued means the notification is done with the app, so a
-	// failed forced install can notify about it again
+	// once Update now queues the installs, the notification no longer has its  apps to install,
+	// so an app whose forced install failed is skipped into a new notification
 	queuedTitleID := newTestSoftwareTitle(t, ds, "app-installs-queued")
 	queuedUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, queuedUUID,
@@ -105,10 +112,17 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, exists)
 
-	require.NoError(t, ds.SetPatchNotificationInstallsQueued(ctx, queuedUUID))
+	queued, err := ds.SetPatchNotificationInstallsQueued(ctx, queuedUUID)
+	require.NoError(t, err)
+	assert.True(t, queued)
 	exists, err = ds.PatchNotificationExistsForApp(ctx, host.ID, queuedTitleID)
 	require.NoError(t, err)
 	assert.False(t, exists)
+
+	// a second Update now on the same notification does not record the installs as queued a second time
+	queued, err = ds.SetPatchNotificationInstallsQueued(ctx, queuedUUID)
+	require.NoError(t, err)
+	assert.False(t, queued)
 }
 
 func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
@@ -131,6 +145,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// MatchOrCreateSoftwareInstaller creates the software title too
 	var titleID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &titleID,
@@ -148,8 +163,11 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, app))
 
+	// adding the same app again does nothing rather than failing
 	require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, app))
 
+	// the host's fleet has no display name or icon for this software title, so
+	// the app's display name falls back to the software title's name
 	apps, err := ds.ListPatchNotificationApps(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
@@ -162,6 +180,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Notified App", apps[0].DisplayName)
 	assert.False(t, apps[0].HasIcon)
 
+	// give the software title a display name and an icon in the host's fleet
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)`,
@@ -179,7 +198,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Notified App (renamed)", apps[0].DisplayName)
 	assert.True(t, apps[0].HasIcon)
 
-	// a deleted policy leaves the app listed, so the toast still names it
+	// deleting the policy sets patch_notification_apps.policy_id to null, and the app stays listed
 	_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
 	require.NoError(t, err)
 	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
@@ -187,7 +206,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 1)
 	assert.Nil(t, apps[0].PolicyID)
 
-	// a deleted title takes the app with it, rather than leaving a blank row
+	// deleting the software title cascades and deletes the patch_notification_apps row
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_titles WHERE id = ?`, titleID)
 		return err
@@ -196,7 +215,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Empty(t, apps)
 
-	// and both patch tables hang off the notification
+	// deleting the notification cascades and deletes the patch_notifications row
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM notifications_end_user WHERE uuid = ?`, notificationUUID)
 		return err

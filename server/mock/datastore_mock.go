@@ -542,7 +542,7 @@ type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, so
 
 type GetPatchNotificationFunc func(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error)
 
-type SetPatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) error
+type SetPatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) (bool, error)
 
 type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
 
@@ -7651,7 +7651,7 @@ func (s *DataStore) GetPatchNotification(ctx context.Context, notificationUUID s
 	return s.GetPatchNotificationFunc(ctx, notificationUUID)
 }
 
-func (s *DataStore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error {
+func (s *DataStore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
 	s.mu.Lock()
 	s.SetPatchNotificationInstallsQueuedFuncInvoked = true
 	s.mu.Unlock()

@@ -25,6 +25,7 @@ func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID
 		return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID}, "no kind to act on notification")
 	}
 
+	var view *api.NotificationView
 	switch *action.Action {
 	case api.EndUserNotificationActionVerify:
 		// TODO: end users should be able to send the time they displayed a
@@ -33,19 +34,20 @@ func (s *Service) ApplyAction(ctx context.Context, hostID uint, notificationUUID
 		// returns a successful code.
 
 	case api.EndUserNotificationActionDelay:
-		if err := kind.OnDelay(ctx, notification); err != nil {
+		view, err = kind.OnDelay(ctx, notification)
+		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "notification kind handling delay")
 		}
 
 	default:
-		if err := kind.OnAction(ctx, notification, *action.Action); err != nil {
+		view, err = kind.OnAction(ctx, notification, *action.Action)
+		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "notification kind handling action")
 		}
 	}
 
-	updated, err := s.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reload end user notification after action")
+	if view != nil {
+		return view, nil
 	}
-	return s.render(ctx, updated)
+	return s.render(ctx, notification)
 }

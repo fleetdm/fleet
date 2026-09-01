@@ -126,9 +126,13 @@ type NotificationKind interface {
 	// unused because Fleet uses the script endpoint to report when the
 	// notification was displayed.
 	OnVerify(ctx context.Context, notification *EndUserNotification, displayedAt time.Time) error
-	// OnDelay sets the notification to attempt later at a time the kind chooses.
-	OnDelay(ctx context.Context, notification *EndUserNotification) error
-	OnAction(ctx context.Context, notification *EndUserNotification, actionID string) error
+	// OnDelay sets the notification to attempt later at a time the kind chooses,
+	// and returns the view to send back, or nil to render the notification
+	// unchanged.
+	OnDelay(ctx context.Context, notification *EndUserNotification) (*NotificationView, error)
+	// OnAction carries out what the end user chose, and returns the view to send
+	// back, or nil to render the notification unchanged.
+	OnAction(ctx context.Context, notification *EndUserNotification, actionID string) (*NotificationView, error)
 	// OnOutcome runs after Fleet records how an attempt ended.
 	OnOutcome(ctx context.Context, notification *EndUserNotification, outcome NotificationOutcome) error
 }

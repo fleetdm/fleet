@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,7 +19,8 @@ func TestEndUserNotifications(t *testing.T) {
 		fn   func(t *testing.T, env *testEnv)
 	}{
 		{"NewAndGet", testNewAndGetEndUserNotification},
-		{"AwaitingDispatch", testGetNotificationAwaitingDispatch},
+		{"AwaitingFirstDispatch", testGetNotificationAwaitingFirstDispatch},
+		{"AwaitingFirstDispatchScope", testGetNotificationAwaitingFirstDispatchScope},
 		{"ListToDispatch", testListEndUserNotificationsToDispatch},
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
 		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
@@ -45,39 +47,128 @@ func newDarwinHost(t *testing.T, env *testEnv, name string, withOrbitInfo bool) 
 	return hostID
 }
 
-func testGetNotificationAwaitingDispatch(t *testing.T, env *testEnv) {
+// newHostNotification gives the host a notification, then moves that
+// notification to the status and attempt count the test needs, since every
+// notification starts out pending and unsent.
+func newHostNotification(t *testing.T, env *testEnv, hostID uint, kind string, status string, attempts uint) string {
+	t.Helper()
 	ctx := t.Context()
-	hostID := newDarwinHost(t, env, "awaiting-dispatch", true)
 	expiresAt := time.Now().UTC().Add(time.Hour)
 
-	awaiting, err := env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "test_kind")
-	require.NoError(t, err)
-	require.Nil(t, awaiting)
-
 	created, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
-		HostID: hostID, Kind: "test_kind", Payload: []byte(`{}`), ExpiresAt: &expiresAt,
+		HostID: hostID, Kind: kind, Payload: []byte(`{}`), ExpiresAt: &expiresAt,
 	})
 	require.NoError(t, err)
-
-	awaiting, err = env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "test_kind")
-	require.NoError(t, err)
-	require.NotNil(t, awaiting)
-	require.Equal(t, created.UUID, awaiting.UUID)
-
-	// another kind's notification is not this kind's to add to
-	awaiting, err = env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "other_kind")
-	require.NoError(t, err)
-	require.Nil(t, awaiting)
-
-	// one that went out and came back pending is already on a schedule its end
-	// user has seen, so it is no longer awaiting dispatch
 	_, err = env.db.ExecContext(ctx,
-		`UPDATE notifications_end_user SET attempt_count = 1 WHERE uuid = ?`, created.UUID)
+		`UPDATE notifications_end_user SET status = ?, attempt_count = ? WHERE uuid = ?`,
+		status, attempts, created.UUID)
 	require.NoError(t, err)
+	return created.UUID
+}
 
-	awaiting, err = env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "test_kind")
+// When an app on a host needs patching, Fleet either adds that app to a
+// notification the host already has, or creates a new notification for the app.
+// GetNotificationAwaitingFirstDispatch is what decides, and it only returns a
+// notification Fleet has not sent to the host yet. So an app that needs patching
+// after a notification is already on the end user's screen gets a new
+// notification, and still gets a full hour of notice, rather than appearing in a
+// notification the end user is part way through reading.
+func testGetNotificationAwaitingFirstDispatch(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+
+	cases := []struct {
+		name string
+		// the notification the host already has, none if the status is empty
+		hostNotificationStatus   string
+		hostNotificationAttempts uint
+
+		wantNewNotificationForTheApp bool
+	}{
+		{
+			name:                         "an app on a host with no notification gets a new notification",
+			wantNewNotificationForTheApp: true,
+		},
+		{
+			name:                   "an app is added to a notification Fleet has not sent to the host yet",
+			hostNotificationStatus: api.EndUserNotificationPending,
+		},
+		{
+			name:                         "an app is not added to a notification the end user is already reading",
+			hostNotificationStatus:       api.EndUserNotificationDispatched,
+			wantNewNotificationForTheApp: true,
+		},
+		{
+			// Remind me later and a retry after a failed attempt both put a sent
+			// notification back to pending, with an attempt already spent
+			name:                         "an app is not added to a notification that Fleet will send to the host again",
+			hostNotificationStatus:       api.EndUserNotificationPending,
+			hostNotificationAttempts:     1,
+			wantNewNotificationForTheApp: true,
+		},
+		{
+			name:                         "an app is not added to a notification that failed every send attempt",
+			hostNotificationStatus:       api.EndUserNotificationFailed,
+			wantNewNotificationForTheApp: true,
+		},
+		{
+			name:                         "an app is not added to a notification that expired unsent",
+			hostNotificationStatus:       api.EndUserNotificationExpired,
+			wantNewNotificationForTheApp: true,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// the host the app that needs patching is on
+			hostID := newDarwinHost(t, env, fmt.Sprintf("awaiting-%d", i), true)
+
+			var hostNotificationUUID string
+			if c.hostNotificationStatus != "" {
+				hostNotificationUUID = newHostNotification(t, env, hostID, "test_kind",
+					c.hostNotificationStatus, c.hostNotificationAttempts)
+			}
+
+			// an app on this host now needs patching, so Fleet looks for a
+			// test_kind notification to add that app to
+			awaiting, err := env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+			require.NoError(t, err)
+
+			if c.wantNewNotificationForTheApp {
+				assert.Nil(t, awaiting, "the app needs a new notification")
+				return
+			}
+			require.NotNil(t, awaiting, "the app should be added to the host's notification")
+			assert.Equal(t, hostNotificationUUID, awaiting.UUID)
+		})
+	}
+}
+
+// An app is only ever added to a notification for that app's own host and its
+// own kind of notification.
+func testGetNotificationAwaitingFirstDispatchScope(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "awaiting-scope", true)
+	unsent := api.EndUserNotificationPending
+
+	// an unsent notification on this host, but for another kind of notification
+	newHostNotification(t, env, hostID, "other_kind", unsent, 0)
+	awaiting, err := env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
 	require.NoError(t, err)
-	require.Nil(t, awaiting)
+	assert.Nil(t, awaiting, "the app needs a new notification")
+
+	// an unsent test_kind notification, but on another host
+	otherHostID := newDarwinHost(t, env, "awaiting-scope-other-host", true)
+	newHostNotification(t, env, otherHostID, "test_kind", unsent, 0)
+	awaiting, err = env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+	require.NoError(t, err)
+	assert.Nil(t, awaiting, "the app needs a new notification")
+
+	// this host's own unsent test_kind notification
+	ownNotificationUUID := newHostNotification(t, env, hostID, "test_kind", unsent, 0)
+	awaiting, err = env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+	require.NoError(t, err)
+	require.NotNil(t, awaiting, "the app should be added to the host's notification")
+	assert.Equal(t, ownNotificationUUID, awaiting.UUID)
 }
 
 func testNewAndGetEndUserNotification(t *testing.T, env *testEnv) {

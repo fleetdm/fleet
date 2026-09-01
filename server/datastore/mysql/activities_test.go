@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -3459,44 +3460,37 @@ func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Da
 
 	host := test.NewHost(t, ds, "notified-host", "3.3.3.3", "notify-key", "notify-uuid", time.Now())
 
-	firstPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "notify-policy-1", Query: "SELECT 1"})
+	// notify_before_patching is only valid on a team policy, never on "All fleets"
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "notify-before-patching-team"})
 	require.NoError(t, err)
-	require.NotNil(t, firstPolicy)
-	secondPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "notify-policy-2", Query: "SELECT 2"})
-	require.NoError(t, err)
-	require.NotNil(t, secondPolicy)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-	newNotification := func(t *testing.T, status string, policyIDs []uint) string {
-		notificationUUID := uuid.NewString()
+	newPatchPolicy := func(t *testing.T, name string) *fleet.Policy {
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		require.NoError(t, err)
+		require.NotNil(t, policy)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			if _, err := q.ExecContext(ctx, `
-				INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
-				VALUES (?, ?, 'dispatched', ?, '{}', NOW(6) + INTERVAL 1 DAY)`,
-				notificationUUID, host.ID, fleet.PatchNotificationKind); err != nil {
-				return err
-			}
-			if _, err := q.ExecContext(ctx,
-				`INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, notificationUUID); err != nil {
-				return err
-			}
-			for _, policyID := range policyIDs {
-				res, err := q.ExecContext(ctx,
-					`INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, uuid.NewString())
-				if err != nil {
-					return err
-				}
-				titleID, err := res.LastInsertId()
-				if err != nil {
-					return err
-				}
-				if _, err := q.ExecContext(ctx, `
-					INSERT INTO patch_notification_apps (notification_uuid, policy_id, software_title_id)
-					VALUES (?, ?, ?)`, notificationUUID, policyID, titleID); err != nil {
-					return err
-				}
-			}
-			return nil
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+			return err
 		})
+		return policy
+	}
+
+	firstPolicy := newPatchPolicy(t, "notify-policy-1")
+	secondPolicy := newPatchPolicy(t, "notify-policy-2")
+
+	// A notification with one app per policy, and the activity reporting whether
+	// the notification was displayed. Automation runs finds that activity by
+	// joining the notification's apps to the policy.
+	newNotification := func(t *testing.T, status string, policyIDs []uint) string {
+		notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+
+		for _, policyID := range policyIDs {
+			require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+				PolicyID:        &policyID,
+				SoftwareTitleID: newTestSoftwareTitle(t, ds, uuid.NewString()),
+			}))
+		}
 
 		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 			name: "notified_end_user_before_patching",
@@ -3510,24 +3504,27 @@ func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Da
 		return notificationUUID
 	}
 
-	coveringBoth := newNotification(t, "success", []uint{firstPolicy.ID, secondPolicy.ID})
+	bothPolicies := newNotification(t, "success", []uint{firstPolicy.ID, secondPolicy.ID})
 	failedOnFirst := newNotification(t, "failed", []uint{firstPolicy.ID})
 
 	listOpts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: true}
 
-	t.Run("a notification covering two policies shows in both Automation runs tables", func(t *testing.T) {
+	t.Run("a notification with an app from two policies shows in both Automation runs tables", func(t *testing.T) {
+		// the first policy has an app on both notifications
 		first, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "")
 		require.NoError(t, err)
 		require.Len(t, first, 2)
 
+		// the second policy only has an app on the notification that lists both policies
 		second, _, err := ds.ListPolicyAutomationActivities(ctx, secondPolicy.ID, adminFilter, listOpts, "")
 		require.NoError(t, err)
 		require.Len(t, second, 1)
 		require.Equal(t, "notified_end_user_before_patching", second[0].Type)
 		require.Equal(t, "success", second[0].Status)
-		require.Contains(t, string(*second[0].Details), coveringBoth)
+		require.Contains(t, string(*second[0].Details), bothPolicies)
 	})
 
+	// the activity's status field is what the error and success filters read
 	t.Run("status filters split displayed from failed", func(t *testing.T) {
 		failed, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "error")
 		require.NoError(t, err)
@@ -3537,6 +3534,6 @@ func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Da
 		displayed, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "success")
 		require.NoError(t, err)
 		require.Len(t, displayed, 1)
-		require.Contains(t, string(*displayed[0].Details), coveringBoth)
+		require.Contains(t, string(*displayed[0].Details), bothPolicies)
 	})
 }

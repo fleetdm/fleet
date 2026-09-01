@@ -25,7 +25,7 @@ LIMIT 1
 `
 
 	var exists bool
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &exists, selectStmt,
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, selectStmt,
 		hostID, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
 		softwareTitleID,
 	); err != nil {
@@ -45,7 +45,7 @@ WHERE notification_uuid = ?
 `
 
 	var notification fleet.PatchNotification
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &notification, selectStmt, notificationUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, selectStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("PatchNotification").WithName(notificationUUID))
 		}
@@ -54,16 +54,21 @@ WHERE notification_uuid = ?
 	return &notification, nil
 }
 
-func (ds *Datastore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error {
+func (ds *Datastore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
 	const updateStmt = `
 UPDATE patch_notifications SET installs_queued_at = NOW(6)
 WHERE notification_uuid = ? AND installs_queued_at IS NULL
 `
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set patch notification installs queued")
+	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set patch notification installs queued")
 	}
-	return nil
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected setting patch notification installs queued")
+	}
+	return rows > 0, nil
 }
 
 func (ds *Datastore) NewPatchNotification(ctx context.Context, notificationUUID string) error {
@@ -76,10 +81,14 @@ func (ds *Datastore) NewPatchNotification(ctx context.Context, notificationUUID 
 }
 
 func (ds *Datastore) AddPatchNotificationApp(ctx context.Context, notificationUUID string, app fleet.PatchNotificationApp) error {
+	// Two skips for the same app can pass PatchNotificationExistsForApp before either has inserted,
+	// so a duplicate is a no-op rather than an error. Not INSERT IGNORE, which would also swallow
+	// a bad notification_uuid or a deleted software title.
 	const insertStmt = `
-INSERT IGNORE INTO patch_notification_apps
+INSERT INTO patch_notification_apps
 	(notification_uuid, policy_id, software_title_id, software_installer_id)
 VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE software_title_id = software_title_id
 `
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt,
@@ -112,7 +121,7 @@ ORDER BY display_name, pna.software_title_id
 `
 
 	var apps []fleet.PatchNotificationAppDetail
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &apps, selectStmt, notificationUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, selectStmt, notificationUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 	return apps, nil

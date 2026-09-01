@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Every state an app-open skip can arrive into, and what the kind does with it.
-// The datastore calls are mocked, so this is the decision on its own; that it is
-// reached at all is TestSaveHostSoftwareInstallResultAppOpenSkip.
+// Which notification an app-open skip is recorded on. The datastore is mocked,
+// so only that decision is tested here. TestSaveHostSoftwareInstallResultAppOpenSkip
+// tests that a real skip reaches this code.
 func TestCreatePatchNotificationForEndUser(t *testing.T) {
 	const (
 		hostID          = uint(1)
@@ -29,9 +29,11 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 
 	cases := []struct {
 		name string
-		// PatchNotificationExistsForApp: a live notification already lists it
+		// PatchNotificationExistsForApp: a pending or dispatched notification
+		// already lists this app and has not queued its installs
 		exists bool
-		// NotificationAwaitingDispatch: one is queued for this host, not sent
+		// NotificationAwaitingFirstDispatch: this host has a pending notification that
+		// Fleet Desktop has not displayed yet
 		awaiting bool
 		// host_software_installs.software_title_id
 		noTitle bool
@@ -40,30 +42,30 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		wantAppOn   string // "" means no app was recorded
 	}{
 		{
-			name:        "no notification for the host",
+			name:        "the host has no patch notification",
 			wantCreated: true,
 			wantAppOn:   createdUUID,
 		},
 		{
-			name:        "one queued but not sent takes the app",
+			name:        "the app is added to the notification that is not displayed yet",
 			awaiting:    true,
 			wantCreated: false,
 			wantAppOn:   awaitingUUID,
 		},
 		{
-			name:      "already listed on a live one",
+			name:      "the app is already listed on a pending or dispatched notification",
 			exists:    true,
 			wantAppOn: "",
 		},
 		{
-			// sent, installs queued, or failed and expired all leave the app
-			// uncovered, so it is notified about again
-			name:        "uncovered by any live notification",
+			// a notification that was displayed, queued its installs, failed or
+			// expired no longer lists the app, so a new notification is created
+			name:        "no notification lists the app",
 			wantCreated: true,
 			wantAppOn:   createdUUID,
 		},
 		{
-			name:      "no software title to record",
+			name:      "the install has no software title to record",
 			noTitle:   true,
 			wantAppOn: "",
 		},
@@ -78,7 +80,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			ds.PatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
 				return c.exists, nil
 			}
-			notificationsSvc.NotificationAwaitingDispatchFunc = func(_ context.Context, _ uint, _ string) (*notifications_api.EndUserNotification, error) {
+			notificationsSvc.NotificationAwaitingFirstDispatchFunc = func(_ context.Context, _ uint, _ string) (*notifications_api.EndUserNotification, error) {
 				if !c.awaiting {
 					return nil, nil
 				}
@@ -101,6 +103,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 				return nil
 			}
 
+			// the install orbit skipped because the app was open
 			install := &fleet.HostSoftwareInstallerResult{
 				InstallUUID:         "install-uuid",
 				SoftwareTitleID:     new(titleID),
@@ -129,9 +132,9 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 	}
 }
 
-// What Update now does with the notification it was pressed on. That the
-// installs it queues really do run with the app open is the integration test,
-// since only the install queue's own SQL can show that.
+// Which installs Update now queues for a notification's apps, and what the view
+// returned to the end user says. The integration test covers that those installs
+// then run with the app open, which only the unified queue's own SQL can show.
 func TestPatchNotificationUpdateNow(t *testing.T) {
 	const (
 		hostID      = uint(1)
@@ -141,10 +144,13 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 	)
 
 	cases := []struct {
-		name             string
-		status           string
-		installsQueuedAt *time.Time
-		noInstaller      bool
+		name   string
+		status string
+		// SetPatchNotificationInstallsQueued: false when another request already
+		// recorded this notification's installs as queued, which is what a second
+		// press of Update now sees
+		alreadyQueued bool
+		noInstaller   bool
 
 		wantInstalls   int
 		wantMarkQueued bool
@@ -156,12 +162,13 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			wantMarkQueued: true,
 		},
 		{
-			name:             "a second press queues nothing",
-			status:           notifications_api.EndUserNotificationDispatched,
-			installsQueuedAt: new(time.Now()),
+			name:           "installs are already queued, so pressing again queues nothing",
+			status:         notifications_api.EndUserNotificationDispatched,
+			alreadyQueued:  true,
+			wantMarkQueued: true,
 		},
 		{
-			name:   "a notification that failed or ran out of time has nothing left to queue",
+			name:   "a failed or expired notification queues nothing",
 			status: notifications_api.EndUserNotificationFailed,
 		},
 		{
@@ -179,8 +186,8 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			ds := new(mock.Store)
 			kind := &patchNotificationKind{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
-			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
-				return &fleet.PatchNotification{InstallsQueuedAt: c.installsQueuedAt}, nil
+			ds.SetPatchNotificationInstallsQueuedFunc = func(_ context.Context, _ string) (bool, error) {
+				return !c.alreadyQueued, nil
 			}
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
 				app := fleet.PatchNotificationAppDetail{
@@ -201,10 +208,17 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 				installs = append(installs, opts)
 				return "", nil
 			}
-			ds.SetPatchNotificationInstallsQueuedFunc = func(_ context.Context, _ string) error { return nil }
 
-			err := kind.updateNow(context.Background(), &notifications_api.EndUserNotification{
+			// the view update now returns is built without reading anything back
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
+				return "device-token", nil
+			}
+
+			// the end user pressed Update now on this notification
+			view, err := kind.updateNow(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID, Status: c.status,
+				Payload: patchNotificationFirstNoticePayload,
 			})
 			require.NoError(t, err)
 
@@ -215,6 +229,20 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 				assert.Equal(t, policyID, *opts.PolicyID)
 			}
 			assert.Equal(t, c.wantMarkQueued, ds.SetPatchNotificationInstallsQueuedFuncInvoked)
+			assert.False(t, ds.GetPatchNotificationFuncInvoked, "installs_queued_at is not read back after writing it")
+
+			if !c.wantMarkQueued {
+				assert.Nil(t, view, "nothing changed, so the notification renders as it was")
+				return
+			}
+
+			// the returned view is what the end user sees without a second request
+			require.NotNil(t, view)
+			require.Len(t, view.Items, 1)
+			assert.Equal(t, "Installing...", view.Items[0].Status)
+			for _, action := range view.Actions {
+				assert.NotEqual(t, patchNotificationActionUpdateNow, action.ID, "the apps are already installing")
+			}
 		})
 	}
 }

@@ -528,14 +528,20 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Nil(t, got.DisplayedAt)
 	})
 
-	t.Run("an admin can read the notification script's run, without its device token", func(t *testing.T) {
+	// Fleet substitutes the host's device token into the script's URL when orbit
+	// fetches the script. The script Fleet stores keeps the fleet variable, so
+	// reading the script result never hands out the host's device token.
+	t.Run("a script result shows the fleet variable, not the host's device token", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-script-result")
 		notificationUUID := newRenderableTestNotification(t, s.ds, host.ID, `{"reminder": false}`)
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
+
+		// orbit fetches the script, which is where the token is substituted
 		_, token := fetchScript(t, host, *dispatched.ExecutionID)
 
+		// exit code 50 is Fleet Desktop reporting that another notification is already displayed
 		s.Do("POST", "/api/fleet/orbit/scripts/result",
 			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 50, "output": "Another notification was displayed.", "runtime": 1}`,
 				*host.OrbitNodeKey, *dispatched.ExecutionID)),
@@ -552,10 +558,10 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotContains(t, resp.ScriptContents, token)
 	})
 
-	// What update now does with the notification is TestPatchNotificationUpdateNow.
-	// This is the half only the install queue's own SQL can show: the install it
-	// queues carries its policy but not the app open query that policy would
-	// otherwise put on it, both while queued and once activated.
+	// TestPatchNotificationUpdateNow covers which installs get queued. This covers
+	// what the unified queue does with those installs: an install keeps its policy
+	// but not the app open query the policy would otherwise add, both while the
+	// install is upcoming and once the install is activated.
 	t.Run("update now queues an install that runs with the app open", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-update-now")
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "update-now-team"})

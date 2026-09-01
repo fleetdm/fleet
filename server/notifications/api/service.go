@@ -47,10 +47,10 @@ type NotificationLookupService interface {
 
 type CreateNotificationService interface {
 	CreateNotification(ctx context.Context, notification *EndUserNotification) (*EndUserNotification, error)
-	// NotificationAwaitingDispatch returns the notification of this kind that
+	// NotificationAwaitingFirstDispatch returns the notification of this kind that
 	// Fleet has queued for the host but not sent yet, or nil. A kind that batches
-	// adds to that one rather than queueing a second.
-	NotificationAwaitingDispatch(ctx context.Context, hostID uint, kind string) (*EndUserNotification, error)
+	// adds to that notification rather than queueing a second one.
+	NotificationAwaitingFirstDispatch(ctx context.Context, hostID uint, kind string) (*EndUserNotification, error)
 }
 
 // DelayNotificationService puts a notification back in the queue for a later

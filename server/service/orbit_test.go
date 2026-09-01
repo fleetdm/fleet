@@ -1268,7 +1268,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	}
 
 	// batching reads back what the create above wrote
-	opts.NotificationsMock.NotificationAwaitingDispatchFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
+	opts.NotificationsMock.NotificationAwaitingFirstDispatchFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
 		var uuids []string
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &uuids, `
@@ -1486,11 +1486,14 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			return err
 		})
 
+		// the first skip creates the notification, and the second app is added to
+		// that same notification because Fleet has not sent that notification to
+		// the host yet
 		reportAppOpenSkip(t, host, insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching")))
 		reportAppOpenSkip(t, host, otherInstallUUID)
 
 		notificationUUIDs := patchNotificationsForHost(t, host.ID)
-		require.Len(t, notificationUUIDs, 1, "both apps belong on one toast, not one each")
+		require.Len(t, notificationUUIDs, 1, "both apps belong on one notification, not one each")
 
 		var titleIDs []uint
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1501,6 +1504,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.ElementsMatch(t, []uint{titleID, otherTitleID}, titleIDs)
 	})
 
+	// patch_when_closed waits for the end user to close the app on their own, so
+	// there is nothing to tell the end user
 	t.Run("a patch_when_closed skip makes no notification", func(t *testing.T) {
 		host := test.NewHost(t, ds, "no-notification-host", "10.0.0.8", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))

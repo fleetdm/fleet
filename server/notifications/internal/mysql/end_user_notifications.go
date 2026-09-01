@@ -19,11 +19,16 @@ import (
 
 type Datastore struct {
 	primary *sqlx.DB
+	replica *sqlx.DB
 	logger  *slog.Logger
 }
 
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
-	return &Datastore{primary: conns.Primary, logger: logger} // nolint:nilaway // serve.go always passes real connections
+	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
+}
+
+func (ds *Datastore) reader(_ context.Context) *sqlx.DB {
+	return ds.replica
 }
 
 var _ types.Datastore = (*Datastore)(nil)
@@ -96,7 +101,7 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, notificationUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID})
 		}
@@ -105,11 +110,14 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	return &notification, nil
 }
 
-// GetNotificationAwaitingDispatch returns the host's notification of this kind
-// that Fleet has queued but not sent yet, or nil. attempt_count rather than
-// status alone: one that went out and came back pending is already on a
-// schedule its end user has seen.
-func (ds *Datastore) GetNotificationAwaitingDispatch(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
+// GetNotificationAwaitingFirstDispatch returns the host's notification of this kind
+// that Fleet has queued but never sent, or nil.
+//
+// The query filters on attempt_count as well as status, because a notification
+// that was dispatched and then delayed or retried is pending again. The end user
+// has already seen that notification, so that notification is not awaiting a
+// first dispatch.
+func (ds *Datastore) GetNotificationAwaitingFirstDispatch(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
 	const getStmt = `
 SELECT ` + endUserNotificationColumns + `
 FROM notifications_end_user eun
@@ -122,13 +130,11 @@ LIMIT 1
 `
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt,
-		hostID, kind, api.EndUserNotificationPending,
-	); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, hostID, kind, api.EndUserNotificationPending); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting dispatch")
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting first dispatch")
 	}
 	return &notification, nil
 }

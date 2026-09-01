@@ -89,9 +89,9 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		return nil
 	}
 
-	awaiting, err := svc.notificationsSvc.NotificationAwaitingDispatch(ctx, host.ID, fleet.PatchNotificationKind)
+	awaiting, err := svc.notificationsSvc.NotificationAwaitingFirstDispatch(ctx, host.ID, fleet.PatchNotificationKind)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get patch notification awaiting dispatch for host")
+		return ctxerr.Wrap(ctx, err, "get patch notification awaiting first dispatch for host")
 	}
 
 	var notificationUUID string
@@ -124,6 +124,16 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 }
 
 func (k *patchNotificationKind) Render(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.NotificationView, error) {
+	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
+	}
+	return k.renderView(ctx, notification, patchNotification.InstallsQueuedAt != nil)
+}
+
+// installsQueued is passed in rather than read, so an action that just queued
+// the installs can build the view it returns without reading its own write back.
+func (k *patchNotificationKind) renderView(ctx context.Context, notification *notifications_api.EndUserNotification, installsQueued bool) (*notifications_api.NotificationView, error) {
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
@@ -144,10 +154,6 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 		return nil, ctxerr.Wrap(ctx, err, "get device auth token for patch notification")
 	}
 
-	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
-	}
 	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
@@ -165,7 +171,7 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 			iconURL := icon.IconUrlWithDeviceToken(deviceToken)
 			item.IconURL = &iconURL
 		}
-		if patchNotification.InstallsQueuedAt != nil {
+		if installsQueued {
 			item.Status = "Installing..."
 		}
 		items = append(items, item)
@@ -183,7 +189,7 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 
 	hide := notifications_api.NotificationAction{ID: patchNotificationActionDismiss, Label: "Hide"}
 	actions := []notifications_api.NotificationAction{hide}
-	if patchNotification.InstallsQueuedAt == nil {
+	if !installsQueued {
 		secondary := notifications_api.NotificationAction{ID: patchNotificationActionRemind, Label: "Remind me 5 minutes before"}
 		if reminder {
 			secondary = hide
@@ -212,7 +218,7 @@ func (k *patchNotificationKind) OnVerify(ctx context.Context, notification *noti
 }
 
 // TODO: should there be a grace period where we install no matter what?
-func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notifications_api.EndUserNotification) error {
+func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.NotificationView, error) {
 	untilReminder := patchNotificationFirstNoticeBefore - patchNotificationReminderBefore
 
 	now := time.Now().UTC()
@@ -225,10 +231,17 @@ func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notif
 		}
 	}
 
-	return k.notificationSvc.DelayNotification(ctx, notification.UUID, nextAttemptAt, payload)
+	if err := k.notificationSvc.DelayNotification(ctx, notification.UUID, nextAttemptAt, payload); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delay patch notification")
+	}
+
+	// The delay wrote the payload the view's copy comes from, so carry it over
+	// instead of reading the row again.
+	notification.Payload = payload
+	return k.renderView(ctx, notification, false)
 }
 
-func (k *patchNotificationKind) OnAction(ctx context.Context, notification *notifications_api.EndUserNotification, actionID string) error {
+func (k *patchNotificationKind) OnAction(ctx context.Context, notification *notifications_api.EndUserNotification, actionID string) (*notifications_api.NotificationView, error) {
 	switch actionID {
 	case patchNotificationActionUpdateNow:
 		return k.updateNow(ctx, notification)
@@ -237,31 +250,34 @@ func (k *patchNotificationKind) OnAction(ctx context.Context, notification *noti
 		return k.OnDelay(ctx, notification)
 
 	case patchNotificationActionDismiss:
-		return nil
+		return nil, nil
 
 	default:
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("action",
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("action",
 			fmt.Sprintf("%q is not something that can be done to a patch notification", actionID)))
 	}
 }
 
-func (k *patchNotificationKind) updateNow(ctx context.Context, notification *notifications_api.EndUserNotification) error {
+func (k *patchNotificationKind) updateNow(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.NotificationView, error) {
 	if notification.Status != notifications_api.EndUserNotificationPending &&
 		notification.Status != notifications_api.EndUserNotificationDispatched {
-		return nil
+		return nil, nil
 	}
 
-	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
+	// The end user can press Update now more than once. Only the request that
+	// marks installs_queued_at goes on to queue the installs, so a second press
+	// cannot queue the same apps again.
+	queued, err := k.ds.SetPatchNotificationInstallsQueued(ctx, notification.UUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get patch notification")
+		return nil, ctxerr.Wrap(ctx, err, "set patch notification installs queued")
 	}
-	if patchNotification.InstallsQueuedAt != nil {
-		return nil
+	if !queued {
+		return k.renderView(ctx, notification, true)
 	}
 
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list patch notification apps")
+		return nil, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 
 	for _, app := range apps {
@@ -276,15 +292,20 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 				IgnoreAppOpenQuery: true,
 			},
 		); err != nil {
-			return ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
+			return nil, ctxerr.Wrapf(ctx, err, "insert software install request: host_id=%d, software_installer_id=%d",
 				notification.HostID, *app.SoftwareInstallerID)
 		}
 	}
 
-	return k.ds.SetPatchNotificationInstallsQueued(ctx, notification.UUID)
+	// This request is the one that queued them, so the view says so without
+	// reading installs_queued_at back.
+	return k.renderView(ctx, notification, true)
 }
 
 func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *notifications_api.EndUserNotification, outcome notifications_api.NotificationOutcome) error {
+	// A failing notification is retried every minute until it expires. Only the
+	// first of a run of identical failures gets an activity, so a host with Fleet
+	// Desktop closed does not fill the feed with the same failure.
 	if !outcome.Displayed && notification.LastExitCode != nil && *notification.LastExitCode == outcome.ExitCode {
 		return nil
 	}
@@ -299,6 +320,8 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		return ctxerr.Wrap(ctx, err, "get host for patch notification activity")
 	}
 
+	// Several apps can come from the same policy, and a policy that was deleted
+	// leaves patch_notification_apps.policy_id null.
 	softwareTitles := make([]string, 0, len(apps))
 	policyIDs := make([]uint, 0, len(apps))
 	seenPolicyIDs := make(map[uint]struct{}, len(apps))
@@ -319,6 +342,8 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		status = "success"
 	}
 
+	// The frontend keys the activity's copy off this number, so it has to say
+	// which of the two notices this outcome was for.
 	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")

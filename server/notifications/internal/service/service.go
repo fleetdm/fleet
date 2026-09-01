@@ -55,10 +55,10 @@ func (s *Service) CreateNotification(ctx context.Context, notification *api.EndU
 	return created, nil
 }
 
-func (s *Service) NotificationAwaitingDispatch(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
-	notification, err := s.ds.GetNotificationAwaitingDispatch(ctx, hostID, kind)
+func (s *Service) NotificationAwaitingFirstDispatch(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
+	notification, err := s.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, kind)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting dispatch")
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting first dispatch")
 	}
 	return notification, nil
 }
