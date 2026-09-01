@@ -190,6 +190,8 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 		return ctxerr.Wrap(ctx, err, "create transaction")
 	}
 
+	wrappedTx := wrappedTx{Tx: tx}
+
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
@@ -199,7 +201,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	if err := fn(wrappedTx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil && rbErr != sql.ErrTxDone {
 			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
@@ -216,6 +218,10 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) err
 			TriggerFatalError(ctx, err)
 		}
 		return err
+	}
+
+	for _, hook := range wrappedTx.onCommitHooks {
+		hook()
 	}
 
 	return nil

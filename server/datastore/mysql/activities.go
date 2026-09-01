@@ -1751,11 +1751,10 @@ WHERE
 	const insNanoQueueStmt = `
 INSERT INTO
 	nano_enrollment_queue
-(id, command_uuid, created_at)
+(id, command_uuid)
 SELECT
 	?,
-	execution_id,
-	created_at -- force same timestamp to keep ordering
+	execution_id
 FROM
 	upcoming_activities
 WHERE
@@ -1900,11 +1899,17 @@ WHERE
 
 	// best-effort APNs push notification to the host, not critical because we
 	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
+	wrapped, ok := tx.(common_mysql.WrappedExtContext)
+	if ds.pusher == nil || !ok {
+		return nil
+	}
+	// we wrap the APNS Push here, as activate next upcoming is called from many sites
+	// and it's racy to ping before we have comitted the transaction.
+	wrapped.AddOnCommitHook(func() {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
-	}
+	})
 	return nil
 }
 
