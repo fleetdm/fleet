@@ -427,8 +427,6 @@ const TAGGED_TEMPLATES = {
     const serialSuffix = showSerial ? ` (${host_serial})` : "";
 
     if (mdm_platform === "microsoft") {
-      // Older Windows activities predate host_display_name always being resolved from the host record, so fall back
-      // to the serial rather than rendering an empty name.
       return (
         <>
           <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
