@@ -824,6 +824,14 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 	return nil
 }
 
+func omitUnknownLinuxDiskEncryption(host *fleet.Host) {
+	// an unencrypted Linux host may still be encrypted in a way we cannot detect,
+	// so report unknown rather than false (See https://github.com/fleetdm/fleet/issues/3906).
+	if host.DiskEncryptionEnabled != nil && !(*host.DiskEncryptionEnabled) && fleet.IsLinux(host.Platform) {
+		host.DiskEncryptionEnabled = nil
+	}
+}
+
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
 SELECT
@@ -920,12 +928,7 @@ LIMIT
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
-	if host.DiskEncryptionEnabled != nil && !(*host.DiskEncryptionEnabled) && fleet.IsLinux(host.Platform) {
-		// omit disk encryption information for linux if it is not enabled, as we
-		// cannot know for sure that it is not encrypted (See
-		// https://github.com/fleetdm/fleet/issues/3906).
-		host.DiskEncryptionEnabled = nil
-	}
+	omitUnknownLinuxDiskEncryption(&host)
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
 	if err != nil {
@@ -1173,6 +1176,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
     hd.gigs_all_disk_space,
+    hd.encrypted as disk_encryption_enabled,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
@@ -1240,6 +1244,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
+	}
+	for _, host := range hosts {
+		omitUnknownLinuxDiskEncryption(host)
 	}
 
 	return hosts, nil

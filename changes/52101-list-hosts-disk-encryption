@@ -1,0 +1,1 @@
+* Added `disk_encryption_enabled` to each host in the response of the list hosts endpoint (`GET /api/v1/fleet/hosts`).
