@@ -789,19 +789,6 @@ Spell out international time zones:
 - Central European Time
 - Japan Standard Time
 
-#### Avoid daylight-saving-specific time zone abbreviations
-
-When scheduling a meeting or referencing a time, use the general time zone abbreviation ("PT," "MT," "CT," "ET") rather than the daylight-saving-specific variant ("PST" or "PDT," "MST" or "MDT," "CST" or "CDT," "EST" or "EDT").
-
-- Pacific time: PT (not PST or PDT)
-- Mountain time: MT (not MST or MDT)
-- Central time: CT (not CST or CDT)
-- Eastern time: ET (not EST or EDT)
-
-Using "PST" vs. "PDT" (or the equivalent for other US time zones) can cause mistakes. If someone (or an AI tool, or a search engine) pastes or looks up "PST" or "PDT" literally, they may get confused about whether the date in question falls under daylight saving time, since the abbreviation for a fixed time zone changes twice a year while "PT" does not. Using the general abbreviation avoids this ambiguity entirely, since it doesn't force the reader (human or AI) to figure out whether DST applies on that particular date.
-
-This is analogous to why ISO/IANA time zone identifiers are preferred for precision (e.g., "America/Chicago" or "US Pacific Time") and never something like "Pacific Standard Time" that hardcodes a daylight-saving-time assumption. The general format sidesteps the daylight-saving-time ambiguity altogether.
-
 
 ### Emphasis
 
