@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260901185042(t *testing.T) {
+func TestUp_20260901202749(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertDevice := func(id string) {
@@ -52,7 +52,7 @@ func TestUp_20260901185042(t *testing.T) {
 	}
 }
 
-func TestUp_20260901185042_empty(t *testing.T) {
+func TestUp_20260901202749_empty(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	applyNext(t, db)
