@@ -198,8 +198,9 @@ const HostHeader = ({
               Last fetched:
               <b>
                 {" "}
-                {lastFetchedAt &&
-                  internationalTimeFormat(new Date(lastFetchedAt))}
+                {lastFetchedAt
+                  ? internationalTimeFormat(new Date(lastFetchedAt))
+                  : "unavailable"}
               </b>
             </span>
             <br />
