@@ -4530,6 +4530,92 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 	}
 }
 
+// TestBitlockerStartupPolicyRelaxDirectIngest covers the query that lifts a startup-authentication policy blocking
+// Fleet from restoring BitLocker protection on an encrypted but unprotected volume.
+func TestBitlockerStartupPolicyRelaxDirectIngest(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	ctx := t.Context()
+
+	testHost := &fleet.Host{UUID: "test-uuid", ID: 1}
+	row := func(value int) []map[string]string {
+		return []map[string]string{{"data": strconv.Itoa(value)}}
+	}
+
+	tests := []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		wantCmd   bool
+		wantError bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name:      "more rows than the query can return",
+			host:      testHost,
+			rows:      append(row(microsoft_mdm.PolicyOptDropdownDisallowed), row(microsoft_mdm.PolicyOptDropdownDisallowed)...),
+			wantError: true,
+		},
+		{
+			// The deadlock: policy forbids the only protector Fleet can add without the end user.
+			name:    "a banned TPM-only protector is permitted so protection can be restored",
+			host:    testHost,
+			rows:    row(microsoft_mdm.PolicyOptDropdownDisallowed),
+			wantCmd: true,
+		},
+		{
+			name: "an already permitted TPM-only protector needs no command",
+			host: testHost,
+			rows: row(microsoft_mdm.PolicyOptDropdownOptional),
+		},
+		{
+			// Required also permits the protector, so nothing is blocking the agent.
+			name: "a required TPM-only protector needs no command",
+			host: testHost,
+			rows: row(microsoft_mdm.PolicyOptDropdownRequired),
+		},
+		{
+			name: "an unset dropdown already permits a TPM-only protector",
+			host: testHost,
+			rows: []map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			cmdInserted := false
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					cmdInserted = true
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					// The command has to permit a TPM-only protector, otherwise it does not unblock the agent.
+					require.Contains(t, string(cmd.RawCommand),
+						fmt.Sprintf(`ConfigureTPMUsageDropDown_Name" value="%d"`, microsoft_mdm.PolicyOptDropdownOptional))
+					return nil
+				}
+			}
+
+			ingestFunc := bitlockerPolicyQueries["bitlocker_startup_policy_relax"].DirectIngestFunc
+			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
+			require.Equal(t, tt.wantError, err != nil)
+			require.Equal(t, tt.wantCmd, cmdInserted)
+		})
+	}
+}
+
 func TestDebLastOpenedAt(t *testing.T) {
 	processFunc := SoftwareOverrideQueries["deb_last_opened_at"].SoftwareProcessResults
 	debPackageResults := []map[string]string{
