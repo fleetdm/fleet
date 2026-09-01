@@ -5541,23 +5541,22 @@ func TestResolveBitLockerPINPayload(t *testing.T) {
 // windowsMDMEnrollmentInstalledFromDEP has to reproduce, from the stored row, the automatic-enrollment flag that
 // storeWindowsMDMEnrolledDevice derives from the live request, so pin the whole truth table.
 func TestWindowsMDMEnrollmentInstalledFromDEP(t *testing.T) {
+	inOOBE := new(time.Now().UTC())
 	for _, tc := range []struct {
-		name         string
-		enrollUserID string
-		notInOOBE    bool
-		want         bool
+		name                    string
+		enrollUserID            string
+		awaitingConfigurationAt *time.Time
+		want                    bool
 	}{
-		// enroll_user_id holds a UPN for Entra enrollments and the host UUID for fleetd-driven ones, which is the
-		// discriminator LinkWindowsHostMDMEnrollment uses too.
-		{"Entra enrollment during OOBE is automatic", "fleetie@example.com", false, true},
-		{"Entra enrollment outside OOBE is user-driven", "fleetie@example.com", true, false},
-		{"programmatic enrollment during OOBE is not automatic", "host-uuid-from-osquery", false, false},
-		{"programmatic enrollment outside OOBE is not automatic", "host-uuid-from-osquery", true, false},
+		{"Entra enrollment during OOBE is automatic", "fleetie@example.com", inOOBE, true},
+		{"Autopilot enrollment whose token carried no UPN is still automatic", "", inOOBE, true},
+		{"Entra enrollment outside OOBE is user-driven", "fleetie@example.com", nil, false},
+		{"programmatic enrollment is not automatic", "host-uuid-from-osquery", nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := windowsMDMEnrollmentInstalledFromDEP(&fleet.MDMWindowsEnrolledDevice{
-				MDMEnrollUserID: tc.enrollUserID,
-				MDMNotInOOBE:    tc.notInOOBE,
+				MDMEnrollUserID:         tc.enrollUserID,
+				AwaitingConfigurationAt: tc.awaitingConfigurationAt,
 			})
 			assert.Equal(t, tc.want, got)
 		})
@@ -5615,15 +5614,15 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		return e
 	}
 
-	// entraEnrollment is a linked Entra enrollment whose activity has not been recorded yet: enroll_user_id holds a UPN
-	// (which is what marks it automatic) and not_in_oobe is false, so it reads as an OOBE/Autopilot enrollment.
+	// entraEnrollment is a linked Entra enrollment whose activity has not been recorded yet. awaiting_configuration_at
+	// is set, which is what the enrollment records for an automatic (OOBE/Autopilot) enrollment.
 	entraEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
 		return &fleet.MDMWindowsEnrolledDevice{
-			MDMDeviceID:     testDeviceID,
-			MDMHardwareID:   testHardwareID,
-			HostUUID:        testHostUUID,
-			MDMEnrollUserID: "fleetie@example.com",
-			MDMNotInOOBE:    false,
+			MDMDeviceID:             testDeviceID,
+			MDMHardwareID:           testHardwareID,
+			HostUUID:                testHostUUID,
+			MDMEnrollUserID:         "fleetie@example.com",
+			AwaitingConfigurationAt: new(time.Now().UTC()),
 		}
 	}
 

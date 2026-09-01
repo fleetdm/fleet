@@ -3212,8 +3212,9 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	awaitingConfiguration := fleet.WindowsMDMAwaitingConfigurationNone
 	var awaitingConfigurationAt *time.Time
 	isInOOBE := !reqNotInOOBE
-	// Entra ID + OOBE is Windows' equivalent of an automatic (DEP) enrollment. Recomputed from the stored enrollment
-	// row by windowsMDMEnrollmentInstalledFromDEP for enrollments whose activity is deferred, so keep the two in sync.
+	// Entra ID + OOBE is Windows' equivalent of an automatic (DEP) enrollment. awaitingConfigurationAt below is set on
+	// this same condition, and windowsMDMEnrollmentInstalledFromDEP reads it back to recover this flag for enrollments
+	// whose activity is deferred, so the two must keep being written together.
 	installedFromDEP := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE
 	if enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE {
 		awaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationPending
@@ -3332,9 +3333,11 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	return nil
 }
 
-// windowsMDMEnrollmentInstalledFromDEP recomputes, from a stored enrollment row, the "automatic enrollment" flag.
+// windowsMDMEnrollmentInstalledFromDEP reads back, from a stored enrollment row, the "automatic enrollment" flag that
+// storeWindowsMDMEnrolledDevice computed from the live request. awaiting_configuration_at is written on exactly the
+// same condition and never cleared afterwards.
 func windowsMDMEnrollmentInstalledFromDEP(device *fleet.MDMWindowsEnrolledDevice) bool {
-	return microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) && !device.MDMNotInOOBE
+	return device.AwaitingConfigurationAt != nil
 }
 
 // maybeCreateWindowsMDMEnrolledActivityForDevice is maybeCreateWindowsMDMEnrolledActivity for callers that hold only
