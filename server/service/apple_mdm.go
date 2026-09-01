@@ -2998,7 +2998,7 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 		return false, nil
 	}
 
-	isSupported, err := isMacACMESupported(machineInfo.Product, machineInfo.OSVersion)
+	isSupported, err := isACMESupported(ctx, svc.logger, machineInfo.Product, machineInfo.OSVersion)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking if device is capable of ACME")
 	} else if !isSupported {
@@ -3016,25 +3016,73 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 	return len(assignments) > 0, nil
 }
 
-// isMacACMESupported checks if the device is supported for ACME enrollment. Fleet only
-// supports ACME enrollment for Apple Silicon Macs running macOS 14 or later. Other Apple devices
-// may support ACME enrollment (e.g., iOS on Apple Silicon), but they are not currently supported by Fleet.
-func isMacACMESupported(modelIdentifier string, osVersion string) (bool, error) {
-	// we only require ACME for Apple Silicon Macs
-	if isMacAppleSilicon, err := fleet.IsMacAppleSilicon(modelIdentifier); err != nil {
-		return false, fmt.Errorf("checking if device is Apple Silicon: %w", err)
-	} else if !isMacAppleSilicon {
-		return false, nil
+// isACMESupported checks if the device is supported for ACME enrollment. Fleet supports:
+// Apple Silicon Macs running macOS 14 or later.
+// iPhones with A11 chip or higher, running iOS 16 or later.
+// iPads with A11 chip or higher, running iPadOS 16.1 or later.
+// Other Apple devices
+// may support ACME enrollment (e.g., tvOS on Apple TV), but they are not currently supported by Fleet.
+func isACMESupported(ctx context.Context, logger *slog.Logger, modelIdentifier string, osVersion string) (bool, error) {
+	if isMac, _, _, _ := fleet.IsMacIdentifier(modelIdentifier); isMac {
+		// we only require ACME for Apple Silicon Macs, if the device is a mac.
+		isMacAppleSilicon, err := fleet.IsMacAppleSilicon(modelIdentifier)
+		if err != nil {
+			return false, fmt.Errorf("checking if device is Apple Silicon: %w", err)
+		} else if !isMacAppleSilicon {
+			return false, nil
+		}
+
+		// we only require ACME for Apple Silicon Macs running macOS 14 or later
+		if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(osVersion, "14.0"); err != nil {
+			return false, fmt.Errorf("checking if device is less than macOS 14: %w", err)
+		} else if isLessThanMacOS14 {
+			return false, nil
+		}
+		return true, nil
 	}
 
-	// we only require ACME for Apple Silicon Macs running macOS 14 or later
-	if isLessThanMacOS14, err := apple_mdm.IsLessThanVersion(osVersion, "14.0"); err != nil {
-		return false, fmt.Errorf("checking if device is less than macOS 14: %w", err)
-	} else if isLessThanMacOS14 {
-		return false, nil
+	isIPhone, _, _, err := fleet.IsPrefixedIdentifier(modelIdentifier, "iPhone")
+	if err != nil {
+		return false, fmt.Errorf("checking if device is an iPhone: %w", err)
+	}
+	if isIPhone {
+		if isA11, err := fleet.IsA11ChipDevice(modelIdentifier); err != nil {
+			return false, fmt.Errorf("checking if device has A11 chip: %w", err)
+		} else if !isA11 {
+			return false, nil
+		}
+
+		// Check for iOS 16.0 or above for iPhones
+		if isLessThaniOS16, err := apple_mdm.IsLessThanVersion(osVersion, "16.0"); err != nil {
+			return false, fmt.Errorf("checking if device is less than iOS 16: %w", err)
+		} else if isLessThaniOS16 {
+			return false, nil
+		}
+
+		return true, nil
 	}
 
-	return true, nil
+	if isIPad, _, _, err := fleet.IsPrefixedIdentifier(modelIdentifier, "iPad"); err != nil {
+		return false, fmt.Errorf("checking if device is an iPad: %w", err)
+	} else if isIPad {
+		if isA11, err := fleet.IsA11ChipDevice(modelIdentifier); err != nil {
+			return false, fmt.Errorf("checking if device has A11 chip: %w", err)
+		} else if !isA11 {
+			return false, nil
+		}
+
+		// Check for iPadOS 16.1 or above for iPads
+		if isLessThaniPadOS16_1, err := apple_mdm.IsLessThanVersion(osVersion, "16.1"); err != nil {
+			return false, fmt.Errorf("checking if device is less than iPadOS 16.1: %w", err)
+		} else if isLessThaniPadOS16_1 {
+			return false, nil
+		}
+
+		return true, nil
+	}
+
+	logger.InfoContext(ctx, "got unknown product family for ACME support check", "model_identifier", modelIdentifier, "os_version", osVersion)
+	return false, nil
 }
 
 func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
@@ -6516,7 +6564,7 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		}
 		return ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
 	}
-	if res.Platform != "darwin" || !res.HasACMEPayload {
+	if !res.HasACMEPayload {
 		return nil
 	}
 
@@ -7040,7 +7088,7 @@ func RenewSCEPCertificates(
 ) error {
 	renewalDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE")
 	if exists && (strings.EqualFold(renewalDisable, "true") || renewalDisable == "1") {
-		logger.InfoContext(ctx, "skipping renewal of macOS SCEP certificates as FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE is set to true")
+		logger.InfoContext(ctx, "skipping renewal of Apple SCEP certificates as FLEET_MDM_APPLE_SCEP_RENEWAL_DISABLE is set to true")
 		return nil
 	}
 
@@ -7049,12 +7097,12 @@ func RenewSCEPCertificates(
 		return fmt.Errorf("reading app config: %w", err)
 	}
 	if !appConfig.MDM.EnabledAndConfigured {
-		logger.DebugContext(ctx, "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
+		logger.DebugContext(ctx, "skipping renewal of Apple SCEP certificates as MDM is not fully configured")
 		return nil
 	}
 
 	if commander == nil {
-		logger.DebugContext(ctx, "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
+		logger.DebugContext(ctx, "skipping renewal of Apple SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
 		return nil
 	}
 
@@ -7123,7 +7171,7 @@ func RenewSCEPCertificates(
 		}
 		logErrs := []any{}
 		for _, info := range di {
-			if ok, err := isMacACMESupported(info.HardwareModel, info.OSVersion); err != nil {
+			if ok, err := isACMESupported(ctx, logger, info.HardwareModel, info.OSVersion); err != nil {
 				logErrs = append(logErrs, "host_uuid", info.HostUUID, "error", err)
 			} else if ok {
 				acmeRequiredByHostUUID[info.HostUUID] = info

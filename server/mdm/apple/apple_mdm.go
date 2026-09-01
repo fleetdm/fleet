@@ -1448,7 +1448,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 				{{ end }}<array>
 					<array>
 						<string>CN</string>
-						<string>{{ .SerialTemplate | xml }}</string>
+						<string>{{ .ClientIdentifier | xml }}</string>
 					</array>
 				</array>
 			</array>
@@ -1595,6 +1595,9 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 // GenerateACMEEnrollmentProfileMobileconfig builds an ACME (hardware-attested) enrollment profile. See
 // GenerateEnrollmentProfileMobileconfig for newEnrollment; the OU marker survives because Fleet's ACME
 // signer reuses the SCEP depot signer, which copies the CSR Subject verbatim.
+//
+// deviceSerial fills both ClientIdentifier and the Subject CN. It was observed for iOS renewals the device did not substitute %SerialNumber% with it's serial number
+// so we fill it in.
 func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
@@ -1613,7 +1616,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic                  string
 		ServerURL              string
 		ClientIdentifier       string
-		SerialTemplate         string
 		AccessRights           int
 		NewEnrollmentSubjectOU string
 	}{
@@ -1622,7 +1624,6 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		Topic:                  topic,
 		ServerURL:              serverURL,
 		ClientIdentifier:       deviceSerial,
-		SerialTemplate:         `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
 		AccessRights:           accessRights,
 		NewEnrollmentSubjectOU: newEnrollmentSubjectOU(newEnrollment),
 	}); err != nil {

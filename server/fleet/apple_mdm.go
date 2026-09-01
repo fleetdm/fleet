@@ -1519,9 +1519,9 @@ type MDMAppleMachineInfo struct {
 	Version                         string `plist:"VERSION"`
 }
 
-// macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
+// appleProductRe matches an Apple product model identifier such as "MacBookPro18,3" or "iPhone10,1", capturing the
 // alphabetic family prefix (group 1) and the numeric major version (group 2).
-var macProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
+var appleProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
 
 // appleSiliconMajorThreshold maps each traditional Mac product family to the first major
 // version number that corresponds to an Apple Silicon model. Any major version equal to or
@@ -1537,6 +1537,14 @@ var appleSiliconMajorThreshold = map[string]int{
 	"iMac": 21,
 }
 
+// a11MajorThreshold maps each device (that we support and know has shipped with A11) to the first major version number.
+var a11MajorThreshold = map[string]int{
+	// iPhone 10,1 was the first iPhone with the A11 Bionic chip (iPhone 8, Late 2017).
+	"iPhone": 10,
+	// iPad 8,1 was the first iPad with the A11 Bionic chip (iPad Pro 11-inch, 2018).
+	"iPad": 8,
+}
+
 func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
@@ -1546,7 +1554,7 @@ func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 		return false, "", 0, nil
 	}
 
-	matches := macProductRe.FindStringSubmatch(modelIdentifier)
+	matches := appleProductRe.FindStringSubmatch(modelIdentifier)
 	if matches == nil {
 		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
 	}
@@ -1566,7 +1574,22 @@ func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 		return true, family, major, nil
 	}
 
-	return false, "", 0, fmt.Errorf("failed to detect if model identifier (%q) was mac", modelIdentifier)
+	return false, "", 0, nil
+}
+
+func IsPrefixedIdentifier(modelIdentifier string, prefix string) (bool, string, int, error) {
+	matches := appleProductRe.FindStringSubmatch(modelIdentifier)
+	if matches == nil {
+		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+	}
+
+	if !strings.HasPrefix(modelIdentifier, prefix) {
+		return false, "", 0, nil
+	}
+
+	family := matches[1]
+	major, _ := strconv.Atoi(matches[2])
+	return true, family, major, nil
 }
 
 // IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
@@ -1597,10 +1620,34 @@ func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
 
 	threshold, ok := appleSiliconMajorThreshold[family]
 	if !ok {
-		return false, fmt.Errorf("unrecognized Mac product family in identifier: %q", modelIdentifier)
+		return false, nil
 	}
 
 	return major >= threshold, nil
+}
+
+func IsA11ChipDevice(modelIdentifier string) (bool, error) {
+	isIPhone, iPhoneFamily, iPhoneMajor, err := IsPrefixedIdentifier(modelIdentifier, "iPhone")
+	if err != nil {
+		return false, err
+	}
+	isIPad, iPadFamily, iPadMajor, err := IsPrefixedIdentifier(modelIdentifier, "iPad")
+	if err != nil {
+		return false, err
+	}
+
+	if !isIPhone && !isIPad {
+		return false, nil
+	}
+
+	major := iPhoneMajor
+	family := iPhoneFamily
+	if isIPad {
+		major = iPadMajor
+		family = iPadFamily
+	}
+
+	return major >= a11MajorThreshold[family], nil
 }
 
 // MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account

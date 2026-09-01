@@ -10239,11 +10239,42 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 				expectACME: false,
 			},
 			{
-				name: "iPhone",
+				name: "iPhone 16.0",
 				mi: fleet.MDMAppleMachineInfo{
-					Product: "iPhone14,3",
-					Serial:  "IPHONESERIAL",
-					UDID:    "iphone-udid",
+					Product:   "iPhone14,3",
+					Serial:    "IPHONESERIAL",
+					UDID:      "iphone-udid",
+					OSVersion: "16.0",
+				},
+				expectACME: true,
+			},
+			{
+				name: "iPhone < 16.0 does not require ACME",
+				mi: fleet.MDMAppleMachineInfo{
+					Product:   "iPhone14,3",
+					Serial:    "IPHONESERIAL",
+					UDID:      "iphone-udid",
+					OSVersion: "15.0",
+				},
+				expectACME: false,
+			},
+			{
+				name: "iPad 16.1",
+				mi: fleet.MDMAppleMachineInfo{
+					Product:   "iPad10,1",
+					Serial:    "IPADSERIAL",
+					UDID:      "ipad-udid",
+					OSVersion: "16.1",
+				},
+				expectACME: true,
+			},
+			{
+				name: "iPad < 16.1 does not require ACME",
+				mi: fleet.MDMAppleMachineInfo{
+					Product:   "iPad10,1",
+					Serial:    "IPADSERIAL",
+					UDID:      "ipad-udid",
+					OSVersion: "16.0",
 				},
 				expectACME: false,
 			},
