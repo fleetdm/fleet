@@ -3611,6 +3611,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "gigs_disk_space_available": 174.98,
       "percent_disk_space_available": 71,
       "gigs_total_disk_space": 246,
+      "disk_encryption_enabled": true,
       "additional": {},
       "pack_stats": [
         {
