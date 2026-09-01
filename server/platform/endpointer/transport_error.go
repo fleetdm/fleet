@@ -102,8 +102,11 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 
 	err = ctxerr.Cause(err)
 
+	// Matched on the original error, not the cause: a wrapper can carry the uuid
+	// and be unwrapped away, and the log lines match on the full chain.
 	var uuid string
-	if uuidErr, ok := err.(platform_http.ErrorUUIDer); ok {
+	var uuidErr platform_http.ErrorUUIDer
+	if errors.As(origErr, &uuidErr) {
 		uuid = uuidErr.UUID()
 	}
 	// Fall back to the request id so a response with replaced detail stays traceable.

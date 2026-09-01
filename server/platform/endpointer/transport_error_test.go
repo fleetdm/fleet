@@ -267,3 +267,27 @@ func TestEncodeErrorSanitizesBody(t *testing.T) {
 	require.NotEmpty(t, got.UUID)
 	require.Equal(t, logCtx.RequestID, got.UUID)
 }
+
+// uuidWrapper carries a uuid and unwraps, like ssoError: ctxerr.Cause strips it,
+// so matching on the cause finds no uuid while the log line still reports one.
+type uuidWrapper struct {
+	err error
+	platform_http.ErrorWithUUID
+}
+
+func (e *uuidWrapper) Error() string { return "wrapped: " + e.err.Error() }
+func (e *uuidWrapper) Unwrap() error { return e.err }
+
+func TestEncodeErrorUUIDMatchesLoggedError(t *testing.T) {
+	t.Parallel()
+
+	wrapped := &uuidWrapper{err: errors.New("inner failure")}
+	ctx := logging.NewContext(t.Context(), &logging.LoggingContext{})
+
+	recorder := httptest.NewRecorder()
+	EncodeError(ctx, wrapped, recorder, nil)
+
+	var got JsonError
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &got))
+	require.Equal(t, wrapped.UUID(), got.UUID)
+}
