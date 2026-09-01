@@ -1897,7 +1897,7 @@ func (svc *Service) processSavedAppConfigChanges(
 			act = fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for updating only allow Apple Business enrollment")
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("create activity %s", act.ActivityName()))
 		}
 	}
 
