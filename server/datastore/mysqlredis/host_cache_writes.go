@@ -118,6 +118,21 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsTo
 	return nil
 }
 
+// DeleteTeam collects the team's host IDs before the inner delete (which
+// NULLs hosts.team_id via FK cascade), then invalidates their cached
+// snapshots so subsequent config requests load from MySQL.
+func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
+	hostIDs, err := d.Datastore.HostIDsByTeamID(ctx, tid)
+	if err != nil {
+		return err
+	}
+	if err := d.Datastore.DeleteTeam(ctx, tid); err != nil {
+		return err
+	}
+	d.invalidateHostIDs(ctx, hostIDs, "team")
+	return nil
+}
+
 // UpdateHostIdentityCertHostIDBySerial invalidates for the host whose
 // has_host_identity_cert just flipped. This is the security-critical path: a
 // stale `false` would cause AuthenticateHost to skip the httpsig verification

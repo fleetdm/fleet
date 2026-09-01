@@ -282,7 +282,13 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -290,7 +296,13 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 

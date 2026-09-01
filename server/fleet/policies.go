@@ -752,6 +752,12 @@ type PolicySpec struct {
 	// SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
 	SoftwareTitleID *uint `json:"software_title_id"`
+	// SoftwarePackageID optionally pins the policy to a specific package under
+	// the given SoftwareTitleID (team policies only). When nil the applier
+	// falls back to the title's first-added package. Used by GitOps to preserve
+	// which package a policy YAML referenced when the title has multiple
+	// installers sharing a bundle identifier.
+	SoftwarePackageID *uint `json:"software_package_id,omitempty"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
 	ScriptID *uint `json:"script_id"`

@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,6 +39,12 @@ const testTTL = time.Hour
 
 func newTestServer(t *testing.T) *httptest.Server {
 	return newTestServerWithKeepAlive(t, 30*time.Second)
+}
+
+// newTestServerWithNode is newTestServer plus the node's coordinator, for
+// tests that have to synchronize on announcement dispatch.
+func newTestServerWithNode(t *testing.T) (*httptest.Server, *coordinator) {
+	return newTestServerOnRedis(t, testRedis(t), 30*time.Second, 10*time.Second)
 }
 
 func newTestServerWithKeepAlive(t *testing.T, keepAlive time.Duration) *httptest.Server {
@@ -93,16 +98,39 @@ func testRedis(t *testing.T) testRedisEnv {
 	}
 }
 
-// waitSubscribed blocks until the subscription is live. Publishing before
-// then is a message nobody receives, which would just make tests flaky.
+// waitSubscribed blocks until this node is receiving announcements: the
+// channel subscription is live and the resync that follows it has run.
+// Publishing before then is a message nobody receives, and a resync that
+// lands later claims a pending push out from under the path under test.
+//
+// A marker round-trip is the only proof that covers this node in particular.
+// PUBSUB NUMSUB counts every instance sharing the channel, so a second node
+// would look ready the moment the first one is.
 func waitSubscribed(t *testing.T, coord *coordinator) {
 	t.Helper()
+	const marker = "fffffe"
+	sub, _ := coord.reg.subscribe(marker, 0)
+	live, coalesced := coord.reg.deliveredLive.Load(), coord.reg.coalesced.Load()
+
+	// A marker published before the subscription is live is simply lost, so
+	// keep sending until one comes back.
 	require.Eventually(t, func() bool {
-		conn := coord.pool.Get()
-		defer conn.Close()
-		counts, err := redigo.IntMap(conn.Do("PUBSUB", "NUMSUB", coord.channel()))
-		return err == nil && counts[coord.channel()] > 0
-	}, 5*time.Second, 10*time.Millisecond, "pub/sub subscription never became active")
+		if err := coord.publish(t.Context(), pushMsg{Token: marker, Inline: []byte(`{"mdm":"marker"}`)}); err != nil {
+			return false
+		}
+		select {
+		case <-sub.ch:
+			return true
+		case <-time.After(20 * time.Millisecond):
+			return false
+		}
+	}, 10*time.Second, time.Millisecond, "node never received its own announcement")
+
+	// both counters move under the shard lock, and unsubscribe takes that lock,
+	// so a duplicate marker either counted before the restore or finds no stream
+	coord.reg.unsubscribe(marker, sub)
+	coord.reg.deliveredLive.Store(live)
+	coord.reg.coalesced.Store(coalesced)
 }
 
 // --- SSE test client -------------------------------------------------------
@@ -249,6 +277,20 @@ func pushRaw(t *testing.T, baseURL, token string, payload []byte, headers map[st
 	return resp
 }
 
+// pushOffline sends a push for a device that is connected nowhere yet, and
+// returns once the given nodes have dispatched the announcement. A push is
+// answered once it is published, so a connect that follows immediately can
+// beat the announcement to the node and take the live-delivery path instead
+// of the offline one the test is after.
+func pushOffline(t *testing.T, baseURL, token string, payload []byte, headers map[string]string, nodes ...*coordinator) *http.Response {
+	t.Helper()
+	resp := pushRaw(t, baseURL, token, payload, headers)
+	for _, node := range nodes {
+		waitAnnouncementsHandled(t, node)
+	}
+	return resp
+}
+
 // requireAPNSErrorBody asserts the response matches the real-APNS error
 // shape documented on apnsPushError (JSON reason body, apns-id present on
 // errors, timestamp only on 410 Unregistered) and returns the reason.
@@ -323,10 +365,10 @@ func TestE2EPushDeliveredToConnectedClient(t *testing.T) {
 }
 
 func TestE2EOfflinePushDeliveredOnConnect(t *testing.T) {
-	srv := newTestServer(t)
+	srv, node := newTestServerWithNode(t)
 	const token = "aabbccddee02" // nolint:gosec // test token
 
-	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"magic2"}`), nil)
+	resp := pushOffline(t, srv.URL, token, []byte(`{"mdm":"magic2"}`), nil, node)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	c := sseConnect(t, srv.URL, token)
@@ -357,12 +399,12 @@ func TestE2EOfflinePushesCoalesceToLatest(t *testing.T) {
 }
 
 func TestE2EPushWithPastExpirationDiscarded(t *testing.T) {
-	srv := newTestServer(t)
+	srv, node := newTestServerWithNode(t)
 	const token = "aabbccddee04" // nolint:gosec // test token
 
 	// apns-expiration is unix SECONDS (buford's Headers.Expiration marshals
 	// seconds); 1 is 1970, long past. Device offline → discard, don't store.
-	resp := pushRaw(t, srv.URL, token, []byte(`{"mdm":"stale"}`), map[string]string{"apns-expiration": "1"})
+	resp := pushOffline(t, srv.URL, token, []byte(`{"mdm":"stale"}`), map[string]string{"apns-expiration": "1"}, node)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "a discarded push is still a successful push (APNS semantics)")
 
 	c := sseConnect(t, srv.URL, token)
@@ -572,15 +614,15 @@ func TestE2ECrossInstanceDelivery(t *testing.T) {
 
 	assert.JSONEq(t, `{"mdm":"crossed"}`, nextPing(t, c, 5*time.Second))
 
-	// Either instance answers with the same cluster-wide totals.
-	require.Eventually(t, func() bool {
-		return getStats(t, pusher.URL).Nodes == 2 && getStats(t, holder.URL).Nodes == 2
-	}, 5*time.Second, 20*time.Millisecond)
+	// Either instance answers with the same cluster-wide totals. A node's
+	// counters reach the others through a snapshot it flushes on a timer, so
+	// the cluster view trails the live one.
 	for _, url := range []string{holder.URL, pusher.URL} {
-		stats := getStats(t, url)
-		assert.EqualValues(t, 1, stats.Cluster.ActiveConnections, url)
-		assert.EqualValues(t, 1, stats.Cluster.TotalPushes, url)
-		assert.EqualValues(t, 1, stats.Cluster.DeliveredLive, url)
+		require.Eventually(t, func() bool {
+			stats := getStats(t, url)
+			return stats.Nodes == 2 && stats.Cluster.ActiveConnections == 1 &&
+				stats.Cluster.TotalPushes == 1 && stats.Cluster.DeliveredLive == 1
+		}, 5*time.Second, 20*time.Millisecond, "%s never reported the cluster-wide totals", url)
 	}
 }
 
@@ -589,10 +631,10 @@ func TestE2ECrossInstanceStoreAndForward(t *testing.T) {
 	// the device collects it wherever it turns up next.
 	env := testRedis(t)
 	pusher, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
-	holder, _ := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
+	holder, holderNode := newTestServerOnRedis(t, env, 30*time.Second, 10*time.Second)
 	const token = "aabbccddee11" // nolint:gosec // test token
 
-	resp := pushRaw(t, pusher.URL, token, []byte(`{"mdm":"waited"}`), nil)
+	resp := pushOffline(t, pusher.URL, token, []byte(`{"mdm":"waited"}`), nil, holderNode)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	c := sseConnect(t, holder.URL, token)

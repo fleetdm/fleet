@@ -8,5 +8,6 @@
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }

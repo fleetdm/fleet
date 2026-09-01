@@ -1946,7 +1946,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 	fma := santa("santaFMA", "2026.8")
-	fma.FleetMaintainedAppID = new(maintainedApp.ID)
+	fma.FleetMaintainedAppID = &maintainedApp.ID
 	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		santa("santaA", "2026.2"),
 		fma,
@@ -2645,7 +2645,7 @@ func testGetSoftwareInstallersPendingDeletion(t *testing.T, ds *Datastore) {
 			URL:                  "https://example.com/maintained1",
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 			BundleIdentifier:     "fleet.maintained1",
-			FleetMaintainedAppID: new(maintainedApp.ID),
+			FleetMaintainedAppID: &maintainedApp.ID,
 		},
 	})
 	require.NoError(t, err)
@@ -5508,7 +5508,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 			LabelScope: fleet.LabelScopeIncludeAny,
 			ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
 		},
-		FleetMaintainedAppID: new(maintainedApp.ID),
+		FleetMaintainedAppID: &maintainedApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -5595,6 +5595,48 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, v2ID, again)
+
+	// A rebuild of v2 (same version, new bytes) refreshes the row in place, and must
+	// leave a script the admin edited on it alone.
+	const rebuildAdminInstall = "echo ADMIN install"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO script_contents (contents, md5_checksum) VALUES (?, UNHEX(MD5(?)))
+			ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`, rebuildAdminInstall, rebuildAdminInstall)
+		if err != nil {
+			return err
+		}
+		scriptID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`UPDATE software_installers SET install_script_content_id = ?, install_script_edited = 1 WHERE id = ?`,
+			scriptID, v2ID)
+		return err
+	})
+	rebuilt, err := ds.InsertFleetMaintainedAppVersion(ctx, activeID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", Filename: "foo-2.0.pkg", Extension: "pkg", StorageID: "sha-v2-rebuilt",
+		URL: "https://example.test/foo-2.0.pkg", InstallScript: "echo install v2", UninstallScript: "echo uninstall v2",
+	})
+	require.NoError(t, err)
+	require.Equal(t, v2ID, rebuilt)
+
+	var refreshed struct {
+		Storage       string `db:"storage_id"`
+		Install       string `db:"install_script"`
+		InstallEdited bool   `db:"install_script_edited"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &refreshed, `
+			SELECT si.storage_id, si.install_script_edited, sc.contents AS install_script
+			FROM software_installers si
+			JOIN script_contents sc ON sc.id = si.install_script_content_id
+			WHERE si.id = ?`, v2ID)
+	})
+	require.Equal(t, "sha-v2-rebuilt", refreshed.Storage)
+	require.True(t, refreshed.InstallEdited)
+	require.Equal(t, rebuildAdminInstall, refreshed.Install, "a rebuild keeps the script the admin edited")
 
 	// Force v2 to be the oldest non-active version so eviction is deterministic.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5715,6 +5757,25 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 		return err
 	})
 
+	// The same admin replaces v2's install script and leaves its uninstall script alone.
+	const adminInstall = "echo ADMIN install"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO script_contents (contents, md5_checksum) VALUES (?, UNHEX(MD5(?)))
+			ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`, adminInstall, adminInstall)
+		if err != nil {
+			return err
+		}
+		scriptID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx,
+			`UPDATE software_installers SET install_script_content_id = ?, install_script_edited = 1 WHERE id = ?`,
+			scriptID, v2)
+		return err
+	})
+
 	// Insert v3 with the STALE caller id (v1). Config must clone from live active (v2).
 	v3, err := ds.InsertFleetMaintainedAppVersion(ctx, v1, &fleet.UploadSoftwareInstallerPayload{
 		Version: "3.0", Filename: "foo-3.0.pkg", Extension: "pkg", StorageID: "clone-v3",
@@ -5723,15 +5784,29 @@ func testInsertFleetMaintainedAppVersionClonesLiveActive(t *testing.T, ds *Datas
 	require.NoError(t, err)
 
 	var r struct {
-		SelfService        bool `db:"self_service"`
-		InstallDuringSetup bool `db:"install_during_setup"`
+		SelfService        bool   `db:"self_service"`
+		InstallDuringSetup bool   `db:"install_during_setup"`
+		Install            string `db:"install_script"`
+		Uninstall          string `db:"uninstall_script"`
+		InstallEdited      bool   `db:"install_script_edited"`
+		UninstallEdited    bool   `db:"uninstall_script_edited"`
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &r,
-			`SELECT self_service, install_during_setup FROM software_installers WHERE id = ?`, v3)
+		return sqlx.GetContext(ctx, q, &r, `
+			SELECT si.self_service, si.install_during_setup,
+				si.install_script_edited, si.uninstall_script_edited,
+				sci.contents AS install_script, scu.contents AS uninstall_script
+			FROM software_installers si
+			JOIN script_contents sci ON sci.id = si.install_script_content_id
+			JOIN script_contents scu ON scu.id = si.uninstall_script_content_id
+			WHERE si.id = ?`, v3)
 	})
 	require.True(t, r.SelfService, "self_service cloned from live active (v2), not stale v1")
 	require.True(t, r.InstallDuringSetup, "install_during_setup cloned from live active (v2), not stale v1")
+	require.True(t, r.InstallEdited)
+	require.Equal(t, adminInstall, r.Install, "an edited script is cloned from live active, not taken from the payload")
+	require.False(t, r.UninstallEdited)
+	require.Equal(t, "echo u3", r.Uninstall, "an unedited script still comes from the payload")
 }
 
 // testGetSoftwareInstallerMetadataByStorageID verifies metadata recovery works
@@ -5758,7 +5833,7 @@ func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
 		PackageIDs: []string{"PROD-CODE"}, UpgradeCode: "UP-CODE",
 		InstallerFile: newFile("v1"), StorageID: "hash-meta-1", Filename: "foo.msi", Extension: "msi",
 		Version: "1.0", UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintainedApp.ID),
+		FleetMaintainedAppID: &maintainedApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -5768,16 +5843,20 @@ func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	pids, ucode, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
+	cached, err := ds.GetSoftwareInstallerMetadataByStorageID(ctx, "hash-meta-1")
 	require.NoError(t, err)
-	require.Equal(t, []string{"PROD-CODE"}, pids, "recovers package IDs from an inactive row")
-	require.Equal(t, "UP-CODE", ucode)
+	require.Equal(t, []string{"PROD-CODE"}, cached.PackageIDs, "recovers package IDs from an inactive row")
+	require.Equal(t, "UP-CODE", cached.UpgradeCode)
+	require.Equal(t, "foo.msi", cached.Filename)
+	require.Equal(t, "msi", cached.Extension)
 
 	// Unknown hash → empty, no error.
-	pids, ucode, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
+	cached, err = ds.GetSoftwareInstallerMetadataByStorageID(ctx, "no-such-hash")
 	require.NoError(t, err)
-	require.Empty(t, pids)
-	require.Empty(t, ucode)
+	require.Empty(t, cached.PackageIDs)
+	require.Empty(t, cached.UpgradeCode)
+	require.Empty(t, cached.Filename)
+	require.Empty(t, cached.Extension)
 }
 
 func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
@@ -7094,7 +7173,7 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 	})
 	require.NoError(t, err)
 
@@ -7155,7 +7234,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		Title: "testpkg", Source: "apps", Platform: "darwin",
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
-		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(fma.ID),
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
 		PatchQuery: v1Query,
 	})
 	require.NoError(t, err)
@@ -7404,7 +7483,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 			TeamID:               &team.ID,
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-			FleetMaintainedAppID: new(app.ID),
+			FleetMaintainedAppID: &app.ID,
 		})
 		require.NoError(t, err)
 		return installerID, titleID
@@ -7488,7 +7567,7 @@ func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
 			Platform:             "darwin",
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-			FleetMaintainedAppID: new(app.ID),
+			FleetMaintainedAppID: &app.ID,
 			AppOpenQuery:         appOpenQuery,
 		})
 		require.NoError(t, err)

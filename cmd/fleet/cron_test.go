@@ -433,13 +433,14 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		Value: new("Engineering"),
 	})
 	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
 
 	// Create a global and a team1-scoped IdP host vitals label.
 	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
 		Name:                "idp-cron-global",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		HostVitalsCriteria:  &raw,
 	})
 	require.NoError(t, err)
 	team1Label, err := ds.NewLabel(ctx, &fleet.Label{
@@ -447,7 +448,7 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		TeamID:              &team1.ID,
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-		HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		HostVitalsCriteria:  &raw,
 	})
 	require.NoError(t, err)
 
