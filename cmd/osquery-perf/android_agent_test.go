@@ -492,9 +492,33 @@ func assertVitalsReported(t *testing.T, agent *androidAgent, device androidmanag
 	require.NotNil(t, device.SecurityPosture, "security_posture")
 	assert.Contains(t, validPostures, device.SecurityPosture.DevicePosture)
 
-	require.NotNil(t, device.NetworkInfo, "telephony_infos")
+	require.NotNil(t, device.NetworkInfo, "telephony_infos, imei and meid")
 	require.NotEmpty(t, device.NetworkInfo.TelephonyInfos)
-	assert.Equal(t, "COMPANY_OWNED", device.Ownership, "Fleet drops telephony info for a personally owned device")
+	assert.Equal(t, agent.imei, device.NetworkInfo.Imei)
+	assert.Equal(t, agent.meid, device.NetworkInfo.Meid)
+	assertRadioIdentifier(t, device.NetworkInfo.Imei, device.NetworkInfo.Meid)
+	assert.Equal(t, "COMPANY_OWNED", device.Ownership,
+		"Fleet drops telephony info, imei and meid for a personally owned device")
+}
+
+// assertRadioIdentifier checks that a device reports exactly one radio
+// identifier, in the right format. A device has one radio: reporting both would
+// be a device Fleet stores an imei and a meid for, which cannot exist, and
+// reporting neither leaves both columns NULL.
+func assertRadioIdentifier(t *testing.T, imei, meid string) {
+	t.Helper()
+
+	switch {
+	case imei != "":
+		assert.Empty(t, meid, "a device reports imei or meid, never both")
+		assert.Regexp(t, `^[0-9]{15}$`, imei, "an IMEI is 15 digits")
+	case meid != "":
+		assert.Regexp(t, `^[0-9A-F]{14}$`, meid, "an MEID is 14 upper-case hex digits")
+	default:
+		t.Error("the device reported neither an imei nor a meid, so Fleet stores neither")
+	}
+	assert.LessOrEqual(t, len(imei), fleet.MDMAndroidDeviceVitalMaxLength)
+	assert.LessOrEqual(t, len(meid), fleet.MDMAndroidDeviceVitalMaxLength)
 }
 
 // TestStatusReportIncludesHostVitals is the load-test counterpart of Fleet's
@@ -604,8 +628,11 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 		assert.Equal(t, first.SoftwareInfo.DeviceKernelVersion, device.SoftwareInfo.DeviceKernelVersion)
 		assert.Equal(t, first.SoftwareInfo.BootloaderVersion, device.SoftwareInfo.BootloaderVersion)
 
-		// The SIM cards are hardware; only their eSIM activation moves.
+		// The radio and the SIM cards are hardware; only eSIM activation moves.
 		require.NotNil(t, device.NetworkInfo)
+		assert.Equal(t, first.NetworkInfo.Imei, device.NetworkInfo.Imei)
+		assert.Equal(t, first.NetworkInfo.Meid, device.NetworkInfo.Meid)
+		assertRadioIdentifier(t, device.NetworkInfo.Imei, device.NetworkInfo.Meid)
 		require.Len(t, device.NetworkInfo.TelephonyInfos, len(first.NetworkInfo.TelephonyInfos))
 		for i, sim := range device.NetworkInfo.TelephonyInfos {
 			assert.Equal(t, first.NetworkInfo.TelephonyInfos[i].IccId, sim.IccId)
@@ -793,6 +820,7 @@ func TestGeneratedVitalsAcrossFleet(t *testing.T) {
 		unencrypted    int
 		noSettings     int
 		noPosture      int
+		cdma           int
 	)
 
 	for i := 0; i < deviceCount; i++ {
@@ -830,6 +858,13 @@ func TestGeneratedVitalsAcrossFleet(t *testing.T) {
 					assert.NotEmpty(t, advice.DefaultMessage, "Fleet only keeps the default message")
 				}
 			}
+		}
+
+		assertRadioIdentifier(t, agent.imei, agent.meid)
+		if agent.meid != "" {
+			cdma++
+			assert.True(t, strings.HasPrefix(agent.telephonyInfos[0].PhoneNumber, "+1"),
+				"only a North American device should still be on CDMA, got %q", agent.telephonyInfos[0].PhoneNumber)
 		}
 
 		require.NotEmpty(t, agent.telephonyInfos)
@@ -923,6 +958,7 @@ func TestGeneratedVitalsAcrossFleet(t *testing.T) {
 		{"unencrypted devices", unencrypted, 1, 48},
 		{"devices not collecting deviceSettings", noSettings, 10, 70},
 		{"devices not collecting securityPosture", noPosture, 10, 70},
+		{"CDMA devices reporting an MEID", cdma, 1, 46},
 	} {
 		assert.GreaterOrEqual(t, band.got, band.low, "%s: %d is below the expected band", band.name, band.got)
 		assert.LessOrEqual(t, band.got, band.high, "%s: %d is above the expected band", band.name, band.got)
@@ -933,6 +969,44 @@ func TestGeneratedVitalsAcrossFleet(t *testing.T) {
 	assert.Positive(t, activations["ACTIVATED"], "activated eSIMs")
 	assert.Positive(t, configModes["ADMIN_CONFIGURED"])
 	assert.Positive(t, configModes["USER_CONFIGURED"])
+}
+
+// TestGenerateRadioIdentifier covers the radio identifier directly: a device has
+// one radio, so Fleet must never receive an imei and a meid for the same device.
+func TestGenerateRadioIdentifier(t *testing.T) {
+	t.Run("a non-North-American device is always GSM", func(t *testing.T) {
+		sims := []*androidmanagement.TelephonyInfo{{PhoneNumber: "+447700900000"}}
+		for range 200 {
+			imei, meid := generateRadioIdentifier(sims)
+			assertRadioIdentifier(t, imei, meid)
+			assert.Empty(t, meid, "CDMA never ran on these networks")
+		}
+	})
+
+	t.Run("a North American device is usually GSM and sometimes CDMA", func(t *testing.T) {
+		sims := []*androidmanagement.TelephonyInfo{{PhoneNumber: "+15551234567"}}
+		var gsm, cdma int
+		for range 400 {
+			imei, meid := generateRadioIdentifier(sims)
+			assertRadioIdentifier(t, imei, meid)
+			if meid != "" {
+				cdma++
+			} else {
+				gsm++
+			}
+		}
+		assert.Greater(t, gsm, cdma, "CDMA is the rare case")
+		// p=0.1 over 400 draws: mean 40, and P(zero) is about 1e-18.
+		assert.Positive(t, cdma, "CDMA devices must still occur")
+	})
+
+	// Nothing generates an empty SIM list today, but the generator reads the
+	// first SIM and must not panic if that ever changes.
+	t.Run("no SIMs still yields an identifier", func(t *testing.T) {
+		imei, meid := generateRadioIdentifier(nil)
+		assertRadioIdentifier(t, imei, meid)
+		assert.Empty(t, meid)
+	})
 }
 
 // TestVitalsMapsAgree guards the three per-release / per-brand maps against

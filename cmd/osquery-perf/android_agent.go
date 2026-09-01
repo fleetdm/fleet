@@ -80,6 +80,11 @@ type androidAgent struct {
 	// activation state and config mode move.
 	telephonyInfos []*androidmanagement.TelephonyInfo
 
+	// The device's radio identifier. A device has one radio, so exactly one of
+	// these is set: IMEI on a GSM device, MEID on a CDMA one.
+	imei string
+	meid string
+
 	// Whether the applied policy collects these sections at all. AMAPI omits a
 	// section it is not asked for, and Fleet nulls the matching columns when a
 	// device stops reporting one.
@@ -301,7 +306,26 @@ func (a *androidAgent) generateStableVitals() {
 	})
 
 	a.telephonyInfos = generateTelephonyInfos()
+	a.imei, a.meid = generateRadioIdentifier(a.telephonyInfos)
 	a.rollCollectedSections()
+}
+
+// generateRadioIdentifier builds the device's hardware radio identifier and
+// returns it as (imei, meid). AMAPI reports whichever the radio uses and never
+// both, so exactly one of the two is non-empty.
+//
+// CDMA is the rare case, and only for a device on a North American carrier:
+// the networks that ran it elsewhere are gone, and the ones that ran it in the
+// US shut it down years ago, leaving only stragglers.
+func generateRadioIdentifier(sims []*androidmanagement.TelephonyInfo) (imei, meid string) {
+	northAmerican := len(sims) > 0 && strings.HasPrefix(sims[0].PhoneNumber, "+1")
+	if northAmerican && rand.Float64() < 0.1 { // #nosec G404 -- load testing only
+		// An MEID is 14 hexadecimal digits, conventionally upper case.
+		return "", strings.ToUpper(randomHexString(14))
+	}
+	// An IMEI is 15 digits: 14 identifying the device plus a Luhn check digit,
+	// which is left random here because nothing in Fleet validates it.
+	return randomDigits(15), ""
 }
 
 // generateVolatileVitals rolls the vitals that describe what the device is doing
@@ -866,9 +890,11 @@ func (a *androidAgent) deviceInfo() androidmanagement.Device {
 			TotalInternalStorage: a.totalInternalStorage,
 		},
 		MemoryEvents: a.generateMemoryEvents(),
-		// AMAPI only reports telephonyInfos for a fully managed device, which
-		// every simulated device is (COMPANY_OWNED above).
+		// AMAPI only reports telephonyInfos, imei and meid for a fully managed
+		// device, which every simulated device is (COMPANY_OWNED above).
 		NetworkInfo: &androidmanagement.NetworkInfo{
+			Imei:           a.imei,
+			Meid:           a.meid,
 			TelephonyInfos: a.simSnapshot(),
 		},
 	}
