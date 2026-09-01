@@ -1,4 +1,5 @@
 import createMockHost from "__mocks__/hostMock";
+import { HostPlatform } from "interfaces/platform";
 
 import { canShowMyDeviceButton } from "./helpers";
 
@@ -41,7 +42,8 @@ describe("canShowMyDeviceButton", () => {
 
   it("returns false for legacy ChromeOS (CrOS) even with Fleet Desktop reported", () => {
     const host = createMockHost({
-      platform: "CrOS",
+      // legacy value predating the HostPlatform union; real hosts can report it
+      platform: "CrOS" as HostPlatform,
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });

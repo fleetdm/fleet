@@ -24,11 +24,12 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 // end-user surface. Hide the button on wiped hosts and on hosts with a wipe
 // in flight — the device is about to have no end-user session to review.
 export const canShowMyDeviceButton = (
-  host: Pick<IHost, "fleet_desktop_version" | "mdm" | "platform">
+  // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
+  // report "CrOS", which predates the HostPlatform union.
+  host: Pick<IHost, "fleet_desktop_version" | "mdm"> & { platform: string }
 ) => {
   // Android and ChromeOS have no My device page, so the link would only lead to
   // an error. GET /hosts/:id/device_url rejects them for the same reason.
-  // "CrOS" is the legacy ChromeOS platform value some custom agents still report.
   if (
     isAndroid(host.platform) ||
     isChrome(host.platform) ||
