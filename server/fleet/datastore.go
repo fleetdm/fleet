@@ -1361,6 +1361,12 @@ type Datastore interface {
 	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
 	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
+	// SetOrUpdateHostBitLockerProtectionOutcome records what the agent did about a volume that was encrypted but
+	// unprotected, and why.
+	SetOrUpdateHostBitLockerProtectionOutcome(
+		ctx context.Context, hostID uint, outcome DiskEncryptionProtectionOutcome, protectionError string,
+	) error
+
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)

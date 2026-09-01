@@ -668,10 +668,12 @@ func hostFieldsGen() *rapid.Generator[*fleet.Host] {
 			HasHostIdentityCert:         drawPtrBool("has_cert"),
 			// Orbit-specific fields. LoadHostByOrbitNodeKey populates these;
 			// LoadHostByNodeKey leaves them nil. Either is a valid input.
-			DEPAssignedToFleet:    drawPtrBool("dep"),
-			DiskEncryptionEnabled: drawPtrBool("enc"),
-			TeamName:              drawPtrString("team_name"),
-			MDM:                   fleet.MDMHostData{EncryptionKeyAvailable: rapid.Bool().Draw(t, "mdm_eka")},
+			DEPAssignedToFleet:        drawPtrBool("dep"),
+			DiskEncryptionEnabled:     drawPtrBool("enc"),
+			BitLockerProtectionStatus: rapid.Ptr(rapid.IntRange(0, 2), true).Draw(t, "bitlocker_protection_status"),
+			TPMPINSet:                 rapid.Bool().Draw(t, "tpm_pin_set"),
+			TeamName:                  drawPtrString("team_name"),
+			MDM:                       fleet.MDMHostData{EncryptionKeyAvailable: rapid.Bool().Draw(t, "mdm_eka")},
 		}
 		h.CreatedAt = drawTime("created_at")
 		h.UpdatedAt = drawTime("updated_at")
