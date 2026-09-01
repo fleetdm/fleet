@@ -1137,8 +1137,7 @@ const HostDetailsPage = ({
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
-            ? mdmConfig?.windows_settings?.managed_local_account_settings
-                ?.enabled ?? false
+            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
             : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
         managedAccountStatus={
@@ -1460,7 +1459,7 @@ const HostDetailsPage = ({
                 <TabText>Library</TabText>
               </Tab>
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__software-inventory-tab-panel`}>
               <SoftwareInventoryCard
                 id={host.id}
                 platform={host.platform}
@@ -1531,7 +1530,7 @@ const HostDetailsPage = ({
             </TabPanel>
           </>
         ) : (
-          <>
+          <div className={`${baseClass}__software-inventory-tab-panel`}>
             <SoftwareInventoryCard
               id={host.id}
               platform={host.platform}
@@ -1553,7 +1552,7 @@ const HostDetailsPage = ({
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             )}
-          </>
+          </div>
         )}
       </div>
     );
@@ -1918,6 +1917,7 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
+              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
                 // The server marks the host unenrolled immediately, so refresh

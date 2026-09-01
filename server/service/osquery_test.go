@@ -3,7 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"slices"
@@ -46,6 +49,179 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// queriesByNameFromQueryByName adapts a per-name QueryByName stub into the batch
+// QueriesByName that the result path now uses, so existing tests keep their
+// per-name stub logic. A stub that returns an error for a name (not found) leaves
+// it absent from the map, matching the real batch behavior.
+func queriesByNameFromQueryByName(
+	fn func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error),
+) func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	return func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		out := make(map[string]*fleet.Query, len(names))
+		for _, n := range names {
+			q, err := fn(ctx, n.TeamID, n.Name)
+			if err != nil {
+				continue
+			}
+			out[n.Key()] = q
+		}
+		return out, nil
+	}
+}
+
+// setUpBatchResultLogsTest wires the minimum for SubmitResultLogs to reach
+// preProcessOsqueryResults, returning the unwrapped *Service and the store.
+func setUpBatchResultLogsTest(t *testing.T) (*Service, context.Context, *mock.Store) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return nil, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+		return len(rows), nil
+	}
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+	serv.osqueryLogWriter = &OsqueryLogger{Result: &testJSONLogger{}}
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+	return serv, ctx, ds
+}
+
+func globalResults(n int) []json.RawMessage {
+	results := make([]json.RawMessage, 0, n)
+	for i := range n {
+		results = append(results, json.RawMessage(fmt.Sprintf(
+			`{"snapshot":[{"a":"b"}],"action":"snapshot","name":"pack/Global/q%d","hostIdentifier":"h","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931}`, i)))
+	}
+	return results
+}
+
+// TestSubmitResultLogsBatchesQueryLookups pins the DoS fix: a submission with
+// many distinct query names must resolve in a single batched lookup, and must
+// never fall back to a per-name QueryByName (left nil so a regression panics).
+func TestSubmitResultLogsBatchesQueryLookups(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+
+	var batchCalls int
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		batchCalls++
+		return map[string]*fleet.Query{}, nil
+	}
+
+	require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(50)))
+	require.Equal(t, 1, batchCalls, "50 distinct names must resolve in a single batched lookup")
+	require.False(t, ds.QueryByNameFuncInvoked, "batched result path must not fall back to per-name QueryByName")
+}
+
+// TestSubmitResultLogsBatchLookupError verifies a batch-lookup failure is
+// swallowed (results pass through unmodified) rather than crashing or erroring.
+func TestSubmitResultLogsBatchLookupError(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		return nil, errors.New("db unavailable")
+	}
+	require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(5)))
+}
+
+// TestSubmitResultLogsCapsDistinctNames verifies the per-submission distinct-name
+// cap bounds how many names reach the datastore.
+func TestSubmitResultLogsCapsDistinctNames(t *testing.T) {
+	defer func(orig int) { maxDistinctQueryNamesPerSubmission = orig }(maxDistinctQueryNamesPerSubmission)
+	maxDistinctQueryNamesPerSubmission = 10
+
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	var maxSeen int
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		maxSeen = len(names)
+		return map[string]*fleet.Query{}, nil
+	}
+
+	require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(100)))
+	require.LessOrEqual(t, maxSeen, 10, "distinct names passed to the datastore must be capped")
+}
+
+// TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck pins the cap to failing
+// closed. A name left unresolved by the cap must not be treated like one Fleet
+// doesn't know: those pass through to the log destination without a schedule
+// check, so inheriting that would let a host fill the cap with junk names and
+// launder a forged result for a query it was never scheduled to run.
+func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
+	defer func(o int) { maxDistinctQueryNamesPerSubmission = o }(maxDistinctQueryNamesPerSubmission)
+	maxDistinctQueryNamesPerSubmission = 2
+
+	// forged names a real Fleet query; the host below is scheduled for nothing.
+	const forged = `{"snapshot":[{"forged":"true"}],"action":"snapshot","name":"pack/Global/report_query","hostIdentifier":"h","unixTime":1484078931}`
+
+	run := func(t *testing.T, fillCap bool) int {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+			out := make(map[string]*fleet.Query, len(names))
+			for _, n := range names {
+				out[n.Key()] = &fleet.Query{ID: 42, Name: n.Name, Logging: fleet.LoggingSnapshot, AutomationsEnabled: true}
+			}
+			return out, nil
+		}
+		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) { return nil, nil }
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m int) (int, error) {
+			return len(rows), nil
+		}
+		logDest := &testJSONLogger{}
+		serv := ((svc.(validationMiddleware)).Service).(*Service)
+		serv.osqueryLogWriter = &OsqueryLogger{Result: logDest}
+		ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1})
+
+		var results []json.RawMessage
+		if fillCap {
+			results = append(results, globalResults(maxDistinctQueryNamesPerSubmission)...)
+		}
+		results = append(results, json.RawMessage(forged))
+		require.NoError(t, serv.SubmitResultLogs(ctx, results))
+		return len(logDest.logs)
+	}
+
+	require.Equal(t, 0, run(t, false), "unscheduled query must be dropped when under the cap")
+	require.Equal(t, 0, run(t, true), "filling the cap must not let an unscheduled query through")
+}
+
+// TestSubmitResultLogsCapWarningOnlyWhenNamesDropped pins the cap's warning to
+// names actually left unresolved: a submission landing exactly on the cap uses
+// every slot without breaching it and must not report one.
+func TestSubmitResultLogsCapWarningOnlyWhenNamesDropped(t *testing.T) {
+	defer func(orig int) { maxDistinctQueryNamesPerSubmission = orig }(maxDistinctQueryNamesPerSubmission)
+	maxDistinctQueryNamesPerSubmission = 10
+
+	for _, tc := range []struct {
+		name        string
+		distinct    int
+		wantWarning bool
+	}{
+		{"under the cap", 9, false},
+		{"exactly at the cap", 10, false},
+		{"over the cap", 11, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			serv, ctx, ds := setUpBatchResultLogsTest(t)
+			serv.logger = slog.New(slog.NewJSONHandler(buf, nil))
+
+			var seen int
+			ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+				seen = len(names)
+				return map[string]*fleet.Query{}, nil
+			}
+
+			require.NoError(t, serv.SubmitResultLogs(ctx, globalResults(tc.distinct)))
+			require.Equal(t, min(tc.distinct, 10), seen)
+			require.Equal(t, tc.wantWarning, strings.Contains(buf.String(), "distinct query name cap"),
+				"warning presence should track names actually dropped; log was: %s", buf.String())
+		})
+	}
+}
 
 func TestGetClientConfig(t *testing.T) {
 	ds := new(mock.Store)
@@ -800,6 +976,18 @@ func TestListHostIDsDueForDistributedRead(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, intervalDue, due)
 	})
+
+	t.Run("deleted hosts are reported as not found", func(t *testing.T) {
+		svc, ctx, lq, _ := setup(t)
+		lq.On("LoadActiveQueryNames").Return([]string{}, nil)
+
+		// IDs 8 and 9 have no hosts row (deleted while their agent was connected).
+		due, err := svc.ListHostIDsDueForDistributedRead(ctx, append(slices.Clone(allIDs), 8, 9))
+		require.NoError(t, err)
+		want := map[uint]string{8: fleet.AgentWSReasonHostNotFound, 9: fleet.AgentWSReasonHostNotFound}
+		maps.Copy(want, intervalDue)
+		assert.Equal(t, want, due)
+	})
 }
 
 func TestAuthenticateHostContextCanceled(t *testing.T) {
@@ -966,6 +1154,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		// Mirrors the IDs returned by QueryByNameFunc above. Team 1 queries are never
 		// scheduled here because no host in this test belongs to team 1.
@@ -1260,6 +1449,7 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		}, nil
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
@@ -1315,6 +1505,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		}, nil
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
@@ -1369,6 +1560,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 				AutomationsEnabled: true,
 			}, nil
 		}
+		ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 			if !scheduledForHost {
 				return nil, nil
@@ -1425,6 +1617,7 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 		ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 			return nil, newNotFoundError()
 		}
+		ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 
 		results := newResults()
 		require.NoError(t, svc.SubmitResultLogs(ctx, results))
@@ -1509,6 +1702,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 			Name:               name,
 		}, nil
 	}
+	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
 	}
@@ -1696,7 +1890,7 @@ func TestHostDetailQueries(t *testing.T) {
 
 		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
-		NodeKey:         ptr.String("test_key"),
+		NodeKey:         new("test_key"),
 		Hostname:        "test_hostname",
 		UUID:            "test_uuid",
 	}
@@ -1861,7 +2055,7 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	host := fleet.Host{
 		ID:       1,
 		Platform: "darwin",
-		NodeKey:  ptr.String("test_key"),
+		NodeKey:  new("test_key"),
 		Hostname: "test_hostname",
 		UUID:     "test_uuid",
 		TeamID:   nil,
@@ -2220,7 +2414,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	host := &fleet.Host{
 		ID:            1,
 		Platform:      "windows",
-		OsqueryHostID: ptr.String("very_random"),
+		OsqueryHostID: new("very_random"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -2423,7 +2617,7 @@ func TestDetailQueries(t *testing.T) {
 		ID:             1,
 		Platform:       "linux",
 		HardwareSerial: "HW_SRL",
-		OsqueryHostID:  ptr.String("foobar"),
+		OsqueryHostID:  new("foobar"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -2866,7 +3060,7 @@ func TestMDMQueries(t *testing.T) {
 	host := fleet.Host{
 		ID:       1,
 		Platform: "darwin",
-		NodeKey:  ptr.String("test_key"),
+		NodeKey:  new("test_key"),
 		Hostname: "test_hostname",
 		UUID:     "test_uuid",
 		TeamID:   nil,
@@ -3003,7 +3197,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	host := &fleet.Host{
 		ID:            1,
 		Platform:      "windows",
-		OsqueryHostID: ptr.String("other_random_value"),
+		OsqueryHostID: new("other_random_value"),
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -3502,7 +3696,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := hostctx.NewContext(ctx, &fleet.Host{
 				ID:                  1,
-				NodeKey:             ptr.String("123456"),
+				NodeKey:             new("123456"),
 				DistributedInterval: tt.initIntervals.DistributedInterval,
 				ConfigTLSRefresh:    tt.initIntervals.ConfigTLSRefresh,
 				LoggerTLSPeriod:     tt.initIntervals.LoggerTLSPeriod,
@@ -6475,5 +6669,240 @@ func TestProcessProfileResendsForNewlyFailingPolicies(t *testing.T) {
 			&fleet.Host{ID: 1, UUID: "u", Platform: "darwin", TeamID: &teamID},
 			map[uint]*bool{applePolicyID: new(false)}, map[uint]struct{}{applePolicyID: {}}))
 		require.Equal(t, teamID, gotTeamID)
+	})
+}
+
+// TestClientConfigMarshal tests that marshalClientConfig produces the same
+// bytes as the existing jsonMarshal path (two-space indent, trailing newline).
+func TestClientConfigMarshal(t *testing.T) {
+	config := map[string]any{
+		"options": map[string]any{
+			"config": map[string]any{
+				"options": map[string]any{
+					"logger_plugin": "tls",
+				},
+			},
+		},
+	}
+
+	body, err := marshalClientConfig(config)
+	require.NoError(t, err)
+
+	// Verify it starts with { and ends with newline
+	assert.True(t, bytes.HasPrefix(body, []byte("{")))
+	assert.True(t, bytes.HasSuffix(body, []byte("\n")))
+
+	// Verify two-space indentation
+	assert.Contains(t, string(body), "  ")
+
+	// Verify it can be unmarshalled back
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(body, &decoded))
+	assert.Equal(t, config["options"], decoded["options"])
+}
+
+// TestClientConfigMarshalDeterministic verifies that two maps with identical
+// logical contents produce identical bytes and ETags regardless of insertion order.
+func TestClientConfigMarshalDeterministic(t *testing.T) {
+	config1 := map[string]any{
+		"options": map[string]any{"a": 1, "b": 2},
+		"packs":   map[string]any{"p1": map[string]any{}},
+	}
+	config2 := map[string]any{
+		"packs":   map[string]any{"p1": map[string]any{}},
+		"options": map[string]any{"b": 2, "a": 1},
+	}
+
+	body1, err := marshalClientConfig(config1)
+	require.NoError(t, err)
+	body2, err := marshalClientConfig(config2)
+	require.NoError(t, err)
+
+	assert.Equal(t, body1, body2, "maps with same keys/values must produce identical bytes")
+	assert.Equal(t, clientConfigETag(body1), clientConfigETag(body2))
+}
+
+// TestClientConfigETag verifies the validator format.
+func TestClientConfigETag(t *testing.T) {
+	body := []byte(`{"test": true}`)
+	etag := clientConfigETag(body)
+
+	// Bare lowercase hex SHA-256: the validator travels in JSON bodies, not
+	// HTTP headers, so there is no quoting. Hex also can never collide with
+	// the reserved "ok" value.
+	assert.Len(t, etag, 64)
+	sum := sha256.Sum256(body)
+	assert.Equal(t, hex.EncodeToString(sum[:]), etag)
+	assert.NotEqual(t, "ok", etag)
+}
+
+// TestClientConfigETagMatches tests the body-carried etag comparison: a nil
+// etag (agent did not opt in) and an empty etag (opted in, no validator yet)
+// can never match, so an agent without history is never answered "unchanged".
+func TestClientConfigETagMatches(t *testing.T) {
+	etag := "abc123"
+
+	tests := []struct {
+		name       string
+		clientETag *string
+		wantMatch  bool
+	}{
+		{"field absent", nil, false},
+		{"empty etag", new(""), false},
+		{"exact match", new("abc123"), true},
+		{"mismatch", new("xyz789"), false},
+		{"whitespace is not trimmed", new(" abc123 "), false},
+		{"no wildcard semantics", new("*"), false},
+		{"reserved ok never matches a real etag", new("ok"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := clientConfigETagMatches(tt.clientETag, etag)
+			assert.Equal(t, tt.wantMatch, got)
+		})
+	}
+}
+
+// TestGetClientConfigResponse_HijackRender tests the HijackRender method.
+func TestGetClientConfigResponse_HijackRender(t *testing.T) {
+	ctx := context.Background()
+	body := []byte("{\n  \"options\": {}\n}\n")
+
+	t.Run("full config", func(t *testing.T) {
+		rr := httptest.NewRecorder()
+		resp := getClientConfigResponse{
+			body:        body,
+			notModified: false,
+		}
+		resp.HijackRender(ctx, rr)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, body, rr.Body.Bytes())
+		assert.Empty(t, rr.Header().Get("ETag"))
+		assert.Equal(t, "private, no-cache", rr.Header().Get("Cache-Control"))
+		assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"))
+	})
+
+	t.Run("not modified", func(t *testing.T) {
+		rr := httptest.NewRecorder()
+		resp := getClientConfigResponse{
+			body:        body,
+			notModified: true,
+		}
+		resp.HijackRender(ctx, rr)
+
+		// The unchanged response is a plain 200 with the constant reserved
+		// body, never a 304 (nonstandard for POST) and never the config.
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.JSONEq(t, configUnchangedBody, rr.Body.String())
+		assert.Len(t, rr.Body.Bytes(), len(configUnchangedBody),
+			"the unchanged body is the exact constant, byte for byte")
+		assert.Empty(t, rr.Header().Get("ETag"))
+	})
+
+	t.Run("error response never reaches HijackRender", func(t *testing.T) {
+		resp := getClientConfigResponse{Err: errors.New("test error")}
+		assert.Error(t, resp.Error())
+	})
+}
+
+// TestGetClientConfigResponse_JSON tests MarshalJSON and UnmarshalJSON.
+func TestGetClientConfigResponse_JSON(t *testing.T) {
+	config := map[string]any{"options": map[string]any{"logger_plugin": "tls"}}
+
+	t.Run("MarshalJSON success", func(t *testing.T) {
+		resp := getClientConfigResponse{Config: config}
+		data, err := json.Marshal(resp)
+		require.NoError(t, err)
+
+		// Should be a top-level object, not wrapped
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal(data, &decoded))
+		assert.Contains(t, decoded, "options")
+		// Should not contain transport-only fields
+		assert.NotContains(t, decoded, "body")
+		assert.NotContains(t, decoded, "etag")
+		assert.NotContains(t, decoded, "not_modified")
+	})
+
+	t.Run("MarshalJSON error", func(t *testing.T) {
+		resp := getClientConfigResponse{Err: errors.New("something failed")}
+		data, err := json.Marshal(resp)
+		require.NoError(t, err)
+
+		var decoded map[string]string
+		require.NoError(t, json.Unmarshal(data, &decoded))
+		assert.Equal(t, "something failed", decoded["error"])
+	})
+
+	t.Run("UnmarshalJSON", func(t *testing.T) {
+		var resp getClientConfigResponse
+		data := []byte(`{"options":{"logger_plugin":"tls"}}`)
+		require.NoError(t, json.Unmarshal(data, &resp))
+		assert.Equal(t, config["options"], resp.Config["options"])
+	})
+}
+
+// TestGetClientConfigRequest_DecodeRequest tests the custom decoder,
+// including the three etag states the body protocol distinguishes.
+func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
+	decoder := getClientConfigRequest{}
+
+	t.Run("etag field with a value", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key", "etag": "abc123"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		assert.Equal(t, "test-key", req.NodeKey)
+		require.NotNil(t, req.ETag)
+		assert.Equal(t, "abc123", *req.ETag)
+	})
+
+	t.Run("empty etag field is opted in", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key", "etag": ""}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		require.NotNil(t, req.ETag)
+		assert.Empty(t, *req.ETag)
+	})
+
+	t.Run("absent etag field is not opted in", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		assert.Equal(t, "test-key", req.NodeKey)
+		assert.Nil(t, req.ETag)
+	})
+
+	t.Run("If-None-Match header is ignored", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		r.Header.Set("If-None-Match", `"abc123"`)
+
+		result, err := decoder.DecodeRequest(context.Background(), r)
+		require.NoError(t, err)
+
+		req := result.(*getClientConfigRequest)
+		assert.Nil(t, req.ETag)
+	})
+
+	t.Run("malformed JSON returns error", func(t *testing.T) {
+		body := []byte(`not json`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+
+		_, err := decoder.DecodeRequest(context.Background(), r)
+		assert.Error(t, err)
 	})
 }

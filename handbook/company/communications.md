@@ -708,6 +708,9 @@ When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
+- If you have an open pull request, note in the pull request that you'll be out, and when you're back. Put it in the pull request and not only in Slack, since whoever picks it up may not be the person you told.
+  - If the change isn't finished, move the pull request back to draft.
+  - If it needs to keep moving while you're out, name someone who has agreed to take it over.
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
   - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of Office" (OOO) event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.

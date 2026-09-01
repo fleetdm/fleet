@@ -217,5 +217,24 @@ In these cases there are two differences in our pull request process:
 - Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
 
 
+## Server and agent compatibility
+
+The Fleet server and the agent (fleetd) are released independently. Because of this, there will always be hosts running a different version of the agent than the server expects, whether because the server was just upgraded, because the agent was auto-updated first, or because some hosts have not yet received the agent update.
+
+### Keep agents up to date
+
+Running old agents is discouraged. Customers should keep agents on the latest version. If immediate updates are not possible, establish a regular upgrade cadence rather than letting agents fall behind indefinitely.
+
+### Do not break across version boundaries
+
+When a feature requires changes to both the server and the agent, a version mismatch must not break existing functionality. The new feature will not work until both sides are updated, but nothing that previously worked should stop working. This applies in both directions: a newer server with an older agent, and a newer agent with an older server.
+
+### Test compatibility with the previous release
+
+We test and QA each release against the previous version of its counterpart. When a new server version depends on a new agent feature, we verify that agents one version behind keep working. When a new agent version depends on a new server feature, we verify that the agent keeps working against a server one version behind.
+
+For long-term compatibility rules, see the [Fleetd development and release strategy](https://fleetdm.com/docs/contributing/workflows/fleetd-development-and-release-strategy). Server release notes must call out when a feature requires a minimum agent version.
+
+
 <meta name="maintainedBy" value="lukeheath">
 <meta name="description" value="Fleet's release process, including QA, release candidates, agent releases, and post-release tasks.">
