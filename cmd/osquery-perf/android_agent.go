@@ -176,6 +176,11 @@ const (
 	configModeUnspecified      = "CONFIG_MODE_UNSPECIFIED"
 )
 
+// policyEditProb is the chance a re-roll of a device's volatile vitals also
+// changes which sections its applied policy collects, standing in for an admin
+// editing the policy's status reporting settings.
+const policyEditProb = 0.05
+
 // defaultVitalsChurnProb is the default for --android_vitals_churn_prob: the
 // share of status reports that re-roll a device's volatile vitals instead of
 // repeating the previous ones.
@@ -228,9 +233,13 @@ var androidSecurityPatchLevels = recentSecurityPatchLevels(time.Now().UTC())
 // YYYY-MM-DD, and the bulletins land on the first of the month.
 func recentSecurityPatchLevels(now time.Time) []string {
 	const months = 4
+	// Anchored to the first of the month before subtracting: AddDate normalizes a
+	// day the target month doesn't have, so subtracting a month from the 31st
+	// lands in the month after the one intended and yields a duplicate.
+	firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	levels := make([]string, 0, months)
 	for i := months - 1; i >= 0; i-- {
-		levels = append(levels, now.AddDate(0, -i, 0).Format("2006-01")+"-01")
+		levels = append(levels, firstOfMonth.AddDate(0, -i, 0).Format("2006-01-02"))
 	}
 	return levels
 }
@@ -259,6 +268,13 @@ var androidCarriers = []androidCarrier{
 // change over its lifetime: who built it, what it runs, and which SIM cards are
 // in it. The distributions are weighted so a simulated fleet has a realistic
 // spread — the aggregate shape matters more than any one device.
+//
+// securityPatchLevel is pinned here even though a real device's does move when
+// it installs an update, which is why a simulated device can report
+// SECURITY_UPDATE_AVAILABLE and then UP_TO_DATE without its patch level ever
+// changing. Fleet folds the patch level into hosts.os_version, so churning it
+// would also churn operating_systems and host_operating_system — a much wider
+// blast radius than the vitals table this change is about.
 func (a *androidAgent) generateStableVitals() {
 	a.manufacturer = androidManufacturers[a.brand]
 	a.apiLevel = androidAPILevels[a.androidVersion]
@@ -267,7 +283,25 @@ func (a *androidAgent) generateStableVitals() {
 	a.deviceKernelVersion = fmt.Sprintf("%s.%d-android%s-%d-g%s",
 		androidKernelBases[a.androidVersion], rand.IntN(100), a.androidVersion, 1+rand.IntN(30), randomHexString(12)) // #nosec G404 -- load testing only
 	a.bootloaderVersion = fmt.Sprintf("%s-%s.0-%d", a.hardware, a.androidVersion, 10000000+rand.IntN(9000000)) // #nosec G404 -- load testing only
+
+	// Almost every managed device is encrypted; ACTIVE_PER_USER is what modern
+	// file-based encryption reports and ACTIVE what older full-disk encryption
+	// does. The unencrypted states are rare but not absent: they are the only
+	// ones that make Fleet store an encryption_type other than "on".
+	//
+	// Stable rather than volatile because none of these transitions exist on real
+	// hardware: UNSUPPORTED is a property of the device, and file-based vs
+	// full-disk encryption is fixed at first boot and changes only on a factory
+	// reset.
+	a.encryptionStatus = weightedChoice([]weightedValue{
+		{"ACTIVE_PER_USER", 0.84},
+		{"ACTIVE", 0.1},
+		{"INACTIVE", 0.04},
+		{"UNSUPPORTED", 0.02},
+	})
+
 	a.telephonyInfos = generateTelephonyInfos()
+	a.rollCollectedSections()
 }
 
 // generateVolatileVitals rolls the vitals that describe what the device is doing
@@ -275,16 +309,6 @@ func (a *androidAgent) generateStableVitals() {
 // Play Integrity reports, whether an update is pending, eSIM activation, and
 // which sections the applied policy collects at all.
 func (a *androidAgent) generateVolatileVitals() {
-	// Almost every managed device is encrypted; ACTIVE_PER_USER is what modern
-	// file-based encryption reports and ACTIVE what older full-disk encryption
-	// does. The unencrypted states are rare but not absent: they are the only
-	// ones that make Fleet store an encryption_type other than "on".
-	a.encryptionStatus = weightedChoice([]weightedValue{
-		{"ACTIVE_PER_USER", 0.84},
-		{"ACTIVE", 0.1},
-		{"INACTIVE", 0.04},
-		{"UNSUPPORTED", 0.02},
-	})
 	a.adbEnabled = rand.Float64() < 0.05       // #nosec G404 -- load testing only
 	a.deviceSecure = rand.Float64() < 0.95     // #nosec G404 -- load testing only
 	a.verifyAppsEnabled = rand.Float64() < 0.9 // #nosec G404 -- load testing only
@@ -324,15 +348,25 @@ func (a *androidAgent) generateVolatileVitals() {
 		}}
 	}
 
-	// Rolled alongside the rest, which flips a device's collected sections far
-	// more often than an admin would really edit the policy's status reporting
-	// settings. That is deliberate: a section going away is what makes Fleet null
-	// the matching columns, and a fleet that always reports everything never
-	// exercises it.
-	a.reportsDeviceSettings = rand.Float64() < 0.9  // #nosec G404 -- load testing only
-	a.reportsSecurityPosture = rand.Float64() < 0.9 // #nosec G404 -- load testing only
+	// Which sections are collected belongs to the applied policy, not to the
+	// moment, so it is decided per device in generateStableVitals. Re-rolling it
+	// rarely stands in for an admin editing the policy's status reporting
+	// settings, which is what makes Fleet null the columns of a section the
+	// device used to report. Re-rolling it every time would instead leave every
+	// host flickering between populated and empty vitals, which no real fleet
+	// does and which reads as a Fleet bug in the host UI.
+	if rand.Float64() < policyEditProb { // #nosec G404 -- load testing only
+		a.rollCollectedSections()
+	}
 
 	a.rollSIMActivation()
+}
+
+// rollCollectedSections decides which optional sections the device's applied
+// policy collects. AMAPI omits a section it is not asked for entirely.
+func (a *androidAgent) rollCollectedSections() {
+	a.reportsDeviceSettings = rand.Float64() < 0.9  // #nosec G404 -- load testing only
+	a.reportsSecurityPosture = rand.Float64() < 0.9 // #nosec G404 -- load testing only
 }
 
 // rollSIMActivation re-rolls the activation state and config mode of the device's
@@ -835,7 +869,7 @@ func (a *androidAgent) deviceInfo() androidmanagement.Device {
 		// AMAPI only reports telephonyInfos for a fully managed device, which
 		// every simulated device is (COMPANY_OWNED above).
 		NetworkInfo: &androidmanagement.NetworkInfo{
-			TelephonyInfos: a.telephonyInfos,
+			TelephonyInfos: a.simSnapshot(),
 		},
 	}
 
@@ -862,6 +896,18 @@ func (a *androidAgent) deviceInfo() androidmanagement.Device {
 	}
 
 	return device
+}
+
+// simSnapshot copies the device's SIM cards so a payload is a snapshot of them.
+// rollSIMActivation mutates them in place, and a message that shared the agent's
+// pointers could otherwise be marshaled with a half-updated SIM — an activation
+// state from after the re-roll beside a config mode from before it.
+func (a *androidAgent) simSnapshot() []*androidmanagement.TelephonyInfo {
+	sims := make([]*androidmanagement.TelephonyInfo, 0, len(a.telephonyInfos))
+	for _, sim := range a.telephonyInfos {
+		sims = append(sims, new(*sim))
+	}
+	return sims
 }
 
 // sendEnrollment sends an ENROLLMENT PubSub message to Fleet.

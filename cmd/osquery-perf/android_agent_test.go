@@ -570,9 +570,12 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 	state := testState()
 	// Enough reports that a value failing to move is a real failure and not a run
 	// of luck: the least likely of the assertions below (security posture never
-	// leaving SECURE) has a false-failure probability around 1e-10 at this count,
-	// against roughly 1 in 7,000 at 60 reports.
+	// leaving SECURE) has a false-failure probability around 4e-10 at this count,
+	// against roughly 1 in 7,000 at 60.
 	const reports = 150
+
+	// The churn only happens in a real load test if the default says it should.
+	assert.Positive(t, defaultVitalsChurnProb, "the default must actually re-roll vitals")
 	for range reports {
 		require.NoError(t, agent.sendStatusReport(&state))
 	}
@@ -586,7 +589,6 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 		updates        = map[string]int{}
 		simConfigModes = map[string]int{}
 		hasESIM        bool
-		sectionsGone   int
 	)
 	first := messages[0].device
 	for _, msg := range messages {
@@ -625,12 +627,11 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 		assert.Contains(t, validUpdateStatuses, device.SoftwareInfo.SystemUpdateInfo.UpdateStatus)
 		updates[device.SoftwareInfo.SystemUpdateInfo.UpdateStatus]++
 
-		if device.DeviceSettings == nil || device.SecurityPosture == nil {
-			sectionsGone++
-		}
 		if ds := device.DeviceSettings; ds != nil {
-			assert.Contains(t, validEncryptionStatuses, ds.EncryptionStatus)
-			settings[fmt.Sprintf("%t/%t/%t/%s", ds.AdbEnabled, ds.IsDeviceSecure, ds.VerifyAppsEnabled, ds.EncryptionStatus)]++
+			// Encryption is a stable device property, so it must not move even
+			// though it lives in the same section as the settings that do.
+			assert.Equal(t, agent.encryptionStatus, ds.EncryptionStatus)
+			settings[fmt.Sprintf("%t/%t/%t", ds.AdbEnabled, ds.IsDeviceSecure, ds.VerifyAppsEnabled)]++
 		}
 		if sp := device.SecurityPosture; sp != nil {
 			assert.Contains(t, validPostures, sp.DevicePosture)
@@ -645,12 +646,11 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 		}
 	}
 
-	// Over 60 re-rolls each of these must have taken more than one value, or the
-	// vitals row would be written once and then never change again.
+	// Across every re-roll each of these must have taken more than one value, or
+	// the vitals row would be written once and then never change again.
 	assert.Greater(t, len(settings), 1, "device settings never changed across %d reports", reports)
 	assert.Greater(t, len(postures), 1, "security posture never changed across %d reports", reports)
 	assert.Greater(t, len(updates), 1, "system update status never changed across %d reports", reports)
-	assert.Positive(t, sectionsGone, "no report ever omitted a section, so Fleet never nulls a column")
 	if hasESIM {
 		assert.Greater(t, len(simConfigModes), 1, "eSIM config mode never changed across %d reports", reports)
 	}
@@ -687,6 +687,64 @@ func TestUncollectedSectionsAreOmitted(t *testing.T) {
 	}
 }
 
+// TestSectionGoingAwayNullsItsColumns covers the transition rather than the
+// steady state: a device that reported a section and then stops is what makes
+// Fleet overwrite those columns with NULL, and it only happens if a payload can
+// go from carrying the section to not carrying it.
+func TestSectionGoingAwayNullsItsColumns(t *testing.T) {
+	fleetPubSub := &fakeFleet{}
+	srv := fleetPubSub.server(t)
+	agent := newFullVitalsTestAgent(srv.URL)
+	state := testState()
+
+	require.NoError(t, agent.sendStatusReport(&state))
+
+	// The admin turns the policy's status reporting settings off.
+	agent.reportsDeviceSettings = false
+	agent.reportsSecurityPosture = false
+	require.NoError(t, agent.sendStatusReport(&state))
+
+	// And on again.
+	agent.reportsDeviceSettings = true
+	agent.reportsSecurityPosture = true
+	require.NoError(t, agent.sendStatusReport(&state))
+
+	messages := fleetPubSub.captured()
+	require.Len(t, messages, 3)
+	assert.NotNil(t, messages[0].device.DeviceSettings)
+	assert.NotNil(t, messages[0].device.SecurityPosture)
+	assert.Nil(t, messages[1].device.DeviceSettings, "the section must actually disappear")
+	assert.Nil(t, messages[1].device.SecurityPosture, "the section must actually disappear")
+	assert.NotNil(t, messages[2].device.DeviceSettings, "and come back")
+	assert.NotNil(t, messages[2].device.SecurityPosture, "and come back")
+}
+
+// TestSIMSnapshotIsIndependentOfTheAgent guards the payload against the agent
+// mutating the SIMs it already handed over: rollSIMActivation edits them in
+// place, so a payload sharing those pointers could carry an activation state
+// from after a re-roll beside a config mode from before it.
+func TestSIMSnapshotIsIndependentOfTheAgent(t *testing.T) {
+	agent := newFullVitalsTestAgent("http://fleet.invalid")
+	require.NotEmpty(t, agent.telephonyInfos)
+
+	snapshot := agent.simSnapshot()
+	require.Len(t, snapshot, len(agent.telephonyInfos))
+	for i, sim := range snapshot {
+		assert.Equal(t, agent.telephonyInfos[i], sim, "a snapshot must start out equal")
+		assert.NotSame(t, agent.telephonyInfos[i], sim, "and must not be the agent's own SIM")
+	}
+
+	for _, sim := range agent.telephonyInfos {
+		sim.ActivationState = "NOT_ACTIVATED"
+		sim.ConfigMode = "USER_CONFIGURED"
+		sim.PhoneNumber = "+15550000000"
+	}
+	for i, sim := range snapshot {
+		assert.NotEqual(t, agent.telephonyInfos[i].PhoneNumber, sim.PhoneNumber,
+			"the snapshot must not see a later mutation")
+	}
+}
+
 // TestDeviceSettingsBooleansAlwaysOnTheWire guards the ForceSendFields on
 // DeviceSettings. Without them Go's omitempty drops every false boolean, so a
 // device with ADB off, no passcode and Play Protect off would send
@@ -716,12 +774,12 @@ func TestDeviceSettingsBooleansAlwaysOnTheWire(t *testing.T) {
 	assert.False(t, messages[0].device.DeviceSettings.VerifyAppsEnabled)
 }
 
-// TestGenerateDeviceVitalsAcrossFleet checks the generated values across many
+// TestGeneratedVitalsAcrossFleet checks the generated values across many
 // devices: each one has to be internally consistent, and the fleet as a whole has
 // to cover the branches Fleet's extraction treats differently — a secure device
 // vs. one with posture details, and an eSIM vs. a physical SIM whose
 // *_UNSPECIFIED enums Fleet blanks out.
-func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
+func TestGeneratedVitalsAcrossFleet(t *testing.T) {
 	const deviceCount = 400
 
 	var (
@@ -839,10 +897,14 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 
 	// The point of the weighting is a fleet that is mostly healthy but not
 	// uniformly so; a fleet with only one value in any of these gives the vitals
-	// UI and API nothing to distinguish. Each band is the weight's implied
-	// binomial mean over deviceCount devices, ±5 standard deviations: loose
-	// enough that a false failure is roughly one run in a million, tight enough
-	// that changing a weight is caught rather than shrugged at.
+	// UI and API nothing to distinguish.
+	//
+	// Each band is the weight's implied binomial mean over deviceCount devices
+	// ±5 standard deviations, except that the 5% weights use a lower bound of 1:
+	// at n=400 their 5σ band runs below zero, and a tighter lower bound would
+	// cost more in false failures than it buys. Overall false-failure
+	// probability is about 2e-6, one run in ~400,000; each band is still tight
+	// enough that a changed weight fails it.
 	for _, band := range []struct {
 		name      string
 		got       int
@@ -850,15 +912,15 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 	}{
 		{"SECURE devices", postures["SECURE"], 304, 376},
 		{"AT_RISK devices", postures["AT_RISK"], 10, 70},
-		{"POTENTIALLY_COMPROMISED devices", postures["POTENTIALLY_COMPROMISED"], 4, 45},
+		{"POTENTIALLY_COMPROMISED devices", postures["POTENTIALLY_COMPROMISED"], 1, 45},
 		{"UP_TO_DATE devices", updateStatuses["UP_TO_DATE"], 234, 326},
 		{"SECURITY_UPDATE_AVAILABLE devices", updateStatuses["SECURITY_UPDATE_AVAILABLE"], 24, 96},
 		{"OS_UPDATE_AVAILABLE devices", updateStatuses["OS_UPDATE_AVAILABLE"], 10, 70},
-		{"UNKNOWN_UPDATE_AVAILABLE devices", updateStatuses["UNKNOWN_UPDATE_AVAILABLE"], 4, 45},
+		{"UNKNOWN_UPDATE_AVAILABLE devices", updateStatuses["UNKNOWN_UPDATE_AVAILABLE"], 1, 45},
 		{"dual-SIM devices", dualSIM, 74, 166},
-		{"devices with ADB on", adbEnabled, 4, 45},
-		{"devices without a passcode", insecure, 4, 45},
-		{"unencrypted devices", unencrypted, 5, 48},
+		{"devices with ADB on", adbEnabled, 1, 45},
+		{"devices without a passcode", insecure, 1, 45},
+		{"unencrypted devices", unencrypted, 1, 48},
 		{"devices not collecting deviceSettings", noSettings, 10, 70},
 		{"devices not collecting securityPosture", noPosture, 10, 70},
 	} {
@@ -875,7 +937,7 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 
 // TestVitalsMapsAgree guards the three per-release / per-brand maps against
 // drifting apart: newAndroidAgent draws its brands and Android versions from two
-// of them, and generateDeviceVitals then indexes the third. A release present in
+// of them, and generateStableVitals then indexes the third. A release present in
 // one and missing from another would silently report an empty manufacturer or a
 // kernel version like ".47-android16-3-gdeadbeef".
 func TestVitalsMapsAgree(t *testing.T) {
@@ -897,9 +959,36 @@ func TestVitalsMapsAgree(t *testing.T) {
 // TestRecentSecurityPatchLevels checks the patch levels a device may report are
 // recent bulletin dates, not the hardcoded set that would go stale.
 func TestRecentSecurityPatchLevels(t *testing.T) {
-	got := recentSecurityPatchLevels(time.Date(2026, 3, 17, 4, 5, 6, 0, time.UTC))
-	assert.Equal(t, []string{"2025-12-01", "2026-01-01", "2026-02-01", "2026-03-01"}, got,
-		"four bulletin dates ending at the current month, newest last")
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+		want []string
+	}{
+		{
+			name: "mid-month",
+			now:  time.Date(2026, 3, 17, 4, 5, 6, 0, time.UTC),
+			want: []string{"2025-12-01", "2026-01-01", "2026-02-01", "2026-03-01"},
+		},
+		{
+			// Subtracting a month from the 31st without anchoring to the 1st
+			// first rolls forward into the month after the one intended, which
+			// silently collapsed four patch levels into two.
+			name: "the 31st of a month shorter months cannot hold",
+			now:  time.Date(2026, 5, 31, 23, 59, 59, 0, time.UTC),
+			want: []string{"2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01"},
+		},
+		{
+			name: "across a year boundary",
+			now:  time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC),
+			want: []string{"2025-10-01", "2025-11-01", "2025-12-01", "2026-01-01"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := recentSecurityPatchLevels(tc.now)
+			assert.Equal(t, tc.want, got, "four bulletin dates ending at the current month, newest last")
+			assert.Len(t, slices.Compact(slices.Clone(got)), len(got), "duplicate patch levels double a month's weight")
+		})
+	}
 
 	// The package-level set the agent actually draws from must be usable too.
 	require.NotEmpty(t, androidSecurityPatchLevels)
