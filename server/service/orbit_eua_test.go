@@ -342,7 +342,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			return cfg, nil
 		}
 		inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
-		// A reverse-link is the moment an Azure enrollment first has a host, so it is also when its deferred
+		// A reverse-link is the moment an Entra enrollment first has a host, so it is also when its deferred
 		// mdm_enrolled activity gets recorded.
 		inner.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 			require.Equal(t, []string{"host-uuid-1"}, uuids)
@@ -454,7 +454,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.Equal(t, defaultTeamID, *assignedTeamID)
 
 		// The enrollment had no host when it was created, so this is where its mdm_enrolled activity is recorded, now
-		// carrying the host id and serial the Azure enrollment could not know.
+		// carrying the host id and serial the Entra enrollment could not know.
 		require.True(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
 		require.NotNil(t, enrolledActivity, "expected the deferred mdm_enrolled activity")
 		require.Equal(t, uint(42), enrolledActivity.HostID)

@@ -9550,7 +9550,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
 
-	// No activity yet: an Azure enrollment carries neither a host UUID nor a serial, so recording one here would
+	// No activity yet: an Entra enrollment carries neither a host UUID nor a serial, so recording one here would
 	// produce an mdm_enrolled with an empty host_serial and no host_id. It is deferred to the first time the enrollment
 	// is linked to a host (see the deferred-activity tests, and the enrollment is left unclaimed below).
 	require.Equal(t, mdmEnrolledCountBefore, s.countActivitiesOfType(fleet.ActivityTypeMDMEnrolled{}.ActivityName()))
@@ -10454,7 +10454,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		return found
 	}
 
-	// Neither Azure enrollment has an mdm_enrolled activity yet: the WSTEP exchange carries no serial and no host UUID,
+	// Neither Entra enrollment has an mdm_enrolled activity yet: the WSTEP exchange carries no serial and no host UUID,
 	// so the activity waits for the enrollment to be linked to a host rather than being recorded without either.
 	require.Empty(t, enrolledActivities(settingsAppHost.ID))
 
@@ -10492,7 +10492,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	// it does not receive the commands
 	checkinAndAck(settingsAppDevice, false)
 
-	// That session recorded the deferred activity, now carrying the host id and serial the Azure enrollment could not
+	// That session recorded the deferred activity, now carrying the host id and serial the Entra enrollment could not
 	// know. This host enrolled from the settings app (not in OOBE), so it is a manual enrollment.
 	settingsAppActs := enrolledActivities(settingsAppHost.ID)
 	require.Len(t, settingsAppActs, 1)

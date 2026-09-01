@@ -463,7 +463,7 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 
 type ActivityTypeMDMEnrolled struct {
 	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
-	// Windows Azure automatic enrollments know neither the host nor its serial at enrollment time, so their activity
+	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
 	// is deferred until the enrollment is linked to a host rather than recorded without one.
 	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`

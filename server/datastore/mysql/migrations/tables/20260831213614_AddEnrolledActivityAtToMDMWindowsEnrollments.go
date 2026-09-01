@@ -14,9 +14,11 @@ func Up_20260831213614(tx *sql.Tx) error {
 	//
 	// Every enrollment that predates this column was already announced by the old code, so all of them must start out
 	// non-NULL. The column is added WITH a default so pre-existing rows read as backfilled without rewriting them.
+	// The value matches common_mysql.DefaultNonZeroTime, the same marker the service writes when it resolves an
+	// enrollment without recording anything.
 	if _, err := tx.Exec(`
 		ALTER TABLE mdm_windows_enrollments
-		ADD COLUMN enrolled_activity_at DATETIME(6) NULL DEFAULT '1970-01-01 00:00:00.000000'
+		ADD COLUMN enrolled_activity_at DATETIME(6) NULL DEFAULT '2000-01-01 00:00:00.000000'
 	`); err != nil {
 		return fmt.Errorf("adding enrolled_activity_at to mdm_windows_enrollments: %w", err)
 	}

@@ -2461,9 +2461,7 @@ type Datastore interface {
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
 
 	// MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given Windows MDM
-	// enrollment, returning true for the first caller only. Azure (automatic) enrollments know neither the host nor its
-	// serial at enrollment time, so their activity is deferred to the first time the enrollment is linked to a host,
-	// and this keeps the several paths that can do that linking from each emitting one.
+	// enrollment, returning true for the first caller only.
 	MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
 
 	// MDMWindowsReleaseEnrolledActivityClaim releases a claim taken with the given timestamp, so an enrollment whose

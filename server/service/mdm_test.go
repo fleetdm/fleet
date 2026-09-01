@@ -24,6 +24,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	android "github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -50,6 +51,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -5537,7 +5539,7 @@ func TestResolveBitLockerPINPayload(t *testing.T) {
 }
 
 // TestWindowsMDMDeferredEnrolledActivity covers the mdm_enrolled activity for Windows enrollments that had no host at
-// enrollment time. Azure (automatic) enrollments carry neither a host UUID nor a serial in the WSTEP exchange, so their
+// enrollment time. Entra (automatic) enrollments carry neither a host UUID nor a serial in the WSTEP exchange, so their
 // activity is recorded on the management session that first links the enrollment to a host, and only once.
 func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	const (
@@ -5582,9 +5584,9 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		return svcImpl, ds, &recorded, &activityErr, ctx
 	}
 
-	// azureEnrollment is a linked Azure enrollment whose activity has not been recorded yet: enroll_user_id holds a UPN
+	// entraEnrollment is a linked Entra enrollment whose activity has not been recorded yet: enroll_user_id holds a UPN
 	// (which is what marks it automatic) and not_in_oobe is false, so it reads as an OOBE/Autopilot enrollment.
-	azureEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
+	entraEnrollment := func() *fleet.MDMWindowsEnrolledDevice {
 		return &fleet.MDMWindowsEnrolledDevice{
 			MDMDeviceID:     testDeviceID,
 			MDMHardwareID:   testHardwareID,
@@ -5597,7 +5599,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 	t.Run("linked enrollment without an activity yet: recorded with host id and serial", func(t *testing.T) {
 		svc, ds, recorded, _, ctx := newSvc(t)
 
-		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, entraEnrollment())
 
 		require.True(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
 		require.Len(t, *recorded, 1)
@@ -5609,13 +5611,13 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		assert.Equal(t, testHostname, act.HostDisplayName)
 		assert.Equal(t, fleet.MDMPlatformMicrosoft, act.MDMPlatform)
 		assert.Equal(t, "windows", act.Platform)
-		assert.True(t, act.InstalledFromDEP, "Azure enrollment in OOBE is Windows' automatic enrollment")
+		assert.True(t, act.InstalledFromDEP, "Entra enrollment in OOBE is Windows' automatic enrollment")
 		assert.Equal(t, []uint{testHostID}, act.HostIDs(), "the activity must land on the host's timeline")
 	})
 
 	t.Run("enrollment that already has an activity: no claim, no activity", func(t *testing.T) {
 		svc, ds, recorded, _, ctx := newSvc(t)
-		device := azureEnrollment()
+		device := entraEnrollment()
 		device.EnrolledActivityAt = new(time.Now())
 
 		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
@@ -5627,7 +5629,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 
 	t.Run("still-unlinked enrollment: nothing recorded and the claim is left for later", func(t *testing.T) {
 		svc, ds, recorded, _, ctx := newSvc(t)
-		device := azureEnrollment()
+		device := entraEnrollment()
 		device.HostUUID = ""
 
 		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
@@ -5651,7 +5653,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		}
 		*activityErr = errors.New("activity store unavailable")
 
-		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, entraEnrollment())
 
 		assert.True(t, released, "a failed activity write must not leave the enrollment marked as announced")
 		assert.Equal(t, claimedAt, releasedAt, "the release must be scoped to the timestamp that was claimed")
@@ -5664,22 +5666,54 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		// only the one whose UPDATE affects a row records the activity.
 		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, _ string, _ time.Time) (bool, error) { return false, nil }
 
-		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, entraEnrollment())
 
 		assert.True(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
 		assert.Empty(t, *recorded)
 	})
 
-	t.Run("host not found yet: claim untouched so a later session retries", func(t *testing.T) {
+	t.Run("host was deleted: the claim is spent so later sessions stop re-checking", func(t *testing.T) {
 		svc, ds, recorded, _, ctx := newSvc(t)
+		var lookups int
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			lookups++
 			return nil, nil
 		}
+		var claimedWith time.Time
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(_ context.Context, mdmHardwareID string, at time.Time) (bool, error) {
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			claimedWith = at
+			return true, nil
+		}
 
-		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, entraEnrollment())
 
-		assert.False(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked, "the claim must not be spent without a host to attribute")
-		assert.Empty(t, *recorded)
+		require.True(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
+		assert.Equal(t, 2, lookups, "the replica miss must be confirmed against the primary before suppressing")
+		assert.Equal(t, common_mysql.GetDefaultNonZeroTime(), claimedWith,
+			"an enrollment that can never be announced is marked with the zero-time value, not a real timestamp")
+		assert.Empty(t, *recorded, "nothing to attribute the activity to, so none is recorded")
+	})
+
+	t.Run("replica has not caught up: the primary confirm finds the host and the activity is recorded", func(t *testing.T) {
+		svc, ds, recorded, _, ctx := newSvc(t)
+		var calls int
+		ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ []string) ([]*fleet.Host, error) {
+			calls++
+			if calls == 1 {
+				require.False(t, ctxdb.IsPrimaryRequired(ctx), "the first lookup should go to the replica")
+				return nil, nil // replica lag: the orbit enroll that created this host has not replicated yet
+			}
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "the confirm must go to the primary")
+			return []*fleet.Host{{ID: testHostID, UUID: testHostUUID, HardwareSerial: testSerial, Hostname: testHostname}}, nil
+		}
+
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, entraEnrollment())
+
+		assert.Equal(t, 2, calls)
+		require.Len(t, *recorded, 1, "a lagging replica must not cost the activity")
+		act := (*recorded)[0].(*fleet.ActivityTypeMDMEnrolled)
+		assert.Equal(t, testHostID, act.HostID)
 	})
 
 	t.Run("host lookup fails: non-fatal, claim untouched", func(t *testing.T) {
@@ -5688,15 +5722,15 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 			return nil, errors.New("db unavailable")
 		}
 
-		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, azureEnrollment())
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, entraEnrollment())
 
 		assert.False(t, ds.MDMWindowsClaimEnrolledActivityFuncInvoked)
 		assert.Empty(t, *recorded)
 	})
 
-	t.Run("user-driven Azure enrollment outside OOBE is not reported as automatic", func(t *testing.T) {
+	t.Run("user-driven Entra enrollment outside OOBE is not reported as automatic", func(t *testing.T) {
 		svc, _, recorded, _, ctx := newSvc(t)
-		device := azureEnrollment()
+		device := entraEnrollment()
 		device.MDMNotInOOBE = true
 
 		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
@@ -5710,7 +5744,7 @@ func TestWindowsMDMDeferredEnrolledActivity(t *testing.T) {
 		svc, _, recorded, _, ctx := newSvc(t)
 		// enroll_user_id holds the host UUID rather than a UPN for fleetd-driven enrollments, which is the same
 		// discriminator LinkWindowsHostMDMEnrollment uses to tell the two apart.
-		device := azureEnrollment()
+		device := entraEnrollment()
 		device.MDMEnrollUserID = testHostUUID
 
 		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
