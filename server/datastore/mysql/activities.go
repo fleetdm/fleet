@@ -1751,10 +1751,14 @@ WHERE
 	const insNanoQueueStmt = `
 INSERT INTO
 	nano_enrollment_queue
-(id, command_uuid)
+(id, command_uuid, created_at)
 SELECT
 	?,
-	execution_id
+	execution_id,
+	-- distinct, forward-dated timestamps: nanomdm orders the queue by
+	-- created_at alone, and one statement's rows would otherwise tie on the
+	-- column default and be served in arbitrary order
+	NOW(6) + INTERVAL ROW_NUMBER() OVER (ORDER BY priority DESC, created_at ASC, id ASC) MICROSECOND
 FROM
 	upcoming_activities
 WHERE
