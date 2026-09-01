@@ -55,7 +55,10 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
    -  **Cover**: This page has a component with the issue number and issue name.
    -  **Ready**: Use this page to communicate design reviews and development.
-   -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
+1. Take the top user story that is assigned to you in the "Drafting" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
+-  **Cover**: This page has a component with the issue number and issue name.
+-  **Ready**: Use this page to communicate design reviews and development.
+-  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
 3. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
    - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
