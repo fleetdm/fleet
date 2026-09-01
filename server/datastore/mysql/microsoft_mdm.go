@@ -330,16 +330,7 @@ func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.
 
 // MDMWindowsClaimEnrolledActivity claims the right to record the mdm_enrolled activity for the given enrollment,
 // returning true exactly once per enrollment row. The claim is the UPDATE itself: enrolled_activity_at only moves from
-// NULL to a timestamp, so of the several paths that can reach a freshly linked enrollment (the OMA-DM session, orbit
-// enroll, osquery's direct-ingest backstop) only the first one to get here sees rows affected. A re-enrollment deletes
-// the previous row and inserts a new one, so it is claimable again and does get its own activity.
-//
-// It is keyed on mdm_hardware_id, the table's unique key, so it claims exactly one row. mdm_device_id is only indexed
-// and several enrollments can share one (which is why the reads around here all take the most recent match), so keying
-// on it would claim every sibling row and silence their activities once they link.
-//
-// claimedAt is supplied by the caller rather than generated here so a caller that fails to record the activity can hand
-// the same value to MDMWindowsReleaseEnrolledActivityClaim and release only the claim it took.
+// NULL to a timestamp, so only the first one to get here sees rows affected.
 func (ds *Datastore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET enrolled_activity_at = ?
@@ -355,10 +346,7 @@ func (ds *Datastore) MDMWindowsClaimEnrolledActivity(ctx context.Context, mdmHar
 	return aff > 0, nil
 }
 
-// MDMWindowsReleaseEnrolledActivityClaim undoes a claim whose activity could not be recorded, so a later session
-// retries instead of the enrollment staying silently announced-but-unrecorded. It is scoped to the exact timestamp the
-// caller claimed with, so it cannot clear a claim taken by anything else (for instance a re-enrollment that replaced
-// the row in between).
+// MDMWindowsReleaseEnrolledActivityClaim undoes a claim whose activity could not be recorded, so a later session retries.
 func (ds *Datastore) MDMWindowsReleaseEnrolledActivityClaim(ctx context.Context, mdmHardwareID string, claimedAt time.Time) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET enrolled_activity_at = NULL
@@ -622,10 +610,6 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			credentials_acknowledged = VALUES(credentials_acknowledged),
 			-- A re-enrollment may not have ztd id, so don't overwrite.
 			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id))
-			-- enrolled_activity_at is deliberately NOT reset here. A real re-enrollment deletes the previous row first
-			-- (MDMWindowsDeleteEnrolledDeviceOnReenrollment, whose failure aborts the enrollment), so it inserts a
-			-- fresh row that is unclaimed anyway. That leaves this branch reachable only when two enrollment requests
-			-- for the same hardware id race, where clearing the claim would let the enrollment be announced twice.
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
