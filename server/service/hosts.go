@@ -1816,14 +1816,17 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err := svc.ds.LoadHostMDMAndroidDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm android device vitals")
 		}
-		// A personally-owned host must never surface a phone number. AMAPI
-		// only reports telephonyInfos for fully managed devices and ingestion
-		// drops it for an explicitly personally-owned one, but ingestion works
-		// off the device-reported ownership, which AMAPI may omit; Fleet's own
+		// A personally-owned host must never surface a phone number or a
+		// hardware radio identifier. AMAPI only reports telephonyInfos, imei
+		// and meid for fully managed devices and ingestion drops them for an
+		// explicitly personally-owned one, but ingestion works off the
+		// device-reported ownership, which AMAPI may omit; Fleet's own
 		// enrollment record is the authoritative classification, so the
 		// response is gated on that.
 		if isPersonalEnrollment {
 			host.TelephonyInfos = nil
+			host.IMEI = nil
+			host.MEID = nil
 		}
 	}
 
