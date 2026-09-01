@@ -922,7 +922,7 @@ The `fleet_desktop` section lets you customize the Fleet Desktop experience.
 - `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 - `sso_enabled` determines whether to require IdP authentication in addition to the Fleet Desktop token to access the device page.
 
-> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is still completing setup experience — Fleet lets the device page through so setup can finish. To require SSO during setup, use [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) instead.
+> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is completing [setup experience](https://fleetdm.com/guides/setup-experience). To require SSO during setup, use [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) instead.
 
 Can only be configured for "All fleets" (`org_settings`).
 
