@@ -207,23 +207,25 @@ Follow the [deploy software guide](https://fleetdm.com/guides/deploy-software-pa
 
 Once you've confirmed the extension works on a test host, use a [policy](https://fleetdm.com/securing/what-are-fleet-policies) to automatically install it everywhere it's missing, instead of installing it host by host.
 
-1. In Fleet, go to the **Policies** tab and add a new policy. Use a query that checks whether the extension is already loaded, so the policy only fails (and triggers an install) on hosts that need it:
+1. In Fleet, go to the **Policies** tab and add a new policy. Use a query that checks whether the extension binary is already present, so the policy only fails (and triggers an install) on hosts that need it:
 
    **macOS and Linux:**
 
    ```sql
-   SELECT 1 FROM osquery_extensions WHERE path = '/usr/local/bin/my-custom-extension.ext';
+   SELECT 1 FROM file WHERE path = '/usr/local/bin/my-custom-extension.ext';
    ```
 
    **Windows:**
 
    ```sql
-   SELECT 1 FROM osquery_extensions WHERE path = 'C:\Program Files\MyCompany\MyCustomExtension\my-custom-extension.ext.exe';
+   SELECT 1 FROM file WHERE path = 'C:\Program Files\MyCompany\MyCustomExtension\my-custom-extension.ext.exe';
    ```
+
+   > If you know the name your extension registers with osquery (set in its source code), you can check that it's actually loaded instead of just present on disk: `SELECT 1 FROM osquery_extensions WHERE name = 'your_extension_name';`.
 
 2. Select **Manage automations > Install software**, then select the policy and the package you built in step 1.
 
-Now any host that fails the policy, because the extension isn't loaded yet, automatically gets the package installed, which runs the post-install script from step 3 and loads the extension. See the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) for retry behavior and how to scope this to specific hosts with labels.
+Now any host that fails the policy, because the extension isn't installed yet, automatically gets the package installed, which runs the post-install script from step 3 and loads the extension. See the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) for retry behavior and how to scope this to specific hosts with labels.
 
 ## Troubleshoot
 
