@@ -957,8 +957,8 @@ func testStatisticsMDMProfileCounts(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		for i := 1; i <= 4; i++ {
 			_, err := q.ExecContext(ctx,
-				`INSERT INTO mdm_apple_declarations (team_id, identifier, name, raw_json, checksum, declaration_uuid)
-				 VALUES (0, ?, ?, '{}', '', ?)`,
+				`INSERT INTO mdm_apple_declarations (team_id, identifier, name, raw_json, declaration_uuid)
+				 VALUES (0, ?, ?, '{}', ?)`,
 				fmt.Sprintf("com.test.decl%d", i),
 				fmt.Sprintf("Test Decl %d", i),
 				fmt.Sprintf("d%d", i),
