@@ -77,12 +77,10 @@ type conflictErrorInterface interface {
 // infrastructure detail that describes Fleet rather than the caller's request.
 func safeReason(err error, reason string) string {
 	// An ErrWithInternal has already separated its safe message from its detail.
-	var ewi platform_http.ErrWithInternal
-	if errors.As(err, &ewi) {
+	if _, ok := errors.AsType[platform_http.ErrWithInternal](err); ok {
 		return reason
 	}
-	var myErr *mysql.MySQLError
-	if errors.As(err, &myErr) {
+	if _, ok := errors.AsType[*mysql.MySQLError](err); ok {
 		return platform_http.GenericErrorMessage
 	}
 	// database/sql builds these with fmt.Errorf, so there is no type to match on.

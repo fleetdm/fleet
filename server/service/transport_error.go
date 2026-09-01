@@ -55,13 +55,6 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 			"error": e.Error(),
 			"uuid":  jsonErr.UUID,
 		}
-		// These messages concatenate err.Error() into a string, so there is no type
-		// left for safeReason to match on. Enrollment is unauthenticated.
-		if status := e.Status(); status == 0 || status >= http.StatusInternalServerError {
-			if !e.NodeInvalid() {
-				errMap["error"] = platform_http.GenericErrorMessage
-			}
-		}
 		if e.NodeInvalid() { //nolint:gocritic // ignore ifElseChain
 			w.WriteHeader(http.StatusUnauthorized)
 			errMap["node_invalid"] = true
