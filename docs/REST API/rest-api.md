@@ -4651,7 +4651,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     },
     "global_config": {
       "mdm": {
-        "enabled_and_configured": false
+        "enabled_and_configured": false,
+        "only_allow_apple_business_enrollment": false
       }
     },
     "batteries": [
