@@ -3362,7 +3362,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	})
 	t.Cleanup(func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(t.Context(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
+			_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
 			return err
 		})
 	})
