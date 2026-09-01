@@ -2,7 +2,10 @@ import { QueryParams } from "utilities/url";
 import { Row } from "react-table";
 import { flatMap } from "lodash";
 import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  isAccountDrivenUserEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
@@ -475,6 +478,7 @@ export const installStatusSortType = (
 interface IGetSoftwareSubheader {
   platform: HostPlatform;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  lastMdmEnrollmentType?: string | null;
   isMyDevicePage?: boolean;
 }
 
@@ -485,13 +489,19 @@ interface IGetSoftwareSubheader {
 export const getSoftwareSubheader = ({
   platform,
   hostMdmEnrollmentStatus,
+  lastMdmEnrollmentType,
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
     if (hostMdmEnrollmentStatus === "On (manual - personal)") {
-      return isMyDevicePage
-        ? "Software installed on your work profile (Managed Apple Account)."
-        : "Software installed on work profile (Managed Apple Account).";
+      // Only Account-Driven User Enrollment has a work profile and a Managed
+      // Apple Account; manual BYOD (enrollment link) has neither. See #52131.
+      if (isAccountDrivenUserEnrollment(lastMdmEnrollmentType)) {
+        return isMyDevicePage
+          ? "Software installed on your work profile (Managed Apple Account)."
+          : "Software installed on work profile (Managed Apple Account).";
+      }
+      return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
     if (hostMdmEnrollmentStatus === "On (manual)") {
       return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";

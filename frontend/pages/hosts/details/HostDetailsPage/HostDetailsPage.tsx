@@ -1476,6 +1476,7 @@ const HostDetailsPage = ({
                 }
                 hostTeamId={host.team_id || 0}
                 hostMdmEnrollmentStatus={host.mdm.enrollment_status}
+                lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               />
               {isMacOSHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard

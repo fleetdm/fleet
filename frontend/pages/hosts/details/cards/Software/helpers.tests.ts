@@ -2,6 +2,7 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
+import { MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN } from "interfaces/mdm";
 import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
 
 describe("compareVersions", () => {
@@ -481,10 +482,11 @@ describe("getUiStatus", () => {
 });
 
 describe("getSoftwareSubheader", () => {
-  test("iOS device, MDM status 'On (manual - personal)', my device page", () => {
+  test("iOS device, personal, account-driven enrollment, my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
       hostMdmEnrollmentStatus: "On (manual - personal)",
+      lastMdmEnrollmentType: MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN,
       isMyDevicePage: true,
     });
     expect(result).toBe(
@@ -492,14 +494,40 @@ describe("getSoftwareSubheader", () => {
     );
   });
 
-  test("iOS device, MDM status 'On (manual - personal)', NOT my device page", () => {
+  test("iOS device, personal, account-driven enrollment, NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual - personal)",
+      lastMdmEnrollmentType: MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN,
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed on work profile (Managed Apple Account)."
+    );
+  });
+
+  // Manual BYOD (enrollment link) has no Managed Apple Account and no work
+  // profile, so it must not claim one. See #52131.
+  test("iOS device, personal, manual BYOD enrollment, NOT my device page", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual - personal)",
+      lastMdmEnrollmentType: "Device",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
+    );
+  });
+
+  test("iOS device, personal, enrollment type unknown, falls back to the non-claiming copy", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
       hostMdmEnrollmentStatus: "On (manual - personal)",
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on work profile (Managed Apple Account)."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
