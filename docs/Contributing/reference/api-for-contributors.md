@@ -3420,7 +3420,7 @@ First, the exempt routes. Fleet registers these through a separate endpointer, l
 
 Requiring a session on the fleetd routes would mean changing fleetd. The tray app behaves the same way whether single sign-on is on or off.
 
-Second, hosts still in Setup Experience. Setup Experience opens the device page in a web view during Setup Assistant, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
+Second, hosts still in Setup Experience. This applies on macOS, Windows, and Linux — not just macOS. Setup Experience opens the device page in a web view while a host is completing setup, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
 
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
