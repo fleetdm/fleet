@@ -4814,82 +4814,82 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 
 	cases := []struct {
-		name                  string
-		user                  *fleet.User
-		shouldFailGlobalWrite bool
-		shouldFailTeamWrite   bool
+		name          string
+		user          *fleet.User
+		wantGlobalErr error
+		wantTeamErr   error
 	}{
 		{
-			name:                  "global observer",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleObserver)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "global observer",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleObserver)},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "team observer",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team observer",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "global observer plus",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "global observer plus",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "team observer plus",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team observer plus",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "global admin",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
-			shouldFailGlobalWrite: false,
-			shouldFailTeamWrite:   false,
+			name:          "global admin",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			wantGlobalErr: nil,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "team admin",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   false,
+			name:          "team admin",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "global maintainer",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
-			shouldFailGlobalWrite: false,
-			shouldFailTeamWrite:   false,
+			name:          "global maintainer",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
+			wantGlobalErr: nil,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "team maintainer",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   false,
+			name:          "team maintainer",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   nil,
 		},
 		{
-			name:                  "team admin wrong team",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team admin wrong team",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrNotFound,
 		},
 		{
-			name:                  "team maintainer wrong team",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team maintainer wrong team",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
+			wantGlobalErr: test.ErrNotFound,
+			wantTeamErr:   test.ErrNotFound,
 		},
 		{
-			name:                  "global gitops",
-			user:                  &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "global gitops",
+			user:          &fleet.User{GlobalRole: new(fleet.RoleGitOps)},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 		{
-			name:                  "team gitops",
-			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			name:          "team gitops",
+			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			wantGlobalErr: test.ErrForbidden,
+			wantTeamErr:   test.ErrForbidden,
 		},
 	}
 
@@ -4904,9 +4904,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			_, err := svc.LockHost(ctx, globalHostID, false)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
 			_, err = svc.LockHost(ctx, teamHostID, false)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
 
 			// Pretend we locked the host
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -4914,9 +4914,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			}
 
 			_, err = svc.UnlockHost(ctx, globalHostID)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
 			_, err = svc.UnlockHost(ctx, teamHostID)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
 
 			// Reset so we're now pretending host is unlocked
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -4924,9 +4924,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			}
 
 			err = svc.WipeHost(ctx, globalHostID, nil)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			test.RequireErrKind(t, tt.wantGlobalErr, err)
 			err = svc.WipeHost(ctx, teamHostID, nil)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			test.RequireErrKind(t, tt.wantTeamErr, err)
 		})
 	}
 }

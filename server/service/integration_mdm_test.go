@@ -24289,8 +24289,9 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	var teamCpResp fleet.ClearPasscodeResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team1IOSHost.ID), nil, http.StatusOK, &teamCpResp)
 
-	// Attempt to clear the passcode on an iOS host of another team, should fail.
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team2IOSHost.ID), nil, http.StatusForbidden)
+	// Attempt to clear the passcode on an iOS host of another team, should fail
+	// masked as not-found so other fleets' host IDs can't be probed.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team2IOSHost.ID), nil, http.StatusNotFound)
 
 	// Attempt to create queries in global domain, should allow.
 	tcqr := fleet.CreateQueryResponse{}

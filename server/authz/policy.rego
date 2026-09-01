@@ -1072,7 +1072,7 @@ allow {
 # hosts (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "mdm_command"
-  {"ios", "ipados"}[object.platform]
+  object.is_apple_mobile == true
   subject.global_role == [admin, maintainer, technician][_]
   action == clear_passcode
 }
@@ -1081,7 +1081,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_command"
-  {"ios", "ipados"}[object.platform]
+  object.is_apple_mobile == true
   team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == clear_passcode
 }
@@ -1090,7 +1090,7 @@ allow {
 # (Android).
 allow {
   object.type == "mdm_command"
-  not {"ios", "ipados"}[object.platform]
+  object.is_apple_mobile == false
   subject.global_role == [admin, maintainer][_]
   action == clear_passcode
 }
@@ -1100,7 +1100,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_command"
-  not {"ios", "ipados"}[object.platform]
+  object.is_apple_mobile == false
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == clear_passcode
 }
