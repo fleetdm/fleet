@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Command } from "cmdk";
 
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
@@ -28,6 +28,9 @@ interface IPolicyPickerProps {
   /** Critical-policy badge is Premium-only (matches PoliciesTable). */
   isPremiumTier?: boolean;
   onSelect: (policyId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). See HostPicker for rationale. */
+  onResultsChange?: (firstItemValue: string | null) => void;
 }
 
 const PolicyPicker = ({
@@ -35,6 +38,7 @@ const PolicyPicker = ({
   currentTeam,
   isPremiumTier = false,
   onSelect,
+  onResultsChange,
 }: IPolicyPickerProps): JSX.Element => {
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
@@ -69,6 +73,12 @@ const PolicyPicker = ({
     },
     selectItems: (data) => data?.policies ?? [],
   });
+
+  const firstItemValue =
+    policies.length > 0 ? `${RESULT_PREFIXES.policy}${policies[0].id}` : null;
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [firstItemValue, onResultsChange]);
 
   if (isLoading && policies.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for policies...</div>;

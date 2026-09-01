@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Command } from "cmdk";
 
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
@@ -26,6 +26,9 @@ interface IReportPickerProps {
    *  observers, not to advertise the current user's own capability. */
   isViewerObserver?: boolean;
   onSelect: (reportId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). See HostPicker for rationale. */
+  onResultsChange?: (firstItemValue: string | null) => void;
 }
 
 const ReportPicker = ({
@@ -33,6 +36,7 @@ const ReportPicker = ({
   currentTeam,
   isViewerObserver = false,
   onSelect,
+  onResultsChange,
 }: IReportPickerProps): JSX.Element => {
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
@@ -60,6 +64,12 @@ const ReportPicker = ({
       }),
     selectItems: (data) => data?.queries ?? [],
   });
+
+  const firstItemValue =
+    reports.length > 0 ? `${RESULT_PREFIXES.report}${reports[0].id}` : null;
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [firstItemValue, onResultsChange]);
 
   if (isLoading && reports.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for reports...</div>;
