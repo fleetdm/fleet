@@ -55,9 +55,15 @@ const HostPicker = ({
 
   const firstItemValue =
     hosts.length > 0 ? `${RESULT_PREFIXES.host}${hosts[0].id}` : null;
+  // Key the effect off a stable signature of the full list, not just the
+  // first id. If results change but the first id is the same (user types
+  // more, list shrinks/reorders), a previously-arrow'd row further down
+  // may be gone — we still need to snap the highlight back to the first
+  // row so the controlled cmdk value stays valid.
+  const itemsSignature = hosts.map((h) => h.id).join(",");
   useEffect(() => {
     onResultsChange?.(firstItemValue);
-  }, [firstItemValue, onResultsChange]);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && hosts.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for hosts...</div>;

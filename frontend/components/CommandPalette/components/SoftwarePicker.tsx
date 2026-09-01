@@ -106,9 +106,13 @@ const SoftwarePicker = ({
 
   const firstItemValue =
     titles.length > 0 ? `${RESULT_PREFIXES.software}${titles[0].id}` : null;
+  // See HostPicker: key off a full-list signature so a previously
+  // highlighted later row that's no longer in the results doesn't leave
+  // the controlled cmdk value dangling.
+  const itemsSignature = titles.map((t) => t.id).join(",");
   useEffect(() => {
     onResultsChange?.(firstItemValue);
-  }, [firstItemValue, onResultsChange]);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && titles.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for software...</div>;

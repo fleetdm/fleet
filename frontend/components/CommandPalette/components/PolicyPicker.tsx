@@ -76,9 +76,11 @@ const PolicyPicker = ({
 
   const firstItemValue =
     policies.length > 0 ? `${RESULT_PREFIXES.policy}${policies[0].id}` : null;
+  // See HostPicker.
+  const itemsSignature = policies.map((p) => p.id).join(",");
   useEffect(() => {
     onResultsChange?.(firstItemValue);
-  }, [firstItemValue, onResultsChange]);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && policies.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for policies...</div>;

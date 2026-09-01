@@ -242,6 +242,10 @@ const CommandPalette = (): JSX.Element | null => {
       setPage("root");
       setSearch("");
       setExpandedItems(new Set());
+      // Also clear cmdkValue: if we closed while on root, the page-change
+      // effect won't fire on reopen, and a stale highlight would carry
+      // over — making Enter accidentally activate a prior row.
+      setCmdkValue("");
     }
   }, [open]);
 

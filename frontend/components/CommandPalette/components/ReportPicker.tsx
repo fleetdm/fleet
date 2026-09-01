@@ -67,9 +67,11 @@ const ReportPicker = ({
 
   const firstItemValue =
     reports.length > 0 ? `${RESULT_PREFIXES.report}${reports[0].id}` : null;
+  // See HostPicker.
+  const itemsSignature = reports.map((r) => r.id).join(",");
   useEffect(() => {
     onResultsChange?.(firstItemValue);
-  }, [firstItemValue, onResultsChange]);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && reports.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for reports...</div>;
