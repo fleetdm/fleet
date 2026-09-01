@@ -203,6 +203,28 @@ Follow the [deploy software guide](https://fleetdm.com/guides/deploy-software-pa
 - In the Fleet UI, go to **Hosts > (select the host) > Software**, and confirm the package shows as installed.
 - Run a live query against `osquery_extensions` (or your extension's custom table) from the **Queries** page, targeted at the host, to confirm the extension loaded and is returning data.
 
+## Step 5: Deploy to your whole fleet
+
+Once you've confirmed the extension works on a test host, use a [policy](https://fleetdm.com/securing/what-are-fleet-policies) to automatically install it everywhere it's missing, instead of installing it host by host.
+
+1. In Fleet, go to the **Policies** tab and add a new policy. Use a query that checks whether the extension is already loaded, so the policy only fails (and triggers an install) on hosts that need it:
+
+   **macOS and Linux:**
+
+   ```sql
+   SELECT 1 FROM osquery_extensions WHERE path = '/usr/local/bin/my-custom-extension.ext';
+   ```
+
+   **Windows:**
+
+   ```sql
+   SELECT 1 FROM osquery_extensions WHERE path = 'C:\Program Files\MyCompany\MyCustomExtension\my-custom-extension.ext.exe';
+   ```
+
+2. Select **Manage automations > Install software**, then select the policy and the package you built in step 1.
+
+Now any host that fails the policy, because the extension isn't loaded yet, automatically gets the package installed, which runs the post-install script from step 3 and loads the extension. See the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) for retry behavior and how to scope this to specific hosts with labels.
+
 ## Troubleshoot
 
 **Extension isn't loading after install.** Check that `extensions.load` (in Orbit's root directory) contains the exact path used in your post-install script, and that the extension file at that path has the ownership and permissions from step 1.
