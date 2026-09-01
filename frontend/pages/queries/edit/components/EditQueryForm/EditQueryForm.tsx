@@ -820,19 +820,6 @@ const EditQueryForm = ({
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {hasSavePermissions && (
               <>
-                {isExistingQuery && (
-                  <GitOpsModeTooltipWrapper
-                    renderChildren={(disableChildren) => (
-                      <Button
-                        variant="secondary"
-                        onClick={toggleSaveAsNewQueryModal}
-                        disabled={disableSaveFormErrors || disableChildren}
-                      >
-                        Save as new
-                      </Button>
-                    )}
-                  />
-                )}
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <GitOpsModeTooltipWrapper
                     tipOffset={8}
@@ -852,6 +839,19 @@ const EditQueryForm = ({
                     )}
                   />
                 </div>
+                {isExistingQuery && (
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant="secondary"
+                        onClick={toggleSaveAsNewQueryModal}
+                        disabled={disableSaveFormErrors || disableChildren}
+                      >
+                        Save as new
+                      </Button>
+                    )}
+                  />
+                )}
               </>
             )}
             <TooltipWrapper
