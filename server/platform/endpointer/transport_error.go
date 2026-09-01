@@ -7,8 +7,10 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
@@ -71,6 +73,25 @@ type conflictErrorInterface interface {
 	IsConflict() bool
 }
 
+// safeReason returns the text that may be sent to the client for err, replacing
+// infrastructure detail that describes Fleet rather than the caller's request.
+func safeReason(err error, reason string) string {
+	// An ErrWithInternal has already separated its safe message from its detail.
+	var ewi platform_http.ErrWithInternal
+	if errors.As(err, &ewi) {
+		return reason
+	}
+	var myErr *mysql.MySQLError
+	if errors.As(err, &myErr) {
+		return platform_http.GenericErrorMessage
+	}
+	// database/sql builds these with fmt.Errorf, so there is no type to match on.
+	if strings.HasPrefix(reason, "sql: ") {
+		return platform_http.GenericErrorMessage
+	}
+	return reason
+}
+
 // EncodeError encodes error and status header to the client.
 // The domainEncoder parameter allows services to inject domain-specific error
 // handling. If nil, only generic error handling is performed.
@@ -86,6 +107,12 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 	var uuid string
 	if uuidErr, ok := err.(platform_http.ErrorUUIDer); ok {
 		uuid = uuidErr.UUID()
+	}
+	// Fall back to the request id so a response with replaced detail stays traceable.
+	if uuid == "" {
+		if logCtx, ok := logging.FromContext(ctx); ok {
+			uuid = logCtx.RequestID
+		}
 	}
 
 	jsonErr := JsonError{
@@ -114,23 +141,23 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 		w.WriteHeader(http.StatusForbidden)
 	case NotFoundErrorInterface:
 		jsonErr.Message = "Resource Not Found"
-		jsonErr.Errors = baseError(e.Error())
+		jsonErr.Errors = baseError(safeReason(e, e.Error()))
 		w.WriteHeader(http.StatusNotFound)
 	case ExistsErrorInterface:
 		jsonErr.Message = "Resource Already Exists"
-		jsonErr.Errors = baseError(e.Error())
+		jsonErr.Errors = baseError(safeReason(e, e.Error()))
 		w.WriteHeader(http.StatusConflict)
 	case conflictErrorInterface:
 		jsonErr.Message = "Conflict"
-		jsonErr.Errors = baseError(e.Error())
+		jsonErr.Errors = baseError(safeReason(e, e.Error()))
 		w.WriteHeader(http.StatusConflict)
 	case badRequestErrorInterface:
 		jsonErr.Message = "Bad request"
-		jsonErr.Errors = baseError(e.Error())
+		jsonErr.Errors = baseError(safeReason(e, e.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 	case *mysql.MySQLError:
 		jsonErr.Message = "Validation Failed"
-		jsonErr.Errors = baseError(e.Error())
+		jsonErr.Errors = baseError(safeReason(e, e.Error()))
 		statusCode := http.StatusUnprocessableEntity
 		if e.Number == 1062 {
 			statusCode = http.StatusConflict
@@ -153,7 +180,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 		}
 		if platform_http.IsForeignKey(err) {
 			jsonErr.Message = "Validation Failed"
-			jsonErr.Errors = baseError(err.Error())
+			jsonErr.Errors = baseError(safeReason(err, err.Error()))
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			enc.Encode(jsonErr) //nolint:errcheck
 			return
@@ -164,7 +191,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 		// correctly classify it as a client error rather than a server error.
 		if errors.Is(origErr, context.Canceled) {
 			jsonErr.Message = "Client Closed Request"
-			jsonErr.Errors = baseError(origErr.Error())
+			jsonErr.Errors = baseError(safeReason(origErr, origErr.Error()))
 			w.WriteHeader(499)
 			enc.Encode(jsonErr) //nolint:errcheck
 			return
@@ -196,8 +223,8 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 		}
 
 		w.WriteHeader(status)
-		jsonErr.Message = msg
-		jsonErr.Errors = baseError(reason)
+		jsonErr.Message = safeReason(err, msg)
+		jsonErr.Errors = baseError(safeReason(err, reason))
 	}
 
 	enc.Encode(jsonErr) //nolint:errcheck

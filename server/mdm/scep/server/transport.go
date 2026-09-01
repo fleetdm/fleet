@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -47,6 +48,9 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.L
 	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(kitLogger)),
+		// This endpointer returns the error as the endpoint's second value, so go-kit
+		// skips the response encoder and would otherwise use DefaultErrorEncoder.
+		kithttp.ServerErrorEncoder(encodeSCEPError),
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
@@ -252,17 +256,29 @@ func (e *TimeoutError) Error() string {
 // StatusCode implements the kithttp StatusCoder interface
 func (e *TimeoutError) StatusCode() int { return http.StatusRequestTimeout }
 
+// encodeSCEPError writes a SCEP error back to the client. These endpoints are
+// unauthenticated, so anything that is neither curated nor an explicit 4xx is
+// treated as internal detail.
+func encodeSCEPError(_ context.Context, err error, w http.ResponseWriter) {
+	status := http.StatusInternalServerError
+	var esc kithttp.StatusCoder
+	if errors.As(err, &esc) {
+		status = esc.StatusCode()
+	}
+
+	msg := err.Error()
+	var ewi platform_http.ErrWithInternal
+	if status >= http.StatusInternalServerError && !errors.As(err, &ewi) {
+		msg = platform_http.GenericErrorMessage
+	}
+	http.Error(w, msg, status)
+}
+
 // EncodeSCEPResponse writes a SCEP response back to the SCEP client.
 func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(SCEPResponse)
 	if resp.Err != nil {
-		status := http.StatusInternalServerError
-		var esc kithttp.StatusCoder
-		if errors.As(resp.Err, &esc) {
-			status = esc.StatusCode()
-		}
-
-		http.Error(w, resp.Err.Error(), status)
+		encodeSCEPError(ctx, resp.Err, w)
 		return nil
 	}
 	w.Header().Set("Content-Type", contentHeader(resp.operation, resp.CACertNum))

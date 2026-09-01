@@ -488,6 +488,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
 		attrs = append(attrs, "uuid", uuider.UUID())
+	} else if logCtx, ok := logging.FromContext(ctx); ok && logCtx.RequestID != "" {
+		// go-kit skips the ServerAfter hooks when an endpoint returns an error, so
+		// LoggingContext.Log never runs for these.
+		attrs = append(attrs, "uuid", logCtx.RequestID)
 	}
 
 	var rle ratelimit.Error

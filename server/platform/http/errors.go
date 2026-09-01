@@ -157,6 +157,13 @@ func NewUserMessageError(err error, statusCode int) *UserMessageError {
 	}
 }
 
+// Embedding the error interface promotes Error() but not Unwrap(). Returns the
+// slice form for the same reason BadRequestError does: errors.As traverses it,
+// ctxerr.Cause does not.
+func (e *UserMessageError) Unwrap() []error {
+	return []error{e.error}
+}
+
 // StatusCode returns the HTTP status code for this error.
 func (e *UserMessageError) StatusCode() int {
 	if e.statusCode > 0 {
@@ -420,6 +427,10 @@ func (e *passwordResetRequiredError) IsClientError() bool {
 // clients when an action is forbidden. It is intentionally vague to prevent
 // disclosing information that a client should not have access to.
 const ForbiddenErrorMessage = "forbidden"
+
+// GenericErrorMessage replaces error text that describes Fleet's own internals
+// rather than the caller's request. Vague for the same reason as ForbiddenErrorMessage.
+const GenericErrorMessage = "The request could not be processed."
 
 // CheckMissing is the error to return when no authorization check was performed
 // by the service.
