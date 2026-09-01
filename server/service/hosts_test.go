@@ -772,10 +772,11 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 }
 
 // TestHostDetailsSuppressesAndroidPhoneNumberForBYOD checks that a
-// personally-owned Android host never surfaces a phone number, whatever ended
-// up stored: ingestion gates on the device-reported ownership, which AMAPI may
-// omit, so the response is gated on Fleet's own enrollment record.
-func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
+// personally-owned Android host never surfaces a phone number or a hardware
+// radio identifier, whatever ended up stored: ingestion gates on the
+// device-reported ownership, which AMAPI may omit, so the response is gated on
+// Fleet's own enrollment record.
+func TestHostDetailsSuppressesAndroidSensitiveVitalsForBYOD(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
 	mockHostDetailsDatastore(ds)
@@ -783,6 +784,8 @@ func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
 	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
 			Manufacturer:   new("Google"),
+			IMEI:           new("A1000031212"),
+			MEID:           new("A00000292788E1"),
 			TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
 		}
 		return nil
@@ -790,14 +793,21 @@ func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
 
 	personal := fleet.MDMEnrollmentStatusPersonal
 	manual := fleet.MDMEnrollmentStatusManual
+	off := fleet.MDMEnrollmentStatusOff
 
 	cases := []struct {
-		name             string
-		enrollmentStatus *string
-		wantTelephony    bool
+		name                 string
+		enrollmentStatus     *string
+		isPersonalEnrollment bool
+		wantSensitiveVitals  bool
 	}{
-		{"personal enrollment", &personal, false},
-		{"company owned", &manual, true},
+		{"personal enrollment", &personal, true, false},
+		{"company owned", &manual, false, true},
+		// enrollment_status is a generated column that reads "Off" once the
+		// host unenrolls, but the vitals row and the BYOD classification both
+		// outlive the enrollment, so this must stay suppressed.
+		{"unenrolled BYOD", &off, true, false},
+		{"unenrolled company owned", &off, false, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -805,17 +815,25 @@ func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
 				ID:       5,
 				Platform: "android",
 				UUID:     "android-byod-uuid",
-				MDM:      fleet.MDMHostData{EnrollmentStatus: tc.enrollmentStatus},
+				MDM: fleet.MDMHostData{
+					EnrollmentStatus:     tc.enrollmentStatus,
+					IsPersonalEnrollment: tc.isPersonalEnrollment,
+				},
 			}
 			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
 			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
-			// The other vitals load either way; only the phone number is gated.
+			// The other vitals load either way; only the phone number and the
+			// radio identifiers are gated.
 			assert.Equal(t, "Google", *hostDetail.Manufacturer)
-			if tc.wantTelephony {
+			if tc.wantSensitiveVitals {
 				assert.Len(t, hostDetail.TelephonyInfos, 1)
+				assert.Equal(t, "A1000031212", *hostDetail.IMEI)
+				assert.Equal(t, "A00000292788E1", *hostDetail.MEID)
 			} else {
 				assert.Nil(t, hostDetail.TelephonyInfos)
+				assert.Nil(t, hostDetail.IMEI)
+				assert.Nil(t, hostDetail.MEID)
 			}
 		})
 	}
@@ -833,6 +851,7 @@ func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
 		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
 			Manufacturer: new("Google"),
 			APILevel:     new(int64(36)),
+			IMEI:         new("A1000031212"),
 		}
 		return nil
 	}
@@ -862,6 +881,7 @@ func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
 			if tc.wantVitalsLoaded {
 				assert.Equal(t, "Google", *hostDetail.Manufacturer)
 				assert.Equal(t, int64(36), *hostDetail.APILevel)
+				assert.Equal(t, "A1000031212", *hostDetail.IMEI)
 			} else {
 				assert.Equal(t, fleet.HostMDMAndroidDeviceVitals{}, hostDetail.HostMDMAndroidDeviceVitals)
 			}
