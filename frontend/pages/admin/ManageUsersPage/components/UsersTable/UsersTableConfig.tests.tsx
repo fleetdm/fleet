@@ -28,7 +28,7 @@ const renderPermissionsCell = (row: IUserTableData) => {
     row: { original: IUserTableData };
   }) => JSX.Element;
 
-  render(Cell({ cell: { value: row.role }, row: { original: row } }));
+  render(<Cell cell={{ value: row.role }} row={{ original: row }} />);
 };
 
 const createMockInvite = (overrides?: Partial<IInvite>): IInvite => ({
