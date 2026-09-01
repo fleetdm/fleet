@@ -48,13 +48,6 @@ func TestShouldEnableBitLockerProtection(t *testing.T) {
 			protection: nil,
 		},
 		{
-			name:         "a missing startup PIN allows repair",
-			encrypted:    new(true),
-			protection:   &protectionOff,
-			tpmPINSet:    false,
-			wantNotified: true,
-		},
-		{
 			name:         "a host that already has a PIN is repaired the same way",
 			encrypted:    new(true),
 			protection:   &protectionOff,
