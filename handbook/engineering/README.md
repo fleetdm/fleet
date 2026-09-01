@@ -134,8 +134,6 @@ Review is where Fleet spends most of its engineering time. How a pull request ar
 
 4. **Hand off the pull request before time off.** A reviewer can't ask you questions while you're away. Follow [taking time off](https://fleetdm.com/handbook/company/communications#taking-time-off) to say you'll be out, move the change back to draft, or name someone who agreed to take it over.
 
-Marking a pull request ready for review asks a reviewer to set aside their own work. It also commits you to answering questions and making revisions.
-
 
 ### Community contributions
 
