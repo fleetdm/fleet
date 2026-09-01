@@ -65,16 +65,29 @@ type androidAgent struct {
 	bootloaderVersion   string
 	systemUpdateStatus  string
 
-	// Device settings, security posture and SIM cards. Fleet stores these as host
-	// vitals, and they describe the device rather than the moment, so they are
-	// generated once and reported identically by every message.
+	// Device settings, security posture and eSIM activation. Fleet stores these
+	// as host vitals. Unlike the fields above they describe the device's current
+	// state rather than its identity, so a status report re-rolls them (see
+	// vitalsChurnProb).
 	adbEnabled        bool
 	deviceSecure      bool
 	verifyAppsEnabled bool
 	encryptionStatus  string
 	securityPosture   string
 	postureDetails    []*androidmanagement.PostureDetail
-	telephonyInfos    []*androidmanagement.TelephonyInfo
+
+	// The SIM cards themselves are hardware and stay put; only their eSIM
+	// activation state and config mode move.
+	telephonyInfos []*androidmanagement.TelephonyInfo
+
+	// Whether the applied policy collects these sections at all. AMAPI omits a
+	// section it is not asked for, and Fleet nulls the matching columns when a
+	// device stops reporting one.
+	reportsDeviceSettings  bool
+	reportsSecurityPosture bool
+
+	// vitalsChurnProb is the chance a status report re-rolls the volatile vitals.
+	vitalsChurnProb float64
 
 	// Memory
 	totalRAM             int64
@@ -156,6 +169,24 @@ var androidApps = []struct {
 	{"LastPass", "com.lastpass.lpandroid", "5.21.0.13562"},
 }
 
+// AMAPI's "no data" members for the eSIM-only telephony enums, which every
+// physical SIM reports and Fleet stores as no value at all.
+const (
+	activationStateUnspecified = "ACTIVATION_STATE_UNSPECIFIED"
+	configModeUnspecified      = "CONFIG_MODE_UNSPECIFIED"
+)
+
+// defaultVitalsChurnProb is the share of status reports that re-roll a device's
+// volatile vitals instead of repeating the previous ones.
+//
+// A real device's posture and settings move far more rarely than this, but a
+// load test needs the vitals table to actually see row writes. Fleet's UPDATE
+// overwrites every column on every status report, yet MySQL changes no row,
+// writes no redo or binlog entry and does not advance updated_at when the values
+// are identical — so a fleet whose vitals never move measures none of the write
+// cost a real one generates.
+const defaultVitalsChurnProb = 0.2
+
 // androidManufacturers maps a brand to the Build.MANUFACTURER value real devices
 // of that brand report, which is not always the brand itself.
 var androidManufacturers = map[string]string{
@@ -223,12 +254,11 @@ var androidCarriers = []androidCarrier{
 	{"Telefonica", "+34", 9},
 }
 
-// generateDeviceVitals produces the device-describing vitals AMAPI reports for a
-// single device: settings, software versions, security posture and SIM cards. The
-// distributions are weighted so a simulated fleet is mostly healthy with a
-// realistic minority of devices that are out of date, insecure or compromised —
-// the aggregate shape matters more than any one device.
-func (a *androidAgent) generateDeviceVitals() {
+// generateStableVitals produces the vitals that identify the device and never
+// change over its lifetime: who built it, what it runs, and which SIM cards are
+// in it. The distributions are weighted so a simulated fleet has a realistic
+// spread — the aggregate shape matters more than any one device.
+func (a *androidAgent) generateStableVitals() {
 	a.manufacturer = androidManufacturers[a.brand]
 	a.apiLevel = androidAPILevels[a.androidVersion]
 	a.securityPatchLevel = androidSecurityPatchLevels[rand.IntN(len(androidSecurityPatchLevels))] // #nosec G404 -- load testing only
@@ -236,13 +266,24 @@ func (a *androidAgent) generateDeviceVitals() {
 	a.deviceKernelVersion = fmt.Sprintf("%s.%d-android%s-%d-g%s",
 		androidKernelBases[a.androidVersion], rand.IntN(100), a.androidVersion, 1+rand.IntN(30), randomHexString(12)) // #nosec G404 -- load testing only
 	a.bootloaderVersion = fmt.Sprintf("%s-%s.0-%d", a.hardware, a.androidVersion, 10000000+rand.IntN(9000000)) // #nosec G404 -- load testing only
+	a.telephonyInfos = generateTelephonyInfos()
+}
 
+// generateVolatileVitals rolls the vitals that describe what the device is doing
+// now rather than what it is: settings a user or admin can change, the posture
+// Play Integrity reports, whether an update is pending, eSIM activation, and
+// which sections the applied policy collects at all.
+func (a *androidAgent) generateVolatileVitals() {
 	// Almost every managed device is encrypted; ACTIVE_PER_USER is what modern
-	// file-based encryption reports, ACTIVE what older full-disk encryption does.
-	a.encryptionStatus = "ACTIVE_PER_USER"
-	if rand.Float64() < 0.1 { // #nosec G404 -- load testing only
-		a.encryptionStatus = "ACTIVE"
-	}
+	// file-based encryption reports and ACTIVE what older full-disk encryption
+	// does. The unencrypted states are rare but not absent: they are the only
+	// ones that make Fleet store an encryption_type other than "on".
+	a.encryptionStatus = weightedChoice([]weightedValue{
+		{"ACTIVE_PER_USER", 0.84},
+		{"ACTIVE", 0.1},
+		{"INACTIVE", 0.04},
+		{"UNSUPPORTED", 0.02},
+	})
 	a.adbEnabled = rand.Float64() < 0.05       // #nosec G404 -- load testing only
 	a.deviceSecure = rand.Float64() < 0.95     // #nosec G404 -- load testing only
 	a.verifyAppsEnabled = rand.Float64() < 0.9 // #nosec G404 -- load testing only
@@ -258,7 +299,9 @@ func (a *androidAgent) generateDeviceVitals() {
 		{"AT_RISK", 0.1},
 		{"POTENTIALLY_COMPROMISED", 0.05},
 	})
-	// AMAPI only attaches posture details to a device that is not secure.
+	// AMAPI only attaches posture details to a device that is not secure, so a
+	// device becoming secure again has to drop the details it used to report.
+	a.postureDetails = nil
 	switch a.securityPosture {
 	case "AT_RISK":
 		risk := "UNKNOWN_OS"
@@ -280,7 +323,34 @@ func (a *androidAgent) generateDeviceVitals() {
 		}}
 	}
 
-	a.telephonyInfos = generateTelephonyInfos()
+	// Rolled alongside the rest, which flips a device's collected sections far
+	// more often than an admin would really edit the policy's status reporting
+	// settings. That is deliberate: a section going away is what makes Fleet null
+	// the matching columns, and a fleet that always reports everything never
+	// exercises it.
+	a.reportsDeviceSettings = rand.Float64() < 0.9  // #nosec G404 -- load testing only
+	a.reportsSecurityPosture = rand.Float64() < 0.9 // #nosec G404 -- load testing only
+
+	a.rollSIMActivation()
+}
+
+// rollSIMActivation re-rolls the activation state and config mode of the device's
+// eSIMs. A physical SIM reports neither, so it is left alone; its *_UNSPECIFIED
+// activation state is what marks it as physical.
+func (a *androidAgent) rollSIMActivation() {
+	for _, sim := range a.telephonyInfos {
+		if sim.ActivationState == activationStateUnspecified {
+			continue
+		}
+		sim.ActivationState = "ACTIVATED"
+		if rand.Float64() < 0.05 { // #nosec G404 -- load testing only
+			sim.ActivationState = "NOT_ACTIVATED"
+		}
+		sim.ConfigMode = "ADMIN_CONFIGURED"
+		if rand.Float64() < 0.3 { // #nosec G404 -- load testing only
+			sim.ConfigMode = "USER_CONFIGURED"
+		}
+	}
 }
 
 // generateTelephonyInfos builds the SIM cards a device reports. Most devices have
@@ -306,18 +376,14 @@ func generateTelephonyInfos() []*androidmanagement.TelephonyInfo {
 			// digit is random rather than a real Luhn check digit; nothing in
 			// Fleet validates it.
 			IccId:           "89" + randomDigits(17),
-			ActivationState: "ACTIVATION_STATE_UNSPECIFIED",
-			ConfigMode:      "CONFIG_MODE_UNSPECIFIED",
+			ActivationState: activationStateUnspecified,
+			ConfigMode:      configModeUnspecified,
 		}
 		if eSIM {
+			// Marks the SIM as an eSIM; rollSIMActivation picks the real values
+			// here and on every later re-roll.
 			info.ActivationState = "ACTIVATED"
-			if rand.Float64() < 0.05 { // #nosec G404 -- load testing only
-				info.ActivationState = "NOT_ACTIVATED"
-			}
 			info.ConfigMode = "ADMIN_CONFIGURED"
-			if rand.Float64() < 0.3 { // #nosec G404 -- load testing only
-				info.ConfigMode = "USER_CONFIGURED"
-			}
 		}
 		infos = append(infos, info)
 	}
@@ -444,9 +510,11 @@ func newAndroidAgent(
 		installedApps:        apps,
 		statusReportInterval: statusReportInterval,
 		nonComplianceProb:    nonComplianceProb,
+		vitalsChurnProb:      defaultVitalsChurnProb,
 	}
 	// Depends on the brand, hardware and Android version picked above.
-	agent.generateDeviceVitals()
+	agent.generateStableVitals()
+	agent.generateVolatileVitals()
 
 	return agent
 }
@@ -734,7 +802,7 @@ func (a *androidAgent) lastKnownState(err error) (*proxyDeviceState, bool, error
 // present in one and absent from the other would make a host's vitals appear or
 // disappear as the messages arrive.
 func (a *androidAgent) deviceInfo() androidmanagement.Device {
-	return androidmanagement.Device{
+	device := androidmanagement.Device{
 		Name:                a.deviceName,
 		Ownership:           "COMPANY_OWNED",
 		ApiLevel:            a.apiLevel,
@@ -762,7 +830,17 @@ func (a *androidAgent) deviceInfo() androidmanagement.Device {
 			TotalInternalStorage: a.totalInternalStorage,
 		},
 		MemoryEvents: a.generateMemoryEvents(),
-		DeviceSettings: &androidmanagement.DeviceSettings{
+		// AMAPI only reports telephonyInfos for a fully managed device, which
+		// every simulated device is (COMPANY_OWNED above).
+		NetworkInfo: &androidmanagement.NetworkInfo{
+			TelephonyInfos: a.telephonyInfos,
+		},
+	}
+
+	// A section the applied policy does not collect is absent from the payload
+	// entirely, rather than present and empty.
+	if a.reportsDeviceSettings {
+		device.DeviceSettings = &androidmanagement.DeviceSettings{
 			AdbEnabled:        a.adbEnabled,
 			IsDeviceSecure:    a.deviceSecure,
 			VerifyAppsEnabled: a.verifyAppsEnabled,
@@ -772,17 +850,16 @@ func (a *androidAgent) deviceInfo() androidmanagement.Device {
 			// back as false either way, since it takes the zero value of a
 			// deviceSettings that is present at all.
 			ForceSendFields: []string{"AdbEnabled", "IsDeviceSecure", "VerifyAppsEnabled"},
-		},
-		SecurityPosture: &androidmanagement.SecurityPosture{
+		}
+	}
+	if a.reportsSecurityPosture {
+		device.SecurityPosture = &androidmanagement.SecurityPosture{
 			DevicePosture:  a.securityPosture,
 			PostureDetails: a.postureDetails,
-		},
-		// AMAPI only reports telephonyInfos for a fully managed device, which
-		// every simulated device is (COMPANY_OWNED above).
-		NetworkInfo: &androidmanagement.NetworkInfo{
-			TelephonyInfos: a.telephonyInfos,
-		},
+		}
 	}
+
+	return device
 }
 
 // sendEnrollment sends an ENROLLMENT PubSub message to Fleet.
@@ -793,6 +870,10 @@ func (a *androidAgent) sendEnrollment() error {
 // sendStatusReport sends a STATUS_REPORT PubSub message to Fleet.
 func (a *androidAgent) sendStatusReport(state *proxyDeviceState) error {
 	now := time.Now().UTC()
+
+	if rand.Float64() < a.vitalsChurnProb { // #nosec G404 -- load testing only
+		a.generateVolatileVitals()
+	}
 
 	device := a.deviceInfo()
 	device.AppliedState = "ACTIVE"

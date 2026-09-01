@@ -431,6 +431,17 @@ func newVitalsTestAgent(fleetAddress string) *androidAgent {
 	return newAndroidAgent(1, fleetAddress, "secret", "token", "http://proxy.invalid", "LC01", time.Minute, 5, 0, nil)
 }
 
+// newFullVitalsTestAgent is newVitalsTestAgent pinned to the case where every
+// section is collected and nothing is re-rolled, so a test can assert on an exact
+// payload instead of on whichever sections this device happened to draw.
+func newFullVitalsTestAgent(fleetAddress string) *androidAgent {
+	agent := newVitalsTestAgent(fleetAddress)
+	agent.reportsDeviceSettings = true
+	agent.reportsSecurityPosture = true
+	agent.vitalsChurnProb = 0
+	return agent
+}
+
 // The AMAPI enum members a simulated device is allowed to report. These are
 // deliberately not the full documented sets: the *_UNSPECIFIED sentinels (and
 // UPDATE_STATUS_UNKNOWN) are omitted because Fleet's reportedEnum blanks them
@@ -492,7 +503,7 @@ func assertVitalsReported(t *testing.T, agent *androidAgent, device androidmanag
 func TestStatusReportIncludesHostVitals(t *testing.T) {
 	fleetPubSub := &fakeFleet{}
 	srv := fleetPubSub.server(t)
-	agent := newVitalsTestAgent(srv.URL)
+	agent := newFullVitalsTestAgent(srv.URL)
 
 	state := testState()
 	require.NoError(t, agent.sendStatusReport(&state))
@@ -520,7 +531,7 @@ func TestStatusReportIncludesHostVitals(t *testing.T) {
 func TestEnrollmentIncludesHostVitals(t *testing.T) {
 	fleetPubSub := &fakeFleet{}
 	srv := fleetPubSub.server(t)
-	agent := newVitalsTestAgent(srv.URL)
+	agent := newFullVitalsTestAgent(srv.URL)
 
 	require.NoError(t, agent.sendEnrollment())
 	state := testState()
@@ -534,12 +545,146 @@ func TestEnrollmentIncludesHostVitals(t *testing.T) {
 	assertVitalsReported(t, agent, enrolled)
 	assert.Contains(t, enrolled.EnrollmentTokenData, "secret", "the enroll secret is how Fleet finds the team")
 
+	// The agent is pinned to no churn, so even the volatile vitals must match
+	// here: what a message reports is the device's state at that moment, and
+	// nothing changed between these two.
 	assert.Equal(t, enrolled.ApiLevel, reported.ApiLevel)
 	assert.Equal(t, enrolled.HardwareInfo, reported.HardwareInfo)
 	assert.Equal(t, enrolled.SoftwareInfo, reported.SoftwareInfo)
 	assert.Equal(t, enrolled.DeviceSettings, reported.DeviceSettings)
 	assert.Equal(t, enrolled.SecurityPosture, reported.SecurityPosture)
 	assert.Equal(t, enrolled.NetworkInfo, reported.NetworkInfo)
+}
+
+// TestStatusReportsChurnVolatileVitals is the point of splitting the vitals in
+// two. Fleet overwrites every vitals column on every status report, but MySQL
+// changes no row and advances no updated_at when the values are identical, so a
+// device whose vitals never move makes the load test measure none of the write
+// cost of this table. The device's identity must still hold still.
+func TestStatusReportsChurnVolatileVitals(t *testing.T) {
+	fleetPubSub := &fakeFleet{}
+	srv := fleetPubSub.server(t)
+	agent := newVitalsTestAgent(srv.URL)
+	agent.vitalsChurnProb = 1 // re-roll on every report
+
+	state := testState()
+	// Enough reports that a value failing to move is a real failure and not a run
+	// of luck: the least likely of the assertions below (security posture never
+	// leaving SECURE) has a false-failure probability around 1e-10 at this count,
+	// against roughly 1 in 7,000 at 60 reports.
+	const reports = 150
+	for range reports {
+		require.NoError(t, agent.sendStatusReport(&state))
+	}
+
+	messages := fleetPubSub.captured()
+	require.Len(t, messages, reports)
+
+	var (
+		settings       = map[string]int{}
+		postures       = map[string]int{}
+		updates        = map[string]int{}
+		simConfigModes = map[string]int{}
+		hasESIM        bool
+		sectionsGone   int
+	)
+	first := messages[0].device
+	for _, msg := range messages {
+		device := msg.device
+
+		// Device identity must not move.
+		assert.Equal(t, first.ApiLevel, device.ApiLevel)
+		require.NotNil(t, device.HardwareInfo)
+		assert.Equal(t, first.HardwareInfo.Manufacturer, device.HardwareInfo.Manufacturer)
+		assert.Equal(t, first.HardwareInfo.SerialNumber, device.HardwareInfo.SerialNumber)
+		require.NotNil(t, device.SoftwareInfo)
+		assert.Equal(t, first.SoftwareInfo.SecurityPatchLevel, device.SoftwareInfo.SecurityPatchLevel)
+		assert.Equal(t, first.SoftwareInfo.DeviceKernelVersion, device.SoftwareInfo.DeviceKernelVersion)
+		assert.Equal(t, first.SoftwareInfo.BootloaderVersion, device.SoftwareInfo.BootloaderVersion)
+
+		// The SIM cards are hardware; only their eSIM activation moves.
+		require.NotNil(t, device.NetworkInfo)
+		require.Len(t, device.NetworkInfo.TelephonyInfos, len(first.NetworkInfo.TelephonyInfos))
+		for i, sim := range device.NetworkInfo.TelephonyInfos {
+			assert.Equal(t, first.NetworkInfo.TelephonyInfos[i].IccId, sim.IccId)
+			assert.Equal(t, first.NetworkInfo.TelephonyInfos[i].PhoneNumber, sim.PhoneNumber)
+			assert.Equal(t, first.NetworkInfo.TelephonyInfos[i].CarrierName, sim.CarrierName)
+			assert.Contains(t, validActivationStates, sim.ActivationState)
+			assert.Contains(t, validConfigModes, sim.ConfigMode)
+			// A physical SIM reports neither eSIM enum, on this report or any
+			// other, so only an eSIM's can churn.
+			if sim.ActivationState != activationStateUnspecified {
+				hasESIM = true
+				simConfigModes[sim.ConfigMode]++
+			} else {
+				assert.Equal(t, configModeUnspecified, sim.ConfigMode, "a physical SIM must stay physical")
+			}
+		}
+
+		require.NotNil(t, device.SoftwareInfo.SystemUpdateInfo)
+		assert.Contains(t, validUpdateStatuses, device.SoftwareInfo.SystemUpdateInfo.UpdateStatus)
+		updates[device.SoftwareInfo.SystemUpdateInfo.UpdateStatus]++
+
+		if device.DeviceSettings == nil || device.SecurityPosture == nil {
+			sectionsGone++
+		}
+		if ds := device.DeviceSettings; ds != nil {
+			assert.Contains(t, validEncryptionStatuses, ds.EncryptionStatus)
+			settings[fmt.Sprintf("%t/%t/%t/%s", ds.AdbEnabled, ds.IsDeviceSecure, ds.VerifyAppsEnabled, ds.EncryptionStatus)]++
+		}
+		if sp := device.SecurityPosture; sp != nil {
+			assert.Contains(t, validPostures, sp.DevicePosture)
+			// A device that became secure again must drop the details it used to
+			// report, or Fleet would keep a stale risk on a secure host.
+			if sp.DevicePosture == "SECURE" {
+				assert.Empty(t, sp.PostureDetails)
+			} else {
+				assert.NotEmpty(t, sp.PostureDetails)
+			}
+			postures[sp.DevicePosture]++
+		}
+	}
+
+	// Over 60 re-rolls each of these must have taken more than one value, or the
+	// vitals row would be written once and then never change again.
+	assert.Greater(t, len(settings), 1, "device settings never changed across %d reports", reports)
+	assert.Greater(t, len(postures), 1, "security posture never changed across %d reports", reports)
+	assert.Greater(t, len(updates), 1, "system update status never changed across %d reports", reports)
+	assert.Positive(t, sectionsGone, "no report ever omitted a section, so Fleet never nulls a column")
+	if hasESIM {
+		assert.Greater(t, len(simConfigModes), 1, "eSIM config mode never changed across %d reports", reports)
+	}
+}
+
+// TestUncollectedSectionsAreOmitted covers the other side of the vitals write: a
+// policy that does not collect a section makes AMAPI omit it, and Fleet nulls the
+// matching columns. A payload that always carries every section would never
+// exercise that.
+func TestUncollectedSectionsAreOmitted(t *testing.T) {
+	fleetPubSub := &fakeFleet{}
+	srv := fleetPubSub.server(t)
+	agent := newFullVitalsTestAgent(srv.URL)
+	agent.reportsDeviceSettings = false
+	agent.reportsSecurityPosture = false
+
+	require.NoError(t, agent.sendEnrollment())
+	state := testState()
+	require.NoError(t, agent.sendStatusReport(&state))
+
+	messages := fleetPubSub.captured()
+	require.Len(t, messages, 2)
+	for _, msg := range messages {
+		assert.Nil(t, msg.device.DeviceSettings, "an uncollected section must be absent, not empty")
+		assert.Nil(t, msg.device.SecurityPosture, "an uncollected section must be absent, not empty")
+		assert.NotContains(t, string(msg.raw), "deviceSettings")
+		assert.NotContains(t, string(msg.raw), "securityPosture")
+
+		// The sections the policy still collects must be unaffected.
+		require.NotNil(t, msg.device.HardwareInfo)
+		assert.NotEmpty(t, msg.device.HardwareInfo.Manufacturer)
+		require.NotNil(t, msg.device.NetworkInfo)
+		assert.NotEmpty(t, msg.device.NetworkInfo.TelephonyInfos)
+	}
 }
 
 // TestDeviceSettingsBooleansAlwaysOnTheWire guards the ForceSendFields on
@@ -550,7 +695,7 @@ func TestEnrollmentIncludesHostVitals(t *testing.T) {
 func TestDeviceSettingsBooleansAlwaysOnTheWire(t *testing.T) {
 	fleetPubSub := &fakeFleet{}
 	srv := fleetPubSub.server(t)
-	agent := newVitalsTestAgent(srv.URL)
+	agent := newFullVitalsTestAgent(srv.URL)
 	agent.adbEnabled = false
 	agent.deviceSecure = false
 	agent.verifyAppsEnabled = false
@@ -587,6 +732,9 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 		dualSIM        int
 		adbEnabled     int
 		insecure       int
+		unencrypted    int
+		noSettings     int
+		noPosture      int
 	)
 
 	for i := 0; i < deviceCount; i++ {
@@ -677,6 +825,16 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 		if !agent.deviceSecure {
 			insecure++
 		}
+		// The states that make Fleet store an encryption_type meaning "off".
+		if agent.encryptionStatus == "INACTIVE" || agent.encryptionStatus == "UNSUPPORTED" {
+			unencrypted++
+		}
+		if !agent.reportsDeviceSettings {
+			noSettings++
+		}
+		if !agent.reportsSecurityPosture {
+			noPosture++
+		}
 	}
 
 	// The point of the weighting is a fleet that is mostly healthy but not
@@ -700,6 +858,9 @@ func TestGenerateDeviceVitalsAcrossFleet(t *testing.T) {
 		{"dual-SIM devices", dualSIM, 74, 166},
 		{"devices with ADB on", adbEnabled, 4, 45},
 		{"devices without a passcode", insecure, 4, 45},
+		{"unencrypted devices", unencrypted, 5, 48},
+		{"devices not collecting deviceSettings", noSettings, 10, 70},
+		{"devices not collecting securityPosture", noPosture, 10, 70},
 	} {
 		assert.GreaterOrEqual(t, band.got, band.low, "%s: %d is below the expected band", band.name, band.got)
 		assert.LessOrEqual(t, band.got, band.high, "%s: %d is above the expected band", band.name, band.got)
