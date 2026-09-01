@@ -176,8 +176,9 @@ const (
 	configModeUnspecified      = "CONFIG_MODE_UNSPECIFIED"
 )
 
-// defaultVitalsChurnProb is the share of status reports that re-roll a device's
-// volatile vitals instead of repeating the previous ones.
+// defaultVitalsChurnProb is the default for --android_vitals_churn_prob: the
+// share of status reports that re-roll a device's volatile vitals instead of
+// repeating the previous ones.
 //
 // A real device's posture and settings move far more rarely than this, but a
 // load test needs the vitals table to actually see row writes. Fleet's UPDATE
@@ -446,6 +447,7 @@ func newAndroidAgent(
 	statusReportInterval time.Duration,
 	appCount int,
 	nonComplianceProb float64,
+	vitalsChurnProb float64,
 	stats *osquery_perf.Stats,
 ) *androidAgent {
 	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
@@ -510,7 +512,7 @@ func newAndroidAgent(
 		installedApps:        apps,
 		statusReportInterval: statusReportInterval,
 		nonComplianceProb:    nonComplianceProb,
-		vitalsChurnProb:      defaultVitalsChurnProb,
+		vitalsChurnProb:      vitalsChurnProb,
 	}
 	// Depends on the brand, hardware and Android version picked above.
 	agent.generateStableVitals()

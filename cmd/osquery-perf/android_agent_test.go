@@ -428,7 +428,7 @@ func (f *fakeFleet) captured() []capturedMessage {
 // newVitalsTestAgent builds a fully generated agent pointed at fleetAddress, using
 // the real constructor so the generated vitals are the ones a load test would send.
 func newVitalsTestAgent(fleetAddress string) *androidAgent {
-	return newAndroidAgent(1, fleetAddress, "secret", "token", "http://proxy.invalid", "LC01", time.Minute, 5, 0, nil)
+	return newAndroidAgent(1, fleetAddress, "secret", "token", "http://proxy.invalid", "LC01", time.Minute, 5, 0, defaultVitalsChurnProb, nil)
 }
 
 // newFullVitalsTestAgent is newVitalsTestAgent pinned to the case where every
