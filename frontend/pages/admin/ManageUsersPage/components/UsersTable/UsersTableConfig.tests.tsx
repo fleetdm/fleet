@@ -21,14 +21,14 @@ const mockEndpoints = (count: number): IApiEndpointRef[] =>
 
 const renderPermissionsCell = (row: IUserTableData) => {
   const column = generateTableHeaders(jest.fn(), true).find(
-    (c) => c.accessor === "permissions"
+    (c) => c.id === "permissions"
   );
   const Cell = column?.Cell as (props: {
     cell: { value: string };
     row: { original: IUserTableData };
   }) => JSX.Element;
 
-  render(Cell({ cell: { value: row.permissions }, row: { original: row } }));
+  render(Cell({ cell: { value: row.role }, row: { original: row } }));
 };
 
 const createMockInvite = (overrides?: Partial<IInvite>): IInvite => ({
@@ -104,7 +104,7 @@ describe("UsersTableConfig - API endpoint restrictions", () => {
 
   it("names the role column 'Permissions'", () => {
     const column = generateTableHeaders(jest.fn(), true).find(
-      (c) => c.accessor === "permissions"
+      (c) => c.id === "permissions"
     );
     expect(column?.title).toBe("Permissions");
     expect(column?.Header).toBe("Permissions");

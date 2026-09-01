@@ -9,7 +9,7 @@ const baseClass = "tag";
 interface ITagBaseProps {
   children: React.ReactNode;
   /** Default: "large" (28px). Per design, use "small" (24px) sparingly and
-   * "xsmall" (19px) only inline with table cell text. */
+   * "xsmall" (20px) only inline with table cell text. */
   size?: "large" | "small" | "xsmall";
   className?: string;
   /** Wraps the tag in a tooltip that shows this content on hover */

@@ -65,6 +65,7 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
+  id?: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
     | ((props: IActionsDropdownProps) => JSX.Element);
@@ -79,7 +80,7 @@ export interface IUserTableData {
   teams: string;
   teamNames: string[];
   roleGroups: { role: string; names: string[] }[];
-  permissions: UserRole;
+  role: UserRole;
   actions: IDropdownOption[];
   /** Prefixed ID used as a unique react-table row key (e.g. "user-3", "invite-1") */
   id: string;
@@ -203,7 +204,11 @@ const generateTableHeaders = (
     {
       title: "Permissions",
       Header: "Permissions",
-      accessor: "permissions",
+      accessor: "role",
+      // react-table derives the cell/header DOM classes and the sort key from
+      // `id`, so this keeps them as `permissions__*` without renaming the
+      // underlying row field.
+      id: "permissions",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
         const { apiEndpointCount } = cellProps.row.original;
@@ -394,7 +399,7 @@ const enhanceUserData = (
       teams: generateTeam(user.teams, user.global_role),
       teamNames: generateTeamNames(user.teams),
       roleGroups: generateRoleGroups(user.teams),
-      permissions: generateRole(user.teams, user.global_role),
+      role: generateRole(user.teams, user.global_role),
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
         false,
@@ -419,7 +424,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       teams: generateTeam(invite.teams, invite.global_role),
       teamNames: generateTeamNames(invite.teams),
       roleGroups: generateRoleGroups(invite.teams),
-      permissions: generateRole(invite.teams, invite.global_role),
+      role: generateRole(invite.teams, invite.global_role),
       actions: generateActionDropdownOptions(
         false,
         true,
