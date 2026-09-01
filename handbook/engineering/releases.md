@@ -200,7 +200,7 @@ When target release dates are changed on the calendar, the release ritual DRI al
 
 ## Discuss release dates
 
-A single Slack thread is created in the #help-releases channel for every release candidate. Only discussions about release dates should be kept within the release candidate's thread.
+A single Slack thread is created in the #help-releases channel for every release candidate. Discussions in the release candidate's thread should be limited to release dates.
 
 
 ## Handle process exceptions for non-released code
