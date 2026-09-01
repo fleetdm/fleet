@@ -1,0 +1,1 @@
+- Fixed a bug where a dropdown could render unstyled or with low-contrast selected-value text on some pages, caused by route-based code splitting scoping `react-select`'s base CSS to a per-page chunk instead of loading it globally.
