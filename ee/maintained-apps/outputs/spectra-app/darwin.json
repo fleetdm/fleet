@@ -4,7 +4,8 @@
       "version": "2.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.spectra.dev';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.spectra.dev' AND version_compare(bundle_short_version, '2.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.spectra.dev' AND version_compare(bundle_short_version, '2.3.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.spectra.dev' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/kaochenlong/spectra-app/releases/download/v2.3.1/Spectra_2.3.1_aarch64.dmg",
       "install_script_ref": "00cc37ca",

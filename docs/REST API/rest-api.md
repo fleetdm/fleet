@@ -508,7 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
-| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
+| order_key       | string  | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, `fleet_initiated`, and `streamed`.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -3453,10 +3453,10 @@ the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - `updated_at`: the last time the row in the database for the `hosts` table was updated.
-- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`).
+- `detail_updated_at`: the last time Fleet updated host data (this includes updates to host associated tables, e.g. `host_users`). This only changes when the host's detail queries run, which is less frequent than policy queries, so it lags behind events (like a policy automation) that were triggered by a policy check alone.
 - `label_updated_at`: the last time Fleet updated the label membership for the host
 - `last_enrolled_at`: the last time the host enrolled to Fleet.
-- `policy_updated_at`: the last time we updated the policy results for the host
+- `policy_updated_at`: the last time we updated the policy results for the host. Policies can be checked, and policy automations triggered, much more often than the policy update interval ([learn more](https://fleetdm.com/guides/automations#policy-automations)).
 - `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
 - `software_updated_at`: the last time software changed for the host in any way.
 - `last_restarted_at`: the last time that the host was restarted.
@@ -3464,6 +3464,10 @@ the `software` table.
 ### List hosts
 
 `GET /api/v1/fleet/hosts`
+
+> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
+
+> Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
 
 #### Parameters
 
@@ -3500,7 +3504,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
-| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
+| populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
@@ -3511,8 +3515,6 @@ the `software` table.
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
-
-> `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -3648,6 +3650,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": "Pending",
+        "is_personal_enrollment": false,
         "dep_profile_error": true,
         "name": "Fleet",
         "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
@@ -3982,6 +3985,9 @@ Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
+
 #### Parameters
 
 | Name             | Type    | In    | Description                                                                             |
@@ -4215,11 +4221,13 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
+      "bootstrap_token_escrowed": true,
       "macos_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -4266,6 +4274,8 @@ Returns the information of the specified host.
 
 `mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
+`mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
+
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
@@ -4282,17 +4292,21 @@ Returns the information of the specified host.
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
 
+> Note: `mdm.is_personal_enrollment` reports whether the last MDM enrollment Fleet recorded for the host was personal (BYOD). Unlike `mdm.enrollment_status`, it is not cleared when the host unenrolls, so it stays `true` for an unenrolled Android or Apple mobile host. On macOS and Windows, MDM state is re-reported by the agent, which resets the field once the enrollment profile is gone.
+
 > Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
 
 ### Get host by identifier
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
+`GET /api/v1/fleet/hosts/identifier/:identifier`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
 
-> In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
-
-`GET /api/v1/fleet/hosts/identifier/:identifier`
+In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
 #### Parameters
 
@@ -4472,6 +4486,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "is_personal_enrollment": false,
       "name": "",
       "server_url": null,
       "device_status": "unlocked",
@@ -4522,15 +4537,16 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
-> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
-
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
+
+`GET /api/v1/fleet/device/:token`
+
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
-`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
@@ -4702,9 +4718,11 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
+      "is_personal_enrollment": false,
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
+      "bootstrap_token_escrowed": true,
       "macos_settings": {
         "disk_encryption": "verified",
         "action_required": null
@@ -4746,6 +4764,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+> `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
 
 ### Delete host
 
@@ -5373,6 +5393,8 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
@@ -5419,6 +5441,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5462,6 +5485,8 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
 #### Example
 
@@ -5509,6 +5534,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
         "version": "149.0.7827.54",
         "platform": "darwin",
         "self_service": true,
+        "has_uninstall_script": true,
         "last_install": null,
         "last_uninstall": null,
         "package_url": null,
@@ -5848,7 +5874,9 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-Wiping an Android host is available in Fleet Free and Fleet Premium. Wiping a macOS, iOS, iPadOS, Linux, or Windows host is available in Fleet Premium.
+Wiping a company-owned (fully managed) Android host is available in Fleet Free and Fleet Premium. (This feature was [previously "Unenroll"](https://github.com/fleetdm/fleet/issues/41683).)
+
+Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is available in Fleet Premium.
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
@@ -5896,7 +5924,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
-| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, and `fleet_initiated`. |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
@@ -6818,6 +6846,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": null,
+        "is_personal_enrollment": false,
         "name": "",
         "server_url": null
       }
@@ -6886,7 +6915,6 @@ Deletes the label specified by ID.
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update host name template](#update-host-name-template)
 - [Resend host name template](#resend-host-name-template)
-- [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
@@ -7360,7 +7388,7 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset1",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
+      "checksum": "dGVzdAo="
     },
     {
       "asset_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
@@ -7368,9 +7396,9 @@ List all assets available for the "Unassigned" fleet.
       "identifier": "com.example.asset2",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
-    },
-  ],
+      "checksum": "dGVzdAo="
+    }
+  ]
 }
 ```
 
@@ -7612,7 +7640,7 @@ If a host is missing the IdP data a variable needs, that host's rename fails. A 
 
 ##### Default response
 
-`204`
+`Status: 204`
 
 ### Resend host name template
 
@@ -8519,9 +8547,7 @@ Edit managed local account enforcement settings for eligible hosts.
 
 `POST /api/v1/fleet/managed_local_account`
 
-##### Default response
-
-`204`
+##### Request body
 
 ```json
 {
@@ -8530,6 +8556,10 @@ Edit managed local account enforcement settings for eligible hosts.
   "end_user_local_account_type": "admin"
 }
 ```
+
+##### Default response
+
+`Status: 204`
 
 ---
 
@@ -8724,6 +8754,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business (AB) tokens](#list-apple-business-ab-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -8931,6 +8962,24 @@ None.
   "android_enterprise_id": "LC0445szuv"
 }
 ```
+
+### Delete Android Enterprise
+
+Delete Android Enterprise that's connected to Fleet. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -10322,6 +10371,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
+| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
@@ -10553,6 +10603,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
@@ -12319,6 +12370,8 @@ A software title can have more than one package. The `packages` array lists all 
 
 ### List software versions
 
+> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
+
 Get a list of all software versions.
 
 `GET /api/v1/fleet/software/versions`
@@ -12337,10 +12390,9 @@ Get a list of all software versions.
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
-| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See notes below on performance. |
+| without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See note above on performance. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
-> For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
 #### Example
 
@@ -13675,7 +13727,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
    "host_id": 123,
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item "Falcon" is in use.",
+   "output": "Installing software...\nError: The operation can’t be completed because the item \"Falcon\" is in use.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -14373,7 +14425,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "windows_settings": {
         "custom_settings": [
@@ -14390,7 +14442,7 @@ _Available in Fleet Premium_
         ],
         "managed_local_account_settings": {
           "enabled": true
-        },
+        }
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -15401,6 +15453,9 @@ None.
       "mfa_enabled": false,
       "global_role": null,
       "api_only": false,
+      "last_login_at": "2020-12-10T04:15:20Z",
+      "last_activity_at": "2020-12-10T04:32:41Z",
+      "status": "active",
       "fleets": [
         {
           "id": 1,
@@ -15669,6 +15724,9 @@ Returns all information about a specific user.
     "mfa_enabled": false,
     "global_role": "admin",
     "api_only": false,
+    "last_login_at": "2020-12-10T05:24:27Z",
+    "last_activity_at": "2020-12-10T05:31:03Z",
+    "status": "active",
     "fleets": []
   }
 }

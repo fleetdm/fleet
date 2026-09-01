@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2",
+      "version": "2026.2.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DataGrip %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataGrip %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.70') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DataGrip %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.10315.24') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('datagrip.exe','datagrip64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.2.exe",
+      "installer_url": "https://download.jetbrains.com/datagrip/datagrip-2026.2.4.exe",
       "install_script_ref": "0897461e",
       "uninstall_script_ref": "020465dd",
-      "sha256": "5b091158369589c1819f8e341f7b96c81a5a904848a6f9fac39cde425ecfadc8",
+      "sha256": "d08d92cebec9081f95e5bf8c5b9153dacf86915e113327d395f11a8f9ad28eac",
       "default_categories": [
         "Developer tools"
       ]

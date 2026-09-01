@@ -243,7 +243,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
 					// An FMA title has a single active package, so this runs on it.
 					if pkg.FleetMaintainedAppID != nil {
-						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
+						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
 						if err != nil {
 							return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 						}
@@ -261,6 +261,12 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 							return nil, ctxerr.Wrap(ctx, err, "get patch policy")
 						}
 						pkg.PatchPolicy = patchPolicy
+
+						// While patch_when_closed is on, the pre-install query is Fleet's managed
+						// app open query, shown read-only.
+						if patchPolicy != nil && patchPolicy.PatchWhenClosed {
+							pkg.PreInstallQuery = pkg.AppOpenQuery
+						}
 					}
 				}
 

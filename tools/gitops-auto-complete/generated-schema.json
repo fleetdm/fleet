@@ -2819,6 +2819,9 @@
             "null"
           ]
         },
+        "deadline_days": {
+          "description": "DeadlineDays is the number of days after an OS version's release date\nbefore the update is enforced. It is only valid when MinimumVersion is\n\"latest\", where the deadline is relative to each version's release rather\nthan a fixed calendar date.\n\ntype: `integer`"
+        },
         "minimum_version": {
           "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`",
           "type": [
@@ -3140,6 +3143,13 @@
             "null"
           ]
         },
+        "sso_enabled": {
+          "description": "SSOEnabled records that end users should authenticate with the IdP\nconfigured in mdm.end_user_authentication, which must be set before this can\nbe enabled. Nothing enforces it yet: the setting is only persisted and\nreported.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "transparency_url": {
           "description": "TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.\n\ntype: `string`",
           "type": [
@@ -3336,6 +3346,9 @@
           "$ref": "#/$defs/MDM",
           "description": "type: `MDM`"
         },
+        "microsoft_graph_credentials": {
+          "description": "MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when\nreading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here\nrather than under controls to match every other credential in GitOps: it is applied through its own endpoint,\nexactly like certificate_authorities above."
+        },
         "org_info": {
           "$ref": "#/$defs/OrgInfo",
           "description": "type: `OrgInfo`"
@@ -3441,7 +3454,7 @@
           ]
         },
         "continuous_automations_enabled": {
-          "description": "ContinuousAutomationsEnabled indicates whether software/script automations\nshould run on every failing policy result, not just on pass→fail transitions.\n\nOnly applies to team policies.\n\ntype: `boolean`",
+          "description": "Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set\nexplicitly vs. omitted, which patch_when_closed validation needs.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -3548,6 +3561,13 @@
           "description": "Name is the name of the policy.\n\ntype: `string`",
           "type": "string"
         },
+        "patch_when_closed": {
+          "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "path": {
           "type": [
             "string",
@@ -3562,6 +3582,13 @@
         },
         "platform": {
           "description": "Platform is a comma-separated string to indicate the target platforms.\n\nEmpty string targets all platforms.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "profile_uuid": {
+          "description": "ProfileUUID is the UUID of the configuration profile associated with this policy (team policies only).\nWhen editing a policy, if this is nil or \"\" then the profile UUID is unset from the policy.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -3742,6 +3769,30 @@
           ]
         },
         "vulnerabilities": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "HostActivitiesWebhookSettings": {
+      "additionalProperties": false,
+      "description": "HostActivitiesWebhookSettings is the per-fleet webhook fired when an activity linked to one of the fleet's hosts is created.",
+      "properties": {
+        "destination_url": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_host_activities_webhook": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -4165,6 +4216,13 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "MacOSUpdates defines the OS update settings for macOS devices.\n\ntype: `AppleOSUpdateSettings`"
         },
+        "microsoft_graph_credential_invalid": {
+          "description": "MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by\nEntra or denied by Graph, so an admin has to supply a new secret or grant consent.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "name_template": {
           "description": "type: `string`",
           "type": [
@@ -4193,6 +4251,13 @@
           "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "windows_enrollment": {
+          "description": "WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments. The DB row backing it is the\nsource of truth (by fleet id); this field carries the setting through the config API and GitOps by fleet name.\n\ntype: `object`",
+          "type": [
+            "object",
             "null"
           ]
         },
@@ -4299,6 +4364,13 @@
       "additionalProperties": false,
       "description": "MDMProfileSpec represents the spec used to define configuration profiles via yaml files.",
       "properties": {
+        "activation": {
+          "description": "Activation is a path to a custom activation JSON file, only valid\nalongside an Apple declaration.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4407,7 +4479,7 @@
       "description": "MacOSSettings contains settings specific to macOS.",
       "properties": {
         "assets": {
-          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from ToMap/FromMap.\n\ntype: `array\u003cMDMProfileSpec\u003e`",
+          "description": "Assets is a slice of Apple DDM asset (com.apple.asset) declaration file\npaths. Unlike CustomSettings, assets are not stored on the AppConfig/team\nspec: this field is only populated while parsing a GitOps file so the\nassets can be applied via their own batch endpoint. It is intentionally\nomitted from FromMap; ToMap includes it only so the key passes the team\nspec's strict key validation (see applyTeamSpecsRequest.DecodeBody).\n\ntype: `array\u003cMDMProfileSpec\u003e`",
           "items": {
             "$ref": "#/$defs/MDMProfileSpec"
           },
@@ -4629,6 +4701,13 @@
             "null"
           ]
         },
+        "display_name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "icon": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
           "description": "type: `TeamSpecSoftwareAsset`"
@@ -4717,6 +4796,23 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "ManagedLocalAccountSettings": {
+      "additionalProperties": false,
+      "description": "ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.",
+      "properties": {
+        "enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5370,7 +5466,7 @@
           ]
         },
         "setup_experience_platform": {
-          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`",
+          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages that produce more than one\nsetup experience target: cross-platform scripts (.sh, .py) and .ipa\npackages, whose single entry stands for both the iOS and iPadOS titles.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -5781,6 +5877,10 @@
           "$ref": "#/$defs/FailingPoliciesWebhookSettings",
           "description": "type: `FailingPoliciesWebhookSettings`"
         },
+        "host_activities_webhook": {
+          "$ref": "#/$defs/HostActivitiesWebhookSettings",
+          "description": "HostActivitiesWebhook is nil when not provided so partial updates and\nteam specs can leave the stored value untouched.\n\ntype: `HostActivitiesWebhookSettings`"
+        },
         "host_status_webhook": {
           "$ref": "#/$defs/HostStatusWebhookSettings",
           "description": "HostStatusWebhook can be nil to match the TeamSpec webhook settings\n\ntype: `HostStatusWebhookSettings`"
@@ -5979,6 +6079,10 @@
             "array",
             "null"
           ]
+        },
+        "managed_local_account_settings": {
+          "$ref": "#/$defs/ManagedLocalAccountSettings",
+          "description": "ManagedLocalAccountSettings configures the hidden managed local admin account created by\nfleetd on Windows hosts during Autopilot/OOBE enrollment.\n\ntype: `ManagedLocalAccountSettings`"
         }
       },
       "type": [

@@ -67,9 +67,9 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB).
+Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 
-To configure via the Fleet UI:
+How to enforce account types on macOS hosts:
 
 1. Head to **Controls > Setup experience**.
 
@@ -383,8 +383,6 @@ To manage setup experience software and script using Fleet's best practice GitOp
 
 ### Manually install fleetd
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
 
 How to deploy a custom fleetd:
@@ -402,7 +400,7 @@ If you deploy a custom fleetd, also add the software and scripts you want to ins
 
 ### swiftDialog
 
-Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to show end users [software install](#install-software) and [script run](#run-script) status. swiftDialog is only installed on macOS hosts if there is setup experience software or a script. After setup experinece, swiftDialog stays installed.
+Fleet only deploys [swiftDialog](https://github.com/swiftDialog/swiftDialog) during setup experience if there is setup experience [software](#install-software) or [scripts](#run-script), and the [end user migration workflow](https://fleetdm.com/guides/mdm-migration#end-user-workflow). After setup experience and migration, swiftDialog stays installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

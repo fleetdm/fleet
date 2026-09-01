@@ -19737,8 +19737,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
-    "examples": "See the OS version as well as the CPU architecture in use (X86 vs ARM for\nexample)\n\n```\nSELECT arch, version FROM os_version;\n```",
+    "notes": "- Though the `os_version` table `version` column VALUE type is STRING, osquery correctly handles semantic-version ordering via collate=\"version\" in this table column the same way it handles `version` columns in many other tables. (i.e., codegen declares the `version` column as ... COLLATE VERSION in the CREATE TABLE statement it hands to SQLite when registering the virtual table.) This means the `version` column can be used for OS version comparisons without needing the `major`, `minor` or `patch` columns.\n- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
+    "examples": "See the OS version as well as the CPU architecture in use (X86 vs ARM for\nexample)\n\n```\nSELECT arch, version FROM os_version; \n```\n\nCreate a policy query that causes a Mac to fail a policy if the macOS version is older than 26.6.1 & either Screen Sharing or Remote Management is enabled -\n\n```\nSELECT 1\nFROM os_version, sharing_preferences\nWHERE version < '26.6.1'\nAND (sharing_preferences.screen_sharing = 1 OR sharing_preferences.remote_management = 1);\n```",
     "columns": [
       {
         "name": "name",
@@ -25256,15 +25256,15 @@
   },
   {
     "name": "safari_extensions",
-    "description": "Safari extensions add functionality to Safari.app, the native web browser in macOS. The `safari_extensions` table collects all Safari extensions installed on a Mac.",
+    "description": "Safari browser extensions installed for macOS users. Modern Safari uses App Extensions and Web Extensions bundled as `.appex` plugins inside apps under `/Applications` (legacy `.safariextz` extensions are deprecated and are not returned).",
     "url": "https://fleetdm.com/tables/safari_extensions",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires [giving osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos) and a [`JOIN` against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table).\n\nQuery explanation:\n\n- The `safari_extensions` table has a row for each installed extension\n- Each row has a column with the `uid` of the user who installed the extension\n- Each `uid` from the `safari_extensions` table is matched in the `users` table to collect Safari extensions in the output data for all user accounts on the Mac by the `JOIN`\n\nLinks:\n\n- [Apple documentation on Safari Extensions](https://support.apple.com/en-us/102343)",
-    "examples": "Collect Safari extensions for all Mac users:\n\n```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```",
+    "notes": "This table often returns no rows when Full Disk Access (FDA) is missing, when the query does not constrain `uid` (via a `users` join or `WHERE uid = ...`), or when no Safari App/Web Extensions are discoverable for that user.\n\nRequirements:\n\n- [Give osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos). Safari stores per-user extension state under `~/Library/Containers/com.apple.Safari/`, which macOS protects with TCC.\n- Constrain `uid` with a JOIN/CROSS JOIN against the `users` table, or with `WHERE uid = ...`. This is a per-user table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nHow results are built (osquery 5.14+):\n\n- osquery scans only top-level `/Applications/*/Contents/PlugIns/*.appex` for Safari App Extensions and Web Extensions (`NSExtensionPointIdentifier` containing `com.apple.Safari`).\n- It matches those bundles to extensions installed for each user using:\n  - `~/Library/Containers/com.apple.Safari/Data/Library/Safari/AppExtensions/Extensions.plist`\n  - `~/Library/Containers/com.apple.Safari/Data/Library/Safari/WebExtensions/Extensions.plist`\n- Extensions that exist on disk but are not listed in those plists for the user are not returned.\n- Extensions whose `.appex` is outside `/Applications` (for example under `~/Library/Application Support/`) can appear in Safari and in those plists, but are excluded from this table.\n- Bash examples that read those plists directly can list registrations the SQL table excludes (for example Webex under Application Support). Prefer the osquery table when comparing to Fleet inventory.\n- Disabled extensions are still returned when they are present in those plists and their `.appex` is under `/Applications`. The table does not filter on Safari's Enabled flag.\n\nQuery explanation:\n\n- The `safari_extensions` table has a row for each installed extension for a user.\n- Each row includes the `uid` of the user who installed the extension.\n- Joining to `users` returns matching extensions for eligible macOS user accounts (homes under `/Users` that have a matching Extensions.plist entry).\n\nLinks:\n\n- [Apple documentation on Safari Extensions](https://support.apple.com/en-us/102343)\n- Upstream tracking: [osquery#8684](https://github.com/osquery/osquery/issues/8684), Fleet [#6950](https://github.com/fleetdm/fleet/issues/6950)",
+    "examples": "Collect Safari extensions for all Mac users:\n\n```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```\n\nCollect Safari extensions for one user by UID:\n\n```\nSELECT * FROM safari_extensions WHERE uid = 501;\n```",
     "columns": [
       {
         "name": "uid",
@@ -29388,6 +29388,104 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/time_machine_destinations.yml"
+  },
+  {
+    "name": "touchid_system_config",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Machine-wide Touch ID and Secure Enclave configuration, including whether a usable fingerprint sensor (built-in or an attached Touch ID accessory) is present. Apple Silicon only. Requires root.",
+    "columns": [
+      {
+        "name": "touchid_compatible",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the Mac supports Secure Enclave biometrics. This is 1 on every Apple Silicon Mac, even those without a fingerprint sensor; use `touchid_sensor_present` to detect an actual sensor."
+      },
+      {
+        "name": "secure_enclave",
+        "type": "text",
+        "required": false,
+        "description": "Hardware model identifier (e.g. Mac16,5)."
+      },
+      {
+        "name": "touchid_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID is enabled on this Mac."
+      },
+      {
+        "name": "touchid_unlock",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID can be used to unlock the Mac."
+      },
+      {
+        "name": "touchid_builtin",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the Mac has a built-in Touch ID fingerprint sensor (laptops)."
+      },
+      {
+        "name": "touchid_sensor_present",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if a usable fingerprint sensor is present, either built-in or an attached Touch ID accessory (e.g. a Magic Keyboard with Touch ID)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/touchid_system_config",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/touchid_system_config.yml"
+  },
+  {
+    "name": "touchid_user_config",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Per-user Touch ID configuration and number of enrolled fingerprints, one row per local user account. Returns no rows on Macs without a usable fingerprint sensor. Apple Silicon only. Requires root.",
+    "columns": [
+      {
+        "name": "uid",
+        "type": "integer",
+        "required": false,
+        "description": "The user ID of the local account."
+      },
+      {
+        "name": "fingerprints_registered",
+        "type": "integer",
+        "required": false,
+        "description": "Number of fingerprints the user has enrolled. NULL if unknown."
+      },
+      {
+        "name": "touchid_unlock",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the user has Touch ID enabled for unlocking the Mac. NULL if unknown (e.g. the user is not logged in)."
+      },
+      {
+        "name": "touchid_applepay",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the user has Touch ID enabled for Apple Pay. NULL if unknown (e.g. the user is not logged in)."
+      },
+      {
+        "name": "effective_unlock",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID unlock is effectively available to the user (enabled and fingerprints enrolled). NULL if unknown."
+      },
+      {
+        "name": "effective_applepay",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID for Apple Pay is effectively available to the user (enabled and fingerprints enrolled). NULL if unknown."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/touchid_user_config",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/touchid_user_config.yml"
   },
   {
     "name": "tpm_info",

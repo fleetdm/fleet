@@ -4,7 +4,8 @@
       "version": "9.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.projectwizards.merlinproject';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.projectwizards.merlinproject' AND version_compare(bundle_short_version, '9.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.projectwizards.merlinproject' AND version_compare(bundle_short_version, '9.2.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.projectwizards.merlinproject' AND a.bundle_executable != '');"
       },
       "installer_url": "https://www.projectwizards.net/downloads/MerlinProject.zip",
       "install_script_ref": "fa315c97",

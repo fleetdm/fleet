@@ -4,7 +4,8 @@
       "version": "1.1.9666.14975",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ClockAssist' AND publisher = 'ClockAssist';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClockAssist' AND publisher = 'ClockAssist' AND version_compare(version, '1.1.9666.14975') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClockAssist' AND publisher = 'ClockAssist' AND version_compare(version, '1.1.9666.14975') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockassist.exe');"
       },
       "installer_url": "https://clockassist-downloads.s3.eu-central-1.amazonaws.com/partners/clockassist/installer/Setup.msi",
       "install_script_ref": "22e48c46",

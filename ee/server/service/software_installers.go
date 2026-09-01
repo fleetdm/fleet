@@ -503,6 +503,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	payload.InstallerID = existingInstaller.InstallerID
 
+	// The patch controls only apply to Fleet-maintained apps.
+	if (payload.Patch != nil || payload.PatchWhenClosed != nil) && existingInstaller.FleetMaintainedAppID == nil {
+		return nil, &fleet.BadRequestError{Message: `"patch" and "patch_when_closed" are only available for Fleet-maintained apps.`}
+	}
+
 	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
 		trimmed := strings.TrimSpace(*payload.DisplayName)
 		if trimmed == "" && *payload.DisplayName != "" {
@@ -778,7 +783,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
 		}
 
-		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID, true)
+		// Latest takes the most recently downloaded, not highest version string.
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
 		}
@@ -825,6 +831,21 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		"Labels":            {},
 	}
 	var shouldDoSideEffects bool
+
+	var existingPolicy *fleet.PatchPolicyData
+	var patchFlag, patchWhenClosedFlag bool
+
+	if existingInstaller.FleetMaintainedAppID != nil {
+		existingPolicy, err = svc.ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "getting patch policy")
+		}
+		patchFlag, patchWhenClosedFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
 		switch {
@@ -865,6 +886,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
+			// Once a script is manually edited it can't be undone by the update endpoint.
+			payload.InstallScriptEdited = existingInstaller.InstallScriptEdited || dirty["InstallScript"]
+			payload.UninstallScriptEdited = existingInstaller.UninstallScriptEdited || dirty["UninstallScript"]
+
 			// Get the hosts that are NOT in label scope currently (before the update happens)
 			var hostsNotInScope map[uint]struct{}
 			if dirty["Labels"] {
@@ -877,6 +902,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 			}
+
+			svc.resetInstallAttemptsForInstallers(ctx, []uint{payload.InstallerID})
 
 			if dirty["Labels"] {
 				// Get the hosts that are now IN label scope (after the update)
@@ -919,7 +946,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		// now that the payload has been updated with any patches, we can set the
 		// final fields of the activity
 		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
-			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll)
+			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll,
+		)
 		if payload.ValidatedLabels != nil {
 			actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 		}
@@ -940,6 +968,30 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
+	// Create, update, or delete the patch policy after the installer save
+	patchTeamID := ptr.ValOrZero(payload.TeamID)
+	switch {
+	case !patchFlag && existingPolicy != nil:
+		if _, err := svc.DeleteTeamPolicies(ctx, patchTeamID, []uint{existingPolicy.ID}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting patch policy")
+		}
+	case patchFlag && existingPolicy == nil:
+		patchType := fleet.PolicyTypePatch
+		if _, err := svc.NewTeamPolicy(ctx, patchTeamID, fleet.NewTeamPolicyPayload{
+			Type:                 &patchType,
+			PatchSoftwareTitleID: &payload.TitleID,
+			PatchWhenClosed:      patchWhenClosedFlag,
+			// patch_when_closed requires continuous automations on; the create rejects it otherwise.
+			ContinuousAutomationsEnabled: patchWhenClosedFlag,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+		}
+	case patchFlag && existingPolicy != nil && patchWhenClosedFlag != existingPolicy.PatchWhenClosed:
+		if _, err := svc.ModifyTeamPolicy(ctx, patchTeamID, existingPolicy.ID, fleet.ModifyPolicyPayload{PatchWhenClosed: &patchWhenClosedFlag}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "modifying patch policy")
+		}
+	}
+
 	// re-pull the edited installer to reflect side effects; return that specific
 	// package, not the title's first-added one. May be able to optimize this out later.
 	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, payload.InstallerID, true)
@@ -954,6 +1006,45 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	updatedInstaller.Status = statuses
 
 	return updatedInstaller, nil
+}
+
+func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *fleet.SoftwareInstaller, existingPolicy *fleet.PatchPolicyData) (patchFlag bool, patchWhenClosedFlag bool, err error) {
+	// Only the Fleet-maintained package has a managed pre-install query; patch controls on any other
+	// package are rejected by the caller.
+	if installer.FleetMaintainedAppID == nil {
+		return false, false, nil
+	}
+
+	// Resolve both optional flags into plain bools so the logic below never touches the pointers.
+	// An omitted patch keeps the current state.
+	if payload.Patch == nil {
+		if existingPolicy != nil {
+			patchFlag = true
+		}
+	} else {
+		patchFlag = *payload.Patch
+	}
+	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy.
+	if payload.PatchWhenClosed == nil {
+		if existingPolicy != nil {
+			patchWhenClosedFlag = existingPolicy.PatchWhenClosed
+		} else {
+			patchWhenClosedFlag = true
+		}
+	} else {
+		patchWhenClosedFlag = *payload.PatchWhenClosed
+	}
+
+	// patch_when_closed is only meaningful with patch enabled (in this request or already on the title).
+	if payload.PatchWhenClosed != nil && !patchFlag {
+		return false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
+	}
+
+	// The pre-install query is read-only only while patch_when_closed will actually be in effect.
+	if patchFlag && patchWhenClosedFlag && payload.PreInstallQuery != nil {
+		return false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
+	}
+	return patchFlag, patchWhenClosedFlag, nil
 }
 
 func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
@@ -1249,7 +1340,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
 		// it will not return the row we just deleted.
 		if meta.TitleID != nil {
-			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID, false)
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
 			}
@@ -1451,14 +1542,14 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 		return nil, err
 	}
 
-	// SoftwareInstallersCloudFrontSigner can only be set if license.IsPremium()
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
+	// Sign the download URL when CloudFront signing (premium-only) or GCS presigning is configured.
+	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {
 		// Sign the URL for the installer
 		installerURL, err := svc.getSoftwareInstallURL(ctx, details.InstallerID)
 		if err != nil {
 			// We log the error but continue to return the details without the signed URL because orbit can still
 			// try to download the installer via Fleet server.
-			svc.logger.ErrorContext(ctx, "error getting software installer URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error getting software installer URL; check signed URL configuration", "err", err)
 		} else {
 			details.SoftwareInstallerURL = installerURL
 		}
@@ -1664,7 +1755,8 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
 			case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
-				return svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+				_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+				return err
 			case err != nil:
 				return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
 			}
@@ -1876,19 +1968,50 @@ func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host
 }
 
 // recordFailedInHouseInstall is the in-house (.ipa) counterpart of
-// recordFailedVPPInstall.
-func (svc *Service) recordFailedInHouseInstall(ctx context.Context, hostID, inHouseAppID uint, opts fleet.HostSoftwareInstallOptions, reason string) error {
+// recordFailedVPPInstall. Like it, the setup-experience driver needs an error
+// signal to transition the step to Failure, so ForSetupExperience returns a
+// *fleet.PreflightInstallFailedError (see that type's doc).
+func (svc *Service) recordFailedInHouseInstall(ctx context.Context, hostID, inHouseAppID uint, opts fleet.HostSoftwareInstallOptions, reason string) (string, error) {
 	cmdUUID := uuid.NewString()
 	user, act, err := svc.ds.RecordFailedInHouseAppInstall(ctx, hostID, inHouseAppID, cmdUUID, reason, opts)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "record failed in-house install")
+		return "", ctxerr.Wrap(ctx, err, "record failed in-house install")
 	}
 	if act != nil {
 		if err := svc.NewActivity(ctx, user, act); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for failed in-house install")
+			return "", ctxerr.Wrap(ctx, err, "create activity for failed in-house install")
 		}
 	}
-	return nil
+	if opts.ForSetupExperience {
+		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
+	}
+	return cmdUUID, nil
+}
+
+// InstallInHouseAppForSetupExperience enqueues an in-house app (.ipa) install
+// for a host held in Setup Assistant. Unlike the manual install path above, it
+// deliberately skips IsInHouseAppLabelScoped: labels don't apply during setup
+// experience for any software type, and a freshly-enrolled host has no
+// computed label membership yet anyway.
+func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	opts := fleet.HostSoftwareInstallOptions{SelfService: false, ForSetupExperience: true}
+
+	cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, inHouseAppID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+	}
+	switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+	case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+		return svc.recordFailedInHouseInstall(ctx, host.ID, inHouseAppID, opts, unresolvableAppConfigFailureReason(err))
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, inHouseAppID, softwareTitleID, cmdUUID, opts); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert in-house app install for setup experience")
+	}
+	return cmdUUID, nil
 }
 
 func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -1995,7 +2118,8 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		if len(assets) == 0 {
-			svc.logger.DebugContext(ctx, "trying to assign VPP asset to host",
+			svc.logger.DebugContext(
+				ctx, "trying to assign VPP asset to host",
 				"adam_id", vppApp.AdamID,
 				"host_serial", host.HardwareSerial,
 			)
@@ -2113,6 +2237,8 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
+// UninstallSoftwareTitle queues an uninstall of the title's package on the given
+// host, rejecting the request when the package can't run on the host's platform.
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
@@ -2241,9 +2367,12 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
 
-	if host.FleetPlatform() != requiredPlatform {
+	// Share the install path's gate rather than re-deriving it: a package that
+	// was allowed to install on this host has to be allowed to uninstall, and
+	// keeping two copies of the rule is what let them drift apart.
+	if !installerCompatibleWithHost(installer, host) {
 		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, requiredPlatform),
+			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested uninstall",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
@@ -2362,6 +2491,37 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 	return scriptResult, nil
 }
 
+// setupExperiencePlatformsForBareIPABoolean resolves the bare setup_experience
+// boolean for an .ipa into the explicit platform list it stands for: true
+// means iOS only, the documented default. The boolean must not stay attached
+// to the base payload directly because on a hash-matched re-apply the base
+// payload is whichever of the app's two platform rows the lookup returned
+// first. An explicit setup_experience_platform list, false, or a non-.ipa
+// package passes through unchanged.
+func setupExperiencePlatformsForBareIPABoolean(extension string, setupPlatforms *[]string, installDuringSetup *bool) *[]string {
+	if extension == "ipa" && setupPlatforms == nil && installDuringSetup != nil && *installDuringSetup {
+		return &[]string{string(fleet.IOSPlatform)}
+	}
+	return setupPlatforms
+}
+
+// installDuringSetupForFannedOutPlatform derives InstallDuringSetup for the
+// second platform payload fanned out from a single .ipa entry. The base
+// payload's value was computed against the base platform (and the shallow copy
+// would otherwise share its pointer): the setup_experience_platform list
+// decides per platform, the bare setup_experience boolean only ever targets
+// the base platform, and nil preserves the stored value on upsert.
+func installDuringSetupForFannedOutPlatform(setupPlatforms *[]string, baseInstallDuringSetup *bool, platform string) *bool {
+	switch {
+	case setupPlatforms != nil:
+		return new(slices.Contains(*setupPlatforms, platform))
+	case baseInstallDuringSetup != nil:
+		return new(false)
+	default:
+		return nil
+	}
+}
+
 // normalizeSetupExperiencePlatforms lowercases, deduplicates, and validates
 // the incoming platforms against the extension's allowlist. The "macos" alias
 // is not accepted — only canonical tokens ("darwin", "linux"), consistent with
@@ -2432,8 +2592,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.New(ctx, "installer file is required")
 	}
 
-	ext := strings.ToLower(filepath.Ext(payload.Filename))
-	ext = strings.TrimPrefix(ext, ".")
+	ext := extensionFromFilename(payload.Filename)
 
 	if fleet.IsScriptPackage(ext) {
 		if err := svc.addScriptPackageMetadata(ctx, payload, ext); err != nil {
@@ -2589,6 +2748,11 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	}
 
 	scriptContents := string(scriptBytes)
+	if extension != "ps1" {
+		// sh/py scripts run via the kernel's shebang mechanism (e.g. /usr/bin/env python3): stray \r breaks the interpreter lookup.
+		// ps1 runs through powershell.exe on Windows, where CRLF is the native line ending and must be preserved as-is.
+		scriptContents = file.Dos2UnixNewlines(scriptContents)
+	}
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
@@ -2767,7 +2931,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
 		}
 		if len(pendingDeletion) == 0 {
-			svc.logger.DebugContext(ctx, "software batch dry-run skipped: empty payload and no existing installers",
+			svc.logger.DebugContext(
+				ctx, "software batch dry-run skipped: empty payload and no existing installers",
 				"team_id", teamID,
 			)
 			return "", nil
@@ -2869,7 +3034,8 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
 	}
 
-	svc.logger.InfoContext(ctx, "software batch start",
+	svc.logger.InfoContext(
+		ctx, "software batch start",
 		"request_uuid", requestUUID,
 		"team_id", teamID,
 		"payloads", len(payloads),
@@ -2939,14 +3105,26 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if app.TitleID == nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
-			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID, true)
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID)
 			if err != nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+			// Cached versions come back most recently downloaded first, so the first one on the
+			// pinned major is the one to fall back to.
+			pinnedVersion := ""
+			for _, version := range versions {
+				if versionMatchesMajor(version.Version, majorVersionString) {
+					pinnedVersion = version.Version
+					break
+				}
+			}
+			if pinnedVersion == "" {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
-			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, versions[0].Version)
+			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, pinnedVersion)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting software installer")
 			}
@@ -2958,6 +3136,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			app.UninstallScript = installer.UninstallScript
 			app.Categories = installer.Categories
 			app.PatchQuery = installer.PatchQuery
+			app.AppOpenQuery = installer.AppOpenQuery
 		}
 	}
 
@@ -2965,6 +3144,10 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
+	// A script spelled out in the request is an admin customization; falling back to
+	// the manifest is not.
+	payload.InstallScriptEdited = payload.InstallScript != ""
+	payload.UninstallScriptEdited = payload.UninstallScript != ""
 	if payload.InstallScript == "" {
 		payload.InstallScript = app.InstallScript
 	}
@@ -2977,6 +3160,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		payload.Categories = optjson.SetSlice(app.Categories)
 	}
 	payload.MaintainedApp.PatchQuery = app.PatchQuery
+	payload.MaintainedApp.AppOpenQuery = app.AppOpenQuery
 
 	return nil
 }
@@ -3104,7 +3288,8 @@ func (svc *Service) softwareBatchUpload(
 		// not mark it as failed.
 		if batchErr == nil && deletedPackagesJSON != "" {
 			if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
-				svc.logger.WarnContext(ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
+				svc.logger.WarnContext(
+					ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
 					"request_uuid", requestUUID,
 					"err", err,
 				)
@@ -3266,6 +3451,8 @@ func (svc *Service) softwareBatchUpload(
 				PreInstallQuery:          p.PreInstallQuery,
 				PostInstallScript:        p.PostInstallScript,
 				UninstallScript:          p.UninstallScript,
+				InstallScriptEdited:      p.InstallScriptEdited,
+				UninstallScriptEdited:    p.UninstallScriptEdited,
 				SelfService:              p.SelfService,
 				UserID:                   userID,
 				URL:                      p.URL,
@@ -3581,7 +3768,7 @@ func (svc *Service) softwareBatchUpload(
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}
 				}
-				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
+				extension := extensionFromFilename(installer.Filename)
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
 
@@ -3613,6 +3800,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
 				installer.PatchQuery = p.MaintainedApp.PatchQuery
+				installer.AppOpenQuery = p.MaintainedApp.AppOpenQuery
 			}
 
 			var ext string
@@ -3662,6 +3850,13 @@ func (svc *Service) softwareBatchUpload(
 			if fleet.IsMacOSPlatform(installer.Platform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
 				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`)
 			}
+
+			// The bare setup_experience boolean on an .ipa defaults to iOS (see
+			// yaml-files.md). Pin it to an explicit platform list so the
+			// selection doesn't ride on whichever of the app's two rows the
+			// hash lookup happened to return as the base payload.
+			installer.SetupExperiencePlatforms = setupExperiencePlatformsForBareIPABoolean(
+				installer.Extension, installer.SetupExperiencePlatforms, installer.InstallDuringSetup)
 
 			// Canonicalize and reject platforms incompatible with the
 			// installer's extension before the batch reaches the datastore.
@@ -3737,6 +3932,15 @@ func (svc *Service) softwareBatchUpload(
 					extraPayload.Source = "ios_apps"
 				}
 				extraInstallers = append(extraInstallers, &extraPayload)
+			}
+			if installer.Extension == "ipa" {
+				// Derive the per-platform selection for every fanned-out payload —
+				// both the one created above and those matched from existing rows
+				// by hash on re-apply, which skip the block above.
+				for _, extraPayload := range extraInstallers {
+					extraPayload.InstallDuringSetup = installDuringSetupForFannedOutPlatform(
+						installer.SetupExperiencePlatforms, installer.InstallDuringSetup, extraPayload.Platform)
+				}
 			}
 
 			installers[i] = &installerPayloadWithExtras{
@@ -3822,10 +4026,13 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}
 
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers); err != nil {
+	modifiedInstallers, err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers)
+	if err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
 	}
+	svc.resetInstallAttemptsForInstallers(ctx, modifiedInstallers)
+
 	if err := svc.ds.BatchSetInHouseAppsInstallers(ctx, teamID, inHouseInstallers); err != nil {
 		batchErr = fmt.Errorf("batch set in-house apps installers: %w", err)
 		return
@@ -3848,7 +4055,8 @@ func (svc *Service) softwareBatchUpload(
 	// batch payload chain to save that.
 	if batchNeedsWindowsTitleReconcile(softwareInstallers) {
 		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
-			svc.logger.WarnContext(ctx, "reconciling Windows software titles after a software batch",
+			svc.logger.WarnContext(
+				ctx, "reconciling Windows software titles after a software batch",
 				"team_id", teamID,
 				"err", err,
 			)
@@ -4233,9 +4441,9 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return err
 }
 
-func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) error {
 	// get available self-service titles sorted by name
-	titles, categoryName, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID)
+	titles, categoryName, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID, matchQuery)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get software titles for install all")
 	}
@@ -4314,7 +4522,8 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 	}
 	switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
 	case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
-		return svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+		_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+		return err
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
 	}
@@ -4328,11 +4537,16 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 // .zip installers may target windows or darwin). Note that `.sh` installers are
 // stored as platform=linux but are allowed on any unix-like host by callers.
 func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
-	ext = filepath.Ext(installer.Name)
+	ext = strings.ToLower(filepath.Ext(installer.Name))
 	if installer.Platform != "" {
 		return ext, installer.Platform
 	}
 	return ext, packageExtensionToPlatform(ext)
+}
+
+func extensionFromFilename(filename string) string {
+	// a .tar.gz filename returns "gz"
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
 }
 
 // humanReadableRequiredPlatforms returns the platform(s) named in the
@@ -4647,4 +4861,14 @@ func parsePinnedVersion(ctx context.Context, version string) (trimmedVersion str
 func versionMatchesMajor(version string, majorVersion string) bool {
 	versionMajor, _, _ := strings.Cut(version, ".")
 	return versionMajor == majorVersion
+}
+
+func (svc *Service) resetInstallAttemptsForInstallers(ctx context.Context, installerIDs []uint) {
+	if svc.installAttemptCounter == nil {
+		return
+	}
+
+	if err := svc.installAttemptCounter.ResetInstallerAttempts(ctx, installerIDs); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts for updated installers", "software_installer_ids", installerIDs, "err", err)
+	}
 }

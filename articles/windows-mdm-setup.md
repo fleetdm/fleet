@@ -51,6 +51,16 @@ Windows MDM turns on after an end user signs in to the host. Windows completes M
 
 > Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
 
+### Where Windows stores the MDM certificate
+
+Fleet's MDM identity certificate isn't in `LocalMachine\My`. Windows chooses the certificate store based on the enrollment type. Enrollment through fleetd happens in a user context, so Windows files the certificate in the SYSTEM account's personal store:
+
+`C:\Windows\System32\config\systemprofile\AppData\Roaming\Microsoft\SystemCertificates\My`
+
+A copy also appears in the personal store of the user who was signed in during enrollment. That copy has no private key. Both locations are expected. The private key is stored machine-wide, so removing a user profile doesn't affect MDM.
+
+Hosts that enroll through Microsoft Entra ID or Autopilot use a device enrollment instead. Windows files their certificate in `LocalMachine\My`.
+
 ### Migrating from another MDM solution
 
 When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., 400 or 0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging). Local accounts can also become locked.
@@ -82,7 +92,7 @@ During enrollment, end users are prompted to set up Windows Hello and add a PIN.
 
 After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
+In order to connect Fleet to Entra, your organization needs a Microsoft Enterprise Mobility + Security E3 subscription. You don't need to assign this license to your own admin account: Intune supports unlicensed admin access, so you can configure automatic enrollment and Autopilot from an admin account with no license assigned. Each end user who automatically enrolls or manually turns on MDM needs at least a Microsoft Entra ID P1 license. Microsoft's [Autopilot licensing requirements](https://learn.microsoft.com/en-us/autopilot/requirements?tabs=licensing) list "Microsoft Entra ID P1 or P2 and Microsoft Intune subscription or an alternative MDM service" as a supported combination. If your end users already have an E3 or E5 license then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
@@ -96,15 +106,13 @@ In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterpr
 
 5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
 
-6. Find and buy a license.
+6. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
 
-7. Sign in to [Microsoft Entra ID portal](https://portal.azure.com).
+7. At the top of the page, search "Users" and select **Users**.
 
-8. At the top of the page, search "Users" and select **Users**.
+8. Select or create a test user and select **Licenses**.
 
-9. Select or create a test user and select **Licenses**.
-
-10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune license.
+9. Select **+ Assignments** and assign the test user a **Microsoft Entra ID P1** license, so they can complete automatic enrollment testing in Step 3. End users don't need an Intune license to enroll in Fleet.
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
@@ -185,11 +193,11 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ### Step 1: Create an Autopilot profile
 
-1. Sign in to [Microsoft Intune](https://intune.microsoft.com/) using the Intune admin user from step 1.
+1. Sign in to [Microsoft Intune](https://intune.microsoft.com/).
 
 2. In the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
-3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
+3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Out-of-box experience (OOBE)** page, set **User account type** to **Standard** if you don't want the first end user to be a local administrator. See [Force a standard user account](#force-a-standard-user-account) below. On the **Assignments** step, select **+ Add all devices**.
 
 ### Step 2: Register a test workstation
 
@@ -219,6 +227,29 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 2. After it's been wiped, open your workstation and follow the setup steps. On the screen in which you're asked to sign in, you should see the title "Welcome to [your organization]!" next to the logo you uploaded in step 4.
 
+### Force a standard user account
+
+By default, Windows makes the first person who signs in to a new device a local administrator. A standard user account limits what someone can install, change, or disable, which reduces the blast radius of a compromised account.
+
+For Autopilot enrollments, Windows sets the first account's privilege level during the out-of-box experience (OOBE), before the device enrolls in any MDM.
+
+Autopilot and MDM enrollment are separate steps: the device contacts the Windows Autopilot deployment service during OOBE and gets its deployment profile (which sets account type), then joins Microsoft Entra ID and enrolls in whichever MDM you configured. Autopilot is an Entra ID feature. Intune is just the console for authoring the profile.
+
+#### How to force standard
+
+1. Sign in to the [Microsoft Intune admin center](https://intune.microsoft.com/) and open the deployment profile you created in Step 1 above.
+2. On the **Out-of-box experience (OOBE)** page, set **User account type** to **Standard**. Leave **Deployment mode** set to **User-driven** and **Join to Microsoft Entra ID as** set to **Microsoft Entra joined**.
+3. Save the profile.
+
+Microsoft documents every setting on that page in [Configure Autopilot profiles](https://learn.microsoft.com/en-us/autopilot/profiles).
+
+Use user-driven mode. Self-deploying mode and pre-provisioning enroll the device without a user signing in, which Fleet doesn't support.
+
+Edit your existing profile rather than creating a second one. Where a device group is assigned more than one profile, Autopilot applies the oldest profile, which is difficult to troubleshoot.
+
+Standard users can't install software or change protected settings. Use the [Windows setup experience](https://fleetdm.com/guides/windows-linux-setup-experience) to install what end users need at enrollment and offer other apps as [self--service software](https://fleetdm.com/guides/software-self-service).
+
+Autopilot profile settings apply during OOBE, so changing the profile doesn't demote accounts on devices that are already enrolled. To demote accounts on already enrolled Windows hosts, [run this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/demote-admin-to-standard-user.ps1) or reset and re-enroll the host.
 
 ## Automatic Windows MDM migration
 
@@ -281,6 +312,6 @@ The Autopilot service may need a few minutes to sync after the device record cle
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2023-10-23">
+<meta name="publishedOn" value="2026-08-17">
 <meta name="articleImageUrl" value="../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png">
 <meta name="description" value="Configuring Windows MDM in Fleet.">

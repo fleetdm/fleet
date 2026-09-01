@@ -4,7 +4,8 @@
       "version": "3.10.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.refine.Refine';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.refine.Refine' AND version_compare(bundle_short_version, '3.10.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.refine.Refine' AND version_compare(bundle_short_version, '3.10.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.google.refine.Refine' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/OpenRefine/OpenRefine/releases/download/3.10.1/openrefine-mac-3.10.1.dmg",
       "install_script_ref": "99dd79b2",

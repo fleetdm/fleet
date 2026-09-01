@@ -4,7 +4,8 @@
       "version": "6.43",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielhooper.principle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielhooper.principle' AND version_compare(bundle_short_version, '6.43') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielhooper.principle' AND version_compare(bundle_short_version, '6.43') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.danielhooper.principle' AND a.bundle_executable != '');"
       },
       "installer_url": "https://principleformac.com/download/Principle_6_43.zip",
       "install_script_ref": "7c38de78",

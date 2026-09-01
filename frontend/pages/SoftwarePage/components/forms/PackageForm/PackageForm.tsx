@@ -46,7 +46,7 @@ import {
   estimateUploadSize,
   generateFormValidation,
 } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -159,6 +159,7 @@ interface IPackageFormProps {
   /** Overrides the initial `targetType` for new (non-editing) forms. The
    * multi-package add modal preselects `"Custom"` per Figma. */
   initialTargetType?: string;
+  patchWhenClosed?: boolean;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -187,6 +188,7 @@ const PackageForm = ({
   restrictedFileAccept,
   restrictedFileTypeLabel,
   initialTargetType,
+  patchWhenClosed = false,
 }: IPackageFormProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const { config } = useContext(AppContext);
@@ -218,6 +220,32 @@ const PackageForm = ({
     isValid: false,
     software: { isValid: false },
   });
+
+  // GitOps mode hides the target selector, so a "Custom" target with no labels
+  // can never be satisfied: the picker that would fix it isn't rendered, and
+  // Save stays disabled with nothing on screen to explain why. Targeting comes
+  // from YAML in that mode, so normalize to the default instead.
+  //
+  // This runs as an effect rather than in the initial state because `config`
+  // loads asynchronously — GitOps mode often isn't known yet on first render.
+  // Rows that already carry labels (the edit flow) are left alone so their
+  // targeting isn't silently dropped.
+  useEffect(() => {
+    if (!gitOpsModeEnabled) {
+      return;
+    }
+    const hasLabelTargets = Object.values(formData.labelTargets).some(Boolean);
+    if (formData.targetType !== "Custom" || hasLabelTargets) {
+      return;
+    }
+    const normalized = { ...formData, targetType: "All hosts" };
+    setFormData(normalized);
+    // Validation is held in state and only recomputed on change handlers, so
+    // it has to be refreshed here too — otherwise a file chosen before config
+    // resolved leaves behind a failure for the target we just normalized away,
+    // and Save stays disabled.
+    setFormValidation(generateFormValidation(normalized));
+  }, [gitOpsModeEnabled, formData]);
 
   const notifyTooLarge = () => {
     const errorPrefix = isEditingSoftware
@@ -254,7 +282,13 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -262,7 +296,13 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -448,11 +488,13 @@ const PackageForm = ({
   );
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector.
-  // Options selector (self-service + categories) stays edit-only. The target
-  // selector shows whenever a package is being staged — on Edit, in the
+  // The options selector exposes Self-service on Add and Edit; categories
+  // remain edit-only inside SoftwareOptionsSelector. The target selector
+  // shows whenever a package is being staged — on Edit, in the
   // multi-package Add modal, and on the single-package Add page once a file
   // is chosen — because every package on a title needs its own label scope.
-  const showSoftwareOptionsSelector = !gitOpsModeEnabled && isEditingSoftware;
+  const showSoftwareOptionsSelector =
+    !gitOpsModeEnabled && (isEditingSoftware || !!formData.software);
   const showTargetLabelSelector =
     !gitOpsModeEnabled &&
     (isEditingSoftware || multiPackageContext || !!formData.software);
@@ -565,6 +607,7 @@ const PackageForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            patchWhenClosed={patchWhenClosed}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>

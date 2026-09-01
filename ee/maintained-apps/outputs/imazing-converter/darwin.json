@@ -4,7 +4,8 @@
       "version": "2.0.14",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingHEICConverterMac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingHEICConverterMac' AND version_compare(bundle_short_version, '2.0.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingHEICConverterMac' AND version_compare(bundle_short_version, '2.0.14') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.DigiDNA.iMazingHEICConverterMac' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.imazing.com/mac/iMazing-Converter/2.0.14.586/iMazing_Converter_2.0.14.586.dmg",
       "install_script_ref": "4fe46552",

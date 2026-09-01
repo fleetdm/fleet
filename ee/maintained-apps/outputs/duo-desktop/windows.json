@@ -4,7 +4,8 @@
       "version": "7.20.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Duo Desktop' AND publisher = 'Duo Security';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Duo Desktop' AND publisher = 'Duo Security' AND version_compare(version, '7.20.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Duo Desktop' AND publisher = 'Duo Security' AND version_compare(version, '7.20.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'duo desktop.exe');"
       },
       "installer_url": "https://dl.duosecurity.com/DuoDesktop-7.20.0.msi",
       "install_script_ref": "22e48c46",

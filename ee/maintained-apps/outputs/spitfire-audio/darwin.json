@@ -4,7 +4,8 @@
       "version": "3.4.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.spitfireaudio.spitfireaudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.spitfireaudio.spitfireaudio' AND version_compare(bundle_short_version, '3.4.17') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.spitfireaudio.spitfireaudio' AND version_compare(bundle_short_version, '3.4.17') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.spitfireaudio.spitfireaudio' AND a.bundle_executable != '');"
       },
       "installer_url": "https://d1t3zg51rvnesz.cloudfront.net/p/files/lm/1770184800/mac/SpitfireAudio.Mac-3.4.17.dmg",
       "install_script_ref": "725ec0ee",

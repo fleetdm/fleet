@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-56854](https://nvd.nist.gov/vuln/detail/CVE-2026-56854)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerable code is in the SSH server authentication path of golang.org/x/crypto/ssh (ssh.NewServerConn). Fleet does not run an SSH server; golang.org/x/crypto/ssh is only linked into the fleet binary as an SSH client (go-git SSH transport, skeema/knownhosts, go.step.sm/crypto key parsing) and for terminal password prompts in fleetctl.
+- **Products:** `fleet`,`pkg:golang/golang.org/x/crypto`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-09-01 11:10:45
+
 ### [CVE-2026-42306](https://nvd.nist.gov/vuln/detail/CVE-2026-42306)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -356,6 +364,62 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:15:39
 
+### [CVE-2026-56865](https://nvd.nist.gov/vuln/detail/CVE-2026-56865)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56865 (GO-2026-6179) is in golang.org/x/mod/sumdb/tlog (tileHashReader.ReadHashes): a malicious GOPROXY could forge sumdb tiles to bypass the GOSUMDB check and persist attacker-controlled module content to the local Go module cache. This code path is only used when downloading Go modules (e.g. by the go command). fleetctl only imports golang.org/x/mod/semver (version string parsing); the vulnerable sumdb packages are not compiled into the fleetctl binary and fleetctl never downloads or verifies Go modules at runtime.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/mod`
+- **Justification:** `vulnerable_code_not_present`
+- **Timestamp:** 2026-08-20 09:04:44
+
+### [CVE-2026-56864](https://nvd.nist.gov/vuln/detail/CVE-2026-56864)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56864 (GO-2026-6180) is in golang.org/x/mod/sumdb (Client.Lookup): a malicious GOSUMDB could serve arbitrary module content not contained within the transparency log. This code path is only used when downloading Go modules (e.g. by the go command). fleetctl only imports golang.org/x/mod/semver (version string parsing); the vulnerable sumdb packages are not compiled into the fleetctl binary and fleetctl never downloads or verifies Go modules at runtime.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/mod`
+- **Justification:** `vulnerable_code_not_present`
+- **Timestamp:** 2026-08-20 09:04:35
+
+### [CVE-2026-56862](https://nvd.nist.gov/vuln/detail/CVE-2026-56862)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56862 (GO-2026-6090) is a denial-of-service (CPU exhaustion) in crypto/tls, which did not limit the number of post-handshake messages (e.g., KeyUpdate) it accepts. Triggering it requires a hostile TLS peer (malicious/compromised Fleet server or MITM), and such an attacker can already deny service trivially (e.g., by stalling the connection). fleetctl is a CLI client, so the worst case is hanging the operator's command, which can be interrupted; no code execution or data disclosure, and the Fleet server itself is unaffected. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-08-17 11:03:23
+
+### [CVE-2026-56860](https://nvd.nist.gov/vuln/detail/CVE-2026-56860)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56860 (GO-2026-6218) is a denial-of-service (high CPU due to quadratic complexity) in net/url path resolution. fleetctl resolves URLs it is configured with by the operator and URLs from responses of the operator-chosen Fleet server; triggering it requires a hostile or compromised server (or MITM) returning a URL with a pathological path, and such an attacker can already deny service trivially (e.g., by stalling responses). fleetctl is a CLI client, so the worst case is hanging the operator's command, which can be interrupted; no code execution or data disclosure, and the Fleet server itself is unaffected. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-08-17 11:03:19
+
+### [CVE-2026-56859](https://nvd.nist.gov/vuln/detail/CVE-2026-56859)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56859 (GO-2026-6088) is a denial-of-service (panic via unbounded recursion) in encoding/xml. fleetctl decodes XML from MDM command results relayed by the Fleet server (e.g. 'fleetctl get mdm-command-results'), Apple MDM command plists provided by the operator, and XML generated locally during fleetd package builds. Triggering it requires control of those sources (a compromised enrolled host or the Fleet server itself), and the worst case is crashing the operator's CLI invocation; no code execution or data disclosure, and the Fleet server itself is unaffected. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-08-17 11:03:15
+
+### [CVE-2026-56858](https://nvd.nist.gov/vuln/detail/CVE-2026-56858)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56858 (GO-2026-6091) is an escaping bug in html/template's JavaScript regular-expression context tracking that can lead to cross-site scripting when untrusted data is interpolated into a JavaScript regexp context of an HTML template rendered to a browser. fleetctl's only html/template usage is a fixed plain-text template that renders script results to the operator's terminal (cmd/fleetctl/fleetctl/scripts.go renderScriptResult); the template contains no HTML, script, or JavaScript regexp contexts, so the vulnerable escaping code path is never exercised, and the output is written to a terminal, not rendered by a browser. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:56
+
+### [CVE-2026-56853](https://nvd.nist.gov/vuln/detail/CVE-2026-56853)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-56853 (GO-2026-6089) is a denial-of-service in the Go net/http server: ReadHeaderTimeout was not applied while checking for unencrypted HTTP/2 (h2c) connections, allowing a client to hold server connections open indefinitely. fleetctl is a CLI client and does not run an HTTP server. govulncheck on cmd/fleetctl (GOOS=linux, Go 1.26.5) confirms the vulnerable server-side symbols are not reachable; net/http is only linked for client use. Trivy flags it solely because the binary embeds the go1.26.5 toolchain. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:47
+
 ### [CVE-2026-56852](https://nvd.nist.gov/vuln/detail/CVE-2026-56852)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -380,6 +444,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:33:33
 
+### [CVE-2026-54399](https://nvd.nist.gov/vuln/detail/CVE-2026-54399)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-54399 is a denial-of-service in Apache HttpComponents Core (httpcore5) when a Java HTTP server parses requests with excessive HTTP headers. The httpcore5 jar is present in the fleetdm/fleetctl image only as part of Apple Transporter (itms), which fleetctl invokes as a client tool to upload macOS packages to Apple. fleetctl is not a Java server and no Java HTTP server ever runs in the image, so the vulnerable server-side header-parsing code is never executed.
+- **Products:** `fleetctl`,`pkg:maven/org.apache.httpcomponents.core5/httpcore5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:37
+
 ### [CVE-2026-46604](https://nvd.nist.gov/vuln/detail/CVE-2026-46604)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -395,6 +467,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:golang/golang.org/x/image`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 14:10:31
+
+### [CVE-2026-46600](https://nvd.nist.gov/vuln/detail/CVE-2026-46600)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-46600 (GO-2026-5942) is a panic in golang.org/x/net/dns/dnsmessage (vendored into the Go standard library net package) when parsing an invalid SVCB or HTTPS DNS resource record. govulncheck on cmd/fleetctl (GOOS=linux, Go 1.26.5) confirms the vulnerable symbols are never called: the Go resolver paths used by fleetctl's DNS lookups do not request or parse SVCB/HTTPS records. Trivy flags it solely because the binary embeds the go1.26.5 toolchain. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:36:51
 
 ### [CVE-2026-42504](https://nvd.nist.gov/vuln/detail/CVE-2026-42504)
 - **Author:** @lucasmrod
@@ -428,6 +508,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 17:38:09
 
+### [CVE-2026-39821](https://nvd.nist.gov/vuln/detail/CVE-2026-39821)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-39821 (GO-2026-5026): golang.org/x/net/idna (used by the net/http client for all fleetctl API requests) fails to reject ASCII-only Punycode-encoded labels, which can cause a hostname to be interpreted differently than validated. The hostnames fleetctl connects to are operator-controlled (the configured Fleet server URL and URLs the operator provides, e.g. in GitOps configuration); an adversary would need to socially engineer the operator into using a crafted hostname. fleetctl is a CLI client and only sends its API token to the operator-configured server URL, so practical impact is negligible. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-08-17 11:03:11
+
 ### [CVE-2026-34875](https://nvd.nist.gov/vuln/detail/CVE-2026-34875)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -451,6 +539,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:deb/debian/libgnutls30t64`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-05-07 12:01:42
+
+### [CVE-2026-33818](https://nvd.nist.gov/vuln/detail/CVE-2026-33818)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-33818 (GO-2026-5972) is a denial-of-service (panic via stack exhaustion) in encoding/asn1. fleetctl parses ASN.1 (X.509 certificates) from TLS handshakes, so triggering it requires a hostile TLS peer: a malicious/compromised Fleet server or a MITM presenting a certificate with deeply nested ASN.1 structures. Such an attacker can already deny service trivially (e.g., by dropping the connection), and fleetctl is a CLI client, so the worst case is aborting the operator's command; no code execution or data disclosure, and the Fleet server itself is unaffected. The next fleetctl release (4.91.x) will be built with Go 1.26.6, which includes the fix.
+- **Products:** `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-08-17 11:03:06
 
 ### [CVE-2026-33810](https://nvd.nist.gov/vuln/detail/CVE-2026-33810)
 - **Author:** @lucasmrod
@@ -819,6 +915,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-07-31 09:46:22
 
+### [CVE-2026-56211](https://nvd.nist.gov/vuln/detail/CVE-2026-56211)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56210](https://nvd.nist.gov/vuln/detail/CVE-2026-56210)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56209](https://nvd.nist.gov/vuln/detail/CVE-2026-56209)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
+### [CVE-2026-56208](https://nvd.nist.gov/vuln/detail/CVE-2026-56208)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process AV1 video (libaom3) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:50:41
+
 ### [CVE-2026-56131](https://nvd.nist.gov/vuln/detail/CVE-2026-56131)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -843,6 +971,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:31:34
 
+### [CVE-2026-53615](https://nvd.nist.gov/vuln/detail/CVE-2026-53615)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not probe block devices or parse partition tables (libblkid) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/bsdutils`,`pkg:deb/debian/libblkid1`,`pkg:deb/debian/liblastlog2-2`,`pkg:deb/debian/libmount1`,`pkg:deb/debian/libsmartcols1`,`pkg:deb/debian/libuuid1`,`pkg:deb/debian/login`,`pkg:deb/debian/mount`,`pkg:deb/debian/util-linux`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-17 10:52:17
+
 ### [CVE-2026-5201](https://nvd.nist.gov/vuln/detail/CVE-2026-5201)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -866,6 +1002,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libtiff6`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:42:37
+
+### [CVE-2026-47178](https://nvd.nist.gov/vuln/detail/CVE-2026-47178)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
 
 ### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
 - **Author:** @lucasmrod
@@ -1003,6 +1147,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-08 11:01:10
 
+### [CVE-2026-32882](https://nvd.nist.gov/vuln/detail/CVE-2026-32882)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
+
 ### [CVE-2026-32775](https://nvd.nist.gov/vuln/detail/CVE-2026-32775)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1010,6 +1162,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libexif12`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-32741](https://nvd.nist.gov/vuln/detail/CVE-2026-32741)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
+
+### [CVE-2026-32740](https://nvd.nist.gov/vuln/detail/CVE-2026-32740)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
 
 ### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
 - **Author:** @lucasmrod
@@ -1131,6 +1299,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-10 11:44:26
 
+### [CVE-2025-68431](https://nvd.nist.gov/vuln/detail/CVE-2025-68431)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process HEIF/AVIF images (libheif) when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libheif1`,`pkg:deb/debian/libheif-plugin-dav1d`,`pkg:deb/debian/libheif-plugin-libde265`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-08-07 19:58:48
+
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1170,78 +1346,4 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/perl-base`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-10-01 08:36:42
-
-## `fleetdm/bomutils` docker image
-
-### [CVE-2026-4878](https://nvd.nist.gov/vuln/detail/CVE-2026-4878)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** mkbom and xar from fleetdm/bomutils do not call cap_set_file().
-- **Products:** `bomutils`,`pkg:deb/debian/libcap2`,`pkg:deb/debian/libcap2-bin`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-05-19 10:25:00
-
-### [CVE-2026-45447](https://nvd.nist.gov/vuln/detail/CVE-2026-45447)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use OpenSSL (e.g. PKCS7_verify) when using fleetdm/bomutils to generate PKG packages.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-06-15 08:42:45
-
-### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:28:25
-
-### [CVE-2026-29111](https://nvd.nist.gov/vuln/detail/CVE-2026-29111)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** mkbom and xar from fleetdm/bomutils do not use systemd IPC APIs.
-- **Products:** `bomutils`,`pkg:deb/debian/libsystemd0`,`pkg:deb/debian/libudev1`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-05-19 10:25:00
-
-### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetdm/bomutils does not connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-20 11:48:55
-
-### [CVE-2026-28389](https://nvd.nist.gov/vuln/detail/CVE-2026-28389)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:29:08
-
-### [CVE-2026-28388](https://nvd.nist.gov/vuln/detail/CVE-2026-28388)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:28:53
-
-### [CVE-2026-28387](https://nvd.nist.gov/vuln/detail/CVE-2026-28387)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
-- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2026-04-27 14:28:43
-
-### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** Use of mkbom and xar from fleetdm/bomutils have admin controlled inputs.
-- **Products:** `bomutils`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
-- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
-- **Timestamp:** 2026-03-24 08:41:27
 

@@ -138,6 +138,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured
 		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
 		stats.MDMWindowsEnabled = appConfig.MDM.WindowsEnabledAndConfigured
+		stats.MDMAndroidEnabled = appConfig.MDM.AndroidEnabledAndConfigured
 		stats.MDMRecoveryLockPasswordEnabled = appConfig.MDM.EnableRecoveryLockPassword.Value
 		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
@@ -193,6 +194,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 
 		stats.GitOpsModeEnabled = appConfig.GitOpsConfig.GitopsModeEnabled
 		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
+		stats.FleetDesktopSSOEnabled = appConfig.FleetDesktop.SSOEnabled
 
 		return nil
 	}

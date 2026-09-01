@@ -2417,8 +2417,13 @@ var (
 	// bogus DisplayVersion. The optional middle group lets those component names
 	// normalize to the same marketing version as the bundle, so a single install
 	// doesn't show up in inventory under two different versions.
-	pythonNameVersion  = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
-	basicAppSanitizers = []struct {
+	pythonNameVersion = regexp.MustCompile(`^Python (\d+\.\d+\.\d+)( [A-Za-z][^()]*)? \(`)
+	// anyDeskClientVersion strips the client-ID prefix AnyDesk writes into its
+	// Windows registry DisplayVersion: "ad 9.7.15" for the generic client, and
+	// "ad<id> 9.7.15" for a custom client. version_compare can't order those
+	// against a real version, so the patch policy would never see a match.
+	anyDeskClientVersion = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*\s+(\d+(?:\.\d+)*)$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2577,6 +2582,22 @@ var (
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if matches := pythonNameVersion.FindStringSubmatch(s.Name); len(matches) >= 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// AnyDesk on Windows prefixes its registry DisplayVersion with the
+			// client ID: the generic client reports "ad 9.7.15" and a custom client
+			// "ad<id> 9.7.15". Strip the prefix so the version sorts and compares
+			// against the real one.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "anydesk") &&
+					anyDeskClientVersion.MatchString(s.Version)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := anyDeskClientVersion.FindStringSubmatch(s.Version); len(matches) == 2 {
 					s.Version = matches[1]
 				}
 			},
@@ -2886,6 +2907,15 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 			}
 		}
 	}
+	// A host the Autopilot sync created is an automatic enrollment by definition, whatever the enrollment's OOBE flag says.
+	if enrolled && !automatic {
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, host.ID)
+		if err != nil {
+			return err
+		}
+		automatic = isAutopilot
+	}
+
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
 	mdmSolutionName := deduceMDMNameWindows(data)
@@ -3009,7 +3039,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
@@ -3094,7 +3124,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
 		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
@@ -3274,10 +3304,16 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		ctxerr.Handle(ctx, err)
 	}
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
-	// reflect this state.
+	// reflect this state. A pending Autopilot host is the exception.
 	if device.MDMNotInOOBE {
-		if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
-			return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+		isAutopilot, err := hostHasLiveAutopilotRecord(ctx, ds, hostID)
+		if err != nil {
+			return updated, err
+		}
+		if !isAutopilot {
+			if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
+				return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
+			}
 		}
 	}
 	mapping := []*fleet.HostDeviceMapping{
@@ -3690,14 +3726,14 @@ func GetDetailQueries(
 
 		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
 		if appConfig.MDM.WindowsEnabledAndConfigured {
-			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
-			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
+			enableDiskEncryption := appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value
+			requireTPMPin := appConfig.MDM.BitLockerPINRequired()
 
 			// If the host is part of a team, we need to look at the related team config
 			// instead of the App config ...
 			if teamMDMConfig != nil {
-				enableDiskEncryption = teamMDMConfig.EnableDiskEncryption
-				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
+				enableDiskEncryption = teamMDMConfig.WindowsSettings.EnableDiskEncryption.Value
+				requireTPMPin = teamMDMConfig.DiskEncryptionConfig().BitLockerPINRequired
 			}
 
 			if enableDiskEncryption && requireTPMPin {
@@ -3713,7 +3749,12 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
+	// the host fleet's setting is effective when the host is on a fleet
+	luksEscrowEnabled := appConfig != nil && appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	if teamMDMConfig != nil {
+		luksEscrowEnabled = teamMDMConfig.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+	}
+	if luksEscrowEnabled {
 		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
 			return func(encrypted string) (string, error) {
 				return mdm.DecodeAndDecrypt(encrypted, privateKey)
@@ -3984,4 +4025,18 @@ func maybeUpdateLastRestartedAt(now time.Time, host *fleet.Host) {
 
 	// Update the last restarted at time.
 	host.LastRestartedAt = newLastRestartedAt
+}
+
+// hostHasLiveAutopilotRecord reports whether the host was created by the Windows Autopilot sync and its device is still
+// registered, which is what distinguishes an Autopilot enrollment from an ordinary Windows one.
+func hostHasLiveAutopilotRecord(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {
+	_, err := ds.GetHostAutopilotDevice(ctx, hostID)
+	switch {
+	case err == nil:
+		return true, nil
+	case fleet.IsNotFound(err):
+		return false, nil
+	default:
+		return false, ctxerr.Wrap(ctx, err, "get host autopilot device")
+	}
 }

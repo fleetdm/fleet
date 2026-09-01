@@ -4,7 +4,8 @@
       "version": "9.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.digiKam';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.digiKam' AND version_compare(bundle_short_version, '9.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.digiKam' AND version_compare(bundle_short_version, '9.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.digiKam' AND a.bundle_executable != '');"
       },
       "installer_url": "https://download.kde.org/stable/digikam/9.1.0/digiKam-9.1.0-Qt6-MacOS-arm64.pkg",
       "install_script_ref": "12dbbc86",

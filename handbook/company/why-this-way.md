@@ -125,12 +125,12 @@ The only exceptions are:
 1. **Other open-source projects:** When we contribute to open-source projects owned by other people and organizations, we contribute to those outside repositories.  For example, Fleet contributes to [osquery](https://github.com/osquery/osquery/commits/master), [Sails.js](https://github.com/balderdashy/sails/commits/master), and [other open-source projects](https://github.com/orgs/fleetdm/sponsoring).
 2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
+   - _Confidential (security):_ [`fleetdm/security`](https://github.com/fleetdm/security) is Fleet's internal application security tracker, used for vulnerability triage, remediation, and responsible disclosures. It allows us to provide access to our private security reports without exposing unrelated confidential information.
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
-3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
-4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
+3. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
-5. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+4. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
@@ -209,6 +209,11 @@ Every department organizes their work into [team-based kanban boards](https://gi
 1. **Intake:** Give people from anywhere in the world the ability to [request something](https://github.com/fleetdm/confidential/issues/new/choose) from a particular team, and give that team the ability to see and [respond quickly](https://fleetdm.com/handbook/company#results) to new requests.
 2. **Planning:** Give the team's manager and other team members a way to plan the [next three-week iteration](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate [DRI](https://fleetdm.com/handbook/company#why-direct-responsibility) can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
+
+
+## Why route cross-functional taskings through the team's manager?
+
+At Fleet, taskings that span departments (an OKR, an event, a piece of content, anything that needs another team's involvement) go to that team's manager first, even if you already know who you want to do it. The manager owns their team's priorities and workload, so they need to know what's on it. If they don't, they can't prioritize the work, and they can't hold anyone accountable for delivering it.
 
 
 ## Why agile?

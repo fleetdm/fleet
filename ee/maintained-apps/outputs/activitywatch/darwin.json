@@ -4,7 +4,8 @@
       "version": "0.13.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.activitywatch.ActivityWatch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.activitywatch.ActivityWatch' AND version_compare(bundle_short_version, '0.13.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.activitywatch.ActivityWatch' AND version_compare(bundle_short_version, '0.13.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.activitywatch.ActivityWatch' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/ActivityWatch/activitywatch/releases/download/v0.13.2/activitywatch-v0.13.2-macos-x86_64.dmg",
       "install_script_ref": "879d6b6f",

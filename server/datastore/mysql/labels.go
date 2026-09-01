@@ -167,10 +167,11 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	}
 
 	type existingLabel struct {
-		ID       uint   `db:"id"`
-		Name     string `db:"name"`
-		Platform string `db:"platform"`
-		TeamID   *uint  `db:"team_id"`
+		ID        uint            `db:"id"`
+		Name      string          `db:"name"`
+		Platform  string          `db:"platform"`
+		TeamID    *uint           `db:"team_id"`
+		LabelType fleet.LabelType `db:"label_type"`
 	}
 	existingLabels := make(map[string]existingLabel, len(specs))
 
@@ -179,13 +180,13 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	// should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: do we want to allow on duplicate updating label_type or
-		// label_membership_type or should those always be immutable?
-		// are we ok depending solely on the caller to ensure that these fields
-		// are not changed?
+		// TODO: do we want to allow on duplicate updating label_membership_type
+		// or should that always be immutable?
+		// are we ok depending solely on the caller to ensure that field
+		// is not changed?
 
 		if len(labelNames) > 0 {
-			stmt := `SELECT id, name, platform, team_id FROM labels WHERE name IN (?)`
+			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?)`
 			stmt, args, err := sqlx.In(stmt, labelNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build existing labels query")
@@ -201,10 +202,22 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, spec := range specs {
-				if existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]; ok &&
-					(existingLabel.TeamID != nil && spec.TeamID == nil ||
-						existingLabel.TeamID == nil && spec.TeamID != nil ||
-						(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID)) {
+				if spec.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
+				}
+				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
+				if !ok {
+					continue
+				}
+				// The lookup above and the unique index the upsert keys on both inherit
+				// the case-insensitive collation of labels.name, so even a spec merely
+				// named as a case variant of a built-in resolves to that built-in row.
+				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
+				}
+				if existingLabel.TeamID != nil && spec.TeamID == nil ||
+					existingLabel.TeamID == nil && spec.TeamID != nil ||
+					(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID) {
 					return ctxerr.New(ctx, "one or more specified labels exists on another team")
 				}
 			}
@@ -477,22 +490,22 @@ VALUES ` + strings.Join(placeholders, ", ")
 }
 
 // Update label membership for a host vitals label.
-func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
+func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, []uint, error) {
 	// Get the label data.
 	label := hvl.GetLabel()
 
 	// If the label isn't a host vitals label, bail out.
 	if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
-		return nil, ctxerr.New(ctx, "label is not a host vitals label")
+		return nil, nil, ctxerr.New(ctx, "label is not a host vitals label")
 	}
 
 	// Get the query and value params for the host vitals label.
 	query, queryVals, err := hvl.CalculateHostVitalsQuery()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "calculating host vitals query")
+		return nil, nil, ctxerr.Wrap(ctx, err, "calculating host vitals query")
 	}
 	if query == "" {
-		return nil, ctxerr.New(ctx, "label query is empty after calculating host vitals query")
+		return nil, nil, ctxerr.New(ctx, "label query is empty after calculating host vitals query")
 	}
 
 	labelSelect := fmt.Sprintf("%d as label_id, hosts.id as host_id", label.ID)
@@ -501,9 +514,35 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		labelQuery = fmt.Sprintf(query, labelSelect, fmt.Sprintf("hosts JOIN (SELECT %d team_id) label_team ON label_team.team_id = hosts.team_id", *label.TeamID))
 	}
 
+	// changedHostIDs collects the hosts whose membership VALUE actually
+	// changes in this run (added or removed), computed from the same
+	// candidate query the INSERT/DELETE below use, inside the same
+	// transaction. The config ETag invalidation decorator uses these to
+	// invalidate exactly the affected hosts: this method runs from a
+	// 5-minute cron for every host-vitals label, so invalidating all
+	// members (or the whole deployment) every run would churn the ETag
+	// optimization into permanent cold.
+	var changedHostIDs []uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		changedHostIDs = changedHostIDs[:0]
+
+		// Hosts that will be ADDED: candidates not currently members.
+		var added []uint
+		sql := fmt.Sprintf(`SELECT candidate.host_id FROM (%s) as candidate WHERE NOT EXISTS (SELECT 1 FROM label_membership lm WHERE lm.label_id = %d AND lm.host_id = candidate.host_id)`, labelQuery, label.ID)
+		if err := sqlx.SelectContext(ctx, tx, &added, sql, queryVals...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts to add to membership")
+		}
+
+		// Hosts that will be REMOVED: current members no longer matching.
+		var removed []uint
+		sql = fmt.Sprintf(`SELECT host_id FROM label_membership WHERE label_id = %d AND NOT EXISTS (SELECT 1 FROM (%s) as candidate WHERE candidate.host_id = label_membership.host_id)`, label.ID, labelQuery)
+		if err := sqlx.SelectContext(ctx, tx, &removed, sql, queryVals...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts to remove from membership")
+		}
+		changedHostIDs = append(append(changedHostIDs, added...), removed...)
+
 		// Insert new label membership based on the label query.
-		sql := fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
+		sql = fmt.Sprintf(`INSERT INTO label_membership (label_id, host_id) SELECT candidate.label_id, candidate.host_id FROM (%s) as candidate ON DUPLICATE KEY UPDATE host_id = label_membership.host_id`, labelQuery)
 		_, err := tx.ExecContext(ctx, sql, queryVals...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute membership INSERT")
@@ -526,10 +565,10 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		return nil
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostCriteria transaction")
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostCriteria transaction")
 	}
 
-	return label, err
+	return label, changedHostIDs, err
 }
 
 func batchHostIds(hostIds []uint) [][]uint {
@@ -567,7 +606,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 	for _, spec := range specs {
 		if spec.LabelType != fleet.LabelTypeBuiltIn &&
 			spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-			if err := ds.getLabelHostIDs(ctx, spec); err != nil {
+			if err := ds.getLabelHostIDs(ctx, spec, filter); err != nil {
 				return nil, err
 			}
 		}
@@ -599,7 +638,7 @@ WHERE l.name = ?`, filter, name)
 	spec := specs[0]
 	if spec.LabelType != fleet.LabelTypeBuiltIn &&
 		spec.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		err := ds.getLabelHostIDs(ctx, spec)
+		err := ds.getLabelHostIDs(ctx, spec, filter)
 		if err != nil {
 			return nil, err
 		}
@@ -608,18 +647,24 @@ WHERE l.name = ?`, filter, name)
 	return spec, nil
 }
 
-func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec) error {
-	sql := `
-		SELECT id
-		FROM hosts
-		WHERE id IN
-		(
-			SELECT host_id
-			FROM label_membership
-			WHERE label_id = (SELECT id FROM labels WHERE name = ?)
+func (ds *Datastore) getLabelHostIDs(ctx context.Context, label *fleet.LabelSpec, filter fleet.TeamFilter) error {
+	// Global roles (including gitops, which needs the full list to round-trip
+	// specs) see every member; team-scoped users must not learn about host IDs
+	// outside their teams. filter.TeamID scopes which labels are returned, not
+	// which hosts are visible, so it is left out of the host filter.
+	hostFilter := "TRUE"
+	if filter.User == nil || !filter.User.HasAnyGlobalRole() {
+		hostFilter = ds.whereFilterHostsByTeams(
+			fleet.TeamFilter{User: filter.User, IncludeObserver: filter.IncludeObserver}, "h",
 		)
-	`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.Name)
+	}
+	sql := fmt.Sprintf(`
+		SELECT h.id
+		FROM hosts h
+		JOIN label_membership lm ON lm.host_id = h.id
+		WHERE lm.label_id = ? AND %s
+	`, hostFilter)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &label.Hosts, sql, label.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hostnames for label")
 	}
@@ -1393,19 +1438,20 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		whereParams = append(whereParams, *opt.LowDiskSpaceFilter)
 	}
 
-	var err error
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter)
+	if err != nil {
+		return "", nil, err
+	}
 	query, whereParams = filterHostsByStatus(ds.clock.Now(), query, opt, whereParams)
 	query, whereParams = filterHostsByTeam(query, opt, whereParams)
 	query, whereParams = filterHostsByMDM(query, opt, whereParams)
-	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams)
+	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
 	}
-	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
+	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
-	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
-		return "", nil, err
-	} else if opt.OSSettingsFilter.IsValid() {
+	if opt.OSSettingsFilter.IsValid() {
 		query, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err

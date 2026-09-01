@@ -27,7 +27,9 @@ var (
 	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
+	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
@@ -183,6 +185,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
+
+// DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
+type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
+
+// NewDeviceSSORequiredError is an alias for platform_http.NewDeviceSSORequiredError.
+var NewDeviceSSORequiredError = platform_http.NewDeviceSSORequiredError
 
 // AuthHeaderRequiredError is an alias for platform_http.AuthHeaderRequiredError.
 type AuthHeaderRequiredError = platform_http.AuthHeaderRequiredError

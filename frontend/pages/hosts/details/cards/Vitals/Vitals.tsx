@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 
-import { IAppleDeviceUpdates } from "interfaces/config";
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
@@ -13,6 +12,7 @@ import {
 } from "interfaces/platform";
 import {
   isBYODAccountDrivenUserEnrollment,
+  wasBYODEnrolled,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
@@ -45,7 +45,12 @@ export interface IHostVitalsSources {
   vitalsData: { [key: string]: any };
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
-  osVersionRequirement?: IAppleDeviceUpdates;
+  /** The OS version the host is required to reach, resolved per host by the
+   * server. "Pending" while Fleet is still working it out for a "latest"
+   * requirement, and undefined when OS updates aren't configured. */
+  osUpdateMinimumVersion?: string | null;
+  /** The deadline for osUpdateMinimumVersion, following the same states. */
+  osUpdateDeadline?: string | null;
   /**
    * Opens the Location modal. Presence of this handler also makes the
    * Location row interactive — omit it for read-only contexts (e.g., the
@@ -98,6 +103,10 @@ const getGridColumnCount = (grid: HTMLElement | null) => {
 };
 
 const baseClass = "vitals-card";
+
+/** What the API sends for a host's OS update target while Fleet is still
+ * resolving a "latest" requirement. Shown to the user as-is, per the design. */
+const OS_UPDATE_REQUIREMENT_PENDING = "Pending";
 
 const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
@@ -166,7 +175,8 @@ export const buildHostVitals = ({
   vitalsData,
   munki,
   mdm,
-  osVersionRequirement,
+  osUpdateMinimumVersion,
+  osUpdateDeadline,
   toggleLocationModal,
   toggleMDMStatusModal,
   customHostVitals,
@@ -354,15 +364,20 @@ export const buildHostVitals = ({
   }
 
   // Device identity
-  if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-    //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
+  if (
+    mdm &&
+    wasBYODEnrolled(mdm.enrollment_status, mdm.is_personal_enrollment)
+  ) {
+    //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id
+    //  instead. This holds after the host unenrolls too, hence wasBYODEnrolled rather than the
+    //  current enrollment status.
     vitals.push({
       sortKey: "Enrollment ID",
       element: (
         <DataSet
           key="enrollment-id"
           title={
-            <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+            <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. For personal (BYOD) Android hosts, this enrollment ID is stable across unenroll/re-enroll cycles.">
               Enrollment ID
             </TooltipWrapper>
           }
@@ -544,8 +559,8 @@ export const buildHostVitals = ({
   }
 
   // Operating system
-  // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
-  if (!osVersionRequirement?.minimum_version) {
+  // No tooltip if there's no requirement, including all Windows, Linux, ChromeOS, Android operating systems
+  if (!osUpdateMinimumVersion) {
     const version = vitalsData.os_version;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
       <>
@@ -567,11 +582,16 @@ export const buildHostVitals = ({
       ),
     });
   } else {
-    const osVersionWithoutPrefix = removeOSPrefix(vitalsData.os_version);
+    // A "latest" requirement is resolved per host by the server, which sends
+    // "Pending" until it has worked the target out. There's nothing to
+    // compare against until then, so no compliance icon is shown.
+    const isPendingRequirement =
+      osUpdateMinimumVersion === OS_UPDATE_REQUIREMENT_PENDING;
     const osVersionRequirementMet =
+      isPendingRequirement ||
       compareVersions(
-        osVersionWithoutPrefix,
-        osVersionRequirement.minimum_version
+        removeOSPrefix(vitalsData.os_version),
+        osUpdateMinimumVersion
       ) >= 0;
 
     vitals.push({
@@ -588,21 +608,11 @@ export const buildHostVitals = ({
               <TooltipWrapper
                 className={`${baseClass}__os-version-tooltip`}
                 tipContent={
-                  osVersionRequirementMet ? (
-                    <>
-                      {vitalsData.os_version}
-                      <br />
-                      Meets minimum version requirement.
-                    </>
-                  ) : (
-                    <>
-                      {vitalsData.os_version}
-                      <br />
-                      Does not meet minimum version requirement.
-                      <br />
-                      Deadline to update: {osVersionRequirement.deadline}
-                    </>
-                  )
+                  <>
+                    Minimum version required: <b>{osUpdateMinimumVersion}</b>
+                    <br />
+                    Deadline: <b>{osUpdateDeadline}</b>
+                  </>
                 }
               >
                 <span className={`${baseClass}__os-version-text`}>
@@ -696,9 +706,8 @@ export const buildHostVitals = ({
           size="small"
           onClick={() => onEditCustomHostVital(vital)}
           ariaLabel={`Edit ${vital.name}`}
-        >
-          <Icon name="pencil" size="small" />
-        </Button>
+          icon="pencil"
+        />
       </span>
     ) : (
       vital.name
@@ -729,7 +738,8 @@ const Vitals = ({
   vitalsData,
   munki,
   mdm,
-  osVersionRequirement,
+  osUpdateMinimumVersion,
+  osUpdateDeadline,
   className,
   toggleLocationModal,
   toggleMDMStatusModal,
@@ -738,6 +748,9 @@ const Vitals = ({
   onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  // Unlike the Enrollment ID row, this keys off the *current* enrollment status on
+  // purpose: the cap exists because a personally-enrolled device reports few vitals
+  // right now, not because of how it was once enrolled.
   const showExpandedVitals =
     isIosOrIpadosHost &&
     !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
@@ -760,7 +773,8 @@ const Vitals = ({
     vitalsData,
     munki,
     mdm,
-    osVersionRequirement,
+    osUpdateMinimumVersion,
+    osUpdateDeadline,
     toggleLocationModal,
     toggleMDMStatusModal,
     customHostVitals,

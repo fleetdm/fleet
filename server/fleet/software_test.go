@@ -129,6 +129,28 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			name: "patch-when-closed empty pre-install output shows app-was-open copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				PreInstallQueryOutput: new(""),
+				PatchWhenClosed:       true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-managed empty pre-install output shows generic query-fail copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				PreInstallQueryOutput: new(""),
+				PatchWhenClosed:       false,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerQueryFailCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-pending status with non-empty PreInstallQueryOutput",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstalled,
@@ -1021,6 +1043,39 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 					AutoUpdateEnabled:   ptr.Bool(true),
 					AutoUpdateStartTime: ptr.String("14:30"),
 					AutoUpdateEndTime:   ptr.String("24:00"),
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "start time unpadded hour accepted",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   new(true),
+					AutoUpdateStartTime: new("1:00"),
+					AutoUpdateEndTime:   new("15:30"),
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "end time unpadded hour accepted",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   new(true),
+					AutoUpdateStartTime: new("14:30"),
+					AutoUpdateEndTime:   new("1:00"),
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "start time with space rejected",
+			schedule: SoftwareAutoUpdateSchedule{
+				SoftwareAutoUpdateConfig: SoftwareAutoUpdateConfig{
+					AutoUpdateEnabled:   new(true),
+					AutoUpdateStartTime: new("20: 00"),
+					AutoUpdateEndTime:   new("22:00"),
 				},
 			},
 			isValid: false,

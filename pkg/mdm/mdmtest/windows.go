@@ -56,6 +56,9 @@ type TestWindowsMDMClient struct {
 	username string
 	password string
 	nonce    string
+
+	// loginStatus is the value reported in the com.microsoft/MDM/LoginStatus device alert at the start of every management session.
+	loginStatus string
 }
 
 // This is a test-only enrollment type to force erroneous behavior.
@@ -76,6 +79,14 @@ func TestWindowsMDMClientDebug() TestWindowsMDMClientOption {
 func TestWindowsMDMClientNotInOOBE() TestWindowsMDMClientOption {
 	return func(c *TestWindowsMDMClient) {
 		c.notInOOBE = true
+	}
+}
+
+// TestWindowsMDMClientWithLoginStatus configures the value the client reports in the
+// com.microsoft/MDM/LoginStatus device alert ("user", "others" or "none").
+func TestWindowsMDMClientWithLoginStatus(status string) TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.loginStatus = status
 	}
 }
 
@@ -107,6 +118,7 @@ func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmen
 		TokenIdentifier: tokenIdentifier,
 		HardwareID:      uuid.NewString(),
 	}
+	c.loginStatus = string(fleet.WindowsMDMLoginStatusUser)
 	for _, fn := range opts {
 		fn(&c)
 	}
@@ -152,7 +164,7 @@ func (c *TestWindowsMDMClient) StartManagementSession() (map[string]fleet.ProtoC
 		<Meta>
 		<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
 		</Meta>
-		<Data>user</Data>
+		<Data>` + c.loginStatus + `</Data>
 	</Item>
 	</Alert>
 	<Replace>
@@ -379,6 +391,12 @@ func (c *TestWindowsMDMClient) hashedCredentials() string {
 	credentialsWithNonce := fmt.Sprintf("%s:%s", base64.StdEncoding.EncodeToString(credentialsHash[:]), c.nonce)
 	digestHash := md5.Sum([]byte(credentialsWithNonce)) //nolint:gosec // Windows MDM Auth uses MD5
 	return base64.StdEncoding.EncodeToString(digestHash[:])
+}
+
+// SetLoginStatus changes the value reported in the com.microsoft/MDM/LoginStatus alert of subsequent sessions,
+// which is how a scenario simulates a user signing in partway through.
+func (c *TestWindowsMDMClient) SetLoginStatus(status string) {
+	c.loginStatus = status
 }
 
 // AppendResponse sets a response for a specific command UUID.

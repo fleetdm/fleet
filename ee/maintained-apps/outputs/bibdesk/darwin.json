@@ -4,7 +4,8 @@
       "version": "1.9.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk' AND version_compare(bundle_short_version, '1.9.12') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk' AND version_compare(bundle_short_version, '1.9.12') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'edu.ucsd.cs.mmccrack.bibdesk' AND a.bundle_executable != '');"
       },
       "installer_url": "https://downloads.sourceforge.net/bibdesk/BibDesk/BibDesk-1.9.12/BibDesk-1.9.12.dmg",
       "install_script_ref": "fdca5901",

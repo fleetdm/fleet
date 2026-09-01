@@ -353,15 +353,20 @@ type HostMDMProfileRetryCount struct {
 }
 
 // ProfileACMECommandResult bundles the gates needed to decide whether an
-// InstallProfile ack should trigger a CertificateList refetch on macOS:
-// host platform, profile UUID, and whether the delivered profile contains a
-// com.apple.security.acme payload. Computed in a single query keyed on
+// InstallProfile ack should trigger a CertificateList refetch on macOS, and
+// which channel to send it on. Computed in a single query keyed on
 // (host_uuid, command_uuid).
 type ProfileACMECommandResult struct {
 	HostID         uint   `db:"host_id"`
 	Platform       string `db:"platform"`
 	ProfileUUID    string `db:"profile_uuid"`
 	HasACMEPayload bool   `db:"has_acme_payload"`
+	// Scope tells which channel installed the profile, hence which keychain its
+	// ACME cert landed in.
+	Scope PayloadScope `db:"scope"`
+	// UserEnrollmentID is the host's active user-channel enrollment, resolved
+	// only for user-scoped profiles. Empty when there is none.
+	UserEnrollmentID string `db:"user_enrollment_id"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -1439,10 +1444,16 @@ type HostMDMIdentifiers struct {
 }
 
 type NanoMDMEnrollmentDetails struct {
-	LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
-	LastMDMSeenTime       *time.Time `db:"last_seen_at"`
-	HardwareAttested      bool       `db:"hardware_attested"`
-	UnlockToken           *string    `db:"unlock_token"`
+	LastMDMEnrollmentTime  *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime        *time.Time `db:"last_seen_at"`
+	HardwareAttested       bool       `db:"hardware_attested"`
+	UnlockToken            *string    `db:"unlock_token"`
+	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
+	// Enrollment both produce the "On (manual - personal)" status, so the channel
+	// is the only way to tell them apart.
+	EnrollmentType string `db:"enrollment_type"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO
@@ -1460,7 +1471,62 @@ const (
 	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
 	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
 	SSOInitiatorAppleMDMSSO = "mdm_sso"
+	// SSOInitiatorFleetDesktop is used when the Fleet Desktop "My device" page
+	// requires the end user to authenticate with the IdP.
+	SSOInitiatorFleetDesktop = "fleet_desktop"
 )
+
+// maxSSORelayStateLen is the cap the SAML 2.0 HTTP bindings put on RelayState.
+const maxSSORelayStateLen = 80
+
+// SSORelayState is a value Fleet asks the IdP to echo back with the SAML
+// assertion. It survives a callback whose SSO session can no longer be loaded
+type SSORelayState string
+
+// SSORelayStateNone leaves RelayState off the AuthnRequest entirely.
+const SSORelayStateNone = SSORelayState("")
+
+// ParseSSORelayState turns the raw RelayState an IdP posted back into the
+// initiator Fleet sent, or SSORelayStateNone when it echoed back nothing Fleet
+// recognizes.
+func ParseSSORelayState(raw string) SSORelayState {
+	if len(raw) > maxSSORelayStateLen {
+		return SSORelayStateNone
+	}
+	switch raw {
+	case SSOInitiatorOTAEnroll, SSOInitiatorOrbitSetupExperience,
+		SSOInitiatorAccountDrivenEnroll, SSOInitiatorAppleMDMSSO, SSOInitiatorFleetDesktop:
+		return SSORelayState(raw)
+	default:
+		return SSORelayStateNone
+	}
+}
+
+// DeviceSSOInitiation is what a device needs to start the Fleet Desktop SSO
+// flow: the IdP URL to navigate to, plus the handshake session that ties the
+// eventual SAML callback back to this request.
+type DeviceSSOInitiation struct {
+	// IdPURL is the URL the browser must navigate to in order to authenticate.
+	IdPURL string
+	// SessionID identifies the SSO handshake session, carried to the SAML
+	// callback by the __Host-FLEETSSOSESSIONID cookie.
+	SessionID string
+	// SessionDuration is how long the handshake session and its cookie stay
+	// valid; both must use it so neither outlives the other.
+	SessionDuration time.Duration
+}
+
+// DeviceSSOSession is minted after a successful IdP callback initiated from
+// the Fleet Desktop "My device" page, and consumed by the device endpoint SSO
+// gate. It is bound to the host whose device token started the flow, so one
+// device's session cannot unlock another device's page in the same browser.
+type DeviceSSOSession struct {
+	HostID uint `json:"host_id"`
+	// IdPAccountUUID identifies the mdm_idp_accounts row for the IdP identity
+	// that completed the SAML flow.
+	IdPAccountUUID string    `json:"idp_account_uuid"`
+	ExpiresAt      time.Time `json:"expires_at"`
+}
 
 // ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
 // include mode may be set, no label may appear in both include and exclude lists, and the legacy

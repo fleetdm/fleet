@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
@@ -42,10 +43,12 @@ type Service struct {
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
 	distributedLock        fleet.Lock
 	keyValueStore          fleet.KeyValueStore
+	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
 	scepConfigService      fleet.SCEPConfigService
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	msGraphClientFactory   msgraph.ClientFactory
 }
 
 func NewService(
@@ -64,15 +67,22 @@ func NewService(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	distributedLock fleet.Lock,
 	keyValueStore fleet.KeyValueStore,
+	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
 	estService fleet.ESTService,
 	pssoNonceStore fleet.PSSONonceStore,
+	msGraphClientFactory msgraph.ClientFactory,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
+	}
+
+	// Default to the real Graph client.
+	if msGraphClientFactory == nil {
+		msGraphClientFactory = msgraph.NewClient
 	}
 
 	eeservice := &Service{
@@ -92,11 +102,13 @@ func NewService(
 		softwareTitleIconStore: softwareTitleIconStore,
 		distributedLock:        distributedLock,
 		keyValueStore:          keyValueStore,
+		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
 		pssoNonceStore:         pssoNonceStore,
+		msGraphClientFactory:   msGraphClientFactory,
 	}
 
 	// Override methods that can't be easily overriden via
@@ -107,8 +119,7 @@ func NewService(
 		UpdateTeamMDMDiskEncryption:       eeservice.updateTeamMDMDiskEncryption,
 		UpdateTeamMDMHostNameTemplate:     eeservice.updateTeamMDMHostNameTemplate,
 		ApplyHostNameTemplateChange:       eeservice.applyHostNameTemplateChange,
-		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
-		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
+		MDMAppleReconcileFileVaultProfile: eeservice.MDMAppleReconcileFileVaultProfile,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,
 		MDMAppleSyncDEPProfiles:           eeservice.mdmAppleSyncDEPProfiles,
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,

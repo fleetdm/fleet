@@ -4,7 +4,8 @@
       "version": "26.6.29",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.requestly.beta';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.requestly.beta' AND version_compare(bundle_short_version, '26.6.29') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.requestly.beta' AND version_compare(bundle_short_version, '26.6.29') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.requestly.beta' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/requestly/requestly-desktop-app/releases/download/v26.6.29/Requestly-26.6.29-arm64.dmg",
       "install_script_ref": "7c2c08d8",

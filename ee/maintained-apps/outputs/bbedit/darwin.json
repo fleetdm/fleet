@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "16.0.2",
+      "version": "16.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit' AND version_compare(bundle_short_version, '16.0.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit' AND version_compare(bundle_short_version, '16.0.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.barebones.bbedit' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_16.0.2.dmg",
+      "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_16.0.3.dmg",
       "install_script_ref": "8fd9895e",
       "uninstall_script_ref": "45bbb2ec",
-      "sha256": "f63367b675245752bd6c74072bef840288444d04fc582f9a382112daa61b8874",
+      "sha256": "acf2ae9e5c68beacdfd7534861fa8c992e1bdd5391a71b3c08b3ed879c2b3572",
       "default_categories": [
         "Developer tools"
       ]

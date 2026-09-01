@@ -4,7 +4,8 @@
       "version": "0.14.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.commandline.waveterm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.commandline.waveterm' AND version_compare(bundle_short_version, '0.14.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.commandline.waveterm' AND version_compare(bundle_short_version, '0.14.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.commandline.waveterm' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.waveterm.dev/releases-w2/Wave-darwin-arm64-0.14.5.dmg",
       "install_script_ref": "75c8d644",

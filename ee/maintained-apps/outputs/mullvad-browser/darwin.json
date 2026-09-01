@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "15.0.19",
+      "version": "15.0.20",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.mullvad.mullvadbrowser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.mullvad.mullvadbrowser' AND version_compare(bundle_short_version, '15.0.19') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.mullvad.mullvadbrowser' AND version_compare(bundle_short_version, '15.0.20') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.mullvad.mullvadbrowser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.mullvad.net/browser/15.0.19/mullvad-browser-macos-15.0.19.dmg",
+      "installer_url": "https://cdn.mullvad.net/browser/15.0.20/mullvad-browser-macos-15.0.20.dmg",
       "install_script_ref": "30301c81",
       "uninstall_script_ref": "c44b0633",
-      "sha256": "10aa8b7f3e80a0841e19022107a2e55eee33b03e0afa1a13c416e39019c3f0b1",
+      "sha256": "0a5fabd16ba9b53bcc5a19bcc5ab6ff27d00d2e14f02d88dc756f75b8e0c1ab0",
       "default_categories": [
         "Browsers"
       ]

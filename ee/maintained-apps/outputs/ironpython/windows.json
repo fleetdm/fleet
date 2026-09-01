@@ -4,7 +4,8 @@
       "version": "3.4.2.1000",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IronPython 3%' AND publisher = '.NET Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IronPython 3%' AND publisher = '.NET Foundation' AND version_compare(version, '3.4.2.1000') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IronPython 3%' AND publisher = '.NET Foundation' AND version_compare(version, '3.4.2.1000') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ironpython 3.exe');"
       },
       "installer_url": "https://github.com/IronLanguages/ironpython3/releases/download/v3.4.2/IronPython-3.4.2.msi",
       "install_script_ref": "22e48c46",

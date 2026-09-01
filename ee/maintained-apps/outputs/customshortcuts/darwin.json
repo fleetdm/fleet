@@ -4,7 +4,8 @@
       "version": "1.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.CustomShortcuts';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.CustomShortcuts' AND version_compare(bundle_short_version, '1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.houdah.CustomShortcuts' AND version_compare(bundle_short_version, '1.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.houdah.CustomShortcuts' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.houdah.com/customShortcuts/updates/cast_assets/CustomShortcuts1.3.zip",
       "install_script_ref": "c3b15a20",

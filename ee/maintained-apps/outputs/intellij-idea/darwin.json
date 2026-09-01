@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.0.1",
+      "version": "2026.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij' AND version_compare(bundle_short_version, '2026.2.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij' AND version_compare(bundle_short_version, '2026.2.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.intellij' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/idea/ideaIU-2026.2.0.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/idea/ideaIU-2026.2.1-aarch64.dmg",
       "install_script_ref": "b853eec2",
       "uninstall_script_ref": "2a100e79",
-      "sha256": "bcddb055a33957d1f95e7ae3bfd308293d0f812250aab9399164163aa118399f",
+      "sha256": "b9c521ba766f7e5372e9d05f6d68442ada13f34ce758af318ca21f017c0bb19f",
       "default_categories": [
         "Developer tools"
       ]

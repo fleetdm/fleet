@@ -4,7 +4,8 @@
       "version": "0.23.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.boostio.boostnote';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.boostio.boostnote' AND version_compare(bundle_short_version, '0.23.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.boostio.boostnote' AND version_compare(bundle_short_version, '0.23.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.boostio.boostnote' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/BoostIO/BoostNote-App/releases/download/v0.23.1/boost-note-mac.dmg",
       "install_script_ref": "6359466c",

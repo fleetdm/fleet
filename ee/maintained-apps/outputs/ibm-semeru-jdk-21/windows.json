@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "21.0.12.0",
+      "version": "21.0.12.10",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '21.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '21.%' AND version_compare(version, '21.0.12.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '21.%' AND version_compare(version, '21.0.12.10') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ibm semeru runtime open edition jdk 21.exe');"
       },
-      "installer_url": "https://github.com/ibmruntimes/semeru21-binaries/releases/download/jdk-21.0.12.0/ibm-semeru-open-jdk_x64_windows_21.0.12.0.msi",
+      "installer_url": "https://github.com/ibmruntimes/semeru21-binaries/releases/download/jdk-21.0.12.10/ibm-semeru-open-jdk_x64_windows_21.0.12.10.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "54418552",
-      "sha256": "77d7c8d78b1c9c9628b2c5c44d2597fc667fee6225f6709a1fa2ea24ca8d43e6",
+      "sha256": "575d59ff50b2bf5403b94488063a238c55b309405fbda072d6695c6177ee2488",
       "default_categories": [
         "Developer tools"
       ],

@@ -1,10 +1,11 @@
 {
   "versions": [
     {
-      "version": "15.80.4",
+      "version": "15.81.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TeamViewer Host' AND publisher = 'TeamViewer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TeamViewer Host' AND publisher = 'TeamViewer' AND version_compare(version, '15.80.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TeamViewer Host' AND publisher = 'TeamViewer' AND version_compare(version, '15.81.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'teamviewer host.exe');"
       },
       "installer_url": "https://download.teamviewer.com/download/version_15x/TeamViewer_Host_Setup_x64.exe",
       "install_script_ref": "0c887797",

@@ -4,7 +4,8 @@
       "version": "4.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'me.guillaumeb.MonitorControl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.guillaumeb.MonitorControl' AND version_compare(bundle_short_version, '4.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.guillaumeb.MonitorControl' AND version_compare(bundle_short_version, '4.3.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'me.guillaumeb.MonitorControl' AND a.bundle_executable != '');"
       },
       "installer_url": "https://github.com/MonitorControl/MonitorControl/releases/download/v4.3.3/MonitorControl.4.3.3.dmg",
       "install_script_ref": "431e1d86",

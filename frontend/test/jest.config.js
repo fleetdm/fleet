@@ -44,8 +44,6 @@ const config = {
   moduleDirectories: ["node_modules", "frontend"],
   testEnvironment: "jest-fixed-jsdom",
   moduleNameMapper: {
-    "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$":
-      "<rootDir>/frontend/__mocks__/fileMock.js",
     "\\.(sh|ps1)$": "<rootDir>/frontend/__mocks__/fileMock.js",
     "\\.(css|scss|sass)$": "identity-obj-proxy",
     "#minpath": "<rootDir>/node_modules/vfile/lib/minpath.browser.js",
@@ -53,6 +51,20 @@ const config = {
     "#minurl": "<rootDir>/node_modules/vfile/lib/minurl.browser.js",
     "^node-sql-parser$":
       "<rootDir>/node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js",
+    // The editor barrels wrap their component in React.lazy so ace stays out
+    // of the entry chunk. jsdom has no chunk to fetch, so that boundary adds no
+    // coverage here — only Suspense resolutions landing outside act(), which
+    // makes any suite rendering an editor timing-flaky. Point tests straight at
+    // the components; the split itself is verified by the build and in-browser.
+    "^components/SQLEditor$":
+      "<rootDir>/frontend/components/SQLEditor/SQLEditor",
+    "^components/Editor$": "<rootDir>/frontend/components/Editor/Editor",
+    "^components/YamlAce$": "<rootDir>/frontend/components/YamlAce/YamlAce",
+  },
+  transform: {
+    "^.+\\.[jt]sx?$": "babel-jest",
+    "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$":
+      "<rootDir>/frontend/test/fileTransform.js",
   },
   testMatch: ["**/*tests.[jt]s?(x)"],
   setupFilesAfterEnv: ["<rootDir>/frontend/test/test-setup.ts"],

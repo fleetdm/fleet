@@ -2336,6 +2336,9 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 
 func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	t := s.T()
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 	s.enableABM(t.Name())
 
 	latestMacOSVersion := "14.6.1" // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
@@ -2930,6 +2933,52 @@ func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 		}
 
 	}
+}
+
+// Deleting a host while ABM is turned off must still mark its host_dep_assignments
+// row as deleted, otherwise the row is left orphaned pointing at a host that no
+// longer exists.
+func (s *integrationMDMTestSuite) TestDeleteHostWithABMDisabledDeletesDEPAssignment() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.enableABM(t.Name())
+	abmTok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
+	require.NoError(t, err)
+
+	serial := mdmtest.RandSerialNumber()
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "dep-host-abm-off",
+		HardwareSerial:  serial,
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		OsqueryHostID:   new(uuid.NewString()),
+		NodeKey:         new(uuid.NewString()),
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmTok.ID, nil))
+
+	dep, err := s.ds.GetHostDEPAssignment(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, dep.DeletedAt)
+
+	// turn ABM off
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origCfg := appCfg.Copy()
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), origCfg))
+	})
+	appCfg.MDM.AppleBMEnabledAndConfigured = false
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteHostResponse{})
+
+	dep, err = s.ds.GetHostDEPAssignment(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, dep.DeletedAt)
 }
 
 // This test case covers the bug https://github.com/fleetdm/fleet/issues/26879

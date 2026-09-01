@@ -20,6 +20,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 )
@@ -85,7 +86,8 @@ func startCronSchedules(ctx context.Context, deps cronSchedulesDeps) {
 func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
 		deps.register("failed to register chart_data_collection schedule", func() (fleet.CronSchedule, error) {
-			return newChartDataCollectionSchedule(ctx, deps.instanceID, deps.ds, deps.chartSvc, deps.logger)
+			return newChartDataCollectionSchedule(ctx, deps.instanceID, deps.ds, deps.chartSvc,
+				deps.license != nil && deps.license.IsPremium(), deps.logger)
 		})
 	} else {
 		deps.logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")
@@ -128,10 +130,6 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 		})
 	}
 
-	deps.register(fmt.Sprintf("failed to register %s", fleet.CronSoftwareChecksumMigration), func() (fleet.CronSchedule, error) {
-		return cronSoftwareChecksumMigration(ctx, deps.instanceID, deps.ds, deps.logger)
-	})
-
 	if deps.config.Server.FrequentCleanupsEnabled {
 		deps.register("failed to register frequent_cleanups schedule", func() (fleet.CronSchedule, error) {
 			return newFrequentCleanupsSchedule(ctx, deps.instanceID, deps.ds, deps.liveQueryStore, deps.logger)
@@ -149,8 +147,16 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 	})
 
 	deps.register("failed to register upcoming_activities_maintenance schedule", func() (fleet.CronSchedule, error) {
-		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+		return newUpcomingActivitiesSchedule(ctx, deps.instanceID, deps.ds, deps.logger,
+			deps.config.Server.VPPInstallReapTimeout, deps.config.Server.VPPVerifyTimeout, deps.svc.NewActivity,
+			deps.config.Activity.FleetInitiatedReleasePerMinute > 0)
 	})
+
+	if releasePerMinute := deps.config.Activity.FleetInitiatedReleasePerMinute; releasePerMinute > 0 {
+		deps.register("failed to register fleet_initiated_activities_release schedule", func() (fleet.CronSchedule, error) {
+			return newFleetInitiatedActivitiesReleaseSchedule(ctx, deps.instanceID, deps.ds, deps.logger, releasePerMinute)
+		})
+	}
 
 	deps.register("failed to register stats schedule", func() (fleet.CronSchedule, error) {
 		return newUsageStatisticsSchedule(ctx, deps.instanceID, deps.ds, *deps.config, deps.logger)
@@ -214,7 +220,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, deps.svc.NewActivity)
+		return newAppleMDMWorkerSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.commander, deps.bootstrapPackageStore, vppInstaller, deps.svc, deps.svc.NewActivity)
 	})
 
 	deps.register("failed to register apple_mdm_dep_profile_assigner schedule", func() (fleet.CronSchedule, error) {
@@ -270,6 +276,18 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		)
 	})
 
+	// Register Android MDM Command Reconciler schedule (recovers commands whose Pub/Sub notification was lost)
+	deps.register("failed to register mdm_android_command_reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAndroidMDMCommandReconcilerSchedule(
+			ctx,
+			deps.instanceID,
+			deps.ds,
+			deps.logger,
+			deps.config.License.Key,
+			deps.svc.NewActivity,
+		)
+	})
+
 	deps.register("failed to register enable_android_app_reports_on_default_policy cron", func() (fleet.CronSchedule, error) {
 		return cronEnableAndroidAppReportsOnDefaultPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})
@@ -301,6 +319,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if !deps.license.IsPremium() {
 		return
 	}
+
+	deps.register("failed to register microsoft_autopilot_sync schedule", func() (fleet.CronSchedule, error) {
+		return cron.NewMicrosoftAutopilotSchedule(ctx, deps.instanceID, deps.ds, msgraph.NewClient, deps.logger)
+	})
 
 	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
 		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)

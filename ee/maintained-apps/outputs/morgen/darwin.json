@@ -4,7 +4,8 @@
       "version": "4.0.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.210203cqcj00tw1';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.210203cqcj00tw1' AND version_compare(bundle_short_version, '4.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.210203cqcj00tw1' AND version_compare(bundle_short_version, '4.0.6') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.todesktop.210203cqcj00tw1' AND a.bundle_executable != '');"
       },
       "installer_url": "https://download.todesktop.com/210203cqcj00tw1/Morgen%204.0.6%20-%20Build%20260519by9gmr661-arm64.dmg",
       "install_script_ref": "f5f4c69a",

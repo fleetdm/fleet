@@ -299,7 +299,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&fleet_id=1":
+	case "available_for_install=1&fleet_id=1&order_key=name":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         1,
@@ -326,7 +326,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
@@ -373,7 +373,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 		}, nil
-	case "available_for_install=1&fleet_id=0":
+	case "available_for_install=1&fleet_id=0&order_key=name":
 		return []fleet.SoftwareTitleListResult{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -463,6 +463,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Platform:                 "linux,windows",
 				ConditionalAccessEnabled: true,
 				Type:                     fleet.PolicyTypePatch,
+				PatchWhenClosed:          true,
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,
@@ -480,6 +481,20 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 2,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          4,
+				Name:        "Team Profile policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 4",
+				Resolution:  new("Nothing to do."),
+				Description: "This is a team policy with configuration profile automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			ResendConfigurationProfile: &fleet.PolicyProfile{
+				Name: "Team Profile",
 			},
 		},
 	}
@@ -712,6 +727,14 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
 				PinnedVersion:        new("10.0"),
+				// Mirrors the API, which returns the managed app open query while patch_when_closed is on.
+				PreInstallQuery: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'My Windows FMA');",
+				PatchPolicy: &fleet.PatchPolicyData{
+					ID:                           1,
+					Name:                         "Windows - My Windows FMA up to date",
+					PatchWhenClosed:              true,
+					ContinuousAutomationsEnabled: true,
+				},
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -807,7 +830,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
@@ -819,7 +842,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
@@ -827,7 +850,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   8,
 				Name: "My FMA",
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(true),
+					InstallDuringSetup: new(true),
 					Name:               "my-fma.pkg",
 					Platform:           "darwin",
 				},
@@ -841,7 +864,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				Name:       "My Software Package",
 				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					InstallDuringSetup: ptr.Bool(false),
+					InstallDuringSetup: new(false),
 					Name:               "my-software.pkg",
 					Platform:           "darwin",
 					Version:            "13.37",
@@ -894,6 +917,22 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+	return nil, nil
+}
+
+// graphCredClient returns one stored credential, as the endpoint does once one is configured. The secret comes back
+// masked from the API, so generate-gitops must not emit it.
+type graphCredClient struct{ MockClient }
+
+func (graphCredClient) GetMicrosoftGraphCredentials() ([]*fleet.MicrosoftGraphCredential, error) {
+	return []*fleet.MicrosoftGraphCredential{{
+		TenantID:     "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+		ClientID:     "122349c0-2458-448d-a9ae-f40b81a63213",
+		ClientSecret: fleet.MaskedPassword,
+	}}, nil
 }
 
 func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
@@ -1309,9 +1348,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
 
-	// An unset mdm.windows_enrollment must serialize as null rather than an object with an empty default_fleet.
+	// An unset mdm.windows_automatic_enrollment must serialize as null rather than an object with an empty default_fleet.
 	// Applying null is a no-op; an empty default_fleet would clear whatever default the target server has set.
-	appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{}
+	appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{}
 	orgSettingsRaw, err = cmd.generateOrgSettings()
 	require.NoError(t, err)
 	b, err = yamlMarshalRenamed(orgSettingsRaw)
@@ -1319,9 +1358,58 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
 	mdmSettings, ok := orgSettings["mdm"].(map[string]any)
 	require.True(t, ok)
-	we, present := mdmSettings["windows_enrollment"]
-	require.True(t, present, "windows_enrollment key should still be emitted")
-	require.Nil(t, we, "unset windows_enrollment must serialize as null so applying it is a no-op")
+	we, present := mdmSettings["windows_automatic_enrollment"]
+	require.True(t, present, "windows_automatic_enrollment key should still be emitted")
+	require.Nil(t, we, "unset windows_automatic_enrollment must serialize as null so applying it is a no-op")
+}
+
+// generate-gitops must round-trip the Microsoft Graph credential's identifiers so a generated file can be applied
+// back, while never emitting the secret: the API only ever returns the mask.
+func TestGenerateOrgSettingsMicrosoftGraphCredentials(t *testing.T) {
+	fleetClient := &graphCredClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+	// It belongs under org_settings, alongside certificate_authorities, not under controls: controls are not generated
+	// for the global file on Premium, so emitting it there would put it in the Unassigned file where apply ignores it.
+	raw, present := orgSettings["microsoft_graph_credentials"]
+	require.True(t, present, "microsoft_graph_credentials must be emitted under org_settings")
+	creds, ok := raw.([]any)
+	require.True(t, ok)
+	require.Len(t, creds, 1)
+	cred := creds[0].(map[string]any)
+
+	assert.Equal(t, "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4", cred["tenant_id"])
+	assert.Equal(t, "122349c0-2458-448d-a9ae-f40b81a63213", cred["client_id"])
+
+	secret, ok := cred["client_secret"].(string)
+	require.True(t, ok, "client_secret should be a string placeholder")
+	assert.Contains(t, secret, "GITOPS_COMMENT", "the secret must be a TODO comment, not a value")
+	assert.NotContains(t, secret, fleet.MaskedPassword, "emitting the mask would write it back literally on the next apply")
+
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "microsoft_graph_credentials.client_secret" {
+			foundWarning = true
+			assert.Equal(t, "default.yml", w.Filename, "the credential is global, so the warning names default.yml")
+		}
+	}
+	assert.True(t, foundWarning, "expected a SecretWarning for microsoft_graph_credentials.client_secret")
 }
 
 func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
@@ -1788,7 +1876,7 @@ func TestGenerateControls(t *testing.T) {
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 	// The disabled Windows managed local account is not emitted (absent key means disabled).
 	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
-		require.NotContains(t, windowsSection, "managed_local_account_settings")
+		require.NotContains(t, windowsSection, "enable_managed_local_account")
 	}
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
@@ -1798,7 +1886,7 @@ func TestGenerateControls(t *testing.T) {
 			EnableEndUserAuthentication: true,
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
@@ -1808,24 +1896,39 @@ func TestGenerateControls(t *testing.T) {
 	// The enabled Windows managed local account is emitted.
 	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
 	require.True(t, ok, "expected a windows_settings section")
-	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
+
+	// The same key name is the deprecated spelling of the Apple toggle, so make sure it is correct.
+	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
+	require.NoError(t, err)
+	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
+	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
+
+	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
+	require.NoError(t, err)
+	var teamConfig fleet.TeamConfig
+	require.NoError(t, json.Unmarshal(b, &teamConfig))
+	mdmConfig = teamConfig.MDM
 
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	// Note that this team has setup experience software, so we expect a macos_setup section.
-	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
+	controlsRaw, err = cmd.generateControls(new(uint(1)), "some_team", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)
 	require.NoError(t, err)
 	fmt.Println("Controls raw:\n", string(b)) // Debugging line
+	// Decode into fresh maps: unmarshaling into the maps used for the global
+	// comparison above would merge the two results instead of replacing.
+	controls = nil
 	err = yaml.Unmarshal(b, &controls)
 	require.NoError(t, err)
 
 	// Get the expected controls YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
 	require.NoError(t, err)
+	expectedControls = nil
 	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
@@ -1944,19 +2047,19 @@ func TestGenerateSoftware(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-install"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-install.sh"]; ok {
 		require.Equal(t, "foo", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-postinstall.sh"]; ok {
 		require.Equal(t, "bar", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-uninstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-software-package-darwin-uninstall.sh"]; ok {
 		require.Equal(t, "baz", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -1970,7 +2073,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall.sh"]; ok {
 		require.Equal(t, "postinstall", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -1983,6 +2086,9 @@ func TestGenerateSoftware(t *testing.T) {
 	} else {
 		t.Fatalf("Expected file not found")
 	}
+
+	// The windows FMA is patch_when_closed, so its query is not written out.
+	require.NotContains(t, cmd.FilesToWrite, "lib/some-team/queries/my-windows-fma-windows-preinstallquery.yml")
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
 		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
@@ -2142,7 +2248,7 @@ type MockClientWithScriptPackage struct {
 
 func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&fleet_id=2":
+	case "available_for_install=1&fleet_id=2&order_key=name":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         3,
@@ -2278,17 +2384,216 @@ func (c *MockClientWithScriptPackage) GetSetupExperienceSoftware(platform string
 	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
 }
 
+type MockClientPlatformPackages struct {
+	MockClient
+}
+
+func (c *MockClientPlatformPackages) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=2&order_key=name" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:         8,
+				Name:       "Linux Package",
+				HashSHA256: new("linux-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "linux-package.deb",
+					Platform: "linux",
+					Version:  "1.0",
+				},
+			},
+			{
+				ID:         9,
+				Name:       "Windows Package",
+				HashSHA256: new("windows-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "windows-package.msi",
+					Platform: "windows",
+					Version:  "2.0",
+				},
+			},
+		}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientPlatformPackages) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
+	case 8:
+		return &fleet.SoftwareTitle{
+			ID: 8,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "linux install",
+				PostInstallScript: "linux post-install",
+				UninstallScript:   "linux uninstall",
+				Platform:          "linux",
+				Name:              "linux-package.deb",
+			},
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID: 9,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "windows install",
+				PostInstallScript: "windows post-install",
+				UninstallScript:   "windows uninstall",
+				Platform:          "windows",
+				Name:              "windows-package.msi",
+			},
+		}, nil
+	default:
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
+	}
+}
+
+func (c *MockClientPlatformPackages) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
+	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+func TestGenerateSoftwareScriptFileExtensions(t *testing.T) {
+	fleetClient := &MockClientPlatformPackages{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	_, err = cmd.generateSoftware("fleets/some-team.yml", 2, "some-team", false)
+	require.NoError(t, err)
+
+	// Linux packages get shell scripts.
+	require.Equal(t, "linux install", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-install.sh"])
+	require.Equal(t, "linux post-install", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-postinstall.sh"])
+	require.Equal(t, "linux uninstall", cmd.FilesToWrite["lib/some-team/scripts/linux-package-linux-uninstall.sh"])
+
+	// Windows packages get PowerShell scripts.
+	require.Equal(t, "windows install", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-install.ps1"])
+	require.Equal(t, "windows post-install", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-postinstall.ps1"])
+	require.Equal(t, "windows uninstall", cmd.FilesToWrite["lib/some-team/scripts/windows-package-windows-uninstall.ps1"])
+}
+
 const (
 	santaHashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	santaHashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 )
+
+type MockClientInHouseApp struct {
+	MockClient
+}
+
+func (c *MockClientInHouseApp) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=9&order_key=name" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              20,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0"},
+			},
+			{
+				ID:              21,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0"},
+			},
+		}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientInHouseApp) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	switch id {
+	case 20:
+		return &fleet.SoftwareTitle{
+			ID:              20,
+			Name:            "Acme",
+			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ios", URL: "https://example.com/acme.ipa"},
+		}, nil
+	case 21:
+		return &fleet.SoftwareTitle{
+			ID:              21,
+			Name:            "Acme",
+			SoftwarePackage: &fleet.SoftwareInstaller{Name: "acme.ipa", Platform: "ipados", URL: "https://example.com/acme.ipa"},
+		}, nil
+	default:
+		return c.MockClient.GetSoftwareTitleByID(id, teamID)
+	}
+}
+
+func (c *MockClientInHouseApp) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID != 9 {
+		return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+	}
+	// In-house apps surface whenever the platform list includes a mobile
+	// platform, so the generator's combined query returns them; the "macos"
+	// cross-selection query does not.
+	if strings.Contains(platform, "ios") {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              20,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ios", Version: "1.0", InstallDuringSetup: new(false)},
+			},
+			{
+				ID:              21,
+				Name:            "Acme",
+				HashSHA256:      new("acme-ipa-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "acme.ipa", Platform: "ipados", Version: "1.0", InstallDuringSetup: new(true)},
+			},
+		}, nil
+	}
+	return []fleet.SoftwareTitleListResult{}, nil
+}
+
+// TestGenerateSoftwareInHouseAppSetupExperience covers the .ipa dedup in
+// generate: the iOS title is seen first and unflagged, only the iPadOS sibling
+// is selected for setup experience, and the single emitted entry must still
+// carry the selection as setup_experience_platform.
+func TestGenerateSoftwareInHouseAppSetupExperience(t *testing.T) {
+	fleetClient := &MockClientInHouseApp{}
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		SoftwareList: make(map[uint]Software),
+		ScriptList:   make(map[uint]string),
+	}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd.AppConfig = appConfig
+
+	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
+
+	res, err := cmd.generateSoftware("fleets/test.yml", 9, "team-a", false)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	packages, ok := res["packages"].([]map[string]any)
+	require.True(t, ok, "expected packages in result")
+	require.Len(t, packages, 1, "the two .ipa titles must dedupe to one entry")
+
+	pkg := packages[0]
+	assert.Equal(t, "ipados", pkg["setup_experience_platform"])
+	_, hasBoolean := pkg["setup_experience"]
+	assert.False(t, hasBoolean, "per-platform selection must not emit the setup_experience boolean")
+}
 
 type MockClientMultiPackage struct {
 	MockClient
 }
 
 func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
-	if query == "available_for_install=1&fleet_id=2" {
+	if query == "available_for_install=1&fleet_id=2&order_key=name" {
 		return []fleet.SoftwareTitleListResult{{
 			ID:              7,
 			Name:            "Santa",
@@ -2611,6 +2916,114 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	}
 }
 
+// Disk encryption and key escrow moved from the flat controls.enable_disk_encryption
+// and controls.windows_require_bitlocker_pin keys to per-platform ones. DoGitOps
+// rejects a file that carries a flat key and its per-platform equivalent, so the
+// generator must emit only the per-platform keys — and must read them from the
+// right source, which differs between a real fleet and "no team".
+func TestGenerateControlsDiskEncryption(t *testing.T) {
+	newCmd := func(t *testing.T, client *MockClient) *GenerateGitopsCommand {
+		t.Helper()
+		appConfig, err := client.GetAppConfig()
+		require.NoError(t, err)
+		return &GenerateGitopsCommand{
+			Client:       client,
+			CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+			Messages:     Messages{},
+			FilesToWrite: make(map[string]any),
+			AppConfig:    appConfig,
+			ScriptList:   make(map[uint]string),
+		}
+	}
+
+	// Deliberately the inverse of appConfig.json's global values, so that which
+	// source won is visible in the assertion.
+	fleetMDM := func() *fleet.TeamMDM {
+		return &fleet.TeamMDM{
+			MacOSSettings: fleet.MacOSSettings{
+				EnableDiskEncryption:          optjson.SetBool(true),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+			WindowsSettings: fleet.WindowsSettings{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(false),
+			},
+			LinuxSettings: fleet.LinuxSettings{
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+		}
+	}
+
+	type diskEncryption struct {
+		macOS, macOSEscrow, windows, bitLockerPIN, linuxEscrow bool
+	}
+
+	assertDiskEncryption := func(t *testing.T, controls map[string]any, want diskEncryption) {
+		t.Helper()
+
+		apple, ok := controls["apple_settings"].(map[string]any)
+		require.True(t, ok, "expected an apple_settings section")
+		require.Equal(t, want.macOS, apple["enable_disk_encryption"])
+		require.Equal(t, want.macOSEscrow, apple["enable_escrow_disk_encryption_key"])
+
+		windows, ok := controls["windows_settings"].(map[string]any)
+		require.True(t, ok, "expected a windows_settings section")
+		require.Equal(t, want.windows, windows["enable_disk_encryption"])
+		require.Equal(t, want.bitLockerPIN, windows["require_bitlocker_pin"])
+
+		linux, ok := controls["linux_settings"].(map[string]any)
+		require.True(t, ok, "expected a linux_settings section")
+		require.Equal(t, want.linuxEscrow, linux["enable_escrow_disk_encryption_key"])
+
+		// Emitting either deprecated flat key next to the per-platform ones
+		// would make every generated file fail on apply.
+		require.NotContains(t, controls, "enable_disk_encryption")
+		require.NotContains(t, controls, "windows_require_bitlocker_pin")
+	}
+
+	// appConfig.json's global values.
+	globalWant := diskEncryption{macOSEscrow: true, windows: true, linuxEscrow: true}
+
+	t.Run("a fleet uses its own settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(new(uint(1)), "some_team", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, diskEncryption{macOS: true})
+	})
+
+	// "No team" is stored on the global config, so the global values must win
+	// over whatever fleet config is passed in.
+	t.Run("no team uses the global settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(new(uint(0)), "no_team", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, globalWant)
+	})
+
+	t.Run("global uses the global settings", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{}).generateControls(nil, "", fleetMDM())
+		require.NoError(t, err)
+		assertDiskEncryption(t, controls, globalWant)
+	})
+
+	// Disk encryption is a Premium feature: emitting the keys on Free would
+	// generate a file the server rejects.
+	t.Run("free tier omits every key", func(t *testing.T) {
+		controls, err := newCmd(t, &MockClient{IsFree: true}).generateControls(new(uint(1)), "some_team", fleetMDM())
+		require.NoError(t, err)
+
+		if apple, ok := controls["apple_settings"].(map[string]any); ok {
+			require.NotContains(t, apple, "enable_disk_encryption")
+			require.NotContains(t, apple, "enable_escrow_disk_encryption_key")
+		}
+		if windows, ok := controls["windows_settings"].(map[string]any); ok {
+			require.NotContains(t, windows, "enable_disk_encryption")
+			require.NotContains(t, windows, "require_bitlocker_pin")
+		}
+		require.NotContains(t, controls, "linux_settings")
+		require.NotContains(t, controls, "enable_disk_encryption")
+		require.NotContains(t, controls, "windows_require_bitlocker_pin")
+	})
+}
+
 func TestGenerateMDMVPPTokens(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -2798,9 +3211,9 @@ func TestSillyTeamNames(t *testing.T) {
 }
 
 func TestReplaceAliasKeys(t *testing.T) {
-	rules := map[string]string{
-		"old_key":    "new_key",
-		"nested_old": "nested_new",
+	rules := map[string]aliasRule{
+		"old_key":    {newKey: "new_key"},
+		"nested_old": {newKey: "nested_new"},
 	}
 
 	t.Run("deleteOld=true removes old keys", func(t *testing.T) {
@@ -2868,9 +3281,9 @@ func TestReplaceAliasKeys(t *testing.T) {
 	})
 
 	t.Run("container key deleteOld=false: old keeps old children, new gets new children", func(t *testing.T) {
-		rules := map[string]string{
-			"old_container": "new_container",
-			"child_old":     "child_new",
+		rules := map[string]aliasRule{
+			"old_container": {newKey: "new_container"},
+			"child_old":     {newKey: "child_new"},
 		}
 		data := map[string]any{
 			"old_container": map[string]any{
@@ -2896,9 +3309,9 @@ func TestReplaceAliasKeys(t *testing.T) {
 	})
 
 	t.Run("container key deleteOld=true: children renamed, old container removed", func(t *testing.T) {
-		rules := map[string]string{
-			"old_container": "new_container",
-			"child_old":     "child_new",
+		rules := map[string]aliasRule{
+			"old_container": {newKey: "new_container"},
+			"child_old":     {newKey: "child_new"},
 		}
 		data := map[string]any{
 			"old_container": map[string]any{
@@ -2920,6 +3333,28 @@ func TestReplaceAliasKeys(t *testing.T) {
 		replaceAliasKeys(nil, rules, false)
 		var m map[string]any
 		replaceAliasKeys(m, rules, true)
+	})
+
+	// A scoped rule only renames inside the objects it belongs to, which is what keeps windows_settings.enable_managed_local_account (canonical)
+	// from being rewritten by the setup_experience rename that shares its name.
+	t.Run("scoped rule only applies inside its own object", func(t *testing.T) {
+		scopedRules := map[string]aliasRule{
+			"macos_setup": {newKey: "setup_experience"},
+			"enable_managed_local_account": {
+				newKey: "enable_create_local_admin_account",
+				scope:  []string{"macos_setup", "setup_experience"},
+			},
+		}
+		for _, deleteOld := range []bool{true, false} {
+			data := map[string]any{
+				"macos_setup":      map[string]any{"enable_managed_local_account": true},
+				"windows_settings": map[string]any{"enable_managed_local_account": false},
+			}
+			replaceAliasKeys(data, scopedRules, deleteOld)
+
+			require.Equal(t, map[string]any{"enable_create_local_admin_account": true}, data["setup_experience"])
+			require.Equal(t, map[string]any{"enable_managed_local_account": false}, data["windows_settings"])
+		}
 	})
 }
 
@@ -2986,6 +3421,23 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Equal(t, string(pngBody), cmd.FilesToWrite["lib/org_logo/dark.png"])
 	})
 
+	t.Run("SVG logo is exported with an .svg extension", func(t *testing.T) {
+		svgBody := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>`)
+		cmd, _ := newOrgLogoCommand(t,
+			&orgLogoStub{MockClient: &MockClient{}, body: svgBody, contentType: "image/svg+xml"},
+			fleet.OrgInfo{
+				OrgName:            "ACME",
+				OrgLogoURLDarkMode: "https://fleet.example.com/api/latest/fleet/logo?mode=dark",
+			},
+		)
+
+		orgInfo, err := cmd.generateOrgInfo()
+		require.NoError(t, err)
+
+		assert.Equal(t, "./lib/org_logo/dark.svg", orgInfo["org_logo_path_dark_mode"])
+		assert.Equal(t, string(svgBody), cmd.FilesToWrite["lib/org_logo/dark.svg"])
+	})
+
 	t.Run("external URLs are exported unchanged (existing customer configs)", func(t *testing.T) {
 		stub := &orgLogoStub{
 			MockClient: &MockClient{},
@@ -3034,6 +3486,36 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "warning")
 		assert.Contains(t, errBuf.String(), "dark")
 	})
+}
+
+func TestOrgLogoExtFromContentType(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		contentType string
+		wantExt     string
+		wantErr     bool
+	}{
+		{contentType: "image/png", wantExt: ".png"},
+		{contentType: "image/jpeg", wantExt: ".jpg"},
+		{contentType: "image/webp", wantExt: ".webp"},
+		{contentType: "image/svg+xml", wantExt: ".svg"},
+		// The serving endpoint may append parameters to the header.
+		{contentType: "image/svg+xml; charset=utf-8", wantExt: ".svg"},
+		{contentType: "image/gif", wantErr: true},
+		{contentType: "application/octet-stream", wantErr: true},
+		{contentType: "", wantErr: true},
+	} {
+		t.Run(tc.contentType, func(t *testing.T) {
+			ext, err := orgLogoExtFromContentType(tc.contentType)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantExt, ext)
+		})
+	}
 }
 
 func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T) {

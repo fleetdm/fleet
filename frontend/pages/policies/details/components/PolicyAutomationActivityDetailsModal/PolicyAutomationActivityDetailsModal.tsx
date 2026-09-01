@@ -11,11 +11,12 @@ import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
 import Textarea from "components/Textarea";
 import Icon from "components/Icon";
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
   getAutomationRunDisplayName,
-  getAutomationStatusIconName,
+  getAutomationStatusIcon,
   getDetailOutputText,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
@@ -33,7 +34,7 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { status, created_at, host_id, host_display_name } = activity;
+  const { created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
   const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
 
@@ -84,7 +85,10 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon name={getAutomationStatusIconName(status)} />
+              <Icon
+                name={getAutomationStatusIcon(activity).name}
+                color={getAutomationStatusIcon(activity).color}
+              />
               {getAutomationRunDisplayName(activity)}
             </span>
           }
@@ -93,7 +97,9 @@ const PolicyAutomationActivityDetailsModal = ({
           <>
             {renderOutputSection(
               "Pre-install query output",
-              activity.pre_install_output
+              activity.details?.skipped_install
+                ? SKIPPED_PRE_INSTALL_OUTPUT
+                : activity.pre_install_output
             )}
             {renderOutputSection("Details", activity.output)}
             {renderOutputSection(

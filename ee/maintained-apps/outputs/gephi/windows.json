@@ -4,7 +4,8 @@
       "version": "0.11.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Gephi' AND publisher = 'Gephi';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Gephi' AND publisher = 'Gephi' AND version_compare(version, '0.11.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Gephi' AND publisher = 'Gephi' AND version_compare(version, '0.11.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gephi.exe');"
       },
       "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.2/gephi-0.11.2-windows-x64.exe",
       "install_script_ref": "7da5f4b3",

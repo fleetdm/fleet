@@ -4,7 +4,8 @@
       "version": "5.5.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Memory-Cleaner-SIII';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Memory-Cleaner-SIII' AND version_compare(bundle_short_version, '5.5.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Memory-Cleaner-SIII' AND version_compare(bundle_short_version, '5.5.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nektony.Memory-Cleaner-SIII' AND a.bundle_executable != '');"
       },
       "installer_url": "https://download.nektony.com/download/memory-cleaner/dmg/memory-cleaner.dmg?build=271",
       "install_script_ref": "1047a92f",

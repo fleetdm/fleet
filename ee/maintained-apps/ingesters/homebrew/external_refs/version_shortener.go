@@ -38,6 +38,8 @@ var (
 	RoyalTSXVersionShortener            = makeVersionShortener(3) // "6.4.2.1000" → "6.4.2"
 	GrammarlyDesktopVersionShortener    = makeVersionShortener(3) // "1.160.0.0" → "1.160.0"
 	AnkaVersionShortener                = makeVersionShortener(3) // "3.8.6.212" → "3.8.6"
+	OneDriveVersionShortener            = makeVersionShortener(3) // "26.139.0720.0007" → "26.139.0720"
+	HarmonySASEVersionShortener         = makeVersionShortener(3) // "12.11.0.12314" → "12.11.0"
 )
 
 // SublimeVersionTransformer prepends "Build " to match what macOS reports as

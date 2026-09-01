@@ -4,7 +4,8 @@
       "version": "6.0.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'PDFsam Basic' AND publisher = 'Sober Lemur S.r.l.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PDFsam Basic' AND publisher = 'Sober Lemur S.r.l.' AND version_compare(version, '6.0.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'PDFsam Basic' AND publisher = 'Sober Lemur S.r.l.' AND version_compare(version, '6.0.5.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'pdfsam basic.exe');"
       },
       "installer_url": "https://github.com/torakiki/pdfsam/releases/download/v6.0.5/pdfsam-basic-6.0.5-windows-x64.msi",
       "install_script_ref": "22e48c46",

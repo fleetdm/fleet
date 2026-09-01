@@ -4,7 +4,8 @@
       "version": "1.6.1.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dymo.DYMO-WebApi-Mac-Host';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dymo.DYMO-WebApi-Mac-Host' AND version_compare(bundle_short_version, '1.6.1.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dymo.DYMO-WebApi-Mac-Host' AND version_compare(bundle_short_version, '1.6.1.4') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.dymo.DYMO-WebApi-Mac-Host' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dymoreleasecontent.blob.core.windows.net/dymo-release/DCDMAC/DCDMac1.6.1.4-Arm64.pkg",
       "install_script_ref": "0cedfe85",

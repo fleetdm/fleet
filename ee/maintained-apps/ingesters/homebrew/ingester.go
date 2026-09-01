@@ -231,9 +231,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 	if input.Token == "docker-desktop" {
-		// Docker's updater can leave Docker.app.back; do not treat it as the installed app for
-		// patch status. Match ".back" anywhere in the path (not just as a suffix) because the
-		// stale bundle can surface as a nested app, e.g.
+		// Docker's updater can leave Docker.app.back, which reports the same bundle
+		// identifier as the real app at its old version; do not treat it as the installed
+		// app for patch status. Match ".back" anywhere in the path (not just as a suffix)
+		// because the stale bundle also surfaces as a nested app, e.g.
 		// "/Applications/Docker.app.back/Contents/MacOS/Docker Desktop.app".
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.back%%' AND version_compare(bundle_short_version, '%s') < 0);",
@@ -292,6 +293,8 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			)
 		}
 	}
+
+	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
 
 	return out, nil
 }
@@ -670,6 +673,10 @@ type brewUninstall struct {
 	PkgUtil   optjson.StringOr[[]string] `json:"pkgutil"`
 	// brew docs says string or hash, but our only case has a single string.
 	Script optjson.StringOr[map[string]any] `json:"script"`
+	// same shape as Script, but brew runs it before every other directive, so
+	// it's what casks use to make the rest of the removal possible (unloading a
+	// system extension, clearing an immutable flag).
+	EarlyScript optjson.StringOr[map[string]any] `json:"early_script"`
 	// format: [0]=signal, [1]=process name (although the brew documentation says
 	// it's an array of arrays, it's not like that in our single case that uses
 	// it).

@@ -4,7 +4,8 @@
       "version": "11.0.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'install4j%' AND publisher = 'ej-technologies GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'install4j%' AND publisher = 'ej-technologies GmbH' AND version_compare(version, '11.0.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'install4j%' AND publisher = 'ej-technologies GmbH' AND version_compare(version, '11.0.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'install4j.exe');"
       },
       "installer_url": "https://download.ej-technologies.com/install4j/install4j_windows-x64_11_0_5.exe",
       "install_script_ref": "05891962",

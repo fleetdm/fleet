@@ -41,6 +41,8 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
+  SKIPPED_INSTALL_DETAILS,
+  SKIPPED_PRE_INSTALL_OUTPUT,
   getInstallDetailsStatusPredicate,
 } from "../constants";
 
@@ -49,6 +51,7 @@ const baseClass = "software-install-details-modal";
 export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
+  skipped_install?: boolean;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -73,6 +76,7 @@ interface IInstallStatusMessage {
    - From Activity feed: never override (always show the failure).
    Parity with VPPInstallDetailsModal/SoftwareIpaInstallDetailsModal */
   canOverrideFailureWithInstalled?: boolean;
+  skippedInstall?: boolean;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -83,6 +87,7 @@ export const StatusMessage = ({
   isMyDevicePage,
   contactUrl,
   canOverrideFailureWithInstalled = false,
+  skippedInstall = false,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -142,6 +147,23 @@ export const StatusMessage = ({
         addSuffix: true,
       })})`
     : "";
+
+  if (skippedInstall && status === "failed_install") {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName={INSTALL_DETAILS_STATUS_ICONS.skipped_install}
+        iconColor="ui-fleet-black-50"
+        message={
+          <span>
+            Fleet skipped install of <b>{software_title}</b> ({software_package}
+            ) on {formattedHost}
+            {displayTimeStamp}. {SKIPPED_INSTALL_DETAILS}
+          </span>
+        }
+      />
+    );
+  }
 
   const renderStatusCopy = () => {
     const prefix = (
@@ -296,7 +318,9 @@ export const SoftwareInstallDetailsModal = ({
     const outputs = [
       {
         label: "Pre-install query output:",
-        value: swInstallResult?.pre_install_query_output,
+        value: detailsFromProps.skipped_install
+          ? SKIPPED_PRE_INSTALL_OUTPUT
+          : swInstallResult?.pre_install_query_output,
       },
       {
         label: "Install script output:",
@@ -312,7 +336,8 @@ export const SoftwareInstallDetailsModal = ({
     const showDetailsButton =
       (!!swInstallResult?.post_install_script_output ||
         !!swInstallResult?.output ||
-        !!swInstallResult?.pre_install_query_output) &&
+        !!swInstallResult?.pre_install_query_output ||
+        !!detailsFromProps.skipped_install) &&
       swInstallResult?.status !== "pending_install";
 
     return (
@@ -453,6 +478,7 @@ export const SoftwareInstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
+          skippedInstall={detailsFromProps.skipped_install}
         />
 
         {/* Package SHA-256 hash — backend hydrates `hash_sha256` on the

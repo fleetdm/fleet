@@ -4,7 +4,8 @@
       "version": "5.12.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer' AND version_compare(bundle_short_version, '5.12.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer' AND version_compare(bundle_short_version, '5.12.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.slicer.slicer' AND a.bundle_executable != '');"
       },
       "installer_url": "https://slicer-packages.kitware.com/api/v1/item/6a61a0b02eb3d967f032af6c/download",
       "install_script_ref": "df696ec2",

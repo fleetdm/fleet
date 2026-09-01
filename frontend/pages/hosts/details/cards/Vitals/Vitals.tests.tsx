@@ -52,6 +52,70 @@ describe("Vitals Card component", () => {
     expect(screen.queryByText("Public IP address")).not.toBeInTheDocument();
   });
 
+  it("keeps Enrollment ID for a personally enrolled Android host after it unenrolls", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      hardware_model: "Pixel 6",
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "Off",
+        is_personal_enrollment: true,
+      }),
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
+    expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
+    expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
+  });
+
+  it("renders Serial number for an unenrolled Android host that was not personally enrolled", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      hardware_model: "Pixel 6",
+      hardware_serial: "1234567890",
+      mdm: createMockHostMdmData({
+        enrollment_status: "Off",
+        is_personal_enrollment: false,
+      }),
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("Serial number")).toBeInTheDocument();
+    expect(screen.getByText("1234567890")).toBeInTheDocument();
+    expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
+  });
+
+  it("tells the user the Enrollment ID is stable for personal Android hosts", async () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "Off",
+        is_personal_enrollment: true,
+      }),
+    });
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals vitalsData={mockHost} mdm={mockHost.mdm} />
+    );
+
+    await user.hover(screen.getByText("Enrollment ID"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /For personal \(BYOD\) Android hosts, this enrollment ID is stable across unenroll\/re-enroll cycles\./i
+        )
+      ).toBeInTheDocument();
+    });
+  });
+
   it("renders Enrollment ID and Hardware model for personally enrolled iOS hosts", () => {
     const mockHost = createMockHost({
       platform: "ios",
@@ -995,5 +1059,73 @@ describe("Custom host vitals", () => {
     await user.click(screen.getByRole("button", { name: "Edit Asset tag" }));
 
     expect(onEditCustomHostVital).toHaveBeenCalledWith(customHostVitals[0]);
+  });
+
+  describe("Operating system OS update requirement", () => {
+    const renderWithRequirement = createCustomRenderer({});
+
+    it("shows the required version and deadline", async () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osUpdateMinimumVersion="26.6"
+          osUpdateDeadline="2026-07-30"
+        />
+      );
+
+      await user.hover(screen.getByText("macOS 26.5"));
+
+      await waitFor(() => {
+        const tooltip = screen.getByText(/Minimum version required:/i);
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent("Minimum version required: 26.6");
+        expect(tooltip).toHaveTextContent("Deadline: 2026-07-30");
+      });
+
+      // The values are bolded, the labels aren't.
+      expect(screen.getByText("26.6").tagName).toBe("B");
+      expect(screen.getByText("2026-07-30").tagName).toBe("B");
+    });
+
+    it("shows Pending while the target is still being resolved", async () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      const { user } = renderWithRequirement(
+        <Vitals
+          vitalsData={mockHost}
+          osUpdateMinimumVersion="Pending"
+          osUpdateDeadline="Pending"
+        />
+      );
+
+      await user.hover(screen.getByText("macOS 26.5"));
+
+      await waitFor(() => {
+        const tooltip = screen.getByText(/Minimum version required:/i);
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent("Minimum version required: Pending");
+        expect(tooltip).toHaveTextContent("Deadline: Pending");
+      });
+    });
+
+    it("renders no tooltip when there's no requirement", () => {
+      const mockHost = createMockHost({
+        platform: "darwin",
+        os_version: "macOS 26.5",
+      });
+
+      renderWithRequirement(<Vitals vitalsData={mockHost} />);
+
+      expect(screen.getByText("macOS 26.5")).toBeVisible();
+      expect(screen.queryByText(/Minimum version required/i)).toBeNull();
+    });
   });
 });

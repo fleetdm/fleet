@@ -21,6 +21,7 @@ on:
       - 'frontend/templates/enroll-ota.html'
       - 'frontend/templates/windowsTOS.html'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '**.go'
       - '**/testdata/**'
@@ -41,7 +42,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -55,6 +56,7 @@ permissions:
 jobs:
   # ──────────────────────────────────────────────────────────────────────────────
   # Suites that do NOT need MySQL: run once with no database dimension.
+  # These always run, including on draft PRs.
   # ──────────────────────────────────────────────────────────────────────────────
   test-go-no-db:
     strategy:
@@ -69,13 +71,15 @@ jobs:
       SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Suites that need MySQL: always-run versions (every push/PR + cron).
+  # Suites that need MySQL: run on push + cron + non-draft PRs.
+  # Draft PRs run a fast tier only (fast, scripts, service); the full fan-out
+  # runs when the PR is marked ready for review.
   # make sure to update supported versions docs when MySQL versions change
   # ──────────────────────────────────────────────────────────────────────────
   test-go:
     strategy:
       matrix:
-        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
+        suite: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.draft) && '["service"]' || '["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]') }}
         mysql: ["mysql:8.0.44"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
@@ -131,6 +135,8 @@ jobs:
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
+    # Skipped on draft PRs along with the rest of the non-fast tier.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: 'ubuntu-latest'
     services:
       mysql:
@@ -155,7 +161,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -189,7 +195,7 @@ jobs:
             ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
 
       - name: Save coverage
-        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nanomdm-coverage
           path: ./coverage.txt
@@ -225,7 +231,7 @@ jobs:
 
       - name: Upload test log
         if: always()
-        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nanomdm-test-log
           path: /tmp/gotest.log
@@ -233,14 +239,14 @@ jobs:
 
       - name: Upload summary test log
         if: always()
-        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nanomdm-summary-test-log
           path: /tmp/summary.txt
 
       - name: Upload JSON test output
         if: always()
-        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nanomdm-test-json
           path: /tmp/test-output.json
@@ -250,7 +256,9 @@ jobs:
   upload-coverage:
     needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis, test-go-nanomdm]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
-    if: always()
+    # Skipped on draft PRs: only the fast tier runs there, so uploading would
+    # produce a misleading partial coverage report.
+    if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft) }}
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -259,11 +267,11 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Download artifacts
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: '*-coverage'
       - name: Upload to Codecov
@@ -286,7 +294,7 @@ jobs:
           egress-policy: audit
 
       - name: Download artifacts
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: '*-status'
 

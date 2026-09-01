@@ -4,7 +4,8 @@
       "version": "1.11.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnView';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnView' AND version_compare(bundle_short_version, '1.11.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnView' AND version_compare(bundle_short_version, '1.11.5') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.xnview.XnView' AND a.bundle_executable != '');"
       },
       "installer_url": "https://download.xnview.com/old_versions/XnView_MP/XnView_MP-1.11.5-mac.dmg",
       "install_script_ref": "f64c3416",

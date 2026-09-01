@@ -4,7 +4,8 @@
       "version": "5.1.12",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Paint.NET' AND publisher = 'dotPDN LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Paint.NET' AND publisher = 'dotPDN LLC' AND version_compare(version, '5.1.12') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Paint.NET' AND publisher = 'dotPDN LLC' AND version_compare(version, '5.1.12') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'paint.net.exe');"
       },
       "installer_url": "https://github.com/paintdotnet/release/releases/download/v5.1.12/paint.net.5.1.12.install.x64.zip",
       "install_script_ref": "1dd07f15",

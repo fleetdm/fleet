@@ -4,7 +4,8 @@
       "version": "1.2.50",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'threema-consumer-web';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'threema-consumer-web' AND version_compare(bundle_short_version, '1.2.50') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'threema-consumer-web' AND version_compare(bundle_short_version, '1.2.50') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'threema-consumer-web' AND a.bundle_executable != '');"
       },
       "installer_url": "https://releases.threema.ch/web-electron/v1/release/Threema-Latest.dmg",
       "install_script_ref": "96d77b36",

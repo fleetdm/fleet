@@ -4,7 +4,8 @@
       "version": "2.10.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.site.Gemini2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.site.Gemini2' AND version_compare(bundle_short_version, '2.10.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.site.Gemini2' AND version_compare(bundle_short_version, '2.10.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macpaw.site.Gemini2' AND a.bundle_executable != '');"
       },
       "installer_url": "https://dl.devmate.com/com.macpaw.site.Gemini2/406/1781745541/Gemini2-406.zip",
       "install_script_ref": "be46b85c",
