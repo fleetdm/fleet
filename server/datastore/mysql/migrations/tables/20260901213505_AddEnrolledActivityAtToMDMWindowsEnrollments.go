@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260831213614, Down_20260831213614)
+	MigrationClient.AddMigration(Up_20260901213505, Down_20260901213505)
 }
 
-func Up_20260831213614(tx *sql.Tx) error {
+func Up_20260901213505(tx *sql.Tx) error {
 	// enrolled_activity_at records when the mdm_enrolled activity was emitted for this enrollment
 	//
 	// Every enrollment that predates this column was already announced by the old code, so all of them must start out
@@ -33,6 +33,6 @@ func Up_20260831213614(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260831213614(tx *sql.Tx) error {
+func Down_20260901213505(tx *sql.Tx) error {
 	return nil
 }

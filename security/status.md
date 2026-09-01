@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-56854](https://nvd.nist.gov/vuln/detail/CVE-2026-56854)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerable code is in the SSH server authentication path of golang.org/x/crypto/ssh (ssh.NewServerConn). Fleet does not run an SSH server; golang.org/x/crypto/ssh is only linked into the fleet binary as an SSH client (go-git SSH transport, skeema/knownhosts, go.step.sm/crypto key parsing) and for terminal password prompts in fleetctl.
+- **Products:** `fleet`,`pkg:golang/golang.org/x/crypto`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-09-01 11:10:45
+
 ### [CVE-2026-42306](https://nvd.nist.gov/vuln/detail/CVE-2026-42306)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
