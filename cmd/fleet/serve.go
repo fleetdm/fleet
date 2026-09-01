@@ -951,7 +951,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, commander))
-		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, service.NewVerifyRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
+		mdmCheckinAndCommandService.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, service.NewVerifyRecoveryLockResultsHandler(ds, logger, commander, svc.NewActivity))
 
 		hasSCEPChallenge, err := checkMDMAssetsExist(context.Background(), ds, []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 		if err != nil {

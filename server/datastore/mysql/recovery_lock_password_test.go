@@ -354,12 +354,53 @@ func testRecoveryLockStatusMethods(t *testing.T, ds *Datastore) {
 		assert.False(t, result.Status.Valid, "status should be NULL so the host is retried")
 		assert.Equal(t, 1, result.Retry)
 
-		// Retries accumulate across attempts.
+		// no-ops if no in-flight command exists.
 		require.NoError(t, ds.RetryRecoveryLock(ctx, host.UUID, setCmdUUID))
 		err = ds.writer(ctx).GetContext(ctx, &result, `
 			SELECT status, retry FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
 		require.NoError(t, err)
-		assert.Equal(t, 2, result.Retry)
+		assert.Equal(t, 1, result.Retry)
+	})
+
+	t.Run("RetryRecoveryLockVerify re-arms the verify without touching the set", func(t *testing.T) {
+		host, setCmdUUID := setupHost(t, "retry-verify-host", "1.2.3.16", "rvkey", "rvuuid")
+
+		verifyCmdUUID := uuid.NewString()
+		require.NoError(t, ds.SetRecoveryLockVerifying(ctx, host.UUID, setCmdUUID, verifyCmdUUID))
+
+		newVerifyCmdUUID := uuid.NewString()
+		require.NoError(t, ds.RetryRecoveryLockVerify(ctx, host.UUID, verifyCmdUUID, newVerifyCmdUUID))
+
+		var result struct {
+			Status                   string         `db:"status"`
+			Retry                    int            `db:"retry"`
+			PendingVerifyCommandUUID sql.NullString `db:"pending_verify_command_uuid"`
+			PendingEncryptedPassword []byte         `db:"pending_encrypted_password"`
+		}
+		const selectStmt = `
+			SELECT status, retry, pending_verify_command_uuid, pending_encrypted_password
+			FROM host_recovery_key_passwords WHERE host_uuid = ?`
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &result, selectStmt, host.UUID))
+
+		// The row must stay in 'verifying': a NULL status would hand it to
+		// GetHostsForRecoveryLockAction, which re-runs the set with the un-promoted
+		// encrypted_password as CurrentPassword and fails on every attempt.
+		assert.Equal(t, string(fleet.MDMDeliveryVerifying), result.Status)
+		assert.Equal(t, 1, result.Retry)
+		assert.Equal(t, newVerifyCmdUUID, result.PendingVerifyCommandUUID.String)
+		assert.NotEmpty(t, result.PendingEncryptedPassword, "the pending password is still what we are verifying")
+
+		// The host stays out of the cron's hands.
+		hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+		require.NoError(t, err)
+		assert.False(t, hostNeedsRecoveryLockAction(hosts, host.UUID),
+			"a verify awaiting retry must not be picked up for a SetRecoveryLock")
+
+		// A result for the superseded verify command no longer matches.
+		require.NoError(t, ds.RetryRecoveryLockVerify(ctx, host.UUID, verifyCmdUUID, uuid.NewString()))
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &result, selectStmt, host.UUID))
+		assert.Equal(t, 1, result.Retry, "a stale verify UUID must not bump the counter")
+		assert.Equal(t, newVerifyCmdUUID, result.PendingVerifyCommandUUID.String)
 	})
 }
 
@@ -616,6 +657,15 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, hostNeedsRecoveryLockAction(hosts, hostReEnable.UUID), "host in pending remove state should NOT be picked up by GetHostsForRecoveryLockAction")
 
+	// set auto_rotate_at to a past time to simulate due rotation
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords
+		SET auto_rotate_at = ?
+		WHERE host_uuid = ?
+		  AND deleted = 0
+	`, time.Now().Add(-1*time.Hour), hostReEnable.UUID)
+	require.NoError(t, err)
+
 	// RestoreRecoveryLockForReenabledHosts should restore the host to "verified install"
 	restored, err := ds.RestoreRecoveryLockForReenabledHosts(ctx)
 	require.NoError(t, err)
@@ -630,6 +680,11 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	err = ds.writer(ctx).GetContext(ctx, &status, "SELECT status FROM host_recovery_key_passwords WHERE host_uuid = ?", hostReEnable.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, string(fleet.MDMDeliveryVerified), status)
+
+	var autoRotateAt sql.NullTime
+	err = ds.writer(ctx).GetContext(ctx, &autoRotateAt, "SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ?", hostReEnable.UUID)
+	require.NoError(t, err)
+	assert.False(t, autoRotateAt.Valid, "auto_rotate_at should be NULL")
 
 	// Host should STILL not be eligible (it's verified, not pending)
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)

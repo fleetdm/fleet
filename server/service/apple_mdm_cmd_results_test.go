@@ -317,6 +317,29 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 	})
 }
 
+// newRecoveryLockTestCommander returns a commander whose enqueued commands are captured
+// in enqueued, keyed by RequestType.
+func newRecoveryLockTestCommander(t *testing.T) (*apple_mdm.MDMAppleCommander, map[string]*mdm.CommandWithSubtype) {
+	t.Helper()
+	enqueued := make(map[string]*mdm.CommandWithSubtype)
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	mdmStorage.EnqueueCommandFunc = func(_ context.Context, _ []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		enqueued[cmd.Command.Command.RequestType] = cmd
+		return nil, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(_ context.Context, ids []string) (map[string]*mdm.Push, error) {
+		return map[string]*mdm.Push{}, nil
+	}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.DiscardHandler)),
+	)
+	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusher), enqueued
+}
+
 func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.Default()
@@ -324,28 +347,7 @@ func TestSetRecoveryLockResultsHandler(t *testing.T) {
 	hostUUID := "test-host-uuid"
 	cmdUUID := "set-recovery-lock-cmd-uuid"
 
-	// newTestCommander returns a commander whose enqueued commands are captured in
-	// enqueued, keyed by RequestType.
-	newTestCommander := func(t *testing.T) (*apple_mdm.MDMAppleCommander, map[string]*mdm.CommandWithSubtype) {
-		t.Helper()
-		enqueued := make(map[string]*mdm.CommandWithSubtype)
-		mdmStorage := &mdmmock.MDMAppleStore{}
-		mdmStorage.EnqueueCommandFunc = func(_ context.Context, _ []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
-			enqueued[cmd.Command.Command.RequestType] = cmd
-			return nil, nil
-		}
-		mdmStorage.RetrievePushInfoFunc = func(_ context.Context, ids []string) (map[string]*mdm.Push, error) {
-			return map[string]*mdm.Push{}, nil
-		}
-		pushFactory, _ := newMockAPNSPushProviderFactory()
-		pusher := nanomdm_pushsvc.New(
-			mdmStorage,
-			mdmStorage,
-			pushFactory,
-			NewNanoMDMLogger(slog.New(slog.DiscardHandler)),
-		)
-		return apple_mdm.NewMDMAppleCommander(mdmStorage, pusher), enqueued
-	}
+	newTestCommander := newRecoveryLockTestCommander
 
 	// pendingFn mocks GetPendingRecoveryLock for a host awaiting the SetRecoveryLock result.
 	pendingFn := func(op fleet.MDMOperationType, retries int) func(context.Context, string) (*fleet.HostRecoveryLockPending, error) {
@@ -566,6 +568,10 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 	hostUUID := "test-host-uuid"
 	verifyCmdUUID := "verify-recovery-lock-cmd-uuid"
 
+	// Shared by the subtests that never reach an enqueue; the retry subtest builds its own
+	// so it can inspect what was enqueued.
+	commander, _ := newRecoveryLockTestCommander(t)
+
 	// pendingFn mocks GetPendingRecoveryLock for a host awaiting the VerifyRecoveryLock result.
 	pendingFn := func(op fleet.MDMOperationType, hasCurrentPassword bool, retries int) func(context.Context, string) (*fleet.HostRecoveryLockPending, error) {
 		return func(_ context.Context, _ string) (*fleet.HostRecoveryLockPending, error) {
@@ -617,7 +623,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, newActivityFn)
 
 		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
@@ -646,7 +652,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, newActivityFn)
 
 		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
@@ -672,7 +678,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, newActivityFn)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, newActivityFn)
 
 		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)
@@ -697,7 +703,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, nil)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, nil)
 
 		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
 			[]mdm.ErrorChain{{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Recovery lock password not set"}}))
@@ -707,14 +713,16 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		assert.Contains(t, capturedError, "Recovery lock password not set")
 	})
 
-	t.Run("error with retries remaining retries", func(t *testing.T) {
+	t.Run("error with retries remaining re-issues the verify", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
 
-		var retryCalled bool
-		ds.RetryRecoveryLockFunc = func(_ context.Context, hUUID, cmdUUID string) error {
-			retryCalled = true
-			assert.Equal(t, hostUUID, hUUID)
+		// The set was already acknowledged, so the device holds the pending password while
+		// encrypted_password still holds the superseded one. Retrying via RetryRecoveryLock
+		// would hand the row to the cron, which enqueues RotateRecoveryLock with that stale
+		// value as CurrentPassword and fails on every attempt.
+		ds.RetryRecoveryLockFunc = func(_ context.Context, _, _ string) error {
+			t.Fatal("RetryRecoveryLock must not be used for a verify retry")
 			return nil
 		}
 		ds.SetRecoveryLockFailedFunc = func(_ context.Context, _, _, _ string) error {
@@ -722,13 +730,33 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, nil)
+		var retryVerifyCalled bool
+		var capturedOldUUID, capturedNewUUID string
+		ds.RetryRecoveryLockVerifyFunc = func(_ context.Context, hUUID, oldUUID, newUUID string) error {
+			retryVerifyCalled = true
+			assert.Equal(t, hostUUID, hUUID)
+			capturedOldUUID, capturedNewUUID = oldUUID, newUUID
+			return nil
+		}
+
+		commander, enqueued := newRecoveryLockTestCommander(t)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, nil)
 
 		err := handler(ctx, newResult(fleet.MDMAppleStatusError,
 			[]mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Network timeout"}}))
 		require.NoError(t, err)
 
-		assert.True(t, retryCalled)
+		require.True(t, retryVerifyCalled)
+		assert.Equal(t, verifyCmdUUID, capturedOldUUID)
+		assert.NotEmpty(t, capturedNewUUID)
+		assert.NotEqual(t, verifyCmdUUID, capturedNewUUID, "the retry needs its own command UUID")
+
+		// A fresh VerifyRecoveryLock goes out under the new UUID, and no SetRecoveryLock does.
+		cmd, ok := enqueued[fleet.VerifyRecoveryLockCmdName]
+		require.True(t, ok, "a replacement VerifyRecoveryLock should be enqueued")
+		assert.Equal(t, capturedNewUUID, cmd.CommandUUID)
+		assert.NotContains(t, enqueued, fleet.SetRecoveryLockCmdName,
+			"a verify retry must never re-run the set")
 	})
 
 	t.Run("result for a stale command UUID is ignored", func(t *testing.T) {
@@ -744,7 +772,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 			return nil
 		}
 
-		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, nil)
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, nil)
 
 		err := handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil))
 		require.NoError(t, err)

@@ -1170,6 +1170,8 @@ type SetRecoveryLockFailedFunc func(ctx context.Context, hostUUID string, comman
 
 type RetryRecoveryLockFunc func(ctx context.Context, hostUUID string, commandUUID string) error
 
+type RetryRecoveryLockVerifyFunc func(ctx context.Context, hostUUID string, verifyCommandUUID string, newVerifyCommandUUID string) error
+
 type ClearRecoveryLockPendingStatusFunc func(ctx context.Context, hostUUIDs []string) error
 
 type ClaimHostsForRecoveryLockClearFunc func(ctx context.Context, clearCommandUUID string) ([]string, error)
@@ -4097,6 +4099,9 @@ type DataStore struct {
 
 	RetryRecoveryLockFunc        RetryRecoveryLockFunc
 	RetryRecoveryLockFuncInvoked bool
+
+	RetryRecoveryLockVerifyFunc        RetryRecoveryLockVerifyFunc
+	RetryRecoveryLockVerifyFuncInvoked bool
 
 	ClearRecoveryLockPendingStatusFunc        ClearRecoveryLockPendingStatusFunc
 	ClearRecoveryLockPendingStatusFuncInvoked bool
@@ -9922,6 +9927,13 @@ func (s *DataStore) RetryRecoveryLock(ctx context.Context, hostUUID string, comm
 	s.RetryRecoveryLockFuncInvoked = true
 	s.mu.Unlock()
 	return s.RetryRecoveryLockFunc(ctx, hostUUID, commandUUID)
+}
+
+func (s *DataStore) RetryRecoveryLockVerify(ctx context.Context, hostUUID string, verifyCommandUUID string, newVerifyCommandUUID string) error {
+	s.mu.Lock()
+	s.RetryRecoveryLockVerifyFuncInvoked = true
+	s.mu.Unlock()
+	return s.RetryRecoveryLockVerifyFunc(ctx, hostUUID, verifyCommandUUID, newVerifyCommandUUID)
 }
 
 func (s *DataStore) ClearRecoveryLockPendingStatus(ctx context.Context, hostUUIDs []string) error {

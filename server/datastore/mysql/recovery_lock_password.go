@@ -164,6 +164,7 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[str
 		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
 		  )
 		  AND (rkp.host_uuid IS NULL OR rkp.status IS NULL)
+		  AND rkp.pending_set_command_uuid IS NULL
 		LIMIT 500
 	`
 
@@ -209,7 +210,8 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 		    rkp.error_message = NULL,
 			rkp.retry = 0,
 			rkp.pending_set_command_uuid = NULL,
-			rkp.pending_verify_command_uuid = NULL
+			rkp.pending_verify_command_uuid = NULL,
+			rkp.auto_rotate_at = NULL
 		WHERE rkp.deleted = 0
 		  AND rkp.operation_type = '%s'
 		  AND (rkp.status = '%s' OR rkp.status IS NULL)
@@ -449,14 +451,15 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 			pending_set_command_uuid = ?,
 			pending_verify_command_uuid = NULL,
 			retry = 0,
-		    status = NULL
+		    status = '%s',
+			auto_rotate_at = NULL
 		WHERE host_uuid = ?
 		  AND deleted = 0
 		  AND encrypted_password IS NOT NULL
 		  AND operation_type = '%s'
 		  AND status IN ('%s', '%s')
 		  AND pending_encrypted_password IS NULL
-	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+`, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
 
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, encryptedPassword, setCommandUUID, hostUUID)
 	if err != nil {
@@ -502,7 +505,7 @@ func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID,
 func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID string) error {
 	// Clear pending rotation (e.g., if command enqueue fails).
 	// Only affects rows that were modified by InitiateRecoveryLockRotation, which leaves
-	// status NULL with both a stored and a pending password. The encrypted_password guard
+	// status 'pending' with both a stored and a pending password. The encrypted_password guard
 	// keeps this off an initial install awaiting retry, which is also status NULL with a
 	// pending password but has nothing to restore to — that path is ClearRecoveryLockPendingStatus.
 	// Restores status to previous state: 'failed' if error_message exists, otherwise 'verified'.
@@ -513,10 +516,10 @@ func (ds *Datastore) ClearRecoveryLockRotation(ctx context.Context, hostUUID str
 		    status = CASE WHEN error_message IS NOT NULL THEN '%s' ELSE '%s' END
 		WHERE host_uuid = ?
 		  AND deleted = 0
-		  AND status IS NULL
+		  AND status = '%s'
 		  AND encrypted_password IS NOT NULL
 		  AND pending_encrypted_password IS NOT NULL
-	`, fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified)
+`, fleet.MDMDeliveryFailed, fleet.MDMDeliveryVerified, fleet.MDMDeliveryPending)
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear recovery lock rotation")
@@ -671,10 +674,27 @@ func (ds *Datastore) RetryRecoveryLock(ctx context.Context, hostUUID, commandUUI
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_recovery_key_passwords
 		SET retry = retry + 1,
-		status = NULL
+		status = NULL,
+		pending_set_command_uuid = NULL,
+		pending_verify_command_uuid = NULL
 		WHERE host_uuid = ?
 			AND (pending_set_command_uuid = ? OR pending_verify_command_uuid = ?)
 		  	AND deleted = 0
 	`, hostUUID, commandUUID, commandUUID)
 	return ctxerr.Wrap(ctx, err, "retry recovery lock")
+}
+
+func (ds *Datastore) RetryRecoveryLockVerify(ctx context.Context, hostUUID, verifyCommandUUID, newVerifyCommandUUID string) error {
+	stmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords
+		SET retry = retry + 1,
+		    pending_verify_command_uuid = ?
+		WHERE host_uuid = ?
+		  AND pending_verify_command_uuid = ?
+		  AND status = '%s'
+		  AND deleted = 0
+	`, fleet.MDMDeliveryVerifying)
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, newVerifyCommandUUID, hostUUID, verifyCommandUUID)
+	return ctxerr.Wrap(ctx, err, "retry recovery lock verify")
 }

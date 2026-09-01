@@ -513,6 +513,7 @@ func NewSetRecoveryLockResultsHandler(
 func NewVerifyRecoveryLockResultsHandler(
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	commander *apple_mdm.MDMAppleCommander,
 	newActivityFn fleet.NewActivityFunc,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, results fleet.MDMCommandResults) error {
@@ -578,13 +579,27 @@ func NewVerifyRecoveryLockResultsHandler(
 				return nil
 			}
 
-			// retryable error
-			logger.InfoContext(ctx, "VerifyRecoveryLock command retryable error",
+			// Re-issue the verify, not the set — see RetryRecoveryLockVerify.
+			newVerifyCmdUUID := uuid.NewString()
+			logger.InfoContext(ctx, "VerifyRecoveryLock command retryable error, re-issuing verify",
 				"host_uuid", results.HostUUID(),
 				"error", appleErr,
+				"verify_command_uuid", newVerifyCmdUUID,
 			)
-			if err := ds.RetryRecoveryLock(ctx, results.HostUUID(), results.UUID()); err != nil {
-				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: retry recovery lock failed")
+			if err := ds.RetryRecoveryLockVerify(ctx, results.HostUUID(), results.UUID(), newVerifyCmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: retry recovery lock verify failed")
+			}
+			if err := commander.VerifyRecoveryLock(ctx, results.HostUUID(), newVerifyCmdUUID); err != nil {
+				if apnsErr, ok := errors.AsType[*apple_mdm.APNSDeliveryError](err); ok {
+					// Command is persisted; the device picks it up on its next checkin.
+					logger.WarnContext(ctx, "VerifyRecoveryLock retry enqueued but APNs push failed",
+						"host_uuid", results.HostUUID(),
+						"command_uuid", newVerifyCmdUUID,
+						"error", apnsErr,
+					)
+					return nil
+				}
+				return ctxerr.Wrap(ctx, err, "VerifyRecoveryLock handler: re-enqueue verify recovery lock")
 			}
 			return nil
 		}
