@@ -220,6 +220,28 @@ module.exports = {
         sails.log.info(`Microsoft proxy: update-one-devices-compliance-status sent a compliance update: ${complianceUpdateResponse.body}`);
       }
 
+      // The upload channel reports validation errors in-band: a 200 response whose body has an ErrorCode
+      // other than 202 ("accepted") means the message was not accepted. (Top-level HTTP errors are handled
+      // by the intercepts above.)
+      let parsedComplianceUpdateResponse;
+      try {
+        parsedComplianceUpdateResponse = JSON.parse(complianceUpdateResponse.body);
+      } catch(unusedErr) {
+        // If the response body could not be parsed, continue and let the Fleet server's status query surface any failure.
+      }
+      // Note: Microsoft's examples show ErrorCode as both a string ("202") and a number (404), so normalize it before comparing.
+      let inBandErrorCode = parsedComplianceUpdateResponse ? Number(parsedComplianceUpdateResponse.ErrorCode) : undefined;
+      if(inBandErrorCode && inBandErrorCode !== 202) {
+        if(inBandErrorCode === 404) {
+          // An in-band 404 means "A matching tenant could not be found at this endpoint. The tenant may have been
+          // moved or deleted." — the cached data sync URL may point at the tenant's old location, so clear this
+          // tenant's cached tokens and URLs to force endpoint re-discovery on the next request.
+          await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
+        }
+        // Note: don't log the full response body here — successful responses echo the uploaded content, which can include a userPrincipalName.
+        sails.log.warn(`When sending a request to sync a device's compliance status for a Microsoft compliance tenant (entra tenant id: ${entraTenantId}), the Microsoft API did not accept the message. Error code: ${parsedComplianceUpdateResponse.ErrorCode}, error detail: ${parsedComplianceUpdateResponse.ErrorDetail}`);
+        throw 'microsoftApiError';
+      }
 
       return {
         message_id: messageId,// eslint-disable-line camelcase
