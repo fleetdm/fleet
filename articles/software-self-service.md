@@ -92,6 +92,8 @@ You can also download the configuration profile (`.mobileconfig`) and change val
 
 Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
 
+See [how iOS and iPadOS devices authenticate](https://fleetdm.com/guides/fleet-desktop#how-ios-and-ipados-devices-authenticate) for how Fleet verifies requests from the Web Clip above.
+
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:
