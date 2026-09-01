@@ -1,0 +1,1 @@
+- Fixed uninstalling `.sh` and `.py` script packages from macOS hosts, which was rejected even though installing them there is allowed. The rejection message for other platforms now names them the same way the install message does ("macOS and Linux" rather than "linux").

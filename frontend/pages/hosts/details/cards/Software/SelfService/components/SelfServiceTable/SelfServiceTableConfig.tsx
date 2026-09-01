@@ -57,7 +57,10 @@ interface ISelfServiceTableHeaders {
   onShowUninstallDetails: (
     uninstallDetails: ISWUninstallDetailsParentState
   ) => void;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
   onClickUninstallAction: (software: IDeviceSoftwareWithUiStatus) => void;
   onClickOpenInstructionsAction: (
     software: IDeviceSoftwareWithUiStatus

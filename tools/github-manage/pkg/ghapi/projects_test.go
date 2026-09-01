@@ -134,9 +134,15 @@ func TestAliases(t *testing.T) {
 		"orch":            71,
 		"sec":             97,
 		"g-supply-chain":  97,
+		"releases":        87,
+		"apple-at-work":   108,
+		"apple":           108,
+		"aaw":             108,
+		"auto-patching":   109,
+		"auto":            109,
+		"ap":              109,
 		"byod":            112,
 		"g-byod":          112,
-		"releases":        87,
 	}
 
 	if !reflect.DeepEqual(Aliases, expectedAliases) {

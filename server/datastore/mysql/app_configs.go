@@ -312,19 +312,13 @@ func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *
 		if err != nil {
 			return fleet.DiskEncryptionConfig{}, err
 		}
-		return fleet.DiskEncryptionConfig{
-			Enabled:              tc.EnableDiskEncryption,
-			BitLockerPINRequired: tc.RequireBitLockerPIN,
-		}, nil
+		return tc.DiskEncryptionConfig(), nil
 	}
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fleet.DiskEncryptionConfig{}, err
 	}
-	return fleet.DiskEncryptionConfig{
-		Enabled:              ac.MDM.EnableDiskEncryption.Value,
-		BitLockerPINRequired: ac.MDM.RequireBitLockerPIN.Value,
-	}, nil
+	return ac.MDM.DiskEncryptionConfig(), nil
 }
 
 func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {

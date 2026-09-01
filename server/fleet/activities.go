@@ -8,6 +8,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// Priorities for the upcoming activities queue (higher activates first).
+// User-initiated activities sit above Fleet-initiated ones (default 0) so a
+// person acting on a host is never queued behind deferred policy-automation
+// work, and setup experience outranks both.
+const (
+	UserInitiatedActivityPriority   = 10
+	SetupExperienceActivityPriority = 100
+)
+
 // ActivityWriteService is the subset of the activity bounded context service
 // used by the legacy service layer for write operations.
 type ActivityWriteService interface {
@@ -354,6 +363,23 @@ func (a ActivityTypeDeletedUser) WasFromAutomation() bool {
 	return a.FromScimUserDeletion
 }
 
+// ActivityTypeScimUserDeprovisionSkipped flags a SCIM deactivation or deletion
+// that could not be matched to a Fleet user because the SCIM record has no
+// email identifiers and no durable link — a corresponding Fleet account may
+// remain active.
+type ActivityTypeScimUserDeprovisionSkipped struct {
+	ScimUserID   uint   `json:"scim_user_id"`
+	ScimUserName string `json:"scim_user_name"`
+}
+
+func (a ActivityTypeScimUserDeprovisionSkipped) ActivityName() string {
+	return "scim_user_deprovision_skipped"
+}
+
+func (a ActivityTypeScimUserDeprovisionSkipped) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeDeletedHost struct {
 	HostID           uint                   `json:"host_id"`
 	HostDisplayName  string                 `json:"host_display_name"`
@@ -645,6 +671,9 @@ func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
+// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeEnabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -654,6 +683,9 @@ func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
 	return "enabled_macos_disk_encryption"
 }
 
+// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeDisabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -661,6 +693,20 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+// ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
+// effective disk encryption settings changed. It replaces the deprecated
+// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
+// pair.
+type ActivityTypeEditedDiskEncryptionSettings struct {
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+	Platform  string  `json:"platform"` // "macos" | "windows" | "linux"
+}
+
+func (a ActivityTypeEditedDiskEncryptionSettings) ActivityName() string {
+	return "edited_disk_encryption_settings"
 }
 
 type ActivityTypeSetHostRecoveryLockPassword struct {
@@ -768,6 +814,18 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeEnabledSSOFleetDesktop) ActivityName() string {
+	return "enabled_sso_fleet_desktop"
+}
+
+type ActivityTypeDisabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeDisabledSSOFleetDesktop) ActivityName() string {
+	return "disabled_sso_fleet_desktop"
 }
 
 // ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
@@ -1199,10 +1257,26 @@ type ActivityTypeResentConfigurationProfile struct {
 	HostDisplayName *string `json:"host_display_name"`
 	ProfileName     string  `json:"profile_name"`
 	ProfileUUID     string  `json:"profile_uuid"`
+	PolicyID        *uint   `json:"policy_id"`   // null on manual resend
+	PolicyName      *string `json:"policy_name"` // null on manual resend
 }
 
 func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 	return "resent_configuration_profile"
+}
+
+func (a ActivityTypeResentConfigurationProfile) WasFromAutomation() bool {
+	return a.PolicyID != nil
+}
+
+// HostIDs links the activity to the host whose profile was resent. Without it no
+// activity_host_past row is written, and the activity is invisible to every feed that joins
+// through that table — including the policy automation feed.
+func (a ActivityTypeResentConfigurationProfile) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
 }
 
 type ActivityTypeResentConfigurationProfileBatch struct {
@@ -1240,6 +1314,13 @@ func (a ActivityTypeInstalledSoftware) ActivityName() string {
 
 func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+// HostOnly hides patch-when-closed skips from the global activity feed; they
+// stay on the host activity feed. Skips fire on every policy re-eval while the
+// app is open, which is too noisy globally.
+func (a ActivityTypeInstalledSoftware) HostOnly() bool {
+	return a.SkippedInstall
 }
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
@@ -1714,6 +1795,21 @@ func (a ActivityTypeCanceledRunScript) ActivityName() string {
 }
 
 func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeCanceledMDMCommand struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// CommandType is the raw MDM request type, e.g. "DeviceLock".
+	CommandType string `json:"command_type"`
+}
+
+func (a ActivityTypeCanceledMDMCommand) ActivityName() string {
+	return "canceled_mdm_command"
+}
+
+func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 

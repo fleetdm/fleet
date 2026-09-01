@@ -76,8 +76,8 @@ In 4.16.0, we also:
 Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.16.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Kathy Satterlee">
-<meta name="authorGitHubUsername" value="ksatter">
+<meta name="authorFullName" value="Ryn Satterlee">
+<meta name="authorGitHubUsername" value="rynsatterlee">
 <meta name="publishedOn" value="2022-06-16">
 <meta name="articleTitle" value="Fleet 4.16.0 | more customization, beefed up vuln management, Jira added to integrations.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.16.0-cover-1600x900@2x.jpg">

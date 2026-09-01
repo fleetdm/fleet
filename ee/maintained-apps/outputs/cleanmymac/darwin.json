@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.5.7",
+      "version": "5.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5' AND version_compare(bundle_short_version, '5.5.7') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.macpaw.CleanMyMac5');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5' AND version_compare(bundle_short_version, '5.6.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macpaw.CleanMyMac5' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.cleanmymac.com/com.macpaw.cleanmymac5/releases/CleanMyMac5_50507.0.2607220856.zip",
+      "installer_url": "https://updates.cleanmymac.com/com.macpaw.cleanmymac5/releases/CleanMyMac5_50600.0.2608201300.zip",
       "install_script_ref": "1f8e229d",
       "uninstall_script_ref": "f09da8a8",
-      "sha256": "fa0d0cb0a78340c5b33934e3963fe8eb561a1282a5fc557369420455a7c6c089",
+      "sha256": "12eb9308835820c26927f953a1bb8a186538004539282d06a6eb0d73a3955cb8",
       "default_categories": [
         "Productivity"
       ]

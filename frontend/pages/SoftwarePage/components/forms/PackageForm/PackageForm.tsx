@@ -221,6 +221,32 @@ const PackageForm = ({
     software: { isValid: false },
   });
 
+  // GitOps mode hides the target selector, so a "Custom" target with no labels
+  // can never be satisfied: the picker that would fix it isn't rendered, and
+  // Save stays disabled with nothing on screen to explain why. Targeting comes
+  // from YAML in that mode, so normalize to the default instead.
+  //
+  // This runs as an effect rather than in the initial state because `config`
+  // loads asynchronously — GitOps mode often isn't known yet on first render.
+  // Rows that already carry labels (the edit flow) are left alone so their
+  // targeting isn't silently dropped.
+  useEffect(() => {
+    if (!gitOpsModeEnabled) {
+      return;
+    }
+    const hasLabelTargets = Object.values(formData.labelTargets).some(Boolean);
+    if (formData.targetType !== "Custom" || hasLabelTargets) {
+      return;
+    }
+    const normalized = { ...formData, targetType: "All hosts" };
+    setFormData(normalized);
+    // Validation is held in state and only recomputed on change handlers, so
+    // it has to be refreshed here too — otherwise a file chosen before config
+    // resolved leaves behind a failure for the target we just normalized away,
+    // and Save stays disabled.
+    setFormValidation(generateFormValidation(normalized));
+  }, [gitOpsModeEnabled, formData]);
+
   const notifyTooLarge = () => {
     const errorPrefix = isEditingSoftware
       ? EDIT_SOFTWARE_ERROR_PREFIX
@@ -256,7 +282,13 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -264,7 +296,13 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 

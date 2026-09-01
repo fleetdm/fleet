@@ -482,6 +482,50 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/alf_explicit_auths.yml"
   },
   {
+    "name": "apfs_crypto_users",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "APFS cryptographic users for each APFS container, from the `diskutil apfs listCryptoUsers -plist <device>` command.\nCryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token.\nThe `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A host where no `LocalOpenDirectory` user is a volume owner has a user who cannot authorize macOS updates.",
+    "examples": "Find hosts where no local user account owns the APFS volume (e.g. a delayed first-login flow left the user without a Secure Token). Scope this as a policy to macOS hosts; hosts that return no rows fail the policy.\n\n```\nSELECT 1 FROM apfs_crypto_users WHERE type = 'LocalOpenDirectory' AND volume_owner = 1;\n```",
+    "columns": [
+      {
+        "name": "device_identifier",
+        "type": "text",
+        "required": false,
+        "description": "The device identifier of the Data volume (e.g. \"disk3s5\"). Joins to `apfs_volumes.device_identifier`."
+      },
+      {
+        "name": "volume_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the APFS volume."
+      },
+      {
+        "name": "crypto_user_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the cryptographic user."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "The type of cryptographic user, e.g. \"LocalOpenDirectory\" (a local user account with a Secure Token),\n\"PersonalRecovery\" (the personal recovery key), or \"MDMRecovery\" (the MDM bootstrap token)."
+      },
+      {
+        "name": "volume_owner",
+        "type": "integer",
+        "required": false,
+        "description": "Whether this cryptographic user is an APFS volume owner (1) or not (0)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apfs_crypto_users",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_crypto_users.yml"
+  },
+  {
     "name": "apfs_physical_stores",
     "platforms": [
       "darwin"
@@ -29344,6 +29388,104 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/time_machine_destinations.yml"
+  },
+  {
+    "name": "touchid_system_config",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Machine-wide Touch ID and Secure Enclave configuration, including whether a usable fingerprint sensor (built-in or an attached Touch ID accessory) is present. Apple Silicon only. Requires root.",
+    "columns": [
+      {
+        "name": "touchid_compatible",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the Mac supports Secure Enclave biometrics. This is 1 on every Apple Silicon Mac, even those without a fingerprint sensor; use `touchid_sensor_present` to detect an actual sensor."
+      },
+      {
+        "name": "secure_enclave",
+        "type": "text",
+        "required": false,
+        "description": "Hardware model identifier (e.g. Mac16,5)."
+      },
+      {
+        "name": "touchid_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID is enabled on this Mac."
+      },
+      {
+        "name": "touchid_unlock",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID can be used to unlock the Mac."
+      },
+      {
+        "name": "touchid_builtin",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the Mac has a built-in Touch ID fingerprint sensor (laptops)."
+      },
+      {
+        "name": "touchid_sensor_present",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if a usable fingerprint sensor is present, either built-in or an attached Touch ID accessory (e.g. a Magic Keyboard with Touch ID)."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/touchid_system_config",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/touchid_system_config.yml"
+  },
+  {
+    "name": "touchid_user_config",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Per-user Touch ID configuration and number of enrolled fingerprints, one row per local user account. Returns no rows on Macs without a usable fingerprint sensor. Apple Silicon only. Requires root.",
+    "columns": [
+      {
+        "name": "uid",
+        "type": "integer",
+        "required": false,
+        "description": "The user ID of the local account."
+      },
+      {
+        "name": "fingerprints_registered",
+        "type": "integer",
+        "required": false,
+        "description": "Number of fingerprints the user has enrolled. NULL if unknown."
+      },
+      {
+        "name": "touchid_unlock",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the user has Touch ID enabled for unlocking the Mac. NULL if unknown (e.g. the user is not logged in)."
+      },
+      {
+        "name": "touchid_applepay",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if the user has Touch ID enabled for Apple Pay. NULL if unknown (e.g. the user is not logged in)."
+      },
+      {
+        "name": "effective_unlock",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID unlock is effectively available to the user (enabled and fingerprints enrolled). NULL if unknown."
+      },
+      {
+        "name": "effective_applepay",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if Touch ID for Apple Pay is effectively available to the user (enabled and fingerprints enrolled). NULL if unknown."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/touchid_user_config",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/touchid_user_config.yml"
   },
   {
     "name": "tpm_info",
