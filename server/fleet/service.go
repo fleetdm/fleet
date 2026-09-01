@@ -1295,6 +1295,10 @@ type Service interface {
 	// Set or update the disk encryption key for a host.
 	SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error
 
+	// SetOrUpdateDiskEncryptionProtection records the outcome of the agent's attempt to restore disk encryption
+	// protection on a host that was encrypted but unprotected.
+	SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome DiskEncryptionProtectionOutcome, clientError string) error
+
 	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
 

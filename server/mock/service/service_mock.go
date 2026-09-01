@@ -763,6 +763,8 @@ type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOpt
 
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
+type SetOrUpdateDiskEncryptionProtectionFunc func(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
+
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
@@ -2128,6 +2130,9 @@ type Service struct {
 
 	SetOrUpdateDiskEncryptionKeyFunc        SetOrUpdateDiskEncryptionKeyFunc
 	SetOrUpdateDiskEncryptionKeyFuncInvoked bool
+
+	SetOrUpdateDiskEncryptionProtectionFunc        SetOrUpdateDiskEncryptionProtectionFunc
+	SetOrUpdateDiskEncryptionProtectionFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -5105,6 +5110,13 @@ func (s *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKe
 	s.SetOrUpdateDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateDiskEncryptionKeyFunc(ctx, encryptionKey, clientError)
+}
+
+func (s *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error {
+	s.mu.Lock()
+	s.SetOrUpdateDiskEncryptionProtectionFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateDiskEncryptionProtectionFunc(ctx, outcome, clientError)
 }
 
 func (s *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
