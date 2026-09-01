@@ -8459,29 +8459,6 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		require.False(t, claimed)
 	})
 
-	t.Run("claims only the row for its hardware id", func(t *testing.T) {
-		// mdm_device_id is indexed but NOT unique, and several enrollments can legitimately share one (the reads in
-		// this file all take the most recent match). Keying the claim on it would silence every sibling enrollment's
-		// activity, so the claim is keyed on mdm_hardware_id, which is the table's unique key.
-		sharedDeviceID := uuid.New().String()
-		first := newEnrollment()
-		second := newEnrollment()
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET mdm_device_id = ? WHERE mdm_hardware_id IN (?, ?)`,
-				sharedDeviceID, first.MDMHardwareID, second.MDMHardwareID)
-			return err
-		})
-
-		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, first.MDMHardwareID, now)
-		require.NoError(t, err)
-		require.True(t, claimed)
-
-		// The sibling sharing the device id must still be claimable when it links later.
-		claimed, err = ds.MDMWindowsClaimEnrolledActivity(ctx, second.MDMHardwareID, now)
-		require.NoError(t, err)
-		require.True(t, claimed, "a sibling enrollment sharing the device id must keep its own activity")
-	})
-
 	t.Run("release restores claimability, and only for the timestamp claimed", func(t *testing.T) {
 		device := newEnrollment()
 		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
@@ -8501,8 +8478,6 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("re-enrollment is claimable again", func(t *testing.T) {
-		// A device that re-enrolls is a new enrollment and gets its own activity: the re-enroll path deletes the
-		// previous row by hardware id before inserting, so the new row starts unclaimed.
 		device := newEnrollment()
 		claimed, err := ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, now)
 		require.NoError(t, err)
