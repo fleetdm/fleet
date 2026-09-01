@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { renderWithSetup } from "test/test-utils";
+import { internationalTimeFormat } from "utilities/helpers";
 import HostHeader from "./HostHeader";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
@@ -244,5 +245,32 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText("Clear passcode pending")).toBeInTheDocument();
+  });
+
+  it("uses the more recent of detail_updated_at and policy_updated_at as 'Last fetched' (#51820)", () => {
+    const DETAIL_UPDATED_AT = "2024-04-27T12:00:00Z";
+    const POLICY_UPDATED_AT = "2024-04-27T13:30:00Z"; // 90 min newer
+    render(
+      <HostHeader
+        summaryData={{
+          ...defaultSummaryData,
+          detail_updated_at: DETAIL_UPDATED_AT,
+          policy_updated_at: POLICY_UPDATED_AT,
+        }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
+      />
+    );
+
+    // The relative time renders with a date tooltip containing the exact
+    // timestamp; assert on that to verify which timestamp was chosen.
+    expect(
+      screen.getByText(internationalTimeFormat(new Date(POLICY_UPDATED_AT)))
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(internationalTimeFormat(new Date(DETAIL_UPDATED_AT)))
+    ).not.toBeInTheDocument();
   });
 });
