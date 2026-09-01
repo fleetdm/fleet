@@ -263,6 +263,20 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "r-app" {
+		// R.app's bundle_short_version is a descriptive string rather than a bare
+		// version ("R" is duplicated in some builds and not others, e.g.
+		// "R 4.5.1 GUI 1.82 High Sierra build" or "R R 4.6.1 GUI 1.83 High Sierra
+		// build"), so version_compare can't order it against the cask version
+		// directly. Extract the version with REGEX_MATCH before comparing
+		// (mirrors the software-inventory fix in MutateSoftwareOnIngestion, which
+		// only applies to ingested software rows, not this policy SQL run
+		// directly on the host).
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved

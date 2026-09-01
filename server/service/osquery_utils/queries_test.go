@@ -346,6 +346,33 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 	MutateSoftwareOnIngestion(t.Context(), winDefenderWrongSource, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "MsMpEng.exe", winDefenderWrongSource.Name)
+
+	// Test R.app version sanitizer extracts the version from
+	// CFBundleShortVersionString; the "R" name is duplicated in some builds.
+	rAppDoubled := &fleet.Software{
+		BundleIdentifier: "org.R-project.R",
+		Source:           "apps",
+		Version:          "R R 4.6.1 GUI 1.83 High Sierra build",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rAppDoubled, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "4.6.1", rAppDoubled.Version)
+
+	rAppSingle := &fleet.Software{
+		BundleIdentifier: "org.R-project.R",
+		Source:           "apps",
+		Version:          "R 4.2.0 GUI 1.78 Big Sur ARM build",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rAppSingle, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "4.2.0", rAppSingle.Version)
+
+	// Test R.app sanitizer leaves an unrecognized version format alone
+	rAppNoMatch := &fleet.Software{
+		BundleIdentifier: "org.R-project.R",
+		Source:           "apps",
+		Version:          "4.6.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rAppNoMatch, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "4.6.1", rAppNoMatch.Version)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
