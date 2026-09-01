@@ -129,14 +129,12 @@ Then, add connect hide script to this policy via [policy automations](https://fl
 
 Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
 
-### How iOS and iPadOS devices authenticate
+### How iOS/iPadOS hosts authenticate
 
-iOS and iPadOS don't run the Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados) whose URL embeds the host's UUID (`$FLEET_VAR_HOST_UUID`) rather than a device token. Fleet authenticates the request one of two ways:
+iOS and iPadOS don't run a Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados). Fleet authenticates the request one of two ways:
 
-- **Certificate (used when available):** if the device presents its MDM-issued identity (SCEP) certificate over mTLS, Fleet matches the certificate's serial number to the host and confirms it belongs to the UUID in the URL.
-- **Device UUID (fallback):** if no client certificate is presented, Fleet falls back to authenticating by the UUID in the URL alone.
-
-Token authentication isn't available on iOS and iPadOS — Fleet requires certificate or UUID authentication instead.
+1. Certificate (used when available): if the device presents its MDM-issued identity (SCEP) certificate over mTLS, Fleet matches the certificate's serial number to the host and confirms it belongs to the UUID in the URL.
+2. Host UUID (fallback): if no client certificate is presented, Fleet falls back to authenticating by the UUID in the URL.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
