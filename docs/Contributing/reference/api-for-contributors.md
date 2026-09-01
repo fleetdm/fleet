@@ -12,7 +12,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live report](#live-report)
 - [Trigger cron schedule](#trigger-cron-schedule)
-- [Device-authenticated routes](#device-authenticated-routes)
+- [Fleet-desktop-token-authenticated routes](#Fleet-desktop-token-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -3382,64 +3382,40 @@ currently pending.
 
 ---
 
-## Device-authenticated routes
+## Fleet-desktop-token-authenticated routes
 
-Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
-Fleet Premium can require single sign-on in front of these routes. When `fleet_desktop.sso_enabled` is `true`, the device token is no longer enough on its own. Most of these routes also need a device SSO session. [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) creates the session, and the `__Host-FLEET_DESKTOP_SESSION` cookie carries it. Fleet binds the session to the host whose device token started the flow. One device's cookie can't unlock another device's page in the same browser.
+In Fleet Premium, you can require single sign-on (SSO) in front of these routes. This applies no matter how the device authenticates: token, client certificate, or device UUID, including on iOS and iPadOS.
 
-A request without a valid session for that host returns `401` with an `sso_required` marker:
+Every route below is device-authenticated. Most require a session when SSO is on; a few never do (used by fleetd or the Fleet Desktop tray app, which can't complete a browser sign-in), and the rest are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
 
-```json
-{
-  "message": "Single sign-on required",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Single sign-on required"
-    }
-  ],
-  "uuid": "e3b0c442-98fc-1c14-9afb-f4c8996fb924",
-  "sso_required": true
-}
-```
-
-An expired device token also returns `401`. The marker is what tells the "My device" page to start the single sign-on flow instead of reporting an invalid URL. Token errors take precedence, so an invalid token returns `401` with no marker, whatever the session cookie holds.
-
-Fleet checks the session after it resolves the host. The check covers all three ways a device authenticates: the rotating token, a client certificate, and a device UUID in the URL. This includes iOS and iPadOS.
-
-Two cases stay reachable with the setting on and no session.
-
-First, the exempt routes. Fleet registers these through a separate endpointer, listed in one block in `server/service/handler.go`, so every other device route needs a session by default:
-
-- [Get Fleet Desktop information](#get-fleet-desktop-information) and `HEAD /api/v1/fleet/device/{token}/ping`. The Fleet Desktop tray app polls both.
-- [Report an agent error](#report-an-agent-error), which fleetd posts.
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution). The tray app's migration dialog posts this, and it has no browser to complete an IdP round trip in.
-- [Get device's transparency URL](#get-devices-transparency-url), the "About Fleet" redirect. It exposes nothing about the host.
-- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on). This has to be reachable before a session exists.
-
-Requiring a session on the fleetd routes would mean changing fleetd. The tray app behaves the same way whether single sign-on is on or off.
-
-Second, hosts still in Setup Experience. Setup Experience opens the device page in a web view during Setup Assistant, where the end user can't complete an IdP round trip. Fleet lets these requests through while a host is awaiting configuration. After setup finishes, the next visit needs a session.
-
-- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
-- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
-- [Get Fleet Desktop information](#get-fleet-desktop-information)
-- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on)
-- [Get device's software](#get-devices-software)
-- [Get device's software install results](#get-devices-software-install-results)
-- [Get device's software MDM command results](#get-devices-software-mdm-command-results)
-- [Uninstall software via self-service](#uninstall-software-via-self-service)
-- [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
-- [Get device's policies](#get-devices-policies)
-- [Get device's certificate](#get-devices-certificate)
-- [Get device's API features](#get-devices-api-features)
-- [Get device's transparency URL](#get-devices-transparency-url)
-- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
-- [Send APNs ping to device](#send-apns-ping-to-device)
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
-- [Report an agent error](#report-an-agent-error)
+- [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *never requires a session; polled by the Fleet Desktop tray app*
+- [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *never requires a session; polled by the Fleet Desktop tray app*
+- `POST /api/v1/fleet/device/{token}/debug/errors` — *never requires a session; agent error reporting*
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *never requires a session*
+- [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *never requires a session*
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *never requires a session; starts the sign-in flow*
+- `GET /api/v1/fleet/device/{token}` — *requires a session, exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
+- `POST /api/v1/fleet/device/{token}/refetch` — *requires a session, exempt during setup experience*
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *requires a session, exempt during setup experience*
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *requires a session, exempt during setup experience*
+- [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *requires a session, exempt during setup experience*
+- [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *requires a session, exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *requires a session, exempt during setup experience*
+- [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *requires a session, exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *requires a session, exempt during setup experience*
+- [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *requires a session, exempt during setup experience*
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *requires a session, exempt during setup experience*
+- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *requires a session, exempt during setup experience*
+- [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *requires a session, exempt during setup experience*
+- [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *requires a session, exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/setup_experience/status` — *requires a session, exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *requires a session, exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *requires a session, exempt during setup experience*
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *requires a session, exempt during setup experience*
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *requires a session, exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *requires a session, exempt during setup experience*
 
 #### Get device's Google Chrome profiles
 
