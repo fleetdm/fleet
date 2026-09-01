@@ -1840,8 +1840,11 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	return nil
 }
 
-// turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
-// Returns a boolean value to indicate whether or not MDM was turned off.
+// turnOffMDMIfAPNSFailed turns off MDM for any device whose push was rejected
+// by APNs with an Unregistered reason (dead token). It returns true whenever
+// err is an APNSDeliveryError — even when no device was turned off — signaling
+// the caller that only push delivery failed (commands remain durably queued)
+// so processing can continue.
 func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *slog.Logger, newActivityFn NewActivityFunc) (bool,
 	error,
 ) {
@@ -1851,7 +1854,10 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	}
 
 	for uuid, err := range e.errorsByUUID {
-		if strings.Contains(err.Error(), "device token is inactive") {
+		// nanopush surfaces APNs' structured rejection reason; buford rendered
+		// this same condition as "device token is inactive". If the push
+		// provider ever changes, this classification must change with it.
+		if APNSReason(err) == APNSReasonUnregistered {
 			logger.InfoContext(ctx, "turning off MDM for device with inactive device token", "uuid", uuid)
 			users, activities, err := ds.MDMTurnOff(ctx, uuid)
 			if err != nil {

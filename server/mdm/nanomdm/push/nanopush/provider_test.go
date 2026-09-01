@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/stretchr/testify/require"
@@ -131,6 +133,61 @@ func testPushDevices(t *testing.T, input [][]string) {
 			}
 		}
 	}
+}
+
+// TestPushHeaders pins the apns-* request headers the provider sends: the
+// expiration window when configured, the mdm push type, and the enrollment
+// topic when present.
+func TestPushHeaders(t *testing.T) {
+	const (
+		token = "c2732227a1d8021cfaf781d71fb2f908c61f5861079a00954a5453f1d0281433" // nolint:gosec // test device token
+		topic = "com.example.apns-topic"
+	)
+
+	newPushInfo := func(topic string) *mdm.Push {
+		pushInfo := &mdm.Push{PushMagic: "47250C9C-1B37-4381-98A9-0B8315A441C7", Topic: topic}
+		require.NoError(t, pushInfo.SetTokenString(token))
+		return pushInfo
+	}
+
+	push := func(t *testing.T, expiration time.Duration, pushInfo *mdm.Push) http.Header {
+		var got http.Header
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = r.Header.Clone()
+		}))
+		defer server.Close()
+
+		prov := &Provider{baseURL: server.URL, client: http.DefaultClient, expiration: expiration}
+		resp, err := prov.Push(context.Background(), []*mdm.Push{pushInfo})
+		require.NoError(t, err)
+		require.NoError(t, resp[token].Err)
+		return got
+	}
+
+	t.Run("expiration, push type and topic set", func(t *testing.T) {
+		expiration := 7 * 24 * time.Hour
+		before := time.Now().Add(expiration).Unix()
+		headers := push(t, expiration, newPushInfo(topic))
+		after := time.Now().Add(expiration).Unix()
+
+		require.Equal(t, "mdm", headers.Get("apns-push-type"))
+		require.Equal(t, topic, headers.Get("apns-topic"))
+		exp, err := strconv.ParseInt(headers.Get("apns-expiration"), 10, 64)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, exp, before)
+		require.LessOrEqual(t, exp, after)
+	})
+
+	t.Run("zero expiration omits the header", func(t *testing.T) {
+		headers := push(t, 0, newPushInfo(topic))
+		require.Empty(t, headers.Values("apns-expiration"))
+		require.Equal(t, "mdm", headers.Get("apns-push-type"))
+	})
+
+	t.Run("empty topic omits the header", func(t *testing.T) {
+		headers := push(t, time.Hour, newPushInfo(""))
+		require.Empty(t, headers.Values("apns-topic"))
+	})
 }
 
 type errorDoer struct{}
