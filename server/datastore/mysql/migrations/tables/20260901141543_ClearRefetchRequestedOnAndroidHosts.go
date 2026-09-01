@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260828101500, Down_20260828101500)
+	MigrationClient.AddMigration(Up_20260901141543, Down_20260901141543)
 }
 
 // Refetch requests used to be accepted for Android hosts and set this flag, but
@@ -14,7 +14,7 @@ func init() {
 // and by the Apple MDM DeviceInformation response, and the Android host insert
 // leaves the column at its default. Hosts flagged before the request was
 // rejected would keep it set forever.
-func Up_20260828101500(tx *sql.Tx) error {
+func Up_20260901141543(tx *sql.Tx) error {
 	// updated_at is ON UPDATE CURRENT_TIMESTAMP and is assigned to itself so that
 	// clearing the flag doesn't make every Android host look freshly updated.
 	if _, err := tx.Exec(`
@@ -28,6 +28,6 @@ func Up_20260828101500(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260828101500(tx *sql.Tx) error {
+func Down_20260901141543(tx *sql.Tx) error {
 	return nil
 }
