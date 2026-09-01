@@ -113,6 +113,13 @@ func defaultDetectInstallPath() string {
 // Only the absolute path under the detected install directory is executed.
 // osquery runs this as root, so resolving nsdiag through $PATH would let anyone
 // who can write to a directory on it run code as root.
+//
+// This still trusts the installer's directory: anyone who can write there gets
+// root execution when the table is queried. All the candidate paths are
+// root-owned (Program Files is Administrators-only), so writing to them already
+// requires the privileges it would grant. Ownership is not re-verified here — a
+// release that ships different ownership would silently disable the table
+// rather than report a problem.
 func defaultRunNsdiag(ctx context.Context, installPath string) (map[string]string, error) {
 	bin := filepath.Join(installPath, nsdiagBinaryName())
 	if _, err := os.Stat(bin); err != nil {
