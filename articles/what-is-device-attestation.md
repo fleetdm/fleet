@@ -5,10 +5,10 @@
 ## Key takeaways
 
 - **Enrollment isn't identity.** ADE gets a device onto your MDM, but the serial numbers and UDIDs it reports are just claims that software can misrepresent. Attestation replaces that trust with cryptographic proof.
-- **The proof is rooted in silicon.** Apple Silicon Macs generate keys inside the Secure Enclave that can never be exported, and Apple's Enterprise Attestation CA vouches for the hardware behind them.
+- **The proof is rooted in silicon.** Apple Silicon Macs, iPhones, and iPads generate keys inside the Secure Enclave that can never be exported, and Apple's Enterprise Attestation CA vouches for the hardware behind them.
 - **ACME replaces SCEP for qualifying devices.** Apple's ACME protocol binds the enrollment certificate to a hardware key, something the older SCEP flow can't do, which is what makes hardware-attested enrollment possible.
 - **Attestation proves the device, not its posture.** It confirms genuine Apple hardware and accurate identifiers, but says nothing about the device's security posture, the user, or the software running on it.
-- **Fleet makes it an explicit gate.** In Fleet 4.84.0, Fleet Premium admins can require hardware attestation for ADE enrollment on Apple Silicon Macs; devices that fail the challenge don't enroll, and the setting is manageable through GitOps.
+- **Fleet makes it an explicit gate.** Starting in Fleet 4.84.0, Fleet Premium admins can require hardware attestation for ADE enrollment on Apple Silicon Macs running macOS 14 or later. Starting in Fleet 4.93.0, this extends to iPhones running iOS 16 or later and iPads running iPadOS 16.1 or later with an A11 Bionic chip or later. Devices that fail the challenge don't enroll, and the setting is manageable through GitOps.
 - **It's the foundation for zero trust.** A hardware-rooted identity gives identity providers and network access controls something trustworthy to act on, with no disruptive re-enrollment for devices already managed.
 
 <a purpose="cta-button" href="/device-management">See Fleet's device management</a>
@@ -20,7 +20,7 @@
 
 If you've set up Automated Device Enrollment (ADE) for your organization, you've already solved the "how do devices get enrolled" problem. But there's a separate question worth asking: how do you know the device that enrolled is actually the device it claims to be?
 
-That's where device attestation comes in. Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs via ADE. Here's what attestation means, how it works, and why it's worth enabling, starting with the gap it closes.
+That's where device attestation comes in. Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs via ADE, and Fleet 4.93.0 extends this to iPhones and iPads with an A11 Bionic chip or later. Here's what attestation means, how it works, and why it's worth enabling, starting with the gap it closes.
 
 ## The problem attestation solves
 
@@ -38,9 +38,9 @@ what Apple can prove about it.
 
 ## How Apple device attestation works
 
-Apple Silicon Macs include a Secure Enclave, a dedicated coprocessor that stores cryptographic
-keys in hardware. Keys generated in the Secure Enclave can't be exported. Operations that use
-them happen inside the enclave itself.
+Apple Silicon Macs, iPhones, and iPads include a Secure Enclave, a dedicated coprocessor that
+stores cryptographic keys in hardware. Keys generated in the Secure Enclave can't be exported.
+Operations that use them happen inside the enclave itself.
 
 During attestation, the device generates a key pair inside the Secure Enclave. It then requests
 an attestation certificate from Apple. That certificate binds the key to hardware attributes
@@ -102,7 +102,9 @@ about proving the device is what it says it is.
 ## How Fleet supports device attestation
 
 Starting in Fleet 4.84.0, Fleet Premium customers can require hardware attestation for ADE
-enrollments on Apple Silicon Macs running macOS 14 or later.
+enrollments on Apple Silicon Macs running macOS 14 or later. Starting in Fleet 4.93.0, this
+extends to iPhones running iOS 16 or later and iPads running iPadOS 16.1 or later with an
+A11 Bionic chip or later.
 
 When you enable **Require hardware attestation** in under **Organization settings > Advanced options**, Fleet does two things:
 
@@ -113,12 +115,13 @@ Devices that fail the attestation challenge aren't allowed to enroll. This is an
 not a soft check.
 
 Devices that already enrolled via SCEP don't need to re-enroll. Qualifying devices (Apple
-Silicon Macs on macOS 14+ from ADE) receive ACME certificates on their next renewal cycle.
+Silicon Macs on macOS 14+, iPhones on iOS 16+, and iPads on iPadOS 16.1+ with an A11 Bionic
+chip or later, all from ADE) receive ACME certificates on their next renewal cycle.
 
-Intel Macs fall back to SCEP because they don't have a Secure Enclave to bind keys to. Apple's
-ACME protocol also supports iPhones and iPads with an A11 Bionic chip or later, but Fleet's
-current implementation only covers Apple Silicon Macs. iPhones and iPads continue to enroll
-via SCEP for now.
+Intel Macs fall back to SCEP because they don't have a Secure Enclave to bind keys to. iPhones
+and iPads with an A10X Fusion chip or earlier also fall back to SCEP, because Apple's ACME
+protocol ignores the `Attest` key on those devices and they can't complete the attestation
+challenge. Apple TV and iPod touch aren't supported and also fall back to SCEP.
 
 When a device enrolls with a hardware-attested certificate, Fleet shows **MDM attestation: Yes**
 in host vitals. If a host isn't attested, the field doesn't appear. That keeps the UI clear
@@ -138,7 +141,7 @@ records.
 It also matters for regulated environments. Some environments require proof that only managed, 
 genuine Apple devices access certain resources. Attestation provides evidence anchored in hardware.
 
-For Mac admins, attestation is most meaningful when paired with something that acts on it. That 
+For Apple device admins, attestation is most meaningful when paired with something that acts on it. That 
 could be an identity provider that gates access based on device posture. It could also be a 
 network access control system that requires proof of enrollment. Fleet now gives you the verified 
 device identity to feed those systems, and because qualifying devices upgrade to ACME on their 
@@ -147,6 +150,7 @@ next renewal cycle, you get that foundation without a disruptive re-enrollment.
 
 ---
 * [Learn more about the Fleet 4.84.0 release](https://fleetdm.com/releases/fleet-4-84-0)
+* [Learn more about the Fleet 4.93.0 release](https://fleetdm.com/releases/fleet-4-93-0)
 * [Learn more about Fleet](https://fleetdm.com)
 * [Get a demo](https://fleetdm.com/contact)
 
