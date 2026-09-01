@@ -263,6 +263,9 @@ type HostListOptions struct {
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 
+	// PopulateEndUsers adds the `EndUsers` array field to all Hosts returned
+	PopulateEndUsers bool
+
 	// PopulateUsers adds the `Users` array field to all Hosts returned
 	PopulateUsers bool
 
@@ -402,6 +405,9 @@ type Host struct {
 
 	// Users currently in the host
 	Users []HostUser `json:"users,omitempty" csv:"-"`
+
+	// EndUsers is the list of end users associated with the host. Only populated when PopulateEndUsers is set.
+	EndUsers []HostEndUser `json:"end_users,omitempty" csv:"-"`
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
@@ -1222,7 +1228,6 @@ type HostDetail struct {
 
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
-	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
 
 	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
 
