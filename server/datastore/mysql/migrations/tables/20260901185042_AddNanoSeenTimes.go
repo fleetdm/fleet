@@ -11,14 +11,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260831094331, Down_20260831094331)
+	MigrationClient.AddMigration(Up_20260901185042, Down_20260901185042)
 }
 
 // Up_20260831094331 moves the MDM check-in seen time out of nano_enrollments into a dedicated nano_seen_times table (issue #48655).
 // Frequent last_seen_at updates took exclusive row locks on nano_enrollments, colliding with the shared locks taken by inserts into
 // tables that reference it as a FK (command enqueuing, response recording). Deliberately no FK (an out-of-band enrollment delete must
 // not fail a batched seen-time flush) and no index on seen_time (every reader is a PK-equality join).
-func Up_20260831094331(tx *sql.Tx) error {
+func Up_20260901185042(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS nano_seen_times (
 			id varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
