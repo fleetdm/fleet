@@ -439,6 +439,7 @@ func newFullVitalsTestAgent(fleetAddress string) *androidAgent {
 	agent.reportsDeviceSettings = true
 	agent.reportsSecurityPosture = true
 	agent.vitalsChurnProb = 0
+	agent.policyEditProb = 0
 	return agent
 }
 
@@ -590,6 +591,12 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 	srv := fleetPubSub.server(t)
 	agent := newVitalsTestAgent(srv.URL)
 	agent.vitalsChurnProb = 1 // re-roll on every report
+	// Sections are pinned on: this test is about the values moving, and a device
+	// that stopped reporting a section would leave the assertions below no
+	// samples to compare. TestSectionGoingAwayNullsItsColumns covers that side.
+	agent.reportsDeviceSettings = true
+	agent.reportsSecurityPosture = true
+	agent.policyEditProb = 0
 
 	state := testState()
 	// Enough reports that a value failing to move is a real failure and not a run
@@ -673,6 +680,11 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 		}
 	}
 
+	// Every report must have carried both sections, or the assertions below would
+	// be comparing a handful of samples, or none at all.
+	assert.Equal(t, reports, countValues(settings), "every report must carry deviceSettings")
+	assert.Equal(t, reports, countValues(postures), "every report must carry securityPosture")
+
 	// Across every re-roll each of these must have taken more than one value, or
 	// the vitals row would be written once and then never change again.
 	assert.Greater(t, len(settings), 1, "device settings never changed across %d reports", reports)
@@ -681,6 +693,15 @@ func TestStatusReportsChurnVolatileVitals(t *testing.T) {
 	if hasESIM {
 		assert.Greater(t, len(simConfigModes), 1, "eSIM config mode never changed across %d reports", reports)
 	}
+}
+
+// countValues totals the observations tallied in a value-count map.
+func countValues(counts map[string]int) int {
+	var total int
+	for _, n := range counts {
+		total += n
+	}
+	return total
 }
 
 // TestUncollectedSectionsAreOmitted covers the other side of the vitals write: a

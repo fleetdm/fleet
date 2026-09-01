@@ -91,8 +91,11 @@ type androidAgent struct {
 	reportsDeviceSettings  bool
 	reportsSecurityPosture bool
 
-	// vitalsChurnProb is the chance a status report re-rolls the volatile vitals.
+	// vitalsChurnProb is the chance a status report re-rolls the volatile vitals,
+	// and policyEditProb the chance such a re-roll also changes which sections
+	// the applied policy collects.
 	vitalsChurnProb float64
+	policyEditProb  float64
 
 	// Memory
 	totalRAM             int64
@@ -181,10 +184,10 @@ const (
 	configModeUnspecified      = "CONFIG_MODE_UNSPECIFIED"
 )
 
-// policyEditProb is the chance a re-roll of a device's volatile vitals also
-// changes which sections its applied policy collects, standing in for an admin
-// editing the policy's status reporting settings.
-const policyEditProb = 0.05
+// defaultPolicyEditProb is the chance a re-roll of a device's volatile vitals
+// also changes which sections its applied policy collects, standing in for an
+// admin editing the policy's status reporting settings.
+const defaultPolicyEditProb = 0.05
 
 // defaultVitalsChurnProb is the default for --android_vitals_churn_prob: the
 // share of status reports that re-roll a device's volatile vitals instead of
@@ -379,7 +382,7 @@ func (a *androidAgent) generateVolatileVitals() {
 	// device used to report. Re-rolling it every time would instead leave every
 	// host flickering between populated and empty vitals, which no real fleet
 	// does and which reads as a Fleet bug in the host UI.
-	if rand.Float64() < policyEditProb { // #nosec G404 -- load testing only
+	if rand.Float64() < a.policyEditProb { // #nosec G404 -- load testing only
 		a.rollCollectedSections()
 	}
 
@@ -572,6 +575,7 @@ func newAndroidAgent(
 		statusReportInterval: statusReportInterval,
 		nonComplianceProb:    nonComplianceProb,
 		vitalsChurnProb:      vitalsChurnProb,
+		policyEditProb:       defaultPolicyEditProb,
 	}
 	// Depends on the brand, hardware and Android version picked above.
 	agent.generateStableVitals()
