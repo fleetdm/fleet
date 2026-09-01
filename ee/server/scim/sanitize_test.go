@@ -9,6 +9,7 @@ import (
 
 	"github.com/elimity-com/scim"
 	scimerrors "github.com/elimity-com/scim/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/require"
 )
@@ -35,45 +36,59 @@ func TestSanitizedResourceHandler(t *testing.T) {
 	driverErr := errors.New("batch insert scim group users: Error 1452 (23000): a foreign key constraint fails (`fleet`.`scim_user_group`)")
 
 	for _, tc := range []struct {
-		name string
-		err  error
-		want error
+		name     string
+		err      error
+		want     error
+		replaced bool
 	}{
 		{
 			// CheckScimError puts err.Error() straight into the response detail for
 			// anything that is not already a ScimError.
 			"datastore error is replaced",
 			driverErr,
-			scimerrors.ScimError{Status: http.StatusInternalServerError, Detail: platform_http.GenericErrorMessage},
+			nil,
+			true,
 		},
 		{
 			"library's own error survives",
 			scimerrors.ScimErrorResourceNotFound("42"),
 			scimerrors.ScimErrorResourceNotFound("42"),
+			false,
 		},
 		{
 			"uniqueness error survives",
 			scimerrors.ScimErrorUniqueness,
 			scimerrors.ScimErrorUniqueness,
+			false,
 		},
 		{
 			"nil stays nil",
 			nil,
 			nil,
+			false,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			h := newSanitizedResourceHandler(stubHandler{err: tc.err}, slog.New(slog.DiscardHandler))
-			req := httptest.NewRequest(http.MethodPut, "/Groups/42", nil)
+			ctx := logging.NewContext(t.Context(), &logging.LoggingContext{})
+			logCtx, ok := logging.FromContext(ctx)
+			require.True(t, ok)
+			req := httptest.NewRequest(http.MethodPut, "/Groups/42", nil).WithContext(ctx)
 
 			_, err := h.Replace(req, "42", scim.ResourceAttributes{})
-			require.Equal(t, tc.want, err)
 
-			if tc.err != nil {
-				require.NotContains(t, err.Error(), "scim_user_group")
+			if tc.replaced {
+				// The caller needs something to quote to find the log line.
+				var scimErr scimerrors.ScimError
+				require.ErrorAs(t, err, &scimErr)
+				require.Contains(t, scimErr.Detail, platform_http.GenericErrorMessage)
+				require.Contains(t, scimErr.Detail, logCtx.RequestID)
+				require.NotContains(t, scimErr.Detail, "scim_user_group")
+				return
 			}
+			require.Equal(t, tc.want, err)
 			// Delete returns only an error, so it gets its own pass.
 			require.Equal(t, tc.want, h.Delete(req, "42"))
 		})

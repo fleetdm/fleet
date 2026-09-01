@@ -2,11 +2,13 @@ package scim
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/elimity-com/scim"
 	scimerrors "github.com/elimity-com/scim/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
@@ -32,10 +34,19 @@ func (h sanitizedResourceHandler) sanitize(ctx context.Context, op string, err e
 	if _, ok := err.(scimerrors.ScimError); ok { //nolint:errorlint // CheckScimError type-asserts the same way
 		return err
 	}
-	h.logger.ErrorContext(ctx, "scim handler error", "op", op, "err", err)
+	// A SCIM error has no uuid field, so the correlation id goes in the detail:
+	// without it the caller has nothing to quote to find this log line.
+	detail := platform_http.GenericErrorMessage
+	attrs := []any{"op", op, "err", err}
+	if logCtx, ok := logging.FromContext(ctx); ok && logCtx.RequestID != "" {
+		attrs = append(attrs, "uuid", logCtx.RequestID)
+		detail = fmt.Sprintf("%s (%s)", detail, logCtx.RequestID)
+	}
+	h.logger.ErrorContext(ctx, "scim handler error", attrs...)
+
 	return scimerrors.ScimError{
 		Status: http.StatusInternalServerError,
-		Detail: platform_http.GenericErrorMessage,
+		Detail: detail,
 	}
 }
 
