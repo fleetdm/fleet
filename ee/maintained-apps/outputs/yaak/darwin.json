@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.6.0",
+      "version": "2026.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.yaak.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.yaak.desktop' AND version_compare(bundle_short_version, '2026.6.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'app.yaak.desktop');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.yaak.desktop' AND version_compare(bundle_short_version, '2026.7.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.yaak.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.6.0/Yaak_2026.6.0_aarch64.dmg",
+      "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.7.0/Yaak_2026.7.0_aarch64.dmg",
       "install_script_ref": "6ff3ad25",
       "uninstall_script_ref": "9c0c3cc5",
-      "sha256": "8fa3bf2b79ac61213d94d8c1ecab348e6826135fe81017fb2dbb2a122df41413",
+      "sha256": "b0713cba9727a2b324895a6ea189877619b16a23eda467a13bf17d78fd78d5ce",
       "default_categories": [
         "Developer tools"
       ]

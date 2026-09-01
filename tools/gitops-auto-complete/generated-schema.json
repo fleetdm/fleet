@@ -3143,6 +3143,13 @@
             "null"
           ]
         },
+        "sso_enabled": {
+          "description": "SSOEnabled records that end users should authenticate with the IdP\nconfigured in mdm.end_user_authentication, which must be set before this can\nbe enabled. Nothing enforces it yet: the setting is only persisted and\nreported.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "transparency_url": {
           "description": "TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.\n\ntype: `string`",
           "type": [
@@ -3338,6 +3345,9 @@
         "mdm": {
           "$ref": "#/$defs/MDM",
           "description": "type: `MDM`"
+        },
+        "microsoft_graph_credentials": {
+          "description": "MicrosoftGraphCredentials are the outbound Entra app-registration credentials Fleet authenticates with when\nreading Windows Autopilot devices, as opposed to the inbound enrollment allowlists under controls. It sits here\nrather than under controls to match every other credential in GitOps: it is applied through its own endpoint,\nexactly like certificate_authorities above."
         },
         "org_info": {
           "$ref": "#/$defs/OrgInfo",
@@ -3572,6 +3582,13 @@
         },
         "platform": {
           "description": "Platform is a comma-separated string to indicate the target platforms.\n\nEmpty string targets all platforms.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "profile_uuid": {
+          "description": "ProfileUUID is the UUID of the configuration profile associated with this policy (team policies only).\nWhen editing a policy, if this is nil or \"\" then the profile UUID is unset from the policy.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -4198,6 +4215,13 @@
         "macos_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "MacOSUpdates defines the OS update settings for macOS devices.\n\ntype: `AppleOSUpdateSettings`"
+        },
+        "microsoft_graph_credential_invalid": {
+          "description": "MicrosoftGraphCredentialInvalid reports that at least one stored Microsoft Graph credential has been rejected by\nEntra or denied by Graph, so an admin has to supply a new secret or grant consent.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "name_template": {
           "description": "type: `string`",
@@ -5442,7 +5466,7 @@
           ]
         },
         "setup_experience_platform": {
-          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`",
+          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages that produce more than one\nsetup experience target: cross-platform scripts (.sh, .py) and .ipa\npackages, whose single entry stands for both the iOS and iPadOS titles.\n\ntype: `string`",
           "type": [
             "string",
             "null"

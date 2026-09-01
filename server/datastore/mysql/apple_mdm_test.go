@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
 	mathrand "math/rand/v2"
 	"slices"
@@ -88,6 +89,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDefaultSetupAssistant", testMDMAppleDefaultSetupAssistant},
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
+		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
@@ -131,6 +133,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
+		{"GetNanoMDMEnrollmentDetailsEnrollmentType", testGetNanoMDMEnrollmentDetailsEnrollmentType},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -5160,7 +5163,7 @@ func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 		profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
 		mdmData := fleet.MDMHostData{}
-		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, fleet.DiskEncryptionConfig{}, nil)
 		require.NotNil(t, mdmData.MacOSSettings)
 		require.NotNil(t, mdmData.MacOSSettings.DiskEncryption)
 		assert.Equal(t, fleet.DiskEncryptionVerifying, *mdmData.MacOSSettings.DiskEncryption,
@@ -10003,10 +10006,10 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	addHostMDMCommandsBatchSizeOrig := addHostMDMCommandsBatchSize
-	addHostMDMCommandsBatchSize = 2
+	hostMDMCommandsBatchSizeOrig := hostMDMCommandsBatchSize
+	hostMDMCommandsBatchSize = 2
 	t.Cleanup(func() {
-		addHostMDMCommandsBatchSize = addHostMDMCommandsBatchSizeOrig
+		hostMDMCommandsBatchSize = hostMDMCommandsBatchSizeOrig
 	})
 
 	// create a host
@@ -10070,6 +10073,40 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	// Batch-remove one command type across multiple hosts.
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("host1-osquery-id"),
+		NodeKey:         new("host1-node-key"),
+		UUID:            "host1-test-mdm-profiles",
+		Hostname:        "hostname1",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: h2.ID, CommandType: "command-2"},
+		{HostID: h2.ID, CommandType: "command-3"},
+	})
+	require.NoError(t, err)
+
+	// No-op on an empty host list.
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, nil, "command-2"))
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID, h2.ID, badHostID}, "command-2"))
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{{HostID: h.ID, CommandType: "command-3"}}, commands)
+
+	commands, err = ds.GetHostMDMCommands(ctx, h2.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{{HostID: h2.ID, CommandType: "command-3"}}, commands)
 
 	// RemoveHostMDMCommandByHostUUID has to tolerate two hosts sharing a UUID, which hosts.uuid
 	// permits: it carries only a non-unique index, and cloned VMs and double-enrolled devices do
@@ -11247,6 +11284,19 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 	assert.Equal(t, byodDeviceAuthenticateTime, *details.LastMDMEnrollmentTime)
 	require.NotNil(t, details.LastMDMSeenTime)
 	assert.Equal(t, byodDeviceEnrollTime, *details.LastMDMSeenTime)
+
+	// bootstrap token is not escrowed by default
+	assert.False(t, details.BootstrapTokenEscrowed)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET bootstrap_token_b64=? WHERE id = ?`, "dGVzdC10b2tlbg==", host.UUID)
+		return err
+	})
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.True(t, details.BootstrapTokenEscrowed)
 }
 
 func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
@@ -15342,4 +15392,312 @@ func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datas
 	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil))
 	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+// Matrix over the four enforce/escrow combinations: FileVault summary, OS
+// settings aggregate, host-list filters (new and legacy params) and per-host
+// derivation must agree.
+func TestMDMAppleFileVaultSummaryPerPlatformSettings(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	setGlobalMacOSSettings := func(enforce, escrow bool) {
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enforce)
+		ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(escrow)
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	}
+
+	fvProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0), nil)
+	require.NoError(t, err)
+
+	setProfile := func(h *fleet.Host, op fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
+		upsertHostCPs([]*fleet.Host{h}, []*fleet.MDMAppleConfigProfile{fvProfile}, op, &status, ctx, ds, t)
+	}
+	// nil decryptable: key stored, not yet checked by the cron
+	setKey := func(h *fleet.Host, decryptable *bool) {
+		_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, h, "key-"+h.UUID, "", nil)
+		require.NoError(t, err)
+		if decryptable != nil {
+			require.NoError(t, ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{h.ID}, *decryptable, time.Now().Add(time.Minute)))
+		}
+	}
+	setDisk := func(h *fleet.Host, encrypted bool) {
+		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, h.ID, encrypted, nil))
+	}
+
+	hosts := make([]*fleet.Host, 13)
+	for i := range hosts {
+		h := test.NewHost(t, ds, fmt.Sprintf("host-%d", i), "1.1.1.1", fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		nanoEnrollUserDeviceAndSetHostMDMData(t, ds, h)
+		hosts[i] = h
+	}
+
+	// host states: profile × key (none / undecryptable / unknown / decryptable) × disk (unknown / unencrypted / encrypted)
+	setProfile(hosts[0], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	setProfile(hosts[1], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying) // no key, disk unknown
+	setProfile(hosts[2], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	setKey(hosts[2], nil) // key unknown, disk unknown
+	setProfile(hosts[3], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	setKey(hosts[3], new(true))
+	setDisk(hosts[3], false)
+	setProfile(hosts[4], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	setKey(hosts[4], new(true))
+	setDisk(hosts[4], true)
+	setProfile(hosts[5], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	setKey(hosts[5], new(false))
+	setDisk(hosts[5], true)
+	setProfile(hosts[6], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified) // no key
+	setDisk(hosts[6], false)
+	setProfile(hosts[7], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	setKey(hosts[7], nil)
+	setDisk(hosts[7], true)
+	setProfile(hosts[8], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	setProfile(hosts[9], fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+	setProfile(hosts[10], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	setKey(hosts[10], new(true))
+	setDisk(hosts[10], true)
+	setProfile(hosts[11], fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	setKey(hosts[11], new(false)) // disk unknown
+	// hosts[12] has no FileVault profile and is never counted
+
+	ids := func(idx ...int) []uint {
+		out := make([]uint, 0, len(idx))
+		for _, i := range idx {
+			out = append(out, hosts[i].ID)
+		}
+		return out
+	}
+	type expected map[fleet.DiskEncryptionStatus][]uint
+	keyBased := expected{
+		fleet.DiskEncryptionEnforcing:           ids(0),
+		fleet.DiskEncryptionVerifying:           ids(2, 3, 7, 10),
+		fleet.DiskEncryptionVerified:            ids(4),
+		fleet.DiskEncryptionActionRequired:      ids(1, 5, 6, 11),
+		fleet.DiskEncryptionFailed:              ids(8),
+		fleet.DiskEncryptionRemovingEnforcement: ids(9),
+	}
+	diskBased := expected{
+		fleet.DiskEncryptionEnforcing:           ids(0),
+		fleet.DiskEncryptionVerifying:           ids(1, 2, 10, 11),
+		fleet.DiskEncryptionVerified:            ids(4, 5, 7),
+		fleet.DiskEncryptionActionRequired:      ids(3, 6),
+		fleet.DiskEncryptionFailed:              ids(8),
+		fleet.DiskEncryptionRemovingEnforcement: ids(9),
+	}
+	// OS settings aggregate: enforcing, action required and removing enforcement
+	// all report as pending.
+	osSettingsStatus := map[fleet.DiskEncryptionStatus]fleet.OSSettingsStatus{
+		fleet.DiskEncryptionEnforcing:           fleet.OSSettingsPending,
+		fleet.DiskEncryptionActionRequired:      fleet.OSSettingsPending,
+		fleet.DiskEncryptionRemovingEnforcement: fleet.OSSettingsPending,
+		fleet.DiskEncryptionVerifying:           fleet.OSSettingsVerifying,
+		fleet.DiskEncryptionVerified:            fleet.OSSettingsVerified,
+		fleet.DiskEncryptionFailed:              fleet.OSSettingsFailed,
+	}
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	listIDs := func(opt fleet.HostListOptions) []uint {
+		got, err := ds.ListHosts(ctx, adminFilter, opt)
+		require.NoError(t, err)
+		out := make([]uint, 0, len(got))
+		for _, h := range got {
+			out = append(out, h.ID)
+		}
+		return out
+	}
+
+	checkMatrix := func(t *testing.T, teamID *uint, cfg fleet.DiskEncryptionConfig, exp expected) {
+		count := func(s fleet.DiskEncryptionStatus) uint { return uint(len(exp[s])) }
+
+		fvSummary, err := ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+		require.NoError(t, err)
+		require.Equal(t, &fleet.MDMAppleFileVaultSummary{
+			Verified:            count(fleet.DiskEncryptionVerified),
+			Verifying:           count(fleet.DiskEncryptionVerifying),
+			ActionRequired:      count(fleet.DiskEncryptionActionRequired),
+			Enforcing:           count(fleet.DiskEncryptionEnforcing),
+			Failed:              count(fleet.DiskEncryptionFailed),
+			RemovingEnforcement: count(fleet.DiskEncryptionRemovingEnforcement),
+		}, fvSummary)
+
+		wantOSSettings := map[fleet.OSSettingsStatus][]uint{}
+		for status, hostIDs := range exp {
+			wantOSSettings[osSettingsStatus[status]] = append(wantOSSettings[osSettingsStatus[status]], hostIDs...)
+		}
+		profSummary, err := ds.GetMDMAppleProfilesSummary(ctx, teamID)
+		require.NoError(t, err)
+		require.Equal(t, &fleet.MDMProfilesSummary{
+			Pending:   uint(len(wantOSSettings[fleet.OSSettingsPending])),
+			Verifying: uint(len(wantOSSettings[fleet.OSSettingsVerifying])),
+			Verified:  uint(len(wantOSSettings[fleet.OSSettingsVerified])),
+			Failed:    uint(len(wantOSSettings[fleet.OSSettingsFailed])),
+		}, profSummary)
+
+		for status, hostIDs := range exp {
+			require.ElementsMatch(t, hostIDs, listIDs(fleet.HostListOptions{OSSettingsDiskEncryptionFilter: status, TeamFilter: teamID}), "os_settings_disk_encryption=%s", status)
+			require.ElementsMatch(t, hostIDs, listIDs(fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: status, TeamFilter: teamID}), "macos_settings.disk_encryption=%s", status)
+		}
+		for status, hostIDs := range wantOSSettings {
+			require.ElementsMatch(t, hostIDs, listIDs(fleet.HostListOptions{OSSettingsFilter: status, TeamFilter: teamID}), "os_settings=%s", status)
+			require.ElementsMatch(t, hostIDs, listIDs(fleet.HostListOptions{MacOSSettingsFilter: status, TeamFilter: teamID}), "macos_settings=%s", status)
+		}
+
+		for status, hostIDs := range exp {
+			for _, id := range hostIDs {
+				h, err := ds.Host(ctx, id)
+				require.NoError(t, err)
+				profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
+				require.NoError(t, err)
+				h.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier, cfg, h.DiskEncryptionEnabled)
+				require.NotNil(t, h.MDM.MacOSSettings.DiskEncryption, "host %d", id)
+				require.Equal(t, status, *h.MDM.MacOSSettings.DiskEncryption, "host %d", id)
+			}
+		}
+	}
+
+	for _, combo := range []struct {
+		name            string
+		enforce, escrow bool
+		exp             expected
+	}{
+		{"enforce on, escrow on", true, true, keyBased},
+		{"enforce off, escrow on", false, true, keyBased},
+		{"enforce off, escrow off", false, false, keyBased},
+		{"enforce on, escrow off", true, false, diskBased},
+	} {
+		t.Run(combo.name, func(t *testing.T) {
+			setGlobalMacOSSettings(combo.enforce, combo.escrow)
+			checkMatrix(t, nil, fleet.DiskEncryptionConfig{MacOSEnabled: combo.enforce, MacOSEscrowEnabled: combo.escrow}, combo.exp)
+		})
+	}
+
+	t.Run("fleet-level settings override the global ones", func(t *testing.T) {
+		setGlobalMacOSSettings(true, true)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "enforce-only", Config: fleet.TeamConfig{MDM: fleet.TeamMDM{MacOSSettings: fleet.MacOSSettings{
+			EnableDiskEncryption:          optjson.SetBool(true),
+			EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+		}}}})
+		require.NoError(t, err)
+		// host 5 (verified profile, undecryptable key, encrypted disk) is action
+		// required key-based, verified enforce-only
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, ids(5))))
+
+		teamEnforceOnly := fleet.DiskEncryptionConfig{MacOSEnabled: true}
+		checkMatrix(t, &team.ID, teamEnforceOnly, expected{fleet.DiskEncryptionVerified: ids(5)})
+		noTeamKeyBased := expected{}
+		maps.Copy(noTeamKeyBased, keyBased)
+		noTeamKeyBased[fleet.DiskEncryptionActionRequired] = ids(1, 6, 11)
+		checkMatrix(t, nil, fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, noTeamKeyBased)
+
+		team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
+		_, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+		checkMatrix(t, &team.ID, fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, expected{fleet.DiskEncryptionActionRequired: ids(5)})
+	})
+}
+
+func testUpsertMDMAppleFleetConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profileFor := func(payload string) fleet.MDMAppleConfigProfile {
+		return fleet.MDMAppleConfigProfile{
+			Name:         fleetmdm.FleetFileVaultProfileName,
+			Identifier:   mobileconfig.FleetFileVaultPayloadIdentifier,
+			Mobileconfig: mobileconfig.Mobileconfig(payload),
+			TeamID:       nil,
+		}
+	}
+
+	type row struct {
+		UUID       string    `db:"profile_uuid"`
+		Checksum   []byte    `db:"checksum"`
+		UploadedAt time.Time `db:"uploaded_at"`
+		Mobileconf []byte    `db:"mobileconfig"`
+	}
+	read := func() row {
+		var r row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &r, `
+SELECT profile_uuid, checksum, uploaded_at, mobileconfig
+FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
+				mobileconfig.FleetFileVaultPayloadIdentifier)
+		})
+		return r
+	}
+
+	// first write inserts
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, profileFor("<plist>one</plist>")))
+	first := read()
+	require.NotEmpty(t, first.UUID)
+	require.Equal(t, "<plist>one</plist>", string(first.Mobileconf))
+
+	// re-writing identical bytes must not touch the row: the reconciler keys on
+	// the checksum, so a bump here would re-push the profile to every host
+	time.Sleep(time.Second) // uploaded_at has second granularity
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, profileFor("<plist>one</plist>")))
+	same := read()
+	require.Equal(t, first.UUID, same.UUID)
+	require.Equal(t, first.Checksum, same.Checksum)
+	require.True(t, first.UploadedAt.Equal(same.UploadedAt),
+		"uploaded_at advanced despite identical bytes: %s -> %s", first.UploadedAt, same.UploadedAt)
+
+	// changed bytes update in place, keeping the profile_uuid so hosts see a
+	// payload change rather than a different profile
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, profileFor("<plist>two</plist>")))
+	changed := read()
+	require.Equal(t, first.UUID, changed.UUID)
+	require.NotEqual(t, first.Checksum, changed.Checksum)
+	require.Equal(t, "<plist>two</plist>", string(changed.Mobileconf))
+	require.True(t, changed.UploadedAt.After(first.UploadedAt))
+
+	// a fleet-scoped profile is a separate row from no-team's
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "upsert-fleet"})
+	require.NoError(t, err)
+	teamProfile := profileFor("<plist>fleet</plist>")
+	teamProfile.TeamID = &tm.ID
+	require.NoError(t, ds.UpsertMDMAppleFleetConfigProfile(ctx, teamProfile))
+	require.Equal(t, "<plist>two</plist>", string(read().Mobileconf))
+
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE identifier = ?`,
+			mobileconfig.FleetFileVaultPayloadIdentifier)
+	})
+	require.Equal(t, 2, count)
+}
+
+// Manual BYOD and Account-Driven User Enrollment both report the
+// "On (manual - personal)" status, so the enrollment channel is the only way to
+// tell them apart. See #50868.
+func testGetNanoMDMEnrollmentDetailsEnrollmentType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "adue-host-" + suffix,
+			OsqueryHostID: new("adue-osq-" + suffix),
+			NodeKey:       new("adue-key-" + suffix),
+			UUID:          "adue-uuid-" + suffix,
+			Platform:      "ios",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	manualBYOD := newHost("manual")
+	nanoEnroll(t, ds, manualBYOD, false)
+
+	accountDriven := newHost("account-driven")
+	nanoEnrollUserDevice(t, ds, accountDriven)
+
+	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, manualBYOD.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "Device", details.EnrollmentType)
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, accountDriven.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "User Enrollment (Device)", details.EnrollmentType)
 }
