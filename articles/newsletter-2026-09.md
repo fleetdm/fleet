@@ -32,7 +32,7 @@ Fleet workshops are free, run about four hours, and cap at roughly seven people 
 - **GitOps, Gothenburg.** September 28, 1pm to 5pm GMT+2. [Register](https://www.eventbrite.com/e/gitops-macsysadmins-tickets-1993054810590)
 - **GitOps, Richmond.** October 13, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-richmond-tickets-1993052268988)
 
-More dates are on the way, and nothing near you yet is worth telling us about. You can [request a workshop](https://fleetdm.com/workshops) in your city.
+The best way to learn Fleet is by building with it! [Request a workshop]https://fleetdm.com/workshops) in your city to get hands-on experience and earn your certification.
 
 ## 📖 Worth reading
 
@@ -57,7 +57,6 @@ More dates are on the way, and nothing near you yet is worth telling us about. Y
 
 - [Kitzy](https://www.linkedin.com/in/kitzy/) wrote up [what the extended GitHub Actions outage meant](https://www.linkedin.com/posts/kitzy_todays-extended-github-actions-outage-left-share-7491337261117181952-CEYC) for teams whose device configuration runs through CI, alongside the guide above.
 - [Nicklas Holst Hansen](https://www.linkedin.com/in/nicklas-holst-hansen-9982aa268/) shared [a summer intern project at Sopra Steria Norway](https://www.linkedin.com/posts/nicklas-holst-hansen-9982aa268_kan-man-administrere-linux-laptoper-like-ugcPost-7489649285769289728-46Xf) that managed Linux laptops with Fleet, and [Kevin Maksevicius](https://www.linkedin.com/in/kevin-maksevicius-1a892724a/) followed up with [what the team built](https://www.linkedin.com/posts/kevin-maksevicius-1a892724a_this-summer-i-was-very-lucky-to-lead-my-own-share-7493951654325633024-5TKU).
-- A practitioner comparing Jamf, Addigy, and Fleet [wrote about how Fleet handles GitOps and AI](https://www.linkedin.com/feed/update/urn:li:share:7498702644194983936/).
 
 Thanks to everyone who shared what they are building.
 
