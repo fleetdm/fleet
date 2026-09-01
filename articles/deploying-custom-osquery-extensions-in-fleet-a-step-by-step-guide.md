@@ -250,11 +250,9 @@ Here are some examples of the custom extensions we use at Fleet:
 - [macos_compatibility](https://github.com/harrisonravazzolo/macos-compatibility-ext): Get a snapshot of what version of macOS your MacBooks are compatible with.
 - [snap_packages](https://github.com/allenhouchins/fleet-stuff/tree/main/linux-mdm-snap-packages): Collect packages installed by snap in a similar syntax to what you are used to with deb_packages or rpm_packages.
 
-About the author: Allen Houchins is Head of IT & Solutions Consulting at Fleet Device Management.
-
 <meta name="articleTitle" value="Deploying custom osquery extensions in Fleet: A step-by-step guide">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Kitzy">
+<meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-03-06">
 <meta name="description" value="Learn how to package, test, and deploy a custom osquery extension in Fleet, with the loader and Orbit restart folded into one install.">
