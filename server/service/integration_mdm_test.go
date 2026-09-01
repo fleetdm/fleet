@@ -9550,9 +9550,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
 
-	// No activity yet: an Entra enrollment carries neither a host UUID nor a serial, so recording one here would
-	// produce an mdm_enrolled with an empty host_serial and no host_id. It is deferred to the first time the enrollment
-	// is linked to a host (see the deferred-activity tests, and the enrollment is left unclaimed below).
+	// No activity yet: an Entra enrollment carries neither a host UUID nor a serial. It is deferred to the first time
+	// the enrollment is linked to a host (see the deferred-activity tests, and the enrollment is left unclaimed below).
 	require.Equal(t, mdmEnrolledCountBefore, s.countActivitiesOfType(fleet.ActivityTypeMDMEnrolled{}.ActivityName()))
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
@@ -10434,29 +10433,23 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
-	// enrolledActivities returns every mdm_enrolled activity recorded for a host. Callers assert on the count as well
-	// as the payload: a duplicate carries an identical payload, so comparing details alone would not catch one.
-	enrolledActivities := func(hostID uint) []fleet.ActivityTypeMDMEnrolled {
-		var listResp listActivitiesResponse
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp,
-			"order_key", "id", "order_direction", "desc", "per_page", "200")
-		var found []fleet.ActivityTypeMDMEnrolled
-		for _, act := range listResp.Activities {
-			if act.Type != (fleet.ActivityTypeMDMEnrolled{}).ActivityName() || act.Details == nil {
-				continue
-			}
-			var details fleet.ActivityTypeMDMEnrolled
-			require.NoError(t, json.Unmarshal(*act.Details, &details))
-			if details.HostID == hostID {
-				found = append(found, details)
-			}
-		}
-		return found
+	// windowsEnrolledDetails is the mdm_enrolled payload expected for a linked Windows host.
+	windowsEnrolledDetails := func(host *fleet.Host, installedFromDEP bool) string {
+		return fmt.Sprintf(`{
+			"mdm_platform": "microsoft",
+			"host_id": %d,
+			"host_serial": "%s",
+			"installed_from_dep": %t,
+			"host_display_name": "%s",
+			"enrollment_id": null,
+			"platform": "windows"
+		 }`, host.ID, host.HardwareSerial, installedFromDEP, host.DisplayName())
 	}
 
 	// Neither Entra enrollment has an mdm_enrolled activity yet: the WSTEP exchange carries no serial and no host UUID,
 	// so the activity waits for the enrollment to be linked to a host rather than being recorded without either.
-	require.Empty(t, enrolledActivities(settingsAppHost.ID))
+	mdmEnrolledName := fleet.ActivityTypeMDMEnrolled{}.ActivityName()
+	require.Zero(t, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
 
 	// start a management session, will receive the install fleetd commands
 	checkinAndAck(settingsAppDevice, true)
@@ -10486,7 +10479,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Linking happened through osquery's direct-ingest backstop, which cannot record an activity itself, so the
 	// enrollment is still unannounced until the device's next management session.
-	require.Empty(t, enrolledActivities(settingsAppHost.ID))
+	require.Zero(t, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
 
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
@@ -10494,21 +10487,15 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// That session recorded the deferred activity, now carrying the host id and serial the Entra enrollment could not
 	// know. This host enrolled from the settings app (not in OOBE), so it is a manual enrollment.
-	settingsAppActs := enrolledActivities(settingsAppHost.ID)
-	require.Len(t, settingsAppActs, 1)
-	settingsAppActivity := settingsAppActs[0]
-	require.NotNil(t, settingsAppActivity.HostSerial)
-	require.Equal(t, settingsAppHost.HardwareSerial, *settingsAppActivity.HostSerial)
-	require.Equal(t, settingsAppHost.DisplayName(), settingsAppActivity.HostDisplayName)
-	require.Equal(t, fleet.MDMPlatformMicrosoft, settingsAppActivity.MDMPlatform)
-	require.Equal(t, "windows", settingsAppActivity.Platform)
-	require.False(t, settingsAppActivity.InstalledFromDEP)
-	require.Equal(t, []uint{settingsAppHost.ID}, settingsAppActivity.HostIDs(), "the activity must land on the host's timeline")
+	// Asserted against the host's own timeline, which also proves the activity is linked to the host and not just in
+	// the global feed.
+	s.lastHostActivityMatches(settingsAppHost.ID, mdmEnrolledName, windowsEnrolledDetails(settingsAppHost, false), 0)
+	require.Equal(t, 1, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
 
 	// A further session must not record a second one. Assert the count, not just the payload: a duplicate would be
 	// byte-identical and would slip past a details-only comparison.
 	checkinAndAck(settingsAppDevice, false)
-	require.Equal(t, []fleet.ActivityTypeMDMEnrolled{settingsAppActivity}, enrolledActivities(settingsAppHost.ID))
+	require.Equal(t, 1, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
 
 	// But the autopilot device still receives commands...
 	checkinAndAck(autopilotDevice, true)
@@ -10536,12 +10523,8 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Same for the Autopilot device, except this one enrolled during OOBE, so it is an automatic enrollment.
 	checkinAndAck(autopilotDevice, false)
-	autopilotActs := enrolledActivities(autopilotHost.ID)
-	require.Len(t, autopilotActs, 1)
-	autopilotActivity := autopilotActs[0]
-	require.NotNil(t, autopilotActivity.HostSerial)
-	require.Equal(t, autopilotHost.HardwareSerial, *autopilotActivity.HostSerial)
-	require.True(t, autopilotActivity.InstalledFromDEP)
+	s.lastHostActivityMatches(autopilotHost.ID, mdmEnrolledName, windowsEnrolledDetails(autopilotHost, true), 0)
+	require.Equal(t, 1, s.countHostActivitiesOfType(autopilotHost.ID, mdmEnrolledName))
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", autopilotHost.ID), nil, http.StatusOK, &hostResp)
 
