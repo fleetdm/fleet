@@ -15,7 +15,7 @@ type NotificationUUIDForExecutionFunc func(ctx context.Context, executionID stri
 
 type CreateNotificationFunc func(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error)
 
-type NotificationAwaitingFirstDispatchFunc func(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error)
+type NotificationAwaitingDisplayFunc func(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error)
 
 var NoopRecordOutcomeFunc RecordOutcomeFunc = func(_ context.Context, _ string, _ int64, _ string) error {
 	return nil
@@ -41,8 +41,8 @@ type MockNotificationsService struct {
 	CreateNotificationFunc        CreateNotificationFunc
 	CreateNotificationFuncInvoked bool
 
-	NotificationAwaitingFirstDispatchFunc        NotificationAwaitingFirstDispatchFunc
-	NotificationAwaitingFirstDispatchFuncInvoked bool
+	NotificationAwaitingDisplayFunc        NotificationAwaitingDisplayFunc
+	NotificationAwaitingDisplayFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -81,14 +81,14 @@ func (m *MockNotificationsService) CreateNotification(ctx context.Context, notif
 	return fn(ctx, notification)
 }
 
-func (m *MockNotificationsService) NotificationAwaitingFirstDispatch(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
+func (m *MockNotificationsService) NotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
 	m.mu.Lock()
-	m.NotificationAwaitingFirstDispatchFuncInvoked = true
+	m.NotificationAwaitingDisplayFuncInvoked = true
 	m.mu.Unlock()
-	if m.NotificationAwaitingFirstDispatchFunc == nil {
+	if m.NotificationAwaitingDisplayFunc == nil {
 		return nil, nil
 	}
-	return m.NotificationAwaitingFirstDispatchFunc(ctx, hostID, kind)
+	return m.NotificationAwaitingDisplayFunc(ctx, hostID, kind)
 }
 
 type notFoundError struct{}

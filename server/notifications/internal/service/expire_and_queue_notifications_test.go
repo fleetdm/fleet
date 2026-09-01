@@ -65,7 +65,7 @@ func (m *mockDatastore) NewEndUserNotification(context.Context, *api.EndUserNoti
 	return nil, nil
 }
 
-func (m *mockDatastore) GetNotificationAwaitingFirstDispatch(context.Context, uint, string) (*api.EndUserNotification, error) {
+func (m *mockDatastore) GetNotificationAwaitingDisplay(context.Context, uint, string) (*api.EndUserNotification, error) {
 	return nil, nil
 }
 

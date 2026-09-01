@@ -19,8 +19,8 @@ func TestEndUserNotifications(t *testing.T) {
 		fn   func(t *testing.T, env *testEnv)
 	}{
 		{"NewAndGet", testNewAndGetEndUserNotification},
-		{"AwaitingFirstDispatch", testGetNotificationAwaitingFirstDispatch},
-		{"AwaitingFirstDispatchScope", testGetNotificationAwaitingFirstDispatchScope},
+		{"AwaitingDisplay", testGetNotificationAwaitingDisplay},
+		{"AwaitingDisplayScope", testGetNotificationAwaitingDisplayScope},
 		{"ListToDispatch", testListEndUserNotificationsToDispatch},
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
 		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
@@ -48,9 +48,10 @@ func newDarwinHost(t *testing.T, env *testEnv, name string, withOrbitInfo bool) 
 }
 
 // newHostNotification gives the host a notification, then moves that
-// notification to the status and attempt count the test needs, since every
-// notification starts out pending and unsent.
-func newHostNotification(t *testing.T, env *testEnv, hostID uint, kind string, status string, attempts uint) string {
+// notification to the state the test needs, since every notification starts out
+// pending, unsent and never displayed. A displayed notification gets a
+// displayed_at, and attempts is how many times Fleet has tried to send it.
+func newHostNotification(t *testing.T, env *testEnv, hostID uint, kind string, status string, attempts uint, displayed bool) string {
 	t.Helper()
 	ctx := t.Context()
 	expiresAt := time.Now().UTC().Add(time.Hour)
@@ -59,28 +60,34 @@ func newHostNotification(t *testing.T, env *testEnv, hostID uint, kind string, s
 		HostID: hostID, Kind: kind, Payload: []byte(`{}`), ExpiresAt: &expiresAt,
 	})
 	require.NoError(t, err)
+
+	var displayedAt *time.Time
+	if displayed {
+		displayedAt = new(time.Now().UTC())
+	}
 	_, err = env.db.ExecContext(ctx,
-		`UPDATE notifications_end_user SET status = ?, attempt_count = ? WHERE uuid = ?`,
-		status, attempts, created.UUID)
+		`UPDATE notifications_end_user SET status = ?, attempt_count = ?, displayed_at = ? WHERE uuid = ?`,
+		status, attempts, displayedAt, created.UUID)
 	require.NoError(t, err)
 	return created.UUID
 }
 
 // When an app on a host needs patching, Fleet either adds that app to a
 // notification the host already has, or creates a new notification for the app.
-// GetNotificationAwaitingFirstDispatch is what decides, and it only returns a
-// notification Fleet has not sent to the host yet. So an app that needs patching
-// after a notification is already on the end user's screen gets a new
-// notification, and still gets a full hour of notice, rather than appearing in a
-// notification the end user is part way through reading.
-func testGetNotificationAwaitingFirstDispatch(t *testing.T, env *testEnv) {
+// GetNotificationAwaitingDisplay is what decides, and it only returns a
+// notification the end user has not seen. So an app that needs patching after a
+// notification is already on the end user's screen gets a new notification, and
+// still gets a full hour of notice, rather than appearing in a notification the
+// end user is part way through reading.
+func testGetNotificationAwaitingDisplay(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
 	cases := []struct {
 		name string
 		// the notification the host already has, none if the status is empty
-		hostNotificationStatus   string
-		hostNotificationAttempts uint
+		hostNotificationStatus    string
+		hostNotificationAttempts  uint
+		hostNotificationDisplayed bool
 
 		wantNewNotificationForTheApp bool
 	}{
@@ -93,16 +100,33 @@ func testGetNotificationAwaitingFirstDispatch(t *testing.T, env *testEnv) {
 			hostNotificationStatus: api.EndUserNotificationPending,
 		},
 		{
+			// Fleet marks a notification dispatched when it queues the script,
+			// up to a minute before Fleet Desktop puts the notification on screen
+			name:                     "an app is added to a notification Fleet sent but the end user has not seen",
+			hostNotificationStatus:   api.EndUserNotificationDispatched,
+			hostNotificationAttempts: 1,
+		},
+		{
+			// the attempt failed, so Fleet will send the notification again and
+			// the end user still has not seen anything
+			name:                     "an app is added to a notification waiting on another send attempt",
+			hostNotificationStatus:   api.EndUserNotificationPending,
+			hostNotificationAttempts: 1,
+		},
+		{
 			name:                         "an app is not added to a notification the end user is already reading",
 			hostNotificationStatus:       api.EndUserNotificationDispatched,
+			hostNotificationAttempts:     1,
+			hostNotificationDisplayed:    true,
 			wantNewNotificationForTheApp: true,
 		},
 		{
-			// Remind me later and a retry after a failed attempt both put a sent
-			// notification back to pending, with an attempt already spent
-			name:                         "an app is not added to a notification that Fleet will send to the host again",
+			// Remind me later puts a notification the end user has already seen
+			// back to pending
+			name:                         "an app is not added to a notification the end user asked to see later",
 			hostNotificationStatus:       api.EndUserNotificationPending,
 			hostNotificationAttempts:     1,
+			hostNotificationDisplayed:    true,
 			wantNewNotificationForTheApp: true,
 		},
 		{
@@ -125,12 +149,12 @@ func testGetNotificationAwaitingFirstDispatch(t *testing.T, env *testEnv) {
 			var hostNotificationUUID string
 			if c.hostNotificationStatus != "" {
 				hostNotificationUUID = newHostNotification(t, env, hostID, "test_kind",
-					c.hostNotificationStatus, c.hostNotificationAttempts)
+					c.hostNotificationStatus, c.hostNotificationAttempts, c.hostNotificationDisplayed)
 			}
 
 			// an app on this host now needs patching, so Fleet looks for a
 			// test_kind notification to add that app to
-			awaiting, err := env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+			awaiting, err := env.ds.GetNotificationAwaitingDisplay(ctx, hostID, "test_kind")
 			require.NoError(t, err)
 
 			if c.wantNewNotificationForTheApp {
@@ -145,27 +169,27 @@ func testGetNotificationAwaitingFirstDispatch(t *testing.T, env *testEnv) {
 
 // An app is only ever added to a notification for that app's own host and its
 // own kind of notification.
-func testGetNotificationAwaitingFirstDispatchScope(t *testing.T, env *testEnv) {
+func testGetNotificationAwaitingDisplayScope(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	hostID := newDarwinHost(t, env, "awaiting-scope", true)
 	unsent := api.EndUserNotificationPending
 
 	// an unsent notification on this host, but for another kind of notification
-	newHostNotification(t, env, hostID, "other_kind", unsent, 0)
-	awaiting, err := env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+	newHostNotification(t, env, hostID, "other_kind", unsent, 0, false)
+	awaiting, err := env.ds.GetNotificationAwaitingDisplay(ctx, hostID, "test_kind")
 	require.NoError(t, err)
 	assert.Nil(t, awaiting, "the app needs a new notification")
 
 	// an unsent test_kind notification, but on another host
 	otherHostID := newDarwinHost(t, env, "awaiting-scope-other-host", true)
-	newHostNotification(t, env, otherHostID, "test_kind", unsent, 0)
-	awaiting, err = env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+	newHostNotification(t, env, otherHostID, "test_kind", unsent, 0, false)
+	awaiting, err = env.ds.GetNotificationAwaitingDisplay(ctx, hostID, "test_kind")
 	require.NoError(t, err)
 	assert.Nil(t, awaiting, "the app needs a new notification")
 
 	// this host's own unsent test_kind notification
-	ownNotificationUUID := newHostNotification(t, env, hostID, "test_kind", unsent, 0)
-	awaiting, err = env.ds.GetNotificationAwaitingFirstDispatch(ctx, hostID, "test_kind")
+	ownNotificationUUID := newHostNotification(t, env, hostID, "test_kind", unsent, 0, false)
+	awaiting, err = env.ds.GetNotificationAwaitingDisplay(ctx, hostID, "test_kind")
 	require.NoError(t, err)
 	require.NotNil(t, awaiting, "the app should be added to the host's notification")
 	assert.Equal(t, ownNotificationUUID, awaiting.UUID)

@@ -1268,14 +1268,14 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	}
 
 	// batching reads back what the create above wrote
-	opts.NotificationsMock.NotificationAwaitingFirstDispatchFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
+	opts.NotificationsMock.NotificationAwaitingDisplayFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
 		var uuids []string
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &uuids, `
 				SELECT uuid FROM notifications_end_user
-				WHERE host_id = ? AND kind = ? AND status = ? AND attempt_count = 0
+				WHERE host_id = ? AND kind = ? AND status IN (?, ?) AND displayed_at IS NULL
 				ORDER BY id DESC LIMIT 1`,
-				hostID, kind, notifications_api.EndUserNotificationPending)
+				hostID, kind, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched)
 		})
 		if len(uuids) == 0 {
 			return nil, nil

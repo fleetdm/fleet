@@ -89,7 +89,7 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		return nil
 	}
 
-	awaiting, err := svc.notificationsSvc.NotificationAwaitingFirstDispatch(ctx, host.ID, fleet.PatchNotificationKind)
+	awaiting, err := svc.notificationsSvc.NotificationAwaitingDisplay(ctx, host.ID, fleet.PatchNotificationKind)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get patch notification awaiting first dispatch for host")
 	}
@@ -206,7 +206,7 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 		UUID:                notification.UUID,
 		OrgLogoURLLightMode: fleet.AbsolutizeLogoURL(appConfig.OrgInfo.OrgLogoURLLightMode, serverURL),
 		OrgLogoURLDarkMode:  fleet.AbsolutizeLogoURL(appConfig.OrgInfo.OrgLogoURLDarkMode, serverURL),
-		Title:               "Save your work 💾",
+		Title:               "Save your work",
 		Description:         description,
 		Items:               items,
 		Actions:             actions,

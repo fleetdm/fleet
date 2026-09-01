@@ -209,7 +209,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
 			nil, http.StatusOK, &resp)
 		require.Equal(t, notificationUUID, resp.UUID)
-		require.Equal(t, "Save your work 💾", resp.Title)
+		require.Equal(t, "Save your work", resp.Title)
 		require.Equal(t, []notifications_api.NotificationAction{
 			{ID: "remind", Label: "Remind me 5 minutes before"},
 			{ID: "update_now", Label: "Update now"},

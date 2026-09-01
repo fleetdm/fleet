@@ -110,31 +110,33 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	return &notification, nil
 }
 
-// GetNotificationAwaitingFirstDispatch returns the host's notification of this kind
-// that Fleet has queued but never sent, or nil.
+// GetNotificationAwaitingDisplay returns the host's notification of this kind
+// that the end user has not seen yet, or nil.
 //
-// The query filters on attempt_count as well as status, because a notification
-// that was dispatched and then delayed or retried is pending again. The end user
-// has already seen that notification, so that notification is not awaiting a
-// first dispatch.
-func (ds *Datastore) GetNotificationAwaitingFirstDispatch(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
+// displayed_at rather than status alone, because Fleet marks a notification
+// dispatched when it queues the script, up to a minute before Fleet Desktop puts
+// the notification on screen. A notification the end user has seen is left out
+// even when it is pending again, which is what Remind me later makes it.
+func (ds *Datastore) GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
 	const getStmt = `
 SELECT ` + endUserNotificationColumns + `
 FROM notifications_end_user eun
 WHERE eun.host_id = ?
 	AND eun.kind = ?
-	AND eun.status = ?
-	AND eun.attempt_count = 0
+	AND eun.status IN (?, ?)
+	AND eun.displayed_at IS NULL
 ORDER BY eun.id DESC
 LIMIT 1
 `
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, hostID, kind, api.EndUserNotificationPending); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, hostID, kind,
+		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting first dispatch")
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting display")
 	}
 	return &notification, nil
 }

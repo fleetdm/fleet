@@ -32,8 +32,8 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		// PatchNotificationExistsForApp: a pending or dispatched notification
 		// already lists this app and has not queued its installs
 		exists bool
-		// NotificationAwaitingFirstDispatch: this host has a pending notification that
-		// Fleet Desktop has not displayed yet
+		// NotificationAwaitingDisplay: this host has a notification the end user
+		// has not seen yet
 		awaiting bool
 		// host_software_installs.software_title_id
 		noTitle bool
@@ -47,7 +47,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			wantAppOn:   createdUUID,
 		},
 		{
-			name:        "the app is added to the notification that is not displayed yet",
+			name:        "the app is added to the notification the end user has not seen yet",
 			awaiting:    true,
 			wantCreated: false,
 			wantAppOn:   awaitingUUID,
@@ -80,7 +80,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			ds.PatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
 				return c.exists, nil
 			}
-			notificationsSvc.NotificationAwaitingFirstDispatchFunc = func(_ context.Context, _ uint, _ string) (*notifications_api.EndUserNotification, error) {
+			notificationsSvc.NotificationAwaitingDisplayFunc = func(_ context.Context, _ uint, _ string) (*notifications_api.EndUserNotification, error) {
 				if !c.awaiting {
 					return nil, nil
 				}
