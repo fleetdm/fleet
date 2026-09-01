@@ -1,0 +1,2 @@
+- Hid the "My device" link on the host details page for Android and ChromeOS hosts, which have no My device page, and made the host device URL API return a clear error for those platforms.
+- Changed the "My device" page heading back to "My device" instead of the end user's full name.

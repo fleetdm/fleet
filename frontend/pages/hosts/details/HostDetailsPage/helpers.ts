@@ -1,5 +1,6 @@
 import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
+import { isAndroid, isChrome } from "interfaces/platform";
 
 import { getHostDeviceStatusUIState } from "../helpers";
 
@@ -23,8 +24,11 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 // end-user surface. Hide the button on wiped hosts and on hosts with a wipe
 // in flight — the device is about to have no end-user session to review.
 export const canShowMyDeviceButton = (
-  host: Pick<IHost, "fleet_desktop_version" | "mdm">
+  host: Pick<IHost, "fleet_desktop_version" | "mdm" | "platform">
 ) => {
+  // Android and ChromeOS have no My device page, so the link would only lead to
+  // an error. GET /hosts/:id/device_url rejects them for the same reason.
+  if (isAndroid(host.platform) || isChrome(host.platform)) return false;
   if (!host.fleet_desktop_version) return false;
   const uiState = getHostDeviceStatusUIState(
     host.mdm.device_status,

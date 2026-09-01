@@ -19,6 +19,26 @@ describe("canShowMyDeviceButton", () => {
     expect(canShowMyDeviceButton(host)).toBe(true);
   });
 
+  // Android and ChromeOS have no My device page, so the link must be hidden
+  // regardless of anything else. See #48439.
+  it("returns false for Android even with Fleet Desktop reported", () => {
+    const host = createMockHost({
+      platform: "android",
+      fleet_desktop_version: "1.22.1",
+      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(false);
+  });
+
+  it("returns false for ChromeOS even with Fleet Desktop reported", () => {
+    const host = createMockHost({
+      platform: "chrome",
+      fleet_desktop_version: "1.22.1",
+      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(false);
+  });
+
   it("returns false when Fleet Desktop is not installed", () => {
     const host = createMockHost({ fleet_desktop_version: null });
     expect(canShowMyDeviceButton(host)).toBe(false);

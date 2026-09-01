@@ -2931,6 +2931,13 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 		return "", ctxerr.Wrap(ctx, err, "get host for device url")
 	}
 
+	// Android and ChromeOS have no My device page, so a URL for them would only
+	// lead to an error. "CrOS" is the legacy ChromeOS platform value.
+	switch host.Platform {
+	case "android", "chrome", "CrOS":
+		return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLUnsupportedPlatformMessage}
+	}
+
 	if host.Platform == "ios" || host.Platform == "ipados" {
 		return "", &fleet.BadRequestError{
 			Message: "My device URL is not available for iOS or iPadOS hosts; those platforms use certificate authentication instead.",

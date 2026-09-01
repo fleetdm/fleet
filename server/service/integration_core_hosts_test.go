@@ -2112,6 +2112,14 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	ipadHost := createOrbitEnrolledHost(t, "ipados", "device-url-ipad", s.ds)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusBadRequest, &resp)
 
+	// Android and ChromeOS have no My device page at all, so the endpoint explains
+	// that rather than minting a URL that leads nowhere. See #48439.
+	for _, platform := range []string{"android", "chrome", "CrOS"} {
+		unsupportedHost := createOrbitEnrolledHost(t, platform, "device-url-"+platform, s.ds)
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", unsupportedHost.ID), nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLUnsupportedPlatformMessage, "platform %s", platform)
+	}
+
 	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
 	defer func() { s.token = s.getTestAdminToken() }()
 
