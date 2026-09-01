@@ -23,14 +23,19 @@ func TestFirstExistingPath(t *testing.T) {
 	assert.Empty(t, firstExistingPath(nil))
 }
 
-// TestResolveCLIPathCandidates asserts the candidate list is ordered with the
-// installer-created symlink first, since that is the only path guaranteed
-// stable across agent versions.
-func TestResolveCLIPathCandidates(t *testing.T) {
+// TestCLICandidatePaths covers the invariants every platform's candidate list
+// shares. Which path comes first differs per platform, so that is asserted in
+// clipath_darwin_test.go and clipath_linux_test.go.
+func TestCLICandidatePaths(t *testing.T) {
 	require.NotEmpty(t, cliCandidatePaths)
-	assert.Equal(t, "/usr/local/bin/sentinelctl", cliCandidatePaths[0])
+
+	seen := make(map[string]struct{}, len(cliCandidatePaths))
 	for _, p := range cliCandidatePaths {
 		assert.True(t, filepath.IsAbs(p), "candidate %q must be absolute", p)
+		assert.Equal(t, "sentinelctl", filepath.Base(p), "candidate %q must point at sentinelctl", p)
+		_, duplicate := seen[p]
+		assert.False(t, duplicate, "candidate %q listed twice", p)
+		seen[p] = struct{}{}
 	}
 }
 
