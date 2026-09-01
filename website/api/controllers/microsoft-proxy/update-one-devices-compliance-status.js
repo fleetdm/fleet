@@ -138,15 +138,15 @@ module.exports = {
         // If the Microsoft API rejected the cached access token, clear this tenant's cached tokens and URLs to force re-authentication on the next request.
         // The Fleet server retries this request upon error for up to a minute, and if it times out then the host will retry in 1 hour (policy interval).
         await sails.helpers.microsoftProxy.clearCacheForTenant.with({entraTenantId});
-        sails.log.warn(`When getting a user ID from a user principal name (${userPrincipalName}) for a compliance status update, the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`When getting a user ID from a user principal name for a compliance status update (entra tenant id: ${entraTenantId}), the cached access token was rejected. Full error: ${require('util').inspect(err, {depth: 3})}`);
         return 'microsoftApiError';
       })
       .intercept((err)=>{
-        return new Error(`An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a compliance status update. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return new Error(`An error occurred when getting a user ID from a user principal name for a compliance status update (entra tenant id: ${entraTenantId}). Full error: ${require('util').inspect(err, {depth: 3})}`);
       });
 
       if(!informationAboutThisUser.id) {
-        throw new Error(`An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`);
+        throw new Error(`An error occurred when getting information about a user for a compliance status update (entra tenant id: ${entraTenantId}). The response from the Microsoft graph API did not include an ID.`);
       }
 
       let lastUpdateTime = new Date().toISOString();
