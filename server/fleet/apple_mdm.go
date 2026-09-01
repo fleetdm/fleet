@@ -1550,7 +1550,7 @@ func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 		strings.HasPrefix(modelIdentifier, "iPod") ||
 		strings.HasPrefix(modelIdentifier, "iPad") {
 		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
-		// error; however, other non-Mac Apple devices like AppleTV will return an error
+		// error; however, other non-Mac Apple devices will also return no, except for invalid product family strings
 		return false, "", 0, nil
 	}
 
@@ -1647,7 +1647,12 @@ func IsA11ChipDevice(modelIdentifier string) (bool, error) {
 		family = iPadFamily
 	}
 
-	return major >= a11MajorThreshold[family], nil
+	threshold, ok := a11MajorThreshold[family]
+	if !ok {
+		return false, nil
+	}
+
+	return major >= threshold, nil
 }
 
 // MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account

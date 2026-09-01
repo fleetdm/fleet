@@ -4001,7 +4001,7 @@ func TestMDMCommandAndReportResultsDeclarativeManagementDetail(t *testing.T) {
 }
 
 // TestMaybeQueueCertificateListForACMEProfile verifies the on-demand
-// CertificateList trigger fires only on macOS hosts whose acked profile
+// CertificateList trigger fires on hosts whose acked profile
 // contains an ACME payload, and that it dedups against pending refetches.
 func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 	ctx := context.Background()

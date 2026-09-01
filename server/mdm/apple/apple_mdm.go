@@ -1595,9 +1595,8 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 // GenerateACMEEnrollmentProfileMobileconfig builds an ACME (hardware-attested) enrollment profile. See
 // GenerateEnrollmentProfileMobileconfig for newEnrollment; the OU marker survives because Fleet's ACME
 // signer reuses the SCEP depot signer, which copies the CSR Subject verbatim.
-//
-// deviceSerial fills both ClientIdentifier and the Subject CN. It was observed for iOS renewals the device did not substitute %SerialNumber% with it's serial number
-// so we fill it in.
+// deviceSerial fills both ClientIdentifier and the Subject CN. We observed that on iOS renewals,
+// the device does not substitute %SerialNumber% with its serial number, so we fill it in.
 func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int, newEnrollment bool) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {

@@ -3298,8 +3298,8 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 		{SerialNumber: uuid.New().String(), Model: "MacBookPro17,1", OS: "osx", OpType: "added"},
 		{SerialNumber: uuid.New().String(), Model: "MacBookPro16,1", OS: "osx", OpType: "added"},
 		{SerialNumber: uuid.New().String(), Model: "MacBookPro17,1", OS: "osx", OpType: "added"},
-		{SerialNumber: uuid.New().String(), Model: "iPhone14,2", OS: "ios", OpType: "added"},
-		{SerialNumber: uuid.New().String(), Model: "iPad10,1", OS: "ios", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "iPhone14,2", OS: "ios", OpType: "added", DeviceFamily: "iPhone"},
+		{SerialNumber: uuid.New().String(), Model: "iPad10,1", OS: "ios", OpType: "added", DeviceFamily: "iPad"},
 	}
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -3357,12 +3357,12 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 
 	// set config.mdm.apple_require_hardware_attestation to true
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
+		_, err := q.ExecContext(t.Context(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
 		return err
 	})
 	t.Cleanup(func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
+			_, err := q.ExecContext(t.Context(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
 			return err
 		})
 	})
@@ -3378,7 +3378,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	var expectIdent string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `SELECT path_identifier FROM acme_enrollments WHERE host_identifier = ?`
-		err := sqlx.GetContext(context.Background(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
+		err := sqlx.GetContext(t.Context(), q, &expectIdent, stmt, appleSiliconDevice.SerialNumber)
 		return err
 	})
 
@@ -3387,7 +3387,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	var acmeHostID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
-		err := sqlx.GetContext(context.Background(), q, &acmeHostID, stmt, appleSiliconDevice.SerialNumber)
+		err := sqlx.GetContext(t.Context(), q, &acmeHostID, stmt, appleSiliconDevice.SerialNumber)
 		return err
 	})
 
@@ -3407,7 +3407,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	var intelHostID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
-		err := sqlx.GetContext(context.Background(), q, &intelHostID, stmt, intelDevice.SerialNumber)
+		err := sqlx.GetContext(t.Context(), q, &intelHostID, stmt, intelDevice.SerialNumber)
 		return err
 	})
 
@@ -3429,7 +3429,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	var otaHostID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
-		err := sqlx.GetContext(context.Background(), q, &otaHostID, stmt, otaAppleSiliconDevice.SerialNumber)
+		err := sqlx.GetContext(t.Context(), q, &otaHostID, stmt, otaAppleSiliconDevice.SerialNumber)
 		return err
 	})
 
@@ -3447,7 +3447,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	var iphoneHostID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
-		err := sqlx.GetContext(context.Background(), q, &iphoneHostID, stmt, iphoneDEPDevice.SerialNumber)
+		err := sqlx.GetContext(t.Context(), q, &iphoneHostID, stmt, iphoneDEPDevice.SerialNumber)
 		return err
 	})
 
@@ -3456,7 +3456,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 
 	// Disable Require ACME, SCEP enroll a valid device via DEP, enable Require ACME and ensure renewal gets ACME
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
+		_, err := q.ExecContext(t.Context(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', false)`)
 		return err
 	})
 
@@ -3470,7 +3470,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	var iPadHostID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `SELECT id FROM hosts WHERE hardware_serial = ?`
-		err := sqlx.GetContext(context.Background(), q, &iPadHostID, stmt, iPadDEPDevice.SerialNumber)
+		err := sqlx.GetContext(t.Context(), q, &iPadHostID, stmt, iPadDEPDevice.SerialNumber)
 		return err
 	})
 
@@ -3478,7 +3478,7 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	assert.False(t, hostResp.Host.MDMEnrollmentHardwareAttested)
 
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
+		_, err := q.ExecContext(t.Context(), `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.apple_require_hardware_attestation', true)`)
 		return err
 	})
 

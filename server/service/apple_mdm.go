@@ -6564,7 +6564,7 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		}
 		return ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
 	}
-	if !res.HasACMEPayload {
+	if res.Platform != "darwin" || !res.HasACMEPayload {
 		return nil
 	}
 

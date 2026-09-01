@@ -1079,9 +1079,9 @@ func TestIsMacIdentifier(t *testing.T) {
 		{product: "MacBookPro18", wantErr: true},
 		// Garbage input
 		{product: "not-a-model", wantErr: true},
-		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
-		{product: "AppleTV6,2", wantErr: true},
-		{product: "AppleTV14,1", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad also returns silently with valid format
+		{product: "AppleTV6,2", want: false},
+		{product: "AppleTV14,1", want: false},
 	}
 
 	for _, tc := range cases {

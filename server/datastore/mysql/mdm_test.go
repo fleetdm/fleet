@@ -6165,8 +6165,8 @@ func testGetDeviceInfoForACMERenewal(t *testing.T, ds *Datastore) {
 	newHost := func(name, model, osName, osVersion string, depAssigned bool) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:       name,
-			OsqueryHostID:  ptr.String("osquery-" + name),
-			NodeKey:        ptr.String("nodekey-" + name),
+			OsqueryHostID:  new("osquery-" + name),
+			NodeKey:        new("nodekey-" + name),
 			UUID:           "uuid-" + name,
 			HardwareSerial: "serial-" + name,
 			HardwareModel:  model,
