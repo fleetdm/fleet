@@ -48,7 +48,17 @@ const SYSTEM_UPDATE_STATUS_LABELS: Record<string, string> = {
 const displayEnum = (
   value: string | undefined,
   labels: Record<string, string>
-) => (value && (labels[value] || value)) || DEFAULT_EMPTY_CELL_VALUE;
+) => {
+  if (!value) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+  // Own-property check, not a bare lookup: the value is a device-reported
+  // string stored verbatim, and "constructor" or "toString" would otherwise
+  // resolve to an Object.prototype member instead of falling back.
+  return Object.prototype.hasOwnProperty.call(labels, value)
+    ? labels[value]
+    : value;
+};
 
 const displayBoolean = (value?: boolean | null) => {
   if (value === undefined || value === null) {
@@ -65,15 +75,23 @@ const SECURITY_PATCH_LEVEL_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 /** AMAPI reports the security patch level as a YYYY-MM-DD date, which is shown
  * as a readable one. The time is appended so it parses in the viewer's own
  * timezone — `new Date("2026-05-01")` is UTC midnight, which formats as the
- * previous day anywhere west of UTC. A value that isn't date-shaped is shown
- * as sent. */
+ * previous day anywhere west of UTC.
+ *
+ * The value is device-reported and stored verbatim, so it is shown as sent
+ * unless it parses to a real date. Date-shaped but impossible values
+ * ("2026-13-45") matter: readableDate would hand an Invalid Date to
+ * Intl.DateTimeFormat.format, which throws and takes down the whole card. */
 const displaySecurityUpdateVersion = (value?: string) => {
   if (!value) {
     return DEFAULT_EMPTY_CELL_VALUE;
   }
-  return SECURITY_PATCH_LEVEL_FORMAT.test(value)
-    ? readableDate(`${value}T00:00:00`)
-    : value;
+  if (!SECURITY_PATCH_LEVEL_FORMAT.test(value)) {
+    return value;
+  }
+  const asDate = `${value}T00:00:00`;
+  return Number.isNaN(new Date(asDate).getTime())
+    ? value
+    : readableDate(asDate);
 };
 
 /** A vital title whose tooltip explains the vital and links out to the docs. */
@@ -100,37 +118,39 @@ const titleWithLearnMore = (
 );
 
 /** Renders a per-SIM value. A dual-SIM device reports one telephonyInfo per
- * card, so the first is shown with a tooltip listing all of them. */
+ * card, so the first is shown with a tooltip listing all of them.
+ *
+ * Distinct values only: both SIMs of a dual-SIM device are usually on the same
+ * carrier, and a tooltip reading "Verizon / Verizon" tells the user nothing.
+ * Deduplicating also keeps the value usable as a React key. */
 const displayTelephonyValue = (
   telephonyInfos: IHostMdmAndroidTelephonyInfo[] | undefined,
   getValue: (info: IHostMdmAndroidTelephonyInfo) => string | undefined
 ) => {
-  const entries = (telephonyInfos ?? [])
-    // Two SIMs can report the same carrier, so the value alone isn't a unique
-    // key; the ICCID identifies the card itself.
-    .map((info) => ({ key: info.iccid, value: getValue(info) }))
-    .filter(
-      (entry): entry is { key: string | undefined; value: string } =>
-        !!entry.value
-    );
+  // normalizeEmptyValues rewrites an empty array to the empty-cell string
+  // before the card ever sees it, so this can't assume an array.
+  const infos = Array.isArray(telephonyInfos) ? telephonyInfos : [];
+  const values = Array.from(
+    new Set(infos.map(getValue).filter((value): value is string => !!value))
+  );
 
-  if (!entries.length) {
+  if (!values.length) {
     return DEFAULT_EMPTY_CELL_VALUE;
   }
 
-  if (entries.length === 1) {
-    return <TooltipTruncatedText value={entries[0].value} />;
+  if (values.length === 1) {
+    return <TooltipTruncatedText value={values[0]} />;
   }
 
   return (
     <TooltipTruncatedText
-      value={entries[0].value}
+      value={values[0]}
       alwaysShowTooltip
       tooltip={
         // Left-align to override the tooltip's default centered text.
         <div style={{ textAlign: "left" }}>
-          {entries.map(({ key, value }) => (
-            <div key={key || value}>{value}</div>
+          {values.map((value) => (
+            <div key={value}>{value}</div>
           ))}
         </div>
       }
@@ -236,14 +256,19 @@ const buildAndroidHostVitals = (
 
   // AMAPI reports telephony info, IMEI and MEID only for company-owned
   // devices, and the server withholds all three for a personal enrollment — so
-  // on a BYOD host these rows could only ever be empty. Keyed off the same
-  // predicate as the Enrollment ID row, which holds after the host unenrolls.
-  if (
-    !wasBYODEnrolled(
-      mdm?.enrollment_status ?? null,
-      mdm?.is_personal_enrollment
-    )
-  ) {
+  // on a BYOD host these rows could only ever be empty. BYOD is keyed off the
+  // same predicate as the Enrollment ID row, which holds after the host
+  // unenrolls.
+  //
+  // Absent MDM data means BYOD can't be ruled out, so the rows stay hidden.
+  // That's the My device page, which deliberately passes no `mdm` — and these
+  // are hardware identifiers, so "unknown ownership" resolves to not showing
+  // them rather than to showing them.
+  const isCompanyOwned =
+    !!mdm &&
+    !wasBYODEnrolled(mdm.enrollment_status, mdm.is_personal_enrollment);
+
+  if (isCompanyOwned) {
     rows.push(
       {
         sortKey: "Carrier",

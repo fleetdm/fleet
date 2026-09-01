@@ -561,6 +561,12 @@ export const buildHostVitals = ({
 
   // Operating system
   // No tooltip if there's no requirement, including all Windows, Linux, ChromeOS, Android operating systems
+  //
+  // Checked as a number rather than for truthiness: the card's data is run
+  // through normalizeEmptyValues, which rewrites an empty value to the
+  // empty-cell string, and that string is truthy.
+  const hasApiLevel = isAndroidHost && typeof vitalsData.api_level === "number";
+
   if (!osUpdateMinimumVersion) {
     const version = vitalsData.os_version;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
@@ -573,12 +579,19 @@ export const buildHostVitals = ({
         value={version}
         // Android reports the API level separately from the OS version string;
         // it rides along on this row rather than getting a vital of its own.
+        // The version is repeated in the tooltip because supplying `tooltip`
+        // replaces the truncated-text tooltip, which would otherwise leave a
+        // long version unreadable in a narrow column.
         tooltip={
-          isAndroidHost && vitalsData.api_level
-            ? `Android API level: ${vitalsData.api_level}`
-            : undefined
+          hasApiLevel ? (
+            <>
+              {version}
+              <br />
+              Android API level: {vitalsData.api_level}
+            </>
+          ) : undefined
         }
-        alwaysShowTooltip={isAndroidHost && !!vitalsData.api_level}
+        alwaysShowTooltip={hasApiLevel}
       />
     );
     vitals.push({
