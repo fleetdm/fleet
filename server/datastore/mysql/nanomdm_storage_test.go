@@ -695,7 +695,7 @@ func testStorePushCert(t *testing.T, ds *Datastore) {
 }
 
 func testNanoDisable(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ns, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 

@@ -1074,6 +1074,10 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_seen_times")
+		return err
+	})
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_users")
 		return err
 	})
