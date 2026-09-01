@@ -823,7 +823,7 @@ func TestGeneratedVitalsAcrossFleet(t *testing.T) {
 		cdma           int
 	)
 
-	for i := 0; i < deviceCount; i++ {
+	for range deviceCount {
 		agent := newVitalsTestAgent("http://fleet.invalid")
 
 		assert.Equal(t, androidManufacturers[agent.brand], agent.manufacturer)

@@ -476,10 +476,11 @@ func weightedChoice(values []weightedValue) string {
 }
 
 func randomDigits(n int) string {
+	const digitVals = "0123456789"
 	sb := strings.Builder{}
 	sb.Grow(n)
-	for i := 0; i < n; i++ {
-		sb.WriteByte(byte('0' + rand.IntN(10))) // #nosec G404 -- load testing only
+	for range n {
+		sb.WriteByte(digitVals[rand.IntN(len(digitVals))]) // #nosec G404 -- load testing only
 	}
 	return sb.String()
 }
@@ -488,7 +489,7 @@ func randomHexString(n int) string {
 	const hexVals = "0123456789abcdef"
 	sb := strings.Builder{}
 	sb.Grow(n)
-	for i := 0; i < n; i++ {
+	for range n {
 		sb.WriteByte(hexVals[rand.IntN(len(hexVals))]) // #nosec G404 -- load testing only
 	}
 	return sb.String()
