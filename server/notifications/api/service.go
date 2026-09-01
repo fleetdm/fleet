@@ -23,7 +23,6 @@ type Service interface {
 	RenderNotificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*NotificationView, error)
 
 	// ApplyAction carries out what an end user chose to do with one of the
-	// ApplyAction carries out what an end user chose to do with one of the
 	// notifications on their host.
 	ApplyAction(ctx context.Context, hostID uint, notificationUUID string, action EndUserNotificationAction) (*NotificationView, error)
 
@@ -48,6 +47,10 @@ type NotificationLookupService interface {
 
 type CreateNotificationService interface {
 	CreateNotification(ctx context.Context, notification *EndUserNotification) (*EndUserNotification, error)
+	// NotificationAwaitingDispatch returns the notification of this kind that
+	// Fleet has queued for the host but not sent yet, or nil. A kind that batches
+	// adds to that one rather than queueing a second.
+	NotificationAwaitingDispatch(ctx context.Context, hostID uint, kind string) (*EndUserNotification, error)
 }
 
 // DelayNotificationService puts a notification back in the queue for a later

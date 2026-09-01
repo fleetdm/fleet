@@ -15,6 +15,8 @@ type NotificationUUIDForExecutionFunc func(ctx context.Context, executionID stri
 
 type CreateNotificationFunc func(ctx context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error)
 
+type NotificationAwaitingDispatchFunc func(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error)
+
 var NoopRecordOutcomeFunc RecordOutcomeFunc = func(_ context.Context, _ string, _ int64, _ string) error {
 	return nil
 }
@@ -38,6 +40,9 @@ type MockNotificationsService struct {
 
 	CreateNotificationFunc        CreateNotificationFunc
 	CreateNotificationFuncInvoked bool
+
+	NotificationAwaitingDispatchFunc        NotificationAwaitingDispatchFunc
+	NotificationAwaitingDispatchFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -74,6 +79,16 @@ func (m *MockNotificationsService) CreateNotification(ctx context.Context, notif
 		fn = NoopCreateNotificationFunc
 	}
 	return fn(ctx, notification)
+}
+
+func (m *MockNotificationsService) NotificationAwaitingDispatch(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
+	m.mu.Lock()
+	m.NotificationAwaitingDispatchFuncInvoked = true
+	m.mu.Unlock()
+	if m.NotificationAwaitingDispatchFunc == nil {
+		return nil, nil
+	}
+	return m.NotificationAwaitingDispatchFunc(ctx, hostID, kind)
 }
 
 type notFoundError struct{}

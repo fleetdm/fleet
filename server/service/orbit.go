@@ -2039,8 +2039,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 
 		if isAppOpenSkip && hsi.NotifyBeforePatching {
-			if err := svc.notifyEndUserBeforePatching(ctx, host, hsi); err != nil {
-				return ctxerr.Wrap(ctx, err, "notify end user before patching")
+			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
+				return ctxerr.Wrap(ctx, err, "create patch notification for end user")
 			}
 		}
 

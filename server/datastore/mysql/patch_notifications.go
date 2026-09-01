@@ -37,30 +37,6 @@ LIMIT 1
 	return exists, nil
 }
 
-func (ds *Datastore) PatchNotificationAwaitingDispatchForHost(ctx context.Context, hostID uint) (string, error) {
-	const selectStmt = `
-SELECT neu.uuid
-FROM notifications_end_user neu
-	JOIN patch_notifications pn ON pn.notification_uuid = neu.uuid
-WHERE neu.host_id = ?
-	AND neu.status = ?
-	AND neu.attempt_count = 0
-ORDER BY neu.id DESC
-LIMIT 1
-`
-
-	var notificationUUID string
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &notificationUUID, selectStmt,
-		hostID, notifications_api.EndUserNotificationPending,
-	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
-		}
-		return "", ctxerr.Wrap(ctx, err, "get unsent patch notification for host")
-	}
-	return notificationUUID, nil
-}
-
 func (ds *Datastore) PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
 	const selectStmt = `SELECT installs_queued_at IS NOT NULL FROM patch_notifications WHERE notification_uuid = ?`
 

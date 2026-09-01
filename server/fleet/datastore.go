@@ -746,12 +746,24 @@ type Datastore interface {
 	// Non-error returns are software title name and whether the uninstall was self-service, respectively
 	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Patch notifications
+
+	// PatchNotificationExistsForApp reports whether a patch notification on this
+	// host still has this app to install.
 	PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
-	PatchNotificationAwaitingDispatchForHost(ctx context.Context, hostID uint) (string, error)
+	// PatchNotificationInstallsQueued reports whether the end user already had this
+	// notification install its apps.
 	PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error)
+	// SetPatchNotificationInstallsQueued records that they did.
 	SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error
+	// NewPatchNotification records the patch half of a notification the
+	// notifications context already created.
 	NewPatchNotification(ctx context.Context, notificationUUID string) error
+	// AddPatchNotificationApp adds an app, ignoring one already listed.
 	AddPatchNotificationApp(ctx context.Context, notificationUUID string, app PatchNotificationApp) error
+	// ListPatchNotificationApps returns a notification's apps, with names and icons
+	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
 
 	///////////////////////////////////////////////////////////////////////////////

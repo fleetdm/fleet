@@ -105,6 +105,34 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	return &notification, nil
 }
 
+// GetNotificationAwaitingDispatch returns the host's notification of this kind
+// that Fleet has queued but not sent yet, or nil. attempt_count rather than
+// status alone: one that went out and came back pending is already on a
+// schedule its end user has seen.
+func (ds *Datastore) GetNotificationAwaitingDispatch(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error) {
+	const getStmt = `
+SELECT ` + endUserNotificationColumns + `
+FROM notifications_end_user eun
+WHERE eun.host_id = ?
+	AND eun.kind = ?
+	AND eun.status = ?
+	AND eun.attempt_count = 0
+ORDER BY eun.id DESC
+LIMIT 1
+`
+
+	var notification api.EndUserNotification
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt,
+		hostID, kind, api.EndUserNotificationPending,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting dispatch")
+	}
+	return &notification, nil
+}
+
 func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error) {
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.execution_id = ?`
 

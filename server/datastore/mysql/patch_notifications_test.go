@@ -22,7 +22,6 @@ func TestPatchNotifications(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ExistsForApp", testPatchNotificationExistsForApp},
-		{"UnsentForHost", testPatchNotificationAwaitingDispatchForHost},
 		{"AddAndListApps", testPatchNotificationAddAndListApps},
 	}
 	for _, c := range cases {
@@ -94,29 +93,6 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "unlisted"))
 	require.NoError(t, err)
 	assert.False(t, exists)
-}
-
-func testPatchNotificationAwaitingDispatchForHost(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	host := test.NewHost(t, ds, "unsent-host", "", "unsent-key", "unsent-uuid", time.Now())
-
-	notificationUUID, err := ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
-	require.NoError(t, err)
-	assert.Empty(t, notificationUUID)
-
-	pendingUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 0)
-	notificationUUID, err = ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
-	require.NoError(t, err)
-	assert.Equal(t, pendingUUID, notificationUUID)
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`UPDATE notifications_end_user SET attempt_count = 1 WHERE uuid = ?`, pendingUUID)
-		return err
-	})
-	notificationUUID, err = ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
-	require.NoError(t, err)
-	assert.Empty(t, notificationUUID)
 }
 
 func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {

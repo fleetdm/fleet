@@ -19,13 +19,30 @@ const (
 	patchNotificationActionDismiss   = "dismiss"
 )
 
+// How long before an app is closed and updated the end user is told, first and
+// then again. The activity carries these as time_before in seconds, which is
+// what the details modal picks its wording from.
 const (
-	patchNotificationLeadTimeSeconds     = 3600
-	patchNotificationReminderTimeSeconds = 300
+	patchNotificationFirstNoticeBefore = time.Hour
+	patchNotificationReminderBefore    = 5 * time.Minute
 )
 
-type patchNotificationPayload struct {
-	Reminder bool `json:"reminder"`
+// Which of the two the notification is currently for. Kept in the payload
+// because that is what the platform hands back to Render, and what
+// DelayNotification replaces when a notification is sent again.
+var (
+	patchNotificationFirstNoticePayload = json.RawMessage(`{"reminder":false}`)
+	patchNotificationReminderPayload    = json.RawMessage(`{"reminder":true}`)
+)
+
+func patchNotificationIsReminder(payload json.RawMessage) (bool, error) {
+	var decoded struct {
+		Reminder bool `json:"reminder"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return false, err
+	}
+	return decoded.Reminder, nil
 }
 
 type patchNotificationActivityWriter interface {
@@ -57,7 +74,7 @@ func (k *patchNotificationKind) Name() string {
 	return fleet.PatchNotificationKind
 }
 
-func (svc *Service) notifyEndUserBeforePatching(ctx context.Context, host *fleet.Host, install *fleet.HostSoftwareInstallerResult) error {
+func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host *fleet.Host, install *fleet.HostSoftwareInstallerResult) error {
 	if install.SoftwareTitleID == nil {
 		svc.logger.InfoContext(ctx, "not notifying about a skipped patch for software with no title",
 			"host_id", host.ID, "install_uuid", install.InstallUUID)
@@ -72,22 +89,24 @@ func (svc *Service) notifyEndUserBeforePatching(ctx context.Context, host *fleet
 		return nil
 	}
 
-	notificationUUID, err := svc.ds.PatchNotificationAwaitingDispatchForHost(ctx, host.ID)
+	awaiting, err := svc.notificationsSvc.NotificationAwaitingDispatch(ctx, host.ID, fleet.PatchNotificationKind)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get unsent patch notification for host")
+		return ctxerr.Wrap(ctx, err, "get patch notification awaiting dispatch for host")
 	}
 
+	var notificationUUID string
+	if awaiting != nil {
+		notificationUUID = awaiting.UUID
+	}
+
+	// create a new notification if a pending notification doesn't already exist
 	if notificationUUID == "" {
-		payload, err := json.Marshal(patchNotificationPayload{Reminder: false})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build patch notification payload")
-		}
 		expiresAt := time.Now().UTC().Add(notifications_api.EndUserNotificationMaxLifetime)
 
 		created, err := svc.notificationsSvc.CreateNotification(ctx, &notifications_api.EndUserNotification{
 			HostID:    host.ID,
 			Kind:      fleet.PatchNotificationKind,
-			Payload:   payload,
+			Payload:   patchNotificationFirstNoticePayload,
 			ExpiresAt: &expiresAt,
 		})
 		if err != nil {
@@ -121,8 +140,10 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 		return nil, ctxerr.Wrap(ctx, err, "get app config for patch notification")
 	}
 
+	// The request already authenticated with a token this host updated in the
+	// last hour, and that is the same row this reads.
 	deviceToken, err := k.ds.GetDeviceAuthTokenIfFresh(ctx, notification.HostID, hostDeviceAuthTokenTTL)
-	if err != nil && !fleet.IsNotFound(err) {
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get device auth token for patch notification")
 	}
 
@@ -131,7 +152,10 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 		return nil, ctxerr.Wrap(ctx, err, "check patch notification installs queued")
 	}
 
-	reminder := k.payload(ctx, notification).Reminder
+	reminder, err := patchNotificationIsReminder(notification.Payload)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
 
 	items := make([]notifications_api.NotificationItem, 0, len(apps))
 	for _, app := range apps {
@@ -140,7 +164,7 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 			Name:            app.Name,
 			DisplayName:     app.DisplayName,
 		}
-		if app.HasIcon && deviceToken != "" {
+		if app.HasIcon {
 			icon := fleet.SoftwareTitleIcon{SoftwareTitleID: app.SoftwareTitleID}
 			iconURL := icon.IconUrlWithDeviceToken(deviceToken)
 			item.IconURL = &iconURL
@@ -151,13 +175,14 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 		items = append(items, item)
 	}
 
-	timeLeft := "1 hour"
-	if reminder {
-		timeLeft = "5 minutes"
-	}
-	description := fmt.Sprintf("These apps will close and update in **%s**.", timeLeft)
-	if len(items) == 1 {
-		description = fmt.Sprintf("This app will close and update in **%s**.", timeLeft)
+	description := "These apps will close and update in **1 hour**."
+	switch {
+	case reminder && len(items) == 1:
+		description = "This app will close and update in **5 minutes**."
+	case reminder:
+		description = "These apps will close and update in **5 minutes**."
+	case len(items) == 1:
+		description = "This app will close and update in **1 hour**."
 	}
 
 	hide := notifications_api.NotificationAction{ID: patchNotificationActionDismiss, Label: "Hide"}
@@ -173,20 +198,12 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 		}
 	}
 
-	lightLogoURL := appConfig.OrgInfo.OrgLogoURLLightMode
-	if lightLogoURL == "" {
-		lightLogoURL = appConfig.OrgInfo.OrgLogoURLLightBackground //nolint:staticcheck // all a config saved before dark mode has
-	}
-	darkLogoURL := appConfig.OrgInfo.OrgLogoURLDarkMode
-	if darkLogoURL == "" {
-		darkLogoURL = appConfig.OrgInfo.OrgLogoURL //nolint:staticcheck // all a config saved before dark mode has
-	}
 	serverURL := appConfig.ServerSettings.ServerURL
 
 	return &notifications_api.NotificationView{
 		UUID:                notification.UUID,
-		OrgLogoURLLightMode: fleet.AbsolutizeLogoURL(lightLogoURL, serverURL),
-		OrgLogoURLDarkMode:  fleet.AbsolutizeLogoURL(darkLogoURL, serverURL),
+		OrgLogoURLLightMode: fleet.AbsolutizeLogoURL(appConfig.OrgInfo.OrgLogoURLLightMode, serverURL),
+		OrgLogoURLDarkMode:  fleet.AbsolutizeLogoURL(appConfig.OrgInfo.OrgLogoURLDarkMode, serverURL),
 		Title:               "Save your work 💾",
 		Description:         description,
 		Items:               items,
@@ -200,23 +217,19 @@ func (k *patchNotificationKind) OnVerify(ctx context.Context, notification *noti
 
 // TODO: should there be a grace period where we install no matter what?
 func (k *patchNotificationKind) OnDelay(ctx context.Context, notification *notifications_api.EndUserNotification) error {
-	untilReminder := time.Duration(patchNotificationLeadTimeSeconds-patchNotificationReminderTimeSeconds) * time.Second
+	untilReminder := patchNotificationFirstNoticeBefore - patchNotificationReminderBefore
 
 	now := time.Now().UTC()
 	nextAttemptAt := now.Add(notifications_api.EndUserNotificationDelayInterval)
-	payload := patchNotificationPayload{Reminder: false}
+	payload := patchNotificationFirstNoticePayload
 	if notification.DisplayedAt != nil {
 		if fromDisplay := notification.DisplayedAt.Add(untilReminder); fromDisplay.After(now) {
 			nextAttemptAt = fromDisplay
-			payload.Reminder = true
+			payload = patchNotificationReminderPayload
 		}
 	}
 
-	encoded, err := json.Marshal(payload)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build patch notification payload")
-	}
-	return k.notificationSvc.DelayNotification(ctx, notification.UUID, nextAttemptAt, encoded)
+	return k.notificationSvc.DelayNotification(ctx, notification.UUID, nextAttemptAt, payload)
 }
 
 func (k *patchNotificationKind) OnAction(ctx context.Context, notification *notifications_api.EndUserNotification, actionID string) error {
@@ -310,9 +323,13 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		status = "success"
 	}
 
-	timeBefore := patchNotificationLeadTimeSeconds
-	if k.payload(ctx, notification).Reminder {
-		timeBefore = patchNotificationReminderTimeSeconds
+	reminder, err := patchNotificationIsReminder(notification.Payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
+	timeBefore := patchNotificationFirstNoticeBefore
+	if reminder {
+		timeBefore = patchNotificationReminderBefore
 	}
 
 	if err := k.activities.NewActivity(ctx, nil, fleet.ActivityTypeNotifiedEndUserBeforePatching{
@@ -321,23 +338,11 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		PatchNotificationUUID: notification.UUID,
 		SoftwareTitles:        softwareTitles,
 		PolicyIDs:             policyIDs,
-		TimeBefore:            timeBefore,
+		TimeBefore:            int(timeBefore.Seconds()),
 		Status:                status,
 		ScriptExecutionID:     outcome.ExecutionID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for patch notification")
 	}
 	return nil
-}
-
-func (k *patchNotificationKind) payload(ctx context.Context, notification *notifications_api.EndUserNotification) patchNotificationPayload {
-	var payload patchNotificationPayload
-	if len(notification.Payload) == 0 {
-		return payload
-	}
-	if err := json.Unmarshal(notification.Payload, &payload); err != nil {
-		k.logger.ErrorContext(ctx, "failed to read a patch notification's payload",
-			"notification_uuid", notification.UUID, "err", err)
-	}
-	return payload
 }

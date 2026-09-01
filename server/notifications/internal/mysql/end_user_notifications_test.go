@@ -18,6 +18,7 @@ func TestEndUserNotifications(t *testing.T) {
 		fn   func(t *testing.T, env *testEnv)
 	}{
 		{"NewAndGet", testNewAndGetEndUserNotification},
+		{"AwaitingDispatch", testGetNotificationAwaitingDispatch},
 		{"ListToDispatch", testListEndUserNotificationsToDispatch},
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
 		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
@@ -42,6 +43,41 @@ func newDarwinHost(t *testing.T, env *testEnv, name string, withOrbitInfo bool) 
 		env.InsertHostOrbitInfo(t, hostID)
 	}
 	return hostID
+}
+
+func testGetNotificationAwaitingDispatch(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "awaiting-dispatch", true)
+	expiresAt := time.Now().UTC().Add(time.Hour)
+
+	awaiting, err := env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "test_kind")
+	require.NoError(t, err)
+	require.Nil(t, awaiting)
+
+	created, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
+		HostID: hostID, Kind: "test_kind", Payload: []byte(`{}`), ExpiresAt: &expiresAt,
+	})
+	require.NoError(t, err)
+
+	awaiting, err = env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "test_kind")
+	require.NoError(t, err)
+	require.NotNil(t, awaiting)
+	require.Equal(t, created.UUID, awaiting.UUID)
+
+	// another kind's notification is not this kind's to add to
+	awaiting, err = env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "other_kind")
+	require.NoError(t, err)
+	require.Nil(t, awaiting)
+
+	// one that went out and came back pending is already on a schedule its end
+	// user has seen, so it is no longer awaiting dispatch
+	_, err = env.db.ExecContext(ctx,
+		`UPDATE notifications_end_user SET attempt_count = 1 WHERE uuid = ?`, created.UUID)
+	require.NoError(t, err)
+
+	awaiting, err = env.ds.GetNotificationAwaitingDispatch(ctx, hostID, "test_kind")
+	require.NoError(t, err)
+	require.Nil(t, awaiting)
 }
 
 func testNewAndGetEndUserNotification(t *testing.T, env *testEnv) {

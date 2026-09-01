@@ -1267,6 +1267,22 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		return &created, nil
 	}
 
+	// batching reads back what the create above wrote
+	opts.NotificationsMock.NotificationAwaitingDispatchFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
+		var uuids []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &uuids, `
+				SELECT uuid FROM notifications_end_user
+				WHERE host_id = ? AND kind = ? AND status = ? AND attempt_count = 0
+				ORDER BY id DESC LIMIT 1`,
+				hostID, kind, notifications_api.EndUserNotificationPending)
+		})
+		if len(uuids) == 0 {
+			return nil, nil
+		}
+		return &notifications_api.EndUserNotification{UUID: uuids[0], HostID: hostID, Kind: kind}, nil
+	}
+
 	user, err := ds.NewUser(ctx, &fleet.User{
 		Name:       "Admin",
 		Password:   []byte("p4ssw0rd.123"),
