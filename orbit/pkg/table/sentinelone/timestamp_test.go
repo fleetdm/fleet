@@ -61,7 +61,8 @@ func TestToUnixEpochUnparseable(t *testing.T) {
 	t.Parallel()
 
 	// A day past the 12th in D/M/Y order is rejected rather than transposed
-	// into a wrong month.
+	// into a wrong month, and a date that doesn't exist is rejected rather than
+	// rolled forward into the next month.
 	unparseable := []string{
 		"",
 		"   ",
@@ -70,6 +71,9 @@ func TestToUnixEpochUnparseable(t *testing.T) {
 		"25/6/26, 10:09:51 AM",
 		"6/1/26",
 		"13/13/26, 10:09:51 AM",
+		"2/31/26, 10:09:51 AM",
+		"4/31/26, 1:00:00 PM",
+		"2/30/26 1:00 PM",
 	}
 	for _, in := range unparseable {
 		got, ok := toUnixEpoch(in)

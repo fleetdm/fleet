@@ -90,7 +90,14 @@ func parseShortDateTime(s string) (time.Time, bool) {
 		return time.Time{}, false
 	}
 
-	return time.Date(year, time.Month(month), day, hour, minute, second, 0, time.Local), true
+	// time.Date normalizes an impossible date rather than rejecting it, turning
+	// 2/31 into March 3. Round-trip the components so a nonsense date clears the
+	// column instead of publishing a plausible-looking wrong timestamp.
+	parsed := time.Date(year, time.Month(month), day, hour, minute, second, 0, time.Local)
+	if parsed.Year() != year || parsed.Month() != time.Month(month) || parsed.Day() != day {
+		return time.Time{}, false
+	}
+	return parsed, true
 }
 
 // atoiRange parses s as a decimal integer within [lo, hi].

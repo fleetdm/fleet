@@ -36,7 +36,9 @@ examples: |-
 
   ```
   SELECT agent_id FROM sentinelone
-  WHERE service_agent_helper != 'ready' OR service_guard != 'ready' OR service_framework != 'ready';
+  WHERE service_agent_helper NOT IN ('', 'ready')
+     OR service_guard NOT IN ('', 'ready')
+     OR service_framework NOT IN ('', 'ready');
   ```
 notes: |-
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
