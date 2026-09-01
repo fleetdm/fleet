@@ -176,6 +176,46 @@ describe("Modal", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
+  // Modal groups hide and re-show modals via isHidden without unmounting them.
+  // An animated close (X, Escape, backdrop) must fully reset, or the next show
+  // renders stuck at the end of the fade-out: invisible, click-blocking, and
+  // with every further close attempt ignored. See #51497.
+  it("can be shown and closed again after an animated close when reused via isHidden", async () => {
+    const onExit = jest.fn();
+    const { container, rerender } = render(
+      <Modal title="Test" onExit={onExit}>
+        <div>content</div>
+      </Modal>
+    );
+
+    const closeButton = container.querySelector(".modal__ex button");
+    if (!closeButton) throw new Error("X button not found");
+
+    fireEvent.click(closeButton);
+    act(() => jest.runAllTimers());
+    expect(onExit).toHaveBeenCalledTimes(1);
+
+    // parent hides it, then shows it again — no unmount in between
+    rerender(
+      <Modal title="Test" onExit={onExit} isHidden>
+        <div>content</div>
+      </Modal>
+    );
+    rerender(
+      <Modal title="Test" onExit={onExit}>
+        <div>content</div>
+      </Modal>
+    );
+
+    const background = container.querySelector(".modal__background");
+    expect(background).not.toHaveClass("modal__closing");
+
+    // and the X must work again, not be swallowed by stale closing state
+    fireEvent.click(closeButton);
+    act(() => jest.runAllTimers());
+    expect(onExit).toHaveBeenCalledTimes(2);
+  });
+
   it("does not call onExit when clicking the background if disableClosingModal is true", async () => {
     const onExit = jest.fn();
     const { container } = render(
