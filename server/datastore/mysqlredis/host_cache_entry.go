@@ -6,11 +6,12 @@ import (
 
 // hostCacheEnvelope is the JSON wire format for cached host lookups. It
 // embeds fleet.Host so every normally-serializable field rides along
-// automatically, then shadows the four fields fleet.Host tags `json:"-"` to
-// keep out of HTTP responses: OsqueryHostID, NodeKey, OrbitNodeKey, and
-// HasHostIdentityCert. These four MUST round-trip or auth breaks (a cached
-// host with HasHostIdentityCert=nil would cause AuthenticateHost to skip the
-// httpsig check for up to TTL).
+// automatically, then shadows the fields fleet.Host tags `json:"-"` to
+// keep out of HTTP responses: OsqueryHostID, NodeKey, OrbitNodeKey,
+// HasHostIdentityCert, BitLockerProtectionStatus, and TPMPINSet. These MUST
+// round-trip or behaviour silently changes for up to TTL (a cached host with
+// HasHostIdentityCert=nil would cause AuthenticateHost to skip the httpsig
+// check).
 //
 // Why embedding works without collision: the embedded fleet.Host has those
 // four fields tagged `json:"-"`, so encoding/json skips them entirely. Our
@@ -30,10 +31,12 @@ import (
 type hostCacheEnvelope struct {
 	fleet.Host
 
-	OsqueryHostID       *string `json:"osquery_host_id,omitempty"`
-	NodeKey             *string `json:"node_key,omitempty"`
-	OrbitNodeKey        *string `json:"orbit_node_key,omitempty"`
-	HasHostIdentityCert *bool   `json:"has_host_identity_cert,omitempty"`
+	OsqueryHostID             *string `json:"osquery_host_id,omitempty"`
+	NodeKey                   *string `json:"node_key,omitempty"`
+	OrbitNodeKey              *string `json:"orbit_node_key,omitempty"`
+	HasHostIdentityCert       *bool   `json:"has_host_identity_cert,omitempty"`
+	BitLockerProtectionStatus *int    `json:"bitlocker_protection_status,omitempty"`
+	TPMPINSet                 *bool   `json:"tpm_pin_set,omitempty"`
 }
 
 // envelopeFromHost builds an envelope suitable for JSON marshaling by copying
@@ -41,11 +44,13 @@ type hostCacheEnvelope struct {
 // ensure h is non-nil.
 func envelopeFromHost(h *fleet.Host) *hostCacheEnvelope {
 	return &hostCacheEnvelope{
-		Host:                *h,
-		OsqueryHostID:       h.OsqueryHostID,
-		NodeKey:             h.NodeKey,
-		OrbitNodeKey:        h.OrbitNodeKey,
-		HasHostIdentityCert: h.HasHostIdentityCert,
+		Host:                      *h,
+		OsqueryHostID:             h.OsqueryHostID,
+		NodeKey:                   h.NodeKey,
+		OrbitNodeKey:              h.OrbitNodeKey,
+		HasHostIdentityCert:       h.HasHostIdentityCert,
+		BitLockerProtectionStatus: h.BitLockerProtectionStatus,
+		TPMPINSet:                 &h.TPMPINSet,
 	}
 }
 
@@ -58,5 +63,9 @@ func (e *hostCacheEnvelope) toHost() *fleet.Host {
 	h.NodeKey = e.NodeKey
 	h.OrbitNodeKey = e.OrbitNodeKey
 	h.HasHostIdentityCert = e.HasHostIdentityCert
+	h.BitLockerProtectionStatus = e.BitLockerProtectionStatus
+	if e.TPMPINSet != nil {
+		h.TPMPINSet = *e.TPMPINSet
+	}
 	return &h
 }

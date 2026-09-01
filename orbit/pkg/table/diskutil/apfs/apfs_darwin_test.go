@@ -4,6 +4,8 @@
 package apfs
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -207,4 +209,185 @@ func TestParseDiskutilPhysicalStores(t *testing.T) {
 			"size":                                "1048576000",
 		},
 	}, parseResult)
+}
+
+const listCryptoUsersOutput = `
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Users</key>
+	<array>
+		<dict>
+			<key>APFSCryptoUserType</key>
+			<string>LocalOpenDirectory</string>
+			<key>APFSCryptoUserUUID</key>
+			<string>3C7DB8EE-5EA4-4C18-A7E4-25C6C0F94667</string>
+			<key>VolumeOwner</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>APFSCryptoUserType</key>
+			<string>PersonalRecovery</string>
+			<key>APFSCryptoUserUUID</key>
+			<string>EBC6C064-0000-11AA-AA11-00306543ECAC</string>
+			<key>VolumeOwner</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>APFSCryptoUserType</key>
+			<string>MDMRecovery</string>
+			<key>APFSCryptoUserUUID</key>
+			<string>2457711A-523C-4604-B75A-F48A571D5036</string>
+			<key>VolumeOwner</key>
+			<false/>
+		</dict>
+	</array>
+</dict>`
+
+func TestParseCryptoUsers(t *testing.T) {
+	users, err := parseCryptoUsers([]byte(listCryptoUsersOutput))
+	require.NoError(t, err)
+	require.Equal(t, []cryptoUser{
+		{APFSCryptoUserType: "LocalOpenDirectory", APFSCryptoUserUUID: "3C7DB8EE-5EA4-4C18-A7E4-25C6C0F94667", VolumeOwner: true},
+		{APFSCryptoUserType: "PersonalRecovery", APFSCryptoUserUUID: "EBC6C064-0000-11AA-AA11-00306543ECAC", VolumeOwner: true},
+		{APFSCryptoUserType: "MDMRecovery", APFSCryptoUserUUID: "2457711A-523C-4604-B75A-F48A571D5036", VolumeOwner: false},
+	}, users)
+}
+
+func TestParseCryptoUsersEmpty(t *testing.T) {
+	const emptyOutput = `
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Users</key>
+	<array/>
+</dict>`
+	users, err := parseCryptoUsers([]byte(emptyOutput))
+	require.NoError(t, err)
+	require.Empty(t, users)
+}
+
+func TestParseCryptoUsersMalformed(t *testing.T) {
+	_, err := parseCryptoUsers([]byte("not a plist"))
+	require.Error(t, err)
+}
+
+func TestVolumesToQuery(t *testing.T) {
+	system := Volume{DeviceIdentifier: "disk3s1", Roles: []string{"System"}}
+	preboot := Volume{DeviceIdentifier: "disk3s2", Roles: []string{"Preboot"}}
+	data := Volume{DeviceIdentifier: "disk3s5", Roles: []string{"Data"}}
+
+	t.Run("prefers data role", func(t *testing.T) {
+		got := volumesToQuery(Container{Volumes: []Volume{system, preboot, data}})
+		require.Equal(t, []Volume{data}, got)
+	})
+
+	t.Run("falls back to all volumes when no data role", func(t *testing.T) {
+		got := volumesToQuery(Container{Volumes: []Volume{system, preboot}})
+		require.Equal(t, []Volume{system, preboot}, got)
+	})
+}
+
+// cryptoUsersPlist renders a listCryptoUsers -plist document for the given users.
+func cryptoUsersPlist(t *testing.T, users ...cryptoUser) []byte {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\">\n<dict>\n\t<key>Users</key>\n\t<array>\n")
+	for _, u := range users {
+		owner := "<false/>"
+		if u.VolumeOwner {
+			owner = "<true/>"
+		}
+		fmt.Fprintf(&b, "\t\t<dict><key>APFSCryptoUserType</key><string>%s</string><key>APFSCryptoUserUUID</key><string>%s</string><key>VolumeOwner</key>%s</dict>\n", u.APFSCryptoUserType, u.APFSCryptoUserUUID, owner)
+	}
+	b.WriteString("\t</array>\n</dict>\n</plist>")
+	return []byte(b.String())
+}
+
+// listPlist renders a `diskutil apfs list -plist` document for a single
+// container with the given volumes.
+func listPlist(t *testing.T, volumes ...Volume) []byte {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key><string>30C51B81-A7B6-4BF5-BB21-E67953FB0EAE</string>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n")
+	for _, v := range volumes {
+		b.WriteString("\t\t\t\t<dict>")
+		fmt.Fprintf(&b, "<key>APFSVolumeUUID</key><string>%s</string><key>DeviceIdentifier</key><string>%s</string>", v.APFSVolumeUUID, v.DeviceIdentifier)
+		b.WriteString("<key>Roles</key><array>")
+		for _, r := range v.Roles {
+			fmt.Fprintf(&b, "<string>%s</string>", r)
+		}
+		b.WriteString("</array></dict>\n")
+	}
+	b.WriteString("\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>")
+	return []byte(b.String())
+}
+
+func TestGenerateCryptoUsers(t *testing.T) {
+	localUser := cryptoUser{APFSCryptoUserType: "LocalOpenDirectory", APFSCryptoUserUUID: "3C7DB8EE-5EA4-4C18-A7E4-25C6C0F94667", VolumeOwner: true}
+	recovery := cryptoUser{APFSCryptoUserType: "PersonalRecovery", APFSCryptoUserUUID: "EBC6C064-0000-11AA-AA11-00306543ECAC", VolumeOwner: true}
+	mdm := cryptoUser{APFSCryptoUserType: "MDMRecovery", APFSCryptoUserUUID: "2457711A-523C-4604-B75A-F48A571D5036", VolumeOwner: false}
+
+	system := Volume{DeviceIdentifier: "disk3s1", APFSVolumeUUID: "sys-uuid", Roles: []string{"System"}}
+	preboot := Volume{DeviceIdentifier: "disk3s2", APFSVolumeUUID: "pre-uuid", Roles: []string{"Preboot"}}
+	data := Volume{DeviceIdentifier: "disk3s5", APFSVolumeUUID: "data-uuid", Roles: []string{"Data"}}
+
+	t.Run("queries only the data volume when present", func(t *testing.T) {
+		queried := make([]string, 0)
+		rows, err := generateCryptoUsers(listPlist(t, system, preboot, data), func(device string) ([]byte, error) {
+			queried = append(queried, device)
+			return cryptoUsersPlist(t, localUser, recovery, mdm), nil
+		})
+		require.NoError(t, err)
+		require.Equal(t, []string{"disk3s5"}, queried) // System/Preboot are not queried
+		require.Equal(t, []map[string]string{
+			{"device_identifier": "disk3s5", "volume_uuid": "data-uuid", "crypto_user_uuid": localUser.APFSCryptoUserUUID, "type": "LocalOpenDirectory", "volume_owner": "1"},
+			{"device_identifier": "disk3s5", "volume_uuid": "data-uuid", "crypto_user_uuid": recovery.APFSCryptoUserUUID, "type": "PersonalRecovery", "volume_owner": "1"},
+			{"device_identifier": "disk3s5", "volume_uuid": "data-uuid", "crypto_user_uuid": mdm.APFSCryptoUserUUID, "type": "MDMRecovery", "volume_owner": "0"},
+		}, rows)
+	})
+
+	t.Run("falls back to all volumes and dedups by crypto user", func(t *testing.T) {
+		rows, err := generateCryptoUsers(listPlist(t, system, preboot), func(device string) ([]byte, error) {
+			switch device {
+			case "disk3s1":
+				return cryptoUsersPlist(t, localUser, recovery), nil
+			case "disk3s2":
+				return cryptoUsersPlist(t, localUser, mdm), nil // localUser overlaps disk3s1
+			default:
+				return cryptoUsersPlist(t), nil
+			}
+		})
+		require.NoError(t, err)
+		require.Equal(t, []map[string]string{
+			{"device_identifier": "disk3s1", "volume_uuid": "sys-uuid", "crypto_user_uuid": localUser.APFSCryptoUserUUID, "type": "LocalOpenDirectory", "volume_owner": "1"},
+			{"device_identifier": "disk3s1", "volume_uuid": "sys-uuid", "crypto_user_uuid": recovery.APFSCryptoUserUUID, "type": "PersonalRecovery", "volume_owner": "1"},
+			{"device_identifier": "disk3s2", "volume_uuid": "pre-uuid", "crypto_user_uuid": mdm.APFSCryptoUserUUID, "type": "MDMRecovery", "volume_owner": "0"},
+		}, rows)
+	})
+
+	t.Run("skips a volume whose listCryptoUsers call fails", func(t *testing.T) {
+		rows, err := generateCryptoUsers(listPlist(t, data), func(device string) ([]byte, error) {
+			return nil, fmt.Errorf("diskutil: %s could not be found", device)
+		})
+		require.NoError(t, err)
+		require.Empty(t, rows)
+	})
+
+	t.Run("skips a volume with malformed listCryptoUsers output", func(t *testing.T) {
+		rows, err := generateCryptoUsers(listPlist(t, data), func(device string) ([]byte, error) {
+			return []byte("not a plist"), nil
+		})
+		require.NoError(t, err)
+		require.Empty(t, rows)
+	})
+
+	t.Run("returns error on malformed list output", func(t *testing.T) {
+		_, err := generateCryptoUsers([]byte("not a plist"), func(device string) ([]byte, error) {
+			return nil, nil
+		})
+		require.Error(t, err)
+	})
 }

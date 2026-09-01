@@ -1816,14 +1816,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err := svc.ds.LoadHostMDMAndroidDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm android device vitals")
 		}
-		// A personally-owned host must never surface a phone number. AMAPI
-		// only reports telephonyInfos for fully managed devices and ingestion
-		// drops it for an explicitly personally-owned one, but ingestion works
-		// off the device-reported ownership, which AMAPI may omit; Fleet's own
+		// A personally-owned host must never surface a phone number or a
+		// hardware radio identifier. AMAPI only reports telephonyInfos, imei
+		// and meid for fully managed devices and ingestion drops them for an
+		// explicitly personally-owned one, but ingestion works off the
+		// device-reported ownership, which AMAPI may omit; Fleet's own
 		// enrollment record is the authoritative classification, so the
 		// response is gated on that.
-		if isPersonalEnrollment {
+		//
+		// EnrollmentStatus alone is not enough: it comes from a generated
+		// column that reads "Off" as soon as the host unenrolls, while the
+		// vitals row outlives the enrollment (it's only dropped when the host
+		// is deleted). IsPersonalEnrollment is deliberately kept on
+		// unenrollment, so it's what identifies a BYOD device afterwards.
+		if isPersonalEnrollment || host.MDM.IsPersonalEnrollment {
 			host.TelephonyInfos = nil
+			host.IMEI = nil
+			host.MEID = nil
 		}
 	}
 
@@ -1896,6 +1905,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
+	var mdmEnrollmentType *string
 	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
@@ -2043,6 +2053,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if host.Platform == "darwin" && details != nil {
 					host.MDM.BootstrapTokenEscrowed = &details.BootstrapTokenEscrowed
 				}
+
+				// Manual BYOD and Account-Driven User Enrollment both report the
+				// "On (manual - personal)" status, so the enrollment channel is what
+				// tells them apart.
+				if details != nil && details.EnrollmentType != "" {
+					mdmEnrollmentType = &details.EnrollmentType
+				}
 			}
 		}
 	}
@@ -2158,6 +2175,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
+		LastMDMEnrollmentType:         mdmEnrollmentType,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,

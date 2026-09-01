@@ -99,6 +99,14 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+/** What the END USER can do about a disk encryption problem. Only set when there is something they can do: a Windows
+ * host also reaches action_required when the TPM is not ready or policy forbids a TPM-only protector, and neither is
+ * fixable from the My device page. Absent means show the reason without offering a call to action. */
+export type DiskEncryptionActionRequired =
+  | MacDiskEncryptionActionRequired
+  | "create_pin"
+  | "restart";
+
 export type HostAndroidCertStatus =
   | "verified"
   | "failed"
@@ -130,6 +138,7 @@ export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
+    action_required?: DiskEncryptionActionRequired | null;
   };
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
@@ -404,6 +413,7 @@ export interface IHost {
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
   last_mdm_checked_in_at: string | null;
+  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;
