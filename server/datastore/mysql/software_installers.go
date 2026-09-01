@@ -2531,9 +2531,8 @@ FROM (
 	// Rank once over the app rather than looking the latest row up per host:
 	// host_vpp_software_installs has no host_id-leading index, so a correlated
 	// per-host lookup rescans the app's whole history for every candidate host.
-	// DISTINCT because ncr joins on command_uuid alone, only part of its key.
 	stmt := fmt.Sprintf(`JOIN (
-SELECT DISTINCT
+SELECT
 	ranked.host_id
 FROM (
 	SELECT
@@ -2708,9 +2707,8 @@ WHERE
 	// Rank once over the app rather than looking the latest row up per host:
 	// host_in_house_software_installs has no host_id-leading index, so a correlated
 	// per-host lookup rescans the app's whole history for every candidate host.
-	// DISTINCT because ncr joins on command_uuid alone, only part of its key.
 	stmt := fmt.Sprintf(`JOIN (
-SELECT DISTINCT
+SELECT
 	ranked.host_id
 FROM (
 	SELECT
