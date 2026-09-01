@@ -1,1 +1,0 @@
-- Fixed the confirmation checkbox on the "Clear passcode" host modal rendering in green instead of red, so it now matches the destructive "Clear passcode" button.

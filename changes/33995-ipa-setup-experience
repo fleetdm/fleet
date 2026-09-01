@@ -1,1 +1,0 @@
-- Added support for automatically installing in-house apps (`.ipa`) on iOS and iPadOS hosts when they enroll into Fleet.
