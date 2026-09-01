@@ -66,6 +66,8 @@ Only merge unreleased bug fixes during the release candidate period to minimize 
 
 This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
 
+> If unreleased bugs are still open 2 business days before the release due date, push the due date. Set the new date by estimating how long the remaining bug fixes will take, then adding 2 business days for smoke and load testing. Communicate the new date in the [#help-releases thread](#discuss-release-dates) for the release.
+
 If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals), the release candidate [feature merge exception process](#request-release-candidate-feature-merge-exception) may be followed.
 
 
@@ -76,24 +78,6 @@ If there is partially merged feature work when the release candidate is created,
 3. EM, QA lead, and [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) must all approve the feature work PR before it is merged into the release candidate branch.
 
 > This exception process should be avoided whenever possible. Any feature work merged into the release candidate will likely result in a significant release delay.
-
-
-## Freeze the release candidate before release
-
-To keep release dates from slipping, the release candidate enters a **final freeze 2 business days before the expected release date**. This applies to both minor and patch releases.
-
-Before the freeze, merges into the release candidate follow the normal rules ([unreleased bug fixes only](#merge-unreleased-bug-fixes-into-the-release-candidate), with EM and QA approval, plus the [feature merge exception process](#request-release-candidate-feature-merge-exception) where applicable). The freeze adds a hard final gate on top of those rules.
-
-Once the release candidate is frozen:
-
-- Nothing else merges in, any remaining unreleased bugs that have not merged flag the release due date to shift until they are completed.
-- The only exception is a `P0`, and it requires approval from both the product group EM and the QA lead before it merges.
-- Any high-priority issue found after the freeze is scheduled for the next release (the next patch, or the next minor), not squeezed into the in-flight one. This gives EMs a clear, dated line to defer non-critical work to the next release timeline.
-
-When the freeze begins, the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) announces it in two places:
-
-1. The release candidate's existing [#help-releases thread](#discuss-release-dates) for the matching release version, stating that the RC is now frozen and no further merges will be accepted without EM and QA approval.
-2. A heads-up in #help-engineering, so engineers and EMs across product groups know the freeze is in effect.
 
 
 ## Confirm latest versions of dependencies
