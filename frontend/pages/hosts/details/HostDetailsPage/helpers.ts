@@ -28,7 +28,14 @@ export const canShowMyDeviceButton = (
 ) => {
   // Android and ChromeOS have no My device page, so the link would only lead to
   // an error. GET /hosts/:id/device_url rejects them for the same reason.
-  if (isAndroid(host.platform) || isChrome(host.platform)) return false;
+  // "CrOS" is the legacy ChromeOS platform value some custom agents still report.
+  if (
+    isAndroid(host.platform) ||
+    isChrome(host.platform) ||
+    host.platform === "CrOS"
+  ) {
+    return false;
+  }
   if (!host.fleet_desktop_version) return false;
   const uiState = getHostDeviceStatusUIState(
     host.mdm.device_status,

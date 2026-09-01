@@ -39,6 +39,15 @@ describe("canShowMyDeviceButton", () => {
     expect(canShowMyDeviceButton(host)).toBe(false);
   });
 
+  it("returns false for legacy ChromeOS (CrOS) even with Fleet Desktop reported", () => {
+    const host = createMockHost({
+      platform: "CrOS",
+      fleet_desktop_version: "1.22.1",
+      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(false);
+  });
+
   it("returns false when Fleet Desktop is not installed", () => {
     const host = createMockHost({ fleet_desktop_version: null });
     expect(canShowMyDeviceButton(host)).toBe(false);
