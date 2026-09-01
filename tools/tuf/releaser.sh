@@ -173,6 +173,33 @@ promote_edge_to_stable () {
     fi
 }
 
+notify_slack_fleetd_stable () {
+    if [[ $COMPONENT != "fleetd" ]]; then
+        return
+    fi
+
+    local webhook_url="$SLACK_FLEETD_RELEASE_WEBHOOK_URL"
+    if [[ -z $webhook_url ]] && [[ -n $SLACK_FLEETD_RELEASE_WEBHOOK_1PASSWORD_PATH ]]; then
+        webhook_url=$(op read "op://$SLACK_FLEETD_RELEASE_WEBHOOK_1PASSWORD_PATH")
+    fi
+
+    if [[ -z $webhook_url ]]; then
+        echo "WARNING: SLACK_FLEETD_RELEASE_WEBHOOK_URL and SLACK_FLEETD_RELEASE_WEBHOOK_1PASSWORD_PATH are not set. Skipping Slack notification."
+        return
+    fi
+
+    local message=":rocket: The latest stable version of fleetd is $VERSION. More info: https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md"
+    local payload
+    payload=$(printf '{"text": "%s"}' "$message")
+
+    echo "Sending Slack notification for fleetd $VERSION stable release..."
+    if curl -s -o /dev/null -w "%{http_code}" -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url" | grep -q "200"; then
+        echo "Slack notification sent successfully."
+    else
+        echo "WARNING: Failed to send Slack notification. The release itself was successful."
+    fi
+}
+
 release_fleetd_to_edge () {
     echo "Releasing fleetd to edge..."
     ORBIT_TAG="orbit-v$VERSION"
@@ -402,6 +429,7 @@ elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     pull_from_staging
     promote_edge_to_stable
     push_to_staging
+    notify_slack_fleetd_stable
 elif [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
     if [[ -z $SWIFT_DIALOG_PATH ]]; then
         echo "Missing $SWIFT_DIALOG_PATH"
