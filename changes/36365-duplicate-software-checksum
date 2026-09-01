@@ -1,1 +1,1 @@
-- Fixed duplicate software inventory entries (same name, version, and source with the same vulnerabilities but different host counts) that could appear on instances upgraded to Fleet v4.76.0 or later. Existing duplicates are merged during the database migration on upgrade.
+- Fixed duplicate software inventory entries (same name, version, and source with the same vulnerabilities but different host counts) that could appear on instances upgraded to Fleet v4.76.0 or later. Existing duplicate giflib (Homebrew) entries are merged during the database migration on upgrade.
