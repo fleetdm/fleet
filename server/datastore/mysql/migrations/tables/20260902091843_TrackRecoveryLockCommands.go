@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260831134212, Down_20260831134212)
+	MigrationClient.AddMigration(Up_20260902091843, Down_20260902091843)
 }
 
-func Up_20260831134212(tx *sql.Tx) error {
+func Up_20260902091843(tx *sql.Tx) error {
 	/**
 	- pending_set_command_uuid covers the pending set operation for the recovery lock, both for clearing and setting a new password
 	- pending_verify_command_uuid covers the pending verify operation for the recovery lock
@@ -27,6 +27,6 @@ func Up_20260831134212(tx *sql.Tx) error {
 	return err
 }
 
-func Down_20260831134212(tx *sql.Tx) error {
+func Down_20260902091843(tx *sql.Tx) error {
 	return nil
 }
