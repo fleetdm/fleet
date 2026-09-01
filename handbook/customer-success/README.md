@@ -615,6 +615,12 @@ When a user requests that we delete all data we have stored about them, their da
         4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
 
 
+### Respond to a logo removal request from a customer
+
+1. CSM navigates to the account in Salesforce and changes the "Customer requested logo removal?" field from "No" to "Yes" and adds details about who made the request in the "Logo usage notes" field.
+2. CSM messages the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel, ccing marketing leadership, with the subject/message "Customer logo removal request" and includes a screenshot and any other necessary details.
+
+
 ### Create a task for a CSA
 
 If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
