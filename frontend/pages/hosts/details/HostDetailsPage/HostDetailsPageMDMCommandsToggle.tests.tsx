@@ -42,6 +42,13 @@ const mockAppleHost = (): IHost => {
   return host;
 };
 
+const mockWindowsHost = (): IHost => {
+  const host = createMockHost({ platform: "windows", status: "online" });
+  host.mdm.enrollment_status = null;
+  host.mdm.connected_to_fleet = false;
+  return host;
+};
+
 const stubQueries = (host: IHost) => {
   (hostAPI.loadHostDetails as jest.Mock).mockResolvedValue({ host });
   (hostAPI.loadHostDetailsExtension as jest.Mock).mockResolvedValue({
@@ -118,5 +125,18 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
     await waitFor(() => {
       expect(screen.getAllByRole("switch")[0]).toBeChecked();
     });
+  });
+
+  it("leaves the past activity feed alone on a host with no MDM commands", async () => {
+    // The stored choice is global, so it outlives the host it was made on and
+    // reaches hosts that never render the toggle. Those hosts have no commands
+    // to swap in, so the feed has to stay on past activity.
+    localStorage.setItem("FLEET::hostDetailsShowMDMCommands", "true");
+    stubQueries(mockWindowsHost());
+
+    renderPage();
+
+    expect(await screen.findByText("No activity")).toBeInTheDocument();
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
 });

@@ -362,8 +362,8 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-  // Kept in local storage so the choice survives a refresh, the way the hosts
-  // table remembers its hidden columns.
+  // Per-browser rather than per-user: whether this becomes a shared default is
+  // still open, so keep the fix clear of where the preference ends up living.
   const [showMDMCommands, setShowMDMCommands] = useState(
     () => local.getItem(SHOW_MDM_COMMANDS_STORAGE_KEY) === "true"
   );
