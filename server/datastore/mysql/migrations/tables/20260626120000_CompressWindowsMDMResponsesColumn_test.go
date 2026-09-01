@@ -50,9 +50,7 @@ func TestUp_20260626120000(t *testing.T) {
 	// The legacy text column must be gone and the new blob column present and NOT NULL.
 	require.False(t, columnExists(tx, "windows_mdm_responses", "raw_response"), "raw_response must be dropped")
 	require.True(t, columnExists(tx, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must exist")
-	nullable, err := columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz")
-	require.NoError(t, err)
-	require.False(t, nullable, "raw_response_gz must be NOT NULL")
+	require.False(t, columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz"), "raw_response_gz must be NOT NULL")
 	require.NoError(t, tx.Rollback())
 
 	// Every backfilled row must gunzip back to its original plaintext.

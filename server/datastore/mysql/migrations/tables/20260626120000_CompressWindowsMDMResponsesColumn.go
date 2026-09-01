@@ -43,11 +43,7 @@ func Up_20260626120000(tx *sql.Tx) error {
 	}
 
 	// Enforce NOT NULL once every row is populated.
-	nullable, err := columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz")
-	if err != nil {
-		return fmt.Errorf("checking raw_response_gz nullability: %w", err)
-	}
-	if nullable {
+	if columnIsNullable(tx, "windows_mdm_responses", "raw_response_gz") {
 		if _, err := tx.Exec(`ALTER TABLE windows_mdm_responses MODIFY raw_response_gz MEDIUMBLOB NOT NULL`); err != nil {
 			return fmt.Errorf("making raw_response_gz NOT NULL: %w", err)
 		}
@@ -56,14 +52,16 @@ func Up_20260626120000(tx *sql.Tx) error {
 	return nil
 }
 
-// columnIsNullable reports whether the given column is currently nullable. A
-// failed lookup must not read as "not nullable" and silently skip the NOT NULL step.
-func columnIsNullable(tx *sql.Tx, table, column string) (bool, error) {
+// columnIsNullable reports whether the given column is currently nullable.
+func columnIsNullable(tx *sql.Tx, table, column string) bool {
 	var isNullable string
 	err := tx.QueryRow(`
 SELECT IS_NULLABLE FROM information_schema.columns
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`, table, column).Scan(&isNullable)
-	return isNullable == "YES", err
+	if err != nil {
+		return false
+	}
+	return isNullable == "YES"
 }
 
 // backfillWindowsMDMResponsesGz gzip-compresses each existing plaintext raw_response into raw_response_gz, walking the table in id-keyed

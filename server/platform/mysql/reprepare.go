@@ -56,7 +56,6 @@ func retryOnNeedReprepare[T any](fn func() (T, error)) (T, error) {
 
 // IsNeedReprepare reports whether err is MySQL's ER_NEED_REPREPARE (1615).
 func IsNeedReprepare(err error) bool {
-	// nilaway can't see that errors.As assigns mysqlErr, so the nil check stays
-	var mysqlErr *mysql.MySQLError
-	return errors.As(err, &mysqlErr) && mysqlErr != nil && mysqlErr.Number == mysqlerr.ER_NEED_REPREPARE
+	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+	return ok && mysqlErr.Number == mysqlerr.ER_NEED_REPREPARE
 }
