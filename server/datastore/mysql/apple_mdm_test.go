@@ -133,6 +133,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
+		{"GetNanoMDMEnrollmentDetailsEnrollmentType", testGetNanoMDMEnrollmentDetailsEnrollmentType},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -10005,10 +10006,10 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	addHostMDMCommandsBatchSizeOrig := addHostMDMCommandsBatchSize
-	addHostMDMCommandsBatchSize = 2
+	hostMDMCommandsBatchSizeOrig := hostMDMCommandsBatchSize
+	hostMDMCommandsBatchSize = 2
 	t.Cleanup(func() {
-		addHostMDMCommandsBatchSize = addHostMDMCommandsBatchSizeOrig
+		hostMDMCommandsBatchSize = hostMDMCommandsBatchSizeOrig
 	})
 
 	// create a host
@@ -10072,6 +10073,40 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	// Batch-remove one command type across multiple hosts.
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("host1-osquery-id"),
+		NodeKey:         new("host1-node-key"),
+		UUID:            "host1-test-mdm-profiles",
+		Hostname:        "hostname1",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: h2.ID, CommandType: "command-2"},
+		{HostID: h2.ID, CommandType: "command-3"},
+	})
+	require.NoError(t, err)
+
+	// No-op on an empty host list.
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, nil, "command-2"))
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, hostCommands[1:], commands)
+
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID, h2.ID, badHostID}, "command-2"))
+
+	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{{HostID: h.ID, CommandType: "command-3"}}, commands)
+
+	commands, err = ds.GetHostMDMCommands(ctx, h2.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []fleet.HostMDMCommand{{HostID: h2.ID, CommandType: "command-3"}}, commands)
 
 	// RemoveHostMDMCommandByHostUUID has to tolerate two hosts sharing a UUID, which hosts.uuid
 	// permits: it carries only a non-unique index, and cloned VMs and double-enrolled devices do
@@ -15632,4 +15667,37 @@ FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
 			mobileconfig.FleetFileVaultPayloadIdentifier)
 	})
 	require.Equal(t, 2, count)
+}
+
+// Manual BYOD and Account-Driven User Enrollment both report the
+// "On (manual - personal)" status, so the enrollment channel is the only way to
+// tell them apart. See #50868.
+func testGetNanoMDMEnrollmentDetailsEnrollmentType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "adue-host-" + suffix,
+			OsqueryHostID: new("adue-osq-" + suffix),
+			NodeKey:       new("adue-key-" + suffix),
+			UUID:          "adue-uuid-" + suffix,
+			Platform:      "ios",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	manualBYOD := newHost("manual")
+	nanoEnroll(t, ds, manualBYOD, false)
+
+	accountDriven := newHost("account-driven")
+	nanoEnrollUserDevice(t, ds, accountDriven)
+
+	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, manualBYOD.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "Device", details.EnrollmentType)
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, accountDriven.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "User Enrollment (Device)", details.EnrollmentType)
 }

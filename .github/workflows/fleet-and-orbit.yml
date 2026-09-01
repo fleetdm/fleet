@@ -76,7 +76,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -240,7 +240,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -285,7 +285,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -352,7 +352,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout uninstall script
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
           sparse-checkout-cone-mode: false
@@ -363,6 +363,16 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: fleet-osquery.pkg
+
+      - name: Set Cloudflare DNS
+        run: |
+          # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+          # by Cloudflare — their resolver sees the new record immediately.
+          for svc in $(networksetup -listallnetworkservices | tail -n +2); do
+            sudo networksetup -setdnsservers "$svc" 1.1.1.1 2>/dev/null || true
+          done
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder || true
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
@@ -452,6 +462,15 @@ jobs:
         with:
           name: fleet-osquery_amd64.deb
 
+      - name: Set Cloudflare DNS
+        run: |
+          # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+          # by Cloudflare. Apply to all non-loopback interfaces in case traffic routes
+          # through one other than eth0.
+          for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+            sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+          done
+
       - name: Wait until fleet address is reachable and fleet responds
         run: |
           until curl -v -fail ${{ needs.gen.outputs.address }}/version;
@@ -528,6 +547,16 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: fleet-osquery.msi
+
+      - name: Set Cloudflare DNS
+        shell: powershell
+        run: |
+          # Use Cloudflare's DNS resolver (1.1.1.1) since the tunnel DNS record is managed
+          # by Cloudflare — their resolver sees the new record immediately.
+          # -ErrorAction SilentlyContinue skips adapters (e.g. Hyper-V virtual/internal)
+          # that have no associated DNS client address object.
+          Get-NetAdapter | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.InterfaceIndex -ServerAddresses "1.1.1.1" -ErrorAction SilentlyContinue }
+          Clear-DnsClientCache
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |

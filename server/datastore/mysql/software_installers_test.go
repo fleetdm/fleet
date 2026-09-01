@@ -1946,7 +1946,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 	fma := santa("santaFMA", "2026.8")
-	fma.FleetMaintainedAppID = new(maintainedApp.ID)
+	fma.FleetMaintainedAppID = &maintainedApp.ID
 	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		santa("santaA", "2026.2"),
 		fma,
@@ -2645,7 +2645,7 @@ func testGetSoftwareInstallersPendingDeletion(t *testing.T, ds *Datastore) {
 			URL:                  "https://example.com/maintained1",
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 			BundleIdentifier:     "fleet.maintained1",
-			FleetMaintainedAppID: new(maintainedApp.ID),
+			FleetMaintainedAppID: &maintainedApp.ID,
 		},
 	})
 	require.NoError(t, err)
@@ -5508,7 +5508,7 @@ func testInsertFleetMaintainedAppVersion(t *testing.T, ds *Datastore) {
 			LabelScope: fleet.LabelScopeIncludeAny,
 			ByName:     map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}},
 		},
-		FleetMaintainedAppID: new(maintainedApp.ID),
+		FleetMaintainedAppID: &maintainedApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -5833,7 +5833,7 @@ func testGetSoftwareInstallerMetadataByStorageID(t *testing.T, ds *Datastore) {
 		PackageIDs: []string{"PROD-CODE"}, UpgradeCode: "UP-CODE",
 		InstallerFile: newFile("v1"), StorageID: "hash-meta-1", Filename: "foo.msi", Extension: "msi",
 		Version: "1.0", UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(maintainedApp.ID),
+		FleetMaintainedAppID: &maintainedApp.ID,
 	})
 	require.NoError(t, err)
 
@@ -7173,7 +7173,7 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 		Version:              "1.0",
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-		FleetMaintainedAppID: new(fma.ID),
+		FleetMaintainedAppID: &fma.ID,
 	})
 	require.NoError(t, err)
 
@@ -7234,7 +7234,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		Title: "testpkg", Source: "apps", Platform: "darwin",
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
-		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(fma.ID),
+		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
 		PatchQuery: v1Query,
 	})
 	require.NoError(t, err)
@@ -7483,7 +7483,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 			TeamID:               &team.ID,
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-			FleetMaintainedAppID: new(app.ID),
+			FleetMaintainedAppID: &app.ID,
 		})
 		require.NoError(t, err)
 		return installerID, titleID
@@ -7567,7 +7567,7 @@ func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
 			Platform:             "darwin",
 			UserID:               user.ID,
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
-			FleetMaintainedAppID: new(app.ID),
+			FleetMaintainedAppID: &app.ID,
 			AppOpenQuery:         appOpenQuery,
 		})
 		require.NoError(t, err)

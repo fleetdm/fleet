@@ -126,8 +126,8 @@ func waitSubscribed(t *testing.T, coord *coordinator) {
 		}
 	}, 10*time.Second, time.Millisecond, "node never received its own announcement")
 
-	// Detach before restoring the counters: a duplicate marker still in
-	// flight then finds no stream and touches nothing.
+	// both counters move under the shard lock, and unsubscribe takes that lock,
+	// so a duplicate marker either counted before the restore or finds no stream
 	coord.reg.unsubscribe(marker, sub)
 	coord.reg.deliveredLive.Store(live)
 	coord.reg.coalesced.Store(coalesced)

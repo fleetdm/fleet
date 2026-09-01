@@ -479,6 +479,8 @@ type Datastore interface {
 	GetHostMDMCommands(ctx context.Context, hostID uint) (commands []HostMDMCommand, err error)
 	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
+	// RemoveHostMDMCommands removes the MDM command of the given type from all the provided hosts.
+	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error
 	// RemoveHostMDMCommandByHostUUID is RemoveHostMDMCommand for callers that hold a host UUID
 	// rather than an ID, such as an MDM command results handler that returns before resolving one.
 	RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error
@@ -1333,6 +1335,15 @@ type Datastore interface {
 	// host_mdm_apple_service_subscriptions. Callers are responsible for only
 	// calling this for iOS/iPadOS hosts.
 	LoadHostMDMAppleDeviceVitals(ctx context.Context, host *Host) error
+
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
+	// LoadHostMDMAndroidDeviceVitals populates host's
+	// HostMDMAndroidDeviceVitals fields from host_mdm_android_device_vitals.
+	// Callers are responsible for only calling this for Android hosts.
+	LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
@@ -4094,6 +4105,10 @@ type AndroidDatastore interface {
 	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
+	// SetOrUpdateHostMDMAndroidDeviceVitals persists the Android vitals
+	// extracted from an AMAPI status report into
+	// host_mdm_android_device_vitals.
+	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
 	// AndroidResetOnReenrollment clears the stale state of a re-enrolling Android host:
 	// dynamic label membership, pending MDM commands and pending software installs.
 	// Manual, host-vitals and builtin label membership is preserved, as are the host's

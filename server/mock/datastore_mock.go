@@ -348,6 +348,8 @@ type GetHostMDMCommandsFunc func(ctx context.Context, hostID uint) (commands []f
 
 type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCommand) error
 
+type RemoveHostMDMCommandsFunc func(ctx context.Context, hostIDs []uint, commandType string) error
+
 type RemoveHostMDMCommandByHostUUIDFunc func(ctx context.Context, hostUUID string, commandType string) error
 
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
@@ -895,6 +897,10 @@ type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAv
 type SetOrUpdateHostMDMAppleDeviceVitalsFunc func(ctx context.Context, hostUUID string, vitals fleet.MDMAppleDeviceVitals) error
 
 type LoadHostMDMAppleDeviceVitalsFunc func(ctx context.Context, host *fleet.Host) error
+
+type SetOrUpdateHostMDMAndroidDeviceVitalsFunc func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error
+
+type LoadHostMDMAndroidDeviceVitalsFunc func(ctx context.Context, host *fleet.Host) error
 
 type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error)
 
@@ -2861,6 +2867,9 @@ type DataStore struct {
 	RemoveHostMDMCommandFunc        RemoveHostMDMCommandFunc
 	RemoveHostMDMCommandFuncInvoked bool
 
+	RemoveHostMDMCommandsFunc        RemoveHostMDMCommandsFunc
+	RemoveHostMDMCommandsFuncInvoked bool
+
 	RemoveHostMDMCommandByHostUUIDFunc        RemoveHostMDMCommandByHostUUIDFunc
 	RemoveHostMDMCommandByHostUUIDFuncInvoked bool
 
@@ -3682,6 +3691,12 @@ type DataStore struct {
 
 	LoadHostMDMAppleDeviceVitalsFunc        LoadHostMDMAppleDeviceVitalsFunc
 	LoadHostMDMAppleDeviceVitalsFuncInvoked bool
+
+	SetOrUpdateHostMDMAndroidDeviceVitalsFunc        SetOrUpdateHostMDMAndroidDeviceVitalsFunc
+	SetOrUpdateHostMDMAndroidDeviceVitalsFuncInvoked bool
+
+	LoadHostMDMAndroidDeviceVitalsFunc        LoadHostMDMAndroidDeviceVitalsFunc
+	LoadHostMDMAndroidDeviceVitalsFuncInvoked bool
 
 	GetConfigEnableDiskEncryptionFunc        GetConfigEnableDiskEncryptionFunc
 	GetConfigEnableDiskEncryptionFuncInvoked bool
@@ -7037,6 +7052,13 @@ func (s *DataStore) RemoveHostMDMCommand(ctx context.Context, command fleet.Host
 	return s.RemoveHostMDMCommandFunc(ctx, command)
 }
 
+func (s *DataStore) RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error {
+	s.mu.Lock()
+	s.RemoveHostMDMCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RemoveHostMDMCommandsFunc(ctx, hostIDs, commandType)
+}
+
 func (s *DataStore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID string, commandType string) error {
 	s.mu.Lock()
 	s.RemoveHostMDMCommandByHostUUIDFuncInvoked = true
@@ -8953,6 +8975,20 @@ func (s *DataStore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *flee
 	s.LoadHostMDMAppleDeviceVitalsFuncInvoked = true
 	s.mu.Unlock()
 	return s.LoadHostMDMAppleDeviceVitalsFunc(ctx, host)
+}
+
+func (s *DataStore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostMDMAndroidDeviceVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostMDMAndroidDeviceVitalsFunc(ctx, hostUUID, vitals)
+}
+
+func (s *DataStore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.LoadHostMDMAndroidDeviceVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.LoadHostMDMAndroidDeviceVitalsFunc(ctx, host)
 }
 
 func (s *DataStore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {

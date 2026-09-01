@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +35,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -637,15 +641,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	}
 }
 
-// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
-// BYOD/personal enrollments never receive the device vitals fields (see
-// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
-// getHostDetails shouldn't even load them -- both to avoid an unnecessary
-// datastore call and so a personal host's response can't carry data it was
-// never supposed to have.
-func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
+// mockHostDetailsDatastore stubs out the datastore calls getHostDetails makes
+// for every host, so that a test only has to set up the ones it asserts on.
+func mockHostDetailsDatastore(ds *mock.Store) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -659,9 +657,9 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 		return nil
 	}
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
-		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
-			PushToken: []byte("sensitive-push-token"),
-		}
+		return nil
+	}
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -715,6 +713,24 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 		return nil, nil
 	}
+}
+
+// TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment is a regression test:
+// BYOD/personal enrollments never receive the device vitals fields (see
+// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
+// getHostDetails shouldn't even load them -- both to avoid an unnecessary
+// datastore call and so a personal host's response can't carry data it was
+// never supposed to have.
+func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAppleDeviceVitals = fleet.HostMDMAppleDeviceVitals{
+			PushToken: []byte("sensitive-push-token"),
+		}
+		return nil
+	}
 
 	personal := fleet.MDMEnrollmentStatusPersonal
 	manual := fleet.MDMEnrollmentStatusManual
@@ -745,6 +761,104 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 				assert.Equal(t, []byte("sensitive-push-token"), hostDetail.PushToken)
 			} else {
 				assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, hostDetail.HostMDMAppleDeviceVitals)
+			}
+		})
+	}
+}
+
+// TestHostDetailsSuppressesAndroidPhoneNumberForBYOD checks that a
+// personally-owned Android host never surfaces a phone number, whatever ended
+// up stored: ingestion gates on the device-reported ownership, which AMAPI may
+// omit, so the response is gated on Fleet's own enrollment record.
+func TestHostDetailsSuppressesAndroidPhoneNumberForBYOD(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
+			Manufacturer:   new("Google"),
+			TelephonyInfos: []fleet.MDMAndroidTelephonyInfo{{PhoneNumber: "+15555550100"}},
+		}
+		return nil
+	}
+
+	personal := fleet.MDMEnrollmentStatusPersonal
+	manual := fleet.MDMEnrollmentStatusManual
+
+	cases := []struct {
+		name             string
+		enrollmentStatus *string
+		wantTelephony    bool
+	}{
+		{"personal enrollment", &personal, false},
+		{"company owned", &manual, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := &fleet.Host{
+				ID:       5,
+				Platform: "android",
+				UUID:     "android-byod-uuid",
+				MDM:      fleet.MDMHostData{EnrollmentStatus: tc.enrollmentStatus},
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			// The other vitals load either way; only the phone number is gated.
+			assert.Equal(t, "Google", *hostDetail.Manufacturer)
+			if tc.wantTelephony {
+				assert.Len(t, hostDetail.TelephonyInfos, 1)
+			} else {
+				assert.Nil(t, hostDetail.TelephonyInfos)
+			}
+		})
+	}
+}
+
+// TestHostDetailsLoadsAndroidDeviceVitals checks that the Android-only vitals
+// are loaded for Android hosts and for nothing else, so that a host on another
+// platform can't carry Android fields in its response.
+func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
+		host.HostMDMAndroidDeviceVitals = fleet.HostMDMAndroidDeviceVitals{
+			Manufacturer: new("Google"),
+			APILevel:     new(int64(36)),
+		}
+		return nil
+	}
+
+	cases := []struct {
+		name             string
+		platform         string
+		wantVitalsLoaded bool
+	}{
+		{"android host", "android", true},
+		{"darwin host", "darwin", false},
+		{"ipados host", "ipados", false},
+		{"windows host", "windows", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked = false
+			host := &fleet.Host{
+				ID:       4,
+				Platform: tc.platform,
+				UUID:     "android-vitals-uuid",
+			}
+			opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVitalsLoaded, ds.LoadHostMDMAndroidDeviceVitalsFuncInvoked)
+			if tc.wantVitalsLoaded {
+				assert.Equal(t, "Google", *hostDetail.Manufacturer)
+				assert.Equal(t, int64(36), *hostDetail.APILevel)
+			} else {
+				assert.Equal(t, fleet.HostMDMAndroidDeviceVitals{}, hostDetail.HostMDMAndroidDeviceVitals)
 			}
 		})
 	}
@@ -3508,6 +3622,132 @@ func TestRefetchHostUserInTeams(t *testing.T) {
 	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, observer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+}
+
+func refetchCommandTypeFromUUID(commandUUID string) string {
+	for _, prefix := range []string{
+		fleet.RefetchAppsCommandUUIDPrefix,
+		fleet.RefetchCertsCommandUUIDPrefix,
+		fleet.RefetchDeviceCommandUUIDPrefix,
+	} {
+		if strings.HasPrefix(commandUUID, prefix) {
+			return prefix
+		}
+	}
+	return commandUUID
+}
+
+func TestRefetchHostIOSTracksBeforeEnqueue(t *testing.T) {
+	host := &fleet.Host{ID: 7, Platform: "ios", UUID: "ios-host-uuid"}
+
+	type testEnv struct {
+		ds         *mock.Store
+		mdmStorage *mdmmock.MDMAppleStore
+		svc        fleet.Service
+		ctx        context.Context
+		events     []string
+	}
+
+	setup := func(t *testing.T, pusher nanomdm_push.Pusher) *testEnv {
+		env := &testEnv{
+			ds:         new(mock.Store),
+			mdmStorage: &mdmmock.MDMAppleStore{},
+		}
+		env.svc, env.ctx = newTestService(t, env.ds, nil, nil, &TestServerOpts{
+			MDMStorage: env.mdmStorage,
+			MDMPusher:  pusher,
+		})
+
+		env.ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+		env.ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+			return nil
+		}
+		env.ds.GetHostMDMCommandsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostMDMCommand, error) {
+			return nil, nil
+		}
+		env.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		env.ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		env.ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{InstalledFromDep: true}, nil
+		}
+		env.ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+			return nil, &notFoundError{}
+		}
+		env.ds.GetHostLockWipeStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+			return &fleet.HostLockWipeStatus{}, nil
+		}
+		env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
+			for _, cmd := range commands {
+				require.Equal(t, host.ID, cmd.HostID)
+				env.events = append(env.events, "add:"+cmd.CommandType)
+			}
+			return nil
+		}
+		env.ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
+			require.Equal(t, host.ID, command.HostID)
+			env.events = append(env.events, "remove:"+command.CommandType)
+			return nil
+		}
+		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			env.events = append(env.events, "enqueue:"+refetchCommandTypeFromUUID(cmd.CommandUUID))
+			return nil, nil
+		}
+
+		return env
+	}
+
+	t.Run("tracking rows are written before each enqueue", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{})
+
+		require.NoError(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"add:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"add:" + fleet.RefetchDeviceCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchDeviceCommandUUIDPrefix,
+		}, env.events)
+	})
+
+	t.Run("enqueue failure untracks only the failed command type", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{})
+		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			commandType := refetchCommandTypeFromUUID(cmd.CommandUUID)
+			if commandType == fleet.RefetchCertsCommandUUIDPrefix {
+				return nil, errors.New("db down")
+			}
+			env.events = append(env.events, "enqueue:"+commandType)
+			return nil, nil
+		}
+
+		require.Error(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"add:" + fleet.RefetchCertsCommandUUIDPrefix,
+			"remove:" + fleet.RefetchCertsCommandUUIDPrefix,
+		}, env.events)
+	})
+
+	t.Run("push failure keeps the tracking row", func(t *testing.T) {
+		env := setup(t, &mockAPNSPusher{failUUIDs: map[string]bool{host.UUID: true}})
+
+		// the first command's push fails, so RefetchHost returns an error, but
+		// the command is durably enqueued and its tracking row must stay
+		require.Error(t, env.svc.RefetchHost(test.UserContext(env.ctx, test.UserAdmin), host.ID))
+		require.False(t, env.ds.RemoveHostMDMCommandFuncInvoked)
+		require.Equal(t, []string{
+			"add:" + fleet.RefetchAppsCommandUUIDPrefix,
+			"enqueue:" + fleet.RefetchAppsCommandUUIDPrefix,
+		}, env.events)
+	})
 }
 
 func TestEmptyTeamOSVersions(t *testing.T) {

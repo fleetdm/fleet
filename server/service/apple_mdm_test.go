@@ -45,6 +45,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
@@ -270,7 +271,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
@@ -402,15 +403,21 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		"host3": 2,
 		"host4": 0,
 	}
+	hostUUIDToID := map[string]uint{"host1": 1, "host2": 2, "host3": 3, "host4": 4}
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 		hosts := make([]*fleet.Host, 0, len(uuids))
 		for _, uuid := range uuids {
-			tmID := hostUUIDsToTeamID[uuid]
-			if tmID == 0 {
-				hosts = append(hosts, &fleet.Host{UUID: uuid, TeamID: nil})
-			} else {
-				hosts = append(hosts, &fleet.Host{UUID: uuid, TeamID: &tmID})
+			// UUIDs with no host row are skipped by the datastore, so unknown ones
+			// don't resolve to a host here either.
+			tmID, ok := hostUUIDsToTeamID[uuid]
+			if !ok {
+				continue
 			}
+			h := &fleet.Host{ID: hostUUIDToID[uuid], UUID: uuid, Platform: "darwin"}
+			if tmID != 0 {
+				h.TeamID = &tmID
+			}
+			hosts = append(hosts, h)
 		}
 		return hosts, nil
 	}
@@ -430,29 +437,49 @@ func TestAppleMDMAuthorization(t *testing.T) {
 </plist>`))
 
 	t.Run("EnqueueMDMAppleCommand", func(t *testing.T) {
+		mdmStore := opts.MDMStorage.(*mdmmock.MDMAppleStore)
+		var enqueuedIDs []string
+		mdmStore.EnqueueCommandFunc = func(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			enqueuedIDs = append(enqueuedIDs, ids...)
+			return nil, nil
+		}
+		var activityHostUUIDs []string
+		opts.ActivityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, details activity_api.ActivityDetails) error {
+			ranCmd, ok := details.(*fleet.ActivityTypeRanCustomMDMCommand)
+			require.True(t, ok)
+			activityHostUUIDs = append(activityHostUUIDs, ranCmd.HostUUID)
+			return nil
+		}
+
 		enqueueCmdCases := []struct {
-			desc              string
-			user              *fleet.User
-			uuids             []string
-			shoudFailWithAuth bool
+			desc               string
+			user               *fleet.User
+			uuids              []string
+			wantEnqueued       []string // UUIDs expected to be enqueued and get an activity
+			shouldFailWithAuth bool
 		}{
-			{"no role", test.UserNoRoles, []string{"host1", "host2", "host3", "host4"}, true},
-			{"maintainer can run", test.UserMaintainer, []string{"host1", "host2", "host3", "host4"}, false},
-			{"admin can run", test.UserAdmin, []string{"host1", "host2", "host3", "host4"}, false},
-			{"observer cannot run", test.UserObserver, []string{"host1", "host2", "host3", "host4"}, true},
-			{"team 1 admin can run team 1", test.UserTeamAdminTeam1, []string{"host1", "host2"}, false},
-			{"team 2 admin can run team 2", test.UserTeamAdminTeam2, []string{"host3"}, false},
-			{"team 1 maintainer can run team 1", test.UserTeamMaintainerTeam1, []string{"host1", "host2"}, false},
-			{"team 1 observer cannot run team 1", test.UserTeamObserverTeam1, []string{"host1", "host2"}, true},
-			{"team 1 admin cannot run team 2", test.UserTeamAdminTeam1, []string{"host3"}, true},
-			{"team 1 admin cannot run no team", test.UserTeamAdminTeam1, []string{"host4"}, true},
-			{"team 1 admin cannot run mix of team 1 and 2", test.UserTeamAdminTeam1, []string{"host1", "host3"}, true},
+			{"no role", test.UserNoRoles, []string{"host1", "host2", "host3", "host4"}, nil, true},
+			{"maintainer can run", test.UserMaintainer, []string{"host1", "host2", "host3", "host4"}, []string{"host1", "host2", "host3", "host4"}, false},
+			{"admin can run", test.UserAdmin, []string{"host1", "host2", "host3", "host4"}, []string{"host1", "host2", "host3", "host4"}, false},
+			{"observer cannot run", test.UserObserver, []string{"host1", "host2", "host3", "host4"}, nil, true},
+			{"team 1 admin can run team 1", test.UserTeamAdminTeam1, []string{"host1", "host2"}, []string{"host1", "host2"}, false},
+			{"team 2 admin can run team 2", test.UserTeamAdminTeam2, []string{"host3"}, []string{"host3"}, false},
+			{"team 1 maintainer can run team 1", test.UserTeamMaintainerTeam1, []string{"host1", "host2"}, []string{"host1", "host2"}, false},
+			{"team 1 observer cannot run team 1", test.UserTeamObserverTeam1, []string{"host1", "host2"}, nil, true},
+			{"team 1 admin cannot run team 2", test.UserTeamAdminTeam1, []string{"host3"}, nil, true},
+			{"team 1 admin cannot run no team", test.UserTeamAdminTeam1, []string{"host4"}, nil, true},
+			{"team 1 admin cannot run mix of team 1 and 2", test.UserTeamAdminTeam1, []string{"host1", "host3"}, nil, true},
+			{"admin skips unresolvable ids", test.UserAdmin, []string{"host1", "ghost1", "host2", "ghost2"}, []string{"host1", "host2"}, false},
+			{"team 1 maintainer skips unresolvable ids", test.UserTeamMaintainerTeam1, []string{"host1", "ghost1", "host2"}, []string{"host1", "host2"}, false},
 		}
 		for _, c := range enqueueCmdCases {
 			t.Run(c.desc, func(t *testing.T) {
+				enqueuedIDs, activityHostUUIDs = nil, nil
 				ctx = test.UserContext(ctx, c.user)
 				_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
-				checkAuthErr(t, err, c.shoudFailWithAuth)
+				checkAuthErr(t, err, c.shouldFailWithAuth)
+				require.ElementsMatch(t, c.wantEnqueued, enqueuedIDs)
+				require.ElementsMatch(t, c.wantEnqueued, activityHostUUIDs)
 			})
 		}
 
@@ -521,10 +548,10 @@ func TestAppleMDMAuthorization(t *testing.T) {
 
 	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
 		cmdResultsCases := []struct {
-			desc              string
-			user              *fleet.User
-			cmdUUID           string
-			shoudFailWithAuth bool
+			desc               string
+			user               *fleet.User
+			cmdUUID            string
+			shouldFailWithAuth bool
 		}{
 			{"no role", test.UserNoRoles, "uuidTm1", true},
 			{"maintainer can view", test.UserMaintainer, "uuidTm1", false},
@@ -564,11 +591,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
 				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
-				checkAuthErr(t, err, c.shoudFailWithAuth)
+				checkAuthErr(t, err, c.shouldFailWithAuth)
 
 				// TODO(sarah): move test to shared file
 				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "")
-				checkAuthErr(t, err, c.shoudFailWithAuth)
+				checkAuthErr(t, err, c.shouldFailWithAuth)
 			})
 		}
 	})
@@ -4017,8 +4044,12 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 		name             string
 		probeResult      fleet.ProfileACMECommandResult
 		probeErr         error
+		enqueueErr       error
+		pushFail         bool
 		expectAddCommand bool
 		expectEnqueue    bool
+		expectRemove     bool
+		expectErr        bool
 		// expectTarget defaults to the host's device channel.
 		expectTarget string
 	}{
@@ -4030,6 +4061,30 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 			},
 			expectAddCommand: true,
 			expectEnqueue:    true,
+		},
+		{
+			name: "macOS + ACME profile: enqueue failure untracks the row",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true,
+			},
+			enqueueErr:       errors.New("db down"),
+			expectAddCommand: true,
+			expectEnqueue:    true,
+			expectRemove:     true,
+			expectErr:        true,
+		},
+		{
+			name: "macOS + ACME profile: push failure keeps the row",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true,
+			},
+			pushFail:         true,
+			expectAddCommand: true,
+			expectEnqueue:    true,
+			expectRemove:     false,
+			expectErr:        true,
 		},
 		{
 			name: "system-scoped profile: enqueues to the device channel",
@@ -4102,9 +4157,25 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				addedCommands = append(addedCommands, cmds...)
 				return nil
 			}
+			var removed bool
+			ds.RemoveHostMDMCommandFunc = func(ctx context.Context, cmd fleet.HostMDMCommand) error {
+				removed = true
+				require.Equal(t, hostID, cmd.HostID)
+				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, cmd.CommandType)
+				return nil
+			}
 
 			mdmStorage := &mdmmock.MDMAppleStore{}
-			pushFactory, _ := newMockAPNSPushProviderFactory()
+			pushFactory, pushProvider := newMockAPNSPushProviderFactory()
+			if c.pushFail {
+				pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*nanomdm_push.Response, error) {
+					res := make(map[string]*nanomdm_push.Response, len(pushes))
+					for _, p := range pushes {
+						res[p.Token.String()] = &nanomdm_push.Response{Err: errors.New("apns unavailable")}
+					}
+					return res, nil
+				}
+			}
 			pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, NewNanoMDMLogger(slog.New(slog.DiscardHandler)))
 			cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 			var enqueued bool
@@ -4116,7 +4187,7 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				enqueued = true
 				require.Equal(t, []string{expectTarget}, id)
 				require.Equal(t, "CertificateList", cmd.Command.Command.RequestType)
-				return nil, nil
+				return nil, c.enqueueErr
 			}
 			mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
 				res := make(map[string]*mdm.Push, len(ids))
@@ -4139,7 +4210,11 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				commander: cmdr,
 			}
 			err := svc.maybeQueueCertificateListForACMEProfile(ctx, hostUUID, commandUUID)
-			require.NoError(t, err)
+			if c.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 
 			if c.expectAddCommand {
 				require.Len(t, addedCommands, 1)
@@ -4149,6 +4224,7 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				require.Empty(t, addedCommands)
 			}
 			require.Equal(t, c.expectEnqueue, enqueued)
+			require.Equal(t, c.expectRemove, removed)
 		})
 	}
 }

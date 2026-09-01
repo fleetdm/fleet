@@ -130,11 +130,12 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
-		installerID, err := strconv.ParseUint(idVal[0], 10, 32)
+		parsedInstallerID, err := strconv.ParseUint(idVal[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid installer_id: %s", idVal[0])}
 		}
-		decoded.InstallerID = new(uint(installerID))
+		installerID := uint(parsedInstallerID)
+		decoded.InstallerID = &installerID
 	}
 
 	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
@@ -390,11 +391,12 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	if v, ok := r.MultipartForm.Value["software_title_id"]; ok && len(v) > 0 && v[0] != "" {
-		id, err := strconv.ParseUint(v[0], 10, 32)
+		parsedTitleID, err := strconv.ParseUint(v[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid software_title_id: %s", v[0])}
 		}
-		decoded.TitleID = new(uint(id))
+		titleID := uint(parsedTitleID)
+		decoded.TitleID = &titleID
 	}
 
 	val, ok = r.MultipartForm.Value["install_script"]
