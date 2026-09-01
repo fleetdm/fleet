@@ -1228,6 +1228,11 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
+	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
+	// User Enrollment both report the "On (manual - personal)" status, so this is
+	// what distinguishes them. Nil for hosts with no Apple MDM enrollment.
+	LastMDMEnrollmentType *string `json:"last_mdm_enrollment_type"`
 
 	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
