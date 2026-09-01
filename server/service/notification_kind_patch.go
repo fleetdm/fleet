@@ -97,10 +97,7 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 	var notificationUUID string
 	if awaiting != nil {
 		notificationUUID = awaiting.UUID
-	}
-
-	// create a new notification if a pending notification doesn't already exist
-	if notificationUUID == "" {
+	} else {
 		expiresAt := time.Now().UTC().Add(notifications_api.EndUserNotificationMaxLifetime)
 
 		created, err := svc.notificationsSvc.CreateNotification(ctx, &notifications_api.EndUserNotification{
@@ -147,11 +144,10 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 		return nil, ctxerr.Wrap(ctx, err, "get device auth token for patch notification")
 	}
 
-	installsQueued, err := k.ds.PatchNotificationInstallsQueued(ctx, notification.UUID)
+	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "check patch notification installs queued")
+		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
 	}
-
 	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
@@ -169,7 +165,7 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 			iconURL := icon.IconUrlWithDeviceToken(deviceToken)
 			item.IconURL = &iconURL
 		}
-		if installsQueued {
+		if patchNotification.InstallsQueuedAt != nil {
 			item.Status = "Installing..."
 		}
 		items = append(items, item)
@@ -187,7 +183,7 @@ func (k *patchNotificationKind) Render(ctx context.Context, notification *notifi
 
 	hide := notifications_api.NotificationAction{ID: patchNotificationActionDismiss, Label: "Hide"}
 	actions := []notifications_api.NotificationAction{hide}
-	if !installsQueued {
+	if patchNotification.InstallsQueuedAt == nil {
 		secondary := notifications_api.NotificationAction{ID: patchNotificationActionRemind, Label: "Remind me 5 minutes before"}
 		if reminder {
 			secondary = hide
@@ -255,11 +251,11 @@ func (k *patchNotificationKind) updateNow(ctx context.Context, notification *not
 		return nil
 	}
 
-	installsQueued, err := k.ds.PatchNotificationInstallsQueued(ctx, notification.UUID)
+	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "check patch notification installs queued")
+		return ctxerr.Wrap(ctx, err, "get patch notification")
 	}
-	if installsQueued {
+	if patchNotification.InstallsQueuedAt != nil {
 		return nil
 	}
 

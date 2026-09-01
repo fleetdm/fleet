@@ -540,9 +540,7 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
-type PatchNotificationAwaitingDispatchForHostFunc func(ctx context.Context, hostID uint) (string, error)
-
-type PatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) (bool, error)
+type GetPatchNotificationFunc func(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error)
 
 type SetPatchNotificationInstallsQueuedFunc func(ctx context.Context, notificationUUID string) error
 
@@ -3125,11 +3123,8 @@ type DataStore struct {
 	PatchNotificationExistsForAppFunc        PatchNotificationExistsForAppFunc
 	PatchNotificationExistsForAppFuncInvoked bool
 
-	PatchNotificationAwaitingDispatchForHostFunc        PatchNotificationAwaitingDispatchForHostFunc
-	PatchNotificationAwaitingDispatchForHostFuncInvoked bool
-
-	PatchNotificationInstallsQueuedFunc        PatchNotificationInstallsQueuedFunc
-	PatchNotificationInstallsQueuedFuncInvoked bool
+	GetPatchNotificationFunc        GetPatchNotificationFunc
+	GetPatchNotificationFuncInvoked bool
 
 	SetPatchNotificationInstallsQueuedFunc        SetPatchNotificationInstallsQueuedFunc
 	SetPatchNotificationInstallsQueuedFuncInvoked bool
@@ -7649,18 +7644,11 @@ func (s *DataStore) PatchNotificationExistsForApp(ctx context.Context, hostID ui
 	return s.PatchNotificationExistsForAppFunc(ctx, hostID, softwareTitleID)
 }
 
-func (s *DataStore) PatchNotificationAwaitingDispatchForHost(ctx context.Context, hostID uint) (string, error) {
+func (s *DataStore) GetPatchNotification(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error) {
 	s.mu.Lock()
-	s.PatchNotificationAwaitingDispatchForHostFuncInvoked = true
+	s.GetPatchNotificationFuncInvoked = true
 	s.mu.Unlock()
-	return s.PatchNotificationAwaitingDispatchForHostFunc(ctx, hostID)
-}
-
-func (s *DataStore) PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
-	s.mu.Lock()
-	s.PatchNotificationInstallsQueuedFuncInvoked = true
-	s.mu.Unlock()
-	return s.PatchNotificationInstallsQueuedFunc(ctx, notificationUUID)
+	return s.GetPatchNotificationFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error {

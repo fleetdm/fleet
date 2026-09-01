@@ -752,10 +752,10 @@ type Datastore interface {
 	// PatchNotificationExistsForApp reports whether a patch notification on this
 	// host still has this app to install.
 	PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
-	// PatchNotificationInstallsQueued reports whether the end user already had this
+	// GetPatchNotification returns the patch half of a notification.
+	GetPatchNotification(ctx context.Context, notificationUUID string) (*PatchNotification, error)
+	// SetPatchNotificationInstallsQueued records that the end user had this
 	// notification install its apps.
-	PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error)
-	// SetPatchNotificationInstallsQueued records that they did.
 	SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error
 	// NewPatchNotification records the patch half of a notification the
 	// notifications context already created.

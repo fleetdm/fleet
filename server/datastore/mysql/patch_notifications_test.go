@@ -93,6 +93,22 @@ func testPatchNotificationExistsForApp(t *testing.T, ds *Datastore) {
 	exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, newTestSoftwareTitle(t, ds, "unlisted"))
 	require.NoError(t, err)
 	assert.False(t, exists)
+
+	// installs already queued means the notification is done with the app, so a
+	// failed forced install can notify about it again
+	queuedTitleID := newTestSoftwareTitle(t, ds, "app-installs-queued")
+	queuedUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, queuedUUID,
+		fleet.PatchNotificationApp{SoftwareTitleID: queuedTitleID}))
+
+	exists, err = ds.PatchNotificationExistsForApp(ctx, host.ID, queuedTitleID)
+	require.NoError(t, err)
+	assert.True(t, exists)
+
+	require.NoError(t, ds.SetPatchNotificationInstallsQueued(ctx, queuedUUID))
+	exists, err = ds.PatchNotificationExistsForApp(ctx, host.ID, queuedTitleID)
+	require.NoError(t, err)
+	assert.False(t, exists)
 }
 
 func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
@@ -162,4 +178,29 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 1)
 	assert.Equal(t, "Notified App (renamed)", apps[0].DisplayName)
 	assert.True(t, apps[0].HasIcon)
+
+	// a deleted policy leaves the app listed, so the toast still names it
+	_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
+	require.NoError(t, err)
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	assert.Nil(t, apps[0].PolicyID)
+
+	// a deleted title takes the app with it, rather than leaving a blank row
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_titles WHERE id = ?`, titleID)
+		return err
+	})
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	assert.Empty(t, apps)
+
+	// and both patch tables hang off the notification
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM notifications_end_user WHERE uuid = ?`, notificationUUID)
+		return err
+	})
+	_, err = ds.GetPatchNotification(ctx, notificationUUID)
+	assert.True(t, fleet.IsNotFound(err))
 }

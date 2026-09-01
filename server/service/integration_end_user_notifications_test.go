@@ -552,55 +552,45 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotContains(t, resp.ScriptContents, token)
 	})
 
-	t.Run("update now queues an install per app and finishes the notification", func(t *testing.T) {
+	// What update now does with the notification is TestPatchNotificationUpdateNow.
+	// This is the half only the install queue's own SQL can show: the install it
+	// queues carries its policy but not the app open query that policy would
+	// otherwise put on it, both while queued and once activated.
+	t.Run("update now queues an install that runs with the app open", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-update-now")
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "update-now-team"})
 		require.NoError(t, err)
 		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-		type app struct {
-			installerID uint
-			titleID     uint
-			policyID    uint
-		}
-		admin := s.users["admin1@example.com"]
-		apps := make([]app, 0, 2)
-		for _, name := range []string{"Update Now App A", "Update Now App B"} {
-			installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-				InstallScript: "echo", Filename: name + ".pkg", StorageID: uuid.NewString(),
-				Title: name, Version: "1.0.0", Source: "apps", Platform: "darwin",
-				UserID: admin.ID,
-				TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
-				AppOpenQuery: "SELECT 1 FROM processes WHERE name = 'app'",
-			})
-			require.NoError(t, err)
+		installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "update-now.pkg", StorageID: uuid.NewString(),
+			Title: "Update Now App", Version: "1.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			AppOpenQuery: "SELECT 1 FROM processes WHERE name = 'app'",
+		})
+		require.NoError(t, err)
 
-			var titleID uint
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &titleID,
-					`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
-			})
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		})
 
-			policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
-				Name: name + " up to date", Query: "SELECT 1;",
-			})
-			require.NoError(t, err)
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx,
-					`UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
-				return err
-			})
-
-			apps = append(apps, app{installerID: installerID, titleID: titleID, policyID: policy.ID})
-		}
+		policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+			Name: "Update Now App up to date", Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+			return err
+		})
 
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"reminder": false}`)
 		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
-		for _, a := range apps {
-			require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
-				PolicyID: &a.policyID, SoftwareTitleID: a.titleID, SoftwareInstallerID: &a.installerID,
-			}))
-		}
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			PolicyID: &policy.ID, SoftwareTitleID: titleID, SoftwareInstallerID: &installerID,
+		}))
 
 		dispatch(t)
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
@@ -610,62 +600,40 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		var view notifications_api.NotificationView
 		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			json.RawMessage(`{"action": "update_now"}`), http.StatusOK, &view)
-
-		require.Len(t, view.Items, 2)
-		for _, item := range view.Items {
-			require.Equal(t, "Installing...", item.Status)
-		}
+		require.Len(t, view.Items, 1)
+		require.Equal(t, "Installing...", view.Items[0].Status)
 		require.Equal(t, []notifications_api.NotificationAction{{ID: "dismiss", Label: "Hide"}}, view.Actions)
 
-		installsQueued, err := s.ds.PatchNotificationInstallsQueued(ctx, notificationUUID)
-		require.NoError(t, err)
-		require.True(t, installsQueued)
+		var executionID string
+		var queuedPolicyID *uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return q.QueryRowxContext(ctx, `
+				SELECT ua.execution_id, siua.policy_id
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ?`, host.ID).Scan(&executionID, &queuedPolicyID)
+		})
+		require.NotNil(t, queuedPolicyID, "the install keeps its policy so it shows in Automation runs")
+		require.Equal(t, policy.ID, *queuedPolicyID)
 
-		type queuedInstall struct {
-			ExecutionID         string `db:"execution_id"`
-			SoftwareInstallerID uint   `db:"software_installer_id"`
-			PolicyID            *uint  `db:"policy_id"`
-		}
-		queuedInstalls := func() []queuedInstall {
-			var installs []queuedInstall
-			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				return sqlx.SelectContext(ctx, q, &installs, `
-					SELECT ua.execution_id, siua.software_installer_id, siua.policy_id
-					FROM upcoming_activities ua
-						JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
-					WHERE ua.host_id = ? ORDER BY siua.software_installer_id`, host.ID)
-			})
-			return installs
-		}
-
-		installs := queuedInstalls()
-		require.Len(t, installs, 2)
-		for i, install := range installs {
-			require.Equal(t, apps[i].installerID, install.SoftwareInstallerID)
-			require.NotNil(t, install.PolicyID, "the install keeps its policy so it shows in Automation runs")
-			require.Equal(t, apps[i].policyID, *install.PolicyID)
-		}
-
-		queued, err := s.ds.GetSoftwareInstallDetails(ctx, installs[0].ExecutionID)
+		queued, err := s.ds.GetSoftwareInstallDetails(ctx, executionID)
 		require.NoError(t, err)
 		require.True(t, queued.NotifyBeforePatching)
 		require.Empty(t, queued.PreInstallCondition)
 
+		// the install waits behind the notification's own script, so close the
+		// window the way the end user would and let it activate
 		postScriptResult(host, *dispatched.ExecutionID, 0)
 		var activatedCount int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &activatedCount,
-				`SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ?`, installs[0].ExecutionID)
+				`SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ?`, executionID)
 		})
-		require.Equal(t, 1, activatedCount, "the install should be activated, so the other half of the query serves it")
+		require.Equal(t, 1, activatedCount, "otherwise the read below is still the queued half")
 
-		activated, err := s.ds.GetSoftwareInstallDetails(ctx, installs[0].ExecutionID)
+		activated, err := s.ds.GetSoftwareInstallDetails(ctx, executionID)
 		require.NoError(t, err)
 		require.True(t, activated.NotifyBeforePatching)
 		require.Empty(t, activated.PreInstallCondition)
-
-		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
-			json.RawMessage(`{"action": "update_now"}`), http.StatusOK, &view)
-		require.Len(t, queuedInstalls(), 2)
 	})
 }

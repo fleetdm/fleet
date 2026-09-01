@@ -37,17 +37,21 @@ LIMIT 1
 	return exists, nil
 }
 
-func (ds *Datastore) PatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) (bool, error) {
-	const selectStmt = `SELECT installs_queued_at IS NOT NULL FROM patch_notifications WHERE notification_uuid = ?`
+func (ds *Datastore) GetPatchNotification(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error) {
+	const selectStmt = `
+SELECT notification_uuid, install_at, reminder_sent_at, installs_queued_at
+FROM patch_notifications
+WHERE notification_uuid = ?
+`
 
-	var queued bool
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &queued, selectStmt, notificationUUID); err != nil {
+	var notification fleet.PatchNotification
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &notification, selectStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
+			return nil, ctxerr.Wrap(ctx, notFound("PatchNotification").WithName(notificationUUID))
 		}
-		return false, ctxerr.Wrap(ctx, err, "check patch notification installs queued")
+		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
 	}
-	return queued, nil
+	return &notification, nil
 }
 
 func (ds *Datastore) SetPatchNotificationInstallsQueued(ctx context.Context, notificationUUID string) error {
