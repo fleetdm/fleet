@@ -114,11 +114,31 @@ describe("MicrosoftGraphPage", () => {
     expect(await screen.findByText("Last synced:")).toBeInTheDocument();
     await user.hover(screen.getByTestId("error-icon"));
 
+    // Scoped to the tooltip.
     await waitFor(() => {
       expect(
-        screen.getByText("Microsoft Graph is temporarily unavailable (503).")
+        within(screen.getByRole("tooltip")).getByText(
+          "Microsoft Graph is temporarily unavailable (503)."
+        )
       ).toBeInTheDocument();
     });
+  });
+
+  it("exposes the sync error to screen readers without a hover", async () => {
+    renderPage([
+      createMockCredential({
+        last_synced_at: "2026-08-14T12:00:00Z",
+        last_sync_error: "Microsoft Graph is temporarily unavailable (503).",
+      }),
+    ]);
+
+    // The message is visible only on hover, which a screen reader cannot perform, so it is also rendered as
+    // visually-hidden text that stays in the accessibility tree.
+    expect(
+      await screen.findByText(
+        "Microsoft Graph is temporarily unavailable (503)."
+      )
+    ).toBeInTheDocument();
   });
 
   it("hides the error indicator when the credential was rejected", async () => {

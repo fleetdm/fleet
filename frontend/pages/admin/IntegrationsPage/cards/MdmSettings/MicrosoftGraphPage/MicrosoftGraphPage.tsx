@@ -330,14 +330,17 @@ const MicrosoftGraphPage = () => {
           }
         />
         {showSyncError && (
-          <TooltipWrapper
-            showArrow
-            underline={false}
-            position="top"
-            tipContent={last_sync_error}
-          >
-            <Icon name="error" />
-          </TooltipWrapper>
+          <>
+            <TooltipWrapper
+              showArrow
+              underline={false}
+              position="top"
+              tipContent={last_sync_error}
+            >
+              <Icon name="error" />
+            </TooltipWrapper>
+            <span className="sr-only">{last_sync_error}</span>
+          </>
         )}
       </div>
     );
