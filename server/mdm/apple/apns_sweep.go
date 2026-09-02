@@ -36,7 +36,11 @@ type apnsNotifier interface {
 // gaps, and a spurious nudge costs one empty Idle check-in.
 //
 // The batch size is computed at pass start so one lap completes in roughly a
-// day at the given tick interval, and rides along with the cursor.
+// day at the given tick interval, and rides along with the cursor. Below
+// ~72k enrollments the minimum batch size makes laps finish faster than a
+// day; the resulting extra pushes only reach devices that are still silent
+// and offline, where re-arming a fresh stored push is harmless (APNs
+// coalesces them) and extends the expiration hedge.
 func SweepAPNsPushes(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander,
 	logger *slog.Logger, interval time.Duration,
 ) error {

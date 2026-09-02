@@ -6,6 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +40,8 @@ func TestMDMAppleAPNsSweepState(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, state, "nil set resets the state")
 
-	// a poisoned key self-heals to a fresh pass instead of wedging the cron.
+	// a poisoned key self-heals to a fresh pass instead of wedging the cron,
+	// and the bad key is dropped rather than left to linger.
 	conn := pool.Get()
 	_, err = conn.Do("SET", apnsSweepStateKey, "{not json")
 	require.NoError(t, err)
@@ -47,4 +49,10 @@ func TestMDMAppleAPNsSweepState(t *testing.T) {
 	state, err = ds.GetMDMAppleAPNsSweepState(ctx)
 	require.NoError(t, err)
 	require.Nil(t, state)
+
+	conn = pool.Get()
+	exists, err := redigo.Int(conn.Do("EXISTS", apnsSweepStateKey))
+	conn.Close()
+	require.NoError(t, err)
+	require.Zero(t, exists, "poisoned key must be deleted on read")
 }
