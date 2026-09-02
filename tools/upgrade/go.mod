@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/upgrade
 
-go 1.26.7
+go 1.26.8
 
 // The parent fleet module is pinned to the local checkout so this
 // standalone upgrade test can import fleethttp and the service client.

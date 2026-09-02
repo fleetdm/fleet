@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/ci/setboolcheck
 
-go 1.26.7
+go 1.26.8
 
 require (
 	github.com/golangci/plugin-module-register v0.1.2
